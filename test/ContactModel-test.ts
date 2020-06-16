@@ -22,7 +22,7 @@ import {
     Profile,
     SHA256IdHash
 } from '@OneCoreTypes';
-import ContactModel from '../lib/model/ContactModel';
+import ContactModel from '../lib/ContactModel';
 import Recipes from '../lib/recipies/recipies';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';

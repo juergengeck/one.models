@@ -1,18 +1,18 @@
 // @ts-nocheck
-import JournalModel from '../../lib/model/JournalModel';
-import QuestionnaireModel from '../../lib/model/QuestionnaireModel';
-import WbcDiffModel from '../../lib/model/WbcDiffModel';
-import HeartEventModel from '../../lib/model/HeartEventModel';
-import DocumentModel from '../../lib/model/DocumentModel';
-import ConnectionsModel from '../../lib/model/ConnectionsModel';
-import BodyTemperatureModel from '../../lib/model/BodyTemperatureModel';
-import DiaryModel from '../../lib/model/DiaryModel';
-import NewsModel from '../../lib/model/NewsModel';
-import OneInstanceModel, {AuthenticationState} from '../../lib/model/OneInstanceModel';
-import ChannelManager from '../../lib/model/ChannelManager';
-import ContactModel from '../../lib/model/ContactModel';
-import ConsentFileModel from '../../lib/model/ConsentFileModel';
-import PropertyTreeStore, {PropertyTree} from '../../lib/model/SettingsModel';
+import JournalModel from '../../lib/JournalModel';
+import QuestionnaireModel from '../../lib/QuestionnaireModel';
+import WbcDiffModel from '../../lib/WbcDiffModel';
+import HeartEventModel from '../../lib/HeartEventModel';
+import DocumentModel from '../../lib/DocumentModel';
+import ConnectionsModel from '../../lib/ConnectionsModel';
+import BodyTemperatureModel from '../../lib/BodyTemperatureModel';
+import DiaryModel from '../../lib/DiaryModel';
+import NewsModel from '../../lib/NewsModel';
+import OneInstanceModel, {AuthenticationState} from '../../lib/OneInstanceModel';
+import ChannelManager from '../../lib/ChannelManager';
+import ContactModel from '../../lib/ContactModel';
+import ConsentFileModel from '../../lib/ConsentFileModel';
+import PropertyTreeStore, {PropertyTree} from '../../lib/SettingsModel';
 
 export default class Model {
     constructor() {

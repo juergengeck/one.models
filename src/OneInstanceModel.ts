@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
-import Recipies from '../recipies/recipies';
-import oneModules from '../generated/oneModules';
+import Recipies from './recipies/recipies';
+import oneModules from './generated/oneModules';
 import {Module, SHA256Hash, VersionedObjectResult} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -13,7 +13,7 @@ import ConnectionsModel from './ConnectionsModel';
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
 import ChannelManager from './ChannelManager';
-import i18n from '../i18n';
+import i18n from './i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 
