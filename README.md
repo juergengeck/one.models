@@ -29,9 +29,11 @@ Main models used in one built in one package
 
 ```
  src
-    ├── model (dir)                 # All the models files 
     ├── recipes (dir)               # All the recipes that are particular used by the models
-    └── 
+    .                               # Models
+    .                               .
+    .                               # Models
+    └── utils (dir)                 # Utils for Models
  test
     ├── utils (dir)                 # Initialization class for the models
     ├── ContactModel-test.ts (file) # Test
