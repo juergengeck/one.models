@@ -1,0 +1,7 @@
+{
+    "extends": "@istanbuljs/nyc-config-typescript",
+        "extension": [".js"],
+        "include": "lib/model",
+        "exclude": "lib/model/utils",
+    "all": true
+}

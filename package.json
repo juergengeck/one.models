@@ -7,15 +7,21 @@
   "private": true,
   "scripts": {
     "build": "node ./build.js",
-    "start": "node lib/index.js",
-    "test": "mocha test/**-test.js"
+    "start": "node lib/model/index.js",
+    "test": "nyc mocha test/**-test.js"
   },
   "dependencies": {
+    "i18next": "^19.4.2",
     "one.core": "refinio/one.core"
   },
   "devDependencies": {
+    "@types/node": "^12.12.47",
+    "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@types/chai": "*",
+    "@types/lodash": "^4.14.138",
     "@types/mocha": "*",
+    "@types/passport-http": "^0.3.8",
+    "@types/qrcode": "^1.3.4",
     "@types/rimraf": "*",
     "@types/uuid": "^3.4.5",
     "@typescript-eslint/eslint-plugin": "*",
@@ -32,8 +38,10 @@
     "jsdoc-plantuml": "^1.0.1",
     "jsdoc-strip-async-await": "*",
     "mocha": "*",
+    "nyc": "^15.0.1",
     "prettier": "*",
     "sinon": "*",
+    "ts-node": "^8.10.1",
     "webpack-cli": "*"
   }
 }

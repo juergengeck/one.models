@@ -6,7 +6,8 @@ src/generated
 lib/
 test/**/*.js
 .DS_Store
-
+test/testDb
+.nyc_output
 # ONE Database
 OneDB
 
