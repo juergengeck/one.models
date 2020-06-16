@@ -1,0 +1,43 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "alwaysStrict": true,
+        "outDir": "lib",
+        "isolatedModules": false,
+        "moduleResolution": "node",
+        "sourceMap": false,
+        "emitDeclarationOnly": false,
+        "declaration": false,
+        "declarationMap": false,
+        "downlevelIteration": true,
+        "esModuleInterop": true,
+        "lib": ["esnext", "dom"],
+        "module": "esnext",
+        "target": "esnext",
+        "strict": true,
+        "newLine": "LF",
+        "allowJs": true,
+        "checkJs": false,
+        "noUnusedLocals": true,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitReturns": true
+    },
+    "include": [
+        "node_modules/one.core/@OneCoreTypes.d.ts",
+        "@OneCoreTypes.d.ts",
+        "plans",
+        "src/*.ts",
+        "src/**/*.ts",
+        "test/*.ts",
+        "./*.js"
+    ],
+    "exclude": [
+        "node_modules/one.core/src/",
+        "node_modules/one.core/src/**",
+        ".*.js",
+        "builds",
+        "doc"
+    ]
+}

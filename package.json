@@ -1,0 +1,41 @@
+{
+  "name": "one.filer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/refinio/one.filer",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "private": true,
+  "scripts": {
+    "build": "node ./build.js",
+    "start": "node lib/index.js",
+    "test": "mocha test/**-test.js"
+  },
+  "dependencies": {
+    "one.core": "refinio/one.core"
+  },
+  "devDependencies": {
+    "@types/chai": "*",
+    "@types/lodash": "^4.14.138",
+    "@types/mocha": "*",
+    "@types/passport-http": "^0.3.8",
+    "@types/rimraf": "*",
+    "@types/uuid": "^3.4.5",
+    "@typescript-eslint/eslint-plugin": "*",
+    "@typescript-eslint/parser": "*",
+    "babel-eslint": "*",
+    "babel-loader": "*",
+    "babel-preset-minify": "*",
+    "chai": "*",
+    "eslint": "*",
+    "eslint-plugin-import": "*",
+    "eslint-plugin-jsdoc": "*",
+    "jsdoc": "*",
+    "jsdoc-babel": "*",
+    "jsdoc-plantuml": "^1.0.1",
+    "jsdoc-strip-async-await": "*",
+    "mocha": "*",
+    "prettier": "*",
+    "sinon": "*",
+    "webpack-cli": "*"
+  }
+}
