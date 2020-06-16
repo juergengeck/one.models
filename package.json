@@ -15,9 +15,7 @@
   },
   "devDependencies": {
     "@types/chai": "*",
-    "@types/lodash": "^4.14.138",
     "@types/mocha": "*",
-    "@types/passport-http": "^0.3.8",
     "@types/rimraf": "*",
     "@types/uuid": "^3.4.5",
     "@typescript-eslint/eslint-plugin": "*",
