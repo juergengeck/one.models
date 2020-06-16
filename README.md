@@ -16,9 +16,9 @@ git clone https://github.com/refinio/one.smiler.models
 cd one.smiler.models
 yarn install
 ```
-## Starting the example
+## About the project
 
-Nothing to see here, yet
+Main models used in one built in one package
 
 ## Project structure in general
 
@@ -41,8 +41,3 @@ Setup **prettier.js** and **build.js** te be run on file changes.
 ## TypeScript
 
 The file **@OneCoreTypes.d.ts** defines the types this project uses as well as exports
-
-## Misc
-
-I added a lsone.sh file. It lists the contents of the one database in human readable format.
-Requirements: bash, sed and tidy and a console that understands ansi colors.
