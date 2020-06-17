@@ -29,15 +29,52 @@ Main models used in one built in one package
 
 ```
  src
-    ├── recipes (dir)               # All the recipes that are particular used by the models
-    .                               # Models
-    .                               .
-    .                               # Models
-    └── utils (dir)                 # Utils for Models
- test
-    ├── utils (dir)                 # Initialization class for the models
-    ├── ContactModel-test.ts (file) # Test
-    └──   
+ │   i18n.ts
+ │
+ ├───generated
+ │       oneModules.ts
+ │
+ ├───models
+ │   │   BodyTemperatureModel.ts
+ │   │   ChannelManager.ts
+ │   │   ConnectionsModel.ts
+ │   │   ConsentFileModel.ts
+ │   │   ContactModel.ts
+ │   │   DiaryModel.ts
+ │   │   DocumentModel.ts
+ │   │   HeartEventModel.ts
+ │   │   index.ts
+ │   │   JournalModel.ts
+ │   │   NewsModel.ts
+ │   │   OneInstanceModel.ts
+ │   │   QuestionnaireModel.ts
+ │   │   SettingsModel.ts
+ │   │   WbcDiffModel.ts
+ │   │
+ │   └───utils
+ │           QuestionnaireAEK.ts
+ │           QuestionnaireAES.ts
+ │           QuestionnaireEQ5D3L.ts
+ │           QuestionnaireFKP.ts
+ │           QuestionnaireFKV.ts
+ │           QuestionnaireFSM.ts
+ │           QuestionnaireFSV.ts
+ │           QuestionnaireGKM.ts
+ │           QuestionnaireGKV.ts
+ │           QuestionnaireIKP.ts
+ │           QuestionnaireIKV.ts
+ │           QuestionTypes.ts
+ │
+ └───recipies
+         BodyTemperatureRecipies.ts
+         ChannelRecipies.ts
+         ConsentFileRecipies.ts
+         ContactRecipies.ts
+         DiaryRecipies.ts
+         MetaRecipies.ts
+         QuestionnaireRecipies.ts
+         recipies.ts
+         SettingsRecipe.ts
 ```
 
 ## Test coverage
