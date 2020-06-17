@@ -61,7 +61,7 @@ const QuestionnaireIKV: Questionnaire = {
             enableWhen: [
                 {
                     question: 'IKV4',
-                    operator: '!=',
+                    operator: '=',
                     answer: 'wurde aus der Quarantäne oder Isolierstation im Krankenhaus entlassen'
                 }
             ]

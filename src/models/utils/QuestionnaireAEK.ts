@@ -628,37 +628,45 @@ let QuestionnaireAEK: Questionnaire = {
                 {
                     questionIdentifier: 'AEK14.1.9',
                     question:
-                        'Haben Sie an einer Studie zu einer (neuen) COVID-Therapie Teilgenommen',
-                    questionType: QuestionType.Choice,
-                    answerValue: ['Ja', 'Nein', 'Weiß nicht']
-                },
-                {
-                    questionIdentifier: 'AEK14.1.10',
-                    question:
-                        'Welche COVID-Therapie oder Medikamente haben Sie in dieser Studie erhalten?',
-                    questionType: QuestionType.String,
-                    enableWhen: [{question: 'AEK14.1.11', operator: '!exists', answer: ''}]
-                },
-                {
-                    questionIdentifier: 'AEK14.1.11',
-                    question:
-                        'Welche COVID-Therapie oder Medikamente haben Sie in dieser Studie erhalten?',
-                    answerValue: ['Weiß nicht'],
-                    questionType: QuestionType.OpenChoice
-                },
-
-                {
-                    questionIdentifier: 'AEK14.1.12',
-                    question:
                         'Nehmen Sie sich bitte noch die Zeit, in folgendes Feld gegebenenfalls auch alle anderen Behandlungen aufgrund Ihrer SARS-CoV-2 Infektion-einzutragen:',
                     questionType: QuestionType.String,
                     enableWhen: [{question: 'AEK14.1.13', operator: '!exists', answer: ''}]
                 },
                 {
-                    questionIdentifier: 'AEK14.1.13',
+                    questionIdentifier: 'AEK14.1.10',
                     question:
                         'Nehmen Sie sich bitte noch die Zeit, in folgendes Feld gegebenenfalls auch alle anderen Behandlungen aufgrund Ihrer SARS-CoV-2 Infektion-einzutragen:',
                     answerValue: ['Ich habe keine weiteren Behandlungen erhalten'],
+                    questionType: QuestionType.OpenChoice
+                },
+                {
+                    questionIdentifier: 'AEK14.1.11',
+                    question:
+                        'Haben Sie an einer Studie zu einer (neuen) COVID-Therapie Teilgenommen',
+                    questionType: QuestionType.Choice,
+                    answerValue: ['Ja', 'Nein', 'Weiß nicht']
+                }
+            ]
+        },
+
+        {
+            questionIdentifier: 'AEK14.1.11.1',
+            question: '',
+            questionType: QuestionType.Group,
+            enableWhen: [{question: 'AEK14.1.11', operator: '!=', answer: 'Nein'}],
+            item: [
+                {
+                    questionIdentifier: 'AEK14.1.11.1.1',
+                    question:
+                        'Welche COVID-Therapie oder Medikamente haben Sie in dieser Studie erhalten?',
+                    questionType: QuestionType.String,
+                    enableWhen: [{question: 'AEK14.1.11.1.2', operator: '!exists', answer: ''}]
+                },
+                {
+                    questionIdentifier: 'AEK14.1.11.1.2',
+                    question:
+                        'Welche COVID-Therapie oder Medikamente haben Sie in dieser Studie erhalten?',
+                    answerValue: ['Weiß nicht'],
                     questionType: QuestionType.OpenChoice
                 }
             ]

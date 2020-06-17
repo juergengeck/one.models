@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core"
+    "one.core": "refinio/one.core#ONES-373/20200609_change-connection-establishment_og"
   },
   "devDependencies": {
     "@types/node": "^12.12.47",

@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import EventEmmiter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {ConsentFile as OneConsentFile} from '@OneCoreTypes';
 
@@ -42,7 +42,7 @@ function convertFromOne(oneObject: OneConsentFile): ConsentFile {
  * This model implements the posibility to add new consent file to the journal
  *
  */
-export default class ConsentFileModel extends EventEmitter {
+export default class ConsentFileModel extends EventEmmiter {
     channelManager: ChannelManager;
     channelId: string;
 

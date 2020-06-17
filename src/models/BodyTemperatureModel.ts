@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import i18n from './i18n';
+import i18n from '../i18n';
 import ChannelManager from './ChannelManager';
 import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
 

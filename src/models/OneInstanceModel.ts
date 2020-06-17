@@ -1,8 +1,8 @@
 import EventEmitter from 'events';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
-import Recipies from './recipies/recipies';
-import oneModules from './generated/oneModules';
-import {Module, SHA256Hash, VersionedObjectResult} from '@OneCoreTypes';
+import Recipies from '../recipies/recipies';
+import oneModules from '../generated/oneModules';
+import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     getHashByIdHash,
@@ -13,9 +13,10 @@ import ConnectionsModel from './ConnectionsModel';
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
 import ChannelManager from './ChannelManager';
-import i18n from './i18n';
+import i18n from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**
  * Represents the state of authentication.
@@ -149,6 +150,38 @@ export default class OneInstanceModel extends EventEmitter {
      */
     private static checkIfInstanceExists(): boolean {
         return !!localStorage.getItem('instance');
+    }
+
+    /**
+     * When the recovery process is started, the previously generated email is read from the qr code.
+     * The previously created instance with that email as owner is deleted and a new one is created.
+     * The user has to re-enter a password, which will be used for the new instance.
+     *
+     * @param {string} secret
+     * @param {string} patientType
+     * @returns {Promise<void>}
+     */
+    async recoverInstance(secret: string, patientType: string): Promise<void> {
+        this.currentPatientTypeState = patientType;
+
+        const email = window.location.hash.substr(1);
+
+        try {
+            const ownerIdHash = await calculateIdHashOfObj({
+                type: 'Person',
+                email: localStorage.getItem('email')
+            } as Person);
+            const instanceIdHash = await calculateIdHashOfObj({
+                type: 'Instance',
+                name: localStorage.getItem('instance'),
+                owner: ownerIdHash
+            } as Instance);
+            await this.deleteInstance('data#' + instanceIdHash);
+        } catch (_) {
+            throw Error(i18n.t('errors:login.userNotFound'));
+        }
+        this.password = secret;
+        await this.createNewInstanceWithReceivedEmail(email);
     }
 
     /**
@@ -312,7 +345,6 @@ export default class OneInstanceModel extends EventEmitter {
 
     /**
      * Register into the one instance by creating a new one.
-     *
      * @param {string} secret - Secret for decryption
      * @param {string} patientType
      */

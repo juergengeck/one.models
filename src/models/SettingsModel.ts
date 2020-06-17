@@ -14,6 +14,8 @@ export type Settings = {
 };
 
 export abstract class PropertyTree extends EventEmitter {
+    proxyInstances: Map<string, PropertyTreeProxy> = new Map<string, PropertyTreeProxy>();
+
     abstract setValue(key: string, value: string): Promise<void>;
     abstract getValue(key: string): string;
     abstract getChild(key: string): PropertyTree;
@@ -50,7 +52,14 @@ export class PropertyTreeProxy extends PropertyTree {
     }
 
     getChild(key: string): PropertyTree {
-        return new PropertyTreeProxy(key, this.separator, this);
+        let proxyInstance = this.proxyInstances.get(key);
+
+        if (proxyInstance === undefined) {
+            proxyInstance = new PropertyTreeProxy(key, this.separator, this);
+            this.proxyInstances.set(key, proxyInstance);
+        }
+
+        return proxyInstance;
     }
 
     hasValue(key: string): boolean {
@@ -139,14 +148,6 @@ export default class PropertyTreeStore extends PropertyTree {
                 }
             );
         });
-
-        // -----------------
-
-        // --- option 2: ---
-        // change the value directly in keyValueStore
-        // store the object in instance
-        // emit('updated', key)
-        // -----------------
     }
 
     getValue(key: string): string {
@@ -160,12 +161,17 @@ export default class PropertyTreeStore extends PropertyTree {
     }
 
     getChild(key: string): PropertyTree {
-        return new PropertyTreeProxy(key, this.separator, this);
+        let proxyInstance = this.proxyInstances.get(key);
+
+        if (proxyInstance === undefined) {
+            proxyInstance = new PropertyTreeProxy(key, this.separator, this);
+            this.proxyInstances.set(key, proxyInstance);
+        }
+
+        return proxyInstance;
     }
 
     hasValue(key: string): boolean {
         return this.keyValueStore.get(key) !== '';
     }
-    // Ui.menuState -> value (collapsed, open)
-    // Ui.Questionnaire.autoscroll -> value
 }

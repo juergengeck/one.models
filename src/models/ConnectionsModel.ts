@@ -24,7 +24,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {getInstanceIdHash} from 'one.core/lib/instance';
-import i18n from './i18n';
+import i18n from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**

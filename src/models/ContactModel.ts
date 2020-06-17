@@ -15,6 +15,7 @@ import {
     ContactDescriptionTypes,
     UnversionedObjectResult,
     CommunicationEndpointTypes,
+    Instance
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -53,7 +54,7 @@ export default class ContactModel extends EventEmitter {
     constructor(oneInstanceModel: OneInstanceModel) {
         super();
         this.oneInstanceModel = oneInstanceModel;
-        this.registerHooks();
+        // this.registerHooks();
     }
 
     /** ########################################## Public ########################################## **/

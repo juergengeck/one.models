@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {DiaryEntry as OneDiaryEntry} from '@OneCoreTypes';
-import i18n from './i18n';
+import i18n from '../i18n';
 
 /**
  * This represents the model of a diary entry
