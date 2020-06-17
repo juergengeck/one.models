@@ -228,7 +228,7 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         const connection = this.partnerConnections.find((con) => {
-            return con.pairingInformation?.publicKeyRemote === pairingInformation.publicKeyRemote;
+            return con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote;
         });
 
         if (connection === undefined) {
@@ -360,7 +360,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             const connection = this.personalCloudConnections.find((con) => {
                 return (
-                    con.pairingInformation?.publicKeyRemote === pairingInformation.publicKeyRemote
+                    con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
                 );
             });
 
@@ -394,7 +394,7 @@ export default class ConnectionsModel extends EventEmitter {
         invited: boolean
     ): Promise<void> {
         const connection = this.personalCloudConnections.find((con) => {
-            return con.pairingInformation?.publicKeyRemote === pairingInformation.publicKeyRemote;
+            return con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote;
         });
 
         if (connection === undefined) {
@@ -456,7 +456,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         const {communicationManagerAPI, authenticatedContact, pairingInformation} = connection;
 
-        if (pairingInformation?.takeOver === false && authenticatedContact === undefined) {
+        if (pairingInformation.takeOver === false && authenticatedContact === undefined) {
             this.emit('error', i18n.t('errors:connectionModel.noPartner'));
             throw new Error(i18n.t('errors:connectionModel.noPartner'));
         }
@@ -469,8 +469,8 @@ export default class ConnectionsModel extends EventEmitter {
             throw error;
         });
 
-        websocketPromisifierAPI.localPersonIdHash = connection.authenticatedContact?.personIdHash;
-        websocketPromisifierAPI.remotePersonIdHash = connection.authenticatedContact?.personIdHash;
+        websocketPromisifierAPI.localPersonIdHash = connection.authenticatedContact.personIdHash;
+        websocketPromisifierAPI.remotePersonIdHash = connection.authenticatedContact.personIdHash;
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
