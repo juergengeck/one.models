@@ -414,10 +414,10 @@ async function run() {
     console.log(`\n========== Begin building one.smiler.models (${moduleTarget}/${system}) ==========`);
 
     await deleteDirectory(targetDir);
+    execSync('node ./build_plan_modules.js');
     await processAllFiles('src', targetDir, system);
     await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system);
-
     console.log(`\n========== Done building one.smiler.models (${moduleTarget}/${system}) ==========`);
 }
 
