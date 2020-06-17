@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {DiaryEntry as OneDiaryEntry} from '@OneCoreTypes';
-import i18n from '../i18n';
+import i18nModelsInstance from '../i18n';
 
 /**
  * This represents the model of a diary entry
@@ -69,7 +69,7 @@ export default class DiaryModel extends EventEmitter {
 
     async addEntry(diaryEntry: DiaryEntry): Promise<void> {
         if (!diaryEntry) {
-            throw Error(i18n.t('errors:diaryModel.notEmptyField'));
+            throw Error(i18nModelsInstance.t('errors:diaryModel.notEmptyField'));
         }
         await this.channelManager.postToChannel(this.channelId, convertToOne(diaryEntry));
     }

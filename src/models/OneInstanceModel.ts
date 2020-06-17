@@ -13,7 +13,7 @@ import ConnectionsModel from './ConnectionsModel';
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
 import ChannelManager from './ChannelManager';
-import i18n from '../i18n';
+import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
@@ -178,7 +178,7 @@ export default class OneInstanceModel extends EventEmitter {
             } as Instance);
             await this.deleteInstance('data#' + instanceIdHash);
         } catch (_) {
-            throw Error(i18n.t('errors:login.userNotFound'));
+            throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email);
@@ -302,7 +302,7 @@ export default class OneInstanceModel extends EventEmitter {
         }
 
         if (!OneInstanceModel.checkIfInstanceExists()) {
-            throw TypeError(i18n.t('errors:login.userNotFound'));
+            throw TypeError(i18nModelsInstance.t('errors:login.userNotFound'));
         }
 
         const name = localStorage.getItem('instance');
@@ -357,7 +357,7 @@ export default class OneInstanceModel extends EventEmitter {
             return;
         }
 
-        throw EvalError(i18n.t('errors:oneInstanceModel.loginNotRegister'));
+        throw EvalError(i18nModelsInstance.t('errors:oneInstanceModel.loginNotRegister'));
     }
 
     /**

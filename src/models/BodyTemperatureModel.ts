@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import i18n from '../i18n';
+import i18nModelsInstance from '../i18n';
 import ChannelManager from './ChannelManager';
 import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
 
@@ -13,7 +13,7 @@ export type BodyTemperature = {
 
 function convertToOneBodyTemperature(bodyTemperature: BodyTemperature): OneBodyTemperature {
     if (bodyTemperature.temperature > 47) {
-        throw Error(i18n.t('errors:bodyTemperatureModel.entryError'));
+        throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.entryError'));
     }
 
     return {
@@ -39,7 +39,7 @@ export default class BodyTemperatureModel extends EventEmitter {
 
     async addBodyTemperature(bodyTemperature: BodyTemperature): Promise<void> {
         if (!bodyTemperature.temperature) {
-            throw Error(i18n.t('errors:bodyTemperatureModel.notEmptyField'));
+            throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.notEmptyField'));
         }
 
         await this.channelManager.postToChannel(

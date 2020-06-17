@@ -24,7 +24,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {getInstanceIdHash} from 'one.core/lib/instance';
-import i18n from '../i18n';
+import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**
@@ -79,7 +79,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (myInstanceIdHash === undefined) {
             this.emit('error', 'Unable to find instance.');
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
 
         this.myInstance = await getObjectByIdHash(myInstanceIdHash);
@@ -151,8 +151,8 @@ export default class ConnectionsModel extends EventEmitter {
         takeOver: boolean
     ): Promise<void> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noInstance'));
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
 
         for await (const authContactHash of sourceList) {
@@ -181,8 +181,8 @@ export default class ConnectionsModel extends EventEmitter {
      */
     async generatePairingInformation(): Promise<PairingInformation> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noInstance'));
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
 
         const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
@@ -209,8 +209,8 @@ export default class ConnectionsModel extends EventEmitter {
         secret: string
     ): Promise<void> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.connectionWithoutInstance'));
-            throw new Error(i18n.t('errors:connectionModel.connectionWithoutInstance'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
         }
 
         if (invited) {
@@ -232,7 +232,7 @@ export default class ConnectionsModel extends EventEmitter {
         });
 
         if (connection === undefined) {
-            throw new Error(i18n.t('errors:connectionModel.connectionFailed'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
         }
 
         const communicationManagerAPI = connection.communicationManagerAPI;
@@ -250,8 +250,8 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         if (connection.authenticatedContact === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noConnection'));
-            throw new Error(i18n.t('errors:connectionModel.noConnection'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noConnection'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noConnection'));
         }
 
         await this.shareQuestionnairesWithPartner(connection.authenticatedContact);
@@ -292,8 +292,8 @@ export default class ConnectionsModel extends EventEmitter {
      */
     async generateInformationForTakeOver(secret: string): Promise<InformationForTakeOver> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noInstance'));
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
 
         const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
@@ -354,8 +354,8 @@ export default class ConnectionsModel extends EventEmitter {
             });
         } else {
             if (this.myInstance === undefined) {
-                this.emit('error', i18n.t('errors:connectionModel.noInstance'));
-                throw new Error(i18n.t('errors:connectionModel.noInstance'));
+                this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+                throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
             }
 
             const connection = this.personalCloudConnections.find((con) => {
@@ -365,8 +365,8 @@ export default class ConnectionsModel extends EventEmitter {
             });
 
             if (connection === undefined) {
-                this.emit('error', i18n.t('errors:connectionModel.connectionFailed'));
-                throw new Error(i18n.t('errors:connectionModel.connectionFailed'));
+                this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
+                throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
             }
 
             communicationManager = connection.communicationManagerAPI;
@@ -398,8 +398,8 @@ export default class ConnectionsModel extends EventEmitter {
         });
 
         if (connection === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.connectionFailed'));
-            throw new Error(i18n.t('errors:connectionModel.connectionFailed'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
         }
 
         const communicationManager = connection.communicationManagerAPI;
@@ -407,7 +407,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (thisInstanceIdHash === undefined) {
             this.emit('error', 'Unable to find instance.');
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
         this.myInstance = await getObjectByIdHash(thisInstanceIdHash);
 
@@ -450,15 +450,15 @@ export default class ConnectionsModel extends EventEmitter {
             .catch((err) => console.error(err));
 
         if (this.myInstance === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noInstance'));
-            throw new Error(i18n.t('errors:connectionModel.noInstance'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
         }
 
         const {communicationManagerAPI, authenticatedContact, pairingInformation} = connection;
 
         if (pairingInformation.takeOver === false && authenticatedContact === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.noPartner'));
-            throw new Error(i18n.t('errors:connectionModel.noPartner'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noPartner'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noPartner'));
         }
 
         // todo: other instance object is never saved
@@ -506,8 +506,8 @@ export default class ConnectionsModel extends EventEmitter {
 
     private checkAuthenticatedContactList(): void {
         if (this.authenticatedContactsList === undefined) {
-            this.emit('error', i18n.t('errors:connectionModel.saveAuthContact'));
-            throw new Error(i18n.t('errors:connectionModel.saveAuthContact'));
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.saveAuthContact'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.saveAuthContact'));
         }
 
         if (this.authenticatedContactsList.personalContacts === undefined) {
