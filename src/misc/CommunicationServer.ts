@@ -58,8 +58,6 @@ export default class CommunicationServer {
         ws.onmessage = this.parseInitialMessage;
 
         // handle onclose and other stuff correctly
-        // -> disconnecting the corresponding peer if it was connected
-        // -> removing it from the registeredConnections if it was not connected
         ws.onclose = (event: {
             wasClean: boolean;
             code: number;
@@ -67,8 +65,13 @@ export default class CommunicationServer {
             target: WebSocket;
         }) => {
             MessageBus.send('log', 'close web socket connection');
+            // -> disconnecting the corresponding peer if it was connected
             event.target.close();
-            // TODO: check in this.registeredConnections
+            // -> removing it from the registeredConnections if it was not connected
+            this.registeredConnections.forEach((value, key) => {
+                value = value.filter((websocket) => websocket !== event.target);
+                this.registeredConnections.set(key, value);
+            });
         };
     }
 
