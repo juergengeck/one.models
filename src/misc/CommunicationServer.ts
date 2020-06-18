@@ -1,4 +1,15 @@
 import {Server as WebSocketServer, default as WebSocket} from 'ws';
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {box, randomBytes} from 'tweetnacl';
+import {fromByteArray, toByteArray} from 'base64-js';
+
+const MessageBus = createMessageBus('CommunicationServer');
+
+export interface InitialMessageType {
+    command: 'register' | 'connect';
+    pubKey: string;
+}
 
 /**
  * This class implements the communication server.
@@ -9,6 +20,7 @@ export default class CommunicationServer {
      */
     constructor() {
         this.registeredConnections = new Map<string, WebSocket[]>();
+        this.webSocketServer = undefined;
     }
 
     /**
@@ -17,22 +29,44 @@ export default class CommunicationServer {
      * It is possible to use the same port for registering and
      * incoming connections
      */
-    public start(url: string): Promise<void> {}
+    public start(host: string, port: number): Promise<void> {
+        MessageBus.send('log', `Starting WebSocket server at ${host}:${port}`);
+
+        this.webSocketServer = new WebSocketServer({host, port});
+        this.webSocketServer.on('connection', this.acceptNewConnection);
+    }
 
     /**
      * Stop the communication server
      *
      * This terminates all connections and shuts the server down.
      */
-    public stop(): Promise<void> {}
+    public stop(): Promise<void> {
+        if (this.webSocketServer !== undefined) {
+            MessageBus.send('log', 'Closed WebSocket server');
+            this.webSocketServer.close();
+            this.webSocketServer = undefined;
+        }
+    }
 
     // ############ PRIVATE API ############
 
-    private acceptNewConnection() {
-        // set onmessage to parseIntitialMessage;
+    private acceptNewConnection(ws: WebSocket): void {
+        // set onmessage to parseInitialMessage;
+        ws.onmessage = this.parseInitialMessage;
+
         // handle onclose and other stuff correctly
         // -> disconnecting the corresponding peer if it was connected
         // -> removing it from the registeredConnections if it was not connected
+        ws.onclose = (event: {
+            wasClean: boolean;
+            code: number;
+            reason: string;
+            target: WebSocket;
+        }) => {
+            MessageBus.send('log', 'close web socket connection');
+            event.target.close();
+        };
     }
 
     /**
@@ -40,17 +74,52 @@ export default class CommunicationServer {
      *
      * It determines whether it is a listening connection or if it is a connection attempt to a listening connection
      */
-    private parseInitialMessage() {
+    private async parseInitialMessage(event: {
+        data: WebSocket.Data;
+        type: string;
+        target: WebSocket;
+    }) {
+        const message = event.data as any;
+        MessageBus.send('log', `received message: ${message}`);
+        // {
+        // command: 'register';
+        // pubKey: '...'
+        // }
         // If register command with pub key
         // -> challenge response
         // -> set onmessage to respondWithError
         // -> add ws to registeredConnections
+        if (message.command === 'register') {
+            const randomString = await createRandomString();
+            const encryptedString = this.encryptMessageWIthReceivedKey(
+                message.pubKey,
+                randomString
+            );
+            event.target.send(encryptedString);
+        }
 
+        // {
+        // command: 'connect';
+        // pubKey: '...'
+        // }
         // If connect with pub key command
         // -> check in registeredConnections for a suitable connection
         // -> if found
         //   -> send a (tbd) message to suitable connection and remove it from registeredConnections
         //   -> set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
+    }
+
+    private encryptMessageWIthReceivedKey(publicKey: string, message: string): string {
+        const nonce = randomBytes(box.nonceLength);
+        const messageUint8Array = toByteArray(message);
+        const pubKeyUint8Array = toByteArray(publicKey);
+        const encrypted = box.after(messageUint8Array, nonce, pubKeyUint8Array);
+
+        const fullMessage = new Uint8Array(nonce.length + encrypted.length);
+        fullMessage.set(nonce);
+        fullMessage.set(encrypted, nonce.length);
+
+        return fromByteArray(fullMessage);
     }
 
     /**
@@ -75,4 +144,9 @@ export default class CommunicationServer {
      * Stores registered web sockets that are still available to be allocated to an incoming connection.
      */
     private registeredConnections: Map<string, WebSocket[]>;
+
+    /**
+     * Stores the communication server web socket.
+     */
+    private webSocketServer: undefined | WebSocket.Server;
 }
