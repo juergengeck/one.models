@@ -6,7 +6,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Instance, ChannelInfo} from '@OneCoreTypes';
+import {Instance, ChannelInfo, SHA256IdHash, Person} from '@OneCoreTypes';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 
 /**
@@ -14,17 +14,21 @@ import {getInstanceIdHash} from 'one.core/lib/instance';
  *
  * @param {WriteStorageApi} WriteStorage
  * @param {string} channelid - Name of channel
+ * @param {SHA256IdHash<Person>} personIdHash
  * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
-    channelid: string
+    channelid: string,
+    personIdHash: SHA256IdHash<Person>
 ): Promise<VersionedObjectResult<ChannelInfo>> {
+
     // Update the head of the ChannelInfo entry
     const channelInfoResult: VersionedObjectResult<ChannelInfo> = await WriteStorage.storeVersionedObject(
         {
             type: 'ChannelInfo',
-            id: channelid
+            id: channelid,
+            owner: personIdHash
         }
     );
 

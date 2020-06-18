@@ -49,6 +49,7 @@ declare module '@OneCoreTypes' {
     export interface ChannelInfo {
         type: 'ChannelInfo';
         id: string;
+        owner: SHA256IdHash<Person>;
         head?: SHA256Hash<ChannelEntry>;
     }
 }
@@ -60,6 +61,11 @@ export const ChannelInfoRecipie: Recipe = {
         {
             itemprop: 'id',
             valueType: 'string',
+            isId: true
+        },
+        {
+            itemprop: 'owner',
+            referenceToId: new Set(['Person']),
             isId: true
         },
         {

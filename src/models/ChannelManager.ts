@@ -9,7 +9,8 @@ import {
     OneUnversionedObjectTypes,
     OneUnversionedObjectInterfaces,
     OneUnversionedObjectTypeNames,
-    Person
+    Person,
+    Group
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
@@ -17,7 +18,9 @@ import {
     getObject,
     getObjectByIdHash,
     onVersionedObj,
-    getObjectWithType
+    getObjectWithType,
+    VERSION_UPDATES,
+    getObjectByIdObj
 } from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
@@ -29,6 +32,11 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 export type ChannelInformation = {
     hash: SHA256Hash; // This is the hash of the files object
 };
+
+export enum AccessGroupNames {
+    partners= 'partners',
+    clinic='clinic'
+}
 
 /**
  * Type defines a questionnaire response
@@ -73,12 +81,15 @@ export default class ChannelManager extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/require-await
     async init(): Promise<void> {
         this.personId = getInstanceOwnerIdHash();
-
+        await this.createAccessGroup(AccessGroupNames.partners);
+        await this.createAccessGroup(AccessGroupNames.clinic);
         onVersionedObj.addListener((result: VersionedObjectResult) => {
             if (isChannelInfoResult(result)) {
                 this.emit('updated', result.obj.id);
             }
         });
+
+
     }
 
     // ######## Channel management ########
@@ -94,14 +105,15 @@ export default class ChannelManager extends EventEmitter {
             // Get the ChannelInfo from the database
             const channelInfoIdHash = await calculateIdHashOfObj({
                 type: 'ChannelInfo',
-                id: channelId
+                id: channelId,
+                owner: this.personId
             });
-            const ignore = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
-            return;
+            await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
         } catch (ignore) {
             const channelResponse = (await createSingleObjectThroughPurePlan(
                 {module: '@module/createChannel'},
-                channelId
+                channelId,
+                this.personId
             )) as VersionedObjectResult<ChannelInfo>;
             this.channelsIds.push(channelResponse.idHash);
             this.emit('updated');
@@ -115,16 +127,30 @@ export default class ChannelManager extends EventEmitter {
      *
      * @param {string} channelId - The id of the channel to post to
      * @param {OneUnversionedObjectTypes} data - The object to post to the channel
+     * @param {SHA256IdHash<Person>} owner
      */
     async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
-        data: T
+        data: T,
+        owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        await createSingleObjectThroughImpurePlan(
-            {module: '@module/postToChannel'},
-            channelId,
-            data
-        );
+        /** if you want to post to a different owner channel **/
+        if (owner) {
+            await createSingleObjectThroughImpurePlan(
+                {module: '@module/postToChannel'},
+                channelId,
+                data,
+                owner
+            );
+        } else {
+            /** posting to your channel **/
+            await createSingleObjectThroughImpurePlan(
+                {module: '@module/postToChannel'},
+                channelId,
+                data,
+                this.personId
+            );
+        }
     }
 
     // ######## Get data from the channel ########
@@ -310,5 +336,63 @@ export default class ChannelManager extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/require-await
     async channels(): Promise<ChannelInformation[]> {
         return [];
+    }
+
+    // ############## ACCESS STUFF THAT SHOULD BE IN A DIFFERENT MODEL ##############
+
+    /**
+     * @param {string} name
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<void>}
+     */
+    async addPersonToAccessGroup(name: AccessGroupNames, personId: SHA256IdHash<Person>): Promise<void> {
+        const group = await this.getAccessGroupByName(name);
+        /** add the person only if it does not exist and prevent unnecessary one updates **/
+        if (
+            (group.obj.person.find(
+                (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
+            )) === undefined
+        ) {
+            group.obj.person.push(personId);
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                group.obj
+            );
+        }
+    }
+
+    /**
+     *
+     * @param {string} name
+     * @returns {Promise<VersionedObjectResult<Group>>}
+     */
+    async getAccessGroupByName(name: AccessGroupNames): Promise<VersionedObjectResult<Group>> {
+        return await getObjectByIdObj({type: 'Group', name: name});
+    }
+
+    /**
+     *
+     * @param {string} name
+     * @returns {Promise<void>}
+     */
+    async createAccessGroup(name: AccessGroupNames): Promise<void> {
+        try {
+            await getObjectByIdObj({type: 'Group', name: name});
+        } catch (ignored) {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    type: 'Group',
+                    name: name,
+                    person: []
+                }
+            );
+        }
     }
 }
