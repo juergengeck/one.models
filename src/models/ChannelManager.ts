@@ -10,7 +10,8 @@ import {
     OneUnversionedObjectInterfaces,
     OneUnversionedObjectTypeNames,
     Person,
-    Group
+    Group,
+    ChannelRegistry
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
@@ -25,6 +26,7 @@ import {
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {serializeWithType} from 'one.core/lib/util/promise';
 
 /**
  * This represents a document but not the content,
@@ -36,6 +38,10 @@ export type ChannelInformation = {
 export enum AccessGroupNames {
     partners = 'partners',
     clinic = 'clinic'
+}
+
+export enum ChannelEvent {
+    UpdatedChannelInfo = 'UPDATED_CHANNEL_INFO'
 }
 
 /**
@@ -67,13 +73,16 @@ function isChannelInfoResult(
  * This model implements a document storage that stores the time of creation.
  */
 export default class ChannelManager extends EventEmitter {
-    private readonly channelsIds: SHA256IdHash<ChannelInfo>[];
     // @ts-ignore
     private personId: SHA256IdHash<Person>;
 
+    // @todo
+    // Hooks -> Whenever you receive a new ChannelInfo check if it's already there, if not add it
+    // emit event
+
     constructor() {
         super();
-        this.channelsIds = []; // change to map maybe ?
+        this.registerHooks();
     }
 
     /**
@@ -242,7 +251,7 @@ export default class ChannelManager extends EventEmitter {
      * Get all data from a channel.
      *
      * In Ascending order! (TODO: add a switch for that)
-     *
+     * // if owner === undefined , get all the channelInfos with the channelId
      * @param {string} channelId - The id of the channel to read from
      * @param {SHA256IdHash<Person>} owner
      */
@@ -356,20 +365,97 @@ export default class ChannelManager extends EventEmitter {
         throw Error("Object not found in current chain, or the type of the object didn't match");
     }
 
-    /** Return the list with all the channel ids created
+    /**
      *
-     * @returns {SHA256IdHash<ChannelInfo>}
+     * @param channelId
+     * @param {SHA256IdHash<Person>} owner
+     * @returns {Promise<ChannelInformation[]>}
      */
-    getChannelsIds(): SHA256IdHash<ChannelInfo>[] {
-        return this.channelsIds;
+    async channels(channelId: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
+        const channelRegistry = await ChannelManager.getChannelRegistry();
+
+        const filteredChannelInfos = await Promise.all(
+            channelRegistry.obj.channels.map(
+                async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+                    return await getObjectByIdHash(channelInfoIdHash);
+                }
+            )
+        );
+
+        // create private function that will do that -> use in the above
+
+        if(owner === undefined){
+
+        }else {
+
+        }
+
+        const channelInfos = filteredChannelInfos.filter(
+            (channelInfo: VersionedObjectResult<ChannelInfo>) => channelInfo.obj.id === channelId
+        );
+
+        return filteredChannelInfos.map((channelInfo: VersionedObjectResult<ChannelInfo>) => ({
+            hash: channelInfo.hash
+        }));
     }
 
-    /** Get a list of channels. */
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async channels(): Promise<ChannelInformation[]> {
-        return [];
+    private registerHooks(): void {
+        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+            if (isChannelInfoResult(caughtObject)) {
+                await this.addChannelToTheChannelRegistry(caughtObject.idHash);
+                this.emit(ChannelEvent.UpdatedChannelInfo);
+            }
+        });
     }
 
+    /**
+     *
+     * @param channelIdHash
+     * @returns {Promise<void>}
+     */
+    private async addChannelToTheChannelRegistry(
+        channelIdHash: SHA256IdHash<ChannelInfo>
+    ): Promise<void> {
+        const channelRegistry = await ChannelManager.getChannelRegistry();
+        if (
+            channelRegistry.obj.channels.find(
+                (channelEntryIdHash: SHA256IdHash<ChannelInfo>) =>
+                    channelEntryIdHash === channelIdHash
+            ) === undefined
+        ) {
+            channelRegistry.obj.channels.push(channelIdHash);
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                channelRegistry.obj
+            );
+        }
+    }
+
+    /**
+     * @returns {Promise<VersionedObjectResult<ChannelRegistry>>}
+     */
+    static async getChannelRegistry(): Promise<VersionedObjectResult<ChannelRegistry>> {
+        return await serializeWithType('ChannelRegistry', async () => {
+            try {
+                return await getObjectByIdObj({type: 'ChannelRegistry', id: 'ChannelRegistry'});
+            } catch (e) {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    {
+                        type: 'ChannelRegistry',
+                        id: 'ChannelRegistry',
+                        channels: []
+                    }
+                );
+            }
+        });
+    }
     // ############## ACCESS STUFF THAT SHOULD BE IN A DIFFERENT MODEL ##############
 
     /**
