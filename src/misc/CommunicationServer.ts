@@ -8,7 +8,7 @@ const MessageBus = createMessageBus('CommunicationServer');
 
 export interface InitialMessageType {
     command: 'register' | 'connect' | 'authenticate' | 'error';
-    pubKey: string;
+    pubKey?: string;
     response?: string;
 }
 
@@ -30,8 +30,10 @@ export default class CommunicationServer {
      *
      * It is possible to use the same port for registering and
      * incoming connections
+     *
+     * TODO: Add support for encrypted connections
      */
-    public start(host: string, port: number): void {
+    public async start(host: string, port: number): Promise<void> {
         MessageBus.send('log', `Starting WebSocket server at ${host}:${port}`);
 
         this.webSocketServer = new WebSocketServer({host, port});
@@ -43,11 +45,15 @@ export default class CommunicationServer {
      *
      * This terminates all connections and shuts the server down.
      */
-    public stop(): void {
+    public async stop(): Promise<void> {
         if (this.webSocketServer !== undefined) {
             MessageBus.send('log', 'Closed WebSocket server');
             this.webSocketServer.close();
             this.webSocketServer = undefined;
+            this.registeredConnections.forEach((value, _) => {
+                value.forEach((websocket) => websocket.close());
+            });
+            this.registeredConnections.clear();
         }
     }
 
@@ -91,7 +97,7 @@ export default class CommunicationServer {
         // command: 'register';
         // pubKey: 'messageSenderInstancePublicKey'
         // }
-        if (message.command === 'register') {
+        if (message.command === 'register' && message.pubKey) {
             // If register command with pub key
             const randomString = await createRandomString();
             this.connectionsToBeAuthenticated.set(message.pubKey, randomString);
@@ -104,7 +110,7 @@ export default class CommunicationServer {
                 pubKey: message.pubKey,
                 response: encryptedString
             };
-            // -> challenge response
+            // challenge response
             event.target.send(JSON.stringify(challengeResponse));
             return;
         }
@@ -113,10 +119,10 @@ export default class CommunicationServer {
         // pubKey: 'messageSenderInstancePublicKey'
         // response: 'decrypted string
         // }
-        if (message.command === 'authenticate') {
-            // -> set onmessage to respondWithError
+        if (message.command === 'authenticate' && message.pubKey) {
+            // set onmessage to respondWithError
             event.target.onmessage = this.respondWithError;
-            // -> add ws to registeredConnections
+            // add ws to registeredConnections
             const sentString = this.connectionsToBeAuthenticated.get(message.pubKey);
             if (sentString && sentString === message.response) {
                 this.connectionsToBeAuthenticated.delete(message.pubKey);
@@ -133,15 +139,14 @@ export default class CommunicationServer {
         // command: 'connect';
         // pubKey: 'instanceWithWhoIWantToConnectPublicKey'
         // }
-        if (message.command === 'connect') {
+        if (message.command === 'connect' && message.pubKey) {
             // If connect with pub key command
-            // -> check in registeredConnections for a suitable connection
-            // -> if found
             const expectedReceiverOpenedConnections = this.registeredConnections.get(
                 message.pubKey
             );
+            // check in registeredConnections for a suitable connection
             if (expectedReceiverOpenedConnections) {
-                //   -> send a (tbd) message to suitable connection and remove it from registeredConnections
+                // send a (tbd) message to suitable connection and remove it from registeredConnections
                 const connectInstances: InitialMessageType = {
                     command: 'connect',
                     pubKey: message.pubKey
@@ -152,7 +157,7 @@ export default class CommunicationServer {
                     message.pubKey,
                     expectedReceiverOpenedConnections.slice(1)
                 );
-                //   -> set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
+                // set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
                 otherInstanceWebSocket.onmessage = (messageEvent: WebSocket.MessageEvent) => {
                     this.forwardMessage(event.target, messageEvent);
                 };
@@ -185,7 +190,6 @@ export default class CommunicationServer {
         // return error to client (perhaps close connection and deregister it?)
         const errorMessage: InitialMessageType = {
             command: 'error',
-            pubKey: 'CommServer',
             response: 'message not expected'
         };
         event.target.send(JSON.stringify(errorMessage));
@@ -207,6 +211,16 @@ export default class CommunicationServer {
     ) {
         // forward message to forwardTo client
         forwardTo.send(event.data);
+
+        // let the sender know if there was an error in sending it's message
+        forwardTo.onerror = () => {
+            event.target.send(
+                JSON.stringify({
+                    command: 'error',
+                    response: 'could not send message to destination'
+                })
+            );
+        };
     }
 
     /**
