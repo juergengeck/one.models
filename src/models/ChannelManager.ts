@@ -188,18 +188,29 @@ export default class ChannelManager extends EventEmitter {
 
     async *objectIteratorForManyChannels(
         channelId: string,
-        queryOptions: QueryOptions
+        queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
         // queries ChannelInfos
         // -> list of owners who have a channel with the specified channelId
         const iterators = [];
         let currentValues = [];
         let count = 0;
-        const channels = await this.findChannelsForSpecificId(channelId);
+        const channels =
+            queryOptions === undefined || queryOptions.owner === undefined
+                ? await this.findChannelsForSpecificId(channelId)
+                : [
+                      await getObjectByIdObj({
+                          type: 'ChannelInfo',
+                          id: channelId,
+                          owner: queryOptions.owner
+                      })
+                  ];
 
         for (const channel of channels) {
+            const iterator = await this.objectIterator(channel.obj.id, {...queryOptions, owner: channel.obj.owner});
+
             iterators.push(async () => {
-                const newValue = await this.objectIterator(channel.obj.id, queryOptions).next();
+                const newValue = await iterator.next();
                 if (!newValue.done) {
                     return newValue.value;
                 } else {
@@ -233,7 +244,7 @@ export default class ChannelManager extends EventEmitter {
                 break;
             }
 
-            if (queryOptions.count !== undefined) {
+            if (queryOptions !== undefined && queryOptions.count !== undefined) {
                 if (count === queryOptions.count) {
                     break;
                 }
