@@ -67,7 +67,7 @@ export type QueryOptions = {
  * Type defines a questionnaire response
  */
 export type ObjectData<T> = {
-    date: Date;
+    date: number;
     id: string;
     author: SHA256IdHash<Person>;
     data: T;
@@ -186,6 +186,72 @@ export default class ChannelManager extends EventEmitter {
 
     // ######## Get data from the channel ########
 
+    async *objectIteratorForManyChannels(
+        channelId: string,
+        queryOptions: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        // queries ChannelInfos
+        // -> list of owners who have a channel with the specified channelId
+        const iterators = [];
+        let currentValues = [];
+        let count = 0;
+        const channels = await this.findChannelsForSpecificId(channelId);
+
+        for (const channel of channels) {
+            iterators.push(async () => {
+                const newValue = await this.objectIterator(channel.obj.id, queryOptions).next();
+                if (!newValue.done) {
+                    return newValue.value;
+                } else {
+                    return null;
+                }
+            });
+        }
+
+        for (const iterator of iterators) {
+            currentValues.push(await iterator());
+        }
+
+        for (;;) {
+            // determine the largest element in currentValues
+            let maxIndex = -1;
+            let maxValue = -1;
+
+            let selectedItem: ObjectData<OneUnversionedObjectTypes> | null = null;
+
+            for (let i = 0; i < currentValues.length; i++) {
+                // @ts-ignore
+                if (currentValues[i] !== null && currentValues[i].date > maxValue) {
+                    // @ts-ignore
+                    maxValue = currentValues[i].date;
+                    maxIndex = i;
+                    selectedItem = currentValues[i];
+                }
+            }
+
+            if (maxIndex === -1 || selectedItem === null) {
+                break;
+            }
+
+            if (queryOptions.count !== undefined) {
+                if (count === queryOptions.count) {
+                    break;
+                }
+            }
+
+            currentValues[maxIndex] = await iterators[maxIndex]();
+            ++count;
+
+            yield selectedItem;
+        }
+
+        // find the largest (in time) element and yield it
+        // advance only the iterator from which you picked the yielded item
+
+        // find the largest (in time) element and yield it
+        // advance only the iterator from which you picked the yielded item
+    }
+
     /**
      * !!! Main Iterator
      * Create an iterator that iterates over all items in a channel from future to past.
@@ -253,7 +319,7 @@ export default class ChannelManager extends EventEmitter {
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
             const obj = <ObjectData<OneUnversionedObjectTypes>>{
-                date: new Date(creationTime.timestamp),
+                date: creationTime.timestamp,
                 id: creationTime.data,
                 data: data,
                 author: this.personId,
@@ -263,81 +329,6 @@ export default class ChannelManager extends EventEmitter {
             objectsCount++;
 
             yield obj;
-        }
-    }
-
-    /**
-     * !!! Conditioned Iterator
-     * Create an iterator that iterates over all items of a specific type in a channel from future to past.
-     *
-     * @param {string} channelId - The channel for which to create the iterator
-     * @param {T} type - The type of the elements to iterate
-     * @param {SHA256IdHash<Person>} owner
-     */
-    async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
-        type: T,
-        queryOptions: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.type === type;
-        }
-
-        for await (const obj of this.objectIterator(channelId, queryOptions)) {
-            if (hasRequestedType(obj)) {
-                yield obj;
-            }
-        }
-    }
-
-    /**
-     * !!! Conditioned Iterator
-     * Create an iterator that iterates over all items of a specific id in a channel from future to past.
-     *
-     * @param {string} channelId - The channel for which to create the iterator
-     * @param {string} id
-     * @param {QueryOptions} queryOptions
-     */
-    async *objectIteratorWithId(
-        channelId: string,
-        id: string,
-        queryOptions: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        for await (const obj of this.objectIterator(channelId, queryOptions)) {
-            if (obj.id === id) {
-                yield obj;
-            }
-        }
-    }
-
-    /**
-     *
-     * !!! Conditioned Iterator
-     * Create an iterator that iterates over all items of a specific id and a type in a channel from future to past.
-     *
-     * @param {string} channelId - The channel for which to create the iterator
-     * @param {string} id
-     * @param {T} type - The type of the elements to iterate
-     * @param {QueryOptions} queryOptions
-     */
-    async *objectIteratorWithIdAndType<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
-        id: string,
-        type: T,
-        queryOptions: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.type === type;
-        }
-
-        for await (const obj of this.objectIterator(channelId, queryOptions)) {
-            if (obj.id === id && hasRequestedType(obj)) {
-                yield obj;
-            }
         }
     }
 
@@ -362,23 +353,12 @@ export default class ChannelManager extends EventEmitter {
             }
             return objects.reverse();
         } else {
-            const channelInfos = await this.getExplodedChannelInfosFromRegistry();
-            return (
-                await Promise.all(
-                    channelInfos.map(async (channelInfo: VersionedObjectResult<ChannelInfo>) => {
-                        const objectsPerChannelInfo: ObjectData<OneUnversionedObjectTypes>[] = [];
-
-                        for await (const obj of this.objectIterator(channelInfo.obj.id, {
-                            ...queryOptions,
-                            owner: channelInfo.obj.owner
-                        })) {
-                            objectsPerChannelInfo.push(obj);
-                        }
-                        // We have to reverse the array, because the oldest element must be at the beginning
-                        return objectsPerChannelInfo.reverse();
-                    })
-                )
-            ).reduce((acc, val) => acc.concat(val), []);
+            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+                ...queryOptions
+            })) {
+                objects.push(obj);
+            }
+            return objects.reverse();
         }
     }
 
@@ -396,37 +376,30 @@ export default class ChannelManager extends EventEmitter {
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.type === type;
+        }
+
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIteratorWithType(channelId, type, queryOptions)) {
-                objects.push(obj);
+            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+                if (hasRequestedType(obj)) {
+                    objects.push(obj);
+                }
             }
             return objects.reverse();
         } else {
-            const channelInfos = await this.getExplodedChannelInfosFromRegistry();
-            return (
-                await Promise.all(
-                    channelInfos.map(async (channelInfo: VersionedObjectResult<ChannelInfo>) => {
-                        const objectsPerChannelInfo: ObjectData<
-                            OneUnversionedObjectInterfaces[T]
-                        >[] = [];
-
-                        for await (const obj of this.objectIteratorWithType(
-                            channelInfo.obj.id,
-                            type,
-                            {
-                                ...queryOptions,
-                                owner: channelInfo.obj.owner
-                            }
-                        )) {
-                            objectsPerChannelInfo.push(obj);
-                        }
-                        // We have to reverse the array, because the oldest element must be at the beginning
-                        return objectsPerChannelInfo.reverse();
-                    })
-                )
-            ).reduce((acc, val) => acc.concat(val), []);
+            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+                ...queryOptions
+            })) {
+                if (hasRequestedType(obj)) {
+                    objects.push(obj);
+                }
+            }
+            return objects.reverse();
         }
     }
 
@@ -452,39 +425,29 @@ export default class ChannelManager extends EventEmitter {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIteratorWithId(channelId, id, queryOptions)) {
-                objects.push(obj);
+            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+                if (obj.id === id) {
+                    objects.push(obj);
+                }
             }
-
             if (objects.length === 0) {
                 throw Error('Object not found in current chain');
             }
 
             return objects.reverse();
         } else {
-            const channelInfos = await this.getExplodedChannelInfosFromRegistry();
-            const foundObjects = (
-                await Promise.all(
-                    channelInfos.map(async (channelInfo: VersionedObjectResult<ChannelInfo>) => {
-                        const objectsPerChannelInfo: ObjectData<OneUnversionedObjectTypes>[] = [];
-
-                        for await (const obj of this.objectIteratorWithId(channelInfo.obj.id, id, {
-                            ...queryOptions,
-                            owner: channelInfo.obj.owner
-                        })) {
-                            objectsPerChannelInfo.push(obj);
-                        }
-                        // We have to reverse the array, because the oldest element must be at the beginning
-                        return objectsPerChannelInfo.reverse();
-                    })
-                )
-            ).reduce((acc, val) => acc.concat(val), []);
-
-            if (foundObjects.length === 0) {
+            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+                ...queryOptions
+            })) {
+                if (obj.id === id) {
+                    objects.push(obj);
+                }
+            }
+            if (objects.length === 0) {
                 throw Error('Object not found in current chain');
             }
 
-            return foundObjects;
+            return objects.reverse();
         }
     }
 
@@ -511,54 +474,30 @@ export default class ChannelManager extends EventEmitter {
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.type === type;
+        }
+
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIteratorWithIdAndType(
-                channelId,
-                id,
-                type,
-                queryOptions
-            )) {
-                objects.push(obj);
+            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+                if (hasRequestedType(obj) && obj.id === id) {
+                    objects.push(obj);
+                }
             }
-
-            if (objects.length === 0) {
-                throw Error('Object not found in current chain');
-            }
-
             return objects.reverse();
         } else {
-            const channelInfos = await this.getExplodedChannelInfosFromRegistry();
-            const foundObjects = (
-                await Promise.all(
-                    channelInfos.map(async (channelInfo: VersionedObjectResult<ChannelInfo>) => {
-                        const objectsPerChannelInfo: ObjectData<OneUnversionedObjectTypes>[] = [];
-
-                        for await (const obj of this.objectIteratorWithIdAndType(
-                            channelInfo.obj.id,
-                            id,
-                            type,
-                            {
-                                ...queryOptions,
-                                owner: channelInfo.obj.owner
-                            }
-                        )) {
-                            objectsPerChannelInfo.push(obj);
-                        }
-                        // We have to reverse the array, because the oldest element must be at the beginning
-                        return objectsPerChannelInfo.reverse();
-                    })
-                )
-            ).reduce((acc, val) => acc.concat(val), []);
-
-            if (foundObjects.length === 0) {
-                throw Error('Object not found in current chain');
+            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+                ...queryOptions
+            })) {
+                if (hasRequestedType(obj) && obj.id === id) {
+                    objects.push(obj);
+                }
             }
-
-            //@todo check that ts-ignore later
-            // @ts-ignore
-            return foundObjects;
+            return objects.reverse();
         }
     }
 
