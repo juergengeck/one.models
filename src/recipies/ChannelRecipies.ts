@@ -6,7 +6,7 @@ import {
     SHA256Hash,
     SHA256IdHash
 } from '@OneCoreTypes';
-import {ORDERED_BY} from "one.core/lib/recipes";
+import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -56,11 +56,10 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelRegistry {
-       type: 'ChannelRegistry';
-       id: 'ChannelRegistry';
-       channels: SHA256IdHash<ChannelInfo>[]
+        type: 'ChannelRegistry';
+        id: 'ChannelRegistry';
+        channels: SHA256IdHash<ChannelInfo>[];
     }
-
 }
 
 export const ChannelAppRecipe: Recipe = {

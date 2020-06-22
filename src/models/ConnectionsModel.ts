@@ -209,8 +209,13 @@ export default class ConnectionsModel extends EventEmitter {
         secret: string
     ): Promise<void> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
+            this.emit(
+                'error',
+                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
+            );
+            throw new Error(
+                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
+            );
         }
 
         if (invited) {

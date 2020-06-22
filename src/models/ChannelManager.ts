@@ -190,11 +190,6 @@ export default class ChannelManager extends EventEmitter {
         channelId: string,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        // queries ChannelInfos
-        // -> list of owners who have a channel with the specified channelId
-        const iterators = [];
-        let currentValues = [];
-        let count = 0;
         const channels =
             queryOptions === undefined || queryOptions.owner === undefined
                 ? await this.findChannelsForSpecificId(channelId)
@@ -206,61 +201,27 @@ export default class ChannelManager extends EventEmitter {
                       })
                   ];
 
-        for (const channel of channels) {
-            const iterator = await this.objectIterator(channel.obj.id, {...queryOptions, owner: channel.obj.owner});
+        const iterators = await Promise.all(
+            channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                const iterator = await this.objectIterator(channel.obj.id, {
+                    ...queryOptions,
+                    owner: channel.obj.owner
+                });
 
-            iterators.push(async () => {
-                const newValue = await iterator.next();
-                if (!newValue.done) {
-                    return newValue.value;
-                } else {
-                    return null;
-                }
-            });
+                return async () => {
+                    const newValue = await iterator.next();
+                    if (!newValue.done) {
+                        return newValue.value;
+                    } else {
+                        return null;
+                    }
+                };
+            })
+        );
+
+        for await (const obj of this.runIterators(iterators, {...queryOptions})) {
+            yield obj;
         }
-
-        for (const iterator of iterators) {
-            currentValues.push(await iterator());
-        }
-
-        for (;;) {
-            // determine the largest element in currentValues
-            let maxIndex = -1;
-            let maxValue = -1;
-
-            let selectedItem: ObjectData<OneUnversionedObjectTypes> | null = null;
-
-            for (let i = 0; i < currentValues.length; i++) {
-                // @ts-ignore
-                if (currentValues[i] !== null && currentValues[i].date > maxValue) {
-                    // @ts-ignore
-                    maxValue = currentValues[i].date;
-                    maxIndex = i;
-                    selectedItem = currentValues[i];
-                }
-            }
-
-            if (maxIndex === -1 || selectedItem === null) {
-                break;
-            }
-
-            if (queryOptions !== undefined && queryOptions.count !== undefined) {
-                if (count === queryOptions.count) {
-                    break;
-                }
-            }
-
-            currentValues[maxIndex] = await iterators[maxIndex]();
-            ++count;
-
-            yield selectedItem;
-        }
-
-        // find the largest (in time) element and yield it
-        // advance only the iterator from which you picked the yielded item
-
-        // find the largest (in time) element and yield it
-        // advance only the iterator from which you picked the yielded item
     }
 
     /**
@@ -531,6 +492,69 @@ export default class ChannelManager extends EventEmitter {
                     hash: channelInfo.hash
                 })
             );
+        }
+    }
+
+    /**
+     * @description Yield values from the iterators
+     * @param iterators
+     * @param queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    private async *runIterators(
+        iterators: Function[],
+        queryOptions: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        let currentValues = [];
+        let count = 0;
+
+        for (const iterator of iterators) {
+            currentValues.push(await iterator());
+        }
+
+        if (currentValues.length === 1) {
+            for (;;) {
+                const yieldedValue = iterators[0]();
+                if (yieldedValue !== null) {
+                    yield yieldedValue;
+                } else {
+                    break;
+                }
+            }
+            return;
+        }
+
+        for (;;) {
+            // determine the largest element in currentValues
+            let maxIndex = -1;
+            let maxValue = -1;
+
+            let selectedItem: ObjectData<OneUnversionedObjectTypes> | null = null;
+
+            for (let i = 0; i < currentValues.length; i++) {
+                // @ts-ignore
+                if (currentValues[i] !== null && currentValues[i].date > maxValue) {
+                    // @ts-ignore
+                    maxValue = currentValues[i].date;
+                    maxIndex = i;
+                    selectedItem = currentValues[i];
+                }
+            }
+
+            if (maxIndex === -1 || selectedItem === null) {
+                break;
+            }
+
+            if (queryOptions !== undefined && queryOptions.count !== undefined) {
+                if (count === queryOptions.count) {
+                    break;
+                }
+            }
+
+            currentValues[maxIndex] = await iterators[maxIndex]();
+            ++count;
+
+            yield selectedItem;
         }
     }
 
