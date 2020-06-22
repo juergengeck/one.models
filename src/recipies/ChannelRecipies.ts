@@ -62,7 +62,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-export const ChannelAppRecipe: Recipe = {
+export const ChannelRegistryRecipe: Recipe = {
     type: 'Recipe',
     name: 'ChannelRegistry',
     rule: [
@@ -103,6 +103,6 @@ export const ChannelInfoRecipie: Recipe = {
 
 // Export recipies
 
-const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipie];
+const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipie, ChannelRegistryRecipe];
 
 export default ChannelRecipes;

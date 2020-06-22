@@ -4,7 +4,6 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import oneModules from '../lib/generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -13,45 +12,12 @@ import {
     getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {
-    Module,
-    SHA256Hash,
-    ContactApp,
-    Someone,
-    VersionedObjectResult,
-    Profile,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import {SHA256Hash, ContactApp, Someone, Profile, SHA256IdHash} from '@OneCoreTypes';
 import ContactModel from '../lib/models/ContactModel';
 import Recipes from '../lib/recipies/recipies';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import Model from './utils/Model';
-
-/**
- * Import all plan modules
- */
-async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
-        moduleName: key,
-        code: oneModules[key]
-    }));
-
-    return await Promise.all(
-        modules.map(
-            async (module) =>
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/module-importer',
-                        versionMapPolicy: {
-                            '*': VERSION_UPDATES.NONE_IF_LATEST
-                        }
-                    },
-                    module
-                )
-        )
-    );
-}
+import Model, {importModules} from './utils/Model';
 
 const contactModel = new Model().contactModel;
 let contactAppIdHash: SHA256Hash<ContactApp>;
@@ -70,17 +36,17 @@ describe('Contact model test', () => {
         expect(contactApp).to.not.be.equal(undefined);
 
         const mySomeone = await getObject(contactApp.obj.me);
-        expect(mySomeone && mySomeone.mainProfile).not.to.be.equal(undefined);
+        expect(mySomeone && mySomeone.mainProfile).to.not.be.undefined;
         expect(mySomeone.profiles).to.have.length(1);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
-        expect(myProfile).to.not.be.equal(undefined);
+        expect(myProfile).to.not.be.undefined;
 
         const myContact = await getObject(myProfile.obj.mainContact);
-        expect(myContact).to.not.be.equal(undefined);
+        expect(myContact).to.not.be.undefined;
 
         const myInstanceEndpoint = await getObject(myProfile.obj.mainContact);
-        expect(myInstanceEndpoint).to.not.be.equal(undefined);
+        expect(myInstanceEndpoint).to.not.be.undefined;
 
         contactAppIdHash = contactApp.hash;
     });
@@ -351,7 +317,7 @@ describe('Contact model test', () => {
         const contact = await getObject(profile.obj.contactObjects[0]);
         expect(contact).to.not.be.equal(undefined);
     });
-/*
+    /*
     it('should create a falsy profile in contactApp and let the hook make it right', async () => {
         const newPerson = await createSingleObjectThroughPurePlan(
             {
@@ -457,7 +423,7 @@ describe('Contact model test', () => {
     it('should return a person identities', async () => {
         const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
         const identities = await contactModel.listAlternateIdentities(person.idHash);
-        expect(identities?.length).to.be.equal(0);
+        expect(identities.length).to.be.equal(0);
     });
 
     it('should add a new main contact for another person', async () => {
@@ -499,7 +465,7 @@ describe('Contact model test', () => {
             throw new Error('Error: someoneObject is undefined');
         }
 
-        const profile = await getObjectByIdHash(someone?.mainProfile);
+        const profile = await getObjectByIdHash(someone.mainProfile);
         const mainContact = await getObject(profile.obj.mainContact);
         expect(mainContact).to.not.be.equal(undefined);
     });
@@ -569,8 +535,8 @@ describe('Contact model test', () => {
         await contactModel.declareSamePerson(personA, personB);
 
         const updatedSomeone = await contactModel.getSomeoneObject(personA);
-        expect(updatedSomeone?.mainProfile).to.be.equal(someoneA?.mainProfile);
-        expect(updatedSomeone?.profiles.length).to.be.equal(2);
+        expect(updatedSomeone.mainProfile).to.be.equal(someoneA.mainProfile);
+        expect(updatedSomeone.profiles.length).to.be.equal(2);
     });
 
     after(async () => {

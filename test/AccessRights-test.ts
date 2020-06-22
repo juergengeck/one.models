@@ -4,43 +4,10 @@
 import {expect} from 'chai';
 import {registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import oneModules from '../lib/generated/oneModules';
-import {
-    createSingleObjectThroughPurePlan,
-    VERSION_UPDATES
-} from 'one.core/lib/storage';
-import {
-    Module,
-    VersionedObjectResult,
-} from '@OneCoreTypes';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import Recipes from '../lib/recipies/recipies';
-import Model from './utils/Model';
-import {AccessGroupNames} from "../lib/models/ChannelManager";
-
-/**
- * Import all plan modules
- */
-async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
-        moduleName: key,
-        code: oneModules[key]
-    }));
-
-    return await Promise.all(
-        modules.map(
-            async (module) =>
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/module-importer',
-                        versionMapPolicy: {
-                            '*': VERSION_UPDATES.NONE_IF_LATEST
-                        }
-                    },
-                    module
-                )
-        )
-    );
-}
+import Model, {importModules} from './utils/Model';
+import {AccessGroupNames} from '../lib/models/ChannelManager';
 
 const channelManager = new Model().channelManager;
 
@@ -68,7 +35,6 @@ describe('AccessRights model test', () => {
             await channelManager.getAccessGroupByName('undefined');
         } catch (e) {
             expect(e).to.be.not.undefined;
-
         }
     });
 

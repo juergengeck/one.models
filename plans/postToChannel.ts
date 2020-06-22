@@ -33,7 +33,6 @@ export async function createObjects(
 
     // Create payload
     const payloadResult = await WriteStorage.storeUnversionedObject(payload);
-
     // Create creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
         type: 'CreationTime',

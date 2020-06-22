@@ -170,16 +170,16 @@ export default class ChannelManager extends EventEmitter {
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/postToChannel'},
                 channelId,
-                data,
-                owner
+                owner,
+                data
             );
         } else {
             /** posting to your channel **/
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/postToChannel'},
                 channelId,
-                data,
-                this.personId
+                this.personId,
+                data
             );
         }
     }
@@ -218,7 +218,6 @@ export default class ChannelManager extends EventEmitter {
                 };
             })
         );
-
         for await (const obj of this.runIterators(iterators, {...queryOptions})) {
             yield obj;
         }
@@ -318,7 +317,6 @@ export default class ChannelManager extends EventEmitter {
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
             for await (const obj of this.objectIterator(channelId, queryOptions)) {
                 objects.push(obj);
@@ -514,7 +512,7 @@ export default class ChannelManager extends EventEmitter {
 
         if (currentValues.length === 1) {
             for (;;) {
-                const yieldedValue = iterators[0]();
+                const yieldedValue = await iterators[0]();
                 if (yieldedValue !== null) {
                     yield yieldedValue;
                 } else {
@@ -604,14 +602,16 @@ export default class ChannelManager extends EventEmitter {
             ) === undefined
         ) {
             channelRegistry.obj.channels.push(channelIdHash);
-            await createSingleObjectThroughPurePlan(
+            return await serializeWithType('ChannelRegistry', async () => {
+
+                await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 channelRegistry.obj
             );
-        }
+        })}
     }
 
     /**
