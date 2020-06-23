@@ -23,7 +23,7 @@ import {
     VERSION_UPDATES,
     getObjectByIdObj
 } from 'one.core/lib/storage';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
@@ -494,6 +494,199 @@ export default class ChannelManager extends EventEmitter {
     }
 
     /**
+     * @BETA First implementation of the merging algorithm
+     * @param {SHA256Hash<ChannelInfo>} firstChannel
+     * @param {SHA256Hash<ChannelInfo>} secondaryChannel
+     * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+     */
+    private async mergeChannels(
+        firstChannel: SHA256Hash<ChannelInfo>,
+        secondaryChannel: SHA256Hash<ChannelInfo>
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
+        /** explode the given hashes **/
+        const explodedFirstChannel = await getObject(firstChannel);
+        const explodedSecondChannel = await getObject(secondaryChannel);
+
+        /** Persisted channel entries that are in the secondaryChannel **/
+        const previouslySecondaryChannelEntries: ChannelEntry[] = [];
+        /** sorted channel entries from both of the channels **/
+        const allChannelEntries: ChannelEntry[] = [];
+
+        /** if the id & owner of the channels are not equal, throw an error **/
+        if (
+            explodedFirstChannel.id !== explodedSecondChannel.id &&
+            explodedFirstChannel.owner !== explodedSecondChannel.owner
+        ) {
+            throw new Error('Error: in order to merge the channels they must be the same');
+        }
+
+        /** get the first ChannelEntry Hash in the chain **/
+        let firstChannelHead: SHA256Hash<ChannelEntry> | undefined = (await getObject(firstChannel))
+            .head;
+        let secondChannelHead: SHA256Hash<ChannelEntry> | undefined = (
+            await getObject(secondaryChannel)
+        ).head;
+
+        do {
+            let firstChannelEntryObject: ChannelEntry;
+            let secondChannelEntryObject: ChannelEntry;
+
+            /**
+             * For all the edge cases, construct the chain from the non undefined element
+             * If both channels head are undefined, start from the chain root
+             */
+
+            /** edge case **/
+            if (firstChannelHead === undefined && secondChannelHead !== undefined) {
+                return await this.createChannelChain(
+                    allChannelEntries,
+                    secondChannelHead,
+                    explodedFirstChannel
+                );
+            }
+
+            /** edge case **/
+            if (secondChannelHead === undefined && firstChannelHead !== undefined) {
+                return await this.createChannelChain(
+                    allChannelEntries,
+                    firstChannelHead,
+                    explodedFirstChannel
+                );
+            }
+
+            /** edge case **/
+            if (secondChannelHead === undefined && firstChannelHead === undefined) {
+                return await this.createChannelChain(
+                    allChannelEntries,
+                    undefined,
+                    explodedFirstChannel
+                );
+            }
+
+            // @ts-ignore
+            firstChannelEntryObject = await getObject(firstChannelHead);
+            // @ts-ignore
+            secondChannelEntryObject = await getObject(secondChannelHead);
+
+            /** push the ChannelEntry object in the list in order to find the common history entry in the future **/
+            previouslySecondaryChannelEntries.push(secondChannelEntryObject);
+
+            const firstChannelEntryData = await getObject(firstChannelEntryObject.data);
+            const secondChannelEntryData = await getObject(secondChannelEntryObject.data);
+
+            /** find the common history entry **/
+            const commonHistory = previouslySecondaryChannelEntries.find(
+                (entry: ChannelEntry) => entry.previous === firstChannelEntryObject.previous
+            );
+
+            /** if the common history entry was found in the past or present, construct the chain from it **/
+            if (
+                commonHistory !== undefined ||
+                firstChannelEntryObject.previous === secondChannelEntryObject.previous
+            ) {
+                return await this.createChannelChain(
+                    allChannelEntries,
+                    firstChannelHead,
+                    explodedFirstChannel
+                );
+            } else {
+                /** if not, add both elements in the sorted entries list **/
+                allChannelEntries.splice(
+                    await this.getTheRightIndexInTheChannelEntries(
+                        allChannelEntries,
+                        firstChannelEntryData.timestamp
+                    ),
+                    0,
+                    firstChannelEntryObject
+                );
+                allChannelEntries.splice(
+                    await this.getTheRightIndexInTheChannelEntries(
+                        allChannelEntries,
+                        secondChannelEntryData.timestamp
+                    ),
+                    0,
+                    secondChannelEntryObject
+                );
+            }
+
+            /** continue **/
+            // @ts-ignore
+            firstChannelHead = (await getObject(firstChannelHead)).previous;
+            // @ts-ignore
+            secondChannelHead = (await getObject(secondChannelHead)).previous;
+        } while (true);
+    }
+
+    /**
+     * @description Creates a ChannelInfo from a given ChannelEntry List and a root
+     * @param {ChannelEntry[]} allEntries
+     * @param {SHA256Hash<ChannelEntry> | undefined} commonPoint
+     * @param {ChannelInfo} mainChannelInfo
+     * @returns {Promise<VersionedObjectResult<ChannelInfo>> }
+     */
+    private async createChannelChain(
+        allEntries: ChannelEntry[],
+        commonPoint: SHA256Hash<ChannelEntry> | undefined,
+        mainChannelInfo: ChannelInfo
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
+        const reversedEntries = allEntries.reverse();
+
+        let lastChannelEntry;
+
+        for (let i = 0; i < reversedEntries.length; i++) {
+            lastChannelEntry = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    type: 'ChannelEntry',
+                    data: await calculateHashOfObj(reversedEntries[i]),
+                    previous:
+                        i === 0 ? commonPoint : await calculateHashOfObj(reversedEntries[i - 1])
+                }
+            );
+        }
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                type: 'ChannelInfo',
+                id: mainChannelInfo.id,
+                owner: mainChannelInfo.owner,
+                head: lastChannelEntry
+            }
+        );
+    }
+
+    /**
+     * Helper function to determine the index where a ChannelEntry should be added
+     * @param {ChannelEntry[]} channelEntries
+     * @param {number} timestamp
+     * @returns {Promise<number>}
+     */
+    private async getTheRightIndexInTheChannelEntries(
+        channelEntries: ChannelEntry[],
+        timestamp: number
+    ): Promise<number> {
+        let low = 0,
+            high = channelEntries.length;
+
+        while (low < high) {
+            let mid = (low + high) >>> 1;
+            const item = await getObject(channelEntries[mid].data);
+            if (item.timestamp < timestamp) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
+    }
+
+    /**
      * @description Yield values from the iterators
      * @param iterators
      * @param queryOptions
@@ -603,15 +796,15 @@ export default class ChannelManager extends EventEmitter {
         ) {
             channelRegistry.obj.channels.push(channelIdHash);
             return await serializeWithType('ChannelRegistry', async () => {
-
                 await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                channelRegistry.obj
-            );
-        })}
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    channelRegistry.obj
+                );
+            });
+        }
     }
 
     /**
@@ -638,6 +831,8 @@ export default class ChannelManager extends EventEmitter {
     }
     // ############## ACCESS STUFF THAT SHOULD BE IN A DIFFERENT MODEL ##############
 
+    // remove person
+    // visualize the access rights - later
     /**
      * @param {string} name
      * @param {SHA256IdHash<Person>} personId
