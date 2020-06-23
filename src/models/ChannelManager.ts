@@ -35,11 +35,6 @@ export type ChannelInformation = {
     hash: SHA256Hash; // This is the hash of the files object
 };
 
-export enum AccessGroupNames {
-    partners = 'partners',
-    clinic = 'clinic'
-}
-
 export enum ChannelEvent {
     UpdatedChannelInfo = 'UPDATED_CHANNEL_INFO'
 }
@@ -115,8 +110,7 @@ export default class ChannelManager extends EventEmitter {
             throw new Error('Owner idHash cannot be undefined');
         }
         this.personId = ownerIdHash;
-        await this.createAccessGroup(AccessGroupNames.partners);
-        await this.createAccessGroup(AccessGroupNames.clinic);
+
         onVersionedObj.addListener((result: VersionedObjectResult) => {
             if (isChannelInfoResult(result)) {
                 this.emit('updated', result.obj.id);
@@ -828,67 +822,5 @@ export default class ChannelManager extends EventEmitter {
                 );
             }
         });
-    }
-    // ############## ACCESS STUFF THAT SHOULD BE IN A DIFFERENT MODEL ##############
-
-    // remove person
-    // visualize the access rights - later
-    /**
-     * @param {string} name
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<void>}
-     */
-    async addPersonToAccessGroup(
-        name: AccessGroupNames,
-        personId: SHA256IdHash<Person>
-    ): Promise<void> {
-        const group = await this.getAccessGroupByName(name);
-        /** add the person only if it does not exist and prevent unnecessary one updates **/
-        if (
-            group.obj.person.find(
-                (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
-            ) === undefined
-        ) {
-            group.obj.person.push(personId);
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                group.obj
-            );
-        }
-    }
-
-    /**
-     *
-     * @param {string} name
-     * @returns {Promise<VersionedObjectResult<Group>>}
-     */
-    async getAccessGroupByName(name: AccessGroupNames): Promise<VersionedObjectResult<Group>> {
-        return await getObjectByIdObj({type: 'Group', name: name});
-    }
-
-    /**
-     *
-     * @param {string} name
-     * @returns {Promise<void>}
-     */
-    async createAccessGroup(name: AccessGroupNames): Promise<void> {
-        try {
-            await getObjectByIdObj({type: 'Group', name: name});
-        } catch (ignored) {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    type: 'Group',
-                    name: name,
-                    person: []
-                }
-            );
-        }
     }
 }

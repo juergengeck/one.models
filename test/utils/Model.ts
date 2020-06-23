@@ -16,6 +16,7 @@ import PropertyTreeStore, {PropertyTree} from '../../lib/models/SettingsModel';
 import {Module, Person, VersionedObjectResult, BodyTemperature} from '@OneCoreTypes';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import oneModules from '../../lib/generated/oneModules';
+import {AccessModel} from '../../lib/models';
 
 export function createRandomBodyTemperature(): BodyTemperature {
     return {
@@ -59,7 +60,7 @@ export default class Model {
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
         this.connections = new ConnectionsModel();
-
+        this.access = new AccessModel();
         this.news = new NewsModel();
 
         this.consentFile = new ConsentFileModel(this.channelManager);
@@ -98,12 +99,13 @@ export default class Model {
         await this.contactModel.init();
         await this.questionnaires.init();
         await this.connections.init();
+        await this.access.init();
         await this.diary.init();
         await this.bodyTemperature.init();
         await this.consentFile.init();
         await this.settings.init();
     }
-
+    access: AccessModel;
     channelManager: ChannelManager;
     contactModel: ContactModel;
     journal: JournalModel;

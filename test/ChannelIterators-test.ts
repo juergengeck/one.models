@@ -561,7 +561,8 @@ describe('Channel Iterators test', () => {
                     }
                 );
             } catch (e) {
-                expect(e).to.not.be.undefined;            }
+                expect(e).to.not.be.undefined;
+            }
         }
     });
 
@@ -574,7 +575,8 @@ describe('Channel Iterators test', () => {
                     'BodyTemperature'
                 );
             } catch (e) {
-                expect(e).to.not.be.undefined;            }
+                expect(e).to.not.be.undefined;
             }
+        }
     });
 });
