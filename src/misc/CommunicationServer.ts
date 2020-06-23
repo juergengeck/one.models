@@ -1,9 +1,9 @@
-import {Server as WebSocketServer, default as WebSocket, Data} from 'ws';
+import {Server as WebSocketServer, default as WebSocket, Data, MessageEvent} from 'ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {box, BoxKeyPair} from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 
 import {start} from 'one.core/lib/logger';
 start({includeInstanceName: true});
@@ -104,9 +104,11 @@ export default class CommunicationServer {
     }
 
     /**
-     * This is a web socket onmessage handler that handles messages from newly established connections.
+     * This is a web socket onmessage handler that handles messages
+     * from newly established connections.
      *
-     * It determines whether it is a listening connection or if it is a connection attempt to a listening connection
+     * It determines whether it is a listening connection or if it is
+     * a connection attempt to a listening connection.
      */
     private async parseInitialMessage(event: {
         data: WebSocket.Data;
@@ -120,75 +122,132 @@ export default class CommunicationServer {
         // pubKey: 'messageSenderInstancePublicKey'
         // }
         if (message.command === 'register' && message.pubKey) {
-            // If register command with pub key
-            const randomString = await createRandomString();
-            this.connectionsToBeAuthenticated.set(message.pubKey, randomString);
-            const encryptedString = encryptWithPublicKey(
-                toByteArray(message.pubKey),
-                toByteArray(randomString),
-                this.websocketServerKeyPairs.secretKey
-            );
-            const challengeResponse: InitialMessageType = {
-                command: 'authenticate',
-                pubKey: fromByteArray(this.websocketServerKeyPairs.publicKey),
-                response: fromByteArray(encryptedString)
-            };
-            // challenge response
-            event.target.send(JSON.stringify(challengeResponse));
-            return;
+            await this.onRegister(event, message.pubKey);
         }
         // {
         // command: 'authenticate';
         // pubKey: 'messageSenderInstancePublicKey'
         // response: 'decrypted string
         // }
-        if (message.command === 'authenticate' && message.pubKey) {
-            // set onmessage to respondWithError
-            event.target.on('message', this.respondWithError);
-            // add ws to registeredConnections
-            const sentString = this.connectionsToBeAuthenticated.get(message.pubKey);
-            if (sentString && sentString === message.response) {
-                this.connectionsToBeAuthenticated.delete(message.pubKey);
-                const existingConnectionForThisInstance = this.registeredConnections.get(
-                    message.pubKey
-                );
-                const newConnectionsArrayForThisInstance = existingConnectionForThisInstance
-                    ? [...existingConnectionForThisInstance, event.target]
-                    : [event.target];
-                this.registeredConnections.set(message.pubKey, newConnectionsArrayForThisInstance);
-            }
+        if (message.command === 'authenticate' && message.pubKey && message.response) {
+            await this.onAuthenticate(event, message.pubKey, message.response);
         }
         // {
         // command: 'connect';
         // pubKey: 'instanceWithWhoIWantToConnectPublicKey'
         // }
         if (message.command === 'connect' && message.pubKey) {
-            // If connect with pub key command
-            const expectedReceiverOpenedConnections = this.registeredConnections.get(
-                message.pubKey
+            await this.onConnect(event, message.pubKey);
+        }
+    }
+
+    /**
+     * When a new instance wants to register to the communication server,
+     * a challenge response is sent back to the instance that initiates
+     * the connection, to prove that the instance has the private key
+     * that corresponds to the received public key.
+     *
+     * @param event - the received message
+     * @param pubKey - public key of the instance
+     */
+    private async onRegister(event: MessageEvent, pubKey: string): Promise<void> {
+        // If register command with pub key
+        const randomString = await createRandomString();
+        this.connectionsToBeAuthenticated.set(pubKey, randomString);
+        const encryptedString = encryptWithPublicKey(
+            toByteArray(pubKey),
+            toByteArray(randomString),
+            this.websocketServerKeyPairs.secretKey
+        );
+        const challengeResponse: InitialMessageType = {
+            command: 'authenticate',
+            pubKey: fromByteArray(this.websocketServerKeyPairs.publicKey),
+            response: fromByteArray(encryptedString)
+        };
+        // challenge response
+        event.target.send(JSON.stringify(challengeResponse));
+    }
+
+    /**
+     * After the challenge response was initiated by the communication server,
+     * the instance has to decrypt the received string with it's private key and
+     * the re-encrypt the decrypted string using server public key (received in the
+     * authenticated object) and it's private key.
+     *
+     * The server will decrypt the received authentication response using it's private
+     * key and instance public key. The instance public key was sent by the instance
+     * inside the authentication object.
+     *
+     * @param event - the received message
+     * @param pubKey - public key of the instance
+     * @param response - the received encrypted string
+     */
+    private async onAuthenticate(
+        event: MessageEvent,
+        pubKey: string,
+        response: string
+    ): Promise<void> {
+        // set onmessage to respondWithError
+        event.target.on('message', this.respondWithError);
+        // add ws to registeredConnections
+        const sentString = this.connectionsToBeAuthenticated.get(pubKey);
+        const encryptedReceivedString = await decryptWithPublicKey(
+            toByteArray(pubKey),
+            toByteArray(response),
+            this.websocketServerKeyPairs.secretKey
+        );
+        const receivedString = fromByteArray(encryptedReceivedString);
+        if (sentString && sentString === receivedString) {
+            this.connectionsToBeAuthenticated.delete(pubKey);
+            const existingConnectionForThisInstance = this.registeredConnections.get(pubKey);
+            const newConnectionsArrayForThisInstance = existingConnectionForThisInstance
+                ? [...existingConnectionForThisInstance, event.target]
+                : [event.target];
+            this.registeredConnections.set(pubKey, newConnectionsArrayForThisInstance);
+        }
+    }
+
+    /**
+     * When a connect message is received, check if there is an instance with
+     * the received public key which waits for a connection.
+     *
+     * If it is, establish a connection between the instance who has sent the
+     * connect message and the instance who has an open websocket connection.
+     *
+     * If not send an error message to the instance who tries to connects to
+     * an unreachable instance.
+     *
+     * @param event - the received message
+     * @param pubKey - public key of the instance
+     */
+    private async onConnect(event: MessageEvent, pubKey: string): Promise<void> {
+        // If connect with pub key command
+        const expectedReceiverOpenedConnections = this.registeredConnections.get(pubKey);
+        // check in registeredConnections for a suitable connection
+        if (expectedReceiverOpenedConnections) {
+            // send a (tbd) message to suitable connection and remove it from registeredConnections
+            const connectInstances: InitialMessageType = {
+                command: 'connect',
+                response: 'Connection established.'
+            };
+            const otherInstanceWebSocket = expectedReceiverOpenedConnections[0];
+            otherInstanceWebSocket.send(JSON.stringify(connectInstances));
+            event.target.send(JSON.stringify(connectInstances));
+            this.registeredConnections.set(pubKey, expectedReceiverOpenedConnections.slice(1));
+            // set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
+            otherInstanceWebSocket.on('message', (messageEvent: WebSocket.MessageEvent) => {
+                this.forwardMessage(event.target, messageEvent);
+            });
+            event.target.on('message', (messageEvent: WebSocket.MessageEvent) => {
+                this.forwardMessage(otherInstanceWebSocket, messageEvent);
+            });
+        } else {
+            event.target.send(
+                JSON.stringify({
+                    command: 'error',
+                    response: 'pair connection unavailable'
+                })
             );
-            // check in registeredConnections for a suitable connection
-            if (expectedReceiverOpenedConnections) {
-                // send a (tbd) message to suitable connection and remove it from registeredConnections
-                const connectInstances: InitialMessageType = {
-                    command: 'connect',
-                    response: 'Connection established.'
-                };
-                const otherInstanceWebSocket = expectedReceiverOpenedConnections[0];
-                otherInstanceWebSocket.send(JSON.stringify(connectInstances));
-                event.target.send(JSON.stringify(connectInstances));
-                this.registeredConnections.set(
-                    message.pubKey,
-                    expectedReceiverOpenedConnections.slice(1)
-                );
-                // set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
-                otherInstanceWebSocket.on('message', (messageEvent: WebSocket.MessageEvent) => {
-                    this.forwardMessage(event.target, messageEvent);
-                });
-                event.target.on('message', (messageEvent: WebSocket.MessageEvent) => {
-                    this.forwardMessage(otherInstanceWebSocket, messageEvent);
-                });
-            }
         }
     }
 

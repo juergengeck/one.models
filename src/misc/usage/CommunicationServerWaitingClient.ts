@@ -66,7 +66,7 @@ async function main(): Promise<void> {
             );
             const authenticationMessage: InitialMessageType = {
                 command: 'authenticate',
-                pubKey: 'pubKey',
+                pubKey: instancePublicKey,
                 response: fromByteArray(receivedString)
             };
             await webSocket.send(JSON.stringify(authenticationMessage));
