@@ -1,21 +1,15 @@
-import CommunicationServer from './CommunicationServer';
 import {getInstanceIdHash, initInstance} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {getObjectWithType} from 'one.core/lib/storage';
-import {InitialMessageType} from '../../lib/misc/CommunicationServer';
+import {InitialMessageType} from '../../../lib/misc/CommunicationServer';
 import {default as WebSocket, MessageEvent} from 'ws';
 import {toByteArray, fromByteArray} from 'base64-js';
 import {decryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import {decryptSecretKey} from 'one.core/lib/instance-crypto';
 
-let communicationServer: CommunicationServer;
-
 async function main(): Promise<void> {
     const secret = 'test';
     let instancePublicKey: string = '';
-    // start the communication server
-    communicationServer = new CommunicationServer();
-    await communicationServer.start('localhost', 8000);
 
     // initialising the instance
     await initInstance({
@@ -72,10 +66,19 @@ async function main(): Promise<void> {
             );
             const authenticationMessage: InitialMessageType = {
                 command: 'authenticate',
-                pubKey: instancePublicKey,
+                pubKey: 'pubKey',
                 response: fromByteArray(receivedString)
             };
             await webSocket.send(JSON.stringify(authenticationMessage));
+        }
+
+        if (message.command === 'connect') {
+            await webSocket.send(
+                JSON.stringify({
+                    command: 'message',
+                    response: 'Test message to active client.'
+                })
+            );
         }
     };
 }
@@ -84,6 +87,5 @@ main().catch(async (err) => {
     console.error('main error' + err);
     // eslint-disable-next-line no-console
     console.log('Communication Server Client ERROR!');
-    await communicationServer.stop();
     process.exit(1);
 });

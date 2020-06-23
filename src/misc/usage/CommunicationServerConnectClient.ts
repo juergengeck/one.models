@@ -1,6 +1,6 @@
 import {initInstance} from 'one.core/lib/instance';
-import {InitialMessageType} from '../../lib/misc/CommunicationServer';
 import {default as WebSocket, MessageEvent} from 'ws';
+import {InitialMessageType} from "../CommunicationServer";
 
 async function main(): Promise<void> {
     // const otherInstancePublicKey = getOtherInstancePublicKey();
@@ -15,7 +15,7 @@ async function main(): Promise<void> {
     // send register message to the communication server
     const connectMessage: InitialMessageType = {
         command: 'connect',
-        pubKey: 'pubKey.'
+        pubKey: 'pubKey'
     };
 
     // create a web socket
@@ -28,6 +28,15 @@ async function main(): Promise<void> {
 
     webSocket.onmessage = async (event: MessageEvent) => {
         console.log('response:' + event.data);
+        const message = JSON.parse(event.data as string) as InitialMessageType;
+        if (message.command === 'connect') {
+            await webSocket.send(
+                JSON.stringify({
+                    command: 'message',
+                    response: 'Test message to passive client.'
+                })
+            );
+        }
     };
 }
 

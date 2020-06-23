@@ -5,13 +5,13 @@ import {box, BoxKeyPair} from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 
-// import {start} from 'one.core/lib/logger';
-// start({includeInstanceName: true});
+import {start} from 'one.core/lib/logger';
+start({includeInstanceName: true});
 
 const MessageBus = createMessageBus('CommunicationServer');
 
 export interface InitialMessageType {
-    command: 'register' | 'connect' | 'authenticate' | 'error';
+    command: 'register' | 'connect' | 'authenticate' | 'error' | 'message';
     pubKey?: string;
     response?: string;
 }
@@ -85,7 +85,9 @@ export default class CommunicationServer {
             (event: {wasClean: boolean; code: number; reason: string; target: WebSocket}) => {
                 MessageBus.send('log', 'close web socket connection');
                 // -> disconnecting the corresponding peer if it was connected
-                event.target.close();
+                if (event.target) {
+                    event.target.close();
+                }
                 // -> removing it from the registeredConnections if it was not connected
                 if (this.registeredConnections) {
                     this.registeredConnections.forEach((value, key) => {
@@ -170,10 +172,11 @@ export default class CommunicationServer {
                 // send a (tbd) message to suitable connection and remove it from registeredConnections
                 const connectInstances: InitialMessageType = {
                     command: 'connect',
-                    pubKey: message.pubKey
+                    response: 'Connection established.'
                 };
                 const otherInstanceWebSocket = expectedReceiverOpenedConnections[0];
                 otherInstanceWebSocket.send(JSON.stringify(connectInstances));
+                event.target.send(JSON.stringify(connectInstances));
                 this.registeredConnections.set(
                     message.pubKey,
                     expectedReceiverOpenedConnections.slice(1)
@@ -201,8 +204,10 @@ export default class CommunicationServer {
             command: 'error',
             response: 'message not expected'
         };
-        event.target.send(JSON.stringify(errorMessage));
-        event.target.close();
+        if (event.target) {
+            event.target.send(JSON.stringify(errorMessage));
+            event.target.close();
+        }
     }
 
     /**
@@ -224,6 +229,7 @@ export default class CommunicationServer {
 
         // let the sender know if there was an error in sending it's message
         forwardTo.on('error', () => {
+            MessageBus.send('log', 'Forward message error.');
             event.target.send(
                 JSON.stringify({
                     command: 'error',
