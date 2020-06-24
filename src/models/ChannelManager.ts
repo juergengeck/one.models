@@ -62,7 +62,7 @@ export type QueryOptions = {
  * Type defines a questionnaire response
  */
 export type ObjectData<T> = {
-    date: number;
+    date: Date;
     id: string;
     author: SHA256IdHash<Person>;
     data: T;
@@ -279,7 +279,7 @@ export default class ChannelManager extends EventEmitter {
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
             const obj = <ObjectData<OneUnversionedObjectTypes>>{
-                date: creationTime.timestamp,
+                date: new Date(creationTime.timestamp),
                 id: creationTime.data,
                 data: data,
                 author: this.personId,
