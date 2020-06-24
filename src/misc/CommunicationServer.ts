@@ -5,9 +5,6 @@ import {box, BoxKeyPair} from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 
-import {start} from 'one.core/lib/logger';
-start({includeInstanceName: true});
-
 const MessageBus = createMessageBus('CommunicationServer');
 
 export interface InitialMessageType {
@@ -115,8 +112,8 @@ export default class CommunicationServer {
         type: string;
         target: WebSocket;
     }) {
-        const message = JSON.parse(event.data as string) as InitialMessageType;
         MessageBus.send('log', `received message: ${event.data}`);
+        const message = JSON.parse(event.data as string) as InitialMessageType;
         // {
         // command: 'register';
         // pubKey: 'messageSenderInstancePublicKey'
@@ -151,8 +148,9 @@ export default class CommunicationServer {
      * @param pubKey - public key of the instance
      */
     private async onRegister(event: MessageEvent, pubKey: string): Promise<void> {
+        MessageBus.send('log', 'Initiate challenge response.');
         // If register command with pub key
-        const randomString = await createRandomString();
+        const randomString = await createRandomString(16);
         this.connectionsToBeAuthenticated.set(pubKey, randomString);
         const encryptedString = encryptWithPublicKey(
             toByteArray(pubKey),
@@ -191,18 +189,20 @@ export default class CommunicationServer {
         event.target.on('message', this.respondWithError);
         // add ws to registeredConnections
         const sentString = this.connectionsToBeAuthenticated.get(pubKey);
-        const encryptedReceivedString = await decryptWithPublicKey(
+        const decryptedReceivedString = await decryptWithPublicKey(
             toByteArray(pubKey),
             toByteArray(response),
             this.websocketServerKeyPairs.secretKey
         );
-        const receivedString = fromByteArray(encryptedReceivedString);
+        const receivedString = fromByteArray(decryptedReceivedString);
+
         if (sentString && sentString === receivedString) {
             this.connectionsToBeAuthenticated.delete(pubKey);
             const existingConnectionForThisInstance = this.registeredConnections.get(pubKey);
             const newConnectionsArrayForThisInstance = existingConnectionForThisInstance
                 ? [...existingConnectionForThisInstance, event.target]
                 : [event.target];
+            MessageBus.send('log', 'New connection registered:' + pubKey);
             this.registeredConnections.set(pubKey, newConnectionsArrayForThisInstance);
         }
     }
@@ -235,13 +235,14 @@ export default class CommunicationServer {
             event.target.send(JSON.stringify(connectInstances));
             this.registeredConnections.set(pubKey, expectedReceiverOpenedConnections.slice(1));
             // set onmessage on both connections to forwardMessage (binding the first argument to the other peer)
-            otherInstanceWebSocket.on('message', (messageEvent: WebSocket.MessageEvent) => {
+            otherInstanceWebSocket.on('message', (messageEvent: MessageEvent) => {
                 this.forwardMessage(event.target, messageEvent);
             });
-            event.target.on('message', (messageEvent: WebSocket.MessageEvent) => {
+            event.target.on('message', (messageEvent: MessageEvent) => {
                 this.forwardMessage(otherInstanceWebSocket, messageEvent);
             });
         } else {
+            MessageBus.send('log', 'Pair connection unavailable.');
             event.target.send(
                 JSON.stringify({
                     command: 'error',
@@ -274,27 +275,21 @@ export default class CommunicationServer {
      *
      * It will return an error message to the sender.
      */
-    private forwardMessage(
-        forwardTo: WebSocket,
-        event: {
-            data: Data;
-            type: string;
-            target: WebSocket;
-        }
-    ) {
+    private forwardMessage(forwardTo: WebSocket, event: MessageEvent) {
         MessageBus.send('log', 'Forward message.');
         // forward message to forwardTo client
-        forwardTo.send(event.data);
+        forwardTo.send(event);
 
         // let the sender know if there was an error in sending it's message
         forwardTo.on('error', () => {
-            MessageBus.send('log', 'Forward message error.');
-            event.target.send(
-                JSON.stringify({
-                    command: 'error',
-                    response: 'could not send message to destination'
-                })
-            );
+            if (event.target) {
+                event.target.send(
+                    JSON.stringify({
+                        command: 'error',
+                        response: 'could not send message to destination'
+                    })
+                );
+            }
         });
     }
 
