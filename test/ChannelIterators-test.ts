@@ -44,7 +44,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await(const obj of channelManager.objectIteratorForManyChannels(channelId)) {
+            for await(const obj of channelManager.objectIterator(channelId, {})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
