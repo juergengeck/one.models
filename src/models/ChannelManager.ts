@@ -695,7 +695,9 @@ export default class ChannelManager extends EventEmitter {
 
 
         if (currentValues.length === 1) {
-            yield currentValues[0];
+            if(currentValues[0] !== null){
+                yield currentValues[0];
+            }
             // console.log(currentValues[0].value);
             for (;;) {
                 const yieldedValue = await iterators[0]();
