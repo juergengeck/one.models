@@ -56,7 +56,7 @@ describe('Channel Iterators test', () => {
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects(channelId);
-            expect(objects1).to.have.length(howMany - 1);
+            expect(objects1).to.have.length(howMany);
         }
     });
 

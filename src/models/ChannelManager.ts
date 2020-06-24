@@ -634,6 +634,8 @@ export default class ChannelManager extends EventEmitter {
                         i === 0 ? commonPoint : await calculateHashOfObj(reversedEntries[i - 1])
                 }
             );
+            // console.log('loop');
+            // console.log(lastChannelEntry);
         }
         return await createSingleObjectThroughPurePlan(
             {
@@ -694,9 +696,11 @@ export default class ChannelManager extends EventEmitter {
 
         if (currentValues.length === 1) {
             yield currentValues[0];
+            // console.log(currentValues[0].value);
             for (;;) {
                 const yieldedValue = await iterators[0]();
                 if (yieldedValue !== null) {
+
                     yield yieldedValue;
                 } else {
                     break;

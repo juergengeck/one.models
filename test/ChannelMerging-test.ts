@@ -44,11 +44,11 @@ describe('Channel Merging test', () => {
     it('should merge 2 versions of the created channel', async () => {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         //await channelManager.getObjects('first')
-        console.log(await channelManager.getObjects('first'));
+        // console.log(await channelManager.getObjects('first'));
         const channelInfoIdHash = channelRegistry.obj.channels[0];
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
-        //const mergedChannel = await channelManager.mergeChannels(versions[versions.length - 1].hash, versions[versions.length-5].hash);
-        console.log(await channelManager.getObjects('first'));
+        const mergedChannel = await channelManager.mergeChannels(versions[versions.length - 1].hash, versions[versions.length-10].hash);
+        await channelManager.getObjects('first');
 
     });
 
