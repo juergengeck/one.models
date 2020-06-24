@@ -17,14 +17,14 @@ import ContactModel from '../lib/models/ContactModel';
 import Recipes from '../lib/recipies/recipies';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import Model, {importModules} from './utils/Model';
+import Model, {dbKey, importModules} from './utils/Model';
 
 const contactModel = new Model().contactModel;
 let contactAppIdHash: SHA256Hash<ContactApp>;
 
 describe('Contact model test', () => {
     before(async () => {
-        await StorageTestInit.init();
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
     });
@@ -541,6 +541,6 @@ describe('Contact model test', () => {
 
     after(async () => {
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+        await StorageTestInit.deleteTestDB('./test/' + dbKey);
     });
 });

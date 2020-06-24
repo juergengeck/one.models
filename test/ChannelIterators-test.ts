@@ -1,10 +1,10 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {getInstanceIdHash, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, getInstanceIdHash, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipies/recipies';
-import Model, {createRandomBodyTemperature, importModules} from './utils/Model';
+import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
@@ -17,7 +17,7 @@ let owner: SHA256IdHash<Person>;
 let specificObjectHash: SHA256Hash<BodyTemperature>;
 describe('Channel Iterators test', () => {
     before(async () => {
-        await StorageTestInit.init();
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
         owner = (
@@ -578,5 +578,10 @@ describe('Channel Iterators test', () => {
                 expect(e).to.not.be.undefined;
             }
         }
+    });
+
+    after(async () => {
+        closeInstance();
+        await StorageTestInit.deleteTestDB('./test/' + dbKey);
     });
 });

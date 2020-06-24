@@ -18,6 +18,8 @@ import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/s
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
 
+export const dbKey = './testDb';
+
 export function createRandomBodyTemperature(): BodyTemperature {
     return {
         type: 'BodyTemperature',

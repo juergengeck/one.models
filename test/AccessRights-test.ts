@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
     createSingleObjectThroughPurePlan,
@@ -10,14 +10,14 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import Recipes from '../lib/recipies/recipies';
-import Model, {importModules} from './utils/Model';
+import Model, {dbKey, importModules} from './utils/Model';
 import {AccessGroupNames} from '../lib/models/AccessModel';
 
 const accessModel = new Model().access;
 
 describe('AccessRights model test', () => {
     before(async () => {
-        await StorageTestInit.init();
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
     });
@@ -111,5 +111,10 @@ describe('AccessRights model test', () => {
         await accessModel.addPersonToAccessGroup(AccessGroupNames.partners, newPerson.idHash);
         const persons = await accessModel.getAccessGroupPersons(AccessGroupNames.partners);
         expect(persons).to.have.length(1);
+    });
+
+    after(async () => {
+        closeInstance();
+        await StorageTestInit.deleteTestDB('./test/' + dbKey);
     });
 });

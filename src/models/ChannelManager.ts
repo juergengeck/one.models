@@ -96,7 +96,6 @@ export default class ChannelManager extends EventEmitter {
 
     constructor() {
         super();
-        this.registerHooks();
     }
 
     /**
@@ -105,17 +104,13 @@ export default class ChannelManager extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/require-await
     async init(): Promise<void> {
         const ownerIdHash = getInstanceOwnerIdHash();
-
+        await ChannelManager.getChannelRegistry();
         if (ownerIdHash === undefined) {
             throw new Error('Owner idHash cannot be undefined');
         }
-        this.personId = ownerIdHash;
+        this.registerHooks();
 
-        onVersionedObj.addListener((result: VersionedObjectResult) => {
-            if (isChannelInfoResult(result)) {
-                this.emit('updated', result.obj.id);
-            }
-        });
+        this.personId = ownerIdHash;
     }
 
     // ######## Channel management ########
@@ -197,13 +192,14 @@ export default class ChannelManager extends EventEmitter {
 
         const iterators = await Promise.all(
             channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                const iterator = await this.objectIterator(channel.obj.id, {
+                const iterator = this.objectIterator(channel.obj.id, {
                     ...queryOptions,
                     owner: channel.obj.owner
                 });
 
                 return async () => {
                     const newValue = await iterator.next();
+                    console.log('here', newValue);
                     if (!newValue.done) {
                         return newValue.value;
                     } else {
@@ -292,7 +288,6 @@ export default class ChannelManager extends EventEmitter {
             };
 
             objectsCount++;
-
             yield obj;
         }
     }
@@ -493,7 +488,7 @@ export default class ChannelManager extends EventEmitter {
      * @param {SHA256Hash<ChannelInfo>} secondaryChannel
      * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
      */
-    private async mergeChannels(
+    public async mergeChannels(
         firstChannel: SHA256Hash<ChannelInfo>,
         secondaryChannel: SHA256Hash<ChannelInfo>
     ): Promise<VersionedObjectResult<ChannelInfo>> {
@@ -650,7 +645,7 @@ export default class ChannelManager extends EventEmitter {
                 type: 'ChannelInfo',
                 id: mainChannelInfo.id,
                 owner: mainChannelInfo.owner,
-                head: lastChannelEntry
+                head: await calculateHashOfObj(lastChannelEntry.obj)
             }
         );
     }
@@ -697,17 +692,23 @@ export default class ChannelManager extends EventEmitter {
             currentValues.push(await iterator());
         }
 
+
+        console.log('start');
         if (currentValues.length === 1) {
+            yield currentValues[0];
             for (;;) {
                 const yieldedValue = await iterators[0]();
                 if (yieldedValue !== null) {
+                    // console.log(yieldedValue);
                     yield yieldedValue;
                 } else {
                     break;
                 }
             }
+            console.log('end');
             return;
         }
+
 
         for (;;) {
             // determine the largest element in currentValues
@@ -768,10 +769,11 @@ export default class ChannelManager extends EventEmitter {
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (isChannelInfoResult(caughtObject)) {
                 await this.addChannelToTheChannelRegistry(caughtObject.idHash);
-                this.emit(ChannelEvent.UpdatedChannelInfo);
+                this.emit(ChannelEvent.UpdatedChannelInfo, caughtObject.obj.id);
             }
         });
     }
+
 
     /**
      *
