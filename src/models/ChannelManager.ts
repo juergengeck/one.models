@@ -190,23 +190,22 @@ export default class ChannelManager extends EventEmitter {
                       })
                   ];
 
-        const iterators = await Promise.all(
-            channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                const iterator = this.objectIterator(channel.obj.id, {
-                    ...queryOptions,
-                    owner: channel.obj.owner
-                });
+        const iterators = channels.map((channel: VersionedObjectResult<ChannelInfo>) => {
+            return this.objectIterator(channel.obj.id, {
+                ...queryOptions,
+                owner: channel.obj.owner
+            });
 
-                return async () => {
-                    const newValue = await iterator.next();
-                    if (!newValue.done) {
-                        return newValue.value;
-                    } else {
-                        return null;
-                    }
-                };
-            })
-        );
+            /*return async () => {
+                const newValue = await iterator.next();
+                if (!newValue.done) {
+                    return newValue.value;
+                } else {
+                    return null;
+                }
+            };*/
+        });
+
         for await (const obj of this.runIterators(iterators, {...queryOptions})) {
             yield obj;
         }
@@ -683,26 +682,25 @@ export default class ChannelManager extends EventEmitter {
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
     private async *runIterators(
-        iterators: Function[],
+        iterators: AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[],
         queryOptions: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        let currentValues = [];
+        let currentValues: ObjectData<OneUnversionedObjectTypes>[]= [];
         let count = 0;
 
         for (const iterator of iterators) {
-            currentValues.push(await iterator());
+            currentValues.push((await iterator.next()).value);
         }
 
 
         if (currentValues.length === 1) {
-            if(currentValues[0] !== null){
+            if(currentValues[0] !== undefined){
                 yield currentValues[0];
             }
             // console.log(currentValues[0].value);
             for (;;) {
-                const yieldedValue = await iterators[0]();
-                if (yieldedValue !== null) {
-
+                const yieldedValue = (await iterators[0].next()).value;
+                if (yieldedValue !== undefined) {
                     yield yieldedValue;
                 } else {
                     break;
@@ -717,11 +715,11 @@ export default class ChannelManager extends EventEmitter {
             let maxIndex = -1;
             let maxValue = -1;
 
-            let selectedItem: ObjectData<OneUnversionedObjectTypes> | null = null;
+            let selectedItem: ObjectData<OneUnversionedObjectTypes> | undefined = undefined;
 
             for (let i = 0; i < currentValues.length; i++) {
                 // @ts-ignore
-                if (currentValues[i] !== null && currentValues[i].date > maxValue) {
+                if (currentValues[i] !== undefined && currentValues[i].date > maxValue) {
                     // @ts-ignore
                     maxValue = currentValues[i].date;
                     maxIndex = i;
@@ -729,7 +727,7 @@ export default class ChannelManager extends EventEmitter {
                 }
             }
 
-            if (maxIndex === -1 || selectedItem === null) {
+            if (maxIndex === -1 || selectedItem === undefined) {
                 break;
             }
 
@@ -739,7 +737,7 @@ export default class ChannelManager extends EventEmitter {
                 }
             }
 
-            currentValues[maxIndex] = await iterators[maxIndex]();
+            currentValues[maxIndex] = (await iterators[maxIndex].next()).value;
             ++count;
 
             yield selectedItem;
