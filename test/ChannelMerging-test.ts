@@ -48,7 +48,7 @@ describe('Channel Merging test', () => {
         const channelInfoIdHash = channelRegistry.obj.channels[0];
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
         //const mergedChannel = await channelManager.mergeChannels(versions[versions.length - 1].hash, versions[versions.length-5].hash);
-        //console.log(await channelManager.getObjects('first'));
+        console.log(await channelManager.getObjects('first'));
 
     });
 

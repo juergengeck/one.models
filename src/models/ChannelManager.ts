@@ -199,7 +199,6 @@ export default class ChannelManager extends EventEmitter {
 
                 return async () => {
                     const newValue = await iterator.next();
-                    console.log('here', newValue);
                     if (!newValue.done) {
                         return newValue.value;
                     } else {
@@ -693,19 +692,16 @@ export default class ChannelManager extends EventEmitter {
         }
 
 
-        console.log('start');
         if (currentValues.length === 1) {
             yield currentValues[0];
             for (;;) {
                 const yieldedValue = await iterators[0]();
                 if (yieldedValue !== null) {
-                    // console.log(yieldedValue);
                     yield yieldedValue;
                 } else {
                     break;
                 }
             }
-            console.log('end');
             return;
         }
 
