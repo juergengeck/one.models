@@ -2,34 +2,6 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
 import {Questionnaire} from './utils/QuestionTypes';
-import QuestionnaireAEK from './utils/QuestionnaireAEK';
-import QuestionnaireFKP from './utils/QuestionnaireFKP';
-import QuestionnaireFKV from './utils/QuestionnaireFKV';
-import QuestionnaireAES from './utils/QuestionnaireAES';
-import QuestionnaireFSM from './utils/QuestionnaireFSM';
-import QuestionnaireFSV from './utils/QuestionnaireFSV';
-import QuestionnaireGKM from './utils/QuestionnaireGKM';
-import QuestionnaireGKV from './utils/QuestionnaireGKV';
-import QuestionnaireEQ5D3L from './utils/QuestionnaireEQ5D3L';
-import QuestionnaireIKP from './utils/QuestionnaireIKP';
-import QuestionnaireIKV from './utils/QuestionnaireIKV';
-
-/**
- * List with available questionnaires
- */
-const questionnaires: Questionnaire[] = [
-    QuestionnaireAEK,
-    QuestionnaireAES,
-    QuestionnaireFKP,
-    QuestionnaireFKV,
-    QuestionnaireFSM,
-    QuestionnaireFSV,
-    QuestionnaireGKM,
-    QuestionnaireGKV,
-    QuestionnaireEQ5D3L,
-    QuestionnaireIKP,
-    QuestionnaireIKV
-];
 
 /**
  * Type defines the data of a questionnaire response
@@ -99,6 +71,7 @@ function convertFromOne(oneObject: OneQuestionnaireResponse): QuestionnaireRespo
 export default class QuestionnaireModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
+    availableQuestionnaires: Questionnaire[];
 
     /**
      * Construct a new instance
@@ -110,6 +83,7 @@ export default class QuestionnaireModel extends EventEmitter {
 
         this.channelId = 'questionnaire';
         this.channelManager = channelManager;
+        this.availableQuestionnaires = [];
     }
 
     /**
@@ -133,7 +107,7 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     // eslint-disable-next-line @typescript-eslint/require-await
     async questionnaires(): Promise<Questionnaire[]> {
-        return questionnaires;
+        return this.availableQuestionnaires;
     }
 
     /**
@@ -143,7 +117,7 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     // eslint-disable-next-line @typescript-eslint/require-await
     async getQuestionnaireById(questionnaireId: string): Promise<Questionnaire> {
-        for (const questionnaire of questionnaires) {
+        for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaireId === questionnaire.identifier) {
                 return questionnaire;
             }
@@ -163,7 +137,7 @@ export default class QuestionnaireModel extends EventEmitter {
         // Assert that the questionnaire with questionnaireId exists
         let questionnaireExists = false;
 
-        for (const questionnaire of questionnaires) {
+        for (const questionnaire of this.availableQuestionnaires) {
             if (data.questionnaire === questionnaire.identifier) {
                 questionnaireExists = true;
             }
@@ -236,5 +210,13 @@ export default class QuestionnaireModel extends EventEmitter {
         }
 
         return numberOfSpecificQuestionnaires;
+    }
+
+    /**
+     * Adding questionnaires to the available questionnaires list.
+     * @param questionnaires - Questionnaire[] - the list of the questionnaires that will be added to the available questionnaires list
+     */
+    registerQuestionnaires(questionnaires: Questionnaire[]): void {
+        this.availableQuestionnaires.push(...questionnaires);
     }
 }
