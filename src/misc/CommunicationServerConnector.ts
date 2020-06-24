@@ -1,4 +1,4 @@
-import {InitialMessageType} from '../../lib/misc/CommunicationServer';
+import {InitialMessageType} from './CommunicationServer';
 import {default as WebSocket, MessageEvent} from 'ws';
 
 export default class CommunicationServerConnector {

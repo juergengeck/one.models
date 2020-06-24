@@ -1,11 +1,4 @@
-import {
-    AuthenticatedContact,
-    Instance,
-    OneUnversionedObjectTypes,
-    Recipe,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import {Recipe, SHA256Hash} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
