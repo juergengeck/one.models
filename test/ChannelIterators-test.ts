@@ -41,6 +41,23 @@ describe('Channel Iterators test', () => {
         await channelManager.createChannel('third');
     });
 
+    it('should get zero objects by iterator', async () => {
+        for (const channelId of channelsIdentifiers) {
+            let iterCount = 0;
+            for await(const obj of channelManager.objectIteratorForManyChannels(channelId)) {
+                ++iterCount;
+            }
+            expect(iterCount).to.be.equal(0);
+        }
+    });
+
+    it('should get zero objects by getObjects', async () => {
+        for (const channelId of channelsIdentifiers) {
+            const objects1 = await channelManager.getObjects(channelId);
+            expect(objects1).to.have.length(0);
+        }
+    });
+
     it('should add data to created channels', async () => {
         await Promise.all(
             channelsIdentifiers.map(async (identifier: string) => {
