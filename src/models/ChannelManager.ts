@@ -175,7 +175,7 @@ export default class ChannelManager extends EventEmitter {
 
     // ######## Get data from the channel ########
 
-    async *objectIteratorForManyChannels(
+    async *objectIterator(
         channelId: string,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
@@ -191,7 +191,7 @@ export default class ChannelManager extends EventEmitter {
                   ];
 
         const iterators = channels.map((channel: VersionedObjectResult<ChannelInfo>) => {
-            return this.objectIterator(channel.obj.id, {
+            return this.singleChannelIterator(channel.obj.id, {
                 ...queryOptions,
                 owner: channel.obj.owner
             });
@@ -218,7 +218,7 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} channelId - The channel for which to create the iterator
      * @param {QueryOptions} queryOptions
      */
-    async *objectIterator(
+    async *singleChannelIterator(
         channelId: string,
         queryOptions: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
@@ -305,12 +305,12 @@ export default class ChannelManager extends EventEmitter {
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
                 objects.push(obj);
             }
             return objects.reverse();
         } else {
-            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+            for await (const obj of this.objectIterator(channelId, {
                 ...queryOptions
             })) {
                 objects.push(obj);
@@ -342,14 +342,14 @@ export default class ChannelManager extends EventEmitter {
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
                 if (hasRequestedType(obj)) {
                     objects.push(obj);
                 }
             }
             return objects.reverse();
         } else {
-            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+            for await (const obj of this.objectIterator(channelId, {
                 ...queryOptions
             })) {
                 if (hasRequestedType(obj)) {
@@ -382,7 +382,7 @@ export default class ChannelManager extends EventEmitter {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
                 if (obj.id === id) {
                     objects.push(obj);
                 }
@@ -393,7 +393,7 @@ export default class ChannelManager extends EventEmitter {
 
             return objects.reverse();
         } else {
-            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+            for await (const obj of this.objectIterator(channelId, {
                 ...queryOptions
             })) {
                 if (obj.id === id) {
@@ -440,14 +440,14 @@ export default class ChannelManager extends EventEmitter {
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
 
         if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.objectIterator(channelId, queryOptions)) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
                 if (hasRequestedType(obj) && obj.id === id) {
                     objects.push(obj);
                 }
             }
             return objects.reverse();
         } else {
-            for await (const obj of this.objectIteratorForManyChannels(channelId, {
+            for await (const obj of this.objectIterator(channelId, {
                 ...queryOptions
             })) {
                 if (hasRequestedType(obj) && obj.id === id) {
