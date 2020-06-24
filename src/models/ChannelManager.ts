@@ -515,6 +515,7 @@ export default class ChannelManager extends EventEmitter {
             await getObject(secondaryChannel)
         ).head;
 
+
         do {
             let firstChannelEntryObject: ChannelEntry;
             let secondChannelEntryObject: ChannelEntry;
@@ -564,7 +565,11 @@ export default class ChannelManager extends EventEmitter {
 
             /** find the common history entry **/
             const commonHistory = previouslySecondaryChannelEntries.find(
-                (entry: ChannelEntry) => entry.previous === firstChannelEntryObject.previous
+                (entry: ChannelEntry) => {
+                    if(entry.previous === undefined){
+                        return false;
+                    }
+                    return entry.previous === firstChannelEntryObject.previous}
             );
 
             /** if the common history entry was found in the past or present, construct the chain from it **/
@@ -617,11 +622,9 @@ export default class ChannelManager extends EventEmitter {
         commonPoint: SHA256Hash<ChannelEntry> | undefined,
         mainChannelInfo: ChannelInfo
     ): Promise<VersionedObjectResult<ChannelInfo>> {
-        const reversedEntries = allEntries.reverse();
-
         let lastChannelEntry;
 
-        for (let i = 0; i < reversedEntries.length; i++) {
+        for (let i = 0; i < allEntries.length; i++) {
             lastChannelEntry = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -629,13 +632,11 @@ export default class ChannelManager extends EventEmitter {
                 },
                 {
                     type: 'ChannelEntry',
-                    data: await calculateHashOfObj(reversedEntries[i]),
+                    data: allEntries[i].data,
                     previous:
-                        i === 0 ? commonPoint : await calculateHashOfObj(reversedEntries[i - 1])
+                        i === 0 ? commonPoint: await calculateHashOfObj(allEntries[i - 1])
                 }
             );
-            // console.log('loop');
-            // console.log(lastChannelEntry);
         }
         return await createSingleObjectThroughPurePlan(
             {
@@ -646,7 +647,7 @@ export default class ChannelManager extends EventEmitter {
                 type: 'ChannelInfo',
                 id: mainChannelInfo.id,
                 owner: mainChannelInfo.owner,
-                head: await calculateHashOfObj(lastChannelEntry.obj)
+                head: lastChannelEntry === undefined ? commonPoint : lastChannelEntry.hash
             }
         );
     }
@@ -696,7 +697,6 @@ export default class ChannelManager extends EventEmitter {
 
         if (currentValues.length === 1) {
             yield currentValues[0];
-            // console.log(currentValues[0].value);
             for (;;) {
                 const yieldedValue = await iterators[0]();
                 if (yieldedValue !== null) {
@@ -739,7 +739,6 @@ export default class ChannelManager extends EventEmitter {
 
             currentValues[maxIndex] = await iterators[maxIndex]();
             ++count;
-
             yield selectedItem;
         }
     }

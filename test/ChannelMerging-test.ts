@@ -7,7 +7,13 @@ import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipies/recipies';
 import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
 import {ChannelManager} from "../lib/models";
-import {getAllVersionMapEntries} from "one.core/lib/storage";
+import {
+    createSingleObjectThroughPurePlan,
+    getAllVersionMapEntries,
+    getObject,
+    getObjectByIdHash, VERSION_UPDATES
+} from "one.core/lib/storage";
+import {calculateHashOfObj} from "one.core/lib/util/object";
 
 let channelManager: ChannelManager;
 const channelsIdentifiers = ['first'];
@@ -44,12 +50,65 @@ describe('Channel Merging test', () => {
     it('should merge 2 versions of the created channel', async () => {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         //await channelManager.getObjects('first')
-        // console.log(await channelManager.getObjects('first'));
         const channelInfoIdHash = channelRegistry.obj.channels[0];
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
-        const mergedChannel = await channelManager.mergeChannels(versions[versions.length - 1].hash, versions[versions.length-10].hash);
-        await channelManager.getObjects('first');
+        await channelManager.mergeChannels(versions[versions.length - 1].hash, versions[0].hash);
+        const objects = await channelManager.getObjects('first');
+        expect(objects).to.have.length(howMany);
+    });
 
+
+    it('should merge 2 very different versions of created channel', async () => {
+        const channelRegistry = await ChannelManager.getChannelRegistry();
+        const channelInfoIdHash = channelRegistry.obj.channels[0];
+        const channelInfo = await getObjectByIdHash(channelInfoIdHash);
+        const bodyTemp =
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    type: 'BodyTemperature',
+                    temperature: 11111111
+                }
+            );
+
+        const creationTime = await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                type: 'CreationTime',
+                timestamp: Date.now(),
+                data: bodyTemp.hash
+            }
+        );
+        const channelEntry = await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                type: 'ChannelEntry',
+                data: creationTime.hash
+            }
+        );
+        channelInfo.obj.head = channelEntry.hash;
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            channelInfo.obj
+        );
+
+
+        const versions = await getAllVersionMapEntries(channelInfoIdHash);
+        await channelManager.mergeChannels(versions[versions.length - 2].hash, versions[versions.length - 1].hash);
+        const objects = await channelManager.getObjects('first');
+        expect(objects).to.have.length(howMany + 1);
     });
 
     after(async () => {
