@@ -35,7 +35,7 @@ export async function createObjects(
         }
     );
 
-    const personIdHash = (await getObjectByIdObj({type: 'Person', email})).idHash;
+    const personIdHash = (await getObjectByIdObj({$type$: 'Person', email})).idHash;
     const instanceIdHash = createdInstance.idHash;
 
     /** Get the corresponding key links **/
@@ -50,21 +50,21 @@ export async function createObjects(
 
     /** Create the structure **/
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
-        type: 'OneInstanceEndpoint',
+        $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
         personKeys: personPubEncryptionKeysHash,
         instanceKeys: instancePubEncryptionKeysHash
     });
 
     const contactObject = await WriteStorage.storeUnversionedObject({
-        type: 'Contact',
+        $type$: 'Contact',
         personId: personIdHash,
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
     });
 
     return await WriteStorage.storeVersionedObject({
-        type: 'Profile',
+        $type$: 'Profile',
         personId: personIdHash,
         mainContact: contactObject.hash,
         contactObjects: [contactObject.hash]

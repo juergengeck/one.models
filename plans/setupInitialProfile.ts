@@ -42,34 +42,34 @@ export async function createObjects(
 
     /** Create the structure **/
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
-        type: 'OneInstanceEndpoint',
+        $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
         personKeys: personPubEncryptionKeysHash,
         instanceKeys: instancePubEncryptionKeysHash
     });
 
     const contactObject = await WriteStorage.storeUnversionedObject({
-        type: 'Contact',
+        $type$: 'Contact',
         personId: personIdHash,
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
     });
 
     const profileObject = await WriteStorage.storeVersionedObject({
-        type: 'Profile',
+        $type$: 'Profile',
         personId: personIdHash,
         mainContact: contactObject.hash,
         contactObjects: [contactObject.hash]
     });
 
     const someoneObject = await WriteStorage.storeUnversionedObject({
-        type: 'Someone',
+        $type$: 'Someone',
         mainProfile: profileObject.idHash,
         profiles: [profileObject.idHash]
     });
 
     return await WriteStorage.storeVersionedObject({
-        type: 'ContactApp',
+        $type$: 'ContactApp',
         appId: 'ContactApp',
         me: someoneObject.hash,
         contacts: []

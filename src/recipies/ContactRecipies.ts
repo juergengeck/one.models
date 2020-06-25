@@ -328,7 +328,7 @@ export const AuthenticatedContactsListRecipe: Recipe = {
     ]
 };
 
-// ######## Export recipies ########
+// ######## Export recipes ########
 
 const ContactRecipes: Recipe[] = [
     ProfileImageRecipe,

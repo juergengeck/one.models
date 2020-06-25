@@ -558,7 +558,7 @@ export default class ConnectionsModel extends EventEmitter {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'AuthenticatedContact',
+                $type$: 'AuthenticatedContact',
                 ...authenticatedContact
             }
         );

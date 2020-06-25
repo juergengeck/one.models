@@ -142,7 +142,7 @@ export default class PropertyTreeStore extends PropertyTree {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'Settings',
+                    $type$: 'Settings',
                     id: this.oneId,
                     properties: keyValueStoreCopy
                 }

@@ -18,19 +18,19 @@ export async function createObjects(
 ): Promise<VersionedObjectResult<Profile>> {
     const personIdHash = (
         await WriteStorage.storeVersionedObject({
-            type: 'Person',
+            $type$: 'Person',
             email: email
         })
     ).idHash;
     const contactObject = await WriteStorage.storeUnversionedObject({
-        type: 'Contact',
+        $type$: 'Contact',
         personId: personIdHash,
         communicationEndpoints: [],
         contactDescriptions: []
     });
 
     return await WriteStorage.storeVersionedObject({
-        type: 'Profile',
+        $type$: 'Profile',
         personId: personIdHash,
         mainContact: contactObject.hash,
         contactObjects: [contactObject.hash]
