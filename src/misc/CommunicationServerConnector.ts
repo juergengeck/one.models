@@ -1,11 +1,22 @@
 import {InitialMessageType} from './CommunicationServer';
 import {default as WebSocket, MessageEvent} from 'ws';
 
+enum CommServerConnectorStateType {
+    NotListening,
+    Registering,
+    Listening
+}
+
 export default class CommunicationServerConnector {
-    constructor(spareConnections: number) {
+    constructor(spareConnections: number, reconnectTimeout: number) {
         this.spareConnections = spareConnections;
         this.waitingList = new Array<WebSocket>(spareConnections);
         this.openedConnections = new Array<WebSocket>();
+        this.onConnection = null;
+        this.onChallenge = null;
+        this.onStateChange = null;
+        this.communicationServerConnectorState = CommServerConnectorStateType.NotListening;
+        this.reconnectTimeout = reconnectTimeout;
     }
 
     /**
@@ -21,6 +32,7 @@ export default class CommunicationServerConnector {
     }
 
     async establishRegisteredConnection(server: string, pubKey: string): Promise<WebSocket> {
+        this.changeCurrentState(CommServerConnectorStateType.Registering);
         // send register message to the communication server
         const registerMessage: InitialMessageType = {
             command: 'register',
@@ -35,11 +47,24 @@ export default class CommunicationServerConnector {
             await webSocket.send(JSON.stringify(registerMessage));
         };
 
-        webSocket.onerror = (err) => console.error('web socket error:' + err);
+        webSocket.onerror = (err) => {
+            this.changeCurrentState(
+                CommServerConnectorStateType.NotListening,
+                'web socket error:' + err
+            );
+            // console.error('web socket error:' + err);
+        };
 
         webSocket.onmessage = async (event: MessageEvent) => {
             const message = JSON.parse(event.data as string) as InitialMessageType;
             if (message.command === 'authenticate' && message.response && message.pubKey) {
+                if (this.onChallenge === null) {
+                    this.changeCurrentState(
+                        CommServerConnectorStateType.NotListening,
+                        'onChallenge not specified'
+                    );
+                    return;
+                }
                 const reEncryptedString = this.onChallenge(message.response, message.pubKey);
                 const authenticationMessage: InitialMessageType = {
                     command: 'authenticate',
@@ -48,15 +73,43 @@ export default class CommunicationServerConnector {
                 };
                 await webSocket.send(JSON.stringify(authenticationMessage));
             }
+            if (message.command === 'listening') {
+                this.changeCurrentState(CommServerConnectorStateType.Listening);
+            }
             if (message.command === 'connect') {
+                if (this.onConnection === null) {
+                    this.changeCurrentState(
+                        CommServerConnectorStateType.Listening,
+                        'onConnection not specified'
+                    );
+                    return;
+                }
                 this.onConnection(webSocket);
+                // open a new connection after this one has been established with a partner
+                this.establishRegisteredConnection(server, pubKey);
             }
         };
         return webSocket;
     }
 
-    onConnection: (webSocket: WebSocket) => void;
-    onChallenge: (challenge: string, pubKey: string) => string;
+    private changeCurrentState(newState: CommServerConnectorStateType, reason?: string): void {
+        const oldState = this.communicationServerConnectorState;
+        this.communicationServerConnectorState = newState;
+
+        if (this.onStateChange) {
+            this.onStateChange(newState, oldState, reason);
+        }
+    }
+
+    onConnection: ((webSocket: WebSocket) => void) | null;
+    onChallenge: ((challenge: string, pubKey: string) => string) | null;
+    onStateChange:
+        | ((
+              newState: CommServerConnectorStateType,
+              oldState: CommServerConnectorStateType,
+              reason?: string
+          ) => void)
+        | null;
 
     /**
      * Close all existing connections.
@@ -70,8 +123,20 @@ export default class CommunicationServerConnector {
      * Number of waiting connections at a moment.
      */
     private readonly spareConnections: number;
-
+    /**
+     * List of web sockets which have both partner connected.
+     */
     private openedConnections: WebSocket[];
-
+    /**
+     * List of opened web socket wich have no partner for moment.
+     */
     private waitingList: WebSocket[];
+    /**
+     * Current connection state.
+     */
+    private communicationServerConnectorState: CommServerConnectorStateType;
+    /**
+     * Reconnect timeout.
+     */
+    private reconnectTimeout: number;
 }

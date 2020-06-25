@@ -7,8 +7,69 @@ import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-
 
 const MessageBus = createMessageBus('CommunicationServer');
 
+/**
+ * --- register: instance -> comm server ---
+ *
+ * Instance tell to comm server that wats to wait new connections.
+ * Has to specify it's public key.
+ *
+ *
+ * --- authenticate: comm server -> instance ---
+ *
+ * Comm server tells the instance that has to authenticate first.
+ * The message contain server public key and an string which was
+ * encrypted using received instance public key and server private
+ * key.
+ * For proving it's authenticity, the instance has to decrypt
+ * the string received using it's private key and the received
+ * server public key. And then re-encrypt the obtained string
+ * using instance private key and received server public key.
+ *
+ *
+ * --- authenticate: instance-> comm server ---
+ *
+ * Instance wants to authenticate in front of the comm server,
+ * so it sends again it's public key and the re-encrypted string.
+ * The server decrypts the received string using server private
+ * key and received instance public key.
+ * If the decrypted string is the same as the sent one, the
+ * instance has proved that it has the private key corresponding
+ * to the sent public key.
+ *
+ *
+ * --- listening: comm server -> instance ---
+ *
+ * The comm server tells the instance that the authentication has
+ * finished successful and now if a instance wants to connect to
+ * it, the connection will be established.
+ *
+ *
+ * --- connect: instance -> comm server ---
+ *
+ * The instance tells the comm server that wants to connect with
+ * the instance who has proved to have the specified public key.
+ *
+ *
+ * --- connect: comm server -> instance ---
+ *
+ * Comm server has established a connection between two instances
+ * and tells to both instances that they have established a new
+ * connection.
+ *
+ *
+ * --- message: instance1 -> comm server -> instance2 ---
+ *
+ * For messages the comm server just forwards them.
+ *
+ *
+ * --- error: comm server -> instance ---
+ *
+ * When an error is encountered, the comm server will let the
+ * instance know about the issue that has appeared.
+ *
+ */
 export interface InitialMessageType {
-    command: 'register' | 'connect' | 'authenticate' | 'error' | 'message';
+    command: 'register' | 'authenticate' | 'listening' | 'connect' | 'message' | 'error';
     pubKey?: string;
     response?: string;
 }
@@ -204,6 +265,12 @@ export default class CommunicationServer {
                 : [event.target];
             MessageBus.send('log', 'New connection registered:' + pubKey);
             this.registeredConnections.set(pubKey, newConnectionsArrayForThisInstance);
+
+            event.target.send(
+                JSON.stringify({
+                    command: 'listening'
+                })
+            );
         }
     }
 
