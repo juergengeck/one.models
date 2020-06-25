@@ -33,18 +33,20 @@ export default class CommunicationServerConnector {
 
     async establishRegisteredConnection(server: string, pubKey: string): Promise<WebSocket> {
         this.changeCurrentState(CommServerConnectorStateType.Registering);
-        // send register message to the communication server
-        const registerMessage: InitialMessageType = {
-            command: 'register',
-            pubKey
-        };
 
         // create a web socket
         const webSocket = new WebSocket(server);
         // add the new created websocket to the waiting list until other instance
         this.waitingList.push(webSocket);
+
         webSocket.onopen = async () => {
-            await webSocket.send(JSON.stringify(registerMessage));
+            // send register message to the communication server
+            await webSocket.send(
+                JSON.stringify({
+                    command: 'register',
+                    pubKey
+                })
+            );
         };
 
         webSocket.onerror = (err) => {
@@ -66,12 +68,14 @@ export default class CommunicationServerConnector {
                     return;
                 }
                 const reEncryptedString = this.onChallenge(message.response, message.pubKey);
-                const authenticationMessage: InitialMessageType = {
-                    command: 'authenticate',
-                    pubKey: pubKey,
-                    response: reEncryptedString
-                };
-                await webSocket.send(JSON.stringify(authenticationMessage));
+
+                await webSocket.send(
+                    JSON.stringify({
+                        command: 'authenticate',
+                        pubKey: pubKey,
+                        response: reEncryptedString
+                    })
+                );
             }
             if (message.command === 'listening') {
                 this.changeCurrentState(CommServerConnectorStateType.Listening);
@@ -84,11 +88,25 @@ export default class CommunicationServerConnector {
                     );
                     return;
                 }
+                this.openedConnections.push(webSocket);
+                this.waitingList = this.waitingList.filter((ws) => ws !== webSocket);
                 this.onConnection(webSocket);
+
                 // open a new connection after this one has been established with a partner
                 this.establishRegisteredConnection(server, pubKey);
             }
         };
+
+        setTimeout(() => {
+            if (
+                this.communicationServerConnectorState === CommServerConnectorStateType.Registering
+            ) {
+                webSocket.close();
+                this.waitingList = this.waitingList.filter((ws) => ws !== webSocket);
+                this.establishRegisteredConnection(server, pubKey);
+            }
+        }, this.reconnectTimeout);
+
         return webSocket;
     }
 
