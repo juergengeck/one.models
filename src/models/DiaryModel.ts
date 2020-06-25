@@ -17,7 +17,7 @@ export type DiaryEntry = string;
 function convertToOne(modelObject: DiaryEntry): OneDiaryEntry {
     // Create the resulting object
     return {
-        type: 'DiaryEntry',
+        $type$: 'DiaryEntry',
         entry: modelObject
     };
 }

@@ -52,7 +52,9 @@ export type ObjectData<T> = {
 function isChannelInfoResult(
     versionedObjectResult: VersionedObjectResult
 ): versionedObjectResult is VersionedObjectResult<ChannelInfo> {
-    return (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.type === 'ChannelInfo';
+    return (
+        (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.$type$ === 'ChannelInfo'
+    );
 }
 
 /**
@@ -93,7 +95,7 @@ export default class ChannelManager extends EventEmitter {
         try {
             // Get the ChannelInfo from the database
             const channelInfoIdHash = await calculateIdHashOfObj({
-                type: 'ChannelInfo',
+                $type$: 'ChannelInfo',
                 id: channelId
             });
             const ignore = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
@@ -139,7 +141,7 @@ export default class ChannelManager extends EventEmitter {
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
         // Get the corresponding channel info object
         const channelInfoIdHash = await calculateIdHashOfObj({
-            type: 'ChannelInfo',
+            $type$: 'ChannelInfo',
             id: channelId
         });
         const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
@@ -193,7 +195,7 @@ export default class ChannelManager extends EventEmitter {
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.type === type;
+            return obj.data.$type$ === type;
         }
 
         for await (const obj of this.objectIterator(channelId)) {

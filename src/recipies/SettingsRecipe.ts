@@ -2,7 +2,7 @@ import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
-        Settings: Pick<Settings, 'id' | 'type'>;
+        Settings: Pick<Settings, 'id' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -10,14 +10,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface Settings {
-        type: 'Settings';
+        $type$: 'Settings';
         id: string;
         properties: Map<string, string>;
     }
 }
 
 export const ApplicationSettingsRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'Settings',
     rule: [
         {

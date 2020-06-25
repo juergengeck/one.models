@@ -7,7 +7,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface QuestionnaireResponse {
-        type: 'QuestionnaireResponse';
+        $type$: 'QuestionnaireResponse';
         questionnaire: string;
         item: {
             linkId: string;
@@ -17,7 +17,7 @@ declare module '@OneCoreTypes' {
 }
 
 const QuestionnaireResponseRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'QuestionnaireResponse',
     rule: [
         {

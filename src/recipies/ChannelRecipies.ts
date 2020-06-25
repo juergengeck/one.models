@@ -1,4 +1,4 @@
-import {Recipe, SHA256Hash} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -6,14 +6,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelEntry {
-        type: 'ChannelEntry';
+        $type$: 'ChannelEntry';
         data: SHA256Hash<CreationTime>;
         previous?: SHA256Hash<ChannelEntry>;
     }
 }
 
 export const ChannelEntryRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ChannelEntry',
     rule: [
         {
@@ -32,7 +32,7 @@ export const ChannelEntryRecipie: Recipe = {
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
-        ChannelInfo: Pick<ChannelInfo, 'id' | 'type'>;
+        ChannelInfo: Pick<ChannelInfo, 'id' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -40,14 +40,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelInfo {
-        type: 'ChannelInfo';
+        $type$: 'ChannelInfo';
         id: string;
         head?: SHA256Hash<ChannelEntry>;
     }
 }
 
 export const ChannelInfoRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ChannelInfo',
     rule: [
         {

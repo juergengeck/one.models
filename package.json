@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core",
-    "ws": "^7.3.0"
+    "one.core": "refinio/one.core"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",

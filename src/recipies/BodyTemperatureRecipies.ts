@@ -6,13 +6,13 @@ declare module '@OneCoreTypes' {
     }
 
     export interface BodyTemperature {
-        type: 'BodyTemperature';
+        $type$: 'BodyTemperature';
         temperature: number;
     }
 }
 
 export const BodyTemperatureRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'BodyTemperature',
     rule: [
         {

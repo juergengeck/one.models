@@ -88,7 +88,7 @@ export default class ConnectionsModel extends EventEmitter {
             // Get previous connection that my instance had.
             this.authenticatedContactsList = (
                 await getObjectByIdObj({
-                    type: 'AuthenticatedContactsList',
+                    $type$: 'AuthenticatedContactsList',
                     instanceIdHash: myInstanceIdHash
                 })
             ).obj;
@@ -114,7 +114,7 @@ export default class ConnectionsModel extends EventEmitter {
             if (error.name === 'FileNotFoundError') {
                 // My instance didn't have connections in the past.
                 this.authenticatedContactsList = {
-                    type: 'AuthenticatedContactsList',
+                    $type$: 'AuthenticatedContactsList',
                     instanceIdHash: myInstanceIdHash,
                     personalContacts: [],
                     otherContacts: []
@@ -235,7 +235,7 @@ export default class ConnectionsModel extends EventEmitter {
         const connection = this.partnerConnections.find((con) => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : undefined;
+                : false;
         });
 
         if (connection === undefined) {
@@ -368,7 +368,7 @@ export default class ConnectionsModel extends EventEmitter {
             const connection = this.personalCloudConnections.find((con) => {
                 return con.pairingInformation
                     ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                    : undefined;
+                    : false;
             });
 
             if (connection === undefined) {
@@ -403,7 +403,7 @@ export default class ConnectionsModel extends EventEmitter {
         const connection = this.personalCloudConnections.find((con) => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : undefined;
+                : false;
         });
 
         if (connection === undefined) {
@@ -694,7 +694,7 @@ export default class ConnectionsModel extends EventEmitter {
         authenticatedContact: AuthenticatedContact
     ): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
-            type: 'ChannelInfo',
+            $type$: 'ChannelInfo',
             id: 'questionnaire'
         });
 

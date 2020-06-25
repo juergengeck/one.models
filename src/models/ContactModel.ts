@@ -63,7 +63,7 @@ export default class ContactModel extends EventEmitter {
      */
     public static async getContactAppObject(): Promise<VersionedObjectResult<ContactApp>> {
         return await serializeWithType('ContactApp', async () => {
-            return await getObjectByIdObj({type: 'ContactApp', appId: 'ContactApp'});
+            return await getObjectByIdObj({$type$: 'ContactApp', appId: 'ContactApp'});
         });
     }
 
@@ -148,7 +148,7 @@ export default class ContactModel extends EventEmitter {
     public async getSomeoneObject(personId: SHA256IdHash<Person>): Promise<Someone | undefined> {
         const contactApp = await ContactModel.getContactAppObject();
         /** get the person profile, if it doesn't exist, it means it doesn't exist in the Someone object either **/
-        const personProfile = await getObjectByIdObj({type: 'Profile', personId: personId}).catch(
+        const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId}).catch(
             (ignored: Error) => undefined
         );
 
@@ -215,7 +215,7 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<Contact>}
      */
     public async getMainContactObject(personId: SHA256IdHash<Person>): Promise<Contact> {
-        const personProfile = await getObjectByIdObj({type: 'Profile', personId: personId});
+        const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
         return await getObject(personProfile.obj.mainContact);
     }
 
@@ -225,7 +225,7 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<Contact[]>}
      */
     public async getContactObjects(personId: SHA256IdHash<Person>): Promise<Contact[]> {
-        const personProfile = await getObjectByIdObj({type: 'Profile', personId: personId});
+        const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
         return Promise.all(
             personProfile.obj.contactObjects.map(
                 async (contactHash: SHA256Hash<Contact>) => await getObject(contactHash)
@@ -277,7 +277,7 @@ export default class ContactModel extends EventEmitter {
         /** see if the profile does exist **/
         try {
             profile = await serializeWithType(personEmail, async () => {
-                return await getObjectByIdObj({type: 'Profile', personId: personId});
+                return await getObjectByIdObj({$type$: 'Profile', personId: personId});
             });
         } catch (e) {
             /** otherwise create a new profile and register it with serialization **/
@@ -451,7 +451,7 @@ export default class ContactModel extends EventEmitter {
      */
     private static async doesContactAppObjectExist(): Promise<boolean> {
         try {
-            await getObjectByIdObj({type: 'ContactApp', appId: 'ContactApp'});
+            await getObjectByIdObj({$type$: 'ContactApp', appId: 'ContactApp'});
             return true;
         } catch (ignored) {
             return false;
@@ -482,7 +482,7 @@ export default class ContactModel extends EventEmitter {
                         /** see if the instance exists **/
                         try {
                             await getObjectByIdObj({
-                                type: 'Instance',
+                                $type$: 'Instance',
                                 name: personEmail,
                                 owner: profile.obj.personId
                             });
@@ -509,7 +509,7 @@ export default class ContactModel extends EventEmitter {
     private isContactAppVersionedObjectResult(
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<ContactApp> {
-        return (caughtObject as VersionedObjectResult<ContactApp>).obj.type === 'ContactApp';
+        return (caughtObject as VersionedObjectResult<ContactApp>).obj.$type$ === 'ContactApp';
     }
 
     /**
@@ -520,7 +520,7 @@ export default class ContactModel extends EventEmitter {
     private isContactUnVersionedObjectResult(
         caughtObject: UnversionedObjectResult
     ): caughtObject is UnversionedObjectResult<Contact> {
-        return (caughtObject as UnversionedObjectResult<Contact>).obj.type === 'Contact';
+        return (caughtObject as UnversionedObjectResult<Contact>).obj.$type$ === 'Contact';
     }
     /**
      * @description Private utility function to register another person profile.
