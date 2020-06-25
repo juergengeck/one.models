@@ -46,7 +46,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-export const ChannelInfoRecipie: Recipe = {
+export const ChannelInfoRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ChannelInfo',
     rule: [
@@ -63,8 +63,8 @@ export const ChannelInfoRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipie];
+const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipe];
 
 export default ChannelRecipes;

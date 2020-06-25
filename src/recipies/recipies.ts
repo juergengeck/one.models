@@ -1,21 +1,21 @@
 import {Recipe} from '@OneCoreTypes';
-import BodyTemperatureRecipies from './BodyTemperatureRecipies';
-import ChannelRecipies from './ChannelRecipies';
-import ContactRecipies from './ContactRecipies';
-import DiaryRecipies from './DiaryRecipies';
-import MetaRecipies from './MetaRecipies';
-import QuestionnaireRecipies from './QuestionnaireRecipies';
-import ConsentFileRecipies from './ConsentFileRecipies';
+import BodyTemperatureRecipes from './BodyTemperatureRecipies';
+import ChannelRecipes from './ChannelRecipies';
+import ContactRecipes from './ContactRecipies';
+import DiaryRecipes from './DiaryRecipies';
+import MetaRecipes from './MetaRecipies';
+import QuestionnaireRecipes from './QuestionnaireRecipies';
+import ConsentFileRecipes from './ConsentFileRecipies';
 import SettingsRecipe from './SettingsRecipe';
 
 const Recipes: Recipe[] = [
-    ...BodyTemperatureRecipies,
-    ...ChannelRecipies,
-    ...ContactRecipies,
-    ...DiaryRecipies,
-    ...MetaRecipies,
-    ...QuestionnaireRecipies,
-    ...ConsentFileRecipies,
+    ...BodyTemperatureRecipes,
+    ...ChannelRecipes,
+    ...ContactRecipes,
+    ...DiaryRecipes,
+    ...MetaRecipes,
+    ...QuestionnaireRecipes,
+    ...ConsentFileRecipes,
     ...SettingsRecipe
 ];
 

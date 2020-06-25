@@ -272,6 +272,14 @@ declare module '@OneCoreTypes' {
 
     export interface OneVersionedObjectInterfaces {
         AuthenticatedContactsList: AuthenticatedContactsList;
+        AuthenticatedContact: AuthenticatedContact;
+    }
+
+    export interface AuthenticatedContact {
+        $type$: 'AuthenticatedContact';
+        instanceKeysHash: SHA256Hash<Keys>;
+        personIdHash: SHA256IdHash<Person>;
+        invited: boolean;
     }
 
     export interface AuthenticatedContactsList {
@@ -282,7 +290,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-export const AuthenticatedContactRecipie: Recipe = {
+export const AuthenticatedContactRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'AuthenticatedContact',
     rule: [
@@ -298,7 +306,7 @@ export const AuthenticatedContactRecipie: Recipe = {
     ]
 };
 
-export const AuthenticatedContactsListRecipie: Recipe = {
+export const AuthenticatedContactsListRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'AuthenticatedContactsList',
     rule: [
@@ -330,8 +338,8 @@ const ContactRecipes: Recipe[] = [
     ContactAppRecipe,
     ContactRecipe,
     ProfileRecipe,
-    AuthenticatedContactRecipie,
-    AuthenticatedContactsListRecipie
+    AuthenticatedContactRecipe,
+    AuthenticatedContactsListRecipe
 ];
 
 export default ContactRecipes;
