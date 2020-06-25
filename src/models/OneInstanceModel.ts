@@ -168,11 +168,11 @@ export default class OneInstanceModel extends EventEmitter {
 
         try {
             const ownerIdHash = await calculateIdHashOfObj({
-                type: 'Person',
+                $type$: 'Person',
                 email: localStorage.getItem('email')
             } as Person);
             const instanceIdHash = await calculateIdHashOfObj({
-                type: 'Instance',
+                $type$: 'Instance',
                 name: localStorage.getItem('instance'),
                 owner: ownerIdHash
             } as Instance);

@@ -59,7 +59,7 @@ function convertToOne(modelObject: QuestionnaireResponse): OneQuestionnaireRespo
 
     // Create the resulting object
     return {
-        type: 'QuestionnaireResponse',
+        $type$: 'QuestionnaireResponse',
         ...rest,
         item: oneItems
     };

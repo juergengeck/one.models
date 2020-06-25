@@ -1,4 +1,4 @@
-import {Questionnaire, QuestionType} from './QuestionTypes';
+import {Questionnaire} from './QuestionTypes';
 
 /**
  * Questionnaire FSV

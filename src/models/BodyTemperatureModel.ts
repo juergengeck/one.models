@@ -17,7 +17,7 @@ function convertToOneBodyTemperature(bodyTemperature: BodyTemperature): OneBodyT
     }
 
     return {
-        type: 'BodyTemperature',
+        $type$: 'BodyTemperature',
         temperature: bodyTemperature.temperature
     };
 }

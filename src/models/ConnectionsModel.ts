@@ -88,7 +88,7 @@ export default class ConnectionsModel extends EventEmitter {
             // Get previous connection that my instance had.
             this.authenticatedContactsList = (
                 await getObjectByIdObj({
-                    type: 'AuthenticatedContactsList',
+                    $type$: 'AuthenticatedContactsList',
                     instanceIdHash: myInstanceIdHash
                 })
             ).obj;
@@ -114,7 +114,7 @@ export default class ConnectionsModel extends EventEmitter {
             if (error.name === 'FileNotFoundError') {
                 // My instance didn't have connections in the past.
                 this.authenticatedContactsList = {
-                    type: 'AuthenticatedContactsList',
+                    $type$: 'AuthenticatedContactsList',
                     instanceIdHash: myInstanceIdHash,
                     personalContacts: [],
                     otherContacts: []
@@ -209,8 +209,13 @@ export default class ConnectionsModel extends EventEmitter {
         secret: string
     ): Promise<void> {
         if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance'));
+            this.emit(
+                'error',
+                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
+            );
+            throw new Error(
+                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
+            );
         }
 
         if (invited) {
@@ -228,7 +233,9 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         const connection = this.partnerConnections.find((con) => {
-            return con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote;
+            return con.pairingInformation
+                ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
+                : undefined;
         });
 
         if (connection === undefined) {
@@ -359,9 +366,9 @@ export default class ConnectionsModel extends EventEmitter {
             }
 
             const connection = this.personalCloudConnections.find((con) => {
-                return (
-                    con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                );
+                return con.pairingInformation
+                    ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
+                    : undefined;
             });
 
             if (connection === undefined) {
@@ -394,7 +401,9 @@ export default class ConnectionsModel extends EventEmitter {
         invited: boolean
     ): Promise<void> {
         const connection = this.personalCloudConnections.find((con) => {
-            return con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote;
+            return con.pairingInformation
+                ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
+                : undefined;
         });
 
         if (connection === undefined) {
@@ -456,7 +465,11 @@ export default class ConnectionsModel extends EventEmitter {
 
         const {communicationManagerAPI, authenticatedContact, pairingInformation} = connection;
 
-        if (pairingInformation.takeOver === false && authenticatedContact === undefined) {
+        if (
+            pairingInformation &&
+            !pairingInformation.takeOver &&
+            authenticatedContact === undefined
+        ) {
             this.emit('error', i18nModelsInstance.t('errors:connectionModel.noPartner'));
             throw new Error(i18nModelsInstance.t('errors:connectionModel.noPartner'));
         }
@@ -469,8 +482,12 @@ export default class ConnectionsModel extends EventEmitter {
             throw error;
         });
 
-        websocketPromisifierAPI.localPersonIdHash = connection.authenticatedContact.personIdHash;
-        websocketPromisifierAPI.remotePersonIdHash = connection.authenticatedContact.personIdHash;
+        if (connection.authenticatedContact) {
+            websocketPromisifierAPI.localPersonIdHash =
+                connection.authenticatedContact.personIdHash;
+            websocketPromisifierAPI.remotePersonIdHash =
+                connection.authenticatedContact.personIdHash;
+        }
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
@@ -677,7 +694,7 @@ export default class ConnectionsModel extends EventEmitter {
         authenticatedContact: AuthenticatedContact
     ): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
-            type: 'ChannelInfo',
+            $type$: 'ChannelInfo',
             id: 'questionnaire'
         });
 

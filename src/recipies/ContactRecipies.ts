@@ -1,10 +1,10 @@
-import {AuthenticatedContact, Instance, Recipe, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
-        Profile: Pick<Profile, 'personId' | 'type'>;
-        ContactApp: Pick<ContactApp, 'appId' | 'type'>;
+        Profile: Pick<Profile, 'personId' | '$type$'>;
+        ContactApp: Pick<ContactApp, 'appId' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -34,7 +34,7 @@ declare module '@OneCoreTypes' {
     export interface CommunicationEndpoint {}
 
     export interface OneInstanceEndpoint extends CommunicationEndpoint {
-        type: 'OneInstanceEndpoint';
+        $type$: 'OneInstanceEndpoint';
         personId: SHA256IdHash<Person>;
         personKeys: SHA256Hash<Keys>;
         instanceKeys: SHA256Hash<Keys>;
@@ -53,12 +53,12 @@ declare module '@OneCoreTypes' {
     export interface ContactDescription {}
 
     export interface PersonName extends ContactDescription {
-        type: 'PersonName';
+        $type$: 'PersonName';
         name: string;
     }
 
     export interface ProfileImage extends ContactDescription {
-        type: 'ProfileImage';
+        $type$: 'ProfileImage';
         image: BLOB;
     }
 
@@ -70,7 +70,7 @@ declare module '@OneCoreTypes' {
      * Those objects can be shared with everybody.
      */
     export interface Contact {
-        type: 'Contact';
+        $type$: 'Contact';
         personId: SHA256IdHash<Person>;
         //communicationEndpoints: SHA256Hash<OneInstanceEndpoint>[];
         //contactDescriptions: SHA256Hash<PersonName | ProfileImage>[];
@@ -85,7 +85,7 @@ declare module '@OneCoreTypes' {
      * own personal cloud, nobody else.
      */
     export interface Profile {
-        type: 'Profile';
+        $type$: 'Profile';
         personId: SHA256IdHash<Person>;
         mainContact: SHA256Hash<Contact>;
         contactObjects: SHA256Hash<Contact>[];
@@ -110,7 +110,7 @@ declare module '@OneCoreTypes' {
      *   and this can only be done through the App object.
      */
     export interface Someone {
-        type: 'Someone';
+        $type$: 'Someone';
         mainProfile: SHA256IdHash<Profile>;
         profiles: SHA256IdHash<Profile>[];
     }
@@ -122,7 +122,7 @@ declare module '@OneCoreTypes' {
      * so it is a list of persons we know.
      */
     export interface ContactApp {
-        type: 'ContactApp';
+        $type$: 'ContactApp';
         appId: 'ContactApp'; // since this is a versioned object we need some kind of id ... and this is it
         me: SHA256Hash<Someone>;
         contacts: SHA256Hash<Someone>[];
@@ -132,7 +132,7 @@ declare module '@OneCoreTypes' {
 // ######## Recipes ########
 
 export const ProfileRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'Profile',
     rule: [
         {
@@ -153,7 +153,7 @@ export const ProfileRecipe: Recipe = {
 };
 
 export const ContactRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'Contact',
     rule: [
         {
@@ -186,7 +186,7 @@ export const ContactDescriptionRecipe: Recipe = {
 };*/
 
 export const ContactAppRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ContactApp',
     rule: [
         {
@@ -207,7 +207,7 @@ export const ContactAppRecipe: Recipe = {
 };
 
 export const SomeoneRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'Someone',
     rule: [
         {
@@ -223,7 +223,7 @@ export const SomeoneRecipe: Recipe = {
 };
 
 export const OneInstanceEndpointRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'OneInstanceEndpoint',
     rule: [
         {
@@ -242,7 +242,7 @@ export const OneInstanceEndpointRecipe: Recipe = {
 };
 
 export const PersonNameRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'PersonName',
     rule: [
         {
@@ -253,7 +253,7 @@ export const PersonNameRecipe: Recipe = {
 };
 
 export const ProfileImageRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ProfileImage',
     rule: [
         {
@@ -267,7 +267,7 @@ export const ProfileImageRecipe: Recipe = {
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
-        AuthenticatedContactsList: Pick<AuthenticatedContactsList, 'instanceIdHash' | 'type'>;
+        AuthenticatedContactsList: Pick<AuthenticatedContactsList, 'instanceIdHash' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -275,7 +275,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface AuthenticatedContactsList {
-        type: 'AuthenticatedContactsList';
+        $type$: 'AuthenticatedContactsList';
         instanceIdHash: SHA256IdHash<Instance>;
         personalContacts?: SHA256Hash<AuthenticatedContact>[];
         otherContacts?: SHA256Hash<AuthenticatedContact>[];
@@ -283,7 +283,7 @@ declare module '@OneCoreTypes' {
 }
 
 export const AuthenticatedContactRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'AuthenticatedContact',
     rule: [
         {
@@ -299,7 +299,7 @@ export const AuthenticatedContactRecipie: Recipe = {
 };
 
 export const AuthenticatedContactsListRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'AuthenticatedContactsList',
     rule: [
         {

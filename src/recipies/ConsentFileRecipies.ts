@@ -6,14 +6,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ConsentFile {
-        type: 'ConsentFile';
+        $type$: 'ConsentFile';
         fileData: string;
         fileType: string;
     }
 }
 
 const ConsentFileRecipie: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ConsentFile',
     rule: [
         {
