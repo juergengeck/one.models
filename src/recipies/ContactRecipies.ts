@@ -300,8 +300,11 @@ export const AuthenticatedContactRecipe: Recipe = {
         },
         {
             itemprop: 'personIdHash',
-            optional: true,
-            referenceToObj: new Set(['Person'])
+            referenceToId: new Set(['Person'])
+        },
+        {
+            itemprop: 'invited',
+            valueType: 'boolean'
         }
     ]
 };
