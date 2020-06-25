@@ -11,7 +11,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-const DiaryEntryRecipie: Recipe = {
+const DiaryEntryRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'DiaryEntry',
     rule: [
@@ -22,8 +22,8 @@ const DiaryEntryRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const DiaryRecipes: Recipe[] = [DiaryEntryRecipie];
+const DiaryRecipes: Recipe[] = [DiaryEntryRecipe];
 
 export default DiaryRecipes;

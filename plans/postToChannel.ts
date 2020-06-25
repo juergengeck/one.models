@@ -23,7 +23,7 @@ export async function createObjects(
 ): Promise<VersionedObjectResult<ChannelInfo>> {
     // Get the ChannelInfo from the database
     const channelInfoIdHash: SHA256IdHash<ChannelInfo> = await calculateIdHashOfObj({
-        type: 'ChannelInfo',
+        $type$: 'ChannelInfo',
         id: channelid
     });
     const channelInfoResult = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
@@ -33,7 +33,7 @@ export async function createObjects(
 
     // Create creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
-        type: 'CreationTime',
+        $type$: 'CreationTime',
         timestamp: Date.now(),
         data: payloadResult.hash
     });
@@ -42,14 +42,14 @@ export async function createObjects(
     // We should iterate the linked list until the correct item is found ... later when we have time
     // assume all clocks are in sync at the moment
     const channelEntryResult = (await WriteStorage.storeUnversionedObject({
-        type: 'ChannelEntry',
+        $type$: 'ChannelEntry',
         previous: channelInfoResult.obj.head,
         data: creationTimeResult.hash
     })) as UnversionedObjectResult<ChannelEntry>;
 
     // Update the head of the ChannelInfo entry
     return await WriteStorage.storeVersionedObject({
-        type: 'ChannelInfo',
+        $type$: 'ChannelInfo',
         id: channelid,
         head: channelEntryResult.hash
     });

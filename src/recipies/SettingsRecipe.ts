@@ -32,7 +32,7 @@ export const ApplicationSettingsRecipe: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
 const SettingsRecipe: Recipe[] = [ApplicationSettingsRecipe];
 
