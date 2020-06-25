@@ -235,7 +235,7 @@ export default class ConnectionsModel extends EventEmitter {
         const connection = this.partnerConnections.find((con) => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : undefined;
+                : false;
         });
 
         if (connection === undefined) {
@@ -368,7 +368,7 @@ export default class ConnectionsModel extends EventEmitter {
             const connection = this.personalCloudConnections.find((con) => {
                 return con.pairingInformation
                     ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                    : undefined;
+                    : false;
             });
 
             if (connection === undefined) {
@@ -403,7 +403,7 @@ export default class ConnectionsModel extends EventEmitter {
         const connection = this.personalCloudConnections.find((con) => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : undefined;
+                : false;
         });
 
         if (connection === undefined) {
