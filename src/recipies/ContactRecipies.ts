@@ -295,8 +295,8 @@ export const AuthenticatedContactRecipe: Recipe = {
     name: 'AuthenticatedContact',
     rule: [
         {
-            itemprop: 'instanceIdHash',
-            referenceToObj: new Set(['Instance'])
+            itemprop: 'instanceKeysHash',
+            referenceToObj: new Set(['Keys'])
         },
         {
             itemprop: 'personIdHash',
