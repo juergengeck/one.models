@@ -116,6 +116,16 @@ export default class CommunicationServerConnector {
             // todo: should also close the web socket?
         };
 
+        webSocket.onclose = () => {
+            // When the web socket is closed, remove ot from the list where it was memorised.
+            this.waitingList = this.waitingList.filter((ws) => ws !== webSocket);
+            this.openedConnections = this.openedConnections.filter((ws) => ws !== webSocket);
+
+            // The web socket is not connected to the communication server, so the connector is again in
+            // the not listening state.
+            this.changeCurrentState(CommServerConnectorStateType.NotListening, 'websocket closed');
+        };
+
         webSocket.onmessage = async (event: MessageEvent) => {
             const message = JSON.parse(event.data as string) as InitialMessageType;
 
@@ -166,8 +176,8 @@ export default class CommunicationServerConnector {
                 this.onConnection(webSocket);
 
                 // Open a new connection after this one has been established with a partner.
-                // No need to wait for the promises to return here, because this connection
-                // should not stay blocked until the other one is established.
+                // IMPORTANT: No need to wait for the promises to return here, because this
+                // connection should not stay blocked until the other one is established.
                 this.establishRegisteredConnection(server, pubKey);
             }
         };
