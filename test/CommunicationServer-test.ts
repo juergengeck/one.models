@@ -56,7 +56,7 @@ describe('communication server tests', () => {
         server = fork(join(__dirname, '../lib/misc/usage/CommunicationServerStarter.js'));
     });
 
-    it('should establish a connection directly to comm server', function (done) {
+    it('should establish a connection directly to communication server', function (done) {
         startClients().then(async () => {
             // these results can not be computed in the it part, because
             // they are asynchronous calculated and the it function does
@@ -69,7 +69,7 @@ describe('communication server tests', () => {
         expect(clientsResult).to.be.equal('message received');
     });
 
-    it('should establish a connection to comm server using connector', function (done) {
+    it('should establish a connection to communication server using connector', function (done) {
         if (clients) {
             clients.kill('SIGUSR1');
         }
