@@ -462,6 +462,7 @@ export default class ContactModel extends EventEmitter {
      * @description Register the needed hooks
      * @returns {void}
      */
+    // @ts-ignore
     private registerHooks(): void {
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (this.isContactAppVersionedObjectResult(caughtObject)) {

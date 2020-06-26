@@ -98,9 +98,9 @@ export default class ChannelManager extends EventEmitter {
                 $type$: 'ChannelInfo',
                 id: channelId
             });
-            const ignore = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
+            await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             return;
-        } catch (ignore) {
+        } catch (_) {
             const channelResponse = (await createSingleObjectThroughPurePlan(
                 {module: '@module/createChannel'},
                 channelId
