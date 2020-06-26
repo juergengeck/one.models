@@ -517,7 +517,7 @@ export default class ChannelManager extends EventEmitter {
         let firstChannelHash = firstChannelUnversionedObject.head;
         let secondChannelHash = secondChannelUnversionedObject.head;
 
-        while (true) {
+        for (;;) {
             const firstChannelCreationTime = await getObject(firstChannelHead.data);
             const secondChannelCreationTime = await getObject(secondChannelHead.data);
 
