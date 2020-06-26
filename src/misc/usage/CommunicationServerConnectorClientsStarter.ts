@@ -12,6 +12,8 @@ const firstClientKeys = box.keyPair();
 registerClientAndWaitConnectionsWithConnector(
     fromByteArray(firstClientKeys.publicKey),
     fromByteArray(firstClientKeys.secretKey)
-);
+).then(() => {
+    console.log('registerClientAndWaitConnectionsWithConnector');
+});
 
-setTimeout(async () => await connectToOtherClient(fromByteArray(firstClientKeys.publicKey)), 10000);
+setTimeout(async () => await connectToOtherClient(fromByteArray(firstClientKeys.publicKey)), 20000);

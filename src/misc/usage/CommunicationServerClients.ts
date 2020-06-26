@@ -45,6 +45,12 @@ export async function connectToOtherClient(otherClientPubKey: string): Promise<v
             }
         }
     };
+
+    if (process.on) {
+        process.on('SIGUSR1', () => {
+            webSocket.close();
+        });
+    }
 }
 
 export async function registerClientAndWaitConnectionsWithConnector(
@@ -86,6 +92,12 @@ export async function registerClientAndWaitConnectionsWithConnector(
     };
 
     await communicationServerConnector.register(communicationServerURL, instancePublicKey);
+
+    if (process.on) {
+        process.on('SIGUSR1', () => {
+            communicationServerConnector.shutDown();
+        });
+    }
 }
 
 export async function registerClientAndWaitConnections(
@@ -152,4 +164,10 @@ export async function registerClientAndWaitConnections(
             }
         }
     };
+
+    if (process.on) {
+        process.on('SIGUSR1', () => {
+            webSocket.close();
+        });
+    }
 }

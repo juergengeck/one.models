@@ -8,7 +8,7 @@ enum CommServerConnectorStateType {
 }
 
 export default class CommunicationServerConnector {
-    constructor(spareConnections: number, reconnectTimeout: number) {
+    constructor(spareConnections: number, reconnectTimeout = 10000, pingTimeout = 5000) {
         this.spareConnections = spareConnections;
         this.waitingList = new Array<WebSocket>(spareConnections);
         this.openedConnections = new Array<WebSocket>();
@@ -17,6 +17,7 @@ export default class CommunicationServerConnector {
         this.onStateChange = null;
         this.communicationServerConnectorState = CommServerConnectorStateType.NotListening;
         this.reconnectTimeout = reconnectTimeout;
+        this.pingTimeout = pingTimeout;
     }
 
     /**
@@ -91,13 +92,18 @@ export default class CommunicationServerConnector {
         pubKey: string
     ): Promise<WebSocket> {
         this.changeCurrentState(CommServerConnectorStateType.Registering);
+        // The known state of the communication server.
+        let isServerAlive = false;
 
         // Create a web socket.
         const webSocket = new WebSocket(server);
         // Add the new created websocket to the waiting list until other instance.
         this.waitingList.push(webSocket);
 
+        // Fired when a connection with a WebSocket is opened.
         webSocket.onopen = async () => {
+            // Since the web socket connection has been oped the communication server is alive.
+            isServerAlive = true;
             // Send register message to the communication server.
             await webSocket.send(
                 JSON.stringify({
@@ -107,15 +113,17 @@ export default class CommunicationServerConnector {
             );
         };
 
+        // Fired when a connection with a WebSocket has been closed
+        // because of an error, such as when some data couldn't be sent.
         webSocket.onerror = (err) => {
             // When an error occurred, change state.
             this.changeCurrentState(
                 CommServerConnectorStateType.NotListening,
                 'web socket error:' + err
             );
-            // todo: should also close the web socket?
         };
 
+        // Fired when a connection with a WebSocket is closed.
         webSocket.onclose = () => {
             // When the web socket is closed, remove ot from the list where it was memorised.
             this.waitingList = this.waitingList.filter((ws) => ws !== webSocket);
@@ -126,11 +134,12 @@ export default class CommunicationServerConnector {
             this.changeCurrentState(CommServerConnectorStateType.NotListening, 'websocket closed');
         };
 
+        // Fired when data is received through a WebSocket.
         webSocket.onmessage = async (event: MessageEvent) => {
             const message = JSON.parse(event.data as string) as InitialMessageType;
 
+            // After the registration command was sent, the authentication should be done.
             if (message.command === 'authenticate' && message.response && message.pubKey) {
-                // After the registration command was sent, the authentication should be done.
                 // Here is called the onChallenge callback.
                 if (this.onChallenge === null) {
                     this.changeCurrentState(
@@ -150,13 +159,15 @@ export default class CommunicationServerConnector {
                 );
             }
 
+            // The registration process has finished successfully and the listening is started.
             if (message.command === 'listening') {
-                // The registration process has finished successfully and the listening is started.
                 this.changeCurrentState(CommServerConnectorStateType.Listening);
+                // Check every pingTimeout milliseconds if the communication server is still alive.
+                this.pingCommServer(isServerAlive, webSocket);
             }
 
+            // The connection with another instance has been established.
             if (message.command === 'connect') {
-                // The connection with another instance has been established.
                 // The web socket is removed from the waiting list.
                 this.waitingList = this.waitingList.filter((ws) => ws !== webSocket);
 
@@ -174,6 +185,9 @@ export default class CommunicationServerConnector {
                 // web socket.
                 this.openedConnections.push(webSocket);
                 this.onConnection(webSocket);
+
+                // remove onmessage listener
+                webSocket.onmessage = (event) => {};
 
                 // Open a new connection after this one has been established with a partner.
                 // IMPORTANT: No need to wait for the promises to return here, because this
@@ -196,7 +210,31 @@ export default class CommunicationServerConnector {
             }
         }, this.reconnectTimeout);
 
+        webSocket.on('pong', () => {
+            // When the communication server responds to the ping event, it is still available.
+            isServerAlive = true;
+            // Check again server state after pingTimeout milliseconds.
+            this.pingCommServer(isServerAlive, webSocket);
+        });
+
         return webSocket;
+    }
+
+    private pingCommServer(isServerAlive: boolean, webSocket: WebSocket) {
+        setTimeout(() => {
+            if (this.communicationServerConnectorState === CommServerConnectorStateType.Listening) {
+                if (!isServerAlive) {
+                    // The server did not respond to the ping request in 5 seconds, so
+                    // the server is no longer online, and the web socket is closed.
+                    webSocket.close();
+                } else {
+                    // As long as the connection isn't connected to another instance (so still listening)
+                    // ping the server every pingTimeout milliseconds.
+                    isServerAlive = false;
+                    webSocket.ping();
+                }
+            }
+        }, this.pingTimeout);
     }
 
     /**
@@ -224,6 +262,10 @@ export default class CommunicationServerConnector {
      * Reconnect timeout.
      */
     private readonly reconnectTimeout: number;
+    /**
+     * Ping the server every pingTimeout milliseconds while in listening state.
+     */
+    private readonly pingTimeout: number;
     /**
      * List of web sockets which have both partner connected.
      */

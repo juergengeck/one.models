@@ -165,6 +165,10 @@ export default class CommunicationServer {
             MessageBus.send('error', JSON.stringify(error));
             // todo: close web socket?
         });
+
+        ws.on('ping', () => {
+            ws.pong();
+        });
     }
 
     /**

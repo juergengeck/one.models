@@ -9,12 +9,20 @@ type InstanceEndpoint = {
 
 export default class CommunicationModule {
     constructor() {
+        this.onChallenge = null;
+        this.onConnection = null;
+
         this.communicationServerConnector = new CommunicationServerConnector(1);
         this.communicationServerConnector.onConnection = (webSocket: WebSocket) => {
-            this.onConnection(webSocket);
+            if (this.onConnection) {
+                this.onConnection(webSocket);
+            }
         };
         this.communicationServerConnector.onChallenge = (message, serverPubKey) => {
-            return this.onChallenge(message, serverPubKey);
+            if (this.onChallenge) {
+                return this.onChallenge(message, serverPubKey);
+            }
+            return '';
         };
         this.openedConnections = new Map<SHA256IdHash<Instance>, WebSocket[]>();
     }
@@ -77,7 +85,7 @@ export default class CommunicationModule {
     }
 
     private communicationServerConnector: CommunicationServerConnector;
-    private onConnection: (webSocket: WebSocket) => void;
-    private onChallenge: (challenge: string, pubKey: string) => string;
+    private onConnection: ((webSocket: WebSocket) => void) | null;
+    private onChallenge: ((challenge: string, pubKey: string) => string) | null;
     private openedConnections: Map<SHA256IdHash<Instance>, WebSocket[]>;
 }

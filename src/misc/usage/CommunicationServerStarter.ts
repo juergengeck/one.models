@@ -9,6 +9,10 @@ communicationServer.start('localhost', 8000).then(() => {
     }
 });
 
-process.on('SIGKILL', async () => {
-    await communicationServer.stop();
-});
+if (process.on) {
+    process.on('SIGUSR1', () => {
+        communicationServer.stop().then(() => {
+            console.log('process killed');
+        });
+    });
+}
