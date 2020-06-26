@@ -23,7 +23,7 @@ export async function createObjects(
     // Update the head of the ChannelInfo entry
     const channelInfoResult: VersionedObjectResult<ChannelInfo> = await WriteStorage.storeVersionedObject(
         {
-            type: 'ChannelInfo',
+            $type$: 'ChannelInfo',
             id: channelid
         }
     );

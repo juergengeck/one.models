@@ -12,7 +12,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-const ConsentFileRecipie: Recipe = {
+const ConsentFileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ConsentFile',
     rule: [
@@ -27,8 +27,8 @@ const ConsentFileRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const ConsentFile: Recipe[] = [ConsentFileRecipie];
+const ConsentFile: Recipe[] = [ConsentFileRecipe];
 
 export default ConsentFile;

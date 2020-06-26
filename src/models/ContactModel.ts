@@ -397,7 +397,7 @@ export default class ContactModel extends EventEmitter {
         const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'Someone',
+                $type$: 'Someone',
                 mainProfile: profileA.idHash,
                 /** remove the duplicates **/
                 profiles: Array.from(new Set([...someoneA.profiles, ...someoneB.profiles]))
@@ -537,7 +537,7 @@ export default class ContactModel extends EventEmitter {
             const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
                 {
-                    type: 'Someone',
+                    $type$: 'Someone',
                     mainProfile: profile.idHash,
                     profiles: [profile.idHash]
                 }

@@ -12,7 +12,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-const CreationTimeRecipie: Recipe = {
+const CreationTimeRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'CreationTime',
     rule: [
@@ -27,8 +27,8 @@ const CreationTimeRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const MetaRecipes: Recipe[] = [CreationTimeRecipie];
+const MetaRecipes: Recipe[] = [CreationTimeRecipe];
 
 export default MetaRecipes;

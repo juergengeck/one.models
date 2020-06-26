@@ -272,6 +272,14 @@ declare module '@OneCoreTypes' {
 
     export interface OneVersionedObjectInterfaces {
         AuthenticatedContactsList: AuthenticatedContactsList;
+        AuthenticatedContact: AuthenticatedContact;
+    }
+
+    export interface AuthenticatedContact {
+        $type$: 'AuthenticatedContact';
+        instanceKeysHash: SHA256Hash<Keys>;
+        personIdHash: SHA256IdHash<Person>;
+        invited: boolean;
     }
 
     export interface AuthenticatedContactsList {
@@ -282,23 +290,26 @@ declare module '@OneCoreTypes' {
     }
 }
 
-export const AuthenticatedContactRecipie: Recipe = {
+export const AuthenticatedContactRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'AuthenticatedContact',
     rule: [
         {
-            itemprop: 'instanceIdHash',
-            referenceToObj: new Set(['Instance'])
+            itemprop: 'instanceKeysHash',
+            referenceToObj: new Set(['Keys'])
         },
         {
             itemprop: 'personIdHash',
-            optional: true,
-            referenceToObj: new Set(['Person'])
+            referenceToId: new Set(['Person'])
+        },
+        {
+            itemprop: 'invited',
+            valueType: 'boolean'
         }
     ]
 };
 
-export const AuthenticatedContactsListRecipie: Recipe = {
+export const AuthenticatedContactsListRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'AuthenticatedContactsList',
     rule: [
@@ -320,7 +331,7 @@ export const AuthenticatedContactsListRecipie: Recipe = {
     ]
 };
 
-// ######## Export recipies ########
+// ######## Export recipes ########
 
 const ContactRecipes: Recipe[] = [
     ProfileImageRecipe,
@@ -330,8 +341,8 @@ const ContactRecipes: Recipe[] = [
     ContactAppRecipe,
     ContactRecipe,
     ProfileRecipe,
-    AuthenticatedContactRecipie,
-    AuthenticatedContactsListRecipie
+    AuthenticatedContactRecipe,
+    AuthenticatedContactsListRecipe
 ];
 
 export default ContactRecipes;
