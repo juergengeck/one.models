@@ -44,7 +44,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await(const obj of channelManager.objectIterator(channelId, {})) {
+            for await(const {} of channelManager.objectIterator(channelId, {})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
@@ -382,6 +382,7 @@ describe('Channel Iterators test', () => {
     });
     it('should test getObjectsWithType with no specific type and NO-OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
+            //@ts-ignore
             const objects1 = await channelManager.getObjectsWithType(channelId, 'Person');
             expect(objects1).to.have.length(0);
         }
@@ -573,6 +574,7 @@ describe('Channel Iterators test', () => {
                     channelId,
                     specificObjectHash,
                     'BodyTemperature',
+                    //@ts-ignore
                     {
                         owner: getInstanceIdHash()
                     }

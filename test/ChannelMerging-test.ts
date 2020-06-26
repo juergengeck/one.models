@@ -5,11 +5,11 @@ import {expect} from 'chai';
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipies/recipies';
-import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
+import Model, {dbKey, importModules} from './utils/Model';
 import {ChannelManager} from '../lib/models';
 import {
     createSingleObjectThroughPurePlan,
-    getAllVersionMapEntries, getObjectByIdHash, VERSION_UPDATES,
+    getAllVersionMapEntries, getObject, getObjectByIdHash, VERSION_UPDATES,
 } from 'one.core/lib/storage';
 
 let channelManager: ChannelManager;
@@ -47,7 +47,6 @@ describe('Channel Merging test', () => {
     it('should merge all versions of a channelInfo between them', async () => {
         const channelRegistry = await ChannelManager.getChannelRegistry();
 
-        //await channelManager.getObjects('first')
         const channelInfoIdHash = channelRegistry.obj.channels[0];
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
         for (let i = 0; i < versions.length; i++) {
@@ -58,10 +57,7 @@ describe('Channel Merging test', () => {
                 expect(objects).to.have.length((i > j ? i : (i < j ? j : i)));
             }
         }
-        const objects = await channelManager.getObjects('first');
-        //console.log(objects);
-
-    }).timeout(20000);
+    }).timeout(120000);
 
     it('should merge 2 very different versions of created channel', async () => {
         const channelRegistry = await ChannelManager.getChannelRegistry();
@@ -109,12 +105,11 @@ describe('Channel Merging test', () => {
             channelInfo.obj
         );
 
-
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
         await channelManager.mergeChannels(versions[versions.length - 2].hash, versions[versions.length - 1].hash);
         const objects = await channelManager.getObjects('first');
+
         expect(objects).to.have.length(howMany + 1);
-        //console.log(objects);
     });
 
     after(async () => {

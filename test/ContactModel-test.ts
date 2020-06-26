@@ -423,6 +423,9 @@ describe('Contact model test', () => {
     it('should return a person identities', async () => {
         const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
         const identities = await contactModel.listAlternateIdentities(person.idHash);
+        if(identities === undefined){
+            throw new Error('Error in "should return a person identities"')
+        }
         expect(identities.length).to.be.equal(0);
     });
 
@@ -535,6 +538,11 @@ describe('Contact model test', () => {
         await contactModel.declareSamePerson(personA, personB);
 
         const updatedSomeone = await contactModel.getSomeoneObject(personA);
+
+        if(updatedSomeone === undefined || someoneA === undefined){
+            throw new Error('Error in "should declare same person between foo and bar"')
+        }
+
         expect(updatedSomeone.mainProfile).to.be.equal(someoneA.mainProfile);
         expect(updatedSomeone.profiles.length).to.be.equal(2);
     });

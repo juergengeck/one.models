@@ -485,9 +485,6 @@ export default class ChannelManager extends EventEmitter {
 
         let sortedChannelEntries: ChannelEntry[] = [];
 
-        /** if the id & owner of the channels are not equal, throw an error
-         *  @Future in the future we might change that
-         * **/
         if (
             firstChannelUnversionedObject.id !== secondChannelUnversionedObject.id &&
             firstChannelUnversionedObject.owner !== secondChannelUnversionedObject.owner
@@ -495,7 +492,6 @@ export default class ChannelManager extends EventEmitter {
             throw new Error('Error: in order to merge the channels they must be the same');
         }
 
-        /** if the first channel has no head, return the second channel **/
         if (firstChannelUnversionedObject.head === undefined) {
             return await createSingleObjectThroughPurePlan(
                 {
@@ -506,7 +502,6 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        /** if the second channel has no head, return the first channel **/
         if (secondChannelUnversionedObject.head === undefined) {
             return await createSingleObjectThroughPurePlan(
                 {
@@ -517,145 +512,53 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        /** get channel's head **/
         let firstChannelHead = await getObject(firstChannelUnversionedObject.head);
         let secondChannelHead = await getObject(secondChannelUnversionedObject.head);
+        let firstChannelHash = firstChannelUnversionedObject.head;
+        let secondChannelHash = secondChannelUnversionedObject.head;
 
         while (true) {
-            /** get channel entry creationTime object **/
             const firstChannelCreationTime = await getObject(firstChannelHead.data);
             const secondChannelCreationTime = await getObject(secondChannelHead.data);
 
-            /** if the objects are equal **/
-            if (
-                (await calculateHashOfObj(firstChannelHead)) ===
-                (await calculateHashOfObj(secondChannelHead))
-            ) {
-                /** we have found the common history point, rebuild the channel chain from that point **/
+            if (firstChannelHash === secondChannelHash) {
                 return await this.reBuildChannelChain(
-                    sortedChannelEntries,
-                    await calculateHashOfObj(firstChannelHead),
+                    sortedChannelEntries.reverse(),
+                    firstChannelHash,
                     firstChannelUnversionedObject
                 );
             }
 
-            /**
-             * Those linked list are sorted by time, so we compare the timestamps to decide in which array to move our cursor
-             * E.g If firstChannelCreationTime.timestamp > secondChannelCreationTime.timestamp that means we will never
-             * find an equivalent Channel Entry from the second chain because the second chain has no time bigger than
-             * the current first channel entry
-             */
-
-            /** if the current first channel entry creation time is bigger than
-             *  the current second channel entry creation time, we need
-             *  to get the next channel entry for the first channel.
-             * **/
             if (firstChannelCreationTime.timestamp > secondChannelCreationTime.timestamp) {
-                /** We need to move forward in the first array, but the next channelEntry is undefined **/
+                sortedChannelEntries.push(firstChannelHead);
                 if (firstChannelHead.previous === undefined) {
-                    /** add the current value to the sortedChannelEntries **/
-                    const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                        sortedChannelEntries,
-                        firstChannelCreationTime.timestamp
-                    );
-                    sortedChannelEntries.splice(sortedIndex, 0, firstChannelHead);
-                    /** append the rest of the channels from the second chain to sortedChannelEntries **/
-                    sortedChannelEntries = await this.appendRestOfChannelEntriesToArray(
-                        sortedChannelEntries,
-                        secondChannelHead
-                    );
-                    /** rebuild the whole chain, form an undefined root point, with the current sortedChannelEntries **/
                     return await this.reBuildChannelChain(
-                        sortedChannelEntries,
-                        undefined,
+                        sortedChannelEntries.reverse(),
+                        secondChannelHash,
                         firstChannelUnversionedObject
                     );
                 }
 
-                /** if we do have a next channelEntry, add the current value to the sortedChannelEntries and move forward **/
-                const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                    sortedChannelEntries,
-                    firstChannelCreationTime.timestamp
-                );
-
-                sortedChannelEntries.splice(sortedIndex, 0, firstChannelHead);
+                firstChannelHash = firstChannelHead.previous;
                 firstChannelHead = await getObject(firstChannelHead.previous);
                 continue;
             }
 
-            /** if the current second channel entry creation time is bigger than
-             *  the current first channel entry creation time, we need
-             *  to get the next channel entry for the second channel.
-             * **/
             if (firstChannelCreationTime.timestamp < secondChannelCreationTime.timestamp) {
+                sortedChannelEntries.push(secondChannelHead);
                 if (secondChannelHead.previous === undefined) {
-                    /** add the current value to the sortedChannelEntries **/
-                    const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                        sortedChannelEntries,
-                        secondChannelCreationTime.timestamp
-                    );
-                    /** append the rest of the channels from the first chain to sortedChannelEntries **/
-                    sortedChannelEntries.splice(sortedIndex, 0, secondChannelHead);
-                    sortedChannelEntries = await this.appendRestOfChannelEntriesToArray(
-                        sortedChannelEntries,
-                        firstChannelHead
-                    );
-                    /** rebuild the whole chain, form an undefined root point, with the current sortedChannelEntries **/
+
                     return await this.reBuildChannelChain(
-                        sortedChannelEntries,
-                        undefined,
+                        sortedChannelEntries.reverse(),
+                        firstChannelHash,
                         firstChannelUnversionedObject
                     );
                 }
-                /** if we do have a next channelEntry, add the current value to the sortedChannelEntries and move forward **/
-                const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                    sortedChannelEntries,
-                    secondChannelCreationTime.timestamp
-                );
 
-                sortedChannelEntries.splice(sortedIndex, 0, secondChannelHead);
+                secondChannelHash = secondChannelHead.previous;
                 secondChannelHead = await getObject(secondChannelHead.previous);
             }
         }
-    }
-
-    private async appendRestOfChannelEntriesToArray(
-        array: ChannelEntry[],
-        entriesFromWhere: ChannelEntry
-    ): Promise<ChannelEntry[]> {
-        if (entriesFromWhere.previous === undefined) {
-            const entriesFromWhereData = await getObject(entriesFromWhere.data);
-
-            const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                array,
-                entriesFromWhereData.timestamp
-            );
-            array.splice(sortedIndex, 0, entriesFromWhere);
-        } else {
-            let secondChannelEntry: SHA256Hash<ChannelEntry> | undefined =
-                entriesFromWhere.previous;
-
-            const secondaryChannelEntries: ChannelEntry[] = [];
-            secondaryChannelEntries.push(entriesFromWhere);
-
-            while (secondChannelEntry !== undefined) {
-                const actualEntry: ChannelEntry = await getObject(secondChannelEntry);
-                secondaryChannelEntries.push(actualEntry);
-                secondChannelEntry = actualEntry.previous;
-            }
-
-            for (const channel of secondaryChannelEntries) {
-                const channelData = await getObject(channel.data);
-
-                const sortedIndex = await this.getSortedPositionFromChannelsArrayByTimestamp(
-                    array,
-                    channelData.timestamp
-                );
-                array.splice(sortedIndex, 0, channel);
-            }
-        }
-
-        return array;
     }
 
     /**
@@ -686,43 +589,20 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        return await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                type: 'ChannelInfo',
-                id: mainChannelInfo.id,
-                owner: mainChannelInfo.owner,
-                head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
-            }
+        return (
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    type: 'ChannelInfo',
+                    id: mainChannelInfo.id,
+                    owner: mainChannelInfo.owner,
+                    head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
+                }
+            )
         );
-    }
-
-    /**
-     * Helper function to determine the index where a ChannelEntry should be added
-     * @param {ChannelEntry[]} channelEntries
-     * @param {number} timestamp
-     * @returns {Promise<number>}
-     */
-    private async getSortedPositionFromChannelsArrayByTimestamp(
-        channelEntries: ChannelEntry[],
-        timestamp: number
-    ): Promise<number> {
-        let low = 0,
-            high = channelEntries.length;
-
-        while (low < high) {
-            let mid = (low + high) >>> 1;
-            const item = await getObject(channelEntries[mid].data);
-            if (item.timestamp < timestamp) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-        return low;
     }
 
     /**
@@ -854,6 +734,7 @@ export default class ChannelManager extends EventEmitter {
     static async getChannelRegistry(): Promise<VersionedObjectResult<ChannelRegistry>> {
         return await serializeWithType('ChannelRegistry', async () => {
             try {
+                //@ts-ignore
                 return await getObjectByIdObj({type: 'ChannelRegistry', id: 'ChannelRegistry'});
             } catch (e) {
                 return await createSingleObjectThroughPurePlan(

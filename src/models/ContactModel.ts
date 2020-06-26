@@ -15,7 +15,6 @@ import {
     ContactDescriptionTypes,
     UnversionedObjectResult,
     CommunicationEndpointTypes,
-    Instance
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,

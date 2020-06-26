@@ -36,6 +36,7 @@ describe('AccessRights model test', () => {
         expect(partnerGroup).to.not.be.undefined;
         expect(clinicGroup).to.not.be.undefined;
         try {
+            //@ts-ignore
             await accessModel.getAccessGroupByName('undefined');
         } catch (e) {
             expect(e).to.be.not.undefined;
