@@ -131,6 +131,7 @@ export default class CommunicationServer {
     private acceptNewConnection(ws: WebSocket): void {
         MessageBus.send('log', 'A client is connected.');
         // set onmessage to parseInitialMessage;
+        // Fired when data is received through a WebSocket.
         ws.on('message', async (data) => {
             await this.parseInitialMessage({
                 data,
@@ -140,6 +141,7 @@ export default class CommunicationServer {
         });
 
         // handle onclose and other stuff correctly
+        // Fired when a connection with a WebSocket is closed.
         ws.on(
             'close',
             (event: {wasClean: boolean; code: number; reason: string; target: WebSocket}) => {
@@ -158,12 +160,15 @@ export default class CommunicationServer {
             }
         );
 
+        // Fired when a connection with a WebSocket has been closed
+        // because of an error, such as when some data couldn't be sent.
         ws.on('error', (error) => {
             MessageBus.send('error', JSON.stringify(error));
-            // todo: close web socket?
         });
 
+        // Fired when the instance calls the ping method on the web socket.
         ws.on('ping', () => {
+            // Call pong method to let the instance know that the server is still running.
             ws.pong();
         });
     }

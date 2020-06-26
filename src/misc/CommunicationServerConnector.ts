@@ -190,7 +190,7 @@ export default class CommunicationServerConnector {
                 this.onConnection(webSocket);
 
                 // remove onmessage listener
-                webSocket.onmessage = (event) => {};
+                webSocket.onmessage = (_) => {};
 
                 // Open a new connection after this one has been established with a partner.
                 // IMPORTANT: No need to wait for the promises to return here, because this
@@ -214,6 +214,7 @@ export default class CommunicationServerConnector {
             }
         }, this.reconnectTimeout);
 
+        // Fired when the communication server calls the pong method on the web socket.
         webSocket.on('pong', () => {
             // When the communication server responds to the ping event, it is still available.
             isServerAlive = true;
