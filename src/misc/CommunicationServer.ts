@@ -126,6 +126,11 @@ export default class CommunicationServer {
 
     // ############ PRIVATE API ############
 
+    /**
+     * When a new web socket connects to the communication server, add events handlers.
+     *
+     * @param ws - new connected web socket
+     */
     private acceptNewConnection(ws: WebSocket): void {
         MessageBus.send('log', 'A client is connected.');
         // set onmessage to parseInitialMessage;
@@ -141,7 +146,7 @@ export default class CommunicationServer {
         ws.on(
             'close',
             (event: {wasClean: boolean; code: number; reason: string; target: WebSocket}) => {
-                MessageBus.send('log', 'close web socket connection');
+                MessageBus.send('log', 'Close web socket connection.');
                 // -> disconnecting the corresponding peer if it was connected
                 if (event.target) {
                     event.target.close();
@@ -158,6 +163,7 @@ export default class CommunicationServer {
 
         ws.on('error', (error) => {
             MessageBus.send('error', JSON.stringify(error));
+            // todo: close web socket?
         });
     }
 
@@ -247,7 +253,7 @@ export default class CommunicationServer {
         response: string
     ): Promise<void> {
         // set onmessage to respondWithError
-        event.target.on('message', this.respondWithError);
+        event.target.on('message', CommunicationServer.respondWithError);
         // add ws to registeredConnections
         const sentString = this.connectionsToBeAuthenticated.get(pubKey);
         const decryptedReceivedString = await decryptWithPublicKey(
@@ -324,7 +330,7 @@ export default class CommunicationServer {
      *
      * It will return an error message to the sender.
      */
-    private respondWithError(event: {data: Data; type: string; target: WebSocket}) {
+    private static respondWithError(event: {data: Data; type: string; target: WebSocket}) {
         MessageBus.send('log', 'Reply with error.');
         // return error to client (perhaps close connection and deregister it?)
         const errorMessage: InitialMessageType = {
@@ -364,7 +370,6 @@ export default class CommunicationServer {
      * Stores registered web sockets that are still available to be allocated to an incoming connection.
      */
     private readonly registeredConnections: Map<string, WebSocket[]>;
-
     /**
      * Stores the communication server web socket.
      */
@@ -373,6 +378,8 @@ export default class CommunicationServer {
      * Stores the public key and the random string associated with the instance until the authentication step is done.
      */
     private connectionsToBeAuthenticated: Map<string, string>;
-
+    /**
+     * Generated keys for the communication server.
+     */
     private websocketServerKeyPairs: BoxKeyPair;
 }
