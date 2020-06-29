@@ -261,7 +261,7 @@ export default class ConnectionsModel extends EventEmitter {
             throw new Error(i18nModelsInstance.t('errors:connectionModel.noConnection'));
         }
 
-        await this.shareQuestionnairesWithPartner(connection.authenticatedContact);
+        await this.shareDataWithPartner(connection.authenticatedContact);
 
         await this.saveAuthenticatedContact(
             connection.authenticatedContact,
@@ -690,20 +690,25 @@ export default class ConnectionsModel extends EventEmitter {
      *
      * @param {AuthenticatedContact} authenticatedContact
      */
-    async shareQuestionnairesWithPartner(
-        authenticatedContact: AuthenticatedContact
-    ): Promise<void> {
+    async shareDataWithPartner(authenticatedContact: AuthenticatedContact): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire'
         });
 
-        const setAccessParam: SetAccessParam = {
+        let setAccessParam: SetAccessParam = {
             group: [],
             id: channelInfoIdHash,
             mode: SET_ACCESS_MODE.REPLACE,
             person: [authenticatedContact.personIdHash]
         };
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        // share consent files with partner
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile'
+        });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 }
