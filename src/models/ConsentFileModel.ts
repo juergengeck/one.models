@@ -1,6 +1,7 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {ConsentFile as OneConsentFile} from '@OneCoreTypes';
+import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
 export enum FileType {
     Consent = 'consent',
@@ -82,6 +83,7 @@ export default class ConsentFileModel extends EventEmmiter {
 
     async entries(): Promise<ObjectData<ConsentFile>[]> {
         const objects: ObjectData<ConsentFile>[] = [];
+        const instanceOwner = await getInstanceOwnerIdHash();
 
         const oneObjects = await this.channelManager.getObjectsWithType(
             this.channelId,
@@ -90,7 +92,15 @@ export default class ConsentFileModel extends EventEmmiter {
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            objects.push({...restObjectData, data: convertFromOne(data)});
+            const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
+
+            // display just the consent files that belong to the current instance owner
+            if (
+                data.fileData === instanceOwner ||
+                dropoutFileData.split('|')[1].split(':')[1] === instanceOwner
+            ) {
+                objects.push({...restObjectData, data: convertFromOne(data)});
+            }
         }
 
         return objects;
