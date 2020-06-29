@@ -1,12 +1,8 @@
 import {
-    AuthenticatedContact,
-    Instance,
-    OneUnversionedObjectTypes,
     Recipe,
     SHA256Hash,
     SHA256IdHash
 } from '@OneCoreTypes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -58,10 +54,13 @@ declare module '@OneCoreTypes' {
     export interface ChannelRegistry {
         type: 'ChannelRegistry';
         id: 'ChannelRegistry';
-        channels: SHA256IdHash<ChannelInfo>[];
+        channels: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<ChannelInfo>>;
     }
 }
 
+// for each channel you have to store the latest versions which was merged
+// step form the lastest version map to the version from the map
+// Map<idHash, hash>
 export const ChannelRegistryRecipe: Recipe = {
     type: 'Recipe',
     name: 'ChannelRegistry',
@@ -73,8 +72,7 @@ export const ChannelRegistryRecipe: Recipe = {
         },
         {
             itemprop: 'channels',
-            referenceToId: new Set(['ChannelInfo']),
-            list: ORDERED_BY.ONE
+            valueType: 'Map'
         }
     ]
 };

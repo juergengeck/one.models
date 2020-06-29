@@ -96,7 +96,7 @@ export default class ChannelManager extends EventEmitter {
     constructor() {
         super();
     }
-
+    // $type$
     /**
      * Init this instance. This has to be called after the one instance is initialized.
      */
@@ -108,7 +108,8 @@ export default class ChannelManager extends EventEmitter {
             throw new Error('Owner idHash cannot be undefined');
         }
         this.registerHooks();
-
+        // when you init the channel manager then you would iterate over all channel info in the reigstry and compare with the latest version of the version maps with the hashes stored
+        // in the registry and if they don't match merge all the versions that from current + 1.
         this.personId = ownerIdHash;
     }
 
@@ -547,7 +548,6 @@ export default class ChannelManager extends EventEmitter {
             if (firstChannelCreationTime.timestamp < secondChannelCreationTime.timestamp) {
                 sortedChannelEntries.push(secondChannelHead);
                 if (secondChannelHead.previous === undefined) {
-
                     return await this.reBuildChannelChain(
                         sortedChannelEntries.reverse(),
                         firstChannelHash,
@@ -589,19 +589,17 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        return (
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    type: 'ChannelInfo',
-                    id: mainChannelInfo.id,
-                    owner: mainChannelInfo.owner,
-                    head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
-                }
-            )
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                type: 'ChannelInfo',
+                id: mainChannelInfo.id,
+                owner: mainChannelInfo.owner,
+                head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
+            }
         );
     }
 
@@ -673,13 +671,13 @@ export default class ChannelManager extends EventEmitter {
     private async getExplodedChannelInfosFromRegistry(): Promise<
         VersionedObjectResult<ChannelInfo>[]
     > {
-        const channelRegistry = await ChannelManager.getChannelRegistry();
+        const channelRegistry = Array.from(
+            (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+        );
         return await Promise.all(
-            channelRegistry.obj.channels.map(
-                async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
-                    return await getObjectByIdHash(channelInfoIdHash);
-                }
-            )
+            channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+                return await getObjectByIdHash(channelInfoIdHash);
+            })
         );
     }
 
@@ -694,7 +692,7 @@ export default class ChannelManager extends EventEmitter {
     private registerHooks(): void {
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (isChannelInfoResult(caughtObject)) {
-                await this.addChannelToTheChannelRegistry(caughtObject.idHash);
+                await this.addChannelToTheChannelRegistry(caughtObject.idHash, caughtObject.hash);
                 this.emit(ChannelEvent.UpdatedChannelInfo, caughtObject.obj.id);
             }
         });
@@ -702,30 +700,25 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      *
-     * @param channelIdHash
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @param {SHA256Hash<ChannelInfo>} channelHash
      * @returns {Promise<void>}
      */
     private async addChannelToTheChannelRegistry(
-        channelIdHash: SHA256IdHash<ChannelInfo>
+        channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelHash: SHA256Hash<ChannelInfo>
     ): Promise<void> {
         const channelRegistry = await ChannelManager.getChannelRegistry();
-        if (
-            channelRegistry.obj.channels.find(
-                (channelEntryIdHash: SHA256IdHash<ChannelInfo>) =>
-                    channelEntryIdHash === channelIdHash
-            ) === undefined
-        ) {
-            channelRegistry.obj.channels.push(channelIdHash);
-            return await serializeWithType('ChannelRegistry', async () => {
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    channelRegistry.obj
-                );
-            });
-        }
+        channelRegistry.obj.channels.set(channelIdHash, channelHash);
+        return await serializeWithType('ChannelRegistry', async () => {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                channelRegistry.obj
+            );
+        });
     }
 
     /**
@@ -745,7 +738,7 @@ export default class ChannelManager extends EventEmitter {
                     {
                         type: 'ChannelRegistry',
                         id: 'ChannelRegistry',
-                        channels: []
+                        channels: new Map()
                     }
                 );
             }

@@ -66,8 +66,8 @@ describe('Channel Iterators test', () => {
                 }
             })
         );
-        const channelRegistry = await ChannelManager.getChannelRegistry();
-        expect(channelRegistry.obj.channels).to.have.length(channelsIdentifiers.length);
+        const channelRegistry = Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
+        expect(channelRegistry).to.have.length(channelsIdentifiers.length);
     });
 
     it('should get objects', async () => {

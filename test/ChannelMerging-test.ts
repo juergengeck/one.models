@@ -41,13 +41,13 @@ describe('Channel Merging test', () => {
             })
         );
         const channelRegistry = await ChannelManager.getChannelRegistry();
-        expect(channelRegistry.obj.channels).to.have.length(channelsIdentifiers.length);
+        expect(Array.from(channelRegistry.obj.channels.keys())).to.have.length(channelsIdentifiers.length);
     });
 
     it('should merge all versions of a channelInfo between them', async () => {
-        const channelRegistry = await ChannelManager.getChannelRegistry();
+        const channelRegistry = Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
 
-        const channelInfoIdHash = channelRegistry.obj.channels[0];
+        const channelInfoIdHash = channelRegistry[0];
         const versions = await getAllVersionMapEntries(channelInfoIdHash);
         for (let i = 0; i < versions.length; i++) {
             for (let j = 0; j < versions.length; j++) {
@@ -60,8 +60,8 @@ describe('Channel Merging test', () => {
     }).timeout(120000);
 
     it('should merge 2 very different versions of created channel', async () => {
-        const channelRegistry = await ChannelManager.getChannelRegistry();
-        const channelInfoIdHash = channelRegistry.obj.channels[0];
+        const channelRegistry =  Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
+        const channelInfoIdHash = channelRegistry[0];
         const channelInfo = await getObjectByIdHash(channelInfoIdHash);
         const bodyTemp =
             await createSingleObjectThroughPurePlan(
