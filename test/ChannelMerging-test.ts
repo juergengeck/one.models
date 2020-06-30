@@ -37,12 +37,15 @@ describe('Channel Merging test', () => {
                         type: 'BodyTemperature',
                         temperature: i
                     });
+                    await new Promise((resolve,rejects) => {
+                        setTimeout( () => resolve(), 100);
+                    })
                 }
             })
         );
         const channelRegistry = await ChannelManager.getChannelRegistry();
         expect(Array.from(channelRegistry.obj.channels.keys())).to.have.length(channelsIdentifiers.length);
-    });
+    }).timeout(20000);
 
     it('should merge all versions of a channelInfo between them', async () => {
         const channelRegistry = Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
@@ -54,10 +57,13 @@ describe('Channel Merging test', () => {
                 await channelManager.mergeChannels(versions[i].hash, versions[j].hash);
                 const objects = await channelManager.getObjects('first');
                 console.log(`version[${i}] merging with version[${j}] is having ${i > j ? i : (i < j ? j : i)} channel entries`);
+                await new Promise((resolve,rejects) => {
+                    setTimeout( () => resolve(), 100);
+                })
                 expect(objects).to.have.length((i > j ? i : (i < j ? j : i)));
             }
         }
-    }).timeout(120000);
+    }).timeout(220000);
 
     it('should merge 2 very different versions of created channel', async () => {
         const channelRegistry =  Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());

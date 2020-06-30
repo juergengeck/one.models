@@ -63,16 +63,22 @@ describe('Channel Iterators test', () => {
             channelsIdentifiers.map(async (identifier: string) => {
                 for (let i = 0; i < howMany; i++) {
                     await channelManager.postToChannel(identifier, createRandomBodyTemperature());
+                    await new Promise((resolve,rejects) => {
+                        setTimeout( () => resolve(), 100);
+                    })
                 }
             })
         );
         const channelRegistry = Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
         expect(channelRegistry).to.have.length(channelsIdentifiers.length);
-    });
+    }).timeout(20000);
 
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects(channelId);
+            await new Promise((resolve,rejects) => {
+                setTimeout( () => resolve(), 500);
+            })
             expect(objects1).to.have.length(howMany);
         }
     });
@@ -93,6 +99,9 @@ describe('Channel Iterators test', () => {
                         createRandomBodyTemperature(),
                         owner
                     );
+                    await new Promise((resolve,rejects) => {
+                        setTimeout( () => resolve(), 100);
+                    })
                 }
             })
         );
@@ -101,7 +110,7 @@ describe('Channel Iterators test', () => {
             const objects1 = await channelManager.getObjects(channelId);
             expect(objects1).to.have.length(howMany * 2);
         }
-    });
+    }).timeout(20000);
 
     /** Tests for getObjects **/
 

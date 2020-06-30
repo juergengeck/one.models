@@ -1,31 +1,32 @@
 import EventEmitter from 'events';
 import {
-    ChannelInfo,
     ChannelEntry,
+    ChannelInfo,
+    ChannelRegistry,
     CreationTime,
-    SHA256Hash,
-    SHA256IdHash,
-    VersionedObjectResult,
-    OneUnversionedObjectTypes,
     OneUnversionedObjectInterfaces,
     OneUnversionedObjectTypeNames,
+    OneUnversionedObjectTypes,
     Person,
-    ChannelRegistry
+    SHA256Hash,
+    SHA256IdHash,
+    VersionedObjectResult
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
-    onVersionedObj,
+    getObjectByIdObj,
     getObjectWithType,
-    VERSION_UPDATES,
-    getObjectByIdObj
+    onVersionedObj,
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 
 /**
  * This represents a document but not the content,
@@ -107,10 +108,21 @@ export default class ChannelManager extends EventEmitter {
         if (ownerIdHash === undefined) {
             throw new Error('Owner idHash cannot be undefined');
         }
+        await this.checkMergeVersionsOfChannels();
         this.registerHooks();
-        // when you init the channel manager then you would iterate over all channel info in the reigstry and compare with the latest version of the version maps with the hashes stored
-        // in the registry and if they don't match merge all the versions that from current + 1.
         this.personId = ownerIdHash;
+    }
+
+    private async checkMergeVersionsOfChannels(): Promise<void> {
+        await serializeWithType('ChannelRegistryMerging', async () => {
+            const channelRegistry = Array.from(
+                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+            );
+            for (const channelIdHash of channelRegistry) {
+                const object = await getObjectByIdHash(channelIdHash);
+                await this.updateChannelRegistryMap(channelIdHash, object.hash);
+            }
+        });
     }
 
     // ######## Channel management ########
@@ -480,7 +492,7 @@ export default class ChannelManager extends EventEmitter {
     async mergeChannels(
         firstChannel: SHA256Hash<ChannelInfo>,
         secondChannel: SHA256Hash<ChannelInfo>
-    ) {
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
         const firstChannelUnversionedObject = await getObject(firstChannel);
         const secondChannelUnversionedObject = await getObject(secondChannel);
 
@@ -604,6 +616,56 @@ export default class ChannelManager extends EventEmitter {
     }
 
     /**
+     * @description checks for merging problems and then updates the registry
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @param {SHA256Hash<ChannelInfo>} channelHash
+     * @returns {Promise<void>}
+     */
+    private async updateChannelRegistryMap(
+        channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelHash: SHA256Hash<ChannelInfo>
+    ): Promise<void> {
+        let channelFromMap: SHA256Hash<ChannelInfo> | undefined = (
+            await ChannelManager.getChannelRegistry()
+        ).obj.channels.get(channelIdHash);
+
+        if (channelFromMap === undefined) {
+            await this.addChannelToTheChannelRegistry(channelIdHash, channelHash);
+            channelFromMap = channelHash;
+        }
+
+        if (channelHash === channelFromMap) {
+            return;
+        }
+
+        let index = -1;
+        let previousChannelHash: SHA256Hash<ChannelInfo> = await getNthVersionMapHash(
+            channelIdHash,
+            index
+        );
+        const unMergedChannelHashes: SHA256Hash<ChannelInfo>[] = [];
+
+        while (previousChannelHash !== undefined) {
+            if (previousChannelHash === channelFromMap) {
+                break;
+            }
+            unMergedChannelHashes.push(previousChannelHash);
+            previousChannelHash = await getNthVersionMapHash(channelIdHash, --index);
+        }
+
+        let latestMergedHash: SHA256Hash<ChannelInfo> = channelHash;
+
+        for (const hash of unMergedChannelHashes) {
+            const mergedChannel = await this.mergeChannels(hash, latestMergedHash);
+            // not do this, instead sgtore it in a local variable ( the hash )
+            latestMergedHash = mergedChannel.hash;
+        }
+
+        if (latestMergedHash !== undefined)
+            await this.addChannelToTheChannelRegistry(channelIdHash, latestMergedHash);
+    }
+
+    /**
      * @description Yield values from the iterators
      * @param iterators
      * @param queryOptions
@@ -692,7 +754,9 @@ export default class ChannelManager extends EventEmitter {
     private registerHooks(): void {
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (isChannelInfoResult(caughtObject)) {
-                await this.addChannelToTheChannelRegistry(caughtObject.idHash, caughtObject.hash);
+                await serializeWithType('ChannelRegistryMerging', async () => {
+                    await this.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
+                });
                 this.emit(ChannelEvent.UpdatedChannelInfo, caughtObject.obj.id);
             }
         });
@@ -707,11 +771,11 @@ export default class ChannelManager extends EventEmitter {
     private async addChannelToTheChannelRegistry(
         channelIdHash: SHA256IdHash<ChannelInfo>,
         channelHash: SHA256Hash<ChannelInfo>
-    ): Promise<void> {
+    ): Promise<VersionedObjectResult<ChannelRegistry>> {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         channelRegistry.obj.channels.set(channelIdHash, channelHash);
         return await serializeWithType('ChannelRegistry', async () => {
-            await createSingleObjectThroughPurePlan(
+            return await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
