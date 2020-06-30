@@ -228,6 +228,26 @@ export default class NewsModel extends EventEmitter {
         this.emit('news');
         this.emit('readMarkerUpdated', '1236');
     }
+    async addNewsFromFeedback(content: string): Promise<void> {
+        await this.createChannelWithPerson('feedback');
+        const newsId = await createCryptoHash(content);
+
+        // Write the message to the storage
+        this.channelNews.get('feedback')!.push({
+            date: new Date(),
+            personId: 'feedback', // This should actually be my personal id?
+            // We need to make sure how to connect stuff to
+            // identities
+            channelId: 'feedback',
+            newsId: newsId,
+            content: content
+        });
+
+        // Forward the read pointer
+        await this.markAsRead('feedback', newsId);
+        this.emit('news');
+        this.emit('readMarkerUpdated', 'feedback');
+    }
 
     private readonly channelNews: Map<string, ChannelNews[]>; // List of chat messages
     private readonly channelReadMarker: Map<string, string>; // The marker of the unread message
