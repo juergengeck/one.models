@@ -1,4 +1,7 @@
 import WebSocket from 'ws';
+import {createMessageBus} from "one.core/lib/message-bus";
+import {wslogId} from "./LogUtils";
+const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
@@ -7,13 +10,13 @@ import WebSocket from 'ws';
 export default class WebSocketPromiseBased {
 
     public webSocket: WebSocket | null;
+    public defaultTimeout: number;
     private dataQueue: WebSocket.MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;
     private maxDataQueueSize: number;
     private deregisterHandlers: () => void;
     private dataQueueOverflow: boolean;
-    private defaultTimeout: number;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
@@ -25,23 +28,27 @@ export default class WebSocketPromiseBased {
         this.dataAvailableFn = null;
         this.maxDataQueueSize = maxDataQueueSize;
         this.dataQueueOverflow = false;
-        this.defaultTimeout = 500;
+        this.defaultTimeout = -1;
 
         // configure websocket callbacks
         const boundOpenHandler = this.handleOpen.bind(this);
         const boundMessageHandler = this.handleMessage.bind(this);
-        const boundCloseHandler = this.handleCloseEvent.bind(this);
+        const boundCloseHandler = this.handleClose.bind(this);
+        const boundErrorHandler = this.handleError.bind(this);
         this.webSocket.addEventListener('open', boundOpenHandler);
         this.webSocket.addEventListener('message', boundMessageHandler);
         this.webSocket.addEventListener('close', boundCloseHandler);
+        this.webSocket.addEventListener('error', boundErrorHandler);
         this.deregisterHandlers = () => {
             if(this.webSocket) {
                 this.webSocket.removeEventListener('open', boundOpenHandler);
                 this.webSocket.removeEventListener('message', boundMessageHandler);
                 this.webSocket.removeEventListener('close', boundCloseHandler);
+                this.webSocket.removeEventListener('error', boundErrorHandler);
             }
         }
 
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: constructor()`);
     }
 
     /**
@@ -50,6 +57,7 @@ export default class WebSocketPromiseBased {
      * All handlers are deregistered, the rest is left as-is.
      */
     public releaseWebSocket(): WebSocket {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: releaseWebSocket()`);
         if(!this.webSocket) {
             throw Error('No websocket is bound to this instance.');
         }
@@ -60,8 +68,24 @@ export default class WebSocketPromiseBased {
         return webSocket;
     }
 
+    /**
+     * Closes the underlying websocket.
+     */
+    public close(reason?: string) {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
+        if(this.webSocket) {
+            if(reason) {
+                this.webSocket.close(1011, reason);
+            }
+            else {
+                this.webSocket.close();
+            }
+        }
+    }
+
     /** Send data to the websocket. */
     public async send(data: any): Promise<void> {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: send(${JSON.stringify(data)})`);
         return new Promise((resolve, reject) => {
             if(!this.webSocket) {
                 reject(new Error('No websocket is bound to this instance.'));
@@ -82,6 +106,7 @@ export default class WebSocketPromiseBased {
      * Wait for the socket to be open.
      */
     public async waitForOpen(timeout: number = -2): Promise<void> {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: waitForOpen()`);
         if (timeout === -2) {
             timeout = this.defaultTimeout;
         }
@@ -147,6 +172,35 @@ export default class WebSocketPromiseBased {
     }
 
     /**
+     * Wait for an incoming message with a specific type for a specified period of time.
+     *
+     * @param {string} type    - The type field of the message should have this type.
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     *                                                 - The value will be the JSON.parse'd object
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
+     *                                                 3) the type of the received message doe not match parameter
+     *                                                    'type'
+     */
+    public async waitForJSONMessageWithType(type: string, typekey: string = 'type', timeout: number = -2): Promise<any> {
+        const messageObj = await this.waitForJSONMessage(timeout);
+
+        // Assert that is has a 'type' member
+        if (!messageObj.hasOwnProperty(typekey)) {
+            throw new Error(`Received message without a \'${typekey}\' member.`);
+        }
+
+        // Assert that the type matches the requested one
+        if (messageObj[typekey] !== type) {
+            throw new Error(`Received unexpected type '${messageObj[typekey]}'. Expected type '${type}'.`);
+        }
+
+        return messageObj;
+    }
+
+    /**
      * Wait for an incoming message for a specified period of time.
      *
      * @param {string} type    - The type field of the message should have this type.
@@ -159,7 +213,7 @@ export default class WebSocketPromiseBased {
      *                                                 3) the type of the received message doe not match parameter
      *                                                    'type'
      */
-    public async waitForMessageWithType(type: string, timeout: number = -2): Promise<any> {
+    public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
 
         // Assert that we received a string based message
@@ -176,16 +230,6 @@ export default class WebSocketPromiseBased {
             throw new Error('Received message that does not conform to JSON: ' + e.toString());
         }
 
-        // Assert that is has a 'type' member
-        if (!messageObj.hasOwnProperty('type')) {
-            throw new Error('Received message without a \'type\' member.');
-        }
-
-        // Assert that the type matches the requested one
-        if (messageObj.type !== type) {
-            throw new Error(`Received unexpected type '${messageObj.type}'. Expected type '${type}'.`);
-        }
-
         return messageObj;
     }
 
@@ -199,6 +243,7 @@ export default class WebSocketPromiseBased {
      *                                                 2) the connection was closed
      */
     public async waitForMessage(timeout: number = -2): Promise<WebSocket.MessageEvent['data']> {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: waitForMessage(${timeout})`);
         if (timeout === -2) {
             timeout = this.defaultTimeout;
         }
@@ -279,6 +324,7 @@ export default class WebSocketPromiseBased {
      * @param messageEvent
      */
     private handleOpen(openEvent: WebSocket.OpenEvent) {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: handleOpen()`);
 
         // Wakeup the reader in waitForOpen if somebody waits
         if (this.socketOpenFn) {
@@ -294,7 +340,7 @@ export default class WebSocketPromiseBased {
      * @param messageEvent
      */
     private handleMessage(messageEvent: WebSocket.MessageEvent) {
-
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
         // If the queue is full, then we reject the next reader
         if (this.dataQueue.length >= this.maxDataQueueSize) {
             this.dataQueueOverflow = true;
@@ -318,11 +364,32 @@ export default class WebSocketPromiseBased {
      *
      * It notifies any waiting reader.
      *
-     * @param messageEvent
+     * @param closeEvent
      */
-    private handleCloseEvent(closeEvent: WebSocket.CloseEvent) {
+    private handleClose(closeEvent: WebSocket.CloseEvent) {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: handleClose()`);
         if (this.dataAvailableFn) {
             this.dataAvailableFn(new Error('Connection was closed: ' + closeEvent.reason));
+        }
+        if (this.socketOpenFn) {
+            this.socketOpenFn(new Error('Connection was closed: ' + closeEvent.reason));
+        }
+    }
+
+    /**
+     * This function handles the websockets error event
+     *
+     * It notifies any waiting reader.
+     *
+     * @param closeEvent
+     */
+    private handleError(errorEvent: WebSocket.ErrorEvent) {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
+        if (this.dataAvailableFn) {
+            this.dataAvailableFn(errorEvent.error);
+        }
+        if (this.socketOpenFn) {
+            this.socketOpenFn(errorEvent.error);
         }
     }
 

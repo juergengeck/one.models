@@ -11,8 +11,10 @@
     "test": "nyc mocha test/**-test.js"
   },
   "dependencies": {
+    "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core"
+    "one.core": "refinio/one.core",
+    "yargs": "^15.4.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
