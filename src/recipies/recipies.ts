@@ -7,11 +7,13 @@ import MetaRecipes from './MetaRecipies';
 import QuestionnaireRecipes from './QuestionnaireRecipies';
 import ConsentFileRecipes from './ConsentFileRecipies';
 import SettingsRecipe from './SettingsRecipe';
+import FeedbackRecipes from "./FeedbackRecipes";
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
     ...ChannelRecipes,
     ...ContactRecipes,
+    ...FeedbackRecipes,
     ...DiaryRecipes,
     ...MetaRecipes,
     ...QuestionnaireRecipes,
