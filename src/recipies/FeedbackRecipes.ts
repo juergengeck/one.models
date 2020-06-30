@@ -12,7 +12,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-const FeedbackRecipe: Recipe = {
+export const FeedbackRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Feedback',
     rule: [
