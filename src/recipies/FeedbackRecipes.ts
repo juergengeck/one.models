@@ -29,6 +29,6 @@ const FeedbackRecipe: Recipe = {
 
 // Export recipes
 
-const Feedback: Recipe[] = [FeedbackRecipe];
+const FeedbackRecipes: Recipe[] = [FeedbackRecipe];
 
-export default Feedback;
+export default FeedbackRecipes;

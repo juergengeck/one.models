@@ -118,6 +118,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
+        console.log(Recipies);
     }
 
     authenticationState(): AuthenticationState {
