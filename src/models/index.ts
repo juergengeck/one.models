@@ -12,6 +12,7 @@ import ChannelManager from './ChannelManager';
 import ContactModel from './ContactModel';
 import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
+import AccessModel from './AccessModel';
 
 /** for one line imports **/
 export {
@@ -30,5 +31,6 @@ export {
     ContactModel,
     ConsentFileModel,
     PropertyTreeStore,
-    PropertyTree
+    PropertyTree,
+    AccessModel
 };

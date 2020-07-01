@@ -1,33 +1,63 @@
 import EventEmitter from 'events';
 import {
-    ChannelInfo,
     ChannelEntry,
+    ChannelInfo,
+    ChannelRegistry,
     CreationTime,
-    SHA256Hash,
-    SHA256IdHash,
-    VersionedObjectResult,
-    OneUnversionedObjectTypes,
     OneUnversionedObjectInterfaces,
     OneUnversionedObjectTypeNames,
-    Person
+    OneUnversionedObjectTypes,
+    Person,
+    IdAccess,
+    SHA256Hash,
+    SHA256IdHash,
+    VersionedObjectResult
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
+    createSingleObjectThroughPurePlan, getHashByIdHash,
     getObject,
     getObjectByIdHash,
+    getObjectByIdObj,
+    getObjectWithType,
     onVersionedObj,
-    getObjectWithType
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {serializeWithType} from 'one.core/lib/util/promise';
+import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {ReverseMapEntry} from "one.core/lib/reverse-map-updater";
 
 /**
  * This represents a document but not the content,
  */
 export type ChannelInformation = {
     hash: SHA256Hash; // This is the hash of the files object
+};
+
+export enum ChannelEvent {
+    UpdatedChannelInfo = 'UPDATED_CHANNEL_INFO'
+}
+
+/**
+ *  This represents the possible orders of sorting the returned data from the channel.
+ */
+export enum Order {
+    Ascending = 1,
+    Descending = 2
+}
+
+/**
+ * Type defines the query options that can be specified while retrieving data from the channel.
+ */
+export type QueryOptions = {
+    owner?: SHA256IdHash<Person>;
+    orderBy?: Order;
+    from?: Date;
+    to?: Date;
+    count?: number;
 };
 
 /**
@@ -61,12 +91,15 @@ function isChannelInfoResult(
  * This model implements a document storage that stores the time of creation.
  */
 export default class ChannelManager extends EventEmitter {
-    private readonly channelsIds: SHA256IdHash<ChannelInfo>[];
-    private personId: SHA256IdHash<Person> | undefined;
+    // @ts-ignore
+    private personId: SHA256IdHash<Person>;
+
+    // @todo
+    // Hooks -> Whenever you receive a new ChannelInfo check if it's already there, if not add it
+    // emit event
 
     constructor() {
         super();
-        this.channelsIds = [];
     }
 
     /**
@@ -74,11 +107,24 @@ export default class ChannelManager extends EventEmitter {
      */
     // eslint-disable-next-line @typescript-eslint/require-await
     async init(): Promise<void> {
-        this.personId = getInstanceOwnerIdHash();
+        const ownerIdHash = getInstanceOwnerIdHash();
+        await ChannelManager.getChannelRegistry();
+        if (ownerIdHash === undefined) {
+            throw new Error('Owner idHash cannot be undefined');
+        }
+        await this.checkMergeVersionsOfChannels();
+        this.registerHooks();
+        this.personId = ownerIdHash;
+    }
 
-        onVersionedObj.addListener((result: VersionedObjectResult) => {
-            if (isChannelInfoResult(result)) {
-                this.emit('updated', result.obj.id);
+    private async checkMergeVersionsOfChannels(): Promise<void> {
+        await serializeWithType('ChannelRegistryMerging', async () => {
+            const channelRegistry = Array.from(
+                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+            );
+            for (const channelIdHash of channelRegistry) {
+                const object = await getObjectByIdHash(channelIdHash);
+                await this.updateChannelRegistryMap(channelIdHash, object.hash);
             }
         });
     }
@@ -96,16 +142,16 @@ export default class ChannelManager extends EventEmitter {
             // Get the ChannelInfo from the database
             const channelInfoIdHash = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
-                id: channelId
+                id: channelId,
+                owner: this.personId
             });
-            const ignore = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
-            return;
+            await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
         } catch (ignore) {
-            const channelResponse = (await createSingleObjectThroughPurePlan(
+            await createSingleObjectThroughPurePlan(
                 {module: '@module/createChannel'},
-                channelId
-            )) as VersionedObjectResult<ChannelInfo>;
-            this.channelsIds.push(channelResponse.idHash);
+                channelId,
+                this.personId
+            );
             this.emit('updated');
         }
     }
@@ -117,32 +163,79 @@ export default class ChannelManager extends EventEmitter {
      *
      * @param {string} channelId - The id of the channel to post to
      * @param {OneUnversionedObjectTypes} data - The object to post to the channel
+     * @param {SHA256IdHash<Person>} owner
      */
     async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
-        data: T
+        data: T,
+        owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        await createSingleObjectThroughImpurePlan(
-            {module: '@module/postToChannel'},
-            channelId,
-            data
-        );
+        /** if you want to post to a different owner channel **/
+        if (owner) {
+            await createSingleObjectThroughImpurePlan(
+                {module: '@module/postToChannel'},
+                channelId,
+                owner,
+                data
+            );
+        } else {
+            /** posting to your channel **/
+            await createSingleObjectThroughImpurePlan(
+                {module: '@module/postToChannel'},
+                channelId,
+                this.personId,
+                data
+            );
+        }
     }
 
     // ######## Get data from the channel ########
 
+    async *objectIterator(
+        channelId: string,
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        const channels =
+            queryOptions === undefined || queryOptions.owner === undefined
+                ? await this.findChannelsForSpecificId(channelId)
+                : [
+                      await getObjectByIdObj({
+                          $type$: 'ChannelInfo',
+                          id: channelId,
+                          owner: queryOptions.owner
+                      })
+                  ];
+
+        const iterators = channels.map((channel: VersionedObjectResult<ChannelInfo>) => {
+            return this.singleChannelIterator(channel.obj.id, {
+                ...queryOptions,
+                owner: channel.obj.owner
+            });
+        });
+
+        for await (const obj of this.runIterators(iterators, {...queryOptions})) {
+            yield obj;
+        }
+    }
+
     /**
+     * !!! Main Iterator
      * Create an iterator that iterates over all items in a channel from future to past.
      *
      * @param {string} channelId - The channel for which to create the iterator
+     * @param {QueryOptions} queryOptions
      */
-    async *objectIterator(
-        channelId: string
+    async *singleChannelIterator(
+        channelId: string,
+        queryOptions: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        let objectsCount = 0;
+
         // Get the corresponding channel info object
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: channelId
+            id: channelId,
+            owner: queryOptions.owner
         });
         const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
         let channelEntryHash = channelInfo.head;
@@ -154,19 +247,41 @@ export default class ChannelManager extends EventEmitter {
             const channelEntry = await getObject<ChannelEntry>(channelEntryHash);
             channelEntryHash = channelEntry.previous;
 
-            const persons: SHA256IdHash<Person>[] = [];
-
             // Extract the data of current element
             // eslint-disable-next-line no-await-in-loop
             const creationTime: CreationTime = await getObject<CreationTime>(channelEntry.data);
             // eslint-disable-next-line no-await-in-loop
             const channelAccessLink = await getAllValues(channelInfoIdHash, true, 'IdAccess');
 
-            channelAccessLink.forEach(async (value) => {
-                const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
-                const person = accessObject.person;
-                persons.push(...person);
-            });
+            if (queryOptions !== undefined) {
+                if (
+                    queryOptions.to !== undefined &&
+                    creationTime.timestamp > queryOptions.to.getTime()
+                ) {
+                    continue;
+                }
+
+                if (
+                    queryOptions.from !== undefined &&
+                    creationTime.timestamp < queryOptions.from.getTime()
+                ) {
+                    break;
+                }
+
+                if (queryOptions.count !== undefined && objectsCount >= queryOptions.count) {
+                    break;
+                }
+            }
+
+            const persons: SHA256IdHash<Person>[] = (
+                await Promise.all(
+                    channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
+                        const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
+                        return accessObject.person;
+                    })
+                )
+                //@ts-ignore
+            ).reduce((acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val), []);
 
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
@@ -175,15 +290,15 @@ export default class ChannelManager extends EventEmitter {
                 id: creationTime.data,
                 data: data,
                 author: this.personId,
-                sharedWith: persons
+                sharedWith: Array.from([...new Set(persons)])
             };
 
+            objectsCount++;
             yield obj;
         }
     }
 
     /**
-     * Create an iterator that iterates over all items of a specific type in a channel from future to past.
      *
      * @param {string} channelId - The channel for which to create the iterator
      * @param {T} type - The type of the elements to iterate
@@ -209,18 +324,28 @@ export default class ChannelManager extends EventEmitter {
      * Get all data from a channel.
      *
      * In Ascending order! (TODO: add a switch for that)
-     *
+     * // if owner === undefined , get all the channelInfos with the channelId
      * @param {string} channelId - The id of the channel to read from
+     * @param {QueryOptions} queryOptions
      */
-    async getObjects(channelId: string): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+    async getObjects(
+        channelId: string,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-
-        for await (const obj of this.objectIterator(channelId)) {
-            objects.push(obj);
+        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
+                objects.push(obj);
+            }
+            return objects.reverse();
+        } else {
+            for await (const obj of this.objectIterator(channelId, {
+                ...queryOptions
+            })) {
+                objects.push(obj);
+            }
+            return objects.reverse();
         }
-
-        // We have to reverse the array, because the oldest element must be at the beginning
-        return objects.reverse();
     }
 
     /**
@@ -230,19 +355,38 @@ export default class ChannelManager extends EventEmitter {
      *
      * @param {string}  channelId - The id of the channel to read from
      * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
+     * @param {QueryOptions} queryOptions
      */
     async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
         channelId: string,
-        type: T
+        type: T,
+        queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
-
-        for await (const obj of this.objectIteratorWithType(channelId, type)) {
-            objects.push(obj);
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.$type$ === type;
         }
 
-        // We have to reverse the array, because the oldest element must be at the beginning
-        return objects.reverse();
+        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+
+        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
+                if (hasRequestedType(obj)) {
+                    objects.push(obj);
+                }
+            }
+            return objects.reverse();
+        } else {
+            for await (const obj of this.objectIterator(channelId, {
+                ...queryOptions
+            })) {
+                if (hasRequestedType(obj)) {
+                    objects.push(obj);
+                }
+            }
+            return objects.reverse();
+        }
     }
 
     /**
@@ -257,17 +401,40 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} channelId - The id of the channel to post to
      * @param {string} id - id of the object to extract, usually this is a hash of the
      *                      object itself or a related object.
+     * @param {QueryOptions} queryOptions
      */
     async getObjectById(
         channelId: string,
-        id: string
-    ): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        for await (const obj of this.objectIterator(channelId)) {
-            if (obj.id === id) {
-                return obj;
+        id: string,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+
+        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
+                if (obj.id === id) {
+                    objects.push(obj);
+                }
             }
+            if (objects.length === 0) {
+                throw Error('Object not found in current chain');
+            }
+
+            return objects.reverse();
+        } else {
+            for await (const obj of this.objectIterator(channelId, {
+                ...queryOptions
+            })) {
+                if (obj.id === id) {
+                    objects.push(obj);
+                }
+            }
+            if (objects.length === 0) {
+                throw Error('Object not found in current chain');
+            }
+
+            return objects.reverse();
         }
-        throw Error('Object not found in current chain');
     }
 
     /**
@@ -284,33 +451,399 @@ export default class ChannelManager extends EventEmitter {
      *                      object itself or a related object.
      * @param {T}      type - Type of objects to retrieve. If type does not match an
      *                        error is thrown.
-     *
+     * @param {QueryOptions} queryOptions
      *
      */
     async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
         channelId: string,
         id: string,
-        type: T
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        for await (const obj of this.objectIteratorWithType(channelId, type)) {
-            if (obj.id === id) {
-                return obj;
+        type: T,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.$type$ === type;
+        }
+
+        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+
+        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
+            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
+                if (hasRequestedType(obj) && obj.id === id) {
+                    objects.push(obj);
+                }
+            }
+            return objects.reverse();
+        } else {
+            for await (const obj of this.objectIterator(channelId, {
+                ...queryOptions
+            })) {
+                if (hasRequestedType(obj) && obj.id === id) {
+                    objects.push(obj);
+                }
+            }
+            return objects.reverse();
+        }
+    }
+
+
+    // give access to channel info func , channelId , owner/group? -> yourself is default
+    // it's okay  to have dependecy with accessModel
+
+    /**
+     *
+     * @param channelId
+     * @param {SHA256IdHash<Person>} owner
+     * @returns {Promise<ChannelInformation[]>}
+     */
+    async channels(channelId?: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
+        if(channelId === undefined){
+            const channelRegistry = Array.from(
+                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+            );
+            return await Promise.all(channelRegistry.map(async ( channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+             return {hash: await getHashByIdHash(channelInfoIdHash)}
+        }))
+        }
+        if (owner === undefined) {
+            return (await this.findChannelsForSpecificId(channelId)).map(
+                (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
+                    hash: channelInfo.hash
+                })
+            );
+        } else {
+            return [await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})].map(
+                (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
+                    hash: channelInfo.hash
+                })
+            );
+        }
+    }
+
+    /**
+     * @BETA Second implementation of the merging algorithm
+     * @param {SHA256Hash<ChannelInfo>} firstChannel
+     * @param {SHA256Hash<ChannelInfo>} secondChannel
+     * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+     */
+    async mergeChannels(
+        firstChannel: SHA256Hash<ChannelInfo>,
+        secondChannel: SHA256Hash<ChannelInfo>
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
+        const firstChannelUnversionedObject = await getObject(firstChannel);
+        const secondChannelUnversionedObject = await getObject(secondChannel);
+
+        let sortedChannelEntries: ChannelEntry[] = [];
+
+        if (
+            firstChannelUnversionedObject.id !== secondChannelUnversionedObject.id &&
+            firstChannelUnversionedObject.owner !== secondChannelUnversionedObject.owner
+        ) {
+            throw new Error('Error: in order to merge the channels they must be the same');
+        }
+
+        if (firstChannelUnversionedObject.head === undefined) {
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                secondChannelUnversionedObject
+            );
+        }
+
+        if (secondChannelUnversionedObject.head === undefined) {
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                firstChannelUnversionedObject
+            );
+        }
+
+        let firstChannelHead = await getObject(firstChannelUnversionedObject.head);
+        let secondChannelHead = await getObject(secondChannelUnversionedObject.head);
+        let firstChannelHash = firstChannelUnversionedObject.head;
+        let secondChannelHash = secondChannelUnversionedObject.head;
+
+        for (;;) {
+            const firstChannelCreationTime = await getObject(firstChannelHead.data);
+            const secondChannelCreationTime = await getObject(secondChannelHead.data);
+
+            if (firstChannelHash === secondChannelHash) {
+                return await this.reBuildChannelChain(
+                    sortedChannelEntries.reverse(),
+                    firstChannelHash,
+                    firstChannelUnversionedObject
+                );
+            }
+
+            if (firstChannelCreationTime.timestamp > secondChannelCreationTime.timestamp) {
+                sortedChannelEntries.push(firstChannelHead);
+                if (firstChannelHead.previous === undefined) {
+                    return await this.reBuildChannelChain(
+                        sortedChannelEntries.reverse(),
+                        secondChannelHash,
+                        firstChannelUnversionedObject
+                    );
+                }
+
+                firstChannelHash = firstChannelHead.previous;
+                firstChannelHead = await getObject(firstChannelHead.previous);
+                continue;
+            }
+
+            if (firstChannelCreationTime.timestamp < secondChannelCreationTime.timestamp) {
+                sortedChannelEntries.push(secondChannelHead);
+                if (secondChannelHead.previous === undefined) {
+                    return await this.reBuildChannelChain(
+                        sortedChannelEntries.reverse(),
+                        firstChannelHash,
+                        firstChannelUnversionedObject
+                    );
+                }
+
+                secondChannelHash = secondChannelHead.previous;
+                secondChannelHead = await getObject(secondChannelHead.previous);
             }
         }
-        throw Error("Object not found in current chain, or the type of the object didn't match");
     }
 
-    /** Return the list with all the channel ids created
-     *
-     * @returns {SHA256IdHash<ChannelInfo>}
+    /**
+     * @description Creates a ChannelInfo from a given ChannelEntry List and a root
+     * @param {ChannelEntry[]} entriesToBeAdded
+     * @param {SHA256Hash<ChannelEntry> | undefined} startingEntry
+     * @param {ChannelInfo} mainChannelInfo
+     * @returns {Promise<VersionedObjectResult<ChannelInfo>> }
      */
-    getChannelsIds(): SHA256IdHash<ChannelInfo>[] {
-        return this.channelsIds;
+    private async reBuildChannelChain(
+        entriesToBeAdded: ChannelEntry[],
+        startingEntry: SHA256Hash<ChannelEntry> | undefined,
+        mainChannelInfo: ChannelInfo
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
+        let lastChannelEntry;
+        for (let i = 0; i < entriesToBeAdded.length; i++) {
+            lastChannelEntry = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'ChannelEntry',
+                    data: entriesToBeAdded[i].data,
+                    previous:
+                        i === 0 ? startingEntry : await calculateHashOfObj(entriesToBeAdded[i - 1])
+                }
+            );
+        }
+
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'ChannelInfo',
+                id: mainChannelInfo.id,
+                owner: mainChannelInfo.owner,
+                head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
+            }
+        );
     }
 
-    /** Get a list of channels. */
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async channels(): Promise<ChannelInformation[]> {
-        return [];
+    /**
+     * @description checks for merging problems and then updates the registry
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @param {SHA256Hash<ChannelInfo>} channelHash
+     * @returns {Promise<void>}
+     */
+    private async updateChannelRegistryMap(
+        channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelHash: SHA256Hash<ChannelInfo>
+    ): Promise<void> {
+        let channelFromMap: SHA256Hash<ChannelInfo> | undefined = (
+            await ChannelManager.getChannelRegistry()
+        ).obj.channels.get(channelIdHash);
+
+        if (channelFromMap === undefined) {
+            await this.addChannelToTheChannelRegistry(channelIdHash, channelHash);
+            channelFromMap = channelHash;
+        }
+
+        if (channelHash === channelFromMap) {
+            return;
+        }
+
+        let index = -1;
+        let previousChannelHash: SHA256Hash<ChannelInfo> = await getNthVersionMapHash(
+            channelIdHash,
+            index
+        );
+        const unMergedChannelHashes: SHA256Hash<ChannelInfo>[] = [];
+
+        while (previousChannelHash !== undefined) {
+            if (previousChannelHash === channelFromMap) {
+                break;
+            }
+            unMergedChannelHashes.push(previousChannelHash);
+            previousChannelHash = await getNthVersionMapHash(channelIdHash, --index);
+        }
+
+        let latestMergedHash: SHA256Hash<ChannelInfo> = channelHash;
+
+        for (const hash of unMergedChannelHashes) {
+            const mergedChannel = await this.mergeChannels(hash, latestMergedHash);
+            // not do this, instead sgtore it in a local variable ( the hash )
+            latestMergedHash = mergedChannel.hash;
+        }
+
+        if (latestMergedHash !== undefined)
+            await this.addChannelToTheChannelRegistry(channelIdHash, latestMergedHash);
+    }
+
+    /**
+     * @description Yield values from the iterators
+     * @param iterators
+     * @param queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    private async *runIterators(
+        iterators: AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[],
+        queryOptions: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        let currentValues: ObjectData<OneUnversionedObjectTypes>[] = [];
+        let count = 0;
+
+        for (const iterator of iterators) {
+            currentValues.push((await iterator.next()).value);
+        }
+
+        if (currentValues.length === 1) {
+            if (currentValues[0] !== undefined) {
+                yield currentValues[0];
+            }
+            for (;;) {
+                const yieldedValue = (await iterators[0].next()).value;
+                if (yieldedValue !== undefined) {
+                    yield yieldedValue;
+                } else {
+                    break;
+                }
+            }
+            return;
+        }
+
+        for (;;) {
+            // determine the largest element in currentValues
+            let maxIndex = -1;
+            let maxValue = -1;
+
+            let selectedItem: ObjectData<OneUnversionedObjectTypes> | undefined = undefined;
+
+            for (let i = 0; i < currentValues.length; i++) {
+                // @ts-ignore
+                if (currentValues[i] !== undefined && currentValues[i].date > maxValue) {
+                    // @ts-ignore
+                    maxValue = currentValues[i].date;
+                    maxIndex = i;
+                    selectedItem = currentValues[i];
+                }
+            }
+
+            if (maxIndex === -1 || selectedItem === undefined) {
+                break;
+            }
+
+            if (queryOptions !== undefined && queryOptions.count !== undefined) {
+                if (count === queryOptions.count) {
+                    break;
+                }
+            }
+
+            currentValues[maxIndex] = (await iterators[maxIndex].next()).value;
+            ++count;
+            yield selectedItem;
+        }
+    }
+
+    private async getExplodedChannelInfosFromRegistry(): Promise<
+        VersionedObjectResult<ChannelInfo>[]
+    > {
+        const channelRegistry = Array.from(
+            (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+        );
+        return await Promise.all(
+            channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+                return await getObjectByIdHash(channelInfoIdHash);
+            })
+        );
+    }
+
+    private async findChannelsForSpecificId(
+        channelId: string
+    ): Promise<VersionedObjectResult<ChannelInfo>[]> {
+        return (await this.getExplodedChannelInfosFromRegistry()).filter(
+            (channelInfo: VersionedObjectResult<ChannelInfo>) => channelInfo.obj.id === channelId
+        );
+    }
+
+    private registerHooks(): void {
+        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+            if (isChannelInfoResult(caughtObject)) {
+                await serializeWithType('ChannelRegistryMerging', async () => {
+                    await this.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
+                });
+                this.emit(ChannelEvent.UpdatedChannelInfo, caughtObject.obj.id);
+            }
+        });
+    }
+
+    /**
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @param {SHA256Hash<ChannelInfo>} channelHash
+     * @returns {Promise<void>}
+     */
+    private async addChannelToTheChannelRegistry(
+        channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelHash: SHA256Hash<ChannelInfo>
+    ): Promise<VersionedObjectResult<ChannelRegistry>> {
+        const channelRegistry = await ChannelManager.getChannelRegistry();
+        channelRegistry.obj.channels.set(channelIdHash, channelHash);
+        return await serializeWithType('ChannelRegistry', async () => {
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                channelRegistry.obj
+            );
+        });
+    }
+
+    /**
+     * @returns {Promise<VersionedObjectResult<ChannelRegistry>>}
+     */
+    static async getChannelRegistry(): Promise<VersionedObjectResult<ChannelRegistry>> {
+        return await serializeWithType('ChannelRegistry', async () => {
+            try {
+                //@ts-ignore
+                return await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'});
+            } catch (e) {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    {
+                        $type$: 'ChannelRegistry',
+                        id: 'ChannelRegistry',
+                        channels: new Map()
+                    }
+                );
+            }
+        });
     }
 }
