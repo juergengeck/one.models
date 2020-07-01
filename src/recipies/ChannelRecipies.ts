@@ -50,7 +50,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelRegistry {
-        type: 'ChannelRegistry';
+        $type$: 'ChannelRegistry';
         id: 'ChannelRegistry';
         channels: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<ChannelInfo>>;
     }
