@@ -13,12 +13,10 @@ import ChannelManager from '../../lib/models/ChannelManager';
 import ContactModel from '../../lib/models/ContactModel';
 import ConsentFileModel from '../../lib/models/ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from '../../lib/models/SettingsModel';
-import FeedbackModel from "../../src/models/FeedbackModel";
 
 export default class Model {
     constructor() {
         this.channelManager = new ChannelManager();
-        this.feedbackModel = new FeedbackModel();
         this.questionnaires = new QuestionnaireModel(this.channelManager);
         this.wbcDiffs = new WbcDiffModel();
         this.heartEvents = new HeartEventModel();
@@ -62,7 +60,6 @@ export default class Model {
 
     async init(): Promise<void> {
         await this.channelManager.init();
-        await this.feedbackModel.init();
         await this.contactModel.init();
         await this.questionnaires.init();
         await this.connections.init();
@@ -74,7 +71,6 @@ export default class Model {
 
     channelManager: ChannelManager;
     contactModel: ContactModel;
-    feedbackModel: FeedbackModel;
     journal: JournalModel;
     questionnaires: QuestionnaireModel;
     wbcDiffs: WbcDiffModel;
