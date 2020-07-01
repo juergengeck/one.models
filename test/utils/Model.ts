@@ -27,7 +27,7 @@ export default class Model {
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
         this.connections = new ConnectionsModel();
 
-        this.news = new NewsModel();
+        this.news = new NewsModel(this.channelManager);
 
         this.consentFile = new ConsentFileModel(this.channelManager);
         this.oneInstance = new OneInstanceModel(

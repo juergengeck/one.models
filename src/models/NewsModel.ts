@@ -1,5 +1,7 @@
 import EventEmitter from 'events';
 import {createCryptoHash} from 'one.core/lib/system/crypto-helpers';
+import ChannelManager, {ObjectData} from "./ChannelManager";
+import {News as OneNews} from '@OneCoreTypes';
 
 /**
  * This represents a channel news
@@ -18,11 +20,42 @@ export type ChannelProperties = {
 };
 
 /**
+ * This represents the model of a news for now
+ *
+ */
+export type News = {
+    content: string;
+};
+
+/**
+ * Convert from model representation to one representation.
+ *
+ *  @param {News} modelObject - the model object
+ * @returns {OneNews} The corresponding one object
+ *
+ */
+
+function convertToOne(modelObject: News): OneNews {
+    return {
+        $type$: 'News',
+        content: modelObject.content
+    };
+}
+
+function convertFromOne(oneObject: OneNews): News {
+    return {content: oneObject.content};
+}
+
+
+/**
  * This model implements a broadcast channel.
  */
 export default class NewsModel extends EventEmitter {
-    constructor() {
+    channelManager: ChannelManager;
+
+    constructor(channelManager: ChannelManager) {
         super();
+        this.channelManager = channelManager;
         this.channelNews = new Map<string, ChannelNews[]>(); // for each channelId an array of news
         this.channelReadMarker = new Map<string, string>();
 
@@ -31,6 +64,20 @@ export default class NewsModel extends EventEmitter {
         // Events: readMarkerUpdated: The read counter was updated
     }
 
+    /**
+     * Initialize this instance
+     *
+     * This must be done after the one instance was initialized.
+     */
+    async init(): Promise<void> {
+        await this.channelManager.createChannel('feedback');
+        await this.channelManager.createChannel('1235');
+        this.channelManager.on('updated', (id) => {
+            if (id === 'feedback' || id === '1235') {
+                this.emit('updated');
+            }
+        });
+    }
     // ############### News handling #######################
 
     /**
@@ -164,7 +211,6 @@ export default class NewsModel extends EventEmitter {
     }
 
     // ############### Id handling #######################
-
     /**
      * Get the name of a person.
      *
@@ -186,7 +232,17 @@ export default class NewsModel extends EventEmitter {
 
     // ############### DEBUGGING STUFF #######################
 
-    async addNews(channelId: string, personId: string, content: string): Promise<void> {
+    async addNews(content: string,personId: string): Promise<void> {
+        await this.postContent('1235','1235',content);
+        await this.channelManager.postToChannel('1235', convertToOne({content:content}));
+    }
+
+    async  addFeedback(content: string): Promise<void> {
+        await this.postContent('feedback','feedback',content);
+        await this.channelManager.postToChannel('feedback', convertToOne({content:content}));
+    }
+
+    private async postContent(channelId: string,personId: string,content: string): Promise<void> {
         await this.createChannelWithPerson(channelId);
 
         const newsId = await createCryptoHash(content);
@@ -194,7 +250,7 @@ export default class NewsModel extends EventEmitter {
         // Write the message to the storage
         this.channelNews.get(channelId)!.push({
             date: new Date(),
-            personId: personId, // This should actually be my personal id?
+            personId: channelId, // This should actually be my personal id?
             // We need to make sure how to connect stuff to
             // identities
             channelId: channelId,
@@ -207,6 +263,24 @@ export default class NewsModel extends EventEmitter {
         this.emit('news');
         this.emit('readMarkerUpdated', channelId);
     }
+    async entries(channelId: string): Promise<ObjectData<News>[]> {
+        const objects: ObjectData<News>[] = [];
+
+        const oneObjects = await this.channelManager.getObjectsWithType(
+            channelId,
+            'News'
+        );
+
+        for (const oneObject of oneObjects) {
+            const {data, ...restObjectData} = oneObject;
+            objects.push({...restObjectData, data: convertFromOne(data)});
+        }
+
+        return objects;
+    }
+
+
+
     private readonly channelNews: Map<string, ChannelNews[]>; // List of chat messages
     private readonly channelReadMarker: Map<string, string>; // The marker of the unread message
 }
