@@ -75,7 +75,7 @@ export default class PropertyTreeStore extends PropertyTree {
     async init(): Promise<void> {
         try {
             const oneKeyValueStore = await getObjectByIdObj({
-                type: 'Settings',
+                $type$: 'Settings',
                 id: this.oneId
             });
             this.storageUpdated(oneKeyValueStore.obj);
@@ -99,7 +99,7 @@ export default class PropertyTreeStore extends PropertyTree {
     private isSettingsVersionedObjectResult(
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<OneSettings> {
-        return (caughtObject as VersionedObjectResult<OneSettings>).obj.type === 'Settings';
+        return (caughtObject as VersionedObjectResult<OneSettings>).obj.$type$ === 'Settings';
     }
 
     // one hook for changed settings object
@@ -125,7 +125,7 @@ export default class PropertyTreeStore extends PropertyTree {
         // --- option 1: --- // Lets this try first!
         // copy keyValueStore
         const idHashOfKeyValueStore = await calculateIdHashOfObj({
-            type: 'Settings',
+            $type$: 'Settings',
             id: this.oneId
         });
 
@@ -142,7 +142,7 @@ export default class PropertyTreeStore extends PropertyTree {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'Settings',
+                    $type$: 'Settings',
                     id: this.oneId,
                     properties: keyValueStoreCopy
                 }

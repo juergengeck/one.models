@@ -6,14 +6,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ConsentFile {
-        type: 'ConsentFile';
+        $type$: 'ConsentFile';
         fileData: string;
         fileType: string;
     }
 }
 
-const ConsentFileRecipie: Recipe = {
-    type: 'Recipe',
+const ConsentFileRecipe: Recipe = {
+    $type$: 'Recipe',
     name: 'ConsentFile',
     rule: [
         {
@@ -27,8 +27,8 @@ const ConsentFileRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const ConsentFile: Recipe[] = [ConsentFileRecipie];
+const ConsentFile: Recipe[] = [ConsentFileRecipe];
 
 export default ConsentFile;

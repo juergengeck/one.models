@@ -27,7 +27,7 @@ export type ConsentFile = {
 function convertToOne(modelObject: ConsentFile): OneConsentFile {
     // Create the resulting object
     return {
-        type: 'ConsentFile',
+        $type$: 'ConsentFile',
         fileData: modelObject.fileData,
         fileType: modelObject.fileType
     };

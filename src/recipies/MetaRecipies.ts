@@ -1,4 +1,4 @@
-import {OneUnversionedObjectTypes, Recipe, SHA256Hash} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -6,14 +6,14 @@ declare module '@OneCoreTypes' {
     }
 
     export interface CreationTime {
-        type: 'CreationTime';
+        $type$: 'CreationTime';
         timestamp: number;
         data: SHA256Hash<OneUnversionedObjectTypes>;
     }
 }
 
-const CreationTimeRecipie: Recipe = {
-    type: 'Recipe',
+const CreationTimeRecipe: Recipe = {
+    $type$: 'Recipe',
     name: 'CreationTime',
     rule: [
         {
@@ -27,8 +27,8 @@ const CreationTimeRecipie: Recipe = {
     ]
 };
 
-// Export recipies
+// Export recipes
 
-const MetaRecipes: Recipe[] = [CreationTimeRecipie];
+const MetaRecipes: Recipe[] = [CreationTimeRecipe];
 
 export default MetaRecipes;

@@ -80,7 +80,9 @@ export type ObjectData<T> = {
 function isChannelInfoResult(
     versionedObjectResult: VersionedObjectResult
 ): versionedObjectResult is VersionedObjectResult<ChannelInfo> {
-    return (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.type === 'ChannelInfo';
+    return (
+        (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.$type$ === 'ChannelInfo'
+    );
 }
 
 /**
@@ -97,7 +99,7 @@ export default class ChannelManager extends EventEmitter {
     constructor() {
         super();
     }
-    // $type$
+
     /**
      * Init this instance. This has to be called after the one instance is initialized.
      */
@@ -137,7 +139,7 @@ export default class ChannelManager extends EventEmitter {
         try {
             // Get the ChannelInfo from the database
             const channelInfoIdHash = await calculateIdHashOfObj({
-                type: 'ChannelInfo',
+                $type$: 'ChannelInfo',
                 id: channelId,
                 owner: this.personId
             });
@@ -229,8 +231,8 @@ export default class ChannelManager extends EventEmitter {
 
         // Get the corresponding channel info object
         const channelInfoIdHash = await calculateIdHashOfObj({
-            type: 'ChannelInfo',
-            id: channelId,
+            $type$: 'ChannelInfo',
+            id: channelId
             owner: queryOptions.owner
         });
         const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
@@ -295,6 +297,27 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      *
+     * @param {string} channelId - The channel for which to create the iterator
+     * @param {T} type - The type of the elements to iterate
+     */
+    async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
+        channelId: string,
+        type: T
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.$type$ === type;
+        }
+
+        for await (const obj of this.objectIterator(channelId)) {
+            if (hasRequestedType(obj)) {
+                yield obj;
+            }
+        }
+    }
+
+    /**
      * Get all data from a channel.
      *
      * In Ascending order! (TODO: add a switch for that)

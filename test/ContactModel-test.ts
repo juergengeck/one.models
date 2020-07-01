@@ -81,13 +81,13 @@ describe('Contact model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'foo@refinio.net'
             }
         );
         const personIdHash = await contactModel.createProfile(false, newPerson.obj.email);
         const versionedProfileObject = await getObjectByIdObj({
-            type: 'Profile',
+            $type$: 'Profile',
             personId: personIdHash
         });
         expect(versionedProfileObject).to.not.be.equal(undefined);
@@ -110,7 +110,7 @@ describe('Contact model test', () => {
     it('should create another profile for an anonymous person', async () => {
         const personIdHash = await contactModel.createProfile(false);
         const versionedProfileObject = await getObjectByIdObj({
-            type: 'Profile',
+            $type$: 'Profile',
             personId: personIdHash
         });
 
@@ -137,13 +137,13 @@ describe('Contact model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'secondaryProfile@refinio.net'
             }
         );
         const personIdHash = await contactModel.createProfile(true, newPerson.obj.email);
         const versionedProfileObject = await getObjectByIdObj({
-            type: 'Profile',
+            $type$: 'Profile',
             personId: personIdHash
         });
         expect(versionedProfileObject).to.not.be.equal(undefined);
@@ -162,7 +162,7 @@ describe('Contact model test', () => {
     it('should create anon profile for my person', async () => {
         const personIdHash = await contactModel.createProfile(true);
         const versionedProfileObject = await getObjectByIdObj({
-            type: 'Profile',
+            $type$: 'Profile',
             personId: personIdHash
         });
         expect(versionedProfileObject).to.not.be.equal(undefined);
@@ -192,7 +192,7 @@ describe('Contact model test', () => {
         const instanceEndpoint = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'OneInstanceEndpoint',
+                $type$: 'OneInstanceEndpoint',
                 personId: personIdHash,
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
@@ -201,7 +201,7 @@ describe('Contact model test', () => {
         const contactObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'Contact',
+                $type$: 'Contact',
                 personId: personIdHash,
                 communicationEndpoints: [instanceEndpoint.hash],
                 contactDescriptions: []
@@ -235,7 +235,7 @@ describe('Contact model test', () => {
         const instanceEndpoint = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'OneInstanceEndpoint',
+                $type$: 'OneInstanceEndpoint',
                 personId: personIdHash,
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
@@ -244,7 +244,7 @@ describe('Contact model test', () => {
         const contactObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'Contact',
+                $type$: 'Contact',
                 personId: personIdHash,
                 communicationEndpoints: [instanceEndpoint.hash],
                 contactDescriptions: []
@@ -269,7 +269,7 @@ describe('Contact model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'newFoo@refinio.net'
             }
         );
@@ -288,7 +288,7 @@ describe('Contact model test', () => {
         const instanceEndpoint = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'OneInstanceEndpoint',
+                $type$: 'OneInstanceEndpoint',
                 personId: newPerson.idHash,
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
@@ -297,7 +297,7 @@ describe('Contact model test', () => {
         const contactObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'Contact',
+                $type$: 'Contact',
                 personId: newPerson.idHash,
                 communicationEndpoints: [instanceEndpoint.hash],
                 contactDescriptions: []
@@ -415,13 +415,13 @@ describe('Contact model test', () => {
     });
     it('should return a person someone object', async () => {
         /** saved previously for another person **/
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const someoneObject = await contactModel.getSomeoneObject(person.idHash);
         expect(someoneObject).to.not.be.equal(undefined);
     });
 
     it('should return a person identities', async () => {
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const identities = await contactModel.listAlternateIdentities(person.idHash);
         if(identities === undefined){
             throw new Error('Error in "should return a person identities"')
@@ -430,7 +430,7 @@ describe('Contact model test', () => {
     });
 
     it('should add a new main contact for another person', async () => {
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
@@ -445,7 +445,7 @@ describe('Contact model test', () => {
         const instanceEndpoint = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'OneInstanceEndpoint',
+                $type$: 'OneInstanceEndpoint',
                 personId: personIdHash,
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
@@ -454,7 +454,7 @@ describe('Contact model test', () => {
         const contactObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
-                type: 'Contact',
+                $type$: 'Contact',
                 personId: person.idHash,
                 communicationEndpoints: [instanceEndpoint.hash],
                 contactDescriptions: []
@@ -474,7 +474,7 @@ describe('Contact model test', () => {
     });
 
     it('should add 3 equal contacts for another person and check if only one was added + main contact', async () => {
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
@@ -491,7 +491,7 @@ describe('Contact model test', () => {
                 const instanceEndpoint = await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
-                        type: 'OneInstanceEndpoint',
+                        $type$: 'OneInstanceEndpoint',
                         personId: personIdHash,
                         personKeys: personPubEncryptionKeysHash,
                         instanceKeys: personPubEncryptionKeysHash
@@ -500,7 +500,7 @@ describe('Contact model test', () => {
                 const contactObject = await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
-                        type: 'Contact',
+                        $type$: 'Contact',
                         personId: person.idHash,
                         communicationEndpoints: [instanceEndpoint.hash],
                         contactDescriptions: []
@@ -515,13 +515,14 @@ describe('Contact model test', () => {
     });
 
     it('should merge contacts', async () => {
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const mergedContacts = await contactModel.getMergedContactObjects(person.idHash);
         expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(3);
     });
 
     it('should declare same person between foo and bar', async () => {
-        const personA = (await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'})).idHash;
+        const personA = (await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'}))
+            .idHash;
         const someoneA = await contactModel.getSomeoneObject(personA);
 
         const newPerson = await createSingleObjectThroughPurePlan(
@@ -530,7 +531,7 @@ describe('Contact model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'bar@refinio.net'
             }
         );
