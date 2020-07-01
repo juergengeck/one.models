@@ -185,70 +185,28 @@ export default class NewsModel extends EventEmitter {
     }
 
     // ############### DEBUGGING STUFF #######################
-    async addNewsFromAlice(content: string): Promise<void> {
-        await this.createChannelWithPerson('1235');
+
+    async addNews(channelId: string, personId: string, content: string): Promise<void> {
+        await this.createChannelWithPerson(channelId);
 
         const newsId = await createCryptoHash(content);
 
         // Write the message to the storage
-        this.channelNews.get('1235')!.push({
+        this.channelNews.get(channelId)!.push({
             date: new Date(),
-            personId: '1235', // This should actually be my personal id?
+            personId: personId, // This should actually be my personal id?
             // We need to make sure how to connect stuff to
             // identities
-            channelId: '1235',
+            channelId: channelId,
             newsId: newsId,
             content: content
         });
 
         // Forward the read pointer
-        await this.markAsRead('1235', newsId);
+        await this.markAsRead(channelId, newsId);
         this.emit('news');
-        this.emit('readMarkerUpdated', '1235');
+        this.emit('readMarkerUpdated', channelId);
     }
-
-    async addNewsFromBob(content: string): Promise<void> {
-        await this.createChannelWithPerson('1236');
-
-        const newsId = await createCryptoHash(content);
-
-        // Write the message to the storage
-        this.channelNews.get('1236')!.push({
-            date: new Date(),
-            personId: '1236', // This should actually be my personal id?
-            // We need to make sure how to connect stuff to
-            // identities
-            channelId: '1236',
-            newsId: newsId,
-            content: content
-        });
-
-        // Forward the read pointer
-        await this.markAsRead('1236', newsId);
-        this.emit('news');
-        this.emit('readMarkerUpdated', '1236');
-    }
-    async addNewsFromFeedback(content: string): Promise<void> {
-        await this.createChannelWithPerson('feedback');
-        const newsId = await createCryptoHash(content);
-
-        // Write the message to the storage
-        this.channelNews.get('feedback')!.push({
-            date: new Date(),
-            personId: 'feedback', // This should actually be my personal id?
-            // We need to make sure how to connect stuff to
-            // identities
-            channelId: 'feedback',
-            newsId: newsId,
-            content: content
-        });
-
-        // Forward the read pointer
-        await this.markAsRead('feedback', newsId);
-        this.emit('news');
-        this.emit('readMarkerUpdated', 'feedback');
-    }
-
     private readonly channelNews: Map<string, ChannelNews[]>; // List of chat messages
     private readonly channelReadMarker: Map<string, string>; // The marker of the unread message
 }
