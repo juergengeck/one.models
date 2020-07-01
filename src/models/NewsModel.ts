@@ -12,7 +12,7 @@ export type News = {
 
 /**
  * Convert from model representation to one representation.
- *  @param {News} modelObject - the model object
+ * @param {News} modelObject - the model object
  * @returns {OneNews} The corresponding one object
  *
  */
