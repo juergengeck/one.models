@@ -10,10 +10,13 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 
+
+// @todo make it string
 export enum AccessGroupNames {
     partners = 'partners',
     clinic = 'clinic'
 }
+
 /**
  *
  * @description Access Model class
@@ -28,6 +31,7 @@ export default class AccessModel extends EventEmitter {
      *
      */
     async init() {
+        // remove , and create function that will give access to a channel info
         await this.createAccessGroup(AccessGroupNames.partners);
         await this.createAccessGroup(AccessGroupNames.clinic);
     }

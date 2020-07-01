@@ -38,7 +38,7 @@ describe('Channel Merging test', () => {
                         temperature: i
                     });
                     await new Promise((resolve,rejects) => {
-                        setTimeout( () => resolve(), 100);
+                        setTimeout( () => resolve(), 150);
                     })
                 }
             })
@@ -58,7 +58,7 @@ describe('Channel Merging test', () => {
                 const objects = await channelManager.getObjects('first');
                 // console.log(`version[${i}] merging with version[${j}] is having ${i > j ? i : (i < j ? j : i)} channel entries`);
                 await new Promise((resolve,rejects) => {
-                    setTimeout( () => resolve(), 100);
+                    setTimeout( () => resolve(), 150);
                 });
                 expect(objects).to.have.length((i > j ? i : (i < j ? j : i)));
             }

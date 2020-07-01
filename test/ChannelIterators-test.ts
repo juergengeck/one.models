@@ -64,7 +64,7 @@ describe('Channel Iterators test', () => {
                 for (let i = 0; i < howMany; i++) {
                     await channelManager.postToChannel(identifier, createRandomBodyTemperature());
                     await new Promise((resolve,rejects) => {
-                        setTimeout( () => resolve(), 100);
+                        setTimeout( () => resolve(), 300);
                     })
                 }
             })

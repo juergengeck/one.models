@@ -24,7 +24,7 @@ import {
     onUnversionedObj,
     VERSION_UPDATES,
     SetAccessParam,
-    SET_ACCESS_MODE
+    SET_ACCESS_MODE, onVersionedObj
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -52,7 +52,6 @@ export default class ContactModel extends EventEmitter {
     constructor(oneInstanceModel: OneInstanceModel) {
         super();
         this.oneInstanceModel = oneInstanceModel;
-        //this.registerHooks();
     }
 
     /** ########################################## Public ########################################## **/
@@ -76,6 +75,8 @@ export default class ContactModel extends EventEmitter {
         if (await ContactModel.doesContactAppObjectExist()) {
             return;
         }
+
+        this.registerHooks();
         await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'});
         await this.shareContactAppWithYourInstances();
     }
@@ -295,9 +296,10 @@ export default class ContactModel extends EventEmitter {
             profile.obj.mainContact = contact.hash;
         }
 
-        if (!existingContact) {
-            profile.obj.contactObjects.push(contact.hash);
+        if (existingContact) {
+            return;
         }
+        profile.obj.contactObjects.push(contact.hash);
 
         /** update the profile **/
         await serializeWithType(personEmail, async () => {
@@ -462,10 +464,13 @@ export default class ContactModel extends EventEmitter {
      * @returns {void}
      */
     private registerHooks(): void {
-        /*onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+        /**
+         * Creating new instances for your profiles
+         */
+        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (this.isContactAppVersionedObjectResult(caughtObject)) {
                 const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
-                /!** exploding profiles **!/
+                /** exploding profiles **/
                 const profiles = await Promise.all(
                     updatedSomeoneObjectForMyself.profiles.map(
                         async (profileIdHash: SHA256IdHash<Profile>) => {
@@ -478,7 +483,7 @@ export default class ContactModel extends EventEmitter {
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
 
-                        /!** see if the instance exists **!/
+                        /** see if the instance exists **/
                         try {
                             await getObjectByIdObj({
                                 $type$: 'Instance',
@@ -486,16 +491,16 @@ export default class ContactModel extends EventEmitter {
                                 owner: profile.obj.personId
                             });
                         } catch (ignored) {
-                            /!** create the instance and register the profile **!/
+                            /** create the instance and register the profile **/
                             await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                         }
                     })
                 );
             }
-        });*/
+        });
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
-                await this.addNewContactObject(caughtObject, false);
+                    await this.addNewContactObject(caughtObject, false);
             }
         });
     }
@@ -533,7 +538,7 @@ export default class ContactModel extends EventEmitter {
         /** check if the someone object exists **/
         if (someoneObject === undefined) {
             /** if not, create a new someone object **/
-            const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
+                const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
                 {
                     $type$: 'Someone',

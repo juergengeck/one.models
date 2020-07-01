@@ -487,6 +487,10 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
+
+    // give access to channel info func , channelId , owner/group? -> yourself is default
+    // it's okay  to have dependecy with accessModel
+
     /**
      *
      * @param channelId
