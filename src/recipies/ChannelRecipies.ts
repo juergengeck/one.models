@@ -1,8 +1,5 @@
 import {
     Recipe,
-    SHA256Hash,
-    SHA256IdHash,
-    Person
 } from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
@@ -63,7 +60,7 @@ declare module '@OneCoreTypes' {
 // step form the lastest version map to the version from the map
 // Map<idHash, hash>
 export const ChannelRegistryRecipe: Recipe = {
-    type: 'Recipe',
+    $type$: 'Recipe',
     name: 'ChannelRegistry',
     rule: [
         {

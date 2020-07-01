@@ -140,11 +140,11 @@ export default class ConsentFileModel extends EventEmmiter {
     }
 
     async getEntryById(id: string): Promise<ObjectData<ConsentFile>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+        const {data, ...restObjectData} = (await this.channelManager.getObjectWithTypeById(
             this.channelId,
             id,
             'ConsentFile'
-        );
+        ))[0];
         return {...restObjectData, data: convertFromOne(data)};
     }
 }

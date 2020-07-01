@@ -21,7 +21,6 @@ import {
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
-    onVersionedObj,
     onUnversionedObj,
     VERSION_UPDATES,
     SetAccessParam,
@@ -53,7 +52,7 @@ export default class ContactModel extends EventEmitter {
     constructor(oneInstanceModel: OneInstanceModel) {
         super();
         this.oneInstanceModel = oneInstanceModel;
-        // this.registerHooks();
+        //this.registerHooks();
     }
 
     /** ########################################## Public ########################################## **/
@@ -463,10 +462,10 @@ export default class ContactModel extends EventEmitter {
      * @returns {void}
      */
     private registerHooks(): void {
-        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+        /*onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (this.isContactAppVersionedObjectResult(caughtObject)) {
                 const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
-                /** exploding profiles **/
+                /!** exploding profiles **!/
                 const profiles = await Promise.all(
                     updatedSomeoneObjectForMyself.profiles.map(
                         async (profileIdHash: SHA256IdHash<Profile>) => {
@@ -479,7 +478,7 @@ export default class ContactModel extends EventEmitter {
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
 
-                        /** see if the instance exists **/
+                        /!** see if the instance exists **!/
                         try {
                             await getObjectByIdObj({
                                 $type$: 'Instance',
@@ -487,13 +486,13 @@ export default class ContactModel extends EventEmitter {
                                 owner: profile.obj.personId
                             });
                         } catch (ignored) {
-                            /** create the instance and register the profile **/
+                            /!** create the instance and register the profile **!/
                             await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                         }
                     })
                 );
             }
-        });
+        });*/
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
                 await this.addNewContactObject(caughtObject, false);

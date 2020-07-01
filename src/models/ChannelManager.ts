@@ -8,13 +8,14 @@ import {
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
     Person,
+    IdAccess,
     SHA256Hash,
     SHA256IdHash,
     VersionedObjectResult
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
+    createSingleObjectThroughPurePlan, getHashByIdHash,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
@@ -27,6 +28,7 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {ReverseMapEntry} from "one.core/lib/reverse-map-updater";
 
 /**
  * This represents a document but not the content,
@@ -198,7 +200,7 @@ export default class ChannelManager extends EventEmitter {
                 ? await this.findChannelsForSpecificId(channelId)
                 : [
                       await getObjectByIdObj({
-                          type: 'ChannelInfo',
+                          $type$: 'ChannelInfo',
                           id: channelId,
                           owner: queryOptions.owner
                       })
@@ -232,7 +234,7 @@ export default class ChannelManager extends EventEmitter {
         // Get the corresponding channel info object
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: channelId
+            id: channelId,
             owner: queryOptions.owner
         });
         const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
@@ -273,12 +275,13 @@ export default class ChannelManager extends EventEmitter {
 
             const persons: SHA256IdHash<Person>[] = (
                 await Promise.all(
-                    channelAccessLink.map(async (value) => {
+                    channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
                         const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
                         return accessObject.person;
                     })
                 )
-            ).reduce((acc, val) => acc.concat(val), []);
+                //@ts-ignore
+            ).reduce((acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val), []);
 
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
@@ -362,7 +365,7 @@ export default class ChannelManager extends EventEmitter {
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.type === type;
+            return obj.data.$type$ === type;
         }
 
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
@@ -460,7 +463,7 @@ export default class ChannelManager extends EventEmitter {
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.type === type;
+            return obj.data.$type$ === type;
         }
 
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
@@ -490,7 +493,15 @@ export default class ChannelManager extends EventEmitter {
      * @param {SHA256IdHash<Person>} owner
      * @returns {Promise<ChannelInformation[]>}
      */
-    async channels(channelId: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
+    async channels(channelId?: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
+        if(channelId === undefined){
+            const channelRegistry = Array.from(
+                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+            );
+            return await Promise.all(channelRegistry.map(async ( channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+             return {hash: await getHashByIdHash(channelInfoIdHash)}
+        }))
+        }
         if (owner === undefined) {
             return (await this.findChannelsForSpecificId(channelId)).map(
                 (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
@@ -498,7 +509,7 @@ export default class ChannelManager extends EventEmitter {
                 })
             );
         } else {
-            return [await getObjectByIdObj({type: 'ChannelInfo', id: channelId, owner: owner})].map(
+            return [await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})].map(
                 (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
                     hash: channelInfo.hash
                 })
@@ -616,7 +627,7 @@ export default class ChannelManager extends EventEmitter {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'ChannelEntry',
+                    $type$: 'ChannelEntry',
                     data: entriesToBeAdded[i].data,
                     previous:
                         i === 0 ? startingEntry : await calculateHashOfObj(entriesToBeAdded[i - 1])
@@ -630,7 +641,7 @@ export default class ChannelManager extends EventEmitter {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'ChannelInfo',
+                $type$: 'ChannelInfo',
                 id: mainChannelInfo.id,
                 owner: mainChannelInfo.owner,
                 head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
@@ -815,7 +826,7 @@ export default class ChannelManager extends EventEmitter {
         return await serializeWithType('ChannelRegistry', async () => {
             try {
                 //@ts-ignore
-                return await getObjectByIdObj({type: 'ChannelRegistry', id: 'ChannelRegistry'});
+                return await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'});
             } catch (e) {
                 return await createSingleObjectThroughPurePlan(
                     {
@@ -823,7 +834,7 @@ export default class ChannelManager extends EventEmitter {
                         versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                     },
                     {
-                        type: 'ChannelRegistry',
+                        $type$: 'ChannelRegistry',
                         id: 'ChannelRegistry',
                         channels: new Map()
                     }

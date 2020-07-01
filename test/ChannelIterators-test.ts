@@ -27,7 +27,7 @@ describe('Channel Iterators test', () => {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'Person',
+                    $type$: 'Person',
                     email: 'foo@refinio.net'
                 }
             )
@@ -406,7 +406,7 @@ describe('Channel Iterators test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'BodyTemperature',
+                $type$: 'BodyTemperature',
                 temperature: 35
             }
         );
@@ -610,6 +610,6 @@ describe('Channel Iterators test', () => {
 
     after(async () => {
         closeInstance();
-        await StorageTestInit.deleteTestDB('./test/' + dbKey);
+        await StorageTestInit.deleteTestDB();
     });
 });

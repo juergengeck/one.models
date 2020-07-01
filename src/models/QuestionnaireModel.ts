@@ -165,11 +165,11 @@ export default class QuestionnaireModel extends EventEmitter {
     async getQuestionnaireResponseById(
         questionnaireResponseId: string
     ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+        const {data, ...restObjectData} = (await this.channelManager.getObjectWithTypeById(
             this.channelId,
             questionnaireResponseId,
             'QuestionnaireResponse'
-        );
+        ))[0];
         return {...restObjectData, data: convertFromOne(data)};
     }
 

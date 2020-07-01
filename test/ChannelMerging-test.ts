@@ -9,7 +9,7 @@ import Model, {dbKey, importModules} from './utils/Model';
 import {ChannelManager} from '../lib/models';
 import {
     createSingleObjectThroughPurePlan,
-    getAllVersionMapEntries, getObject, getObjectByIdHash, VERSION_UPDATES,
+    getAllVersionMapEntries, getObjectByIdHash, VERSION_UPDATES,
 } from 'one.core/lib/storage';
 
 let channelManager: ChannelManager;
@@ -34,7 +34,7 @@ describe('Channel Merging test', () => {
             channelsIdentifiers.map(async (identifier: string) => {
                 for (let i = 0; i < howMany; i++) {
                     await channelManager.postToChannel(identifier, {
-                        type: 'BodyTemperature',
+                        $type$: 'BodyTemperature',
                         temperature: i
                     });
                     await new Promise((resolve,rejects) => {
@@ -56,10 +56,10 @@ describe('Channel Merging test', () => {
             for (let j = 0; j < versions.length; j++) {
                 await channelManager.mergeChannels(versions[i].hash, versions[j].hash);
                 const objects = await channelManager.getObjects('first');
-                console.log(`version[${i}] merging with version[${j}] is having ${i > j ? i : (i < j ? j : i)} channel entries`);
+                // console.log(`version[${i}] merging with version[${j}] is having ${i > j ? i : (i < j ? j : i)} channel entries`);
                 await new Promise((resolve,rejects) => {
                     setTimeout( () => resolve(), 100);
-                })
+                });
                 expect(objects).to.have.length((i > j ? i : (i < j ? j : i)));
             }
         }
@@ -76,7 +76,7 @@ describe('Channel Merging test', () => {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'BodyTemperature',
+                    $type$: 'BodyTemperature',
                     temperature: 11111111
                 }
             );
@@ -87,7 +87,7 @@ describe('Channel Merging test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'CreationTime',
+                $type$: 'CreationTime',
                 timestamp: Date.now(),
                 data: bodyTemp.hash
             }
@@ -98,7 +98,7 @@ describe('Channel Merging test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'ChannelEntry',
+                $type$: 'ChannelEntry',
                 data: creationTime.hash
             }
         );
@@ -120,6 +120,6 @@ describe('Channel Merging test', () => {
 
     after(async () => {
         closeInstance();
-        await StorageTestInit.deleteTestDB('./test/' + dbKey);
+        await StorageTestInit.deleteTestDB();
     });
 });

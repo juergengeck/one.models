@@ -22,7 +22,7 @@ export const dbKey = './testDb';
 
 export function createRandomBodyTemperature(): BodyTemperature {
     return {
-        type: 'BodyTemperature',
+        $type$: 'BodyTemperature',
         temperature: Math.random().toString()
     };
 }

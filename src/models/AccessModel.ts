@@ -103,7 +103,7 @@ export default class AccessModel extends EventEmitter {
      * @returns {Promise<VersionedObjectResult<Group>>}
      */
     async getAccessGroupByName(name: AccessGroupNames): Promise<VersionedObjectResult<Group>> {
-        return await getObjectByIdObj({type: 'Group', name: name});
+        return await getObjectByIdObj({$type$: 'Group', name: name});
     }
 
     /**
@@ -113,7 +113,7 @@ export default class AccessModel extends EventEmitter {
      */
     async createAccessGroup(name: AccessGroupNames): Promise<void> {
         try {
-            await getObjectByIdObj({type: 'Group', name: name});
+            await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
             await createSingleObjectThroughPurePlan(
                 {
@@ -121,7 +121,7 @@ export default class AccessModel extends EventEmitter {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    type: 'Group',
+                    $type$: 'Group',
                     name: name,
                     person: []
                 }

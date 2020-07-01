@@ -50,7 +50,7 @@ describe('AccessRights model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'foo@refinio.net'
             }
         );
@@ -66,7 +66,7 @@ describe('AccessRights model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'foo@refinio.net'
             }
         );
@@ -76,7 +76,7 @@ describe('AccessRights model test', () => {
     });
 
     it('should delete a person from an access group', async () => {
-        const person = await getObjectByIdObj({type: 'Person', email: 'foo@refinio.net'});
+        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         await accessModel.removePersonFromAccessGroup(AccessGroupNames.partners, person.idHash);
         const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
         expect(partnerGroup.obj.person).to.have.length(0);
@@ -89,7 +89,7 @@ describe('AccessRights model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'foo111@refinio.net'
             }
         );
@@ -105,7 +105,7 @@ describe('AccessRights model test', () => {
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             },
             {
-                type: 'Person',
+                $type$: 'Person',
                 email: 'foo@refinio.net'
             }
         );
@@ -116,6 +116,6 @@ describe('AccessRights model test', () => {
 
     after(async () => {
         closeInstance();
-        await StorageTestInit.deleteTestDB('./test/' + dbKey);
+        await StorageTestInit.deleteTestDB();
     });
 });

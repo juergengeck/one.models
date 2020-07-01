@@ -138,7 +138,8 @@ describe('Contact model test', () => {
             },
             {
                 $type$: 'Person',
-                email: 'secondaryProfile@refinio.net'
+                email: 'thirdProfifsdfsdfsdfsfdle@refinio.net',
+                name: 'fdfsd'
             }
         );
         const personIdHash = await contactModel.createProfile(true, newPerson.obj.email);
@@ -517,7 +518,7 @@ describe('Contact model test', () => {
     it('should merge contacts', async () => {
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const mergedContacts = await contactModel.getMergedContactObjects(person.idHash);
-        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(3);
+        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(4);
     });
 
     it('should declare same person between foo and bar', async () => {
@@ -550,6 +551,6 @@ describe('Contact model test', () => {
 
     after(async () => {
         closeInstance();
-        await StorageTestInit.deleteTestDB('./test/' + dbKey);
+        await StorageTestInit.deleteTestDB();
     });
 });
