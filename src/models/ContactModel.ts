@@ -32,6 +32,7 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 import OneInstanceModel from './OneInstanceModel';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {getAllEntries} from "one.core/lib/reverse-map-query";
 
 /**
  * This represents a ContactEvent
@@ -482,18 +483,11 @@ export default class ContactModel extends EventEmitter {
                     profiles.map(async (profile: VersionedObjectResult<Profile>) => {
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
-
                         /** see if the instance exists **/
-                        try {
-                            await getObjectByIdObj({
-                                $type$: 'Instance',
-                                name: personEmail,
-                                owner: profile.obj.personId
-                            });
-                        } catch (ignored) {
-                            /** create the instance and register the profile **/
-                            await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-                        }
+                            const instance = await getAllEntries(profile.obj.personId, true, 'Instance');
+                            if(Array.from(instance.keys()).length === 0 && await getInstanceOwnerIdHash() !== profile.obj.personId) {
+                                await this.serializeProfileCreatingByPersonEmail(personEmail, true);
+                            }
                     })
                 );
             }
