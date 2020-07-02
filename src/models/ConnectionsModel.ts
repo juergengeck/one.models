@@ -26,6 +26,7 @@ import {
 import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
+import ChannelManager from './ChannelManager';
 
 /**
  * All data about an connection are keept in this type.
@@ -697,7 +698,7 @@ export default class ConnectionsModel extends EventEmitter {
             owner: await getInstanceOwnerIdHash()
         });
 
-        let setAccessParam: SetAccessParam = {
+        const setAccessParam: SetAccessParam = {
             group: [],
             id: channelInfoIdHash,
             mode: SET_ACCESS_MODE.REPLACE,
@@ -706,23 +707,45 @@ export default class ConnectionsModel extends EventEmitter {
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         // share my consent files with partner for backup
-        setAccessParam.id = await calculateIdHashOfObj({
+        const channelIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
             owner: await getInstanceOwnerIdHash()
         });
 
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        const channelHash = (await ChannelManager.getChannelRegistry()).obj.channels.get(
+            channelIdHash
+        );
+
+        const setAccessParam2: SetAccessParam = {
+            group: [],
+            object: channelHash,
+            mode: SET_ACCESS_MODE.REPLACE,
+            person: [authenticatedContact.personIdHash]
+        };
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam2]);
 
         try {
             // share old partner consent files with partner for backup
-            setAccessParam.id = await calculateIdHashOfObj({
+            const channelIdHash = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: 'consentFile',
-                owner: await getInstanceOwnerIdHash()
+                owner: authenticatedContact.personIdHash
             });
 
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            const channelHash = (await ChannelManager.getChannelRegistry()).obj.channels.get(
+                channelIdHash
+            );
+
+            const setAccessParam3: SetAccessParam = {
+                group: [],
+                object: channelHash,
+                mode: SET_ACCESS_MODE.REPLACE,
+                person: [authenticatedContact.personIdHash]
+            };
+
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam3]);
         } catch (error) {
             // If the partner was not connected with this instance previously,
             // then the calculateIdHashOfObj function will return a FileNotFoundError.
