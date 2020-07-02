@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, getInstanceOwnerIdHash, initInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
     createSingleObjectThroughPurePlan,
@@ -14,18 +14,25 @@ import {
 } from 'one.core/lib/storage';
 import {SHA256Hash, ContactApp, Someone, Profile, SHA256IdHash} from '@OneCoreTypes';
 import ContactModel from '../lib/models/ContactModel';
-import Recipes from '../lib/recipies/recipies';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import Model, {dbKey, importModules} from './utils/Model';
+import Recipies from "../lib/recipies/recipies";
 
 const contactModel = new Model().contactModel;
 let contactAppIdHash: SHA256Hash<ContactApp>;
 
 describe('Contact model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
-        await registerRecipes(Recipes);
+
+        await initInstance({
+            name: 'instanceName',
+            email: 'instanceName',
+            secret:'1234',
+            ownerName: 'instanceName',
+            initialRecipes: Recipies,
+            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
+        });
         await importModules();
     });
 
