@@ -205,7 +205,8 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipies
+            initialRecipes: Recipies,
+            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
         });
 
         await importModules();
@@ -240,7 +241,8 @@ export default class OneInstanceModel extends EventEmitter {
                 secret,
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipies
+                initialRecipes: Recipies,
+                initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
             });
 
             await importModules();

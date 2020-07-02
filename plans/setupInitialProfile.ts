@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {getObjectByIdHash, getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {ContactApp} from '@OneCoreTypes';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
@@ -25,7 +25,6 @@ export async function createObjects(
     if (!(personIdHash && instanceIdHash)) {
         throw new Error('Error: personIdHash or instanceIdHash is undefined');
     }
-
     /** Get the corresponding key links **/
     const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
     const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
@@ -35,7 +34,6 @@ export async function createObjects(
     /** Instance key **/
     const instancePubEncryptionKeys = await getObjectWithType(instanceKeyLink[0].toHash, 'Keys');
     const instancePubEncryptionKeysHash = await calculateHashOfObj(instancePubEncryptionKeys);
-
     // 1. Decide for which instance -> current instance
     // 2. get the instance hash by ``const instanceIdHash = getInstanceIdHash();``
     // 3. from the reverse map obtain the key object for this instance
