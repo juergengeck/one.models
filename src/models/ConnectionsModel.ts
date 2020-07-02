@@ -708,7 +708,8 @@ export default class ConnectionsModel extends EventEmitter {
         // share consent files with partner
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: 'consentFile'
+            id: 'consentFile',
+            owner: await getInstanceOwnerIdHash()
         });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
