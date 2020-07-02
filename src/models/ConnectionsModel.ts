@@ -698,12 +698,13 @@ export default class ConnectionsModel extends EventEmitter {
             owner: await getInstanceOwnerIdHash()
         });
 
-        const setAccessParam: SetAccessParam = {
+        let setAccessParam: SetAccessParam = {
             group: [],
             id: channelInfoIdHash,
             mode: SET_ACCESS_MODE.REPLACE,
             person: [authenticatedContact.personIdHash]
         };
+
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         // share my consent files with partner for backup
@@ -717,14 +718,12 @@ export default class ConnectionsModel extends EventEmitter {
             channelIdHash
         );
 
-        const setAccessParam2: SetAccessParam = {
-            group: [],
-            object: channelHash,
-            mode: SET_ACCESS_MODE.REPLACE,
-            person: [authenticatedContact.personIdHash]
-        };
+        if (channelHash) {
+            setAccessParam.id = undefined;
+            setAccessParam.object = channelHash;
 
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam2]);
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        }
 
         try {
             // share old partner consent files with partner for backup
@@ -738,14 +737,12 @@ export default class ConnectionsModel extends EventEmitter {
                 channelIdHash
             );
 
-            const setAccessParam3: SetAccessParam = {
-                group: [],
-                object: channelHash,
-                mode: SET_ACCESS_MODE.REPLACE,
-                person: [authenticatedContact.personIdHash]
-            };
+            if (channelHash) {
+                setAccessParam.id = undefined;
+                setAccessParam.object = channelHash;
 
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam3]);
+                await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            }
         } catch (error) {
             // If the partner was not connected with this instance previously,
             // then the calculateIdHashOfObj function will return a FileNotFoundError.
