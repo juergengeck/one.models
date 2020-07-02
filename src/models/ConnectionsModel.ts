@@ -23,7 +23,7 @@ import {
     SetAccessParam,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {getInstanceIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 
@@ -695,7 +695,8 @@ export default class ConnectionsModel extends EventEmitter {
     ): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: 'questionnaire'
+            id: 'questionnaire',
+            owner: await getInstanceOwnerIdHash()
         });
 
         const setAccessParam: SetAccessParam = {
