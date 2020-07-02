@@ -66,7 +66,7 @@ export default class ConsentFileModel extends EventEmmiter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', (id) => {
+        this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');
             }
@@ -92,14 +92,18 @@ export default class ConsentFileModel extends EventEmmiter {
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
 
-            // display just the consent files that belong to the current instance owner
-            if (
-                data.fileData === instanceOwner ||
-                dropoutFileData.split('|')[1].split(':')[1] === instanceOwner
-            ) {
+            // For consent and dropout files check if the owner is the same as the current
+            // instance owner. Consent files will be shared with partner just for backup
+            // purpose so in partner journal page should not be visible.
+            if (data.fileType === 'consent' && data.fileData === instanceOwner) {
                 objects.push({...restObjectData, data: convertFromOne(data)});
+            } else if (data.fileType === 'dropout') {
+                const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
+
+                if (dropoutFileData.split('|')[1].split(':')[1].trim() === instanceOwner) {
+                    objects.push({...restObjectData, data: convertFromOne(data)});
+                }
             }
         }
 
@@ -150,11 +154,9 @@ export default class ConsentFileModel extends EventEmmiter {
     }
 
     async getEntryById(id: string): Promise<ObjectData<ConsentFile>> {
-        const {data, ...restObjectData} = (await this.channelManager.getObjectWithTypeById(
-            this.channelId,
-            id,
-            'ConsentFile'
-        ))[0];
+        const {data, ...restObjectData} = (
+            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'ConsentFile')
+        )[0];
         return {...restObjectData, data: convertFromOne(data)};
     }
 }
