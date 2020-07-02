@@ -10,12 +10,6 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 
-// @todo make it string
-export enum AccessGroupNames {
-    partners = 'partners',
-    clinic = 'clinic'
-}
-
 /**
  *
  * @description Access Model class
@@ -30,9 +24,6 @@ export default class AccessModel extends EventEmitter {
      *
      */
     async init() {
-        // remove , and create function that will give access to a channel info
-        await this.createAccessGroup(AccessGroupNames.partners);
-        await this.createAccessGroup(AccessGroupNames.clinic);
     }
 
     /**
@@ -40,7 +31,7 @@ export default class AccessModel extends EventEmitter {
      * @param {AccessGroupNames}groupName
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
-    async getAccessGroupPersons(groupName: AccessGroupNames): Promise<SHA256IdHash<Person>[]> {
+    async getAccessGroupPersons(groupName: string): Promise<SHA256IdHash<Person>[]> {
         const group = await this.getAccessGroupByName(groupName);
         return group === undefined ? [] : group.obj.person;
     }
@@ -52,7 +43,7 @@ export default class AccessModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async removePersonFromAccessGroup(
-        name: AccessGroupNames,
+        name: string,
         personId: SHA256IdHash<Person>
     ): Promise<void> {
         const group = await this.getAccessGroupByName(name);
@@ -79,7 +70,7 @@ export default class AccessModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async addPersonToAccessGroup(
-        name: AccessGroupNames,
+        name: string,
         personId: SHA256IdHash<Person>
     ): Promise<void> {
         const group = await this.getAccessGroupByName(name);
@@ -105,7 +96,7 @@ export default class AccessModel extends EventEmitter {
      * @param {string} name
      * @returns {Promise<VersionedObjectResult<Group>>}
      */
-    async getAccessGroupByName(name: AccessGroupNames): Promise<VersionedObjectResult<Group>> {
+    async getAccessGroupByName(name: string): Promise<VersionedObjectResult<Group>> {
         return await getObjectByIdObj({$type$: 'Group', name: name});
     }
 
@@ -114,7 +105,7 @@ export default class AccessModel extends EventEmitter {
      * @param {string} name
      * @returns {Promise<void>}
      */
-    async createAccessGroup(name: AccessGroupNames): Promise<void> {
+    async createAccessGroup(name: string): Promise<void> {
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
