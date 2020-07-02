@@ -3,6 +3,7 @@
  */
 
 import {
+    getObjectByIdHash,
     getObjectByIdObj,
     getObjectWithType,
     VersionedObjectResult,
@@ -34,13 +35,12 @@ export async function createObjects(
             secret
         }
     );
-
     const personIdHash = (await getObjectByIdObj({$type$: 'Person', email})).idHash;
     const instanceIdHash = createdInstance.idHash;
-
     /** Get the corresponding key links **/
     const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
     const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
+
     /** Person key **/
     const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
     const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);

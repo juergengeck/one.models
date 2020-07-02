@@ -91,11 +91,11 @@ export default class DiaryModel extends EventEmitter {
     }
 
     async getEntryById(id: string): Promise<ObjectData<DiaryEntry>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+        const {data, ...restObjectData} = (await this.channelManager.getObjectWithTypeById(
             this.channelId,
             id,
             'DiaryEntry'
-        );
+        ))[0];
         return {...restObjectData, data: convertFromOne(data)};
     }
 }

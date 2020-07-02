@@ -68,7 +68,9 @@ export default class NewsModel extends EventEmitter {
      * @param {number} count - Number of news to get. 0 for all of them
      */
     async news(channelId: string, count: number): Promise<ChannelNews[]> {
-        let ret = [...this.channelNews.get(channelId)].sort((a, b) => {
+        const channelNews = this.channelNews.get(channelId);
+
+        let ret = (channelNews === undefined ? [] : channelNews).sort((a, b) => {
             return b.date.getTime() - a.date.getTime();
         });
 

@@ -1,4 +1,6 @@
-import {Recipe} from '@OneCoreTypes';
+import {
+    Recipe,
+} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -37,14 +39,41 @@ declare module '@OneCoreTypes' {
 
     export interface OneVersionedObjectInterfaces {
         ChannelInfo: ChannelInfo;
+        ChannelRegistry: ChannelRegistry;
     }
 
     export interface ChannelInfo {
         $type$: 'ChannelInfo';
         id: string;
+        owner: SHA256IdHash<Person>;
         head?: SHA256Hash<ChannelEntry>;
     }
+
+    export interface ChannelRegistry {
+        $type$: 'ChannelRegistry';
+        id: 'ChannelRegistry';
+        channels: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<ChannelInfo>>;
+    }
 }
+
+// for each channel you have to store the latest versions which was merged
+// step form the lastest version map to the version from the map
+// Map<idHash, hash>
+export const ChannelRegistryRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'ChannelRegistry',
+    rule: [
+        {
+            itemprop: 'id',
+            regexp: /^ChannelRegistry$/,
+            isId: true
+        },
+        {
+            itemprop: 'channels',
+            valueType: 'Map'
+        }
+    ]
+};
 
 export const ChannelInfoRecipe: Recipe = {
     $type$: 'Recipe',
@@ -56,6 +85,11 @@ export const ChannelInfoRecipe: Recipe = {
             isId: true
         },
         {
+            itemprop: 'owner',
+            referenceToId: new Set(['Person']),
+            isId: true
+        },
+        {
             itemprop: 'head',
             optional: true,
             referenceToObj: new Set(['ChannelEntry'])
@@ -63,8 +97,8 @@ export const ChannelInfoRecipe: Recipe = {
     ]
 };
 
-// Export recipes
+// Export recipies
 
-const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipe];
+const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipe, ChannelRegistryRecipe];
 
 export default ChannelRecipes;
