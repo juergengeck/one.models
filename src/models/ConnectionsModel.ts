@@ -232,7 +232,7 @@ export default class ConnectionsModel extends EventEmitter {
             });
         }
 
-        const connection = this.partnerConnections.find((con) => {
+        const connection = this.partnerConnections.find(con => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
                 : false;
@@ -365,7 +365,7 @@ export default class ConnectionsModel extends EventEmitter {
                 throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
             }
 
-            const connection = this.personalCloudConnections.find((con) => {
+            const connection = this.personalCloudConnections.find(con => {
                 return con.pairingInformation
                     ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
                     : false;
@@ -400,7 +400,7 @@ export default class ConnectionsModel extends EventEmitter {
         pairingInformation: PairingInformation,
         invited: boolean
     ): Promise<void> {
-        const connection = this.personalCloudConnections.find((con) => {
+        const connection = this.personalCloudConnections.find(con => {
             return con.pairingInformation
                 ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
                 : false;
@@ -451,12 +451,12 @@ export default class ConnectionsModel extends EventEmitter {
     startChum(connection: Connection, takeOver: boolean): void {
         connection.communicationManagerAPI
             .consumeReceivedMessage()
-            .then(async (message) => {
+            .then(async message => {
                 if (message === 'delete') {
                     await this.closeConnection(connection, takeOver);
                 }
             })
-            .catch((err) => console.error(err));
+            .catch(err => console.error(err));
 
         if (this.myInstance === undefined) {
             this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
@@ -477,7 +477,7 @@ export default class ConnectionsModel extends EventEmitter {
         // todo: other instance object is never saved
         // const otherInstance = await getObjectByIdHash(authenticatedContact.instanceIdHash);
         const websocketPromisifierAPI = communicationManagerAPI.getWebSocketPromisifier();
-        websocketPromisifierAPI.promise.catch((error) => {
+        websocketPromisifierAPI.promise.catch(error => {
             this.emit('error', error.name);
             throw error;
         });
@@ -621,7 +621,7 @@ export default class ConnectionsModel extends EventEmitter {
         // tell the instance on the other end to delete this connection
         connection.communicationManagerAPI
             .sendEncryptedMessage('delete', false, false)
-            .catch((err) => {
+            .catch(err => {
                 {
                     if (err.name !== 'WebsocketError') {
                         console.error(err);
@@ -636,12 +636,12 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (takeOver) {
             this.personalCloudConnections = this.personalCloudConnections.filter(
-                (obj) => obj !== connection
+                obj => obj !== connection
             );
 
             this.emit('authenticatedPersonalCloudDevice');
         } else {
-            this.partnerConnections = this.partnerConnections.filter((obj) => obj !== connection);
+            this.partnerConnections = this.partnerConnections.filter(obj => obj !== connection);
 
             this.emit('authenticatedPartnerDevice');
         }
@@ -705,12 +705,30 @@ export default class ConnectionsModel extends EventEmitter {
         };
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
-        // share consent files with partner
+        // share my consent files with partner for backup
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
             owner: await getInstanceOwnerIdHash()
         });
+
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        try {
+            // share old partner consent files with partner for backup
+            setAccessParam.id = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: 'consentFile',
+                owner: await getInstanceOwnerIdHash()
+            });
+
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        } catch (error) {
+            // If the partner was not connected with this instance previously,
+            // then the calculateIdHashOfObj function will return a FileNotFoundError.
+            if (error.name !== 'FileNotFoundError') {
+                console.error(error);
+            }
+        }
     }
 }
