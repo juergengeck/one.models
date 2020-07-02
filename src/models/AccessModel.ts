@@ -10,7 +10,6 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 
-
 // @todo make it string
 export enum AccessGroupNames {
     partners = 'partners',

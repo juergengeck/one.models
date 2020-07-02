@@ -15,7 +15,8 @@ import {
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan, getHashByIdHash,
+    createSingleObjectThroughPurePlan,
+    getHashByIdHash,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
@@ -28,7 +29,7 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {ReverseMapEntry} from "one.core/lib/reverse-map-updater";
+import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 
 /**
  * This represents a document but not the content,
@@ -280,8 +281,12 @@ export default class ChannelManager extends EventEmitter {
                         return accessObject.person;
                     })
                 )
+            )
                 //@ts-ignore
-            ).reduce((acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val), []);
+                .reduce(
+                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
+                    []
+                );
 
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
@@ -487,7 +492,6 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
-
     // give access to channel info func , channelId , owner/group? -> yourself is default
     // it's okay  to have dependecy with accessModel
 
@@ -497,14 +501,19 @@ export default class ChannelManager extends EventEmitter {
      * @param {SHA256IdHash<Person>} owner
      * @returns {Promise<ChannelInformation[]>}
      */
-    async channels(channelId?: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
-        if(channelId === undefined){
+    async channels(
+        channelId?: string,
+        owner?: SHA256IdHash<Person>
+    ): Promise<ChannelInformation[]> {
+        if (channelId === undefined) {
             const channelRegistry = Array.from(
                 (await ChannelManager.getChannelRegistry()).obj.channels.keys()
             );
-            return await Promise.all(channelRegistry.map(async ( channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
-             return {hash: await getHashByIdHash(channelInfoIdHash)}
-        }))
+            return await Promise.all(
+                channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+                    return {hash: await getHashByIdHash(channelInfoIdHash)};
+                })
+            );
         }
         if (owner === undefined) {
             return (await this.findChannelsForSpecificId(channelId)).map(
@@ -513,11 +522,11 @@ export default class ChannelManager extends EventEmitter {
                 })
             );
         } else {
-            return [await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})].map(
-                (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
-                    hash: channelInfo.hash
-                })
-            );
+            return [
+                await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})
+            ].map((channelInfo: VersionedObjectResult<ChannelInfo>) => ({
+                hash: channelInfo.hash
+            }));
         }
     }
 
