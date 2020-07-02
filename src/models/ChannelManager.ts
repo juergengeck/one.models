@@ -11,16 +11,19 @@ import {
     IdAccess,
     SHA256Hash,
     SHA256IdHash,
-    VersionedObjectResult
+    VersionedObjectResult,
+    Access
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan, getHashByIdHash,
+    createSingleObjectThroughPurePlan,
+    getHashByIdHash,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
     getObjectWithType,
     onVersionedObj,
+    SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
@@ -28,7 +31,10 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {ReverseMapEntry} from "one.core/lib/reverse-map-updater";
+import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
+import {isHash} from 'one.core/lib/util/type-checks';
+import {isString} from 'one.core/lib/util/type-checks-basic';
+import AccessModel from './AccessModel';
 
 /**
  * This represents a document but not the content,
@@ -93,13 +99,11 @@ function isChannelInfoResult(
 export default class ChannelManager extends EventEmitter {
     // @ts-ignore
     private personId: SHA256IdHash<Person>;
+    private accessModel: AccessModel;
 
-    // @todo
-    // Hooks -> Whenever you receive a new ChannelInfo check if it's already there, if not add it
-    // emit event
-
-    constructor() {
+    constructor(accessModel: AccessModel) {
         super();
+        this.accessModel = accessModel;
     }
 
     /**
@@ -280,8 +284,12 @@ export default class ChannelManager extends EventEmitter {
                         return accessObject.person;
                     })
                 )
+            )
                 //@ts-ignore
-            ).reduce((acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val), []);
+                .reduce(
+                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
+                    []
+                );
 
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
@@ -487,9 +495,82 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
-
     // give access to channel info func , channelId , owner/group? -> yourself is default
     // it's okay  to have dependecy with accessModel
+
+    /**
+     *
+     * @param {string} channelId
+     * @param {SHA256IdHash<Person>[] | SHA256IdHash<Person> | string} to
+     */
+    async giveAccessToChannelInfo(
+        channelId: string,
+        to?: SHA256IdHash<Person>[] | SHA256IdHash<Person> | string
+    ) {
+        const channels = await this.findChannelsForSpecificId(channelId);
+
+        if (to === undefined) {
+            const accessChannels = await Promise.all(
+                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                    return {
+                        object: channel.hash,
+                        person: [await getInstanceOwnerIdHash()],
+                        group: [],
+                        mode: SET_ACCESS_MODE.REPLACE
+                    };
+                })
+            );
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/access',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                accessChannels
+            );
+        }
+
+        if (to.length !== undefined || isHash(to)) {
+            const accessChannels = await Promise.all(
+                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                    return {
+                        object: channel.hash,
+                        person: Array.from(to),
+                        group: [],
+                        mode: SET_ACCESS_MODE.REPLACE
+                    };
+                })
+            );
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/access',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                accessChannels
+            );
+        }
+
+        if (isString(to)) {
+            const group = await this.accessModel.getAccessGroupByName(to);
+
+            const accessChannels = await Promise.all(
+                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                    return {
+                        object: channel.hash,
+                        person: [],
+                        group: [group.idHash],
+                        mode: SET_ACCESS_MODE.REPLACE
+                    };
+                })
+            );
+            return await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/access',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                accessChannels
+            );
+        }
+    }
 
     /**
      *
@@ -497,14 +578,19 @@ export default class ChannelManager extends EventEmitter {
      * @param {SHA256IdHash<Person>} owner
      * @returns {Promise<ChannelInformation[]>}
      */
-    async channels(channelId?: string, owner?: SHA256IdHash<Person>): Promise<ChannelInformation[]> {
-        if(channelId === undefined){
+    async channels(
+        channelId?: string,
+        owner?: SHA256IdHash<Person>
+    ): Promise<ChannelInformation[]> {
+        if (channelId === undefined) {
             const channelRegistry = Array.from(
                 (await ChannelManager.getChannelRegistry()).obj.channels.keys()
             );
-            return await Promise.all(channelRegistry.map(async ( channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
-             return {hash: await getHashByIdHash(channelInfoIdHash)}
-        }))
+            return await Promise.all(
+                channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
+                    return {hash: await getHashByIdHash(channelInfoIdHash)};
+                })
+            );
         }
         if (owner === undefined) {
             return (await this.findChannelsForSpecificId(channelId)).map(
@@ -513,11 +599,11 @@ export default class ChannelManager extends EventEmitter {
                 })
             );
         } else {
-            return [await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})].map(
-                (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
-                    hash: channelInfo.hash
-                })
-            );
+            return [
+                await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})
+            ].map((channelInfo: VersionedObjectResult<ChannelInfo>) => ({
+                hash: channelInfo.hash
+            }));
         }
     }
 
@@ -812,6 +898,7 @@ export default class ChannelManager extends EventEmitter {
     ): Promise<VersionedObjectResult<ChannelRegistry>> {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         channelRegistry.obj.channels.set(channelIdHash, channelHash);
+
         return await serializeWithType('ChannelRegistry', async () => {
             return await createSingleObjectThroughPurePlan(
                 {

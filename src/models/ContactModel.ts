@@ -24,7 +24,8 @@ import {
     onUnversionedObj,
     VERSION_UPDATES,
     SetAccessParam,
-    SET_ACCESS_MODE, onVersionedObj
+    SET_ACCESS_MODE,
+    onVersionedObj
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -32,7 +33,7 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 import OneInstanceModel from './OneInstanceModel';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import {getAllEntries} from "one.core/lib/reverse-map-query";
+import {getAllEntries} from 'one.core/lib/reverse-map-query';
 
 /**
  * This represents a ContactEvent
@@ -484,17 +485,24 @@ export default class ContactModel extends EventEmitter {
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
                         /** see if the instance exists **/
-                            const instance = await getAllEntries(profile.obj.personId, true, 'Instance');
-                            if(Array.from(instance.keys()).length === 0 && await getInstanceOwnerIdHash() !== profile.obj.personId) {
-                                await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-                            }
+                        const instance = await getAllEntries(
+                            profile.obj.personId,
+                            true,
+                            'Instance'
+                        );
+                        if (
+                            Array.from(instance.keys()).length === 0 &&
+                            (await getInstanceOwnerIdHash()) !== profile.obj.personId
+                        ) {
+                            await this.serializeProfileCreatingByPersonEmail(personEmail, true);
+                        }
                     })
                 );
             }
         });
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
-                    await this.addNewContactObject(caughtObject, false);
+                await this.addNewContactObject(caughtObject, false);
             }
         });
     }
@@ -532,7 +540,7 @@ export default class ContactModel extends EventEmitter {
         /** check if the someone object exists **/
         if (someoneObject === undefined) {
             /** if not, create a new someone object **/
-                const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
+            const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
                 {
                     $type$: 'Someone',

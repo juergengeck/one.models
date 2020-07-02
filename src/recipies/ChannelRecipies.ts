@@ -1,6 +1,4 @@
-import {
-    Recipe,
-} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
