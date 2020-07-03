@@ -121,18 +121,6 @@ export default class ChannelManager extends EventEmitter {
         this.personId = ownerIdHash;
     }
 
-    private async checkMergeVersionsOfChannels(): Promise<void> {
-        await serializeWithType('ChannelRegistryMerging', async () => {
-            const channelRegistry = Array.from(
-                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
-            );
-            for (const channelIdHash of channelRegistry) {
-                const object = await getObjectByIdHash(channelIdHash);
-                await this.updateChannelRegistryMap(channelIdHash, object.hash);
-            }
-        });
-    }
-
     // ######## Channel management ########
 
     /**
@@ -445,6 +433,10 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.personId = id;
+    }
+
     /**
      * Obtain a specific object from a channel.
      *
@@ -495,9 +487,6 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
-    // give access to channel info func , channelId , owner/group? -> yourself is default
-    // it's okay  to have dependecy with accessModel
-
     /**
      *
      * @param {string} channelId
@@ -506,7 +495,7 @@ export default class ChannelManager extends EventEmitter {
     async giveAccessToChannelInfo(
         channelId: string,
         to?: SHA256IdHash<Person>[] | SHA256IdHash<Person> | string
-    ) {
+    ): Promise<VersionedObjectResult<Access | IdAccess> | undefined> {
         const channels = await this.findChannelsForSpecificId(channelId);
 
         if (to === undefined) {
@@ -570,6 +559,8 @@ export default class ChannelManager extends EventEmitter {
                 accessChannels
             );
         }
+
+        return;
     }
 
     /**
@@ -873,6 +864,18 @@ export default class ChannelManager extends EventEmitter {
         return (await this.getExplodedChannelInfosFromRegistry()).filter(
             (channelInfo: VersionedObjectResult<ChannelInfo>) => channelInfo.obj.id === channelId
         );
+    }
+
+    private async checkMergeVersionsOfChannels(): Promise<void> {
+        await serializeWithType('ChannelRegistryMerging', async () => {
+            const channelRegistry = Array.from(
+                (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+            );
+            for (const channelIdHash of channelRegistry) {
+                const object = await getObjectByIdHash(channelIdHash);
+                await this.updateChannelRegistryMap(channelIdHash, object.hash);
+            }
+        });
     }
 
     private registerHooks(): void {

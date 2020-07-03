@@ -7,8 +7,10 @@ import {Group, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes'
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
+    SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
 /**
  *
@@ -23,8 +25,7 @@ export default class AccessModel extends EventEmitter {
     /**
      *
      */
-    async init() {
-    }
+    async init() {}
 
     /**
      *
@@ -42,10 +43,7 @@ export default class AccessModel extends EventEmitter {
      * @param {SHA256IdHash<Person>}personId
      * @returns {Promise<void>}
      */
-    async removePersonFromAccessGroup(
-        name: string,
-        personId: SHA256IdHash<Person>
-    ): Promise<void> {
+    async removePersonFromAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
         const group = await this.getAccessGroupByName(name);
         /** add the person only if it does not exist and prevent unnecessary one updates **/
 
@@ -69,10 +67,7 @@ export default class AccessModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId
      * @returns {Promise<void>}
      */
-    async addPersonToAccessGroup(
-        name: string,
-        personId: SHA256IdHash<Person>
-    ): Promise<void> {
+    async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
         const group = await this.getAccessGroupByName(name);
         /** add the person only if it does not exist and prevent unnecessary one updates **/
         if (
@@ -109,7 +104,7 @@ export default class AccessModel extends EventEmitter {
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
-            await createSingleObjectThroughPurePlan(
+            const group = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -119,6 +114,19 @@ export default class AccessModel extends EventEmitter {
                     name: name,
                     person: []
                 }
+            );
+            const accessPlainObject = {
+                object: group.hash,
+                person: [await getInstanceOwnerIdHash()],
+                group: [],
+                mode: SET_ACCESS_MODE.REPLACE
+            };
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/access',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                [accessPlainObject]
             );
         }
     }
