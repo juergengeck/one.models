@@ -43,10 +43,6 @@ export type ChannelInformation = {
     hash: SHA256Hash; // This is the hash of the files object
 };
 
-export enum ChannelEvent {
-    UpdatedChannelInfo = 'UPDATED_CHANNEL_INFO'
-}
-
 /**
  *  This represents the possible orders of sorting the returned data from the channel.
  */
