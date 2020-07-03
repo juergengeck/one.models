@@ -884,7 +884,7 @@ export default class ChannelManager extends EventEmitter {
                 await serializeWithType('ChannelRegistryMerging', async () => {
                     await this.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
                 });
-                this.emit(ChannelEvent.UpdatedChannelInfo, caughtObject.obj.id);
+                this.emit('updated', caughtObject.obj.id);
             }
         });
     }

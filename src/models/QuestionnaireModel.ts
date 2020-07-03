@@ -206,7 +206,7 @@ export default class QuestionnaireModel extends EventEmitter {
         let numberOfSpecificQuestionnaires = 0;
 
         for (const oneObject of oneObjects) {
-            if (oneObject.data.questionnaire === questionnaireResponseId) {
+            if (oneObject.data.questionnaire.includes(questionnaireResponseId)) {
                 numberOfSpecificQuestionnaires++;
             }
         }
