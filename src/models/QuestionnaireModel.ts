@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
-import {Questionnaire} from '../recipies/QuestionTypes';
+import {Questionnaire} from './QuestionTypes';
 
 /**
  * Type defines the data of a questionnaire response
