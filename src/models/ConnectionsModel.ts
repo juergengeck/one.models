@@ -26,7 +26,6 @@ import {
 import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
-import ChannelManager from './ChannelManager';
 
 /**
  * All data about an connection are keept in this type.
@@ -708,41 +707,23 @@ export default class ConnectionsModel extends EventEmitter {
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         // share my consent files with partner for backup
-        const channelIdHash = await calculateIdHashOfObj({
+        setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
             owner: await getInstanceOwnerIdHash()
         });
 
-        const channelHash = (await ChannelManager.getChannelRegistry()).obj.channels.get(
-            channelIdHash
-        );
-
-        if (channelHash) {
-            setAccessParam.id = undefined;
-            setAccessParam.object = channelHash;
-
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-        }
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         try {
             // share old partner consent files with partner for backup
-            const channelIdHash = await calculateIdHashOfObj({
+            setAccessParam.id = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: 'consentFile',
                 owner: authenticatedContact.personIdHash
             });
 
-            const channelHash = (await ChannelManager.getChannelRegistry()).obj.channels.get(
-                channelIdHash
-            );
-
-            if (channelHash) {
-                setAccessParam.id = undefined;
-                setAccessParam.object = channelHash;
-
-                await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-            }
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         } catch (error) {
             // If the partner was not connected with this instance previously,
             // then the calculateIdHashOfObj function will return a FileNotFoundError.
