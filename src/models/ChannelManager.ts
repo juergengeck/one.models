@@ -866,7 +866,6 @@ export default class ChannelManager extends EventEmitter {
         );
     }
 
-
     private async checkMergeVersionsOfChannels(): Promise<void> {
         await serializeWithType('ChannelRegistryMerging', async () => {
             const channelRegistry = Array.from(
