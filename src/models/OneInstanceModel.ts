@@ -5,14 +5,14 @@ import oneModules from '../generated/oneModules';
 import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
-    getHashByIdHash,
     VERSION_UPDATES,
     createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
 import ConnectionsModel from './ConnectionsModel';
+//@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
-import ChannelManager from './ChannelManager';
+import ChannelManager, {ChannelInformation} from './ChannelManager';
 import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -205,7 +205,8 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipies
+            initialRecipes: Recipies,
+            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
         });
 
         await importModules();
@@ -240,7 +241,8 @@ export default class OneInstanceModel extends EventEmitter {
                 secret,
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipies
+                initialRecipes: Recipies,
+                initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
             });
 
             await importModules();
@@ -377,10 +379,10 @@ export default class OneInstanceModel extends EventEmitter {
      */
     async backupInstance(): Promise<Blob> {
         const hashesToImplode: SHA256Hash[] = [];
-
+        const channelsInfo = await this.channelManager.channels();
         await Promise.all(
-            this.channelManager.getChannelsIds().map(async (channelInfo) => {
-                return hashesToImplode.push(await getHashByIdHash(channelInfo));
+            channelsInfo.map(async (channelInfo: ChannelInformation) => {
+                return hashesToImplode.push(channelInfo.hash);
             })
         );
 

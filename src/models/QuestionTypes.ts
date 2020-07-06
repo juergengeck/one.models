@@ -3,11 +3,10 @@ export enum QuestionType {
     Group = 1,
     Choice = 2,
     String = 3,
-    Boolean = 4,
-    Date = 5,
-    Integer = 6,
-    OpenChoice = 7,
-    OpenChoiceGroup = 8
+    Date = 4,
+    Integer = 5,
+    OpenChoice = 6,
+    OpenChoiceGroup = 7
 }
 
 export type Questionnaire = {
@@ -81,22 +80,18 @@ export enum Operator {
  *                         but also you can specify a minimum number of characters that are allowed with minLength
  *                         and a maximum amount of characters that are allowed with maxLength.
  *
- * 5. QuestionType.Boolean - should be used when you want to have two answers for the question - "Ja" and "Nein".
- *                          The answers doesn't have to be specified. Using this type a question will
- *                          result in a question with two answers represented as radio buttons.
+ * 5. QuestionType.Date - should be used when you want to have an input field as a date picker as an answer for the question.
  *
- * 6. QuestionType.Date - should be used when you want to have an input field as a date picker as an answer for the question.
- *
- * 7. QuestionType.Integer - this type of question should be used when you want to declare a question
+ * 6. QuestionType.Integer - this type of question should be used when you want to declare a question
  *                          whose answer is an input field of type number. You can restrict what kind of numbers
- *                          can be entered in the input field by using the regex property or by adding the minLength
- *                          which will be the interval start and maxLength which will be teh interval end for that input.
+ *                          can be entered in the input field by adding the minLength which will be the interval start
+ *                          and maxLength which will be the interval end for that input. These fields are required!
  *
- * 8. QuestionType.OpenChoice - should be used when you want to have as an answer a single value represented in UI as a checkbox.
+ * 7. QuestionType.OpenChoice - should be used when you want to have as an answer a single value represented in UI as a checkbox.
  *                             The value of the answer needs to be specified in the answerValue property.
  *                             The string from the question property will be not displayed in the UI.
  *                             This type is mostly used so far when you want to have an additional answer for a question of type String.
  *
- * 9. QuestionType.OpenChoiceGroup - this one is derived from the OpenChoice type, but because of the representation
+ * 8. QuestionType.OpenChoiceGroup - this one is derived from the OpenChoice type, but because of the representation
  *                                  it should be used only as a subquestion in a Group question.
  */

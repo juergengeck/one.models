@@ -4,7 +4,7 @@ import {
     SHA256IdHash,
     UnversionedObjectResult,
     ChannelEntry,
-    ChannelInfo
+    ChannelInfo, Person
 } from '@OneCoreTypes';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
@@ -13,24 +13,26 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
  *
  * @param {WriteStorageApi} WriteStorage
  * @param {string} channelid
+ * @param {SHA256IdHash<Person>} owner
  * @param {OneUnversionedObjectTypes} payload
  * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
     channelid: string,
+    owner: SHA256IdHash<Person>,
     payload: OneUnversionedObjectTypes
 ): Promise<VersionedObjectResult<ChannelInfo>> {
     // Get the ChannelInfo from the database
     const channelInfoIdHash: SHA256IdHash<ChannelInfo> = await calculateIdHashOfObj({
         $type$: 'ChannelInfo',
-        id: channelid
+        id: channelid,
+        owner: owner
     });
     const channelInfoResult = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
 
     // Create payload
     const payloadResult = await WriteStorage.storeUnversionedObject(payload);
-
     // Create creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
         $type$: 'CreationTime',
@@ -51,6 +53,7 @@ export async function createObjects(
     return await WriteStorage.storeVersionedObject({
         $type$: 'ChannelInfo',
         id: channelid,
+        owner: owner,
         head: channelEntryResult.hash
     });
 }

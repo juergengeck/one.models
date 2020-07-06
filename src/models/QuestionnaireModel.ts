@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
-import {Questionnaire} from '../recipies/QuestionTypes';
+import {Questionnaire} from './QuestionTypes';
 
 /**
  * Type defines the data of a questionnaire response
@@ -165,11 +165,13 @@ export default class QuestionnaireModel extends EventEmitter {
     async getQuestionnaireResponseById(
         questionnaireResponseId: string
     ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
-            this.channelId,
-            questionnaireResponseId,
-            'QuestionnaireResponse'
-        );
+        const {data, ...restObjectData} = (
+            await this.channelManager.getObjectWithTypeById(
+                this.channelId,
+                questionnaireResponseId,
+                'QuestionnaireResponse'
+            )
+        )[0];
         return {...restObjectData, data: convertFromOne(data)};
     }
 
@@ -204,7 +206,7 @@ export default class QuestionnaireModel extends EventEmitter {
         let numberOfSpecificQuestionnaires = 0;
 
         for (const oneObject of oneObjects) {
-            if (oneObject.data.questionnaire === questionnaireResponseId) {
+            if (oneObject.data.questionnaire.includes(questionnaireResponseId)) {
                 numberOfSpecificQuestionnaires++;
             }
         }

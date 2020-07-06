@@ -21,11 +21,11 @@ import {
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
-    onVersionedObj,
     onUnversionedObj,
     VERSION_UPDATES,
     SetAccessParam,
-    SET_ACCESS_MODE
+    SET_ACCESS_MODE,
+    onVersionedObj
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -33,6 +33,7 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 import OneInstanceModel from './OneInstanceModel';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {getAllEntries} from 'one.core/lib/reverse-map-query';
 
 /**
  * This represents a ContactEvent
@@ -53,7 +54,6 @@ export default class ContactModel extends EventEmitter {
     constructor(oneInstanceModel: OneInstanceModel) {
         super();
         this.oneInstanceModel = oneInstanceModel;
-        // this.registerHooks();
     }
 
     /** ########################################## Public ########################################## **/
@@ -77,6 +77,8 @@ export default class ContactModel extends EventEmitter {
         if (await ContactModel.doesContactAppObjectExist()) {
             return;
         }
+
+        this.registerHooks();
         await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'});
         await this.shareContactAppWithYourInstances();
     }
@@ -296,9 +298,10 @@ export default class ContactModel extends EventEmitter {
             profile.obj.mainContact = contact.hash;
         }
 
-        if (!existingContact) {
-            profile.obj.contactObjects.push(contact.hash);
+        if (existingContact) {
+            return;
         }
+        profile.obj.contactObjects.push(contact.hash);
 
         /** update the profile **/
         await serializeWithType(personEmail, async () => {
@@ -464,6 +467,9 @@ export default class ContactModel extends EventEmitter {
      */
     // @ts-ignore
     private registerHooks(): void {
+        /**
+         * Creating new instances for your profiles
+         */
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (this.isContactAppVersionedObjectResult(caughtObject)) {
                 const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
@@ -479,16 +485,16 @@ export default class ContactModel extends EventEmitter {
                     profiles.map(async (profile: VersionedObjectResult<Profile>) => {
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
-
                         /** see if the instance exists **/
-                        try {
-                            await getObjectByIdObj({
-                                $type$: 'Instance',
-                                name: personEmail,
-                                owner: profile.obj.personId
-                            });
-                        } catch (ignored) {
-                            /** create the instance and register the profile **/
+                        const instance = await getAllEntries(
+                            profile.obj.personId,
+                            true,
+                            'Instance'
+                        );
+                        if (
+                            Array.from(instance.keys()).length === 0 &&
+                            (await getInstanceOwnerIdHash()) !== profile.obj.personId
+                        ) {
                             await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                         }
                     })

@@ -12,7 +12,7 @@ const resources = {
 i18nModelsInstance.init({
     resources: resources,
     interpolation: {
-        escapeValue: false,
+        escapeValue: false
     },
     fallbackLng: 'de'
 });
