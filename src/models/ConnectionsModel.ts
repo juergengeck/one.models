@@ -723,6 +723,8 @@ export default class ConnectionsModel extends EventEmitter {
                 owner: authenticatedContact.personIdHash
             });
 
+            await getObjectByIdHash(setAccessParam.id);
+
             await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         } catch (error) {
             // If the partner was not connected with this instance previously,
