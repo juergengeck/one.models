@@ -31,14 +31,14 @@ export function createRandomBodyTemperature(): BodyTemperature {
  * Import all plan modules
  */
 export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return await Promise.all(
         modules.map(
-            async (module) =>
+            async module =>
                 await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/module-importer',
@@ -61,7 +61,7 @@ export default class Model {
         this.documents = new DocumentModel();
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-        this.connections = new ConnectionsModel();
+        this.connections = new ConnectionsModel(this.channelManager);
         this.access = new AccessModel();
         this.news = new NewsModel(this.channelManager);
 
@@ -84,6 +84,7 @@ export default class Model {
         );
 
         this.oneInstance.on('authstate_changed_first', (firstCallback: (err?: Error) => void) => {
+            // add a parameter for knowing if it's take over or not
             if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
                 this.init()
                     .then(() => {
@@ -97,15 +98,33 @@ export default class Model {
     }
 
     async init(): Promise<void> {
-        await this.channelManager.init();
         await this.contactModel.init();
-        await this.questionnaires.init();
-        await this.connections.init();
-        await this.access.init();
-        await this.diary.init();
-        await this.bodyTemperature.init();
+
+        await this.accessModel.setPersonId(anonymousId);
+        await this.accessModel.init();
+
+        await this.channelManager.init();
+
+        await this.consentFile.setPersonId(anonymousId);
         await this.consentFile.init();
+
+        await this.news.init();
+        await this.questionnaires.init();
+        await this.diary.init();
+        await this.covidWorkflow.init();
+        await this.bodyTemperature.init();
         await this.settings.init();
+
+        // await this.connections.setPersonId();
+        await this.connections.init();
+
+        // todo check if anonymous id exists if it does not exist wait for it
+        // listening on the update on contactModel (new profile for yourself)
+        // query the contactModel for anonymous id
+        // connection timeout ? display error message
+        const anonymousId = await this.contactModel.createProfile(true);
+
+        await this.channelManager.setPersonId(anonymousId);
     }
     access: AccessModel;
     channelManager: ChannelManager;

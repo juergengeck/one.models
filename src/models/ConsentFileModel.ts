@@ -1,7 +1,6 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {ConsentFile as OneConsentFile} from '@OneCoreTypes';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {ConsentFile as OneConsentFile, Person, SHA256IdHash} from '@OneCoreTypes';
 
 export enum FileType {
     Consent = 'consent',
@@ -46,6 +45,7 @@ function convertFromOne(oneObject: OneConsentFile): ConsentFile {
 export default class ConsentFileModel extends EventEmmiter {
     channelManager: ChannelManager;
     channelId: string;
+    private personId: SHA256IdHash<Person> | undefined;
 
     /**
      * Construct a new instance
@@ -57,6 +57,11 @@ export default class ConsentFileModel extends EventEmmiter {
 
         this.channelId = 'consentFile';
         this.channelManager = channelManager;
+        this.personId = undefined;
+    }
+
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.personId = id;
     }
 
     /**
@@ -83,7 +88,6 @@ export default class ConsentFileModel extends EventEmmiter {
 
     async entries(): Promise<ObjectData<ConsentFile>[]> {
         const objects: ObjectData<ConsentFile>[] = [];
-        const instanceOwner = await getInstanceOwnerIdHash();
 
         const oneObjects = await this.channelManager.getObjectsWithType(
             this.channelId,
@@ -96,12 +100,12 @@ export default class ConsentFileModel extends EventEmmiter {
             // For consent and dropout files check if the owner is the same as the current
             // instance owner. Consent files will be shared with partner just for backup
             // purpose so in partner journal page should not be visible.
-            if (data.fileType === 'consent' && data.fileData === instanceOwner) {
+            if (data.fileType === 'consent' && data.fileData === this.personId) {
                 objects.push({...restObjectData, data: convertFromOne(data)});
             } else if (data.fileType === 'dropout') {
                 const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
 
-                if (dropoutFileData.split('|')[1].split(':')[1].trim() === instanceOwner) {
+                if (dropoutFileData.split('|')[1].split(':')[1].trim() === this.personId) {
                     objects.push({...restObjectData, data: convertFromOne(data)});
                 }
             }
