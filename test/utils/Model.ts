@@ -84,7 +84,7 @@ export default class Model {
         );
 
         this.oneInstance.on('authstate_changed_first', (firstCallback: (err?: Error) => void) => {
-            // add a parameter for knowing if it's take over or not
+            // todo: add a parameter for knowing if it's take over or not
             if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
                 this.init()
                     .then(() => {
@@ -99,29 +99,22 @@ export default class Model {
 
     async init(): Promise<void> {
         await this.contactModel.init();
-
-        await this.accessModel.setPersonId(anonymousId);
         await this.accessModel.init();
-
         await this.channelManager.init();
-
-        await this.consentFile.setPersonId(anonymousId);
         await this.consentFile.init();
-
         await this.news.init();
         await this.questionnaires.init();
         await this.diary.init();
         await this.covidWorkflow.init();
         await this.bodyTemperature.init();
         await this.settings.init();
-
-        // await this.connections.setPersonId();
         await this.connections.init();
 
         // todo check if anonymous id exists if it does not exist wait for it
-        // listening on the update on contactModel (new profile for yourself)
-        // query the contactModel for anonymous id
-        // connection timeout ? display error message
+        //  listening on the update on contactModel (new profile for yourself)
+        this.contactModel.on('update', () => {
+            // todo: query the contactModel for anonymous id
+        })
         const anonymousId = await this.contactModel.createProfile(true);
 
         await this.channelManager.setPersonId(anonymousId);

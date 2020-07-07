@@ -71,8 +71,8 @@ export default class ConnectionsModel extends EventEmitter {
         this.authenticatedContactsList = {
             $type$: 'AuthenticatedContactsList',
             instanceIdHash: '' as SHA256IdHash<Instance>
-            this.channelManager = channelManager;
         };
+        this.channelManager = channelManager;
     }
 
     /**
