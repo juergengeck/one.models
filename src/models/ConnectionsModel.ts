@@ -10,7 +10,8 @@ import {
     SHA256Hash,
     AuthenticatedContactsList,
     VersionedObjectResult,
-    Chum
+    Chum,
+    SHA256IdHash
 } from '@OneCoreTypes';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {
@@ -67,8 +68,11 @@ export default class ConnectionsModel extends EventEmitter {
         super();
         this.personalCloudConnections = [];
         this.partnerConnections = [];
-        this.authenticatedContactsList = {} as AuthenticatedContactsList;
-        this.channelManager = channelManager;
+        this.authenticatedContactsList = {
+            $type$: 'AuthenticatedContactsList',
+            instanceIdHash: '' as SHA256IdHash<Instance>
+            this.channelManager = channelManager;
+        };
     }
 
     /**
@@ -570,6 +574,18 @@ export default class ConnectionsModel extends EventEmitter {
             this.authenticatedContactsList.personalContacts.push(authenticatedContactObj.hash);
         } else if (!takeOver && this.authenticatedContactsList.otherContacts) {
             this.authenticatedContactsList.otherContacts.push(authenticatedContactObj.hash);
+        }
+
+        // in instance take over the invited instance will not have the instance id set
+        if (this.authenticatedContactsList.instanceIdHash === '') {
+            const myInstanceIdHash = getInstanceIdHash();
+
+            if (myInstanceIdHash === undefined) {
+                this.emit('error', 'Unable to find instance.');
+                throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            }
+
+            this.authenticatedContactsList.instanceIdHash = myInstanceIdHash;
         }
 
         await createSingleObjectThroughPurePlan(
