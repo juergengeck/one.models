@@ -41,13 +41,13 @@ export enum LogoutMode {
  * Import all plan modules
  */
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return Promise.all(
-        modules.map((module) =>
+        modules.map(module =>
             createSingleObjectThroughPurePlan(
                 {
                     module: '@one/module-importer',
@@ -182,6 +182,7 @@ export default class OneInstanceModel extends EventEmitter {
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email);
+        this.initialisingApplication();
     }
 
     /**
@@ -210,7 +211,6 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
-        this.initialisingApplication();
     }
 
     /**
@@ -253,7 +253,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    private initialisingApplication(): void {
+    initialisingApplication(): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -387,8 +387,8 @@ export default class OneInstanceModel extends EventEmitter {
         );
 
         const implodedHashesResult = await Promise.all(
-            hashesToImplode.map(async (hashToImplode) => await implode(hashToImplode))
-        ).then((microdataArray) => {
+            hashesToImplode.map(async hashToImplode => await implode(hashToImplode))
+        ).then(microdataArray => {
             return JSON.stringify(microdataArray);
         });
 
@@ -408,7 +408,7 @@ export default class OneInstanceModel extends EventEmitter {
                 resolve(fr.result);
             });
 
-            fr.addEventListener('error', (err) => {
+            fr.addEventListener('error', err => {
                 reject(err);
             });
 
