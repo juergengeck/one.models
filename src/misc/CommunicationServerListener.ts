@@ -1,7 +1,7 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
 import WebSocket from 'ws';
-import {createMessageBus} from "one.core/lib/message-bus";
-import {wslogId} from "./LogUtils";
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {wslogId} from './LogUtils';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -44,27 +44,19 @@ class CommunicationServerListener {
           ) => void)
         | null;
 
-    /**
-     * Reconnect timeout.
-     */
+    // Current connection state.
+    public state: CommunicationServerListenerState;
+    // Reconnect timeout when comm server is not reachable
     private readonly reconnectTimeout: number;
-
-    /**
-     * Current connection state.
-     */
-    private communicationServerConnectorState: CommunicationServerListenerState;
-
-    /**
-     * List of opened web socket which have no partner for moment.
-     */
+    // Maximum number of simultaneously open spare connections
+    private readonly spareConnectionLimit: number;
+    // List of opened web socket which have no partner for moment.
     private spareConnections: CommunicationServerConnection_Client[];
-
-    private spareConnectionLimit: number;
-
+    // Stores whether a new spare connection is scheduled with a delay (after an error happened)
     private spareConnectionScheduled: boolean;
-
+    // Stores whether the listener is currently running
     private running: boolean;
-
+    // This is the timer handle that opens a spare connection after a delay
     private delayScheduleTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
     constructor(spareConnectionLimit: number, reconnectTimeout = 10000) {
@@ -77,7 +69,7 @@ class CommunicationServerListener {
         this.onConnection = null;
         this.onChallenge = null;
         this.onStateChange = null;
-        this.communicationServerConnectorState = CommunicationServerListenerState.NotListening;
+        this.state = CommunicationServerListenerState.NotListening;
     }
 
     /**
@@ -88,7 +80,7 @@ class CommunicationServerListener {
      */
     public start(server: string, publicKey: Uint8Array): void {
         MessageBus.send('log', `start(${server})`);
-        if(this.running) {
+        if (this.running) {
             throw Error('Already running');
         }
 
@@ -100,7 +92,7 @@ class CommunicationServerListener {
     public stop(): void {
         MessageBus.send('log', `stop()`);
         this.running = false;
-        for(const spareConnection of this.spareConnections) {
+        for (const spareConnection of this.spareConnections) {
             spareConnection.close();
         }
         if (this.delayScheduleTimeoutHandle) {
@@ -126,24 +118,30 @@ class CommunicationServerListener {
      * @param publicKey
      * @param delayed
      */
-    private scheduleSpareConnection(server: string, publicKey: Uint8Array, delayed: boolean = false): void {
+    private scheduleSpareConnection(
+        server: string,
+        publicKey: Uint8Array,
+        delayed: boolean = false
+    ): void {
         MessageBus.send('debug', `scheduleSpareConnection(${server}, ${delayed})`);
 
         // Check prerequisites for scheduling
-        if(!this.onChallenge) {
-            throw Error('onChallenge clalback is not registered.')
+        if (!this.onChallenge) {
+            throw Error('onChallenge clalback is not registered.');
         }
-        if(!this.running) { // do not schedule if already stopped
+        if (!this.running) {
+            // do not schedule if already stopped
             return;
         }
-        if (this.spareConnections.length >= this.spareConnectionLimit) { // Do not schedule if enough connections are open
+        if (this.spareConnections.length >= this.spareConnectionLimit) {
+            // Do not schedule if enough connections are open
             return;
         }
 
         // If delayed is true, then schedule the call for later and return (in case of errors)
         // do not schedule if already one delayed schedule is pending
-        if(delayed) {
-            if(!this.spareConnectionScheduled) {
+        if (delayed) {
+            if (!this.spareConnectionScheduled) {
                 this.spareConnectionScheduled = true;
                 this.delayScheduleTimeoutHandle = setTimeout(() => {
                     this.delayScheduleTimeoutHandle = null;
@@ -156,14 +154,16 @@ class CommunicationServerListener {
 
         // This function is called when the communication server sends a handover command to tell
         // that a client has connected and wants to talk, or if an error with this spare connection happens.
-        const handoverConnection = (connection: CommunicationServerConnection_Client, err?: Error) => {
-
+        const handoverConnection = (
+            connection: CommunicationServerConnection_Client,
+            err?: Error
+        ) => {
             // The connection is no longer a spare connection, so remove it
             this.removeSpareConnection(connection);
 
             // Do not schedule if already stopped
-            if(!this.running) {
-                if(connection.webSocket.readyState === WebSocket.OPEN) {
+            if (!this.running) {
+                if (connection.webSocket.readyState === WebSocket.OPEN) {
                     connection.close();
                 }
                 return;
@@ -213,7 +213,7 @@ class CommunicationServerListener {
 
     private removeSpareConnection(connection: CommunicationServerConnection_Client): void {
         MessageBus.send('debug', `removeSpareConnection(${wslogId(connection.webSocket)})`);
-        this.spareConnections = this.spareConnections.filter((elem) => elem !== connection);
+        this.spareConnections = this.spareConnections.filter(elem => elem !== connection);
         this.updateState();
     }
 
@@ -224,12 +224,10 @@ class CommunicationServerListener {
         MessageBus.send('debug', `updateState()`);
         if (this.spareConnections.length > 0) {
             this.changeCurrentState(CommunicationServerListenerState.Listening);
-        }
-        else {
-            if(this.running) {
+        } else {
+            if (this.running) {
                 this.changeCurrentState(CommunicationServerListenerState.Connecting);
-            }
-            else {
+            } else {
                 this.changeCurrentState(CommunicationServerListenerState.NotListening);
             }
         }
@@ -243,14 +241,11 @@ class CommunicationServerListener {
      * @param {CommunicationServerListenerState} newState
      * @param {string} reason
      */
-    private changeCurrentState(
-        newState: CommunicationServerListenerState,
-        reason?: string
-    ): void {
-        const oldState = this.communicationServerConnectorState;
-        this.communicationServerConnectorState = newState;
+    private changeCurrentState(newState: CommunicationServerListenerState, reason?: string): void {
+        const oldState = this.state;
+        this.state = newState;
 
-        if (this.onStateChange && (newState != oldState)) {
+        if (this.onStateChange && newState != oldState) {
             this.onStateChange(newState, oldState, reason);
         }
     }
@@ -274,20 +269,32 @@ class CommunicationServerListener {
         // Phase 1: Register and authenticate the connection
         try {
             // Step1: Register at comm server
-            MessageBus.send('log', `${wslogId(connection.webSocket)}: Step 1: Send 'register' message`);
+            MessageBus.send(
+                'log',
+                `${wslogId(connection.webSocket)}: Step 1: Send 'register' message`
+            );
             await connection.sendRegisterMessage(publicKey);
 
             // Step2: Wait for authentication request of commserver and check parameters
-            MessageBus.send('log', `${wslogId(connection.webSocket)}: Step 2: Wait for authentication_request`);
+            MessageBus.send(
+                'log',
+                `${wslogId(connection.webSocket)}: Step 2: Wait for authentication_request`
+            );
             const authRequest = await connection.waitForMessage('authentication_request');
 
             // Step3: Send authentication response
-            MessageBus.send('log', `${wslogId(connection.webSocket)}: Step 3: Send authentication_response message`);
-            const response = onChallenge(authRequest.challenge, authRequest.publicKey)
+            MessageBus.send(
+                'log',
+                `${wslogId(connection.webSocket)}: Step 3: Send authentication_response message`
+            );
+            const response = onChallenge(authRequest.challenge, authRequest.publicKey);
             await connection.sendAuthenticationResponseMessage(response);
 
             // Step4: Wait for authentication success message
-            MessageBus.send('log', `${wslogId(connection.webSocket)}: Step 4: Wait for authentication_success message`);
+            MessageBus.send(
+                'log',
+                `${wslogId(connection.webSocket)}: Step 4: Wait for authentication_success message`
+            );
             let authSuccess = await connection.waitForMessage('authentication_success');
 
             // The ping interval communicated by the server * 3 should be a good timeout. It can handle a short delay of
@@ -301,11 +308,17 @@ class CommunicationServerListener {
 
         // Phase 2: Listen for connection while ping / ponging the server
         // Step 5: Wait for connection
-        MessageBus.send('log', `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`);
+        MessageBus.send(
+            'log',
+            `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`
+        );
         connection
             .waitForMessagePingPong('connection_handover', pingTimeout)
             .then(() => {
-                MessageBus.send('log', `${wslogId(connection.webSocket)}: Received connection_handover message`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(connection.webSocket)}: Received connection_handover message`
+                );
                 onConnect(connection);
             })
             .catch((err: Error) => {

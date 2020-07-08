@@ -6,6 +6,7 @@ import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
+import WebSocketListener from "./WebSocketListener";
 
 const MessageBus = createMessageBus('CommunicationServer');
 
@@ -15,7 +16,7 @@ type ConnectionContainer = {
 };
 
 class CommunicationServer {
-    private webSocketServer: WebSocket.Server | null;
+    private webSocketListener: WebSocketListener;
     private keyPair: tweetnacl.BoxKeyPair;
     private listeningConnectionsMap: Map<string, ConnectionContainer[]>;
     private openedConnections: Set<WebSocket>;
@@ -23,12 +24,14 @@ class CommunicationServer {
     private pongTimeout: number;
 
     constructor() {
-        this.webSocketServer = null;
+        this.webSocketListener = new WebSocketListener();
         this.keyPair = tweetnacl.box.keyPair();
         this.listeningConnectionsMap = new Map<string, ConnectionContainer[]>();
         this.openedConnections = new Set<WebSocket>();
         this.pingInterval = 5000;
         this.pongTimeout = 1000;
+
+        this.webSocketListener.onConnection = this.acceptConnection.bind(this);
     }
 
     public async start(
@@ -37,63 +40,16 @@ class CommunicationServer {
         pingInterval: number = 5000,
         pongTimeout = 1000
     ): Promise<void> {
-        if (this.webSocketServer) {
-            throw Error('Communication server is already running.');
-        }
-
-        // Create Websocket
         this.pingInterval = pingInterval;
         this.pongTimeout = pongTimeout;
-
-        MessageBus.send('log', `Starting WebSocket server at ${host}:${port}`);
-        this.webSocketServer = new WebSocket.Server({host, port});
-
-        // Wait until the websocket server is either ready or stopped with an error (e.g. address in use)
-        await new Promise((resolve, reject) => {
-            if (!this.webSocketServer) {
-                reject(
-                    new Error(
-                        'Web server instance not existing! This cannot happen, but TS demands this check'
-                    )
-                );
-                return;
-            }
-            this.webSocketServer.on('listening', () => {
-                if (this.webSocketServer) {
-                    this.webSocketServer.removeAllListeners();
-                }
-                resolve();
-            });
-            this.webSocketServer.on('error', (err: Error) => {
-                if (this.webSocketServer) {
-                    this.webSocketServer.removeAllListeners();
-                    this.webSocketServer = null;
-                }
-                reject(err);
-            });
-        });
-
-        MessageBus.send('log', `Successful started WebSocket server`);
-
-        // After successful connection listen for new connections and errors
-        this.webSocketServer.on('connection', this.acceptConnection.bind(this));
-        this.webSocketServer.on('error', this.stop.bind(this));
+        await this.webSocketListener.start(host, port);
     }
 
     public async stop(): Promise<void> {
-        MessageBus.send('log', `Stopping WebSocket server`);
 
-        // Shutdown Websocket server
-        await new Promise((resolve) => {
-            if (!this.webSocketServer) {
-                return;
-            }
+        await this.webSocketListener.stop();
 
-            this.webSocketServer.close(() => {
-                this.webSocketServer = null;
-                resolve(); // ignore errors. Stop should not throw.
-            });
-        });
+        MessageBus.send('log', `Closing remaining connections`);
 
         // Close spare connections
         for(const connectionContainers of this.listeningConnectionsMap.values()) {
@@ -109,7 +65,7 @@ class CommunicationServer {
             }
         }
 
-        MessageBus.send('log', `Stopped WebSocket server`);
+        MessageBus.send('log', `Closing remaining connections done`);
     }
 
     private async acceptConnection(ws: WebSocket): Promise<void> {
