@@ -83,21 +83,25 @@ export default class Model {
             this.consentFile
         );
 
-        this.oneInstance.on('authstate_changed_first', (firstCallback: (err?: Error) => void) => {
-            // todo: add a parameter for knowing if it's take over or not
-            if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
-                this.init()
-                    .then(() => {
-                        firstCallback();
-                    })
-                    .catch((err: any) => {
-                        firstCallback(err);
-                    });
+        this.oneInstance.on(
+            'authstate_changed_first',
+            registrationState,
+            (firstCallback: (err?: Error) => void) => {
+                // todo: add a parameter for knowing if it's take over or not
+                if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
+                    this.init(registrationState)
+                        .then(() => {
+                            firstCallback();
+                        })
+                        .catch((err: any) => {
+                            firstCallback(err);
+                        });
+                }
             }
-        });
+        );
     }
 
-    async init(): Promise<void> {
+    async init(registrationState: boolean): Promise<void> {
         await this.contactModel.init();
         await this.accessModel.init();
         await this.channelManager.init();
@@ -110,14 +114,28 @@ export default class Model {
         await this.settings.init();
         await this.connections.init();
 
-        // todo check if anonymous id exists if it does not exist wait for it
-        //  listening on the update on contactModel (new profile for yourself)
-        this.contactModel.on('update', () => {
-            // todo: query the contactModel for anonymous id
-        })
-        const anonymousId = await this.contactModel.createProfile(true);
-
-        await this.channelManager.setPersonId(anonymousId);
+        if (registrationState) {
+            /**
+             * The user has register on this device for the first time without
+             * trying to synchronise the data from other device that he owns.
+             * The anonymous user should be generated.
+             */
+            const anonymousId = await this.contactModel.createProfile(true);
+            await this.channelManager.setPersonId(anonymousId);
+        } else {
+            /**
+             * Wit until the anonymous user is read from memory if in login or
+             * received via chums if in instance take over.
+             */
+            this.contactModel.on('update', async () => {
+                const myIdentities = await this.contactModel.myIdentities();
+                if (myIdentities.length > 1) {
+                    const anonymousId = myIdentities[myIdentities.length - 1];
+                    await this.channelManager.setPersonId(anonymousId);
+                    this.contactModel.off('update');
+                }
+            });
+        }
     }
     access: AccessModel;
     channelManager: ChannelManager;

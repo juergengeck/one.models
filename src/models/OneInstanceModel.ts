@@ -276,7 +276,7 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit('authstate_changed_first', firstCallback);
+        this.emit('authstate_changed_first', this.currentRegistrationState, firstCallback);
     }
 
     /**
