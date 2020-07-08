@@ -64,6 +64,10 @@ export default class ConsentFileModel extends EventEmmiter {
         this.personId = id;
     }
 
+    getOwnerId(): SHA256IdHash<Person> | undefined {
+        return this.personId;
+    }
+
     /**
      * Initialize this inistance
      *
