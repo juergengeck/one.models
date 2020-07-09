@@ -446,11 +446,6 @@ export default class ConnectionsModel extends EventEmitter {
         if (!this.personalCloudConnections.includes(connection)) {
             this.personalCloudConnections.push(connection);
         }
-
-        this.emit('authenticatedPersonalCloudDevice');
-
-        this.startChum(connection, pairingInformation.takeOver);
-        this.emit('connectionEstablished');
     }
 
     /**
@@ -523,6 +518,8 @@ export default class ConnectionsModel extends EventEmitter {
             {module: '@one/chum-sync'},
             defaultInitialChumObj
         );
+
+        this.emit('connectionEstablished');
 
         connection.chum.finally(() => {
             connection.connectionState = false;
