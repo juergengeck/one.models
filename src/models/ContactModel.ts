@@ -42,7 +42,8 @@ import {getAllEntries} from 'one.core/lib/reverse-map-query';
  */
 export enum ContactEvent {
     UpdatedContactList = 'UPDATED_CONTACT_LIST',
-    UpdatedContact = 'UPDATED_CONTACT'
+    UpdatedContact = 'UPDATED_CONTACT',
+    UpdatedContactApp = 'UPDATED_CONTACT_APP'
 }
 
 /**
@@ -498,6 +499,7 @@ export default class ContactModel extends EventEmitter {
                         }
                     })
                 );
+                this.emit(ContactEvent.UpdatedContactApp);
             }
         });
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
