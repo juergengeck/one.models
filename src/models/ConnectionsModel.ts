@@ -11,7 +11,8 @@ import {
     AuthenticatedContactsList,
     VersionedObjectResult,
     Chum,
-    SHA256IdHash
+    SHA256IdHash,
+    Person
 } from '@OneCoreTypes';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {
@@ -27,7 +28,6 @@ import {
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
-import ChannelManager from './ChannelManager';
 
 /**
  * All data about an connection are keept in this type.
@@ -62,9 +62,9 @@ export default class ConnectionsModel extends EventEmitter {
     // private readonly commServerUrl = 'ws://localhost:8000';
     private myInstance: VersionedObjectResult<Instance> | undefined;
     private authenticatedContactsList: AuthenticatedContactsList;
-    private channelManager: ChannelManager;
+    private personId: SHA256IdHash<Person> | undefined;
 
-    constructor(channelManager: ChannelManager) {
+    constructor() {
         super();
         this.personalCloudConnections = [];
         this.partnerConnections = [];
@@ -72,7 +72,11 @@ export default class ConnectionsModel extends EventEmitter {
             $type$: 'AuthenticatedContactsList',
             instanceIdHash: '' as SHA256IdHash<Instance>
         };
-        this.channelManager = channelManager;
+        this.personId = undefined;
+    }
+
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.personId = id;
     }
 
     /**
@@ -710,33 +714,39 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {AuthenticatedContact} authenticatedContact
      */
     async shareDataWithPartner(authenticatedContact: AuthenticatedContact): Promise<void> {
-        await this.channelManager.giveAccessToChannelInfo(
-            'questionnaire',
-            authenticatedContact.personIdHash
-        );
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: this.personId
+        });
+
+        let setAccessParam: SetAccessParam = {
+            group: [],
+            id: channelInfoIdHash,
+            mode: SET_ACCESS_MODE.REPLACE,
+            person: [authenticatedContact.personIdHash]
+        };
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         // share my consent files with partner for backup
-        await this.channelManager.giveAccessToChannelInfo(
-            'consentFile',
-            authenticatedContact.personIdHash
-        );
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: this.personId
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         try {
             // share old partner consent files with partner for backup
-            const channelId = await calculateIdHashOfObj({
+            setAccessParam.id = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: 'consentFile',
                 owner: authenticatedContact.personIdHash
             });
 
-            const setAccessParam: SetAccessParam = {
-                group: [],
-                id: channelId,
-                mode: SET_ACCESS_MODE.REPLACE,
-                person: [authenticatedContact.personIdHash]
-            };
-
-            await getObjectByIdHash(channelId);
+            await getObjectByIdHash(setAccessParam.id);
 
             await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         } catch (error) {
