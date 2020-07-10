@@ -157,14 +157,13 @@ export default class OneInstanceModel extends EventEmitter {
      * The previously created instance with that email as owner is deleted and a new one is created.
      * The user has to re-enter a password, which will be used for the new instance.
      *
+     * @param {string} email
      * @param {string} secret
      * @param {string} patientType
      * @returns {Promise<void>}
      */
-    async recoverInstance(secret: string, patientType: string): Promise<void> {
+    async recoverInstance(email: string, secret: string, patientType: string): Promise<void> {
         this.currentPatientTypeState = patientType;
-
-        const email = window.location.hash.substr(1);
 
         try {
             const ownerIdHash = await calculateIdHashOfObj({

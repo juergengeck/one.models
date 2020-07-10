@@ -1,6 +1,8 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {ConsentFile as OneConsentFile, Person, SHA256IdHash} from '@OneCoreTypes';
+import i18nModelsInstance from '../i18n';
+import {getObjectByIdHash} from 'one.core/lib/storage';
 
 export enum FileType {
     Consent = 'consent',
@@ -66,6 +68,16 @@ export default class ConsentFileModel extends EventEmmiter {
 
     getOwnerId(): SHA256IdHash<Person> | undefined {
         return this.personId;
+    }
+
+    async getAnonymousEmail(): Promise<string> {
+        if (this.personId === undefined) {
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
+        const anonymousPerson = await getObjectByIdHash(this.personId);
+
+        return anonymousPerson.obj.email;
     }
 
     /**
