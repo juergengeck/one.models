@@ -1,36 +1,35 @@
 import yargs from 'yargs';
-import CommunicationServer from "../misc/CommunicationServer";
+import CommunicationServer from '../misc/CommunicationServer';
 import * as Logger from 'one.core/lib/logger';
 
 /**
  * Main function. This exists to be able to use await here.
  */
 async function main(): Promise<void> {
-    const argv = yargs
-
-        // Url of communication server
-        .alias('h', 'host')
-        .describe('h', 'host to bind the listening port to')
-        .default('h', 'localhost')
-
-        // Spare connections
-        .alias('p', 'port')
-        .describe('p', 'Port to listen on')
-        .default('p', 8000)
-
-        // Ping interval
-        .describe('tp', 'Ping interval')
-        .default('tp', 5000)
-
-        // Logger
-        .describe('l', 'Enable logger')
-        .boolean('l')
-
+    const argv =
         // Evaluate
-        .argv;
+        yargs
 
-    if(argv.l) {
-        Logger.start({ types: ['log'] });
+            // Url of communication server
+            .alias('h', 'host')
+            .describe('h', 'host to bind the listening port to')
+            .default('h', 'localhost')
+
+            // Spare connections
+            .alias('p', 'port')
+            .describe('p', 'Port to listen on')
+            .default('p', 8000)
+
+            // Ping interval
+            .describe('tp', 'Ping interval')
+            .default('tp', 5000)
+
+            // Logger
+            .describe('l', 'Enable logger')
+            .boolean('l').argv;
+
+    if (argv.l) {
+        Logger.start({types: ['log']});
     }
 
     const commServer = new CommunicationServer();
@@ -43,11 +42,6 @@ async function main(): Promise<void> {
 }
 
 // Execute main function
-main()
-    .catch(e => {
-        console.log('Error happened: ' + e.toString());
-    });
-
-
-
-
+main().catch(e => {
+    console.log('Error happened: ' + e.toString());
+});

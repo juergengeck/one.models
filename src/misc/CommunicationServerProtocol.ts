@@ -1,65 +1,89 @@
+import CommunicationInitiationProtocol from "./CommunicationInitiationProtocol";
+
+/**
+ * Protocol that defines messages used for communication between communication server and registering clients.
+ */
 declare module CommunicationServerProtocol {
+
+    // ######## Message / command definition ########
+
+    /**
+     * Registers a listening connection at the comm server.
+     */
     export type RegisterMessage = {
         command: 'register';
         publicKey: Uint8Array;
     };
 
+    /**
+     * Requests authentication from the client that is registering.
+     */
     export type AuthenticationRequestMessage = {
         command: 'authentication_request';
         publicKey: Uint8Array;
         challenge: Uint8Array;
     };
 
+    /**
+     * Authentication message from the client.
+     */
     export type AuthenticationResponseMessage = {
         command: 'authentication_response';
         response: Uint8Array;
     };
 
+    /**
+     * Confirmation of successful authentication.
+     *
+     * If authentication was not successful, the connection is just severed.
+     */
     export type AuthenticationSuccessMessage = {
         command: 'authentication_success';
         pingInterval: number;
     };
 
+    /**
+     * Signals that an incoming connection is handed over to a registered cient.
+     */
     export type ConnectionHandoverMessage = {
         command: 'connection_handover';
     };
 
+    /**
+     * Ping message used for keeping alive spare registered connections.
+     */
     export type PingMessage = {
         command: 'comm_ping';
     };
 
+    /**
+     * Pong messages used for keeping alive spare registered connections.
+     */
     export type PongMessage = {
         command: 'comm_pong';
     };
 
-    /**
-     * This request is sent by a client to request communication with somebody that has the specified public key.
-     *
-     * This is exactly the same message that is initially sent for connections not going
-     * through the communication server, so it will be received by the communication server
-     * to determine with whom to establish the connection. And it will also be forwarded by the
-     * communication server to the registered client so that the direct connection behaves the same
-     * from the point ov view of the reuqesting client.
-     */
-    export type CommunicationRequestMessage = {
-        command: 'communication_request';
-        sourcePublicKey: Uint8Array;
-        targetPublicKey: Uint8Array;
-    };
+    // ######## Message to Role (Client / Server) Mapping ########
 
+    /**
+     * Those are messages that are sent by the comm server client.
+     */
     export interface ClientMessages {
         register: RegisterMessage;
         authentication_response: AuthenticationResponseMessage;
         comm_pong: PongMessage;
-        communication_request: CommunicationRequestMessage;
+        communication_request: CommunicationInitiationProtocol.CommunicationRequestMessage;
     }
 
+    /**
+     * Those are messages that are sent by the comm server.
+     */
     export interface ServerMessages {
         authentication_request: AuthenticationRequestMessage;
         authentication_success: AuthenticationSuccessMessage;
         connection_handover: ConnectionHandoverMessage;
         comm_ping: PingMessage;
-        communication_request: CommunicationRequestMessage;
+        communication_request: CommunicationInitiationProtocol.CommunicationRequestMessage;
     }
 
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
@@ -67,10 +91,11 @@ declare module CommunicationServerProtocol {
 }
 
 /**
- * Check the content of an object against available messages.
+ * Check whether the argument is a client message of specified type / command.
  *
- * @param {any} arg - the argument to check
- * @param {string} command - the command of the message to check against
+ * @param arg - The argument to check
+ * @param {T} command - The command / type of the message to check against.
+ * @returns {arg is CommunicationServerProtocol.ClientMessages[T]}
  */
 export function isClientMessage<T extends keyof CommunicationServerProtocol.ClientMessages>(
     arg: any,
@@ -96,10 +121,11 @@ export function isClientMessage<T extends keyof CommunicationServerProtocol.Clie
 }
 
 /**
- * Check the content of an object against available messages.
+ * Check whether the argument is a server message of specified type / command.
  *
- * @param {any} arg - the argument to check
- * @param {string} command - the command of the message to check against
+ * @param arg - The argument to check
+ * @param {T} command - The command / type of the message to check against.
+ * @returns {arg is CommunicationServerProtocol.ServerMessages[T]}
  */
 export function isServerMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
     arg: any,

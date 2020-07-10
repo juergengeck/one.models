@@ -30,6 +30,9 @@ export default class WebSocketPromiseBased {
         this.dataQueueOverflow = false;
         this.defaultTimeout = -1;
 
+        // Configure for binary messages
+        this.webSocket.binaryType = 'arraybuffer';
+
         // configure websocket callbacks
         const boundOpenHandler = this.handleOpen.bind(this);
         const boundMessageHandler = this.handleMessage.bind(this);
@@ -231,6 +234,20 @@ export default class WebSocketPromiseBased {
         }
 
         return messageObj;
+    }
+
+    /**
+     * Wait for a binary message.
+     *
+     * @param {number} timeout
+     * @returns {Promise<Uint8Array>}
+     */
+    public async waitForBinaryMessage(timeout: number = -2): Promise<Uint8Array> {
+        const message = await this.waitForMessage(timeout);
+        if (!(message instanceof ArrayBuffer)) {
+            throw new Error('Received message that is not a binary message.');
+        }
+        return new Uint8Array(message);
     }
 
     /**

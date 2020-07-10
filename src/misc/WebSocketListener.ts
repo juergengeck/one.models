@@ -37,11 +37,12 @@ class WebSocketListener {
     ) => void)
         | null = null;
 
-    // Current connection state.
-    public state: WebSocketListenerState;
-    // The web socket server for listening for connections
-    private webSocketServer: WebSocket.Server | null = null;
+    public state: WebSocketListenerState; // Current connection state.
+    private webSocketServer: WebSocket.Server | null = null; // The web socket server for listening for connections
 
+    /**
+     * Creates the listener.
+     */
     constructor() {
         this.state = WebSocketListenerState.NotListening;
     }

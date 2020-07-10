@@ -7,7 +7,7 @@ import {fromByteArray, toByteArray} from 'base64-js';
  * This class implements the client side of communication server communication
  */
 class CommunicationServerConnection_Client {
-    public webSocketPB: WebSocketPromiseBased;
+    public webSocketPB: WebSocketPromiseBased; // The websocket used for the communication
 
     /**
      * Creates a client connection to a communication server for registering connection listeners.
@@ -20,6 +20,11 @@ class CommunicationServerConnection_Client {
 
     // ######## Socket Management & Settings ########
 
+    /**
+     * Get the underlying web socket instance
+     *
+     * @returns {WebSocket}
+     */
     get webSocket(): WebSocket {
         if (!this.webSocketPB.webSocket) {
             throw new Error('No Websocket is assigned to connection.');
@@ -34,14 +39,31 @@ class CommunicationServerConnection_Client {
         return this.webSocketPB.releaseWebSocket();
     }
 
+    /**
+     * Closes the web socket.
+     *
+     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
     }
 
+    /**
+     * Set the request timeout.
+     *
+     * This timeout specifies how long the connection will wait for new messages in the wait* methods.
+     *
+     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     */
     set requestTimeout(timeout: number) {
         this.webSocketPB.defaultTimeout = timeout;
     }
 
+    /**
+     * Get the current request timeout.
+     *
+     * @returns {number}
+     */
     get requestTimeout(): number {
         return this.webSocketPB.defaultTimeout;
     }
@@ -81,35 +103,34 @@ class CommunicationServerConnection_Client {
         await this.sendMessage({command: 'comm_pong'});
     }
 
-    /**
-     * Send the communication request message
-     *
-     * This shouldn't be used by the client. Instead a I2I communication protocol
-     * should have the same message, because the communication server should be transparent.
-     *
-     * @param {Uint8Array} sourcePublicKey
-     * @param {Uint8Array} targetPublicKey
-     * @returns {Promise<void>}
-     */
-    public async sendCommunicationRequestMessage(
-        sourcePublicKey: Uint8Array,
-        targetPublicKey: Uint8Array
-    ): Promise<void> {
-        await this.sendMessage({command: 'communication_request', sourcePublicKey, targetPublicKey});
-    }
-
     // ######## Message receiving ########
 
+    /**
+     * Wait for a message with the specified command.
+     *
+     * @param {T} command - The expected command of the next message
+     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
+     */
     public async waitForMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
         command: T
     ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
-        const message = this.unpackBinaryFields(await this.webSocketPB.waitForJSONMessageWithType(command, 'command'));
+        const message = this.unpackBinaryFields(
+            await this.webSocketPB.waitForJSONMessageWithType(command, 'command')
+        );
         if (isServerMessage(message, command)) {
             return message;
         }
         throw Error("Received data does not match the data expected for command '" + command + "'");
     }
 
+    /**
+     * Wait for a message with the specified command while also answering comm_pings.
+     *
+     * @param {T} command - The expected command of the next message
+     * @param {number} pingTimeout - Pings in the given interval are expected. If pings do not arrive in this
+     *                               time the connection is closed.
+     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
+     */
     public async waitForMessagePingPong<T extends keyof CommunicationServerProtocol.ServerMessages>(
         command: T,
         pingTimeout: number
@@ -138,7 +159,9 @@ class CommunicationServerConnection_Client {
                 schedulePingTimeout();
 
                 // Wait for new message
-                const message = this.unpackBinaryFields(await this.webSocketPB.waitForJSONMessage());
+                const message = this.unpackBinaryFields(
+                    await this.webSocketPB.waitForJSONMessage()
+                );
 
                 // On ping send a pong and reiterate the loop
                 if (isServerMessage(message, 'comm_ping')) {
@@ -154,14 +177,14 @@ class CommunicationServerConnection_Client {
                 // On unknown message throw
                 else {
                     throw Error(
-                        "Received data does not match the data expected for command '" + command + "'"
+                        "Received data does not match the data expected for command '" +
+                            command +
+                            "'"
                     );
                 }
             }
-        }
-
-        // Cancel the ping timeout e.g. on error (e.g. when the connection closes)
-        catch(e) {
+        } catch (e) {
+            // Cancel the ping timeout e.g. on error (e.g. when the connection closes)
             cancelPingTimeout();
             throw e;
         }
@@ -172,7 +195,8 @@ class CommunicationServerConnection_Client {
     /**
      * Send a message to the communication server.
      *
-     * @param message
+     * @param {T} message - The message to send
+     * @returns {Promise<void>}
      */
     private async sendMessage<T extends CommunicationServerProtocol.ClientMessageTypes>(
         message: T
@@ -189,6 +213,12 @@ class CommunicationServerConnection_Client {
         );
     }
 
+    /**
+     * Convert fields from base64 encoding to Uint8Array.
+     *
+     * @param {any} message - The message to convert
+     * @returns {any} - The converted message
+     */
     public unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {
             throw Error(`Parsing message failed!`);

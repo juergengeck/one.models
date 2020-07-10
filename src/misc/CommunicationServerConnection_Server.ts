@@ -2,8 +2,8 @@ import WebSocket from 'ws';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isClientMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {wslogId} from "./LogUtils";
-import {createMessageBus} from "one.core/lib/message-bus";
+import {wslogId} from './LogUtils';
+import {createMessageBus} from 'one.core/lib/message-bus';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 
@@ -11,11 +11,11 @@ const MessageBus = createMessageBus('CommunicationServerConnection_Server');
  * This class implements the server side of communication server communication.
  */
 class CommunicationServerConnection_Server {
-    public webSocketPB: WebSocketPromiseBased;
-    private isPinging: boolean = false;
-    private isWaitingForPong: boolean = false;
-    private resolveStopPing: (() => void) | null = null;
-    private pingTimeoutHandler: ReturnType<typeof setTimeout> | null = null;
+    public webSocketPB: WebSocketPromiseBased; // The websocket used for communication
+    private isPinging: boolean = false; // State that indicates if the ping process is running
+    private isWaitingForPong: boolean = false; // Valie that is true while we wait for a pong
+    private resolveStopPing: (() => void) | null = null; // Resolve handler for stop function whil waiting for a pong
+    private pingTimeoutHandle: ReturnType<typeof setTimeout> | null = null; // Ping timout handle for cancellation in stop
 
     /**
      * Creates a server connection based on a WebSocket object
@@ -28,6 +28,11 @@ class CommunicationServerConnection_Server {
 
     // ######## Socket Management & Settings ########
 
+    /**
+     * Get the underlying web socket instance
+     *
+     * @returns {WebSocket}
+     */
     get webSocket(): WebSocket {
         if (!this.webSocketPB.webSocket) {
             throw new Error('No Websocket is assigned to connection.');
@@ -42,14 +47,31 @@ class CommunicationServerConnection_Server {
         return this.webSocketPB.releaseWebSocket();
     }
 
+    /**
+     * Closes the web socket.
+     *
+     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
     }
 
+    /**
+     * Set the request timeout.
+     *
+     * This timeout specifies how long the connection will wait for new messages in the wait* methods.
+     *
+     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     */
     set requestTimeout(timeout: number) {
         this.webSocketPB.defaultTimeout = timeout;
     }
 
+    /**
+     * Get the current request timeout.
+     *
+     * @returns {number}
+     */
     get requestTimeout(): number {
         return this.webSocketPB.defaultTimeout;
     }
@@ -106,11 +128,24 @@ class CommunicationServerConnection_Server {
         sourcePublicKey: Uint8Array,
         targetPublicKey: Uint8Array
     ): Promise<void> {
-        await this.sendMessage({command: 'communication_request', sourcePublicKey, targetPublicKey});
+        await this.sendMessage({
+            command: 'communication_request',
+            sourcePublicKey,
+            targetPublicKey
+        });
     }
 
+    /**
+     * Starts pinging the client.
+     *
+     * @param {number} pingInterval - Interval since last pong when to send another ping.
+     * @param {number} pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
+     */
     public startPingPong(pingInterval: number, pongTimeout: number): void {
-        MessageBus.send('debug', `${wslogId(this.webSocket)}: startPingPong(${pingInterval}, ${pongTimeout})`);
+        MessageBus.send(
+            'debug',
+            `${wslogId(this.webSocket)}: startPingPong(${pingInterval}, ${pongTimeout})`
+        );
 
         if (this.isPinging) {
             throw new Error('Already ping / ponging');
@@ -167,13 +202,12 @@ class CommunicationServerConnection_Server {
                 }
 
                 // Reschedule another ping
-                if(this.isPinging) {
-                    this.pingTimeoutHandler = setTimeout(() => {
-                        this.pingTimeoutHandler = null;
+                if (this.isPinging) {
+                    this.pingTimeoutHandle = setTimeout(() => {
+                        this.pingTimeoutHandle = null;
                         sendPing();
                     }, pingInterval);
                 }
-
             } catch (e) {
                 this.close();
                 if (this.resolveStopPing) {
@@ -186,6 +220,15 @@ class CommunicationServerConnection_Server {
         sendPing();
     }
 
+    /**
+     * Stops the ping / pong process.
+     *
+     * If currently waiting for a pong, then the promise resolves
+     * 1) After the pong was received
+     * 2) After the pong timeout was reached
+     *
+     * @returns {Promise<void>}
+     */
     public async stopPingPong(): Promise<void> {
         MessageBus.send('log', `${wslogId(this.webSocket)}: stopPingPong()`);
         if (this.resolveStopPing) {
@@ -196,15 +239,15 @@ class CommunicationServerConnection_Server {
         }
 
         // Wait if in a ping / pong cycle, otherwise just resolve
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
             // Cancel the next ping if it is scheduled
             this.isPinging = false;
-            if (this.pingTimeoutHandler) {
-                clearTimeout(this.pingTimeoutHandler);
+            if (this.pingTimeoutHandle) {
+                clearTimeout(this.pingTimeoutHandle);
             }
 
             // Wait for pong (or error) if currently in a ping / pong cycle
-            if(this.isWaitingForPong) {
+            if (this.isWaitingForPong) {
                 this.resolveStopPing = resolve;
             }
 
@@ -219,6 +262,11 @@ class CommunicationServerConnection_Server {
 
     // ######## Message receiving ########
 
+    /**
+     * Wait for an arbitrary client message.
+     *
+     * @returns {Promise<CommunicationServerProtocol.ClientMessageTypes>}
+     */
     public async waitForAnyMessage(): Promise<CommunicationServerProtocol.ClientMessageTypes> {
         const message = this.unpackBinaryFields(await this.webSocketPB.waitForJSONMessage());
         if (isClientMessage(message, message.command)) {
@@ -227,6 +275,12 @@ class CommunicationServerConnection_Server {
         throw Error('Received data does not match the data of a client message.');
     }
 
+    /**
+     * Wait for a client message with certain type.
+     *
+     * @param {T} command - expected command of message.
+     * @returns {Promise<CommunicationServerProtocol.ClientMessages[T]>}
+     */
     public async waitForMessage<T extends keyof CommunicationServerProtocol.ClientMessages>(
         command: T
     ): Promise<CommunicationServerProtocol.ClientMessages[T]> {
@@ -242,9 +296,10 @@ class CommunicationServerConnection_Server {
     // ######## Private ########
 
     /**
-     * Send a message to the communication server.
+     * Send a message to the communication server client.
      *
-     * @param message
+     * @param {T} message - The message to send.
+     * @returns {Promise<void>}
      */
     private async sendMessage<T extends CommunicationServerProtocol.ServerMessageTypes>(
         message: T
@@ -261,6 +316,12 @@ class CommunicationServerConnection_Server {
         );
     }
 
+    /**
+     * Convert fields from base64 encoding to Uint8Array.
+     *
+     * @param {any} message - The message to convert
+     * @returns {any} - The converted message
+     */
     public unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {
             throw Error(`Parsing message failed!`);

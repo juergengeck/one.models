@@ -5,12 +5,21 @@ import {wslogId} from './LogUtils';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
+/**
+ * State of the communication server listener.
+ */
 export enum CommunicationServerListenerState {
     NotListening,
     Connecting,
     Listening
 }
 
+/**
+ * Class Listens for connections through a communication server.
+ *
+ * So the purpose of this class is almost the same as that of the websocket server, except
+ * that is doesn't accept connections directly, but through a commserver.
+ */
 class CommunicationServerListener {
     /**
      * Handler used after a connection between two instances has been established.
@@ -44,22 +53,21 @@ class CommunicationServerListener {
           ) => void)
         | null;
 
-    // Current connection state.
-    public state: CommunicationServerListenerState;
-    // Reconnect timeout when comm server is not reachable
-    private readonly reconnectTimeout: number;
-    // Maximum number of simultaneously open spare connections
-    private readonly spareConnectionLimit: number;
-    // List of opened web socket which have no partner for moment.
-    private spareConnections: CommunicationServerConnection_Client[];
-    // Stores whether a new spare connection is scheduled with a delay (after an error happened)
-    private spareConnectionScheduled: boolean;
-    // Stores whether the listener is currently running
-    private running: boolean;
-    // This is the timer handle that opens a spare connection after a delay
-    private delayScheduleTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    public state: CommunicationServerListenerState; // Current connection state.
+    private readonly reconnectTimeout: number; // Reconnect timeout when comm server is not reachable
+    private readonly spareConnectionLimit: number; // Maximum number of simultaneously open spare connections
+    private spareConnections: CommunicationServerConnection_Client[]; // List of opened web socket which have no partner for moment.
+    private spareConnectionScheduled: boolean; // Stores whether a new spare connection is scheduled with a delay (after an error happened)
+    private running: boolean; // Stores whether the listener is currently running
+    private delayScheduleTimeoutHandle: ReturnType<typeof setTimeout> | null = null; // This is the timer handle that opens a spare connection after a delay
 
-    constructor(spareConnectionLimit: number, reconnectTimeout = 10000) {
+    /**
+     * Creates a new listener.
+     *
+     * @param {number} spareConnectionLimit - Number of spare connections to use simultaneously.
+     * @param {number} reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
+     */
+    constructor(spareConnectionLimit: number, reconnectTimeout = 5000) {
         this.spareConnectionLimit = spareConnectionLimit;
         this.spareConnections = [];
         this.spareConnectionScheduled = false;
@@ -73,9 +81,10 @@ class CommunicationServerListener {
     }
 
     /**
+     * Start the listener through the specified comm server.
      *
-     * @param {string} server
-     * @param {string} publicKey
+     * @param {string} server - The communication server to use.
+     * @param {string} publicKey - The public key via which this instance can be reached.
      * @returns {Promise<void>}
      */
     public start(server: string, publicKey: Uint8Array): void {
@@ -89,6 +98,12 @@ class CommunicationServerListener {
         this.scheduleSpareConnection(server, publicKey);
     }
 
+    /**
+     * Stop the listener.
+     *
+     * This does not kill fully established connections (passed on via onConnection event). This just
+     * terminats the spare connections.
+     */
     public stop(): void {
         MessageBus.send('log', `stop()`);
         this.running = false;
@@ -112,7 +127,7 @@ class CommunicationServerListener {
      * The workflow is this:
      * 1) Open a connection to the comm server and authenticate it
      * -> on success goto 1) until the maximum spare connection count is reached
-     * -> on failure
+     * -> on failure got 1) after the reconnect timeout
      *
      * @param server
      * @param publicKey
@@ -205,12 +220,22 @@ class CommunicationServerListener {
             });
     }
 
+    /**
+     * Adds a spare connection to the spareConnection list and updates the connection state.
+     *
+     * @param {CommunicationServerConnection_Client} connection
+     */
     private addSpareConnection(connection: CommunicationServerConnection_Client): void {
         MessageBus.send('debug', `addSpareConnection(${wslogId(connection.webSocket)})`);
         this.spareConnections.push(connection);
         this.updateState();
     }
 
+    /**
+     * Removes a spare connection from the spareConnection list and updates the connection state.
+     *
+     * @param {CommunicationServerConnection_Client} connection
+     */
     private removeSpareConnection(connection: CommunicationServerConnection_Client): void {
         MessageBus.send('debug', `removeSpareConnection(${wslogId(connection.webSocket)})`);
         this.spareConnections = this.spareConnections.filter(elem => elem !== connection);
@@ -252,6 +277,24 @@ class CommunicationServerListener {
 
     // ############ PRIVATE STATIC API ############
 
+    /**
+     * This function implements the whole registering process of one connections.
+     *
+     * So this function actually implements the protocol workflow:
+     * - -> register
+     * - <- authentication_request
+     * - -> authentication_response
+     * - <- authentication_success
+     * - <- connection_handover
+     *
+     * @param {string} server - Server where to register the connection.
+     * @param {Uint8Array} publicKey - public key for which to accept connections.
+     * @param {(ws: CommunicationServerConnection_Client, err?: Error) => void} onConnect - Handler called when a relay is handed over. (asynchronously after this call has finished)
+     * @param {(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array} onChallenge - Callback that needs to decrypt / reencrypt the challenge for authentication. (during this call)
+     * @returns {Promise<CommunicationServerConnection_Client>} - The spare connection that is now registered, but not yet
+     *                                                            connected to a relay (this is done later by the
+     *                                                            onConnect callback).
+     */
     private static async establishListeningConnection(
         server: string,
         publicKey: Uint8Array,

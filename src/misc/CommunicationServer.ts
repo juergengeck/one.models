@@ -1,28 +1,36 @@
 import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
-import WebSocketListener from "./WebSocketListener";
+import WebSocketListener from './WebSocketListener';
 
 const MessageBus = createMessageBus('CommunicationServer');
 
+/**
+ * Container for storing registered connections.
+ */
 type ConnectionContainer = {
     conn: CommunicationServerConnection_Server;
     removeEventListeners: () => void;
 };
 
+/**
+ * This class implements the communication server.
+ */
 class CommunicationServer {
-    private webSocketListener: WebSocketListener;
-    private keyPair: tweetnacl.BoxKeyPair;
-    private listeningConnectionsMap: Map<string, ConnectionContainer[]>;
-    private openedConnections: Set<WebSocket>;
-    private pingInterval: number;
-    private pongTimeout: number;
+    private webSocketListener: WebSocketListener; // The web socket server that accepts connections
+    private keyPair: tweetnacl.BoxKeyPair; // The key pair used for the commserver
+    private listeningConnectionsMap: Map<string, ConnectionContainer[]>; // Map that stores spare connections
+    private openedConnections: Set<WebSocket>; // List of established relays
+    private pingInterval: number; // Interval used to ping spare connections
+    private pongTimeout: number; // Timeout used to wait for pong responses
 
+    /**
+     * Create the communication server.
+     */
     constructor() {
         this.webSocketListener = new WebSocketListener();
         this.keyPair = tweetnacl.box.keyPair();
@@ -34,6 +42,15 @@ class CommunicationServer {
         this.webSocketListener.onConnection = this.acceptConnection.bind(this);
     }
 
+    /**
+     * Start the communication server.
+     *
+     * @param {string} host - The host to bind to.
+     * @param {number} port - The port to bind to.
+     * @param {number} pingInterval - The interfval in which pings are sent for spare connections.
+     * @param {number} pongTimeout - The timeout used to wait for pongs.
+     * @returns {Promise<void>}
+     */
     public async start(
         host: string,
         port: number,
@@ -45,22 +62,26 @@ class CommunicationServer {
         await this.webSocketListener.start(host, port);
     }
 
+    /**
+     * Stop the communication server.
+     *
+     * @returns {Promise<void>}
+     */
     public async stop(): Promise<void> {
-
         await this.webSocketListener.stop();
 
         MessageBus.send('log', `Closing remaining connections`);
 
         // Close spare connections
-        for(const connectionContainers of this.listeningConnectionsMap.values()) {
-            for(const connectionContainer of connectionContainers) {
+        for (const connectionContainers of this.listeningConnectionsMap.values()) {
+            for (const connectionContainer of connectionContainers) {
                 connectionContainer.conn.close();
             }
         }
 
         // Close forwarded connections
-        for(const ws of this.openedConnections) {
-            if(ws.readyState === WebSocket.OPEN) {
+        for (const ws of this.openedConnections) {
+            if (ws.readyState === WebSocket.OPEN) {
                 ws.close();
             }
         }
@@ -68,6 +89,16 @@ class CommunicationServer {
         MessageBus.send('log', `Closing remaining connections done`);
     }
 
+    /**
+     * Accept a new connection.
+     *
+     * This method will then wait for a message indicating whether:
+     * 1) a client wants to register
+     * 2) somebody wants a relay to a registered client
+     *
+     * @param {WebSocket} ws - The accepted websocket
+     * @returns {Promise<void>}
+     */
     private async acceptConnection(ws: WebSocket): Promise<void> {
         MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket - Waiting for message`);
         try {
@@ -85,7 +116,7 @@ class CommunicationServer {
 
                 // Step 1: Create, encrypt and send the challenge
                 MessageBus.send('log', `${wslogId(ws)}: Register Step 1: Sending auth request`);
-                const challenge = await this.createRandomByteArray(64);
+                const challenge = tweetnacl.randomBytes(64);
                 const encryptedChallenge = encryptWithPublicKey(
                     message.publicKey,
                     challenge,
@@ -107,7 +138,7 @@ class CommunicationServer {
                     authResponseMessage.response,
                     this.keyPair.secretKey
                 );
-                if (!this.testEqualityUint8Array(decryptedChallenge, challenge)) {
+                if (!tweetnacl.verify(decryptedChallenge, challenge)) {
                     throw new Error('Client authentication failed.');
                 }
                 MessageBus.send(
@@ -154,24 +185,24 @@ class CommunicationServer {
                 MessageBus.send('log', `${wslogId(ws)}: Relay Step 4: Connect both sides`);
                 let wsThis = conn.releaseWebSocket();
                 let wsOther = connOther.releaseWebSocket();
-                wsThis.addEventListener('message', (e) => {
+                wsThis.addEventListener('message', e => {
                     wsOther.send(e.data);
                 });
-                wsOther.addEventListener('message', (e) => {
+                wsOther.addEventListener('message', e => {
                     wsThis.send(e.data);
                 });
-                wsThis.addEventListener('error', (e) => {
+                wsThis.addEventListener('error', e => {
                     MessageBus.send('log', `${wslogId(wsThis)}: Error - ${e}`);
                 });
-                wsOther.addEventListener('error', (e) => {
+                wsOther.addEventListener('error', e => {
                     MessageBus.send('log', `${wslogId(wsOther)}: Error - ${e}`);
                 });
-                wsThis.addEventListener('close', (e) => {
+                wsThis.addEventListener('close', e => {
                     this.openedConnections.delete(wsThis);
                     MessageBus.send('log', `${wslogId(wsThis)}: Relay closed - ${e.reason}`);
                     wsOther.close(1000, `Closed by relay: ${e.reason}`);
                 });
-                wsOther.addEventListener('close', (e) => {
+                wsOther.addEventListener('close', e => {
                     this.openedConnections.delete(wsOther);
                     MessageBus.send('log', `${wslogId(wsOther)}: Relay closed - ${e.reason}`);
                     wsThis.close(1000, `Closed by relay: ${e.reason}`);
@@ -194,46 +225,14 @@ class CommunicationServer {
     }
 
     /**
-     * Generate random bytes based on functions provided by one.core.
+     * Adds a spare connection the the listening connection array.
      *
-     * Note: This is a bad implementation, because it converts a random string to a random Uint8Array.
-     *       But the createRandomString converts a random Uint8Array to a string, so this consumes unnecessary
-     *       CPU time. But at the moment one.core does not provide a better function. We could probably also
-     *       use tweetnacls random generator.
+     * This also adds an event listener to the 'close' event, so that the connection is automatically
+     * removed from the listeningConnections list when the websocket is closed.
      *
-     * @param {number} length
-     * @returns {Promise<Uint8Array>}
+     * @param {Uint8Array} publicKey - The public key of the registering client.
+     * @param {CommunicationServerConnection_Server} conn - The connection that is registered.
      */
-    private async createRandomByteArray(length: number): Promise<Uint8Array> {
-        const randomString = await createRandomString(length * 2, true);
-        const randomValues = new Uint8Array(length);
-        for (let i = 0; i < randomString.length; i += 2) {
-            randomValues[i / 2] = parseInt(randomString.charAt(i) + randomString.charAt(i + 1), 16);
-        }
-        return randomValues;
-    }
-
-    /**
-     * Tests whether the two passed Uint8Arrays are equal.
-     *
-     * @param {Uint8Array} a1 - Array 1 to compare
-     * @param {Uint8Array} a2 - Array 2 to compare
-     * @returns {boolean} true if equal, false if not.
-     */
-    private testEqualityUint8Array(a1: Uint8Array, a2: Uint8Array): boolean {
-        if (a1.length != a2.length) {
-            return false;
-        }
-
-        for (let i = 0; i < a1.length; ++i) {
-            if (a1[i] !== a2[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private pushListeningConnection(
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
@@ -266,6 +265,14 @@ class CommunicationServer {
         }
     }
 
+    /**
+     * Remove the listening connection from the listeningConnection list.
+     *
+     * This is used to remove it when the websocket is closed before a relay with it has been established.
+     *
+     * @param {Uint8Array} publicKey - The public key of the registering client.
+     * @param {CommunicationServerConnection_Server} conn - The connection that is removed.
+     */
     private removeListeningConnection(
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
@@ -280,11 +287,18 @@ class CommunicationServer {
         if (connectionList) {
             this.listeningConnectionsMap.set(
                 strPublicKey,
-                connectionList.filter((elem) => elem.conn != conn)
+                connectionList.filter(elem => elem.conn != conn)
             );
         }
     }
 
+    /**
+     * Pops one listening / spare connection from the listenningConnections list that matches the
+     * public key. This is used to find a relay match.
+     *
+     * @param {Uint8Array} publicKey - The public key of the registering client / the target of the requested relay.
+     * @returns {CommunicationServerConnection_Server} The found connection.
+     */
     private popListeningConnection(publicKey: Uint8Array): CommunicationServerConnection_Server {
         const strPublicKey = Buffer.from(publicKey).toString('hex');
         MessageBus.send('debug', `popListeningConnection(${strPublicKey})`);
