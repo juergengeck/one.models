@@ -162,7 +162,7 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} patientType
      * @returns {Promise<void>}
      */
-    async recoverInstance(email: string, secret: string, patientType: string): Promise<void> {
+    async recoverInstance(email: string, secret: string, patientType: string, anonymousEmail: string): Promise<void> {
         this.currentPatientTypeState = patientType;
 
         try {
@@ -181,7 +181,7 @@ export default class OneInstanceModel extends EventEmitter {
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email);
-        this.initialisingApplication();
+        this.initialisingApplication(anonymousEmail);
     }
 
     /**
@@ -252,7 +252,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(): void {
+    initialisingApplication(anonymousEmail?: string): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -275,7 +275,7 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit('authstate_changed_first', this.currentRegistrationState, firstCallback);
+        this.emit('authstate_changed_first', this.currentRegistrationState, firstCallback, anonymousEmail);
     }
 
     /**
