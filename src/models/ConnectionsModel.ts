@@ -446,6 +446,51 @@ export default class ConnectionsModel extends EventEmitter {
         if (!this.personalCloudConnections.includes(connection)) {
             this.personalCloudConnections.push(connection);
         }
+
+        await this.connectOneTimeChum(connection);
+    }
+
+    private async connectOneTimeChum(connection: Connection): Promise<void> {
+        if (this.myInstance === undefined) {
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
+        const {communicationManagerAPI} = connection;
+
+        // todo: other instance object is never saved
+        // const otherInstance = await getObjectByIdHash(authenticatedContact.instanceIdHash);
+        const websocketPromisifierAPI = communicationManagerAPI.getWebSocketPromisifier();
+        websocketPromisifierAPI.promise.catch(error => {
+            this.emit('error', error.name);
+            throw error;
+        });
+
+        if (connection.authenticatedContact) {
+            websocketPromisifierAPI.localPersonIdHash =
+                connection.authenticatedContact.personIdHash;
+            websocketPromisifierAPI.remotePersonIdHash =
+                connection.authenticatedContact.personIdHash;
+        }
+
+        const defaultInitialChumObj: ChumSyncOptions = {
+            connection: websocketPromisifierAPI,
+            chumName: 'MochaTest',
+            localInstanceName: this.myInstance.obj.name,
+            // remoteInstanceName: otherInstance.obj.name,
+            remoteInstanceName: this.myInstance.obj.name,
+            keepRunning: false,
+            maxNotificationDelay: 20
+        };
+
+        connection.connectionState = true;
+
+        connection.chum = createSingleObjectThroughImpurePlan(
+            {module: '@one/chum-sync'},
+            defaultInitialChumObj
+        );
+
+        await connection.chum;
     }
 
     /**
