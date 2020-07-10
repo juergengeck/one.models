@@ -5,6 +5,8 @@ import EncryptedConnection_Client from '../misc/EncryptedConnection_Client';
 import fs from 'fs';
 import * as readline from 'readline';
 import WebSocket from 'ws';
+import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import EncryptedConnection from '../misc/EncryptedConnection';
 
 /**
  * Main function. This exists to be able to use await here.
@@ -58,9 +60,18 @@ async function main(): Promise<void> {
     // Wait for accept message
     console.log('Wait for communication_accept');
     await conn.waitForUnencryptedMessage('communication_ready');
-    console.log(
-        'Communication request accepted. Connect websocket to console. Yo can now type stuff'
+    console.log('Communication request accepted. Setting up encryption');
+
+    // Setup encryption
+    await conn.exchangeKeys(
+        (text): Uint8Array => {
+            return encryptWithPublicKey(otherPublicKey, text, keyPair.secretKey);
+        },
+        cypher => {
+            return decryptWithPublicKey(otherPublicKey, cypher, keyPair.secretKey);
+        }
     );
+    console.log('Encryption established. You can now type stuff into the console');
 
     // ######## CONSOLE I/O ########
 
@@ -71,14 +82,15 @@ async function main(): Promise<void> {
     });
 
     // From here on - raw websocket communication
-    const consoleWs = conn.releaseWebSocket();
-    consoleWs.addEventListener('message', e => {
-        console.log(e.data);
+    const consoleWs: EncryptedConnection = conn;
+    conn.switchToEvents = true;
+    consoleWs.on('message', data => {
+        console.log(new TextDecoder().decode(data));
     });
-    consoleWs.addEventListener('error', e => {
+    consoleWs.on('error', e => {
         console.log(e.message);
     });
-    consoleWs.addEventListener('close', e => {
+    consoleWs.webSocket.addEventListener('close', e => {
         console.log('Connection closed: ' + e.reason);
         rl.close();
     });
@@ -86,7 +98,7 @@ async function main(): Promise<void> {
     // Stop everything at sigint
     function sigintHandler() {
         if (consoleWs) {
-            if (consoleWs.readyState === WebSocket.OPEN) {
+            if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
                 consoleWs.close();
             }
         }
@@ -97,15 +109,7 @@ async function main(): Promise<void> {
 
     // Read from stdin
     for await (const line of rl) {
-        await new Promise((resolve, reject) => {
-            consoleWs.send(line, (err?: Error) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
+        await consoleWs.sendMessage(line);
     }
 }
 

@@ -1,13 +1,19 @@
 import WebSocket from 'ws';
 import {createMessageBus} from "one.core/lib/message-bus";
 import {wslogId} from "./LogUtils";
+import {EventEmitter} from "events";
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
  * instead of using callbacks (onmessage onopen ...)
+ *
+ * It also has a on('message') event, because sometimes you just need it. When you solely use the
+ * event based interface, and don't use the waitForMessage functions, then you need to set
+ * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
+ * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased {
+export default class WebSocketPromiseBased extends EventEmitter {
 
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
@@ -17,11 +23,13 @@ export default class WebSocketPromiseBased {
     private maxDataQueueSize: number;
     private deregisterHandlers: () => void;
     private dataQueueOverflow: boolean;
+    private disableWaitForMessageInt: boolean;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
     constructor(webSocket: WebSocket, maxDataQueueSize = 1) {
+        super();
         this.webSocket = webSocket;
         this.dataQueue = [];
         this.socketOpenFn = null;
@@ -29,6 +37,7 @@ export default class WebSocketPromiseBased {
         this.maxDataQueueSize = maxDataQueueSize;
         this.dataQueueOverflow = false;
         this.defaultTimeout = -1;
+        this.disableWaitForMessageInt = false;
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -52,6 +61,32 @@ export default class WebSocketPromiseBased {
         }
 
         MessageBus.send('debug', `${wslogId(this.webSocket)}: constructor()`);
+    }
+
+    // ######## Socket Management & Settings ########
+    /**
+     * Disables the waitForMessage functions.
+     *
+     * This is required, if you only want to use the event based interface for retrieving messages.
+     *
+     * @param {boolean} value
+     */
+    public set disableWaitForMessage(value: boolean) {
+        this.disableWaitForMessageInt = value;
+        if(this.disableWaitForMessage) {
+            if (this.dataAvailableFn) {
+                this.dataAvailableFn(Error('Waiting for incoming messages has been disabled.'));
+            }
+        }
+    }
+
+    /**
+     * Get the waitForMessage state
+     *
+     * @returns {boolean}
+     */
+    public get disableWaitForMessage(): boolean {
+        return this.disableWaitForMessageInt;
     }
 
     /**
@@ -86,25 +121,6 @@ export default class WebSocketPromiseBased {
         }
     }
 
-    /** Send data to the websocket. */
-    public async send(data: any): Promise<void> {
-        MessageBus.send('debug', `${wslogId(this.webSocket)}: send(${JSON.stringify(data)})`);
-        return new Promise((resolve, reject) => {
-            if(!this.webSocket) {
-                reject(new Error('No websocket is bound to this instance.'));
-                return;
-            }
-
-            this.webSocket.send(data, (err: Error | undefined) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(err);
-                }
-            });
-        });
-    }
-
     /**
      * Wait for the socket to be open.
      */
@@ -132,7 +148,7 @@ export default class WebSocketPromiseBased {
                 return;
             }
 
-            // Wait for the open event
+                // Wait for the open event
             // Start the timeout for waiting on a new message
             else {
                 const timeoutHandle = (timeout > -1) ? setTimeout(() => {
@@ -173,6 +189,29 @@ export default class WebSocketPromiseBased {
         });
 
     }
+
+    // ######## Sending messages ########
+
+    /** Send data to the websocket. */
+    public async send(data: any): Promise<void> {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: send(${JSON.stringify(data)})`);
+        return new Promise((resolve, reject) => {
+            if(!this.webSocket) {
+                reject(new Error('No websocket is bound to this instance.'));
+                return;
+            }
+
+            this.webSocket.send(data, (err: Error | undefined) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(err);
+                }
+            });
+        });
+    }
+
+    // ######## Receiving messages ########
 
     /**
      * Wait for an incoming message with a specific type for a specified period of time.
@@ -280,6 +319,10 @@ export default class WebSocketPromiseBased {
                 reject(Error('The incoming message data queue overflowed.'));
                 return;
             }
+            if(this.disableWaitForMessage) {
+                reject(Error('Waiting for incoming messages was disabled.'));
+                return;
+            }
 
             // If we have data in the queue, then resolve with the first element
             if (this.dataQueue.length > 0) {
@@ -358,6 +401,10 @@ export default class WebSocketPromiseBased {
      */
     private handleMessage(messageEvent: WebSocket.MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
+
+        // Notify listeners for a new message
+        this.emit('message', messageEvent);
+
         // If the queue is full, then we reject the next reader
         if (this.dataQueue.length >= this.maxDataQueueSize) {
             this.dataQueueOverflow = true;

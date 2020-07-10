@@ -1,6 +1,11 @@
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
+import {EventEmitter} from 'events';
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {printUint8Array} from "./LogUtils";
+
+const MessageBus = createMessageBus('EncryptedConnection');
 
 /**
  * This class implements an encrypted connection.
@@ -9,12 +14,11 @@ import tweetnacl from 'tweetnacl';
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptedConnection {
+class EncryptedConnection extends EventEmitter {
     public webSocketPB: WebSocketPromiseBased; // Websocket used for communication
     protected sharedKey: Uint8Array | null = null; // The shared key used for encryption
     private localNonceCounter: number = 0; // The counter for the local nonce
     private remoteNonceCounter: number = 0; // The counter for the remote nonce
-    private readonly maxNonceCounter: number = 0; // Maximum value nonces are allowed to have
 
     /**
      * Creates an encryption layer above the passed websocket.
@@ -27,15 +31,16 @@ class EncryptedConnection {
      * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
      */
     constructor(ws: WebSocket, evenLocalNonceCounter: boolean) {
+        super();
         this.webSocketPB = new WebSocketPromiseBased(ws);
 
-        // Calculate the maximum nonce counter, so that we can throw an exception
-        // if we reached the end of the nonce counting. This will be 2^(nonceLength*8)-2
-        let nonceMax = 0xfe;
-        for (let i = 1; i < tweetnacl.box.nonceLength; ++i) {
-            nonceMax |= 0xff << (i * 8);
+        // For simplicity we will count with the number type and it has a width of 32 bit
+        // when doing logic operations (when converting to Uint8Array). So we need to be
+        // sure that the nonce length is larger than that, because otherwise we would have
+        // overflows which lead to duplicate nonce values.
+        if (tweetnacl.box.nonceLength <= 4) {
+            throw new Error('We assume the encryption nonce to be larger than 2^32');
         }
-        this.maxNonceCounter = nonceMax;
 
         // Setup the initial nonce related values
         if (evenLocalNonceCounter) {
@@ -45,6 +50,25 @@ class EncryptedConnection {
             this.localNonceCounter = 1;
             this.remoteNonceCounter = 0;
         }
+
+        // Setup events
+        this.webSocketPB.on('message', (message: MessageEvent) => {
+            // Only send events for encrypted messages and when the event interface is activated.
+            // Because of nonce counting we can't have both running.
+            if (this.sharedKey && this.webSocketPB.disableWaitForMessage) {
+                try {
+                    MessageBus.send('debug', 'Message received via \'message\' event.');
+                    if (!(message.data instanceof ArrayBuffer)) {
+                        throw new Error('Encrypted connections must use ArrayBuffer for transmitting data.');
+                    }
+                    const decrypted = this.decryptMessage(new Uint8Array(message.data));
+                    this.emit('message', decrypted);
+                } catch (e) {
+                    MessageBus.send('debug', `Error happened in message handler: ${e}`);
+                    this.emit('error', e);
+                }
+            }
+        });
     }
 
     // ######## Socket Management & Settings ########
@@ -75,6 +99,27 @@ class EncryptedConnection {
      */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
+    }
+
+    /**
+     * Switches the interface to event based processing.
+     *
+     * This means that you can no longer use the waitFor*Message functions, but now you can use the on('message')
+     * events.
+     *
+     * @param {boolean} value
+     */
+    public set switchToEvents(value: boolean) {
+        this.webSocketPB.disableWaitForMessage = value;
+    }
+
+    /**
+     * Get the waitForMessage state
+     *
+     * @returns {boolean}
+     */
+    public get switchToEvents(): boolean {
+        return this.webSocketPB.disableWaitForMessage;
     }
 
     /**
@@ -111,12 +156,7 @@ class EncryptedConnection {
         }
 
         const textEncoder = new TextEncoder();
-        const encrypted = tweetnacl.box.after(
-            textEncoder.encode(data),
-            this.getAndIncLocalNonce(),
-            this.sharedKey
-        );
-        await this.webSocketPB.send(encrypted);
+        await this.webSocketPB.send(this.encryptMessage(textEncoder.encode(data)));
     }
 
     /**
@@ -130,8 +170,7 @@ class EncryptedConnection {
             throw Error('The encryption keys have not been set up correctly.');
         }
 
-        const encrypted = tweetnacl.box.after(data, this.getAndIncLocalNonce(), this.sharedKey);
-        await this.webSocketPB.send(encrypted);
+        await this.webSocketPB.send(this.encryptMessage(data));
     }
 
     // ######## Receiving encrypted messages ########
@@ -142,18 +181,8 @@ class EncryptedConnection {
      * @returns {Promise<string>} The received message
      */
     public async waitForMessage(): Promise<string> {
-        if (!this.sharedKey) {
-            throw Error('The encryption keys have not been set up correctly.');
-        }
-
-        const decrypted = tweetnacl.box.after(
-            await this.webSocketPB.waitForBinaryMessage(),
-            this.getAndIncRemoteNonce(),
-            this.sharedKey
-        );
-        const decoder = new TextDecoder();
-        const decoded = decoder.decode(decrypted);
-        return decoded;
+        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage());
+        return (new TextDecoder()).decode(decrypted);
     }
 
     /**
@@ -162,15 +191,7 @@ class EncryptedConnection {
      * @returns {Promise<string>} The received message
      */
     public async waitForBinaryMessage(): Promise<Uint8Array> {
-        if (!this.sharedKey) {
-            throw Error('The encryption keys have not been set up correctly.');
-        }
-
-        const decrypted = tweetnacl.box.after(
-            await this.webSocketPB.waitForBinaryMessage(),
-            this.getAndIncRemoteNonce(),
-            this.sharedKey
-        );
+        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage());
         if (!(decrypted instanceof ArrayBuffer)) {
             throw Error('Received message was not binary');
         }
@@ -180,15 +201,47 @@ class EncryptedConnection {
     // ######## Private API - nonce management ########
 
     /**
+     * Encrypt the message using the shared key.
+     *
+     * @param {Uint8Array} plainText - The text to encrypt
+     * @returns {Uint8Array} The encrypted text
+     */
+    private encryptMessage(plainText: Uint8Array): Uint8Array {
+        if (!this.sharedKey) {
+            throw Error('The encryption keys have not been set up correctly.');
+        }
+
+        const nonce = this.getAndIncLocalNonce();
+        const cypherText = tweetnacl.box.after(plainText, nonce, this.sharedKey);
+        return cypherText;
+    }
+
+    /**
+     * Decrypt the cypher text using the shared key.
+     *
+     * @param {Uint8Array} cypherText - The text to decrypt
+     * @returns {Uint8Array} The decrypted text
+     */
+    private decryptMessage(cypherText: Uint8Array): Uint8Array {
+        if (!this.sharedKey) {
+            throw Error('The encryption keys have not been set up correctly.');
+        }
+
+        const nonce = this.getAndIncRemoteNonce();
+        const plainText = tweetnacl.box.open.after(cypherText, nonce, this.sharedKey);
+        if (!plainText) {
+            throw new Error('Decryption of message failed.');
+        }
+        return plainText;
+    }
+
+    /**
      * Returns and then increases the local nonce counter.
      *
      * @returns {Uint8Array}
      */
     private getAndIncLocalNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.localNonceCounter);
-        if (this.localNonceCounter >= this.maxNonceCounter) {
-            throw Error('Remote nonce counter reached its maximum value.');
-        }
         this.localNonceCounter += 2;
         return nonce;
     }
@@ -200,9 +253,6 @@ class EncryptedConnection {
      */
     private getAndIncRemoteNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.remoteNonceCounter);
-        if (this.remoteNonceCounter >= this.maxNonceCounter) {
-            throw Error('Remote nonce counter reached its maximum value.');
-        }
         this.remoteNonceCounter += 2;
         return nonce;
     }
@@ -214,12 +264,21 @@ class EncryptedConnection {
      */
     private static nonceCounterToArray(nonceNumber: number): Uint8Array {
         const nonce = new Uint8Array(tweetnacl.box.nonceLength);
-        if (nonce.length > 4) {
-            throw Error('The createNonceArray function only supports up to 32-bit for now.');
+
+        // We should check, that the nonce will not become larger than
+        // 2^32-1, because then we should trim the higher bits, because of the
+        // 32-bit operations we do to convert it to Uint8Array.
+        // The highest even number that can be stored in a 32-bit signed integer is
+        // 2^31-2 which is 0x7FFFFFFE, so we check that the nonceNumber does not get larger.
+        if (nonceNumber >= 0x7ffffffe) {
+            throw Error('Remote nonce counter reached its maximum value.');
         }
-        for (let i = 0; i < nonce.length; ++i) {
-            nonce[i] = (nonceNumber >> (i * 8)) & 0xff;
-        }
+
+        // Copy the bits over to the Uin8Array representation
+        nonce[0] = nonceNumber & 0xff;
+        nonce[1] = (nonceNumber << 8) & 0xff;
+        nonce[2] = (nonceNumber << 16) & 0xff;
+        nonce[3] = (nonceNumber << 24) & 0xff;
         return nonce;
     }
 }

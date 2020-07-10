@@ -10,27 +10,7 @@ import fs from 'fs';
 import readline from 'readline';
 import EncryptedConnetion_Server from '../misc/EncryptedConnection_Server';
 import {wslogId} from '../misc/LogUtils';
-
-/**
- * Tests whether the two passed Uint8Arrays are equal.
- *
- * @param {Uint8Array} a1 - Array 1 to compare
- * @param {Uint8Array} a2 - Array 2 to compare
- * @returns {boolean} true if equal, false if not.
- */
-function testEqualityUint8Array(a1: Uint8Array, a2: Uint8Array): boolean {
-    if (a1.length != a2.length) {
-        return false;
-    }
-
-    for (let i = 0; i < a1.length; ++i) {
-        if (a1[i] !== a2[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
+import EncryptedConnection from "../misc/EncryptedConnection";
 
 /**
  * Main function. This exists to be able to use await here.
@@ -77,7 +57,7 @@ async function main(): Promise<void> {
     }
 
     // The websocket that is connected to the console
-    let consoleWs: WebSocket | null = null;
+    let consoleWs: EncryptedConnection | null = null;
 
     // Create commserver listener and register callbacks
     const listener = new CommunicationServerListener(argv.s, argv.t);
@@ -90,33 +70,43 @@ async function main(): Promise<void> {
             console.log(`${wslogId(ws)}: Accepted connection.`);
             const conn = new EncryptedConnetion_Server(ws);
             const request = await conn.waitForUnencryptedMessage('communication_request');
-            if (testEqualityUint8Array(request.targetPublicKey, keyPair.publicKey)) {
+            if (tweetnacl.verify(request.targetPublicKey, keyPair.publicKey)) {
                 // Sending to the client that we accept his connection
                 console.log(`${wslogId(ws)}: Send communication_accept message.`);
                 await conn.sendCommunicationReadyMessage();
 
                 // Release old connection
                 if (consoleWs) {
-                    consoleWs.close(1000, 'New client connected');
+                    consoleWs.webSocket.close(1000, 'New client connected');
                 }
+
+                // Setup encryption
+                console.log(`${wslogId(ws)}: Setup encryption.`);
+                await conn.exchangeKeys((text): Uint8Array => {
+                    return encryptWithPublicKey(request.sourcePublicKey, text, keyPair.secretKey);
+                }, (cypher) => {
+                    return decryptWithPublicKey(request.sourcePublicKey, cypher, keyPair.secretKey);
+                });
 
                 // Connect the websocket to the console
                 console.log(
                     `${wslogId(ws)}: Connect websocket to console. You can now type stuff.`
                 );
-                consoleWs = conn.releaseWebSocket();
-                consoleWs.addEventListener('message', e => {
-                    console.log(e.data);
-                });
-                consoleWs.addEventListener('error', e => {
+                consoleWs = conn;
+                consoleWs.webSocket.addEventListener('error', e => {
                     console.log(e.message);
                 });
-                consoleWs.addEventListener('close', e => {
+                consoleWs.webSocket.addEventListener('close', e => {
                     if (e.reason !== 'New client connected') {
                         consoleWs = null;
                     }
                     console.log(`${wslogId(ws)}: Connection closed: ${e.reason}`);
                 });
+
+                // Wait for messages
+                while(conn.webSocket.readyState === WebSocket.OPEN) {
+                    console.log(await conn.waitForMessage());
+                }
             } else {
                 conn.close('Request public key does not match this public key.');
                 throw new Error('Request public key does not match this public key.');
@@ -147,7 +137,7 @@ async function main(): Promise<void> {
     function sigintHandler() {
         listener.stop();
         if (consoleWs) {
-            if (consoleWs.readyState === WebSocket.OPEN) {
+            if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
                 consoleWs.close();
             }
         }
@@ -158,20 +148,13 @@ async function main(): Promise<void> {
 
     // Read from stdin
     for await (const line of rl) {
-        await new Promise((resolve, reject) => {
-            if (!consoleWs) {
-                console.log('Error: Not connected to any client.');
-                resolve();
-                return;
-            }
-            consoleWs.send(line, (err?: Error) => {
-                if (err) {
-                    console.log(err);
-                }
+        if (!consoleWs) {
+            console.log('Error: Not connected to any client.');
 
-                resolve();
-            });
-        });
+        }
+        else {
+            await consoleWs.sendMessage(line);
+        }
     }
 }
 
