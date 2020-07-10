@@ -1,10 +1,7 @@
 import tweetnacl from 'tweetnacl';
-import {printUint8Array} from "../misc/LogUtils";
-
-
+import {printUint8Array} from '../misc/LogUtils';
 
 async function main(): Promise<void> {
-
     const keyPairAlice = tweetnacl.box.keyPair();
     const keyPairBob = tweetnacl.box.keyPair();
 
@@ -13,8 +10,6 @@ async function main(): Promise<void> {
 }
 
 // Execute main function
-main()
-    .catch(e => {
-        console.log('Error happened: ' + e.toString());
-    });
-
+main().catch(e => {
+    console.log('Error happened: ' + e.toString());
+});

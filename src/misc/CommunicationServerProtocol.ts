@@ -1,10 +1,9 @@
-import CommunicationInitiationProtocol from "./CommunicationInitiationProtocol";
+import CommunicationInitiationProtocol from './CommunicationInitiationProtocol';
 
 /**
  * Protocol that defines messages used for communication between communication server and registering clients.
  */
 declare module CommunicationServerProtocol {
-
     // ######## Message / command definition ########
 
     /**
@@ -115,7 +114,7 @@ export function isClientMessage<T extends keyof CommunicationServerProtocol.Clie
         return true;
     }
     if (command === 'communication_request') {
-        return (arg.sourcePublicKey !== undefined) && (arg.targetPublicKey !== undefined);
+        return arg.sourcePublicKey !== undefined && arg.targetPublicKey !== undefined;
     }
     return false;
 }
@@ -136,7 +135,7 @@ export function isServerMessage<T extends keyof CommunicationServerProtocol.Serv
     }
 
     if (command === 'authentication_request') {
-        return (arg.publicKey !== undefined) && (arg.challenge !== undefined);
+        return arg.publicKey !== undefined && arg.challenge !== undefined;
     }
     if (command === 'authentication_success') {
         return arg.pingInterval !== undefined;
@@ -148,7 +147,7 @@ export function isServerMessage<T extends keyof CommunicationServerProtocol.Serv
         return true;
     }
     if (command === 'communication_request') {
-        return (arg.sourcePublicKey !== undefined) && (arg.targetPublicKey !== undefined);
+        return arg.sourcePublicKey !== undefined && arg.targetPublicKey !== undefined;
     }
     return false;
 }

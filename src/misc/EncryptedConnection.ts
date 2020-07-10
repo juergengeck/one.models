@@ -3,7 +3,6 @@ import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
 import {EventEmitter} from 'events';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {printUint8Array} from "./LogUtils";
 
 const MessageBus = createMessageBus('EncryptedConnection');
 
@@ -57,13 +56,16 @@ class EncryptedConnection extends EventEmitter {
             // Because of nonce counting we can't have both running.
             if (this.sharedKey && this.webSocketPB.disableWaitForMessage) {
                 try {
-                    MessageBus.send('debug', 'Message received via \'message\' event.');
+                    MessageBus.send('debug', "Message received via 'message' event.");
                     if (!(message.data instanceof ArrayBuffer)) {
-                        throw new Error('Encrypted connections must use ArrayBuffer for transmitting data.');
+                        throw new Error(
+                            'Encrypted connections must use ArrayBuffer for transmitting data.'
+                        );
                     }
                     const decrypted = this.decryptMessage(new Uint8Array(message.data));
                     this.emit('message', decrypted);
                 } catch (e) {
+                    this.close();
                     MessageBus.send('debug', `Error happened in message handler: ${e}`);
                     this.emit('error', e);
                 }
@@ -182,7 +184,7 @@ class EncryptedConnection extends EventEmitter {
      */
     public async waitForMessage(): Promise<string> {
         const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage());
-        return (new TextDecoder()).decode(decrypted);
+        return new TextDecoder().decode(decrypted);
     }
 
     /**
@@ -212,8 +214,7 @@ class EncryptedConnection extends EventEmitter {
         }
 
         const nonce = this.getAndIncLocalNonce();
-        const cypherText = tweetnacl.box.after(plainText, nonce, this.sharedKey);
-        return cypherText;
+        return tweetnacl.box.after(plainText, nonce, this.sharedKey);
     }
 
     /**
@@ -230,6 +231,7 @@ class EncryptedConnection extends EventEmitter {
         const nonce = this.getAndIncRemoteNonce();
         const plainText = tweetnacl.box.open.after(cypherText, nonce, this.sharedKey);
         if (!plainText) {
+            this.close();
             throw new Error('Decryption of message failed.');
         }
         return plainText;

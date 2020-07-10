@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
-import {createMessageBus} from "one.core/lib/message-bus";
-import {wslogId} from "./LogUtils";
-import {EventEmitter} from "events";
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {wslogId} from './LogUtils';
+import {EventEmitter} from 'events';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -14,7 +14,6 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * incoming messages with waitFor... functions.
  */
 export default class WebSocketPromiseBased extends EventEmitter {
-
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
     private dataQueue: WebSocket.MessageEvent[];
@@ -52,13 +51,13 @@ export default class WebSocketPromiseBased extends EventEmitter {
         this.webSocket.addEventListener('close', boundCloseHandler);
         this.webSocket.addEventListener('error', boundErrorHandler);
         this.deregisterHandlers = () => {
-            if(this.webSocket) {
+            if (this.webSocket) {
                 this.webSocket.removeEventListener('open', boundOpenHandler);
                 this.webSocket.removeEventListener('message', boundMessageHandler);
                 this.webSocket.removeEventListener('close', boundCloseHandler);
                 this.webSocket.removeEventListener('error', boundErrorHandler);
             }
-        }
+        };
 
         MessageBus.send('debug', `${wslogId(this.webSocket)}: constructor()`);
     }
@@ -73,7 +72,7 @@ export default class WebSocketPromiseBased extends EventEmitter {
      */
     public set disableWaitForMessage(value: boolean) {
         this.disableWaitForMessageInt = value;
-        if(this.disableWaitForMessage) {
+        if (this.disableWaitForMessage) {
             if (this.dataAvailableFn) {
                 this.dataAvailableFn(Error('Waiting for incoming messages has been disabled.'));
             }
@@ -96,7 +95,7 @@ export default class WebSocketPromiseBased extends EventEmitter {
      */
     public releaseWebSocket(): WebSocket {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: releaseWebSocket()`);
-        if(!this.webSocket) {
+        if (!this.webSocket) {
             throw Error('No websocket is bound to this instance.');
         }
 
@@ -111,11 +110,10 @@ export default class WebSocketPromiseBased extends EventEmitter {
      */
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
-        if(this.webSocket) {
-            if(reason) {
+        if (this.webSocket) {
+            if (reason) {
                 this.webSocket.close(1011, reason);
-            }
-            else {
+            } else {
                 this.webSocket.close();
             }
         }
@@ -131,7 +129,6 @@ export default class WebSocketPromiseBased extends EventEmitter {
         }
 
         return new Promise((resolve, reject) => {
-
             // Check prerequisites (Websocket exists & nobody is listening & not already open)
             if (!this.webSocket) {
                 reject(new Error('No websocket is bound to this instance.'));
@@ -148,18 +145,19 @@ export default class WebSocketPromiseBased extends EventEmitter {
                 return;
             }
 
-                // Wait for the open event
+            // Wait for the open event
             // Start the timeout for waiting on a new message
             else {
-                const timeoutHandle = (timeout > -1) ? setTimeout(() => {
-                    reject(new Error('Timeout expired'));
-                    this.socketOpenFn = null;
-                }, timeout) : null;
-
+                const timeoutHandle =
+                    timeout > -1
+                        ? setTimeout(() => {
+                              reject(new Error('Timeout expired'));
+                              this.socketOpenFn = null;
+                          }, timeout)
+                        : null;
 
                 // Register the dataAvailable handler that is called when data is available
                 this.socketOpenFn = (err: Error | undefined) => {
-
                     // Stop the timer and deregister the handler, so that it is not called again
                     if (timeoutHandle) {
                         clearTimeout(timeoutHandle);
@@ -182,12 +180,15 @@ export default class WebSocketPromiseBased extends EventEmitter {
                     if (this.webSocket.readyState === WebSocket.OPEN) {
                         resolve();
                     } else {
-                        reject(new Error('Internal error: Websocket is not open, but open event happened.'))
+                        reject(
+                            new Error(
+                                'Internal error: Websocket is not open, but open event happened.'
+                            )
+                        );
                     }
-                }
+                };
             }
         });
-
     }
 
     // ######## Sending messages ########
@@ -196,7 +197,7 @@ export default class WebSocketPromiseBased extends EventEmitter {
     public async send(data: any): Promise<void> {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: send(${JSON.stringify(data)})`);
         return new Promise((resolve, reject) => {
-            if(!this.webSocket) {
+            if (!this.webSocket) {
                 reject(new Error('No websocket is bound to this instance.'));
                 return;
             }
@@ -226,7 +227,11 @@ export default class WebSocketPromiseBased extends EventEmitter {
      *                                                 3) the type of the received message doe not match parameter
      *                                                    'type'
      */
-    public async waitForJSONMessageWithType(type: string, typekey: string = 'type', timeout: number = -2): Promise<any> {
+    public async waitForJSONMessageWithType(
+        type: string,
+        typekey: string = 'type',
+        timeout: number = -2
+    ): Promise<any> {
         const messageObj = await this.waitForJSONMessage(timeout);
 
         // Assert that is has a 'type' member
@@ -236,7 +241,9 @@ export default class WebSocketPromiseBased extends EventEmitter {
 
         // Assert that the type matches the requested one
         if (messageObj[typekey] !== type) {
-            throw new Error(`Received unexpected type '${messageObj[typekey]}'. Expected type '${type}'.`);
+            throw new Error(
+                `Received unexpected type '${messageObj[typekey]}'. Expected type '${type}'.`
+            );
         }
 
         return messageObj;
@@ -267,8 +274,7 @@ export default class WebSocketPromiseBased extends EventEmitter {
         let messageObj;
         try {
             messageObj = JSON.parse(message);
-        }
-        catch(e) {
+        } catch (e) {
             throw new Error('Received message that does not conform to JSON: ' + e.toString());
         }
 
@@ -305,21 +311,20 @@ export default class WebSocketPromiseBased extends EventEmitter {
         }
 
         return new Promise((resolve, reject) => {
-
             // Check prerequisites (Websocket exists & nobody is listening & no overflow)
-            if(!this.webSocket) {
+            if (!this.webSocket) {
                 reject(new Error('No websocket is bound to this instance.'));
                 return;
             }
-            if(this.dataAvailableFn) {
+            if (this.dataAvailableFn) {
                 reject(Error('Another call is already wating for a message.'));
                 return;
             }
-            if(this.dataQueueOverflow) {
+            if (this.dataQueueOverflow) {
                 reject(Error('The incoming message data queue overflowed.'));
                 return;
             }
-            if(this.disableWaitForMessage) {
+            if (this.disableWaitForMessage) {
                 reject(Error('Waiting for incoming messages was disabled.'));
                 return;
             }
@@ -327,29 +332,33 @@ export default class WebSocketPromiseBased extends EventEmitter {
             // If we have data in the queue, then resolve with the first element
             if (this.dataQueue.length > 0) {
                 let data = this.dataQueue.shift();
-                if(data !== undefined) {
+                if (data !== undefined) {
                     resolve(data.data);
-                }
-                else {
-                    reject(new Error('Internal error: Queue is empty, but dataAvailable event happened.'))
+                } else {
+                    reject(
+                        new Error(
+                            'Internal error: Queue is empty, but dataAvailable event happened.'
+                        )
+                    );
                 }
                 return;
             }
 
             // If we have no data in the queue, start the timer and wait for a message
             else {
-
                 // Start the timeout for waiting on a new message
-                const timeoutHandle = (timeout > -1) ? setTimeout(() => {
-                    reject(new Error('Timeout expired'));
-                    this.dataAvailableFn = null;
-                }, timeout) : null;
+                const timeoutHandle =
+                    timeout > -1
+                        ? setTimeout(() => {
+                              reject(new Error('Timeout expired'));
+                              this.dataAvailableFn = null;
+                          }, timeout)
+                        : null;
 
                 // Register the dataAvailable handler that is called when data is available
                 this.dataAvailableFn = (err: Error | undefined) => {
-
                     // Stop the timer and deregister the handler, so that it is not called again
-                    if(timeoutHandle) {
+                    if (timeoutHandle) {
                         clearTimeout(timeoutHandle);
                     }
                     this.dataAvailableFn = null;
@@ -362,15 +371,17 @@ export default class WebSocketPromiseBased extends EventEmitter {
 
                     // Resolve first element in array
                     let data = this.dataQueue.shift();
-                    if(data !== undefined) {
+                    if (data !== undefined) {
                         resolve(data.data);
+                    } else {
+                        reject(
+                            new Error(
+                                'Internal error: Queue is empty, but dataAvailable event happened.'
+                            )
+                        );
                     }
-                    else {
-                        reject(new Error('Internal error: Queue is empty, but dataAvailable event happened.'))
-                    }
-                }
+                };
             }
-
         });
     }
 
@@ -415,7 +426,7 @@ export default class WebSocketPromiseBased extends EventEmitter {
         }
 
         // Enqueue message
-       this.dataQueue.push(messageEvent);
+        this.dataQueue.push(messageEvent);
 
         // Wakeup the reader in waitForMessage if somebody waits
         if (this.dataAvailableFn) {
@@ -456,5 +467,4 @@ export default class WebSocketPromiseBased extends EventEmitter {
             this.socketOpenFn(errorEvent.error);
         }
     }
-
 }

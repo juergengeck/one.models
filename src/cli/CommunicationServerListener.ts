@@ -10,7 +10,7 @@ import fs from 'fs';
 import readline from 'readline';
 import EncryptedConnetion_Server from '../misc/EncryptedConnection_Server';
 import {wslogId} from '../misc/LogUtils';
-import EncryptedConnection from "../misc/EncryptedConnection";
+import EncryptedConnection from '../misc/EncryptedConnection';
 
 /**
  * Main function. This exists to be able to use await here.
@@ -82,11 +82,22 @@ async function main(): Promise<void> {
 
                 // Setup encryption
                 console.log(`${wslogId(ws)}: Setup encryption.`);
-                await conn.exchangeKeys((text): Uint8Array => {
-                    return encryptWithPublicKey(request.sourcePublicKey, text, keyPair.secretKey);
-                }, (cypher) => {
-                    return decryptWithPublicKey(request.sourcePublicKey, cypher, keyPair.secretKey);
-                });
+                await conn.exchangeKeys(
+                    (text): Uint8Array => {
+                        return encryptWithPublicKey(
+                            request.sourcePublicKey,
+                            text,
+                            keyPair.secretKey
+                        );
+                    },
+                    cypher => {
+                        return decryptWithPublicKey(
+                            request.sourcePublicKey,
+                            cypher,
+                            keyPair.secretKey
+                        );
+                    }
+                );
 
                 // Connect the websocket to the console
                 console.log(
@@ -104,7 +115,7 @@ async function main(): Promise<void> {
                 });
 
                 // Wait for messages
-                while(conn.webSocket.readyState === WebSocket.OPEN) {
+                while (conn.webSocket.readyState === WebSocket.OPEN) {
                     console.log(await conn.waitForMessage());
                 }
             } else {
@@ -150,9 +161,7 @@ async function main(): Promise<void> {
     for await (const line of rl) {
         if (!consoleWs) {
             console.log('Error: Not connected to any client.');
-
-        }
-        else {
+        } else {
             await consoleWs.sendMessage(line);
         }
     }

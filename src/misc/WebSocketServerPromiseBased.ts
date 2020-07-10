@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import WebSocket from 'ws';
 
 /**
  * This is a wrapper for the web socket server to use it with async / await instead of having to
@@ -9,10 +9,10 @@ import WebSocket from "ws";
  * of those.
  */
 export default class WebSocketServerPromiseBased {
-    public webSocketServer: WebSocket.Server | null;    // The web socket server instance
-    private acceptConnectionFn: (() => void) | null;    // The function that is used to resolve the promise in waitForConnection call.
-    private lastConnection: WebSocket | null;           // The last accepted connection that is pending collection (by a waitForConnection call).
-    private deregisterHandlers: () => void;             // function that deregisters all event handler registered on the websocket server.
+    public webSocketServer: WebSocket.Server | null; // The web socket server instance
+    private acceptConnectionFn: (() => void) | null; // The function that is used to resolve the promise in waitForConnection call.
+    private lastConnection: WebSocket | null; // The last accepted connection that is pending collection (by a waitForConnection call).
+    private deregisterHandlers: () => void; // function that deregisters all event handler registered on the websocket server.
 
     /**
      * Constructs the convenience wrapper around the passed websoket server instance.
@@ -26,10 +26,10 @@ export default class WebSocketServerPromiseBased {
         const boundConnectionHandler = this.handleConnection.bind(this);
         this.webSocketServer.on('connection', boundConnectionHandler);
         this.deregisterHandlers = () => {
-            if(this.webSocketServer) {
+            if (this.webSocketServer) {
                 this.webSocketServer.removeListener('connection', boundConnectionHandler);
             }
-        }
+        };
     }
 
     /**
@@ -75,7 +75,7 @@ export default class WebSocketServerPromiseBased {
                     this.lastConnection = null;
                     resolve(lastConnection);
                 }
-            }
+            };
         });
     }
 
@@ -88,17 +88,19 @@ export default class WebSocketServerPromiseBased {
      */
     private handleConnection(ws: WebSocket) {
         // Add connection to member, so that it can be obtained by waitForConnection
-        if(this.lastConnection) {
+        if (this.lastConnection) {
             console.log('Warning: An incoming connection was ignored!');
-            ws.close(1011, 'Sombody already is already in the waiting room ... and there is no more room for you. Try again later.');
+            ws.close(
+                1011,
+                'Sombody already is already in the waiting room ... and there is no more room for you. Try again later.'
+            );
             return;
         }
         this.lastConnection = ws;
 
         // Notify waitForConnection that a new connection was received
-        if(this.acceptConnectionFn) {
+        if (this.acceptConnectionFn) {
             this.acceptConnectionFn();
         }
     }
 }
-

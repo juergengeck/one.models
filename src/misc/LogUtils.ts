@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import WebSocket from 'ws';
 
 /**
  * Creates a string that identifies the websocket.
@@ -21,9 +21,8 @@ export function wslogId(ws: WebSocket | null): string {
 
         // @ts-ignore
         return ws._socket.remoteAddress.toString() + ':' + ws._socket.remotePort.toString();
-    }
-    catch(e) {
-        return '<noinfo>'
+    } catch (e) {
+        return '<noinfo>';
     }
 }
 
@@ -38,4 +37,3 @@ export function wslogId(ws: WebSocket | null): string {
 export function printUint8Array(name: string, data: Uint8Array): void {
     console.log(' ---- ' + name + ': ' + Buffer.from(data).toString('hex'));
 }
-

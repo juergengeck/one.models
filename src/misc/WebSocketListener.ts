@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
-import {wslogId} from "./LogUtils";
-import {createMessageBus} from "one.core/lib/message-bus";
+import {wslogId} from './LogUtils';
+import {createMessageBus} from 'one.core/lib/message-bus';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -31,10 +31,10 @@ class WebSocketListener {
      */
     public onStateChange:
         | ((
-        newState: WebSocketListenerState,
-        oldState: WebSocketListenerState,
-        reason?: string
-    ) => void)
+              newState: WebSocketListenerState,
+              oldState: WebSocketListenerState,
+              reason?: string
+          ) => void)
         | null = null;
 
     public state: WebSocketListenerState; // Current connection state.
@@ -54,10 +54,7 @@ class WebSocketListener {
      * @param {number} port - The port to listen on
      * @returns {Promise<void>}
      */
-    public async start(
-        host: string,
-        port: number
-    ): Promise<void> {
+    public async start(host: string, port: number): Promise<void> {
         if (this.webSocketServer) {
             throw Error('Communication server is already running.');
         }
@@ -65,7 +62,6 @@ class WebSocketListener {
         this.changeCurrentState(WebSocketListenerState.Starting);
 
         try {
-
             this.webSocketServer = new WebSocket.Server({host, port});
 
             // Wait until the websocket server is either ready or stopped with an error (e.g. address in use)
@@ -98,9 +94,7 @@ class WebSocketListener {
             this.webSocketServer.on('error', this.stop.bind(this));
             this.changeCurrentState(WebSocketListenerState.Listening);
             MessageBus.send('log', `Successful started WebSocket server`);
-
-        }
-        catch(e) {
+        } catch (e) {
             this.changeCurrentState(WebSocketListenerState.NotListening, e.toString());
         }
     }
@@ -115,7 +109,7 @@ class WebSocketListener {
         this.changeCurrentState(WebSocketListenerState.ShuttingDown);
 
         // Shutdown Websocket server
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
             if (!this.webSocketServer) {
                 return;
             }
@@ -156,23 +150,18 @@ class WebSocketListener {
      * @param {CommunicationServerListenerState} newState - The new state to set.
      * @param {string} reason - The reason for the state change (Usually an error)
      */
-    private changeCurrentState(
-        newState: WebSocketListenerState,
-        reason?: string
-    ): void {
+    private changeCurrentState(newState: WebSocketListenerState, reason?: string): void {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange && (newState != oldState)) {
+        if (this.onStateChange && newState != oldState) {
             try {
                 this.onStateChange(newState, oldState, reason);
-            }
-            catch(e) {
+            } catch (e) {
                 MessageBus.send('log', `Error calling onStateChange handler: ${e}`);
             }
         }
     }
-
 }
 
 export default WebSocketListener;

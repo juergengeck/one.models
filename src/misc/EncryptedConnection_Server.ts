@@ -98,9 +98,9 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      * @param {T} message - The message to send
      * @returns {Promise<void>}
      */
-    private async sendUnencryptedMessage<T extends CommunicationInitiationProtocol.ServerMessageTypes>(
-        message: T
-    ): Promise<void> {
+    private async sendUnencryptedMessage<
+        T extends CommunicationInitiationProtocol.ServerMessageTypes
+    >(message: T): Promise<void> {
         await this.webSocketPB.waitForOpen();
         await this.webSocketPB.send(
             JSON.stringify(message, function (key, value) {
