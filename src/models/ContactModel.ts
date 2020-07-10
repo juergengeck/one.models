@@ -91,7 +91,7 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<SHA256IdHash<Person>>}
      */
     public async createProfile(myself: boolean, email?: string): Promise<SHA256IdHash<Person>> {
-        const personEmail = email === undefined ? await createRandomString() : email;
+        const personEmail = email === undefined ? await createRandomString(20) : email;
 
         const createdProfile = await this.serializeProfileCreatingByPersonEmail(
             personEmail,
