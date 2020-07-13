@@ -162,6 +162,8 @@ async function main(): Promise<void> {
         if (!consoleWs) {
             console.log('Error: Not connected to any client.');
         } else {
+            // TODO: check this never error
+            // @ts-ignore
             await consoleWs.sendMessage(line);
         }
     }

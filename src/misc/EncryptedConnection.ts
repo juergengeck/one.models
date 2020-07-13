@@ -38,7 +38,7 @@ class EncryptedConnection extends EventEmitter {
         // sure that the nonce length is larger than that, because otherwise we would have
         // overflows which lead to duplicate nonce values.
         if (tweetnacl.box.nonceLength <= 4) {
-            throw new Error('We assume the encryption nonce to be larger than 2^32');
+            throw new Error('We assume the encryption nonce to be larger than 32 bits');
         }
 
         // Setup the initial nonce related values

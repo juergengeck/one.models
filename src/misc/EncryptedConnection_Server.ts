@@ -39,6 +39,8 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     /**
      * This function sets up the encryption by exchanging public keys encrypted.
      *
+     * It also verifies, that the peer has the private key to the public key, because otherwise the decryption would fail.
+     *
      * Sending public keys encrypted prevents MITM (Man in the middle) attacks
      * Generating new keys for each connection provides PFS (Perfect forward secrecy)
      *
@@ -49,6 +51,9 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      *                                     expose the rejection to communicate without authentification, so others
      *                                     who don't posess the private key to the specified key in communication_request
      *                                     could probe us for keys we accept / we don't accept based on timing.
+     *                                     Another reason why we do it here with a boolean flag is to ensure that the permission
+     *                                     to communicate has been done calculated before this step
+     *                                     (for timing reasons it should always be done earlier)
      * @returns {Promise<void>}
      */
     public async exchangeKeys(
