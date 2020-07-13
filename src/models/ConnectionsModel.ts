@@ -25,7 +25,7 @@ import {
     SetAccessParam,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {getInstanceIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import i18nModelsInstance from '../i18n';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 
@@ -756,10 +756,12 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {AuthenticatedContact} authenticatedContact
      */
     async shareDataWithPartner(authenticatedContact: AuthenticatedContact): Promise<void> {
+        const ownerIdHash = this.personId ? this.personId : getInstanceOwnerIdHash();
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: this.personId
+            owner: ownerIdHash
         });
 
         let setAccessParam: SetAccessParam = {
@@ -775,7 +777,7 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: this.personId
+            owner: ownerIdHash
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);

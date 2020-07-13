@@ -160,9 +160,15 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} email
      * @param {string} secret
      * @param {string} patientType
+     * @param {string} anonymousEmail
      * @returns {Promise<void>}
      */
-    async recoverInstance(email: string, secret: string, patientType: string, anonymousEmail: string): Promise<void> {
+    async recoverInstance(
+        email: string,
+        secret: string,
+        patientType: string,
+        anonymousEmail: string
+    ): Promise<void> {
         this.currentPatientTypeState = patientType;
 
         try {
@@ -189,8 +195,9 @@ export default class OneInstanceModel extends EventEmitter {
      * via qr code and the new instance will be created using that email.
      *
      * @param {string} email
+     * @param {boolean} takeOver
      */
-    async createNewInstanceWithReceivedEmail(email: string): Promise<void> {
+    async createNewInstanceWithReceivedEmail(email: string, takeOver = false): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -210,6 +217,15 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
+
+        /**
+         * In instance take over the model initialisation should
+         * be done before the anonymous user exists, so a new
+         * event should be emitted only for this case.
+         */
+        if (takeOver) {
+            this.emit('instance_from_take_over');
+        }
     }
 
     /**
@@ -275,7 +291,12 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit('authstate_changed_first', this.currentRegistrationState, firstCallback, anonymousEmail);
+        this.emit(
+            'authstate_changed_first',
+            this.currentRegistrationState,
+            firstCallback,
+            anonymousEmail
+        );
     }
 
     /**
