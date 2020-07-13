@@ -71,17 +71,23 @@ export default class ContactModel extends EventEmitter {
     /**
      * @description
      * Initialize the structure. This has to be called after the one instance is initialized.
+     * @param {boolean} takeOver - in instance take over just register hooks and wait for the contact app from the otehr instance
      * @returns {Promise<void>}
      */
-    public async init(): Promise<void> {
-        /** if the contactApp exists, the structure must not be initialised, otherwise will be overwritten **/
+    async init(takeOver = false) {
+        this.registerHooks();
+
         if (await ContactModel.doesContactAppObjectExist()) {
+            await this.shareContactAppWithYourInstances();
+
             return;
         }
 
-        this.registerHooks();
-        await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'});
-        await this.shareContactAppWithYourInstances();
+        if(!takeOver) {
+            await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'});
+            await this.shareContactAppWithYourInstances();
+        }
+
     }
 
     /**
