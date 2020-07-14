@@ -447,6 +447,11 @@ export default class ConnectionsModel extends EventEmitter {
             this.personalCloudConnections.push(connection);
         }
 
+        if (!invited) {
+            // if I invited a new instance, then I have to share with it all data that I have
+            await this.shareDataWithMyself();
+        }
+
         await this.connectOneTimeChum(connection);
     }
 
@@ -800,5 +805,45 @@ export default class ConnectionsModel extends EventEmitter {
                 console.error(error);
             }
         }
+    }
+
+    /**
+     * Because the access object is a versioned one, when sharing the data with partner
+     * the sharing with the instances that I own is lost. For this reason we need to ensure
+     * that the consent file channel and the questionnaire channels will be shared with
+     * the instances that I own in an instance take over process.
+     *
+     * @returns {Promise<void>}
+     */
+    private async shareDataWithMyself(): Promise<void> {
+        const ownerIdHash = this.personId ? this.personId : getInstanceOwnerIdHash();
+
+        if (ownerIdHash === undefined) {
+            this.emit('error', 'Unable to find instance.');
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: ownerIdHash
+        });
+
+        let setAccessParam: SetAccessParam = {
+            group: [],
+            id: channelInfoIdHash,
+            mode: SET_ACCESS_MODE.REPLACE,
+            person: [ownerIdHash]
+        };
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: ownerIdHash
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 }
