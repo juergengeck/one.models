@@ -14,7 +14,8 @@ import {
     VersionedObjectResult,
     ContactDescriptionTypes,
     UnversionedObjectResult,
-    CommunicationEndpointTypes
+    CommunicationEndpointTypes,
+    OneInstanceEndpoint, Keys
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -25,15 +26,15 @@ import {
     VERSION_UPDATES,
     SetAccessParam,
     SET_ACCESS_MODE,
-    onVersionedObj
+    onVersionedObj, getObjectWithType
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import OneInstanceModel from './OneInstanceModel';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import {getAllEntries} from 'one.core/lib/reverse-map-query';
+import {getAllEntries, getAllValues} from 'one.core/lib/reverse-map-query';
+import InstancesModel from "./InstancesModel";
 
 /**
  * This represents a ContactEvent
@@ -51,9 +52,14 @@ export enum ContactEvent {
  * @augments EventEmitter
  */
 export default class ContactModel extends EventEmitter {
-    constructor(oneInstanceModel: OneInstanceModel) {
+
+    private readonly instancesModel: InstancesModel;
+    private readonly commServerUrl: string;
+
+    constructor(instancesModel: InstancesModel, commServerUrl: string) {
         super();
-        this.oneInstanceModel = oneInstanceModel;
+        this.instancesModel = instancesModel;
+        this.commServerUrl = commServerUrl;
     }
 
     /** ########################################## Public ########################################## **/
@@ -97,6 +103,18 @@ export default class ContactModel extends EventEmitter {
             myself
         );
         return createdProfile.obj.personId;
+    }
+
+
+    /**
+     * Get my main identity
+     *
+     * @returns {Promise<SHA256IdHash<Person>>}
+     */
+    public async myMainIdentity(): Promise<SHA256IdHash<Person>> {
+        const contactApp = await ContactModel.getContactAppObject();
+        const mySomeoneObject = await getObject(contactApp.obj.me);
+        return (await getObjectByIdHash(mySomeoneObject.mainProfile)).obj.personId;
     }
 
     /**
@@ -187,27 +205,25 @@ export default class ContactModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId - The person id for which to search for alternate ids.
      * @returns {Promise<SHA256IdHash<Person>[]> | Promise<undefined>}
      */
-    public async listAlternateIdentities(
+    public async listAllIdentities(
         personId: SHA256IdHash<Person>
-    ): Promise<SHA256IdHash<Person>[] | undefined> {
-        /** Find the someone object that references the passed person id hash **/
+    ): Promise<SHA256IdHash<Person>[]> {
+        // Find the someone object that references the passed person id hash
         const otherPersonSomeoneObject = await this.getSomeoneObject(personId);
 
+        // If someone object does not exist, then just return the current id
         if (otherPersonSomeoneObject === undefined) {
-            return undefined;
+            return [personId];
         }
 
-        /** Iterate over all profile objects in someone object and add the person id hash
-         *  to the return list.
-         **/
+        // Iterate over all profiles and extract their ids
         const identities = await Promise.all(
             otherPersonSomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
                     (await getObjectByIdHash(profileIdHash)).obj.personId
             )
         );
-        /** Remove the passed person id hash from the list **/
-        identities.splice(identities.indexOf(personId), 1);
+
         return identities;
     }
 
@@ -413,9 +429,57 @@ export default class ContactModel extends EventEmitter {
         await createSingleObjectThroughPurePlan({module: '@one/identity'}, contactApp.obj);
     }
 
-    /** ########################################## Private ########################################## **/
+    /**
+     * Find instance endpoints objects for contacts / or for me.
+     *
+     * @param {boolean} forMe - If true then all endpoints for myself, if false then all endpoints of contacts.
+     * @param {boolean} onlyMain - If forMe is true then this selects between all my ids, or just my main id.
+     * @returns {Promise<OneInstanceEndpoint[]>}
+     */
+    public async findAllOneInstanceEndpoints(forMe: boolean = false, onlyMain: boolean = false): Promise<OneInstanceEndpoint[]> {
 
-    private readonly oneInstanceModel: OneInstanceModel;
+        // Get all person ids of all persons (or for myself) as 1-dim array
+        let allIdsPromise: Promise<SHA256IdHash<Person>[]>[];
+        if(forMe) {
+            if(onlyMain) {
+                allIdsPromise = [Promise.resolve([await this.myMainIdentity()])];
+            }
+            else {
+                allIdsPromise = [this.myIdentities()];
+            }
+        }
+        else {
+            allIdsPromise = (await this.contacts()).map(personId => this.listAllIdentities(personId));
+        }
+        const allIdsNonFlat: SHA256IdHash<Person>[][] = await Promise.all(allIdsPromise);
+        const allIds: SHA256IdHash<Person>[] = allIdsNonFlat.reduce((acc, curr) => acc.concat(curr));
+
+        // Get all contact objects as 1-dim array
+        const allContactObjectsNonFlat: Contact[][] = await Promise.all(allIds.map(id => this.getContactObjects(id)));
+        const allContactObjects = allContactObjectsNonFlat.reduce((acc, curr) => acc.concat(curr));
+
+        // Get all endpoints as 1-dim array
+        const allEndpointHashesNonFlat = allContactObjects.map(cobj => cobj.communicationEndpoints);
+        const allEndpointHashes = allEndpointHashesNonFlat.reduce((acc, curr) => acc.concat(curr));
+        const allEndpoints = await Promise.all(allEndpointHashes.map(hash => getObject(hash)));
+
+        // Get all OneInstanceEndpoints
+        const oneInstanceEndpoints = allEndpoints.filter(endp => endp.$type$ === 'OneInstanceEndpoint');
+        return oneInstanceEndpoints;
+    }
+
+    /**
+     * Get the person keys for a specific person.
+     *
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<Keys>}
+     */
+    public async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
+        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        return await getObjectWithType(personKeyLink[0].toHash, 'Keys');
+    }
+
+    /** ########################################## Private ########################################## **/
 
     /**
      * @description Serialized profile creation wrapper
@@ -426,22 +490,38 @@ export default class ContactModel extends EventEmitter {
         personEmail: string,
         forMyself: boolean
     ): Promise<VersionedObjectResult<Profile>> {
+
+        // Create a profile for myself
         if (forMyself) {
             return await serializeWithType(personEmail, async () => {
+
+                // Create the local instance including the instance keys
+                const createdInstance = await this.instancesModel.createLocalInstanceByEMail(personEmail);
+
+                // Create relevant profile objects
                 const profile = (await createSingleObjectThroughPurePlan(
                     {module: '@module/createOwnProfile'},
                     personEmail,
-                    this.oneInstanceModel.getSecret()
+                    createdInstance,
+                    this.commServerUrl
                 )) as VersionedObjectResult<Profile>;
+
+                // Add the profile to the someone object
                 await this.registerNewSelfProfile(profile);
                 return profile;
             });
+
+        // Create a profile for others
         } else {
             return await serializeWithType(personEmail, async () => {
+
+                // Just create the person id and the relevant profile objects
                 const profile = (await createSingleObjectThroughPurePlan(
                     {module: '@module/createProfile'},
                     personEmail
                 )) as VersionedObjectResult<Profile>;
+
+                // Add the profile to the someone object (or create a new one)
                 await this.registerProfile(profile);
                 return profile;
             });

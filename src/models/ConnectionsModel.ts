@@ -56,16 +56,18 @@ export type InformationForTakeOver = {
 export default class ConnectionsModel extends EventEmitter {
     private personalCloudConnections: Connection[]; // List of all know connections with personal devices
     private partnerConnections: Connection[]; // List of all know connections with partner devices
-    private readonly commServerUrl = 'wss://uke-comm.freeda.one';
+    private readonly commServerUrl: string;
+    // private readonly commServerUrl = 'wss://uke-comm.freeda.one';
     // private readonly commServerUrl = 'ws://localhost:8000';
     private myInstance: VersionedObjectResult<Instance> | undefined;
     private authenticatedContactsList: AuthenticatedContactsList;
 
-    constructor() {
+    constructor(commserverUrl: string) {
         super();
         this.personalCloudConnections = [];
         this.partnerConnections = [];
         this.authenticatedContactsList = {} as AuthenticatedContactsList;
+        this.commServerUrl = commserverUrl;
     }
 
     /**

@@ -3,13 +3,12 @@
  */
 
 import {
-    getObjectByIdHash,
     getObjectByIdObj,
     getObjectWithType,
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Profile} from '@OneCoreTypes';
+import {Profile, SHA256IdHash, Instance} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 
@@ -24,27 +23,19 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 export async function createObjects(
     WriteStorage: WriteStorageApi,
     email: string,
-    secret: string
+    instanceIdHash: SHA256IdHash<Instance>,
+    contactObjUrl: string
 ): Promise<VersionedObjectResult<Profile>> {
-    /** it is also creating the person object, instance object and keys object **/
-    const createdInstance = await WriteStorage.createSingleObjectThroughImpureSubPlan(
-        {module: '@one/instance-creator'},
-        {
-            name: email,
-            email,
-            secret
-        }
-    );
+
     const personIdHash = (await getObjectByIdObj({$type$: 'Person', email})).idHash;
-    const instanceIdHash = createdInstance.idHash;
-    /** Get the corresponding key links **/
-    const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-    const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
 
     /** Person key **/
+    const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
     const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
     const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
+
     /** Instance key **/
+    const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
     const instancePubEncryptionKeys = await getObjectWithType(instanceKeyLink[0].toHash, 'Keys');
     const instancePubEncryptionKeysHash = await calculateHashOfObj(instancePubEncryptionKeys);
 
@@ -52,8 +43,10 @@ export async function createObjects(
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
+        instanceId: instanceIdHash,
         personKeys: personPubEncryptionKeysHash,
-        instanceKeys: instancePubEncryptionKeysHash
+        instanceKeys: instancePubEncryptionKeysHash,
+        url: contactObjUrl
     });
 
     const contactObject = await WriteStorage.storeUnversionedObject({

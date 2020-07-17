@@ -36,8 +36,10 @@ declare module '@OneCoreTypes' {
     export interface OneInstanceEndpoint extends CommunicationEndpoint {
         $type$: 'OneInstanceEndpoint';
         personId: SHA256IdHash<Person>;
+        instanceId: SHA256IdHash<Instance>;
         personKeys: SHA256Hash<Keys>;
         instanceKeys: SHA256Hash<Keys>;
+        url: string;
     }
 
     // #### Contact Descriptions #####
@@ -231,12 +233,20 @@ export const OneInstanceEndpointRecipe: Recipe = {
             referenceToId: new Set(['Person'])
         },
         {
+            itemprop: 'instanceId',
+            referenceToId: new Set(['Instance'])
+        },
+        {
             itemprop: 'personKeys',
             referenceToObj: new Set(['Keys'])
         },
         {
             itemprop: 'instanceKeys',
             referenceToObj: new Set(['Keys'])
+        },
+        {
+            itemprop: 'url',
+            valueType: 'string'
         }
     ]
 };
