@@ -13,7 +13,7 @@
   "dependencies": {
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core",
+    "one.core": "refinio/one.core#feature/20200720_communication_og",
     "yargs": "^15.4.0"
   },
   "devDependencies": {
