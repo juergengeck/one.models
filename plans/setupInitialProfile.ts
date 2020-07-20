@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {getObjectByIdHash, getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {ContactApp} from '@OneCoreTypes';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
@@ -16,7 +16,8 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
  * @returns {Promise<VersionedObjectResult<ContactApp>>}
  */
 export async function createObjects(
-    WriteStorage: WriteStorageApi
+    WriteStorage: WriteStorageApi,
+    url: string
 ): Promise<VersionedObjectResult<ContactApp>> {
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
@@ -42,8 +43,10 @@ export async function createObjects(
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
+        instanceId: instanceIdHash,
         personKeys: personPubEncryptionKeysHash,
-        instanceKeys: instancePubEncryptionKeysHash
+        instanceKeys: instancePubEncryptionKeysHash,
+        url
     });
 
     const contactObject = await WriteStorage.storeUnversionedObject({

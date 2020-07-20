@@ -12,17 +12,26 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from "one.core/lib/system/crypto-helpers";
 import {serializeWithType} from "one.core/lib/util/promise";
+import {authenticateOwner, loadInstanceKeys} from "one.core/lib/instance-crypto";
 
 /**
  * This model manages all of the instance objects of everybody.
  */
 class InstancesModel {
+    private secret: string = '';
+
     /**
      * Initialize this model.
      *
+     * @param {string} secret - The secret used to manae the private instance keys. Note that this is bad.
+     *                          The key management shouldn't handle different keys on the same instance
+     *                          differently, then we wouldn't have to do such a thing as storing the secret ...
+     *                          but someday we will do it right ... yes we can ...
      * @returns {Promise<void>}
      */
-    public async init(): Promise<void> {
+    public async init(secret: string): Promise<void> {
+        this.secret = secret;
+
         // Create the top level LocalInstancesList if it does not exist
         // Note: Using exceptions for normal program flow is a bad habit
         //       But atm I don't know how to query whether an object exists
@@ -42,6 +51,13 @@ class InstancesModel {
                 }
             );
         }
+
+        // Authenticate owner and local instance for private keys
+        await Promise.all((await this.localInstancesIds(true)).map(async instanceId => {
+            const instance = await getObjectByIdHash(instanceId);
+            await authenticateOwner(this.secret, instance.obj.owner, instanceId);
+            await loadInstanceKeys(this.secret, instanceId);
+        }));
     }
 
     /**
@@ -172,7 +188,7 @@ class InstancesModel {
      * @param {SHA256IdHash<Person>} personId
      * @returns {Promise<boolean>}
      */
-    private async hasPersonLocalInstance(personId: SHA256IdHash<Person>): Promise<boolean> {
+    public async hasPersonLocalInstance(personId: SHA256IdHash<Person>): Promise<boolean> {
         const instanceIdHashes = await this.localInstancesIds();
         const instanceResults = await Promise.all(
             instanceIdHashes.map(hash => getObjectByIdHash(hash))
@@ -203,29 +219,34 @@ class InstancesModel {
      * @returns {Promise<void>}
      */
     public async createLocalInstanceByEMail(email: string): Promise<SHA256IdHash<Instance>> {
+
         // Check that the person does not yet have a instance
         const personId = await calculateIdHashOfObj({
             $type$: 'Person',
             email
         });
 
+        // If an instance already exists, don't create one, just return the existing one
         if(await this.hasPersonLocalInstance(personId)) {
-            throw new Error('Person already has a local instance!');
+            return this.localInstanceIdForPerson(personId);
         }
 
         // Create instance with a random name
         const randomInstanceName = await createRandomString(64);
-        const randomInstanceSecret = await createRandomString(64);
         const instanceIdHash = (
             await createSingleObjectThroughImpurePlan(
                 {module: '@one/instance-creator'},
                 {
                     name: randomInstanceName,
                     email: email,
-                    secret: randomInstanceSecret
+                    secret: this.secret
                 }
             )
         ).idHash;
+
+        // Authenticate owner - this also should be done somewhere else ... someday
+        await authenticateOwner(this.secret, personId, instanceIdHash);
+        await loadInstanceKeys(this.secret, instanceIdHash);
 
         // Add it to the local instances list
         await this.markInstanceAsLocal(instanceIdHash);

@@ -1,5 +1,9 @@
 import EncryptedConnection_Client from './EncryptedConnection_Client';
 import EncryptedConnection from "./EncryptedConnection";
+import {createMessageBus} from "one.core/lib/message-bus";
+import {wslogId} from "./LogUtils";
+
+const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
 
 /**
  * This class establishes outgoing connections.
@@ -106,16 +110,21 @@ class OutgoingConnectionEstablisher {
         encrypt: (text: Uint8Array) => Uint8Array,
         decrypt: (cypher: Uint8Array) => Uint8Array
     ): Promise<EncryptedConnection> {
+        MessageBus.send('log', `establishConnection(${url})`);
+
         const conn = new EncryptedConnection_Client(url);
         await conn.webSocketPB.waitForOpen();
 
         // Request communication
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: send request`);
         await conn.sendCommunicationRequestMessage(myPublicKey, targetPublicKey);
 
         // Wait for accept message
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: send comm ready`);
         await conn.waitForUnencryptedMessage('communication_ready');
 
         // Setup encryption
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: exchange keys`);
         await conn.exchangeKeys(encrypt, decrypt);
 
         return conn;

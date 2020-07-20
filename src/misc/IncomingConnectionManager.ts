@@ -66,7 +66,7 @@ class IncomingConnectionManager {
         const strPublicKey = Buffer.from(publicKey).toString('hex');
 
         // Create listener for this key
-        const listener = new CommunicationServerListener(2, 10000);
+        const listener = new CommunicationServerListener(1, 10000);
         listener.onChallenge = (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
             const decryptedChallenge = decrypt(publicKey, challenge);
             return encrypt(publicKey, decryptedChallenge);

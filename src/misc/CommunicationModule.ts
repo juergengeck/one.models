@@ -3,7 +3,7 @@ import {ContactModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import EncryptedConnection from './EncryptedConnection';
 import {getObject} from 'one.core/lib/storage';
-import {fromByteArray, toByteArray} from 'base64-js';
+import {toByteArray} from 'base64-js';
 import InstancesModel from '../models/InstancesModel';
 import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
@@ -18,8 +18,8 @@ type ConnectionInfo = {
     cryptoApi: ReturnType<typeof createCrypto>;
 };
 
-function genMapKey(localPublicKey: string, remotePublicKey: string): string {
-    return `${localPublicKey} + ${remotePublicKey}`;
+function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): string {
+    return `${Buffer.from(localPublicKey).toString('hex')} + ${Buffer.from(remotePublicKey).toString('hex')}`;
 }
 
 /**
@@ -110,10 +110,15 @@ export default class CommunicationModule {
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array
     ): void {
-        const mapKey = genMapKey(fromByteArray(localPublicKey), fromByteArray(remotePublicKey));
+
+        const mapKey = genMapKey(localPublicKey, remotePublicKey);
 
         // Check whether this is an unknown connection (no entry in the map)
         const mapEntry = this.establishedConnections.get(mapKey);
+        console.log(mapKey, '->', mapEntry);
+        for (const [k, v] of this.establishedConnections.entries()) {
+            console.log(k, v === null ? 'null' : 'obj');
+        }
         if(mapEntry === undefined) {
             if(this.onUnknownConnection) {
                 this.onUnknownConnection(conn, localPublicKey, remotePublicKey);
@@ -186,6 +191,7 @@ export default class CommunicationModule {
 
         // Iterate over all personal contact objects and connect with all of them (real ID)
         const myEndpoints = await this.contactModel.findAllOneInstanceEndpoints(true, true);
+        console.log('MY ENDPOINTS:', myEndpoints.length);
         const myOutgoingConnInfo = (
             await Promise.all(
                 myEndpoints.map(async endpoint => {
@@ -205,6 +211,7 @@ export default class CommunicationModule {
 
         // Iterate over all contacts and connect with them (anonymous IDs)
         const otherEndpoints = await this.contactModel.findAllOneInstanceEndpoints(false);
+        console.log('OTHER ENDPOINTS:', otherEndpoints.length, otherEndpoints);
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
@@ -219,6 +226,8 @@ export default class CommunicationModule {
                 };
             })
         );
+        console.log('MYCONN:' + myOutgoingConnInfo);
+        console.log('OTHERCONN:' + otherOutgoingConnInfo);
 
         // Establish connections to all outgoing endpoints
         for (const endpoint of myOutgoingConnInfo.concat(otherOutgoingConnInfo)) {
@@ -239,7 +248,7 @@ export default class CommunicationModule {
             );
 
             // Append to outgoing list
-            const mapKey = genMapKey(endpoint.sourceInstanceId, endpoint.targetInstanceId);
+            const mapKey = genMapKey(sourceKey, targetKey);
             this.outgoingMap.set(mapKey, endpoint);
 
             // Also fill the established connections part

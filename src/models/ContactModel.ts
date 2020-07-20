@@ -33,7 +33,7 @@ import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import {getAllEntries, getAllValues} from 'one.core/lib/reverse-map-query';
+import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from "./InstancesModel";
 
 /**
@@ -85,7 +85,7 @@ export default class ContactModel extends EventEmitter {
         }
 
         this.registerHooks();
-        await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'});
+        await createSingleObjectThroughPurePlan({module: '@module/setupInitialProfile'}, this.commServerUrl);
         await this.shareContactAppWithYourInstances();
     }
 
@@ -206,23 +206,35 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<SHA256IdHash<Person>[]> | Promise<undefined>}
      */
     public async listAllIdentities(
-        personId: SHA256IdHash<Person>
+        personId: SHA256IdHash<Person>,
+        excludeMain: boolean = false
     ): Promise<SHA256IdHash<Person>[]> {
         // Find the someone object that references the passed person id hash
         const otherPersonSomeoneObject = await this.getSomeoneObject(personId);
 
         // If someone object does not exist, then just return the current id
         if (otherPersonSomeoneObject === undefined) {
-            return [personId];
+            if(excludeMain) {
+                console.log('BLAH');
+                return [];
+            }
+            else {
+                return [personId];
+            }
         }
 
         // Iterate over all profiles and extract their ids
-        const identities = await Promise.all(
+        let identities = await Promise.all(
             otherPersonSomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
                     (await getObjectByIdHash(profileIdHash)).obj.personId
             )
         );
+
+        // Remove the main id if requested
+        if(excludeMain) {
+            identities = identities.filter(id => id !== personId);
+        }
 
         return identities;
     }
@@ -249,6 +261,16 @@ export default class ContactModel extends EventEmitter {
                 async (contactHash: SHA256Hash<Contact>) => await getObject(contactHash)
             )
         );
+    }
+
+    /**
+     * @description Get a list of Contact Objects by a given personId
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<Contact[]>}
+     */
+    public async getContactIdObjects(personId: SHA256IdHash<Person>): Promise<SHA256Hash<Contact>[]> {
+        const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
+        return personProfile.obj.contactObjects;
     }
 
     /**
@@ -442,25 +464,29 @@ export default class ContactModel extends EventEmitter {
         let allIdsPromise: Promise<SHA256IdHash<Person>[]>[];
         if(forMe) {
             if(onlyMain) {
+                console.log('ME:', await this.myMainIdentity());
                 allIdsPromise = [Promise.resolve([await this.myMainIdentity()])];
             }
             else {
+                console.log('MES:', await this.myIdentities());
                 allIdsPromise = [this.myIdentities()];
             }
         }
         else {
+            console.log('CONTACTS:', await this.contacts());
             allIdsPromise = (await this.contacts()).map(personId => this.listAllIdentities(personId));
         }
         const allIdsNonFlat: SHA256IdHash<Person>[][] = await Promise.all(allIdsPromise);
-        const allIds: SHA256IdHash<Person>[] = allIdsNonFlat.reduce((acc, curr) => acc.concat(curr));
+        const allIds: SHA256IdHash<Person>[] = allIdsNonFlat.reduce((acc, curr) => acc.concat(curr), []);
+        console.log('ALLIDS:', allIds);
 
         // Get all contact objects as 1-dim array
         const allContactObjectsNonFlat: Contact[][] = await Promise.all(allIds.map(id => this.getContactObjects(id)));
-        const allContactObjects = allContactObjectsNonFlat.reduce((acc, curr) => acc.concat(curr));
+        const allContactObjects = allContactObjectsNonFlat.reduce((acc, curr) => acc.concat(curr), []);
 
         // Get all endpoints as 1-dim array
         const allEndpointHashesNonFlat = allContactObjects.map(cobj => cobj.communicationEndpoints);
-        const allEndpointHashes = allEndpointHashesNonFlat.reduce((acc, curr) => acc.concat(curr));
+        const allEndpointHashes = allEndpointHashesNonFlat.reduce((acc, curr) => acc.concat(curr), []);
         const allEndpoints = await Promise.all(allEndpointHashes.map(hash => getObject(hash)));
 
         // Get all OneInstanceEndpoints
@@ -547,13 +573,13 @@ export default class ContactModel extends EventEmitter {
      */
     // @ts-ignore
     private registerHooks(): void {
-        /**
-         * Creating new instances for your profiles
-         */
+
+        // Listen for new contact app objects -> own profiles
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (this.isContactAppVersionedObjectResult(caughtObject)) {
+
+                // Get the profiles of myself
                 const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
-                /** exploding profiles **/
                 const profiles = await Promise.all(
                     updatedSomeoneObjectForMyself.profiles.map(
                         async (profileIdHash: SHA256IdHash<Profile>) => {
@@ -561,28 +587,27 @@ export default class ContactModel extends EventEmitter {
                         }
                     )
                 );
+
+                // Iterate over profiles and check which profile does not have a local instance -> generate them
                 await Promise.all(
                     profiles.map(async (profile: VersionedObjectResult<Profile>) => {
+                        if (await this.instancesModel.hasPersonLocalInstance(profile.obj.personId)) {
+                            return;
+                        }
+
+                        // Create profile for this
                         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
                             .email;
-                        /** see if the instance exists **/
-                        const instance = await getAllEntries(
-                            profile.obj.personId,
-                            true,
-                            'Instance'
-                        );
-                        if (
-                            Array.from(instance.keys()).length === 0 &&
-                            (await getInstanceOwnerIdHash()) !== profile.obj.personId
-                        ) {
-                            await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-                        }
+                        await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                     })
                 );
             }
         });
+
+        // Listen for new contact objects
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
+                console.log('HOOK unversioned:', caughtObject);
                 await this.addNewContactObject(caughtObject, false);
             }
         });
@@ -620,6 +645,7 @@ export default class ContactModel extends EventEmitter {
 
         /** check if the someone object exists **/
         if (someoneObject === undefined) {
+            console.log('FOUND!!!');
             /** if not, create a new someone object **/
             const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
