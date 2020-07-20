@@ -48,7 +48,8 @@ export default class CommunicationModule {
         | ((
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
+        remotePublicKey: Uint8Array,
+        initiatedLocally: boolean
     ) => void)
         | null = null;
 
@@ -56,7 +57,8 @@ export default class CommunicationModule {
         | ((
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
+        remotePublicKey: Uint8Array,
+        initiatedLocally: boolean
     ) => void)
         | null = null;
 
@@ -73,7 +75,13 @@ export default class CommunicationModule {
         this.incomingConnectionManager = new IncomingConnectionManager();
         this.commServer = commServer;
 
-        this.incomingConnectionManager.onConnection = this.acceptConnection.bind(this);
+        this.incomingConnectionManager.onConnection = (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array
+        ) => {
+            this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
+        }
     }
 
     /**
@@ -108,7 +116,8 @@ export default class CommunicationModule {
     private acceptConnection(
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
+        remotePublicKey: Uint8Array,
+        initiatedLocally: boolean
     ): void {
 
         const mapKey = genMapKey(localPublicKey, remotePublicKey);
@@ -121,7 +130,7 @@ export default class CommunicationModule {
         }
         if(mapEntry === undefined) {
             if(this.onUnknownConnection) {
-                this.onUnknownConnection(conn, localPublicKey, remotePublicKey);
+                this.onUnknownConnection(conn, localPublicKey, remotePublicKey, initiatedLocally);
             }
             return;
         }
@@ -154,7 +163,7 @@ export default class CommunicationModule {
                 );
             });
             if(this.onKnownConnection) {
-                this.onKnownConnection(conn, localPublicKey, remotePublicKey);
+                this.onKnownConnection(conn, localPublicKey, remotePublicKey, initiatedLocally);
             }
             this.establishedConnections.set(mapKey, conn);
             return;
@@ -232,7 +241,13 @@ export default class CommunicationModule {
         // Establish connections to all outgoing endpoints
         for (const endpoint of myOutgoingConnInfo.concat(otherOutgoingConnInfo)) {
             // Establish connection to the outside
-            endpoint.connEst.onConnection = this.acceptConnection.bind(this);
+            endpoint.connEst.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
+            }
             const sourceKey = toByteArray(endpoint.sourcePublicKey);
             const targetKey = toByteArray(endpoint.targetPublicKey);
             endpoint.connEst.start(

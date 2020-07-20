@@ -178,12 +178,79 @@ class EncryptedConnection extends EventEmitter {
     // ######## Receiving encrypted messages ########
 
     /**
+     * Wait for an incoming message with a specific type for a specified period of time.
+     *
+     * @param {string} type    - The type field of the message should have this type.
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     *                                                 - The value will be the JSON.parse'd object
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
+     *                                                 3) the type of the received message doe not match parameter
+     *                                                    'type'
+     */
+    public async waitForJSONMessageWithType(
+        type: string,
+        typekey: string = 'type',
+        timeout: number = -2
+    ): Promise<any> {
+        const messageObj = await this.waitForJSONMessage(timeout);
+
+        // Assert that is has a 'type' member
+        if (!messageObj.hasOwnProperty(typekey)) {
+            throw new Error(`Received message without a \'${typekey}\' member.`);
+        }
+
+        // Assert that the type matches the requested one
+        if (messageObj[typekey] !== type) {
+            throw new Error(
+                `Received unexpected type '${messageObj[typekey]}'. Expected type '${type}'.`
+            );
+        }
+
+        return messageObj;
+    }
+
+    /**
+     * Wait for an incoming message for a specified period of time.
+     *
+     * @param {string} type    - The type field of the message should have this type.
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     *                                                 - The value will be the JSON.parse'd object
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
+     *                                                 3) the type of the received message doe not match parameter
+     *                                                    'type'
+     */
+    public async waitForJSONMessage(timeout: number = -2): Promise<any> {
+        const message = await this.waitForMessage(timeout);
+
+        // Assert that we received a string based message
+        if (typeof message !== 'string') {
+            throw new Error('Received message that is not a string.');
+        }
+
+        // Convert from JSON to Object
+        let messageObj;
+        try {
+            messageObj = JSON.parse(message);
+        } catch (e) {
+            throw new Error('Received message that does not conform to JSON: ' + e.toString());
+        }
+
+        return messageObj;
+    }
+
+    /**
      * Wait for string message.
      *
      * @returns {Promise<string>} The received message
      */
-    public async waitForMessage(): Promise<string> {
-        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage());
+    public async waitForMessage(timeout: number = -1): Promise<string> {
+        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
         return new TextDecoder().decode(decrypted);
     }
 
@@ -192,8 +259,8 @@ class EncryptedConnection extends EventEmitter {
      *
      * @returns {Promise<string>} The received message
      */
-    public async waitForBinaryMessage(): Promise<Uint8Array> {
-        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage());
+    public async waitForBinaryMessage(timeout: number = -1): Promise<Uint8Array> {
+        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
         if (!(decrypted instanceof ArrayBuffer)) {
             throw Error('Received message was not binary');
         }
