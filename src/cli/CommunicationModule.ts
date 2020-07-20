@@ -2,34 +2,35 @@ import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import EncryptedConnection from '../misc/EncryptedConnection';
-import {ContactModel} from "../models";
-import CommunicationModule from "../misc/CommunicationModule";
-import InstancesModel from "../models/InstancesModel";
-import {initInstance} from "one.core/lib/instance";
-import Recipies from "../recipies/recipies";
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from "@OneCoreTypes";
-import oneModules from "../generated/oneModules";
+import {ContactModel} from '../models';
+import CommunicationModule from '../misc/CommunicationModule';
+import InstancesModel from '../models/InstancesModel';
+import {initInstance} from 'one.core/lib/instance';
+import Recipies from '../recipies/recipies';
+import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import oneModules from '../generated/oneModules';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES
-} from "one.core/lib/storage";
-import {implode} from "one.core/lib/microdata-imploder";
+} from 'one.core/lib/storage';
+import {implode} from 'one.core/lib/microdata-imploder';
 import fs from 'fs';
 import * as readline from 'readline';
 import {toByteArray} from 'base64-js';
+import {ContactEvent} from '../models/ContactModel';
 
 /**
  * Import all plan modules
  */
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return Promise.all(
-        modules.map((module) =>
+        modules.map(module =>
             createSingleObjectThroughPurePlan(
                 {
                     module: '@one/module-importer',
@@ -72,16 +73,23 @@ async function main(): Promise<void> {
     const instancesModel = new InstancesModel();
     const contactModel = new ContactModel(instancesModel, argv.u);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
-    communicationModule.onKnownConnection = (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => {
+    communicationModule.onKnownConnection = (
+        conn: EncryptedConnection,
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array
+    ) => {
         console.log('onKnownConnection');
         printUint8Array('localPublicKey', localPublicKey);
         printUint8Array('remotePublicKey', remotePublicKey);
     };
-    communicationModule.onUnknownConnection = (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => {
+    communicationModule.onUnknownConnection = (
+        conn: EncryptedConnection,
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array
+    ) => {
         console.log('onUnknownConnection');
         printUint8Array('localPublicKey', localPublicKey);
         printUint8Array('remotePublicKey', remotePublicKey);
-
 
         // Adding contact object
         /*const instanceEndpoint = await createSingleObjectThroughPurePlan(
@@ -121,7 +129,7 @@ async function main(): Promise<void> {
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
         initialRecipes: Recipies
-//        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+        //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();
 
@@ -134,21 +142,24 @@ async function main(): Promise<void> {
     let personAnon: SHA256IdHash<Person>;
     let alternateIds = await contactModel.myIdentities();
     alternateIds = alternateIds.filter(id => id !== person);
-    if(alternateIds.length > 1) {
+    if (alternateIds.length > 1) {
         throw new Error('Application expects exactly one alternate identity.');
-    }
-    else if(alternateIds.length < 1) {
+    } else if (alternateIds.length < 1) {
         personAnon = await contactModel.createProfile(true);
-    }
-    else {
+    } else {
         personAnon = alternateIds[0];
     }
 
     console.log('MAIN ID: ', person);
     console.log('ANON ID: ', personAnon);
-    printUint8Array('MAIN pubkey', toByteArray((await instancesModel.instanceKeysForPerson(person)).publicKey));
-    printUint8Array('ANON pubkey', toByteArray((await instancesModel.instanceKeysForPerson(personAnon)).publicKey));
-
+    printUint8Array(
+        'MAIN pubkey',
+        toByteArray((await instancesModel.instanceKeysForPerson(person)).publicKey)
+    );
+    printUint8Array(
+        'ANON pubkey',
+        toByteArray((await instancesModel.instanceKeysForPerson(personAnon)).publicKey)
+    );
 
     // Get the contact objects for the main and anon id
     const mainContactObjects = await contactModel.getContactIdObjects(person);
@@ -164,8 +175,6 @@ async function main(): Promise<void> {
     //fs.writeFileSync(`${argv.i}_main.contact`, await implode(mainContactObjects[0]));
     fs.writeFileSync(`${argv.i}_anon.contact`, await implode(anonContactObjects[0]));
 
-
-
     // Wait here for user input
     await new Promise(resolve => {
         const rl = readline.createInterface({
@@ -179,132 +188,141 @@ async function main(): Promise<void> {
     console.log('Wait Read .contact files');
     const filter = '.contact';
     const files = fs.readdirSync('.');
-    const keyFiles = files.filter(file => file.endsWith(filter)).filter(file => !file.startsWith(`${argv.i}_`));
-    const contactObjects = keyFiles.map(file => fs.readFileSync(file, { encoding: 'utf-8' }));
+    const keyFiles = files
+        .filter(file => file.endsWith(filter))
+        .filter(file => !file.startsWith(`${argv.i}_`));
+    const contactObjects = keyFiles.map(file => fs.readFileSync(file, {encoding: 'utf-8'}));
     console.log(contactObjects);
 
     // Import all contact objs into instance
     console.log('Import contact objects:', contactObjects.length);
     if (contactObjects.length > 0) {
-        await createManyObjectsThroughPurePlan(
-            {
-                module: '@module/explodeObject',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            contactObjects
+        console.log(
+            await createManyObjectsThroughPurePlan(
+                {
+                    module: '@module/explodeObject',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                contactObjects
+            )
         );
     }
 
     // Start the communication module
     console.log('Start the comm module');
+
+    contactModel.on(ContactEvent.UpdatedContact, () => {
+        console.log('ADDED a contact');
+    });
     await new Promise(resolve => {
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
         });
+
         rl.question('Press a key', answer => resolve(answer));
     });
     await communicationModule.init();
 
-//
-// // The websocket that is connected to the console
-// let consoleWs: EncryptedConnection | null = null;
-//
-// // Create commserver listener and register callbacks
-// const connManager = new IncomingConnectionManager();
-// connManager.listenForCommunicationServerConnections(
-//     argv.u,
-//     keyPair.publicKey,
-//     (pubkey: Uint8Array, text: Uint8Array): Uint8Array => {
-//         return encryptWithPublicKey(pubkey, text, keyPair.secretKey);
-//     },
-//     (pubkey: Uint8Array, cypherText: Uint8Array): Uint8Array => {
-//         return decryptWithPublicKey(pubkey, cypherText, keyPair.secretKey);
-//     }
-// );
-// connManager.listenForDirectConnections(
-//     'localhost',
-//     8001,
-//     keyPair.publicKey,
-//     (pubkey: Uint8Array, text: Uint8Array): Uint8Array => {
-//         return encryptWithPublicKey(pubkey, text, keyPair.secretKey);
-//     },
-//     (pubkey: Uint8Array, cypherText: Uint8Array): Uint8Array => {
-//         return decryptWithPublicKey(pubkey, cypherText, keyPair.secretKey);
-//     }
-// );
-//
-// connManager.onConnection = async (
-//     conn: EncryptedConnection,
-//     localPublicKey: Uint8Array,
-//     remotePublicKey: Uint8Array
-// ): Promise<void> => {
-//     try {
-//         console.log(`${wslogId(conn.webSocket)}: Accepted connection.`);
-//
-//         // Release old connection
-//         if (consoleWs) {
-//             consoleWs.webSocket.close(1000, 'New client connected');
-//         }
-//
-//         // Connect the websocket to the console
-//         console.log(
-//             `${wslogId(conn.webSocket)}: Connect websocket to console. You can now type stuff.`
-//         );
-//         consoleWs = conn;
-//         consoleWs.webSocket.addEventListener('error', e => {
-//             console.log(e.message);
-//         });
-//         consoleWs.webSocket.addEventListener('close', e => {
-//             if (e.reason !== 'New client connected') {
-//                 consoleWs = null;
-//             }
-//             console.log(`${wslogId(conn.webSocket)}: Connection closed: ${e.reason}`);
-//         });
-//
-//         // Wait for messages
-//         while (conn.webSocket.readyState === WebSocket.OPEN) {
-//             console.log(await conn.waitForMessage());
-//         }
-//     } catch (e) {
-//         console.log(`${wslogId(conn.webSocket)}: ${e}`);
-//     }
-// };
-//
-// // ######## CONSOLE I/O ########
-//
-// // Setup console for communication with the other side
-// const rl = readline.createInterface({
-//     input: process.stdin,
-//     output: process.stdout
-// });
-//
-// // Stop everything at sigint
-// function sigintHandler() {
-//     connManager.shutdown();
-//     if (consoleWs) {
-//         if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
-//             consoleWs.close();
-//         }
-//     }
-//     rl.close();
-// }
-// rl.on('SIGINT', sigintHandler);
-// process.on('SIGINT', sigintHandler);
-//
-// // Read from stdin
-// for await (const line of rl) {
-//     if (!consoleWs) {
-//         console.log('Error: Not connected to any client.');
-//     } else {
-//         // TODO: check this never error
-//         // @ts-ignore
-//         await consoleWs.sendMessage(line);
-//     }
-// }
+    //
+    // // The websocket that is connected to the console
+    // let consoleWs: EncryptedConnection | null = null;
+    //
+    // // Create commserver listener and register callbacks
+    // const connManager = new IncomingConnectionManager();
+    // connManager.listenForCommunicationServerConnections(
+    //     argv.u,
+    //     keyPair.publicKey,
+    //     (pubkey: Uint8Array, text: Uint8Array): Uint8Array => {
+    //         return encryptWithPublicKey(pubkey, text, keyPair.secretKey);
+    //     },
+    //     (pubkey: Uint8Array, cypherText: Uint8Array): Uint8Array => {
+    //         return decryptWithPublicKey(pubkey, cypherText, keyPair.secretKey);
+    //     }
+    // );
+    // connManager.listenForDirectConnections(
+    //     'localhost',
+    //     8001,
+    //     keyPair.publicKey,
+    //     (pubkey: Uint8Array, text: Uint8Array): Uint8Array => {
+    //         return encryptWithPublicKey(pubkey, text, keyPair.secretKey);
+    //     },
+    //     (pubkey: Uint8Array, cypherText: Uint8Array): Uint8Array => {
+    //         return decryptWithPublicKey(pubkey, cypherText, keyPair.secretKey);
+    //     }
+    // );
+    //
+    // connManager.onConnection = async (
+    //     conn: EncryptedConnection,
+    //     localPublicKey: Uint8Array,
+    //     remotePublicKey: Uint8Array
+    // ): Promise<void> => {
+    //     try {
+    //         console.log(`${wslogId(conn.webSocket)}: Accepted connection.`);
+    //
+    //         // Release old connection
+    //         if (consoleWs) {
+    //             consoleWs.webSocket.close(1000, 'New client connected');
+    //         }
+    //
+    //         // Connect the websocket to the console
+    //         console.log(
+    //             `${wslogId(conn.webSocket)}: Connect websocket to console. You can now type stuff.`
+    //         );
+    //         consoleWs = conn;
+    //         consoleWs.webSocket.addEventListener('error', e => {
+    //             console.log(e.message);
+    //         });
+    //         consoleWs.webSocket.addEventListener('close', e => {
+    //             if (e.reason !== 'New client connected') {
+    //                 consoleWs = null;
+    //             }
+    //             console.log(`${wslogId(conn.webSocket)}: Connection closed: ${e.reason}`);
+    //         });
+    //
+    //         // Wait for messages
+    //         while (conn.webSocket.readyState === WebSocket.OPEN) {
+    //             console.log(await conn.waitForMessage());
+    //         }
+    //     } catch (e) {
+    //         console.log(`${wslogId(conn.webSocket)}: ${e}`);
+    //     }
+    // };
+    //
+    // // ######## CONSOLE I/O ########
+    //
+    // // Setup console for communication with the other side
+    // const rl = readline.createInterface({
+    //     input: process.stdin,
+    //     output: process.stdout
+    // });
+    //
+    // // Stop everything at sigint
+    // function sigintHandler() {
+    //     connManager.shutdown();
+    //     if (consoleWs) {
+    //         if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
+    //             consoleWs.close();
+    //         }
+    //     }
+    //     rl.close();
+    // }
+    // rl.on('SIGINT', sigintHandler);
+    // process.on('SIGINT', sigintHandler);
+    //
+    // // Read from stdin
+    // for await (const line of rl) {
+    //     if (!consoleWs) {
+    //         console.log('Error: Not connected to any client.');
+    //     } else {
+    //         // TODO: check this never error
+    //         // @ts-ignore
+    //         await consoleWs.sendMessage(line);
+    //     }
+    // }
 }
 
 // Execute main function
 main().catch(e => {
-console.log('Error happened: ' + e.toString(), e.stack);
+    console.log('Error happened: ' + e.toString(), e.stack);
 });

@@ -17,6 +17,7 @@ import {Module, Person, VersionedObjectResult, BodyTemperature} from '@OneCoreTy
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
+import InstancesModel from '../../lib/models/InstancesModel';
 
 export const dbKey = './testDb';
 
@@ -31,14 +32,14 @@ export function createRandomBodyTemperature(): BodyTemperature {
  * Import all plan modules
  */
 export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return await Promise.all(
         modules.map(
-            async (module) =>
+            async module =>
                 await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/module-importer',
@@ -71,7 +72,7 @@ export default class Model {
             this.channelManager,
             this.consentFile
         );
-        this.contactModel = new ContactModel(this.oneInstance);
+
         this.settings = new PropertyTreeStore('Settings', '.');
         this.journal = new JournalModel(
             this.wbcDiffs,
@@ -98,7 +99,6 @@ export default class Model {
 
     async init(): Promise<void> {
         await this.channelManager.init();
-        await this.contactModel.init();
         await this.questionnaires.init();
         await this.connections.init();
         await this.access.init();
@@ -106,6 +106,10 @@ export default class Model {
         await this.bodyTemperature.init();
         await this.consentFile.init();
         await this.settings.init();
+        this.instanceModel = new InstancesModel(this.oneInstance.getSecret());
+        await this.instanceModel.init();
+        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000');
+        await this.contactModel.init();
     }
     access: AccessModel;
     channelManager: ChannelManager;
@@ -114,6 +118,7 @@ export default class Model {
     questionnaires: QuestionnaireModel;
     wbcDiffs: WbcDiffModel;
     heartEvents: HeartEventModel;
+    instanceModel: InstancesModel;
     documents: DocumentModel;
     news: NewsModel;
     oneInstance: OneInstanceModel;
