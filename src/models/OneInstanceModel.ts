@@ -17,6 +17,7 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import AccessModel from './AccessModel';
 
 /**
  * Represents the state of authentication.
@@ -41,13 +42,13 @@ export enum LogoutMode {
  * Import all plan modules
  */
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return Promise.all(
-        modules.map((module) =>
+        modules.map(module =>
             createSingleObjectThroughPurePlan(
                 {
                     module: '@one/module-importer',
@@ -91,6 +92,7 @@ export default class OneInstanceModel extends EventEmitter {
     private connectionsModel: ConnectionsModel;
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
+    private accessModel: AccessModel;
 
     // encrypt everything by default
     private encryptStorage: boolean = true;
@@ -105,7 +107,8 @@ export default class OneInstanceModel extends EventEmitter {
     constructor(
         connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
-        consentFileModel: ConsentFileModel
+        consentFileModel: ConsentFileModel,
+        accessModel: AccessModel
     ) {
         super();
         this.password = '';
@@ -118,6 +121,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
+        this.accessModel = accessModel;
     }
 
     authenticationState(): AuthenticationState {
@@ -264,13 +268,20 @@ export default class OneInstanceModel extends EventEmitter {
                 // if a partner has no patients associated, then he enters in a
                 // partner state, where the application is not available until a
                 // patient is being associated with this partner
-                if (
-                    this.currentPatientTypeState.includes('partner') &&
-                    this.connectionsModel.getPartnerDevices().length === 0
-                ) {
-                    this.currentPartnerState = true;
-                    this.emit('partner_state_changed');
-                }
+                this.accessModel
+                    .getAccessGroupPersons('partners')
+                    .then(partners => {
+                        if (
+                            this.currentPatientTypeState.includes('partner') &&
+                            partners.length === 0
+                        ) {
+                            this.currentPartnerState = true;
+                            this.emit('partner_state_changed');
+                        }
+                    })
+                    .catch(e => {
+                        console.error('Error getting access group members:', e);
+                    });
             }
         };
         // The AuthenticationState is needed to be on Authenticated so that
@@ -330,7 +341,7 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {logout} logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
-        await this.connectionsModel.closeAllConnections();
+        await this.connectionsModel.shutdown();
         closeInstance();
 
         const dbInstance = getDbInstance();
@@ -387,8 +398,8 @@ export default class OneInstanceModel extends EventEmitter {
         );
 
         const implodedHashesResult = await Promise.all(
-            hashesToImplode.map(async (hashToImplode) => await implode(hashToImplode))
-        ).then((microdataArray) => {
+            hashesToImplode.map(async hashToImplode => await implode(hashToImplode))
+        ).then(microdataArray => {
             return JSON.stringify(microdataArray);
         });
 
@@ -408,7 +419,7 @@ export default class OneInstanceModel extends EventEmitter {
                 resolve(fr.result);
             });
 
-            fr.addEventListener('error', (err) => {
+            fr.addEventListener('error', err => {
                 reject(err);
             });
 

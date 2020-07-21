@@ -277,6 +277,9 @@ export default class CommunicationModule {
                 await v.activeConnection.close();
             }
         }
+        for (const v of this.unknownPeerMap.values()) {
+            await v.close();
+        }
         await this.incomingConnectionManager.shutdown();
     }
 
