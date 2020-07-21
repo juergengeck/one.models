@@ -1,7 +1,6 @@
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
-import {EventEmitter} from 'events';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
 
@@ -14,7 +13,7 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptedConnection extends EventEmitter implements EncryptedConnectionInterface {
+class EncryptedConnection extends EncryptedConnectionInterface {
     public webSocketPB: WebSocketPromiseBased; // Websocket used for communication
     protected sharedKey: Uint8Array | null = null; // The shared key used for encryption
     private localNonceCounter: number = 0; // The counter for the local nonce
