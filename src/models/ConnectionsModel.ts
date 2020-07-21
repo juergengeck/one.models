@@ -8,10 +8,10 @@ import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createSingleObjectThroughImpurePlan, WriteStorageApi} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {createCrypto, Uint8ArrayToString} from 'one.core/lib/instance-crypto';
+import {createCrypto, CryptoAPI} from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {toByteArray} from 'base64-js';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
 
 export interface PairingInformation {
     authenticationTag: string;
@@ -30,6 +30,9 @@ export default class ConnectionsModel extends EventEmitter {
     private readonly instanceModel: InstancesModel;
     private communicationModule: CommunicationModule;
     private generatedPairingInformation: PairingInformation[];
+    private anonInstanceKeys: Keys;
+    private anonCrypto: CryptoAPI;
+    private meAnon: SHA256IdHash<Person>;
 
     constructor(commServerUrl: string, contactModel: ContactModel, instancesModel: InstancesModel) {
         super();
@@ -44,9 +47,23 @@ export default class ConnectionsModel extends EventEmitter {
         this.generatedPairingInformation = [];
         this.communicationModule.onKnownConnection = this.onKnownConnection;
         this.communicationModule.onUnknownConnection = this.onUnknownConnection;
+        this.anonInstanceKeys = {} as Keys;
+        this.anonCrypto = {} as CryptoAPI;
+        this.meAnon = '' as SHA256IdHash<Person>;
     }
 
-    async init(): Promise<void> {}
+    async init(): Promise<void> {
+        const me = await this.contactModel.myMainIdentity();
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+
+        if (meAlternates.length !== 1) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+        this.meAnon = meAlternates[0];
+        const anonInstance = await this.instanceModel.localInstanceIdForPerson(this.meAnon);
+        this.anonInstanceKeys = await this.instanceModel.instanceKeysForPerson(this.meAnon);
+        this.anonCrypto = createCrypto(anonInstance);
+    }
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
@@ -88,18 +105,7 @@ export default class ConnectionsModel extends EventEmitter {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
         let encryptedConnection: EncryptedConnection | undefined = undefined;
 
-        const me = await this.contactModel.myMainIdentity();
-        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
-
-        if (meAlternates.length !== 1) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
-        const meAnon = meAlternates[0];
-        const anonInstance = await this.instanceModel.localInstanceIdForPerson(meAnon);
-        const anonInstanceKeys = await this.instanceModel.instanceKeysForPerson(meAnon);
-        const anonCrypto = createCrypto(anonInstance);
-
-        const targetKey = toByteArray(anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(this.anonInstanceKeys.publicKey);
         const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
 
         return new Promise((resolve, reject) => {
@@ -121,17 +127,17 @@ export default class ConnectionsModel extends EventEmitter {
                 sourceKey,
                 targetKey,
                 text => {
-                    return anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
 
             if (encryptedConnection) {
                 const authenticationMessage: AuthenticationMessage = {
                     authenticationTag: pairingInformation.authenticationTag,
-                    personIdHash: meAnon
+                    personIdHash: this.meAnon
                 };
 
                 encryptedConnection.sendMessage(JSON.stringify(authenticationMessage));
@@ -170,14 +176,11 @@ export default class ConnectionsModel extends EventEmitter {
         );
     }
 
-    async generatePairingInformation(
-        takeOver: boolean,
-        localPublicKey: Uint8Array
-    ): Promise<PairingInformation> {
+    async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         const pairingInformation = {
             authenticationTag: await createRandomString(),
             publicKeyRemote: await createRandomString(),
-            publicKeyLocal: Uint8ArrayToString(localPublicKey),
+            publicKeyLocal: this.anonInstanceKeys.publicKey,
             takeOver
         };
 
