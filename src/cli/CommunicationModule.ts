@@ -76,20 +76,26 @@ async function main(): Promise<void> {
     communicationModule.onKnownConnection = (
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
+        remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>,
+        remotePersonId: SHA256IdHash<Person>
     ) => {
         console.log('onKnownConnection');
         printUint8Array('localPublicKey', localPublicKey);
         printUint8Array('remotePublicKey', remotePublicKey);
+        console.log(`---- localPersonId: ${localPersonId}`);
+        console.log(`---- remotePersonId: ${remotePersonId}`);
     };
     communicationModule.onUnknownConnection = (
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
+        remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>
     ) => {
         console.log('onUnknownConnection');
         printUint8Array('localPublicKey', localPublicKey);
         printUint8Array('remotePublicKey', remotePublicKey);
+        console.log(`---- localPersonId: ${localPersonId}`);
 
         // Adding contact object
         /*const instanceEndpoint = await createSingleObjectThroughPurePlan(

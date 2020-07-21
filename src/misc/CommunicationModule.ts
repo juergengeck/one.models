@@ -1,20 +1,23 @@
-import {Instance, SHA256IdHash} from '@OneCoreTypes';
+import {Instance, Person, SHA256IdHash} from '@OneCoreTypes';
 import {ContactModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import EncryptedConnection from './EncryptedConnection';
 import {getObject} from 'one.core/lib/storage';
-import {toByteArray} from 'base64-js';
+import {toByteArray, fromByteArray} from 'base64-js';
 import InstancesModel from '../models/InstancesModel';
 import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 
 type ConnectionInfo = {
-    connEst: OutgoingConnectionEstablisher;
+    connEst?: OutgoingConnectionEstablisher;
+    activeConnection: EncryptedConnection | null;
     url: string;
     sourcePublicKey: string;
     targetPublicKey: string;
     sourceInstanceId: SHA256IdHash<Instance>;
     targetInstanceId:  SHA256IdHash<Instance>;
+    sourcePersonId: SHA256IdHash<Person>;
+    targetPersonId:  SHA256IdHash<Person>;
     cryptoApi: ReturnType<typeof createCrypto>;
 };
 
@@ -39,8 +42,8 @@ function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): str
 export default class CommunicationModule {
     private contactModel: ContactModel;
     private instancesModel: InstancesModel;
-    private outgoingMap: Map<string, ConnectionInfo>;   // Map from srcKey + dstKey
-    private establishedConnections: Map<string, EncryptedConnection | null>;
+    private peerMap: Map<string, ConnectionInfo>;   // Map from srcKey + dstKey
+    private myIdsMap: Map<string, SHA256IdHash<Person>>;
     private incomingConnectionManager: IncomingConnectionManager;
     private commServer: string;
 
@@ -49,6 +52,7 @@ export default class CommunicationModule {
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ) => void)
         | null = null;
@@ -58,6 +62,8 @@ export default class CommunicationModule {
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>,
+        remotePersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ) => void)
         | null = null;
@@ -70,8 +76,8 @@ export default class CommunicationModule {
     constructor(commServer: string, contactModel: ContactModel, instancesModel: InstancesModel) {
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
-        this.outgoingMap = new Map<string, ConnectionInfo>();
-        this.establishedConnections = new Map<string, EncryptedConnection | null>();
+        this.peerMap = new Map<string, ConnectionInfo>();   // List with endpoints we want to connect to
+        this.myIdsMap = new Map<string, SHA256IdHash<Person>>();
         this.incomingConnectionManager = new IncomingConnectionManager();
         this.commServer = commServer;
 
@@ -90,8 +96,31 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     public async init(): Promise<void> {
+        await this.setupPeerMap();
+        this.instancesModel.on('created_instance', (instance) => {
+            this.setupIncomingConnectionsForInstance(instance);
+            this.updateMyIdsMap().catch(e => console.log(e));
+        });
+        await this.updateMyIdsMap();
         await this.setupOutgoingConnections();
         await this.setupIncomingConnections();
+    }
+
+    /**
+     * Update my own ids for unknown incoming connections.
+     *
+     * @returns {Promise<void>}
+     */
+    private async updateMyIdsMap(): Promise<void> {
+        const me = await this.contactModel.myMainIdentity();
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+        const meAll = meAlternates.concat([me]);
+
+        // retrieve public keys and store them in the map
+        await Promise.all(meAll.map(async id => {
+            const keys = await this.instancesModel.instanceKeysForPerson(id);
+            this.myIdsMap.set(keys.publicKey, id);
+        }));
     }
 
     /**
@@ -100,8 +129,13 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        for (const v of this.outgoingMap.values()) {
-            await v.connEst.stop();
+        for (const v of this.peerMap.values()) {
+            if (v.connEst) {
+                await v.connEst.stop();
+            }
+            if (v.activeConnection) {
+                await v.activeConnection.close();
+            }
         }
         await this.incomingConnectionManager.shutdown();
     }
@@ -123,49 +157,58 @@ export default class CommunicationModule {
         const mapKey = genMapKey(localPublicKey, remotePublicKey);
 
         // Check whether this is an unknown connection (no entry in the map)
-        const mapEntry = this.establishedConnections.get(mapKey);
-        console.log(mapKey, '->', mapEntry);
-        for (const [k, v] of this.establishedConnections.entries()) {
-            console.log(k, v === null ? 'null' : 'obj');
-        }
-        if(mapEntry === undefined) {
+        const endpoint = this.peerMap.get(mapKey);
+        if(endpoint === undefined) {
+            const localId = this.myIdsMap.get(fromByteArray(localPublicKey));
+            if (!localId) {
+                conn.close('Local public key is unknown');
+                return;
+            }
+
             if(this.onUnknownConnection) {
-                this.onUnknownConnection(conn, localPublicKey, remotePublicKey, initiatedLocally);
+                this.onUnknownConnection(conn, localPublicKey, remotePublicKey, localId, initiatedLocally);
+            }
+            else {
+                conn.close('no one listens on unknown connections.');
             }
             return;
         }
 
         // Check whether this is a known connection (null in the map)
-        if(mapEntry === null) {
-            // Stop the outgoging establishment
-            const endpoint = this.outgoingMap.get(mapKey);
-            if(!endpoint) {
-                conn.close('Internal error!')
-                return;
-            }
+        if(endpoint.activeConnection === null) {
 
             // Stop the outgoing connection attempts
-            endpoint.connEst.stop();
+            if (endpoint.connEst) {
+                endpoint.connEst.stop().catch(e => console.log(e));
+            }
 
             // Handle the close events
             conn.webSocket.addEventListener('close', () => {
                 // Restart the connection attempts
-                endpoint.connEst.start(
-                    endpoint.url,
-                    localPublicKey,
-                    remotePublicKey,
-                    text => {
-                        return endpoint.cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
-                    },
-                    cypherText => {
-                        return endpoint.cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypherText);
-                    }
-                );
+                if (endpoint.connEst) {
+                    endpoint.connEst.start(
+                        endpoint.url,
+                        localPublicKey,
+                        remotePublicKey,
+                        text => {
+                            return endpoint.cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+                        },
+                        cypherText => {
+                            return endpoint.cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypherText);
+                        }
+                    );
+                }
+
+                endpoint.activeConnection = null;
             });
+
+            // Set the current connectino as active connection
+            endpoint.activeConnection = conn;
+
+            // Notify the outside
             if(this.onKnownConnection) {
-                this.onKnownConnection(conn, localPublicKey, remotePublicKey, initiatedLocally);
+                this.onKnownConnection(conn, localPublicKey, remotePublicKey, endpoint.sourcePersonId, endpoint.targetPersonId, initiatedLocally);
             }
-            this.establishedConnections.set(mapKey, conn);
             return;
         }
 
@@ -178,6 +221,71 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     private async setupOutgoingConnections(): Promise<void> {
+
+        // Establish connections to all outgoing endpoints
+        for (const endpoint of this.peerMap.values()) {
+            // Create instance of connection establisher
+            if(!endpoint.connEst) {
+                endpoint.connEst = new OutgoingConnectionEstablisher();
+            }
+
+            // Establish connection to the outside
+            endpoint.connEst.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
+            }
+
+            // Start the connection establisher
+            const sourceKey = toByteArray(endpoint.sourcePublicKey);
+            const targetKey = toByteArray(endpoint.targetPublicKey);
+            endpoint.connEst.start(
+                endpoint.url,
+                sourceKey,
+                targetKey,
+                text => {
+                    return endpoint.cryptoApi.encryptWithInstancePublicKey(targetKey, text);
+                },
+                cypherText => {
+                    return endpoint.cryptoApi.decryptWithInstancePublicKey(targetKey, cypherText);
+                }
+            );
+        }
+    }
+
+    /**
+     * Sets up everything for incoming connections.
+     *
+     * @returns {Promise<void>}
+     */
+    private async setupIncomingConnections(): Promise<void> {
+        const localInstances = await this.instancesModel.localInstancesIds();
+        for (const instance of localInstances) {
+            await this.setupIncomingConnectionsForInstance(instance);
+        }
+    }
+
+    private async setupIncomingConnectionsForInstance(instance: SHA256IdHash<Instance>): Promise<void> {
+        const keys = await this.instancesModel.instanceKeys(instance);
+        const cryptoApi = createCrypto(instance);
+        await this.incomingConnectionManager.listenForCommunicationServerConnections(
+            this.commServer,
+            toByteArray(keys.publicKey),
+            (key, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(key, text);
+            },
+            (key, cypherText) => {
+                return cryptoApi.decryptWithInstancePublicKey(key, cypherText);
+            }
+        );
+    }
+
+    /**
+     * Set up a map with peers that we want to connect to. (this.peerMap)
+     */
+    private async setupPeerMap(): Promise<void> {
         // Extract my identities
         const me = await this.contactModel.myMainIdentity();
         const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
@@ -200,18 +308,20 @@ export default class CommunicationModule {
 
         // Iterate over all personal contact objects and connect with all of them (real ID)
         const myEndpoints = await this.contactModel.findAllOneInstanceEndpoints(true, true);
-        console.log('MY ENDPOINTS:', myEndpoints.length);
         const myOutgoingConnInfo = (
             await Promise.all(
                 myEndpoints.map(async endpoint => {
                     const instanceKeys = await getObject(endpoint.instanceKeys);
                     return {
                         connEst: new OutgoingConnectionEstablisher(),
+                        activeConnection: null,
                         url: endpoint.url,
                         sourcePublicKey: mainInstanceKeys.publicKey,
                         targetPublicKey: instanceKeys.publicKey,
                         sourceInstanceId: mainInstance,
                         targetInstanceId: endpoint.instanceId,
+                        sourcePersonId: me,
+                        targetPersonId: endpoint.personId,
                         cryptoApi: mainCrypto
                     };
                 })
@@ -220,79 +330,32 @@ export default class CommunicationModule {
 
         // Iterate over all contacts and connect with them (anonymous IDs)
         const otherEndpoints = await this.contactModel.findAllOneInstanceEndpoints(false);
-        console.log('OTHER ENDPOINTS:', otherEndpoints.length, otherEndpoints);
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
                 return {
                     connEst: new OutgoingConnectionEstablisher(),
+                    activeConnection: null,
                     url: endpoint.url,
                     sourcePublicKey: anonInstanceKeys.publicKey,
                     targetPublicKey: instanceKeys.publicKey,
                     sourceInstanceId: anonInstance,
                     targetInstanceId: endpoint.instanceId,
+                    sourcePersonId: meAnon,
+                    targetPersonId: endpoint.personId,
                     cryptoApi: anonCrypto
                 };
             })
         );
-        console.log('MYCONN:' + myOutgoingConnInfo);
-        console.log('OTHERCONN:' + otherOutgoingConnInfo);
 
-        // Establish connections to all outgoing endpoints
+        // Fill all endpoints into this.peerMap and this.establishedConnections
         for (const endpoint of myOutgoingConnInfo.concat(otherOutgoingConnInfo)) {
-            // Establish connection to the outside
-            endpoint.connEst.onConnection = (
-                conn: EncryptedConnection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array
-            ) => {
-                this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
-            }
             const sourceKey = toByteArray(endpoint.sourcePublicKey);
             const targetKey = toByteArray(endpoint.targetPublicKey);
-            endpoint.connEst.start(
-                endpoint.url,
-                sourceKey,
-                targetKey,
-                text => {
-                    return endpoint.cryptoApi.encryptWithInstancePublicKey(targetKey, text);
-                },
-                cypherText => {
-                    return endpoint.cryptoApi.decryptWithInstancePublicKey(targetKey, cypherText);
-                }
-            );
 
-            // Append to outgoing list
+            // Append to peer map
             const mapKey = genMapKey(sourceKey, targetKey);
-            this.outgoingMap.set(mapKey, endpoint);
-
-            // Also fill the established connections part
-            // TODO: Should be somewhere else, because the replicant won't open outgoing connections!
-            this.establishedConnections.set(mapKey, null);
+            this.peerMap.set(mapKey, endpoint);
         }
     }
-
-    /**
-     * Sets up everything for incoming connections.
-     *
-     * @returns {Promise<void>}
-     */
-    private async setupIncomingConnections(): Promise<void> {
-        const localInstances = await this.instancesModel.localInstancesIds();
-        for (const instance of localInstances) {
-            const keys = await this.instancesModel.instanceKeys(instance);
-            const cryptoApi = createCrypto(instance);
-            await this.incomingConnectionManager.listenForCommunicationServerConnections(
-                this.commServer,
-                toByteArray(keys.publicKey),
-                (key, text) => {
-                    return cryptoApi.encryptWithInstancePublicKey(key, text);
-                },
-                (key, cypherText) => {
-                    return cryptoApi.decryptWithInstancePublicKey(key, cypherText);
-                }
-            );
-        }
-    }
-
 }

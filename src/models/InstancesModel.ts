@@ -13,11 +13,12 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from "one.core/lib/system/crypto-helpers";
 import {serializeWithType} from "one.core/lib/util/promise";
 import {authenticateOwner, loadInstanceKeys} from "one.core/lib/instance-crypto";
+import {EventEmitter} from 'events';
 
 /**
  * This model manages all of the instance objects of everybody.
  */
-class InstancesModel {
+class InstancesModel extends EventEmitter {
     private secret: string = '';
 
     /**
@@ -205,7 +206,9 @@ class InstancesModel {
      */
     public async createLocalInstance(owner: SHA256IdHash<Person>): Promise<SHA256IdHash<Instance>> {
         const person = await getObjectByIdHash(owner);
-        return await this.createLocalInstanceByEMail(person.obj.email);
+        const instance = await this.createLocalInstanceByEMail(person.obj.email);
+        this.emit('instance_created', instance);
+        return instance;
     }
 
     /**
