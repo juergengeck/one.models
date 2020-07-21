@@ -547,6 +547,14 @@ export default class ContactModel extends EventEmitter {
 
                 // Add the profile to the someone object
                 await this.registerNewSelfProfile(profile);
+
+                const contactObjects = (await Promise.all(
+                    profile.obj.contactObjects.map(async (contact: SHA256Hash<Contact>) => {
+                        return await getObject(contact);
+                    })
+                ));
+
+                this.emit(ContactEvent.NewCommunicationEndpointArrived, contactObjects[0].communicationEndpoints);
                 return profile;
             });
 
