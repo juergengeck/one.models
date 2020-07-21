@@ -53,6 +53,8 @@ export default class ConnectionsModel extends EventEmitter {
     }
 
     async init(): Promise<void> {
+        await this.communicationModule.init();
+
         const me = await this.contactModel.myMainIdentity();
         const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
 
@@ -63,9 +65,6 @@ export default class ConnectionsModel extends EventEmitter {
         const anonInstance = await this.instanceModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instanceModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
-    }
-    async init(): Promise<void> {
-        await this.communicationModule.init();
     }
 
     async shutdown(): Promise<void> {
