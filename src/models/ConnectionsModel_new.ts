@@ -1,15 +1,15 @@
 import EventEmitter from 'events';
-import CommunicationModule from '../../lib/misc/CommunicationModule';
-import ContactModel from '../../lib/models/ContactModel';
-import InstancesModel from '../../lib/models/InstancesModel';
-import EncryptedConnection from '../../lib/misc/EncryptedConnection';
+import CommunicationModule from '../misc/CommunicationModule';
+import ContactModel from './ContactModel';
+import InstancesModel from './InstancesModel';
+import EncryptedConnection from '../misc/EncryptedConnection';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createSingleObjectThroughImpurePlan, WriteStorageApi} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {createCrypto, Uint8ArrayToString} from 'one.core/lib/instance-crypto';
-import OutgoingConnectionEstablisher from '../../lib/misc/OutgoingConnectionEstablisher';
+import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {toByteArray} from 'base64-js';
 import {Person, SHA256IdHash} from '@OneCoreTypes';
 
@@ -86,6 +86,7 @@ export class ConnectionsModel extends EventEmitter {
 
         const me = await this.contactModel.myMainIdentity();
         const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+
         if (meAlternates.length !== 1) {
             throw new Error('This applications needs exactly one alternate identity!');
         }
@@ -97,7 +98,7 @@ export class ConnectionsModel extends EventEmitter {
         const targetKey = toByteArray(anonInstanceKeys.publicKey);
         const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
 
-        await new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             oce.onConnection = (
                 conn: EncryptedConnection,
                 localPublicKey: Uint8Array,
