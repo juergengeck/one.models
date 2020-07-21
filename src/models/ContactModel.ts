@@ -45,7 +45,8 @@ import InstancesModel from './InstancesModel';
  */
 export enum ContactEvent {
     UpdatedContactList = 'UPDATED_CONTACT_LIST',
-    UpdatedContact = 'UPDATED_CONTACT'
+    UpdatedContact = 'UPDATED_CONTACT',
+    NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED'
 }
 
 /**
@@ -307,55 +308,48 @@ export default class ContactModel extends EventEmitter {
      * @param {boolean} useAsMainContact
      * @returns {Promise<void>}
      */
-    private async addNewContactObject(
-        contact: UnversionedObjectResult<Contact>,
-        useAsMainContact: boolean
+    private async addNewContactObjectAsMain(
+        contact: UnversionedObjectResult<Contact>
     ): Promise<void> {
         /** first, we need to get the personId from the contact **/
         const personId = contact.obj.personId;
         const personEmail = (await getObjectByIdHash(personId)).obj.email;
 
-        let profile: VersionedObjectResult<Profile>;
-
         /** see if the profile does exist **/
         try {
-            profile = await serializeWithType('ContactApp', async () => {
+            const profile = await serializeWithType('Contacts', async () => {
                 return await getObjectByIdObj({$type$: 'Profile', personId: personId});
             });
-        } catch (e) {
-            /** otherwise create a new profile and register it with serialization **/
-            console.log('here?');
-            profile = await this.serializeProfileCreatingByPersonEmail(personEmail, false);
-        }
-        const existingContact = profile.obj.contactObjects.find(
-            (contactHash: SHA256Hash<Contact>) => contactHash === contact.hash
-        );
-
-        if (existingContact && !useAsMainContact) {
-            return;
-        }
-
-        if (useAsMainContact) {
-            profile.obj.mainContact = contact.hash;
-        }
-
-        if (existingContact) {
-            return;
-        }
-
-        profile.obj.contactObjects.push(contact.hash);
-        /** update the profile **/
-        await serializeWithType(personEmail, async () => {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                profile.obj
+            const existingContact = profile.obj.contactObjects.find(
+                (contactHash: SHA256Hash<Contact>) => contactHash === contact.hash
             );
-        });
+            if (existingContact === undefined) {
+                profile.obj.contactObjects.push(contact.hash);
+            }
 
-        this.emit(ContactEvent.UpdatedContact, profile);
+            profile.obj.mainContact = contact.hash;
+
+            /** update the profile **/
+            await serializeWithType(personEmail, async () => {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    profile.obj
+                );
+            });
+
+            this.emit(ContactEvent.UpdatedContact, profile);
+            if (existingContact === undefined) {
+                this.emit(
+                    ContactEvent.NewCommunicationEndpointArrived,
+                    contact.obj.communicationEndpoints
+                );
+            }
+        } catch (e) {
+            throw new Error('The profile does not exists');
+        }
     }
 
     /**
@@ -663,6 +657,10 @@ export default class ContactModel extends EventEmitter {
                         );
                     });
                     this.emit(ContactEvent.UpdatedContact, profile);
+                    this.emit(
+                        ContactEvent.NewCommunicationEndpointArrived,
+                        caughtObject.obj.communicationEndpoints
+                    );
                 });
             }
         });
