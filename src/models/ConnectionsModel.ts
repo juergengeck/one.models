@@ -46,7 +46,9 @@ export default class ConnectionsModel extends EventEmitter {
         this.communicationModule.onUnknownConnection = this.onUnknownConnection;
     }
 
-    async init(): Promise<void> {}
+    async init(): Promise<void> {
+        await this.communicationModule.init();
+    }
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
