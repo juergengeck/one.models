@@ -308,7 +308,7 @@ export default class ContactModel extends EventEmitter {
      * @param {boolean} useAsMainContact
      * @returns {Promise<void>}
      */
-    private async addNewContactObjectAsMain(
+    public async addNewContactObjectAsMain(
         contact: UnversionedObjectResult<Contact>
     ): Promise<void> {
         /** first, we need to get the personId from the contact **/

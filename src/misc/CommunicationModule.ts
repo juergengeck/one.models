@@ -76,15 +76,20 @@ export default class CommunicationModule {
               initiatedLocally: boolean
           ) => void)
         | null = null;
+    private listenForOutgoingConnections: boolean;
 
     /**
      * Create instance.
      *
+     * @param commServer
      * @param {ContactModel} contactModel
+     * @param instancesModel
+     * @param listenForOutgoingConnections
      */
-    constructor(commServer: string, contactModel: ContactModel, instancesModel: InstancesModel) {
+    constructor(commServer: string, contactModel: ContactModel, instancesModel: InstancesModel, listenForOutgoingConnections: boolean = true) {
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
+        this.listenForOutgoingConnections = listenForOutgoingConnections;
         this.peerMap = new Map<string, ConnectionInfo>(); // List with endpoints we want to connect to
         this.myIdsMap = new Map<string, SHA256IdHash<Person>>();
         this.incomingConnectionManager = new IncomingConnectionManager();
@@ -169,7 +174,11 @@ export default class CommunicationModule {
                 )
             );
         });
-        await this.setupOutgoingConnections();
+
+        if(this.listenForOutgoingConnections) {
+            await this.setupOutgoingConnections();
+        }
+
         await this.setupIncomingConnections();
     }
 
@@ -215,6 +224,7 @@ export default class CommunicationModule {
      * @param {EncryptedConnection} conn
      * @param {Uint8Array} localPublicKey
      * @param {Uint8Array} remotePublicKey
+     * @param initiatedLocally
      */
     private acceptConnection(
         conn: EncryptedConnection,
@@ -242,6 +252,7 @@ export default class CommunicationModule {
                     initiatedLocally
                 );
 
+                // @todo
                 // register this connection on an internal list, so that when a new contact object arrives we can take this
                 // connection as activeConnection, so that we don't establish a second connection
             } else {
