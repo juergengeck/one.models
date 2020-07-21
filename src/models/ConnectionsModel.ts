@@ -64,6 +64,9 @@ export default class ConnectionsModel extends EventEmitter {
         this.anonInstanceKeys = await this.instanceModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
     }
+    async init(): Promise<void> {
+        await this.communicationModule.init();
+    }
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
