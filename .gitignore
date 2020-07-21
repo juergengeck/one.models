@@ -2,6 +2,8 @@
 # Project specific
 #########
 # Generated code
+*.contact
+data/
 public.key
 src/generated
 lib/
