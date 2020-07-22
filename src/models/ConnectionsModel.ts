@@ -105,7 +105,6 @@ export default class ConnectionsModel extends EventEmitter {
 
     async connectUsingPairingInformation(pairingInformation: PairingInformation): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
-        let encryptedConnection: EncryptedConnection | undefined = undefined;
 
         const targetKey = toByteArray(this.anonInstanceKeys.publicKey);
         const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
@@ -116,7 +115,13 @@ export default class ConnectionsModel extends EventEmitter {
                 localPublicKey: Uint8Array,
                 remotePublicKey: Uint8Array
             ) => {
-                encryptedConnection = conn;
+                const authenticationMessage: AuthenticationMessage = {
+                    authenticationTag: pairingInformation.authenticationTag,
+                    personIdHash: this.meAnon
+                };
+
+                conn.sendMessage(JSON.stringify(authenticationMessage));
+
                 resolve();
             };
             setTimeout(() => {
@@ -135,15 +140,6 @@ export default class ConnectionsModel extends EventEmitter {
                     return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
-
-            if (encryptedConnection) {
-                const authenticationMessage: AuthenticationMessage = {
-                    authenticationTag: pairingInformation.authenticationTag,
-                    personIdHash: this.meAnon
-                };
-
-                encryptedConnection.sendMessage(JSON.stringify(authenticationMessage));
-            }
         });
     }
 

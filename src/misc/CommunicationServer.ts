@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';

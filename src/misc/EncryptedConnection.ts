@@ -1,5 +1,4 @@
 import WebSocketPromiseBased from './WebSocketPromiseBased';
-import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';

@@ -1,6 +1,5 @@
 import CommunicationServerListener from './CommunicationServerListener';
 import WebSocketListener from './WebSocketListener';
-import WebSocket from 'ws';
 import tweetnacl from 'tweetnacl';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';

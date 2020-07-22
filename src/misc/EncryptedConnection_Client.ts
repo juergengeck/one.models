@@ -1,8 +1,8 @@
-import WebSocket from 'ws';
 import CommunicationInitiationProtocol, {isServerMessage} from './CommunicationInitiationProtocol';
 import {fromByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
+import {createWebSocket} from "one.core/lib/system/websocket";
 
 /**
  * This class implements the 'client' side of an encrypted communication.
@@ -21,7 +21,7 @@ class EncryptedConnection_Client extends EncryptedConnection {
      * @param {string} url - The url to which to open the connection.
      */
     constructor(url: string) {
-        super(new WebSocket(url), false);
+        super(createWebSocket(url), false);
     }
 
     // ######## Sending messages for encryption setup ########

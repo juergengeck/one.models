@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import CommunicationInitiationProtocol, {isClientMessage} from './CommunicationInitiationProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';

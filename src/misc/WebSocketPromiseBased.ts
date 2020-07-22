@@ -1,8 +1,7 @@
-import WebSocket from 'ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
-import {WebSocketPromiseBasedInterface} from "one.core/lib/websocket-promisifier";
+import {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -14,10 +13,11 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased extends EventEmitter implements WebSocketPromiseBasedInterface {
+export default class WebSocketPromiseBased extends EventEmitter
+    implements WebSocketPromiseBasedInterface {
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
-    private dataQueue: WebSocket.MessageEvent[];
+    private dataQueue: MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;
     private maxDataQueueSize: number;
@@ -203,13 +203,7 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
                 return;
             }
 
-            this.webSocket.send(data, (err: Error | undefined) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(err);
-                }
-            });
+            this.webSocket.send(data);
         });
     }
 
@@ -305,7 +299,7 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
      *                                                 1) the timeout expired
      *                                                 2) the connection was closed
      */
-    public async waitForMessage(timeout: number = -2): Promise<WebSocket.MessageEvent['data']> {
+    public async waitForMessage(timeout: number = -2): Promise<MessageEvent['data']> {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: waitForMessage(${timeout})`);
         if (timeout === -2) {
             timeout = this.defaultTimeout;
@@ -395,7 +389,7 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
      *
      * @param messageEvent
      */
-    private handleOpen(openEvent: WebSocket.OpenEvent) {
+    private handleOpen() {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleOpen()`);
 
         // Wakeup the reader in waitForOpen if somebody waits
@@ -411,7 +405,7 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
      *
      * @param messageEvent
      */
-    private handleMessage(messageEvent: WebSocket.MessageEvent) {
+    private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
 
         // Notify listeners for a new message
@@ -442,7 +436,7 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
      *
      * @param closeEvent
      */
-    private handleClose(closeEvent: WebSocket.CloseEvent) {
+    private handleClose(closeEvent: CloseEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleClose()`);
         if (this.dataAvailableFn) {
             this.dataAvailableFn(new Error('Connection was closed: ' + closeEvent.reason));
@@ -457,15 +451,17 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
      *
      * It notifies any waiting reader.
      *
-     * @param closeEvent
+     * @param {Event} errorEvent
      */
-    private handleError(errorEvent: WebSocket.ErrorEvent) {
+    private handleError(errorEvent: Event) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
+        const message = (errorEvent as ErrorEvent).message;
+
         if (this.dataAvailableFn) {
-            this.dataAvailableFn(errorEvent.error);
+            this.dataAvailableFn(new Error(message));
         }
         if (this.socketOpenFn) {
-            this.socketOpenFn(errorEvent.error);
+            this.socketOpenFn(new Error(message));
         }
     }
 }

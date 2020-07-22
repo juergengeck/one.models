@@ -4,7 +4,6 @@ import * as Logger from 'one.core/lib/logger';
 import EncryptedConnection_Client from '../misc/EncryptedConnection_Client';
 import fs from 'fs';
 import * as readline from 'readline';
-import WebSocket from 'ws';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import EncryptedConnection from '../misc/EncryptedConnection';
 

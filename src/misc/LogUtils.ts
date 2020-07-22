@@ -1,5 +1,3 @@
-import WebSocket from 'ws';
-
 /**
  * Creates a string that identifies the websocket.
  *
