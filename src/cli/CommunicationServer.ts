@@ -29,7 +29,7 @@ async function main(): Promise<void> {
             .boolean('l').argv;
 
     if (argv.l) {
-        Logger.start({types: ['log']});
+        Logger.start({types: ['log', 'debug']});
     }
 
     const commServer = new CommunicationServer();

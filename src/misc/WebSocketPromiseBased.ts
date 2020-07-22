@@ -204,13 +204,8 @@ export default class WebSocketPromiseBased extends EventEmitter
                 return;
             }
 
-            this.webSocket.send(data, (err: Error | undefined) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(err);
-                }
-            });
+            this.webSocket.send(data);
+            resolve();
         });
     }
 
