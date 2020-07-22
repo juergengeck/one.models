@@ -1,3 +1,5 @@
+import WebSocket from 'isomorphic-ws';
+
 /**
  * Creates a string that identifies the websocket.
  *

@@ -1,3 +1,4 @@
+import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
@@ -17,7 +18,7 @@ export default class WebSocketPromiseBased extends EventEmitter
     implements WebSocketPromiseBasedInterface {
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
-    private dataQueue: MessageEvent[];
+    private dataQueue: WebSocket.MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;
     private maxDataQueueSize: number;
@@ -203,7 +204,13 @@ export default class WebSocketPromiseBased extends EventEmitter
                 return;
             }
 
-            this.webSocket.send(data);
+            this.webSocket.send(data, (err: Error | undefined) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(err);
+                }
+            });
         });
     }
 
@@ -299,7 +306,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *                                                 1) the timeout expired
      *                                                 2) the connection was closed
      */
-    public async waitForMessage(timeout: number = -2): Promise<MessageEvent['data']> {
+    public async waitForMessage(timeout: number = -2): Promise<WebSocket.MessageEvent['data']> {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: waitForMessage(${timeout})`);
         if (timeout === -2) {
             timeout = this.defaultTimeout;
@@ -389,7 +396,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * @param messageEvent
      */
-    private handleOpen() {
+    private handleOpen(openEvent: WebSocket.OpenEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleOpen()`);
 
         // Wakeup the reader in waitForOpen if somebody waits
@@ -405,7 +412,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * @param messageEvent
      */
-    private handleMessage(messageEvent: MessageEvent) {
+    private handleMessage(messageEvent: WebSocket.MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
 
         // Notify listeners for a new message
@@ -436,7 +443,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * @param closeEvent
      */
-    private handleClose(closeEvent: CloseEvent) {
+    private handleClose(closeEvent: WebSocket.CloseEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleClose()`);
         if (this.dataAvailableFn) {
             this.dataAvailableFn(new Error('Connection was closed: ' + closeEvent.reason));
@@ -451,17 +458,15 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * It notifies any waiting reader.
      *
-     * @param {Event} errorEvent
+     * @param closeEvent
      */
-    private handleError(errorEvent: Event) {
+    private handleError(errorEvent: WebSocket.ErrorEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
-        const message = (errorEvent as ErrorEvent).message;
-
         if (this.dataAvailableFn) {
-            this.dataAvailableFn(new Error(message));
+            this.dataAvailableFn(errorEvent.error);
         }
         if (this.socketOpenFn) {
-            this.socketOpenFn(new Error(message));
+            this.socketOpenFn(errorEvent.error);
         }
     }
 }

@@ -1,4 +1,4 @@
-import {Server} from 'ws';
+import WebSocket from 'isomorphic-ws';
 
 /**
  * This is a wrapper for the web socket server to use it with async / await instead of having to
@@ -9,7 +9,7 @@ import {Server} from 'ws';
  * of those.
  */
 export default class WebSocketServerPromiseBased {
-    public webSocketServer: Server | null; // The web socket server instance
+    public webSocketServer: WebSocket.Server | null; // The web socket server instance
     private acceptConnectionFn: (() => void) | null; // The function that is used to resolve the promise in waitForConnection call.
     private lastConnection: WebSocket | null; // The last accepted connection that is pending collection (by a waitForConnection call).
     private deregisterHandlers: () => void; // function that deregisters all event handler registered on the websocket server.
@@ -18,7 +18,7 @@ export default class WebSocketServerPromiseBased {
      * Constructs the convenience wrapper around the passed websoket server instance.
      * @param {WebSocket.Server} webSocketServer - The instance to wrap.
      */
-    public constructor(webSocketServer: Server) {
+    public constructor(webSocketServer: WebSocket.Server) {
         this.acceptConnectionFn = null;
         this.lastConnection = null;
         this.webSocketServer = webSocketServer;
@@ -38,7 +38,7 @@ export default class WebSocketServerPromiseBased {
      *
      * @returns {WebSocket.Server}
      */
-    public releaseWebSocketServer(): Server {
+    public releaseWebSocketServer(): WebSocket.Server {
         if (!this.webSocketServer) {
             throw Error('No websocket is bound to this instance.');
         }

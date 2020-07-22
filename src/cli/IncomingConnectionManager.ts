@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import WebSocket from 'isomorphic-ws';
 import * as Logger from 'one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';
@@ -98,7 +99,7 @@ async function main(): Promise<void> {
             );
             consoleWs = conn;
             consoleWs.webSocket.addEventListener('error', e => {
-                console.log((e as ErrorEvent).message);
+                console.log(e.message);
             });
             consoleWs.webSocket.addEventListener('close', e => {
                 if (e.reason !== 'New client connected') {
