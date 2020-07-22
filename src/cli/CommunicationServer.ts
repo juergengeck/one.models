@@ -26,10 +26,17 @@ async function main(): Promise<void> {
 
             // Logger
             .describe('l', 'Enable logger')
-            .boolean('l').argv;
+            .boolean('l')
+
+            // Logger
+            .describe('d', 'Enable logger (all)')
+            .boolean('d').argv;
 
     if (argv.l) {
         Logger.start({types: ['log']});
+    }
+    if (argv.d) {
+        Logger.start();
     }
 
     const commServer = new CommunicationServer();

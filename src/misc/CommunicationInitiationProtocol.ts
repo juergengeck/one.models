@@ -29,6 +29,15 @@ declare module CommunicationInitiationProtocol {
         command: 'communication_ready';
     };
 
+    /**
+     * Message for exchanging person information like person id and keys.
+     */
+    export type PersonInformationMessage = {
+        command: 'person_information';
+        personId: string,
+        personPublicKey: string
+    }
+
     // ######## Message to Role (Client / Server) Mapping ########
 
     /**
@@ -36,6 +45,7 @@ declare module CommunicationInitiationProtocol {
      */
     export interface ClientMessages {
         communication_request: CommunicationRequestMessage;
+        person_information: PersonInformationMessage;
     }
 
     /**
@@ -45,8 +55,16 @@ declare module CommunicationInitiationProtocol {
         communication_ready: CommunicationReadyMessage;
     }
 
+    /**
+     * Those messages are sent by both peering partners (in a later stage both sides act as the same)
+     */
+    export interface PeerMessages {
+        person_information: PersonInformationMessage;
+    }
+
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
     export type ServerMessageTypes = ServerMessages[keyof ServerMessages];
+    export type PeerMessageTypes = PeerMessages[keyof PeerMessages];
 }
 
 /**
@@ -87,6 +105,27 @@ export function isServerMessage<T extends keyof CommunicationInitiationProtocol.
 
     if (command === 'communication_ready') {
         return true;
+    }
+    return false;
+}
+
+/**
+ * Check whether the argument is a peer message of specified type / command.
+ *
+ * @param arg - The argument to check
+ * @param {T} command - The command / type of the message to check against.
+ * @returns {arg is EncryptionSetupProtocol.ServerMessages[T]}
+ */
+export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
+    arg: any,
+    command: T
+): arg is CommunicationInitiationProtocol.PeerMessages[T] {
+    if (arg.command !== command) {
+        return false;
+    }
+
+    if (command === 'person_information') {
+        return arg.personId && arg.personPublicKey; // Make this better by checking for length of person id and it being a hash
     }
     return false;
 }
