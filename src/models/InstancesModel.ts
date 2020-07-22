@@ -10,9 +10,9 @@ import {
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createRandomString} from "one.core/lib/system/crypto-helpers";
-import {serializeWithType} from "one.core/lib/util/promise";
-import {authenticateOwner, loadInstanceKeys} from "one.core/lib/instance-crypto";
+import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {serializeWithType} from 'one.core/lib/util/promise';
+import {authenticateOwner, loadInstanceKeys} from 'one.core/lib/instance-crypto';
 import {EventEmitter} from 'events';
 
 /**
@@ -54,11 +54,13 @@ class InstancesModel extends EventEmitter {
         }
 
         // Authenticate owner and local instance for private keys
-        await Promise.all((await this.localInstancesIds(true)).map(async instanceId => {
-            const instance = await getObjectByIdHash(instanceId);
-            await authenticateOwner(this.secret, instance.obj.owner, instanceId);
-            await loadInstanceKeys(this.secret, instanceId);
-        }));
+        await Promise.all(
+            (await this.localInstancesIds(true)).map(async instanceId => {
+                const instance = await getObjectByIdHash(instanceId);
+                await authenticateOwner(this.secret, instance.obj.owner, instanceId);
+                await loadInstanceKeys(this.secret, instanceId);
+            })
+        );
     }
 
     /**
@@ -138,7 +140,7 @@ class InstancesModel extends EventEmitter {
     public async localInstanceForPerson(personId: SHA256IdHash<Person>): Promise<Instance> {
         const localInstance = await this.localInstances();
         const instance = localInstance.find(instance => instance.owner === personId);
-        if(!instance) {
+        if (!instance) {
             throw new Error('No local instance for the specified person id');
         }
         return instance;
@@ -150,13 +152,15 @@ class InstancesModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId
      * @returns {Promise<Instance>}
      */
-    public async localInstanceIdForPerson(personId: SHA256IdHash<Person>): Promise<SHA256IdHash<Instance>> {
+    public async localInstanceIdForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<SHA256IdHash<Instance>> {
         const instanceIdHashes = await this.localInstancesIds();
         const instanceResults = await Promise.all(
             instanceIdHashes.map(hash => getObjectByIdHash(hash))
         );
         const instanceResult = instanceResults.find(instance => instance.obj.owner === personId);
-        if(!instanceResult) {
+        if (!instanceResult) {
             throw new Error('No local instance for the specified person id');
         }
         return instanceResult.idHash;
@@ -180,7 +184,7 @@ class InstancesModel extends EventEmitter {
      */
     public async instanceKeys(instanceId: SHA256IdHash<Instance>): Promise<Keys> {
         const instanceKeyLink = await getAllValues(instanceId, true, 'Keys');
-        return await getObjectWithType(instanceKeyLink[0].toHash, 'Keys');
+        return await getObjectWithType(instanceKeyLink[instanceKeyLink.length - 1].toHash, 'Keys');
     }
 
     /**
@@ -222,7 +226,6 @@ class InstancesModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     public async createLocalInstanceByEMail(email: string): Promise<SHA256IdHash<Instance>> {
-
         // Check that the person does not yet have a instance
         const personId = await calculateIdHashOfObj({
             $type$: 'Person',
@@ -230,7 +233,7 @@ class InstancesModel extends EventEmitter {
         });
 
         // If an instance already exists, don't create one, just return the existing one
-        if(await this.hasPersonLocalInstance(personId)) {
+        if (await this.hasPersonLocalInstance(personId)) {
             return this.localInstanceIdForPerson(personId);
         }
 
@@ -311,7 +314,6 @@ class InstancesModel extends EventEmitter {
             })
         ).obj;
     }
-
 }
 
 export default InstancesModel;

@@ -12,6 +12,7 @@ import {createCrypto, CryptoAPI} from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {toByteArray} from 'base64-js';
 import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
+import {printUint8Array} from '../misc/LogUtils';
 
 export interface PairingInformation {
     authenticationTag: string;
@@ -90,6 +91,9 @@ export default class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
+        printUint8Array('localPublicKey:', localPublicKey);
+        printUint8Array('remotePublicKey:', remotePublicKey);
+
         const message = await conn.waitForJSONMessage();
         const authenticationTag = JSON.parse(message).authenticationTag;
         const remotePersonId = JSON.parse(message).personIdHash;
@@ -108,6 +112,9 @@ export default class ConnectionsModel extends EventEmitter {
 
         const targetKey = toByteArray(this.anonInstanceKeys.publicKey);
         const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
+
+        printUint8Array('targetKey:', targetKey);
+        printUint8Array('sourceKey:', sourceKey);
 
         return new Promise((resolve, reject) => {
             oce.onConnection = (
@@ -129,6 +136,8 @@ export default class ConnectionsModel extends EventEmitter {
                 reject(new Error('timeout expired'));
             }, 60000);
 
+            printUint8Array('target key:', targetKey);
+            printUint8Array('source key:', sourceKey);
             oce.start(
                 this.commServerUrl,
                 sourceKey,

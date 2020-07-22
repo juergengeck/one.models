@@ -517,7 +517,7 @@ export default class ContactModel extends EventEmitter {
      */
     public async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
         const personKeyLink = await getAllValues(personId, true, 'Keys');
-        return await getObjectWithType(personKeyLink[0].toHash, 'Keys');
+        return await getObjectWithType(personKeyLink[personKeyLink.length - 1].toHash, 'Keys');
     }
 
     /** ########################################## Private ########################################## **/
