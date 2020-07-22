@@ -107,7 +107,7 @@ export default class ChannelManager extends EventEmitter {
      */
     // eslint-disable-next-line @typescript-eslint/require-await
     async init(): Promise<void> {
-        const ownerIdHash = getInstanceOwnerIdHash();
+        const ownerIdHash = this.personId ? this.personId : getInstanceOwnerIdHash();
         await ChannelManager.getChannelRegistry();
         if (ownerIdHash === undefined) {
             throw new Error('Owner idHash cannot be undefined');
@@ -499,7 +499,7 @@ export default class ChannelManager extends EventEmitter {
                 channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
                     return {
                         object: channel.hash,
-                        person: [await getInstanceOwnerIdHash()],
+                        person: [this.personId],
                         group: [],
                         mode: SET_ACCESS_MODE.REPLACE
                     };

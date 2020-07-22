@@ -31,12 +31,18 @@ export async function createObjects(
 
     /** Person key **/
     const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-    const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
+    const personPubEncryptionKeys = await getObjectWithType(
+        personKeyLink[personKeyLink.length - 1].toHash,
+        'Keys'
+    );
     const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
 
     /** Instance key **/
     const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
-    const instancePubEncryptionKeys = await getObjectWithType(instanceKeyLink[0].toHash, 'Keys');
+    const instancePubEncryptionKeys = await getObjectWithType(
+        instanceKeyLink[instanceKeyLink.length - 1].toHash,
+        'Keys'
+    );
     const instancePubEncryptionKeysHash = await calculateHashOfObj(instancePubEncryptionKeys);
 
     /** Create the structure **/
