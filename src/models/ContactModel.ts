@@ -46,7 +46,8 @@ import InstancesModel from './InstancesModel';
 export enum ContactEvent {
     UpdatedContactList = 'UPDATED_CONTACT_LIST',
     UpdatedContact = 'UPDATED_CONTACT',
-    NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED'
+    NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED',
+    UpdatedContactApp = 'UPDATED_CONTACT_APP'
 }
 
 /**
@@ -93,6 +94,7 @@ export default class ContactModel extends EventEmitter {
         await this.shareContactAppWithYourInstances();
     }
 
+
     /**
      * @description Create a new personId and an associated profile.
      * @param {boolean} myself
@@ -100,7 +102,7 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<SHA256IdHash<Person>>}
      */
     public async createProfile(myself: boolean, email?: string): Promise<SHA256IdHash<Person>> {
-        const personEmail = email === undefined ? await createRandomString() : email;
+        const personEmail = email === undefined ? await createRandomString(20) : email;
 
         const createdProfile = await this.serializeProfileCreatingByPersonEmail(
             personEmail,
@@ -515,7 +517,7 @@ export default class ContactModel extends EventEmitter {
      */
     public async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
         const personKeyLink = await getAllValues(personId, true, 'Keys');
-        return await getObjectWithType(personKeyLink[0].toHash, 'Keys');
+        return await getObjectWithType(personKeyLink[personKeyLink.length - 1].toHash, 'Keys');
     }
 
     /** ########################################## Private ########################################## **/
@@ -621,6 +623,7 @@ export default class ContactModel extends EventEmitter {
                         await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                     })
                 );
+                this.emit(ContactEvent.UpdatedContactApp);
             }
         });
 

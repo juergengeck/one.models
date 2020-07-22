@@ -30,6 +30,8 @@ export default class AccessModel extends EventEmitter {
     /**
      *
      * @param {AccessGroupNames}groupName
+     *  partners -> for partners connections
+     *  myself   -> for connections with my personal cloud devices
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
     async getAccessGroupPersons(groupName: string): Promise<SHA256IdHash<Person>[]> {

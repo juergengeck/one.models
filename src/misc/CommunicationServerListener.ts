@@ -1,5 +1,5 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 

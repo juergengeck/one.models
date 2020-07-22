@@ -33,7 +33,7 @@ async function main(): Promise<void> {
             .boolean('d').argv;
 
     if (argv.l) {
-        Logger.start({types: ['log']});
+        Logger.start({types: ['log', 'debug']});
     }
     if (argv.d) {
         Logger.start();

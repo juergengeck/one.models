@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from '../misc/CommunicationServerListener';

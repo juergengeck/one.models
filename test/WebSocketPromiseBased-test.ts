@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
 

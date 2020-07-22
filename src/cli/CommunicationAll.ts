@@ -1,7 +1,6 @@
 import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
-import EncryptedConnection from '../misc/EncryptedConnection';
 import {ConnectionsModel, ContactModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';

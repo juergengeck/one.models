@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import * as Logger from 'one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';

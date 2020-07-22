@@ -1,8 +1,8 @@
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
-import {WebSocketPromiseBasedInterface} from "one.core/lib/websocket-promisifier";
+import {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -14,7 +14,8 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased extends EventEmitter implements WebSocketPromiseBasedInterface {
+export default class WebSocketPromiseBased extends EventEmitter
+    implements WebSocketPromiseBasedInterface {
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
     private dataQueue: WebSocket.MessageEvent[];
@@ -203,13 +204,8 @@ export default class WebSocketPromiseBased extends EventEmitter implements WebSo
                 return;
             }
 
-            this.webSocket.send(data, (err: Error | undefined) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(err);
-                }
-            });
+            this.webSocket.send(data);
+            resolve();
         });
     }
 

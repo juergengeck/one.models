@@ -5,18 +5,24 @@ import InstancesModel from './InstancesModel';
 import EncryptedConnection from '../misc/EncryptedConnection';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
-import {createSingleObjectThroughImpurePlan, getObjectWithType, WriteStorageApi} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughImpurePlan,
+    getObjectWithType,
+    WriteStorageApi
+} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {createCrypto, CryptoAPI, Uint8ArrayToString} from 'one.core/lib/instance-crypto';
+import {createCrypto, CryptoAPI} from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
-import {getAllValues} from "one.core/lib/reverse-map-query";
+import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
+import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
-import CommunicationInitiationProtocol, {isPeerMessage} from "../misc/CommunicationInitiationProtocol";
-import {createMessageBus} from "one.core/lib/message-bus";
-import {wslogId} from "../misc/LogUtils";
+import CommunicationInitiationProtocol, {
+    isPeerMessage
+} from '../misc/CommunicationInitiationProtocol';
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {wslogId} from '../misc/LogUtils';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -38,8 +44,16 @@ export default class ConnectionsModel extends EventEmitter {
     private communicationModule: CommunicationModule;
     private generatedPairingInformation: PairingInformation[];
     private isReplicant: boolean;
+    private anonInstanceKeys: Keys;
+    private anonCrypto: CryptoAPI;
+    private meAnon: SHA256IdHash<Person>;
 
-    constructor(commServerUrl: string, contactModel: ContactModel, instancesModel: InstancesModel, isReplicant: boolean = false) {
+    constructor(
+        commServerUrl: string,
+        contactModel: ContactModel,
+        instancesModel: InstancesModel,
+        isReplicant: boolean = false
+    ) {
         super();
         this.commServerUrl = commServerUrl;
         this.contactModel = contactModel;
@@ -53,10 +67,24 @@ export default class ConnectionsModel extends EventEmitter {
         this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
         this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
         this.isReplicant = isReplicant;
+        this.anonInstanceKeys = {} as Keys;
+        this.anonCrypto = {} as CryptoAPI;
+        this.meAnon = '' as SHA256IdHash<Person>;
     }
 
     async init(): Promise<void> {
         await this.communicationModule.init();
+
+        const me = await this.contactModel.myMainIdentity();
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+
+        if (meAlternates.length !== 1) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+        this.meAnon = meAlternates[0];
+        const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
+        this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
+        this.anonCrypto = createCrypto(anonInstance);
     }
 
     async shutdown(): Promise<void> {
@@ -82,21 +110,22 @@ export default class ConnectionsModel extends EventEmitter {
         remotePersonId2: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
-        MessageBus.send(
-            'log',
-            `${wslogId(conn.webSocket)}: onKnownConnection()`
-        );
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: onKnownConnection()`);
 
         let remotePersonId: SHA256IdHash<Person>;
         //let remotePersonPublicKey: Uint8Array;
         let isNew: boolean;
         try {
-            const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, initiatedLocally, remotePersonId2);
+            const remotePersonInfo = await this.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                initiatedLocally,
+                remotePersonId2
+            );
             remotePersonId = remotePersonInfo.personId;
             //remotePersonPublicKey = remotePersonInfo.personPublicKey;
             isNew = remotePersonInfo.isNew;
-        }
-        catch(e) {
+        } catch (e) {
             conn.close(e.toString());
             return;
         }
@@ -121,7 +150,7 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} remotePersonId2
      * @returns {Promise<void>}
      */
-     async onUnknownConnection(
+    async onUnknownConnection(
         conn: EncryptedConnection,
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
@@ -129,21 +158,18 @@ export default class ConnectionsModel extends EventEmitter {
         initiatedLocally: boolean,
         remotePersonId2?: SHA256IdHash<Person>
     ): Promise<void> {
-        MessageBus.send(
-            'log',
-            `${wslogId(conn.webSocket)}: onUnknownConnection()`
-        );
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: onUnknownConnection()`);
 
         let remotePersonId: SHA256IdHash<Person>;
-        //let remotePersonPublicKey: Uint8Array;
-        let isNew: boolean;
         try {
-            const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, initiatedLocally, remotePersonId2);
+            const remotePersonInfo = await this.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                initiatedLocally,
+                remotePersonId2
+            );
             remotePersonId = remotePersonInfo.personId;
-            //remotePersonPublicKey = remotePersonInfo.personPublicKey;
-            isNew = remotePersonInfo.isNew;
-        }
-        catch(e) {
+        } catch (e) {
             conn.close(e.toString());
             return;
         }
@@ -156,8 +182,8 @@ export default class ConnectionsModel extends EventEmitter {
         // For non replicants accept only pairing requests
         else {
             const message = await conn.waitForJSONMessage();
-            const authenticationTag = JSON.parse(message).authenticationTag;
-            const remotePersonId = JSON.parse(message).personIdHash;
+            const authenticationTag = message.authenticationTag;
+            const remotePersonId = message.personIdHash;
 
             const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
                 pairingInfo => pairingInfo.authenticationTag === authenticationTag
@@ -184,9 +210,9 @@ export default class ConnectionsModel extends EventEmitter {
         initiatedLocally: boolean,
         remotePersonId2?: SHA256IdHash<Person>
     ): Promise<{
-        isNew: boolean,
-        personId: SHA256IdHash<Person>,
-        personPublicKey: Uint8Array
+        isNew: boolean;
+        personId: SHA256IdHash<Person>;
+        personPublicKey: Uint8Array;
     }> {
         // Initialize the crypto stuff
         const instanceHash = await this.instancesModel.localInstanceIdForPerson(localPersonId);
@@ -194,7 +220,8 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Get my own person key
         const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');
-        const localPersonKey = (await getObjectWithType(localPersonKeyReverse[0].toHash, 'Keys')).publicKey;
+        const localPersonKey = (await getObjectWithType(localPersonKeyReverse[0].toHash, 'Keys'))
+            .publicKey;
 
         // Exchange and challenge response the person keys
         let remotePersonId: SHA256IdHash<Person>;
@@ -213,8 +240,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             // Step 4: Answer challenge response
             await this.challengeRespondPersonKey(conn, remotePersonKey, crypto);
-        }
-        else {
+        } else {
             // Step 1: Wait for remote information
             const remotePersonInfo = await this.waitForMessage(conn, 'person_information');
             remotePersonId = remotePersonInfo.personId as SHA256IdHash<Person>;
@@ -231,14 +257,16 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         // Verify that the remote person id is the same as the one we have from the callback
-        if(remotePersonId2 && remotePersonId !== remotePersonId2) {
+        if (remotePersonId2 && remotePersonId !== remotePersonId2) {
             throw new Error('The person id does not match the one we have on record.');
         }
 
         // Verify that the transmitted key matches the one we already have
         try {
             const remotePersonKeyReverse = await getAllValues(remotePersonId, true, 'Keys');
-            const remotePersonKey2 = (await getObjectWithType(remotePersonKeyReverse[0].toHash, 'Keys')).publicKey;
+            const remotePersonKey2 = (
+                await getObjectWithType(remotePersonKeyReverse[0].toHash, 'Keys')
+            ).publicKey;
             if (fromByteArray(remotePersonKey) !== remotePersonKey2) {
                 throw new Error('Key does not match your previous visit');
             }
@@ -247,8 +275,7 @@ export default class ConnectionsModel extends EventEmitter {
                 personId: remotePersonId,
                 personPublicKey: remotePersonKey
             };
-        }
-        catch(e) {
+        } catch (e) {
             // This means that we have not encountered the person, yet. => ok
             return {
                 isNew: true,
@@ -265,56 +292,56 @@ export default class ConnectionsModel extends EventEmitter {
      */
     async connectUsingPairingInformation(pairingInformation: PairingInformation): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
-        let encryptedConnection: EncryptedConnection | undefined = undefined;
 
-        const me = await this.contactModel.myMainIdentity();
-        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
-
-        if (meAlternates.length !== 1) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
-        const meAnon = meAlternates[0];
-        const anonInstance = await this.instancesModel.localInstanceIdForPerson(meAnon);
-        const anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(meAnon);
-        const anonCrypto = createCrypto(anonInstance);
-
-        const targetKey = toByteArray(anonInstanceKeys.publicKey);
-        const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(pairingInformation.publicKeyLocal);
 
         return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                oce.stop();
+                reject(new Error('timeout expired'));
+            }, 60000);
+
             oce.onConnection = (
                 conn: EncryptedConnection,
                 localPublicKey: Uint8Array,
                 remotePublicKey: Uint8Array
             ) => {
-                encryptedConnection = conn;
-                resolve();
+                // Person id authentication
+                this.verifyAndExchangePersonId(conn, this.meAnon, true)
+                    .then(personInfo => {
+                        const authenticationMessage: AuthenticationMessage = {
+                            authenticationTag: pairingInformation.authenticationTag,
+                            personIdHash: this.meAnon
+                        };
+
+                        conn.sendMessage(JSON.stringify(authenticationMessage));
+
+                        this.startChum(conn, this.meAnon, personInfo.personId);
+
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        conn.close(e.toString());
+                        reject(e);
+                    });
             };
-            setTimeout(() => {
-                oce.stop();
-                reject(new Error('timeout expired'));
-            }, 60000);
 
             oce.start(
                 this.commServerUrl,
                 sourceKey,
                 targetKey,
                 text => {
-                    return anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
-
-            if (encryptedConnection) {
-                const authenticationMessage: AuthenticationMessage = {
-                    authenticationTag: pairingInformation.authenticationTag,
-                    personIdHash: meAnon
-                };
-
-                encryptedConnection.sendMessage(JSON.stringify(authenticationMessage));
-            }
         });
     }
 
@@ -349,14 +376,11 @@ export default class ConnectionsModel extends EventEmitter {
         );
     }
 
-    async generatePairingInformation(
-        takeOver: boolean,
-        localPublicKey: Uint8Array
-    ): Promise<PairingInformation> {
+    async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         const pairingInformation = {
             authenticationTag: await createRandomString(),
             publicKeyRemote: await createRandomString(),
-            publicKeyLocal: Uint8ArrayToString(localPublicKey),
+            publicKeyLocal: this.anonInstanceKeys.publicKey,
             takeOver
         };
 
@@ -383,12 +407,10 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {T} message - The message to send
      * @returns {Promise<void>}
      */
-    private async sendMessage<
-        T extends CommunicationInitiationProtocol.PeerMessageTypes
-    >(
+    private async sendMessage<T extends CommunicationInitiationProtocol.PeerMessageTypes>(
         conn: EncryptedConnection,
         message: T
-      ): Promise<void> {
+    ): Promise<void> {
         await conn.sendMessage(JSON.stringify(message));
     }
 
@@ -398,12 +420,10 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {T} command - the command to wait for
      * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
      */
-    public async waitForMessage<
-        T extends keyof CommunicationInitiationProtocol.PeerMessages
-        >(
+    public async waitForMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
         conn: EncryptedConnection,
-            command: T): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
-
+        command: T
+    ): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
         const message = await conn.waitForJSONMessageWithType(command, 'command');
         if (isPeerMessage(message, command)) {
             return message;
@@ -416,10 +436,12 @@ export default class ConnectionsModel extends EventEmitter {
         remotePersonPublicKey: Uint8Array,
         crypto: CryptoAPI
     ): Promise<void> {
-
         // Send the challenge
         const challenge = tweetnacl.randomBytes(64);
-        const encryptedChallenge = crypto.encryptWithPersonPublicKey(remotePersonPublicKey, challenge);
+        const encryptedChallenge = crypto.encryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            challenge
+        );
         await conn.sendBinaryMessage(encryptedChallenge);
         for (let elem of challenge) {
             elem = ~elem;
@@ -427,7 +449,10 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Wait for response
         const encryptedResponse = await conn.waitForBinaryMessage();
-        const response = crypto.decryptWithPersonPublicKey(remotePersonPublicKey, encryptedResponse);
+        const response = crypto.decryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            encryptedResponse
+        );
         if (!tweetnacl.verify(challenge, response)) {
             conn.close();
             throw new Error('Failed to authenticate connection.');
@@ -441,11 +466,17 @@ export default class ConnectionsModel extends EventEmitter {
     ): Promise<void> {
         // Wait for challenge
         const encryptedChallenge = await conn.waitForBinaryMessage();
-        const challenge = crypto.decryptWithPersonPublicKey(remotePersonPublicKey, encryptedChallenge);
+        const challenge = crypto.decryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            encryptedChallenge
+        );
         for (let elem of challenge) {
             elem = ~elem;
         }
-        const encryptedResponse = crypto.encryptWithPersonPublicKey(remotePersonPublicKey, challenge);
+        const encryptedResponse = crypto.encryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            challenge
+        );
         await conn.sendBinaryMessage(encryptedResponse);
     }
 }
