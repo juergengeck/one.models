@@ -12,7 +12,6 @@ import {createCrypto, CryptoAPI} from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {toByteArray} from 'base64-js';
 import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
-import {printUint8Array} from '../misc/LogUtils';
 
 export interface PairingInformation {
     authenticationTag: string;
@@ -46,8 +45,8 @@ export default class ConnectionsModel extends EventEmitter {
             instancesModel
         );
         this.generatedPairingInformation = [];
-        this.communicationModule.onKnownConnection = this.onKnownConnection;
-        this.communicationModule.onUnknownConnection = this.onUnknownConnection;
+        this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
+        this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
         this.anonInstanceKeys = {} as Keys;
         this.anonCrypto = {} as CryptoAPI;
         this.meAnon = '' as SHA256IdHash<Person>;
@@ -91,12 +90,9 @@ export default class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
-        printUint8Array('localPublicKey:', localPublicKey);
-        printUint8Array('remotePublicKey:', remotePublicKey);
-
         const message = await conn.waitForJSONMessage();
-        const authenticationTag = JSON.parse(message).authenticationTag;
-        const remotePersonId = JSON.parse(message).personIdHash;
+        const authenticationTag = message.authenticationTag;
+        const remotePersonId = message.personIdHash;
 
         const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
             pairingInfo => pairingInfo.authenticationTag === authenticationTag
@@ -110,11 +106,8 @@ export default class ConnectionsModel extends EventEmitter {
     async connectUsingPairingInformation(pairingInformation: PairingInformation): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
-        const targetKey = toByteArray(this.anonInstanceKeys.publicKey);
-        const sourceKey = toByteArray(pairingInformation.publicKeyLocal);
-
-        printUint8Array('targetKey:', targetKey);
-        printUint8Array('sourceKey:', sourceKey);
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(pairingInformation.publicKeyLocal);
 
         return new Promise((resolve, reject) => {
             oce.onConnection = (
@@ -128,6 +121,7 @@ export default class ConnectionsModel extends EventEmitter {
                 };
 
                 conn.sendMessage(JSON.stringify(authenticationMessage));
+                // todo: this.startChum(conn, this.meAnon);
 
                 resolve();
             };
@@ -136,8 +130,6 @@ export default class ConnectionsModel extends EventEmitter {
                 reject(new Error('timeout expired'));
             }, 60000);
 
-            printUint8Array('target key:', targetKey);
-            printUint8Array('source key:', sourceKey);
             oce.start(
                 this.commServerUrl,
                 sourceKey,
