@@ -264,13 +264,27 @@ export default class ChannelManager extends EventEmitter {
                 await Promise.all(
                     channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
                         const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
+                        let allSharedPersons: SHA256IdHash<Person>[] = [];
                         if (accessObject.group.length > 0) {
-                            accessObject.group.map(async groupId => {
-                                const groupObject = await getObjectByIdHash(groupId);
-                                return groupObject.obj.person;
-                            });
+                            const groupPersons = await Promise.all(
+                                accessObject.group.map(async groupId => {
+                                    const groupObject = await getObjectByIdHash(groupId);
+                                    return groupObject.obj.person;
+                                })
+                            );
+                            allSharedPersons = allSharedPersons.concat(
+                                groupPersons.reduce(
+                                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) =>
+                                        acc.concat(val),
+                                    []
+                                )
+                            );
                         }
-                        return accessObject.person;
+
+                        if (accessObject.person.length > 0) {
+                            allSharedPersons = allSharedPersons.concat(accessObject.person);
+                        }
+                        return allSharedPersons;
                     })
                 )
             )
