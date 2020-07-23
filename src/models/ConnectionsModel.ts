@@ -23,6 +23,7 @@ import CommunicationInitiationProtocol, {
 } from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
+import AccessModel, {FreedaAccessGroups} from './AccessModel';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -43,9 +44,10 @@ export default class ConnectionsModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly contactModel: ContactModel;
     private readonly instancesModel: InstancesModel;
+    private readonly accessModel: AccessModel;
     private communicationModule: CommunicationModule;
     private generatedPairingInformation: PairingInformation[];
-    private isReplicant: boolean;
+    private readonly isReplicant: boolean;
     private anonInstanceKeys: Keys;
     private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
@@ -54,12 +56,14 @@ export default class ConnectionsModel extends EventEmitter {
         commServerUrl: string,
         contactModel: ContactModel,
         instancesModel: InstancesModel,
+        accessModel: AccessModel,
         isReplicant: boolean = false
     ) {
         super();
         this.commServerUrl = commServerUrl;
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
+        this.accessModel = accessModel;
         this.communicationModule = new CommunicationModule(
             commServerUrl,
             contactModel,
@@ -176,7 +180,7 @@ export default class ConnectionsModel extends EventEmitter {
             return;
         }
 
-        // For replicant, just axxept everything
+        // For replicant, just accept everything
         if (this.isReplicant) {
             await this.startChum(conn, localPersonId, remotePersonId);
         }
@@ -322,6 +326,12 @@ export default class ConnectionsModel extends EventEmitter {
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
 
+                        this.communicationModule.addNewUnknownConnection(
+                            localPublicKey,
+                            remotePublicKey,
+                            conn
+                        );
+
                         this.startChum(conn, this.meAnon, personInfo.personId);
 
                         clearTimeout(timeoutHandle);
@@ -363,6 +373,8 @@ export default class ConnectionsModel extends EventEmitter {
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
+        await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
+
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
 
@@ -375,10 +387,14 @@ export default class ConnectionsModel extends EventEmitter {
             maxNotificationDelay: 20
         };
 
-        await createSingleObjectThroughImpurePlan(
+        const chum = createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             defaultInitialChumObj
         );
+
+        this.emit('connectionEstablished');
+
+        await chum;
     }
 
     async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
@@ -409,6 +425,7 @@ export default class ConnectionsModel extends EventEmitter {
     /**
      * Send a peer message
      *
+     * @param {EncryptedConnection} conn
      * @param {T} message - The message to send
      * @returns {Promise<void>}
      */
@@ -422,6 +439,7 @@ export default class ConnectionsModel extends EventEmitter {
     /**
      * Wait for a peer message
      *
+     * @param {EncryptedConnection} conn
      * @param {T} command - the command to wait for
      * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
      */

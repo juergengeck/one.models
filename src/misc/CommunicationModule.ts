@@ -166,7 +166,9 @@ export default class CommunicationModule {
 
                         // Create the entry in the knownPeerMap
                         const connInfo = {
-                            connEst: this.listenForOutgoingConnections ? new OutgoingConnectionEstablisher() : undefined,
+                            connEst: this.listenForOutgoingConnections
+                                ? new OutgoingConnectionEstablisher()
+                                : undefined,
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
                             sourcePublicKey: anonInstanceKeys.publicKey,
@@ -281,6 +283,18 @@ export default class CommunicationModule {
             await v.close();
         }
         await this.incomingConnectionManager.shutdown();
+    }
+
+    addNewUnknownConnection(
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array,
+        conn: EncryptedConnection
+    ): void {
+        const mapKey = genMapKey(localPublicKey, remotePublicKey);
+        this.unknownPeerMap.set(mapKey, conn);
+        conn.webSocket.addEventListener('close', () => {
+            this.unknownPeerMap.delete(mapKey);
+        });
     }
 
     /**
