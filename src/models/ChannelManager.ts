@@ -263,6 +263,12 @@ export default class ChannelManager extends EventEmitter {
                 await Promise.all(
                     channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
                         const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
+                        if (accessObject.group.length > 0) {
+                            accessObject.group.map(async groupId => {
+                                const groupObject = await getObjectByIdHash(groupId);
+                                return groupObject.obj.person;
+                            });
+                        }
                         return accessObject.person;
                     })
                 )
@@ -484,7 +490,7 @@ export default class ChannelManager extends EventEmitter {
     /**
      *
      * @param {string} channelId
-     * @param {SHA256IdHash<Person>[] | SHA256IdHash<Person> | string} to
+     * @param {string} to - group name
      */
     async giveAccessToChannelInfo(
         channelId: string,
@@ -516,21 +522,23 @@ export default class ChannelManager extends EventEmitter {
 
         const group = await this.accessModel.getAccessGroupByName(to);
 
-        return await Promise.all(
+        const accessObjects = await Promise.all(
             channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                return await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/access',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        object: channel.hash,
-                        person: [],
-                        group: [group.idHash],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    }
-                );
+                return {
+                    object: channel.hash,
+                    person: [],
+                    group: [group.idHash],
+                    mode: SET_ACCESS_MODE.REPLACE
+                };
             })
+        );
+
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            accessObjects
         );
     }
 

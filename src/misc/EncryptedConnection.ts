@@ -261,9 +261,6 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      */
     public async waitForBinaryMessage(timeout: number = -1): Promise<Uint8Array> {
         const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
-        if (!(decrypted instanceof ArrayBuffer)) {
-            throw Error('Received message was not binary');
-        }
         return decrypted;
     }
 
