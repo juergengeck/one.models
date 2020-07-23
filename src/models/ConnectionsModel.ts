@@ -38,9 +38,14 @@ const MessageBus = createMessageBus('ConnectionsModel');
 export interface PairingInformation {
     authenticationTag: string;
     publicKeyLocal: string;
-    takeOver: boolean;
     url: string;
-    nonce?: string;
+    takeOver: boolean;
+    takeOverDetails?: TakeOverInformation;
+}
+
+export interface TakeOverInformation {
+    nonce: string;
+    email: string;
 }
 
 interface AuthenticationMessage {
@@ -66,6 +71,8 @@ export default class ConnectionsModel extends EventEmitter {
     private meAnon: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
+    private readonly partnerConnections: string[];
+    private readonly personalCloudConnections: string[];
 
     constructor(
         commServerUrl: string,
@@ -77,6 +84,8 @@ export default class ConnectionsModel extends EventEmitter {
         super();
         this.password = '';
         this.salt = '';
+        this.partnerConnections = [];
+        this.personalCloudConnections = [];
         this.commServerUrl = commServerUrl;
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
@@ -244,6 +253,10 @@ export default class ConnectionsModel extends EventEmitter {
                         'Received authentication tag for take over does not match the sent one.'
                     );
                 }
+
+                this.personalCloudConnections.push(Uint8ArrayToString(remotePublicKey));
+            } else {
+                this.partnerConnections.push(Uint8ArrayToString(remotePublicKey));
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
@@ -378,13 +391,16 @@ export default class ConnectionsModel extends EventEmitter {
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
 
-                        if (pairingInformation.takeOver) {
+                        if (pairingInformation.takeOver && pairingInformation.takeOverDetails) {
                             this.sendTakeOverInformation(
                                 conn,
-                                pairingInformation.nonce,
+                                pairingInformation.takeOverDetails.nonce,
                                 password,
                                 pairingInformation.authenticationTag
                             );
+                            this.personalCloudConnections.push(Uint8ArrayToString(remotePublicKey));
+                        } else {
+                            this.partnerConnections.push(Uint8ArrayToString(remotePublicKey));
                         }
 
                         this.communicationModule.addNewUnknownConnection(
@@ -458,16 +474,21 @@ export default class ConnectionsModel extends EventEmitter {
         await chum;
     }
 
-    async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+    async generatePairingInformation(
+        takeOver: boolean,
+        email?: string
+    ): Promise<PairingInformation> {
         this.salt = await this.generateSalt();
 
-        const pairingInformation = {
+        const pairingInformation: PairingInformation = {
             authenticationTag: await createRandomString(),
-            publicKeyRemote: await createRandomString(),
             publicKeyLocal: this.anonInstanceKeys.publicKey,
-            takeOver,
             url: this.commServerUrl,
-            nonce: takeOver ? this.salt : undefined
+            takeOver,
+            takeOverDetails: {
+                nonce: this.salt,
+                email: email ? email : ''
+            }
         };
 
         this.generatedPairingInformation.push(pairingInformation);
@@ -599,5 +620,13 @@ export default class ConnectionsModel extends EventEmitter {
         };
 
         await conn.sendMessage(JSON.stringify(takeOverMessage));
+    }
+
+    getPartnerConnections(): string[] {
+        return this.partnerConnections;
+    }
+
+    getPersonalCloudConnections(): string[] {
+        return this.personalCloudConnections;
     }
 }

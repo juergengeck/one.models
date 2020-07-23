@@ -17,7 +17,7 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import AccessModel from './AccessModel';
+import AccessModel, {FreedaAccessGroups} from './AccessModel';
 
 /**
  * Represents the state of authentication.
@@ -284,7 +284,7 @@ export default class OneInstanceModel extends EventEmitter {
                 // partner state, where the application is not available until a
                 // patient is being associated with this partner
                 this.accessModel
-                    .getAccessGroupPersons('partners')
+                    .getAccessGroupPersons(FreedaAccessGroups.partner)
                     .then(partners => {
                         if (
                             this.currentPatientTypeState.includes('partner') &&
