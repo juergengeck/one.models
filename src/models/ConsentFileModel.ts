@@ -92,6 +92,10 @@ export default class ConsentFileModel extends EventEmmiter {
             this.channelId,
             FreedaAccessGroups.partner
         );
+        await this.channelManager.giveAccessToChannelInfo(
+            this.channelId,
+            FreedaAccessGroups.clinic
+        );
         this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');

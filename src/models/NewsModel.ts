@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from "./ChannelManager";
+import ChannelManager, {ObjectData} from './ChannelManager';
 import {News as OneNews} from '@OneCoreTypes';
+import {FreedaAccessGroups} from './AccessModel';
 
 /**
  * This represents the model of a news for now
@@ -28,7 +29,6 @@ function convertFromOne(oneObject: OneNews): News {
     return {content: oneObject.content};
 }
 
-
 /**
  * This model implements a broadcast channel.
  */
@@ -46,8 +46,12 @@ export default class NewsModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel('feedbackChannel');
+        await this.channelManager.giveAccessToChannelInfo(
+            'feedbackChannel',
+            FreedaAccessGroups.clinic
+        );
         await this.channelManager.createChannel('newsChannel');
-        this.channelManager.on('updated', (id) => {
+        this.channelManager.on('updated', id => {
             if (id === 'feedbackChannel' || id === 'newsChannel') {
                 this.emit('updated');
             }
@@ -55,15 +59,15 @@ export default class NewsModel extends EventEmitter {
     }
 
     async addNews(content: string): Promise<void> {
-        await this.postContent('newsChannel',content);
+        await this.postContent('newsChannel', content);
     }
 
-    async  addFeedback(content: string): Promise<void> {
-       await this.postContent('feedbackChannel',content);
+    async addFeedback(content: string): Promise<void> {
+        await this.postContent('feedbackChannel', content);
     }
 
-    private async postContent(channelId: string,content: string): Promise<void> {
-        await this.channelManager.postToChannel(channelId, convertToOne({content:content}));
+    private async postContent(channelId: string, content: string): Promise<void> {
+        await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
         this.emit('news');
     }
 
@@ -74,10 +78,7 @@ export default class NewsModel extends EventEmitter {
     async entries(channelId: string): Promise<ObjectData<News>[]> {
         const objects: ObjectData<News>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            channelId,
-            'News'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType(channelId, 'News');
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;

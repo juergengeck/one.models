@@ -7,15 +7,19 @@ import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
     getObjectWithType,
-    SET_ACCESS_MODE,
-    SetAccessParam,
     WriteStorageApi
 } from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {createCrypto, CryptoAPI} from 'one.core/lib/instance-crypto';
+import {
+    createCrypto,
+    CryptoAPI,
+    decryptWithSymmetricKey,
+    encryptWithSymmetricKey,
+    stringToUint8Array,
+    Uint8ArrayToString
+} from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
@@ -27,7 +31,7 @@ import CommunicationInitiationProtocol, {
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -35,13 +39,18 @@ export interface PairingInformation {
     authenticationTag: string;
     publicKeyLocal: string;
     takeOver: boolean;
-    url?: string;
+    url: string;
+    nonce?: string;
 }
 
 interface AuthenticationMessage {
     personIdHash: SHA256IdHash<Person>;
     authenticationTag: string;
     takeOver?: boolean;
+}
+
+interface TakeOverMessage {
+    encryptedAuthenticationTag: string;
 }
 
 export default class ConnectionsModel extends EventEmitter {
@@ -55,6 +64,8 @@ export default class ConnectionsModel extends EventEmitter {
     private anonInstanceKeys: Keys;
     private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
+    private password: string;
+    private salt: string;
 
     constructor(
         commServerUrl: string,
@@ -64,6 +75,8 @@ export default class ConnectionsModel extends EventEmitter {
         isReplicant: boolean = false
     ) {
         super();
+        this.password = '';
+        this.salt = '';
         this.commServerUrl = commServerUrl;
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
@@ -101,6 +114,10 @@ export default class ConnectionsModel extends EventEmitter {
         await this.communicationModule.shutdown();
     }
 
+    setPassword(password: string) {
+        this.password = password;
+    }
+
     /**
      * This function is called whenever a connection with a known instance was established
      *
@@ -123,17 +140,16 @@ export default class ConnectionsModel extends EventEmitter {
         MessageBus.send('log', `${wslogId(conn.webSocket)}: onKnownConnection()`);
 
         let remotePersonId: SHA256IdHash<Person>;
-        //let remotePersonPublicKey: Uint8Array;
         let isNew: boolean;
         try {
             const remotePersonInfo = await this.verifyAndExchangePersonId(
                 conn,
                 localPersonId,
                 initiatedLocally,
+                false,
                 remotePersonId2
             );
             remotePersonId = remotePersonInfo.personId;
-            //remotePersonPublicKey = remotePersonInfo.personPublicKey;
             isNew = remotePersonInfo.isNew;
         } catch (e) {
             conn.close(e.toString());
@@ -176,6 +192,7 @@ export default class ConnectionsModel extends EventEmitter {
                 conn,
                 localPersonId,
                 initiatedLocally,
+                false,
                 remotePersonId2
             );
             remotePersonId = remotePersonInfo.personId;
@@ -194,17 +211,42 @@ export default class ConnectionsModel extends EventEmitter {
             const message = await conn.waitForJSONMessage();
             const authenticationTag = message.authenticationTag;
             const remotePersonId = message.personIdHash;
-
-            // if take over then check password
-            // use a new type of message an encrypt/decrypt auth tag
+            const takeOver = message.takeOver;
 
             const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
                 pairingInfo => pairingInfo.authenticationTag === authenticationTag
             );
 
-            if (checkReceivedAuthenticationTag.length === 1) {
-                await this.startChum(conn, localPersonId, remotePersonId);
+            if (checkReceivedAuthenticationTag.length != 1) {
+                throw new Error('Received authentication tag does not match the sent one.');
             }
+
+            if (takeOver) {
+                const message = await conn.waitForJSONMessage();
+                const encryptedAuthTag = stringToUint8Array(message.encryptedAuthenticationTag);
+                const kdf = await this.keyDerivationFunction(this.salt, this.password);
+
+                // for each connection to personal cloud we need to set up the password and
+                // the salt, so the information is kept as short ass possible in memory
+                this.password = '';
+                this.salt = '';
+
+                const decryptedAuthTag = Uint8ArrayToString(
+                    await decryptWithSymmetricKey(kdf, encryptedAuthTag)
+                );
+
+                const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
+                    pairingInfo => pairingInfo.authenticationTag === decryptedAuthTag
+                );
+
+                if (checkReceivedAuthenticationTag.length != 1) {
+                    throw new Error(
+                        'Received authentication tag for take over does not match the sent one.'
+                    );
+                }
+            }
+
+            await this.startChum(conn, localPersonId, remotePersonId);
         }
     }
 
@@ -214,6 +256,7 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {EncryptedConnection} conn - The connection used to exchange this data
      * @param {SHA256IdHash<Person>} localPersonId - The local person id (used for getting keys)
      * @param {boolean} initiatedLocally
+     * @param {boolean} takeOver
      * @param {SHA256IdHash<Person>} remotePersonId2 - It is verified that the transmitted person id matches this one.
      * @returns {Promise<{isNew: boolean; personId: SHA256IdHash<Person>; personPublicKey: Uint8Array}>}
      */
@@ -221,6 +264,7 @@ export default class ConnectionsModel extends EventEmitter {
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
+        takeOver: boolean = false,
         remotePersonId2?: SHA256IdHash<Person>
     ): Promise<{
         isNew: boolean;
@@ -241,7 +285,7 @@ export default class ConnectionsModel extends EventEmitter {
         let remotePersonKey: Uint8Array;
         if (initiatedLocally) {
             // Step1: Send my person information
-            await this.sendPersonInformation(conn, localPersonId, localPersonKey);
+            await this.sendPersonInformation(conn, localPersonId, localPersonKey, takeOver);
 
             // Step 2: Wait for remote information
             const remotePersonInfo = await this.waitForMessage(conn, 'person_information');
@@ -260,7 +304,7 @@ export default class ConnectionsModel extends EventEmitter {
             remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
 
             // Step2: Send my person information
-            await this.sendPersonInformation(conn, localPersonId, localPersonKey);
+            await this.sendPersonInformation(conn, localPersonId, localPersonKey, takeOver);
 
             // Step 3: Answer challenge response
             await this.challengeRespondPersonKey(conn, remotePersonKey, crypto);
@@ -301,9 +345,13 @@ export default class ConnectionsModel extends EventEmitter {
     /**
      *
      * @param {PairingInformation} pairingInformation
+     * @param {string} password
      * @returns {Promise<void>}
      */
-    async connectUsingPairingInformation(pairingInformation: PairingInformation): Promise<void> {
+    async connectUsingPairingInformation(
+        pairingInformation: PairingInformation,
+        password: string
+    ): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
         const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
@@ -321,7 +369,7 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePublicKey: Uint8Array
             ) => {
                 // Person id authentication
-                this.verifyAndExchangePersonId(conn, this.meAnon, true)
+                this.verifyAndExchangePersonId(conn, this.meAnon, true, pairingInformation.takeOver)
                     .then(personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
@@ -329,6 +377,15 @@ export default class ConnectionsModel extends EventEmitter {
                         };
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
+
+                        if (pairingInformation.takeOver) {
+                            this.sendTakeOverInformation(
+                                conn,
+                                pairingInformation.nonce,
+                                password,
+                                pairingInformation.authenticationTag
+                            );
+                        }
 
                         this.communicationModule.addNewUnknownConnection(
                             localPublicKey,
@@ -379,25 +436,6 @@ export default class ConnectionsModel extends EventEmitter {
 
         await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
 
-        const testObject = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'Person',
-                email: 'test'
-            }
-        );
-
-        const setAccessParam: SetAccessParam = {
-            group: [],
-            id: testObject.idHash,
-            mode: SET_ACCESS_MODE.REPLACE,
-            person: [remotePersonId]
-        };
-        const shared = await createSingleObjectThroughPurePlan({module: '@one/access'}, [
-            setAccessParam
-        ]);
-        console.log('shared:', shared);
-
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
 
@@ -421,11 +459,15 @@ export default class ConnectionsModel extends EventEmitter {
     }
 
     async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+        this.salt = await this.generateSalt();
+
         const pairingInformation = {
             authenticationTag: await createRandomString(),
             publicKeyRemote: await createRandomString(),
             publicKeyLocal: this.anonInstanceKeys.publicKey,
-            takeOver
+            takeOver,
+            url: this.commServerUrl,
+            nonce: takeOver ? this.salt : undefined
         };
 
         this.generatedPairingInformation.push(pairingInformation);
@@ -436,12 +478,14 @@ export default class ConnectionsModel extends EventEmitter {
     private async sendPersonInformation(
         conn: EncryptedConnection,
         personId: SHA256IdHash<Person>,
-        personPublicKey: string
+        personPublicKey: string,
+        takeOver: boolean
     ): Promise<void> {
         await this.sendMessage(conn, {
             command: 'person_information',
             personId: personId,
-            personPublicKey: personPublicKey
+            personPublicKey: personPublicKey,
+            takeOver: takeOver
         });
     }
 
@@ -524,5 +568,36 @@ export default class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedResponse);
+    }
+
+    private async keyDerivationFunction(
+        saltString: string,
+        passwordString: string
+    ): Promise<Uint8Array> {
+        const salt = stringToUint8Array(saltString);
+        const password = stringToUint8Array(passwordString);
+        return await scrypt(password, salt);
+    }
+
+    async generateSalt(): Promise<string> {
+        return await createRandomString();
+    }
+
+    private async sendTakeOverInformation(
+        conn: EncryptedConnection,
+        salt: string | undefined,
+        password: string,
+        authenticationTag: string
+    ): Promise<void> {
+        if (salt === undefined) {
+            throw new Error('The received information do not contain nonce');
+        }
+        const kdf = await this.keyDerivationFunction(salt, password);
+        const encryptedAuthTag = await encryptWithSymmetricKey(kdf, authenticationTag);
+        const takeOverMessage: TakeOverMessage = {
+            encryptedAuthenticationTag: Uint8ArrayToString(encryptedAuthTag)
+        };
+
+        await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 }
