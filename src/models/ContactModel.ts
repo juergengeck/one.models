@@ -37,6 +37,7 @@ import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
+import AccessModel, {FreedaAccessGroups} from './AccessModel';
 
 /**
  * This represents a ContactEvent
@@ -58,11 +59,12 @@ export enum ContactEvent {
 export default class ContactModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
-
-    constructor(instancesModel: InstancesModel, commServerUrl: string) {
+    private readonly accessModel: AccessModel;
+    constructor(instancesModel: InstancesModel, commServerUrl: string, accessModel: AccessModel) {
         super();
         this.instancesModel = instancesModel;
         this.commServerUrl = commServerUrl;
+        this.accessModel = accessModel;
     }
 
     /** ########################################## Public ########################################## **/
@@ -93,7 +95,6 @@ export default class ContactModel extends EventEmitter {
         this.registerHooks();
         await this.shareContactAppWithYourInstances();
     }
-
 
     /**
      * @description Create a new personId and an associated profile.
@@ -208,6 +209,7 @@ export default class ContactModel extends EventEmitter {
      * @description This returns the person id hashes for all profiles gathered in my
      * own someone object.
      * @param {SHA256IdHash<Person>} personId - The person id for which to search for alternate ids.
+     * @param excludeMain
      * @returns {Promise<SHA256IdHash<Person>[]> | Promise<undefined>}
      */
     public async listAlternateIdentities(
@@ -550,13 +552,16 @@ export default class ContactModel extends EventEmitter {
                 // Add the profile to the someone object
                 await this.registerNewSelfProfile(profile);
 
-                const contactObjects = (await Promise.all(
+                const contactObjects = await Promise.all(
                     profile.obj.contactObjects.map(async (contact: SHA256Hash<Contact>) => {
                         return await getObject(contact);
                     })
-                ));
+                );
 
-                this.emit(ContactEvent.NewCommunicationEndpointArrived, contactObjects[0].communicationEndpoints);
+                this.emit(
+                    ContactEvent.NewCommunicationEndpointArrived,
+                    contactObjects[0].communicationEndpoints
+                );
                 return profile;
             });
 
@@ -631,6 +636,10 @@ export default class ContactModel extends EventEmitter {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
                 await serializeWithType('Contacts', async () => {
+                    await this.accessModel.giveGroupAccessToObject(
+                        FreedaAccessGroups.partner,
+                        caughtObject.hash
+                    );
                     const personId = caughtObject.obj.personId;
                     const personEmail = (await getObjectByIdHash(personId)).obj.email;
 

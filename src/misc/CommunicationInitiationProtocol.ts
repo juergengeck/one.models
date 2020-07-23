@@ -34,9 +34,9 @@ declare module CommunicationInitiationProtocol {
      */
     export type PersonInformationMessage = {
         command: 'person_information';
-        personId: string,
-        personPublicKey: string
-    }
+        personId: string;
+        personPublicKey: string;
+    };
 
     // ######## Message to Role (Client / Server) Mapping ########
 

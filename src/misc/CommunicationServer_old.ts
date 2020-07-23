@@ -97,7 +97,7 @@ export default class CommunicationServer {
         MessageBus.send('log', `Starting WebSocket server at ${host}:${port}`);
 
         this.webSocketServer = new WebSocketServer({host, port});
-        this.webSocketServer.on('connection', (ws) => {
+        this.webSocketServer.on('connection', ws => {
             this.acceptNewConnection(ws);
         });
 
@@ -115,7 +115,7 @@ export default class CommunicationServer {
             this.webSocketServer.close();
             this.webSocketServer = undefined;
             this.registeredConnections.forEach((value, _) => {
-                value.forEach((websocket) => websocket.close());
+                value.forEach(websocket => websocket.close());
             });
             this.registeredConnections.clear();
         }
@@ -132,7 +132,7 @@ export default class CommunicationServer {
         MessageBus.send('log', 'A client is connected.');
         // set onmessage to parseInitialMessage;
         // Fired when data is received through a WebSocket.
-        ws.on('message', async (data) => {
+        ws.on('message', async data => {
             await this.parseInitialMessage({
                 data,
                 type: 'message',
@@ -153,7 +153,7 @@ export default class CommunicationServer {
                 // -> removing it from the registeredConnections if it was not connected
                 if (this.registeredConnections) {
                     this.registeredConnections.forEach((value, key) => {
-                        value = value.filter((websocket) => websocket !== event.target);
+                        value = value.filter(websocket => websocket !== event.target);
                         this.registeredConnections.set(key, value);
                     });
                 }
@@ -162,7 +162,7 @@ export default class CommunicationServer {
 
         // Fired when a connection with a WebSocket has been closed
         // because of an error, such as when some data couldn't be sent.
-        ws.on('error', (error) => {
+        ws.on('error', error => {
             MessageBus.send('error', JSON.stringify(error));
         });
 

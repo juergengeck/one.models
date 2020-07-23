@@ -3,7 +3,14 @@
  */
 
 import EventEmitter from 'events';
-import {Group, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import {
+    Group,
+    OneObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash,
+    VersionedObjectResult
+} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
@@ -90,6 +97,24 @@ export default class AccessModel extends EventEmitter {
                 group.obj
             );
         }
+    }
+
+    async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>) {
+        const group = await this.getAccessGroupByName(groupName);
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: objectHash,
+                    person: [],
+                    group: [...group.obj.person],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
     }
 
     /**

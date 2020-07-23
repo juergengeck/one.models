@@ -60,7 +60,7 @@ export default class DiaryModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', (id) => {
+        this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');
             }
