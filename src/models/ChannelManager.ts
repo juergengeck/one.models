@@ -32,8 +32,6 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
-import {isHash} from 'one.core/lib/util/type-checks';
-import {isString} from 'one.core/lib/util/type-checks-basic';
 import AccessModel from './AccessModel';
 
 /**
@@ -490,8 +488,10 @@ export default class ChannelManager extends EventEmitter {
      */
     async giveAccessToChannelInfo(
         channelId: string,
-        to?: SHA256IdHash<Person>[] | SHA256IdHash<Person> | string
-    ): Promise<VersionedObjectResult<Access | IdAccess> | undefined> {
+        to?: string
+    ): Promise<
+        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
+    > {
         const channels = await this.findChannelsForSpecificId(channelId);
 
         if (to === undefined) {
@@ -514,49 +514,24 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        if (to.length !== undefined || isHash(to)) {
-            const accessChannels = await Promise.all(
-                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                    return {
-                        object: channel.hash,
-                        person: Array.from(to),
-                        group: [],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                accessChannels
-            );
-        }
+        const group = await this.accessModel.getAccessGroupByName(to);
 
-        if (isString(to)) {
-            const group = await this.accessModel.getAccessGroupByName(to);
-
-            const accessChannels = await Promise.all(
-                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                    return {
+        return await Promise.all(
+            channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/access',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    {
                         object: channel.hash,
                         person: [],
                         group: [group.idHash],
                         mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                accessChannels
-            );
-        }
-
-        return;
+                    }
+                );
+            })
+        );
     }
 
     /**

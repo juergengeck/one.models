@@ -25,6 +25,7 @@
         "noImplicitReturns": true
     },
     "include": [
+        "node_modules/one.core/test/@OneCoreTypes.d.ts",
         "node_modules/one.core/@OneCoreTypes.d.ts",
         "@OneCoreTypes.d.ts",
         "plans",
@@ -34,8 +35,7 @@
         "./*.js"
     ],
     "exclude": [
-        "node_modules/one.core/src/",
-        "node_modules/one.core/src/**",
+        "node_modules/one.core/src",
         ".*.js",
         "builds",
         "doc"

@@ -12,6 +12,12 @@ import {
 } from 'one.core/lib/storage';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
+export const FreedaAccessGroups = {
+    partner: 'partners',
+    clinic: 'clinic',
+    myself: 'myself'
+};
+
 /**
  *
  * @description Access Model class
@@ -30,8 +36,6 @@ export default class AccessModel extends EventEmitter {
     /**
      *
      * @param {AccessGroupNames}groupName
-     *  partners -> for partners connections
-     *  myself   -> for connections with my personal cloud devices
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
     async getAccessGroupPersons(groupName: string): Promise<SHA256IdHash<Person>[]> {

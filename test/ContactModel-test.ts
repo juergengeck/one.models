@@ -242,6 +242,7 @@ describe('Contact model test', () => {
             }
         );
 
+        // @ts-ignore
         await contactModel.addNewContactObject(contactObject, false);
 
         const contactApp = await ContactModel.getContactAppObject();
@@ -332,6 +333,7 @@ describe('Contact model test', () => {
                 contactDescriptions: []
             }
         );
+        // @ts-ignore
         await contactModel.addNewContactObject(contactObject, true);
 
         const someone = await contactModel.getSomeoneObject(person.idHash);

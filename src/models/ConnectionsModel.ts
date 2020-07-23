@@ -30,11 +30,13 @@ export interface PairingInformation {
     authenticationTag: string;
     publicKeyLocal: string;
     takeOver: boolean;
+    url?: string;
 }
 
 interface AuthenticationMessage {
     personIdHash: SHA256IdHash<Person>;
     authenticationTag: string;
+    takeOver?: boolean;
 }
 
 export default class ConnectionsModel extends EventEmitter {
@@ -184,6 +186,9 @@ export default class ConnectionsModel extends EventEmitter {
             const message = await conn.waitForJSONMessage();
             const authenticationTag = message.authenticationTag;
             const remotePersonId = message.personIdHash;
+
+            // if take over then check password
+            // use a new type of message an encrypt/decrypt auth tag
 
             const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
                 pairingInfo => pairingInfo.authenticationTag === authenticationTag
