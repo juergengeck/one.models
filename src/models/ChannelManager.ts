@@ -15,6 +15,7 @@ import {
     Access
 } from '@OneCoreTypes';
 import {
+    createManyObjectsThroughPurePlan,
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getHashByIdHash,
@@ -511,7 +512,7 @@ export default class ChannelManager extends EventEmitter {
                     };
                 })
             );
-            return await createSingleObjectThroughPurePlan(
+            return await createManyObjectsThroughPurePlan(
                 {
                     module: '@one/access',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -527,13 +528,13 @@ export default class ChannelManager extends EventEmitter {
                 return {
                     object: channel.hash,
                     person: [],
-                    group: [...group.obj.person],
+                    group: [group.idHash],
                     mode: SET_ACCESS_MODE.REPLACE
                 };
             })
         );
 
-        return await createSingleObjectThroughPurePlan(
+        return await createManyObjectsThroughPurePlan(
             {
                 module: '@one/access',
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
