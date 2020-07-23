@@ -7,7 +7,10 @@ import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
+    createSingleObjectThroughPurePlan,
     getObjectWithType,
+    SET_ACCESS_MODE,
+    SetAccessParam,
     WriteStorageApi
 } from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
@@ -24,6 +27,7 @@ import CommunicationInitiationProtocol, {
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -374,6 +378,25 @@ export default class ConnectionsModel extends EventEmitter {
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
         await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
+
+        const testObject = await createSingleObjectThroughPurePlan(
+            {module: '@one/identity'},
+            {
+                $type$: 'Person',
+                email: 'test'
+            }
+        );
+
+        const setAccessParam: SetAccessParam = {
+            group: [],
+            id: testObject.idHash,
+            mode: SET_ACCESS_MODE.REPLACE,
+            person: [remotePersonId]
+        };
+        const shared = await createSingleObjectThroughPurePlan({module: '@one/access'}, [
+            setAccessParam
+        ]);
+        console.log('shared:', shared);
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
