@@ -527,7 +527,7 @@ export default class ChannelManager extends EventEmitter {
                 return {
                     object: channel.hash,
                     person: [],
-                    group: [group.idHash],
+                    group: [...group.obj.person],
                     mode: SET_ACCESS_MODE.REPLACE
                 };
             })
