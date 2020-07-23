@@ -1,7 +1,7 @@
 import EncryptedConnection_Client from './EncryptedConnection_Client';
-import EncryptedConnection from "./EncryptedConnection";
-import {createMessageBus} from "one.core/lib/message-bus";
-import {wslogId} from "./LogUtils";
+import EncryptedConnection from './EncryptedConnection';
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {wslogId} from './LogUtils';
 
 const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
 
@@ -15,10 +15,10 @@ const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
 class OutgoingConnectionEstablisher {
     public onConnection:
         | ((
-        conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
-    ) => void)
+              conn: EncryptedConnection,
+              localPublicKey: Uint8Array,
+              remotePublicKey: Uint8Array
+          ) => void)
         | null = null;
 
     private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
@@ -56,8 +56,14 @@ class OutgoingConnectionEstablisher {
             while (true) {
                 try {
                     // Try to establish a connection
-                    const conn = await this.establishConnection(url, myPublicKey, targetPublicKey, encrypt, decrypt);
-                    if(this.stopped) {
+                    const conn = await this.establishConnection(
+                        url,
+                        myPublicKey,
+                        targetPublicKey,
+                        encrypt,
+                        decrypt
+                    );
+                    if (this.stopped) {
                         break;
                     }
 
@@ -67,13 +73,13 @@ class OutgoingConnectionEstablisher {
                         break;
                     }
                 } catch (e) {
-                    if(this.stopped) {
+                    if (this.stopped) {
                         break;
                     }
 
-                    await new Promise((resolve) => {
+                    await new Promise(resolve => {
                         this.retryTimeoutHandle = setTimeout(resolve, retryTimeout);
-                    })
+                    });
                     this.retryTimeoutHandle = null;
                 }
             }

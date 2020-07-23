@@ -1,5 +1,5 @@
 import {Recipe} from '@OneCoreTypes';
-import {ORDERED_BY} from "one.core/lib/recipes";
+import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
@@ -13,7 +13,7 @@ declare module '@OneCoreTypes' {
     export interface LocalInstancesList {
         $type$: 'LocalInstancesList';
         id: string;
-        instances: { instance: SHA256IdHash<Instance> }[];
+        instances: {instance: SHA256IdHash<Instance>}[];
     }
 }
 

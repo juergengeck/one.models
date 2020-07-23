@@ -18,6 +18,7 @@ import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/s
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
 import InstancesModel from '../../lib/models/InstancesModel';
+import {FreedaAccessGroups} from "../../lib/models/AccessModel";
 
 export const dbKey = './testDb';
 
@@ -108,7 +109,10 @@ export default class Model {
         await this.settings.init();
         this.instanceModel = new InstancesModel(this.oneInstance.getSecret());
         await this.instanceModel.init();
-        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000');
+        await this.access.createAccessGroup(FreedaAccessGroups.partner);
+        await this.access.createAccessGroup(FreedaAccessGroups.clinic);
+        await this.access.createAccessGroup(FreedaAccessGroups.myself);
+        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.access);
         await this.contactModel.init();
     }
     access: AccessModel;

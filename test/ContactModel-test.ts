@@ -24,6 +24,8 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {dbKey, importModules} from './utils/Model';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipies/recipies';
+import {AccessModel} from "../lib/models";
+import {FreedaAccessGroups} from "../lib/models/AccessModel";
 let contactModel: ContactModel;
 
 describe('Contact model test', () => {
@@ -33,8 +35,13 @@ describe('Contact model test', () => {
         await importModules();
 
         const instanceModel = new InstancesModel();
+        const accessModel = new AccessModel();
+        await accessModel.init();
+        await accessModel.createAccessGroup(FreedaAccessGroups.partner);
+        await accessModel.createAccessGroup(FreedaAccessGroups.clinic);
+        await accessModel.createAccessGroup(FreedaAccessGroups.myself);
         await instanceModel.init('1234');
-        contactModel = new ContactModel(instanceModel, 'localhost:8000');
+        contactModel = new ContactModel(instanceModel, 'localhost:8000',accessModel);
         await contactModel.init();
     });
 
@@ -243,7 +250,7 @@ describe('Contact model test', () => {
         );
 
         // @ts-ignore
-        await contactModel.addNewContactObject(contactObject, false);
+        await contactModel.addNewContactObjectAsMain(contactObject, false);
 
         const contactApp = await ContactModel.getContactAppObject();
 
@@ -334,7 +341,7 @@ describe('Contact model test', () => {
             }
         );
         // @ts-ignore
-        await contactModel.addNewContactObject(contactObject, true);
+        await contactModel.addNewContactObjectAsMain(contactObject, true);
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 
