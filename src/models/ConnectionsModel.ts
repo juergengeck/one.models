@@ -58,6 +58,12 @@ interface TakeOverMessage {
     encryptedAuthenticationTag: string;
 }
 
+export interface Connection {
+    remoteInstancePublicKey: string;
+    // true if the instance is connected and false if not
+    connectionState: boolean;
+}
+
 export default class ConnectionsModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly contactModel: ContactModel;
@@ -71,8 +77,8 @@ export default class ConnectionsModel extends EventEmitter {
     private meAnon: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
-    private readonly partnerConnections: string[];
-    private readonly personalCloudConnections: string[];
+    private readonly partnerConnections: Connection[];
+    private readonly personalCloudConnections: Connection[];
 
     constructor(
         commServerUrl: string,
@@ -230,6 +236,11 @@ export default class ConnectionsModel extends EventEmitter {
                 throw new Error('Received authentication tag does not match the sent one.');
             }
 
+            const connectionDetails: Connection = {
+                remoteInstancePublicKey: Uint8ArrayToString(remotePublicKey),
+                connectionState: true
+            };
+
             if (takeOver) {
                 const message = await conn.waitForJSONMessage();
                 const encryptedAuthTag = stringToUint8Array(message.encryptedAuthenticationTag);
@@ -254,12 +265,16 @@ export default class ConnectionsModel extends EventEmitter {
                     );
                 }
 
-                this.personalCloudConnections.push(Uint8ArrayToString(remotePublicKey));
+                this.personalCloudConnections.push(connectionDetails);
+                this.emit('authenticatedPersonalCloudDevice');
             } else {
-                this.partnerConnections.push(Uint8ArrayToString(remotePublicKey));
+                this.partnerConnections.push(connectionDetails);
+                this.emit('authenticatedPartnerDevice');
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
+
+            connectionDetails.connectionState = false;
         }
     }
 
@@ -391,6 +406,11 @@ export default class ConnectionsModel extends EventEmitter {
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
 
+                        const connectionDetails: Connection = {
+                            remoteInstancePublicKey: Uint8ArrayToString(remotePublicKey),
+                            connectionState: true
+                        };
+
                         if (pairingInformation.takeOver && pairingInformation.takeOverDetails) {
                             this.sendTakeOverInformation(
                                 conn,
@@ -398,9 +418,11 @@ export default class ConnectionsModel extends EventEmitter {
                                 password,
                                 pairingInformation.authenticationTag
                             );
-                            this.personalCloudConnections.push(Uint8ArrayToString(remotePublicKey));
+                            this.personalCloudConnections.push(connectionDetails);
+                            this.emit('authenticatedPersonalCloudDevice');
                         } else {
-                            this.partnerConnections.push(Uint8ArrayToString(remotePublicKey));
+                            this.partnerConnections.push(connectionDetails);
+                            this.emit('authenticatedPartnerDevice');
                         }
 
                         this.communicationModule.addNewUnknownConnection(
@@ -409,7 +431,9 @@ export default class ConnectionsModel extends EventEmitter {
                             conn
                         );
 
-                        this.startChum(conn, this.meAnon, personInfo.personId);
+                        this.startChum(conn, this.meAnon, personInfo.personId).then(() => {
+                            connectionDetails.connectionState = false;
+                        });
 
                         clearTimeout(timeoutHandle);
                         oce.stop();
@@ -622,11 +646,11 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 
-    getPartnerConnections(): string[] {
+    getPartnerConnections(): Connection[] {
         return this.partnerConnections;
     }
 
-    getPersonalCloudConnections(): string[] {
+    getPersonalCloudConnections(): Connection[] {
         return this.personalCloudConnections;
     }
 }
