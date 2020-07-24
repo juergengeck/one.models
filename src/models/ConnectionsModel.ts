@@ -7,7 +7,10 @@ import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
+    getObjectByIdHash,
     getObjectWithType,
+    onUnversionedObj,
+    onVersionedObj,
     WriteStorageApi
 } from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
@@ -75,10 +78,14 @@ export default class ConnectionsModel extends EventEmitter {
     private anonInstanceKeys: Keys;
     private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
+    private myInstanceKeys: Keys;
+    private myCrypto: CryptoAPI;
+    private me: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
     private readonly partnerConnections: Connection[];
     private readonly personalCloudConnections: Connection[];
+    private myEmail: string;
 
     constructor(
         commServerUrl: string,
@@ -90,6 +97,7 @@ export default class ConnectionsModel extends EventEmitter {
         super();
         this.password = '';
         this.salt = '';
+        this.myEmail = '';
         this.partnerConnections = [];
         this.personalCloudConnections = [];
         this.commServerUrl = commServerUrl;
@@ -107,14 +115,22 @@ export default class ConnectionsModel extends EventEmitter {
         this.isReplicant = isReplicant;
         this.anonInstanceKeys = {} as Keys;
         this.anonCrypto = {} as CryptoAPI;
+        this.myInstanceKeys = {} as Keys;
+        this.myCrypto = {} as CryptoAPI;
         this.meAnon = '' as SHA256IdHash<Person>;
+        this.me = '' as SHA256IdHash<Person>;
     }
 
     async init(): Promise<void> {
         await this.communicationModule.init();
 
-        const me = await this.contactModel.myMainIdentity();
-        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+        this.me = await this.contactModel.myMainIdentity();
+        this.myEmail = (await getObjectByIdHash(this.me)).obj.email;
+        const myInstance = await this.instancesModel.localInstanceIdForPerson(this.me);
+        this.myInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.me);
+        this.myCrypto = createCrypto(myInstance);
+
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== this.me);
 
         if (meAlternates.length !== 1) {
             throw new Error('This applications needs exactly one alternate identity!');
@@ -123,6 +139,12 @@ export default class ConnectionsModel extends EventEmitter {
         const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
+
+        console.log('me:', this.me);
+        console.log('myInstanceKeys:', this.myInstanceKeys);
+
+        console.log('anon me:', this.meAnon);
+        console.log('anonInstanceKeys:', this.anonInstanceKeys);
     }
 
     async shutdown(): Promise<void> {
@@ -382,8 +404,13 @@ export default class ConnectionsModel extends EventEmitter {
     ): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
-        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const sourceKey = toByteArray(
+            pairingInformation.takeOver
+                ? this.myInstanceKeys.publicKey
+                : this.anonInstanceKeys.publicKey
+        );
         const targetKey = toByteArray(pairingInformation.publicKeyLocal);
+        const takeOver = pairingInformation.takeOver;
 
         return new Promise((resolve, reject) => {
             const timeoutHandle = setTimeout(() => {
@@ -397,11 +424,16 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePublicKey: Uint8Array
             ) => {
                 // Person id authentication
-                this.verifyAndExchangePersonId(conn, this.meAnon, true, pairingInformation.takeOver)
+                this.verifyAndExchangePersonId(
+                    conn,
+                    takeOver ? this.me : this.meAnon,
+                    true,
+                    takeOver
+                )
                     .then(personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
-                            personIdHash: this.meAnon
+                            personIdHash: takeOver ? this.me : this.meAnon
                         };
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
@@ -431,7 +463,11 @@ export default class ConnectionsModel extends EventEmitter {
                             conn
                         );
 
-                        this.startChum(conn, this.meAnon, personInfo.personId).then(() => {
+                        this.startChum(
+                            conn,
+                            takeOver ? this.me : this.meAnon,
+                            personInfo.personId
+                        ).then(() => {
                             connectionDetails.connectionState = false;
                         });
 
@@ -452,10 +488,14 @@ export default class ConnectionsModel extends EventEmitter {
                 sourceKey,
                 targetKey,
                 text => {
-                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return pairingInformation.takeOver
+                        ? this.myCrypto.encryptWithInstancePublicKey(targetKey, text)
+                        : this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return pairingInformation.takeOver
+                        ? this.myCrypto.decryptWithInstancePublicKey(targetKey, cypherText)
+                        : this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
         });
@@ -488,6 +528,16 @@ export default class ConnectionsModel extends EventEmitter {
             maxNotificationDelay: 20
         };
 
+        console.log('defaultInitialChumObj:', defaultInitialChumObj);
+
+        onVersionedObj.addListener(caughtObject => {
+            console.log('versioned object:', caughtObject);
+        });
+
+        onUnversionedObj.addListener(caughtObject => {
+            console.log('unversioned object:', caughtObject);
+        });
+
         const chum = createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             defaultInitialChumObj
@@ -498,23 +548,23 @@ export default class ConnectionsModel extends EventEmitter {
         await chum;
     }
 
-    async generatePairingInformation(
-        takeOver: boolean,
-        email?: string
-    ): Promise<PairingInformation> {
+    async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         this.salt = await this.generateSalt();
 
         const pairingInformation: PairingInformation = {
             authenticationTag: await createRandomString(),
-            publicKeyLocal: this.anonInstanceKeys.publicKey,
+            publicKeyLocal: takeOver
+                ? this.myInstanceKeys.publicKey
+                : this.anonInstanceKeys.publicKey,
             url: this.commServerUrl,
             takeOver,
-            takeOverDetails: {
-                nonce: this.salt,
-                email: email ? email : ''
-            }
+            takeOverDetails: takeOver
+                ? {
+                      nonce: this.salt,
+                      email: this.myEmail
+                  }
+                : undefined
         };
-
         this.generatedPairingInformation.push(pairingInformation);
 
         return pairingInformation;

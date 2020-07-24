@@ -89,6 +89,7 @@ export default class AccessModel extends EventEmitter {
             ) === undefined
         ) {
             group.obj.person.push(personId);
+            console.log('person added to the group:', group);
             await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -146,19 +147,21 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
+            console.log('group created:', group);
             const accessPlainObject = {
-                object: group.hash,
+                id: group.idHash,
                 person: [await getInstanceOwnerIdHash()],
                 group: [],
                 mode: SET_ACCESS_MODE.REPLACE
             };
-            await createSingleObjectThroughPurePlan(
+            const access = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/access',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 [accessPlainObject]
             );
+            console.log('access to group created:', access);
         }
     }
 }
