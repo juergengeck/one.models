@@ -259,7 +259,7 @@ export default class ConnectionsModel extends EventEmitter {
             }
 
             const connectionDetails: Connection = {
-                remoteInstancePublicKey: Uint8ArrayToString(remotePublicKey),
+                remoteInstancePublicKey: fromByteArray(remotePublicKey),
                 connectionState: true
             };
 
@@ -293,6 +293,8 @@ export default class ConnectionsModel extends EventEmitter {
                 this.partnerConnections.push(connectionDetails);
                 this.emit('authenticatedPartnerDevice');
             }
+
+            await conn.sendMessage('start-chum');
 
             await this.startChum(conn, localPersonId, remotePersonId);
 
@@ -439,7 +441,7 @@ export default class ConnectionsModel extends EventEmitter {
                         conn.sendMessage(JSON.stringify(authenticationMessage));
 
                         const connectionDetails: Connection = {
-                            remoteInstancePublicKey: Uint8ArrayToString(remotePublicKey),
+                            remoteInstancePublicKey: fromByteArray(remotePublicKey),
                             connectionState: true
                         };
 
@@ -463,17 +465,21 @@ export default class ConnectionsModel extends EventEmitter {
                             conn
                         );
 
-                        this.startChum(
-                            conn,
-                            takeOver ? this.me : this.meAnon,
-                            personInfo.personId
-                        ).then(() => {
-                            connectionDetails.connectionState = false;
-                        });
+                        conn.waitForMessage().then(message => {
+                            if (message === 'start-chum') {
+                                this.startChum(
+                                    conn,
+                                    takeOver ? this.me : this.meAnon,
+                                    personInfo.personId
+                                ).then(() => {
+                                    connectionDetails.connectionState = false;
+                                });
+                            }
 
-                        clearTimeout(timeoutHandle);
-                        oce.stop();
-                        resolve();
+                            clearTimeout(timeoutHandle);
+                            oce.stop();
+                            resolve();
+                        });
                     })
                     .catch(e => {
                         clearTimeout(timeoutHandle);
@@ -507,7 +513,7 @@ export default class ConnectionsModel extends EventEmitter {
         remotePersonId: SHA256IdHash<Person>
     ): Promise<void> {
         const minimalWriteStorageApiObj = {
-            createFileWriteStream
+            createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
 
         const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
