@@ -294,8 +294,6 @@ export default class ConnectionsModel extends EventEmitter {
                 this.emit('authenticatedPartnerDevice');
             }
 
-            await conn.sendMessage('start-chum');
-
             await this.startChum(conn, localPersonId, remotePersonId);
 
             connectionDetails.connectionState = false;
@@ -465,21 +463,19 @@ export default class ConnectionsModel extends EventEmitter {
                             conn
                         );
 
-                        conn.waitForMessage().then(message => {
-                            if (message === 'start-chum') {
-                                this.startChum(
-                                    conn,
-                                    takeOver ? this.me : this.meAnon,
-                                    personInfo.personId
-                                ).then(() => {
-                                    connectionDetails.connectionState = false;
-                                });
-                            }
+                        setTimeout(() => {
+                            this.startChum(
+                                conn,
+                                takeOver ? this.me : this.meAnon,
+                                personInfo.personId
+                            ).then(() => {
+                                connectionDetails.connectionState = false;
+                            });
+                        }, 1000);
 
-                            clearTimeout(timeoutHandle);
-                            oce.stop();
-                            resolve();
-                        });
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        resolve();
                     })
                     .catch(e => {
                         clearTimeout(timeoutHandle);

@@ -273,6 +273,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * @returns {Uint8Array} The encrypted text
      */
     private encryptMessage(plainText: Uint8Array): Uint8Array {
+        console.log('message to encrypt:', new TextDecoder().decode(plainText));
         if (!this.sharedKey) {
             throw Error('The encryption keys have not been set up correctly.');
         }
@@ -298,6 +299,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
             this.close();
             throw new Error('Decryption of message failed.');
         }
+        console.log('decrypted message:', new TextDecoder().decode(plainText));
         return plainText;
     }
 
@@ -308,7 +310,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      */
     private getAndIncLocalNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.localNonceCounter);
-        this.localNonceCounter += 2;
+        // this.localNonceCounter += 2;
         return nonce;
     }
 
@@ -319,7 +321,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      */
     private getAndIncRemoteNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.remoteNonceCounter);
-        this.remoteNonceCounter += 2;
+        // this.remoteNonceCounter += 2;
         return nonce;
     }
 
