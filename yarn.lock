@@ -3885,7 +3885,7 @@ once@^1.3.0, once@^1.3.1, once@^1.4.0:
 
 one.core@refinio/one.core#feature/20200720_communication_og:
   version "0.2.3"
-  resolved "git+ssh://git@github.com/refinio/one.core.git#fd6d5fb266706ca723ac6cb732bc0d5396f41895"
+  resolved "git+ssh://git@github.com/refinio/one.core.git#2a82f1e45845b8122e55947c4f52506ff09a6019"
   dependencies:
     "@babel/core" "*"
     "@babel/plugin-proposal-class-properties" "*"

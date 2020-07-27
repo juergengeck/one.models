@@ -572,14 +572,6 @@ export default class ConnectionsModel extends EventEmitter {
 
         console.log('defaultInitialChumObj:', defaultInitialChumObj);
 
-        onVersionedObj.addListener(caughtObject => {
-            console.log('versioned object:', caughtObject);
-        });
-
-        onUnversionedObj.addListener(caughtObject => {
-            console.log('unversioned object:', caughtObject);
-        });
-
         const chum = createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             defaultInitialChumObj
