@@ -37,6 +37,7 @@
     "eslint": "*",
     "eslint-plugin-import": "*",
     "eslint-plugin-jsdoc": "*",
+    "isomorphic-ws": "^4.0.1",
     "jsdoc": "*",
     "jsdoc-babel": "*",
     "jsdoc-plantuml": "^1.0.1",
@@ -46,7 +47,6 @@
     "prettier": "*",
     "sinon": "*",
     "ts-node": "^8.10.1",
-    "webpack-cli": "*",
-    "isomorphic-ws": "^4.0.1"
+    "webpack-cli": "*"
   }
 }
