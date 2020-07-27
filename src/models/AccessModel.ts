@@ -17,7 +17,6 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
 export const FreedaAccessGroups = {
     partner: 'partners',
@@ -136,7 +135,7 @@ export default class AccessModel extends EventEmitter {
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
-            const group = await createSingleObjectThroughPurePlan(
+            await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -147,21 +146,6 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
-            console.log('group created:', group);
-            const accessPlainObject = {
-                id: group.idHash,
-                person: [await getInstanceOwnerIdHash()],
-                group: [],
-                mode: SET_ACCESS_MODE.REPLACE
-            };
-            const access = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                [accessPlainObject]
-            );
-            console.log('access to group created:', access);
         }
     }
 }

@@ -12,6 +12,7 @@ import {
     getObjectWithType,
     onUnversionedObj,
     onVersionedObj,
+    SET_ACCESS_MODE,
     VERSION_UPDATES,
     WriteStorageApi
 } from 'one.core/lib/storage';
@@ -37,6 +38,8 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
+import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -475,8 +478,6 @@ export default class ConnectionsModel extends EventEmitter {
                             this.emit('authenticatedPartnerDevice');
                         }
 
-                        conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-
                         conn.waitForJSONMessage().then(async personObj => {
                             console.log('message received:', personObj);
                             if (personObj.$type$ === 'Person') {
@@ -487,6 +488,8 @@ export default class ConnectionsModel extends EventEmitter {
                                     },
                                     personObj
                                 );
+
+                                conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
 
                                 this.communicationModule.addNewUnknownConnection(
                                     localPublicKey,
@@ -550,6 +553,30 @@ export default class ConnectionsModel extends EventEmitter {
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
         await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
+
+        // todo: just for testing purpose give access directly to the person - should be removed
+        const owner = await getInstanceOwnerIdHash();
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'diary',
+            owner: owner
+        });
+        const accessParam = {
+            id: channelInfoIdHash,
+            person: [remotePersonId],
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
+        };
+        const accessObject = await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {
+                    '*': VERSION_UPDATES.NONE_IF_LATEST
+                }
+            },
+            [accessParam]
+        );
+        console.log('Person Access Obj:', accessObject);
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
