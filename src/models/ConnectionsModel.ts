@@ -6,11 +6,12 @@ import EncryptedConnection from '../misc/EncryptedConnection';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
-    createSingleObjectThroughImpurePlan,
+    createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectWithType,
     onUnversionedObj,
     onVersionedObj,
+    VERSION_UPDATES,
     WriteStorageApi
 } from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
@@ -25,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -78,6 +79,7 @@ export default class ConnectionsModel extends EventEmitter {
     private anonInstanceKeys: Keys;
     private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
+    private meAnnonObj: VersionedObjectResult<Person>;
     private myInstanceKeys: Keys;
     private myCrypto: CryptoAPI;
     private me: SHA256IdHash<Person>;
@@ -119,6 +121,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.myCrypto = {} as CryptoAPI;
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
+        this.meAnnonObj = {} as VersionedObjectResult<Person>;
     }
 
     async init(): Promise<void> {
@@ -136,6 +139,7 @@ export default class ConnectionsModel extends EventEmitter {
             throw new Error('This applications needs exactly one alternate identity!');
         }
         this.meAnon = meAlternates[0];
+        this.meAnnonObj = await getObjectByIdHash(this.meAnon);
         const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
@@ -292,6 +296,19 @@ export default class ConnectionsModel extends EventEmitter {
             } else {
                 this.partnerConnections.push(connectionDetails);
                 this.emit('authenticatedPartnerDevice');
+            }
+
+            await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+            const personObj = await conn.waitForJSONMessage();
+            console.log('message received:', personObj);
+            if (personObj.$type$ === 'Person') {
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    personObj
+                );
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
@@ -456,6 +473,21 @@ export default class ConnectionsModel extends EventEmitter {
                             this.partnerConnections.push(connectionDetails);
                             this.emit('authenticatedPartnerDevice');
                         }
+
+                        conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+
+                        conn.waitForJSONMessage().then(async personObj => {
+                            console.log('message received:', personObj);
+                            if (personObj.$type$ === 'Person') {
+                                await createSingleObjectThroughPurePlan(
+                                    {
+                                        module: '@one/identity',
+                                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                                    },
+                                    personObj
+                                );
+                            }
+                        });
 
                         this.communicationModule.addNewUnknownConnection(
                             localPublicKey,
