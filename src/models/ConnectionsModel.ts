@@ -92,6 +92,7 @@ export default class ConnectionsModel extends EventEmitter {
     private readonly partnerConnections: Connection[];
     private readonly personalCloudConnections: Connection[];
     private myEmail: string;
+    private partnerAccess: SHA256IdHash<Person>[];
 
     constructor(
         commServerUrl: string,
@@ -126,6 +127,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
+        this.partnerAccess = [];
     }
 
     async init(): Promise<void> {
@@ -554,29 +556,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
 
-        // todo: just for testing purpose give access directly to the person - should be removed
-        const owner = await getInstanceOwnerIdHash();
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'diary',
-            owner: owner
-        });
-        const accessParam = {
-            id: channelInfoIdHash,
-            person: [remotePersonId],
-            group: [],
-            mode: SET_ACCESS_MODE.REPLACE
-        };
-        const accessObject = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access',
-                versionMapPolicy: {
-                    '*': VERSION_UPDATES.NONE_IF_LATEST
-                }
-            },
-            [accessParam]
-        );
-        console.log('Person Access Obj:', accessObject);
+        await this.giveAccessToPartner(remotePersonId);
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
@@ -764,5 +744,86 @@ export default class ConnectionsModel extends EventEmitter {
 
     getPersonalCloudConnections(): Connection[] {
         return this.personalCloudConnections;
+    }
+
+    // todo: just for testing purpose give access directly to the person - should be removed
+
+    async giveAccessToPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
+        this.partnerAccess.push(partnerIdHash);
+        const owner = await getInstanceOwnerIdHash();
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: owner
+        });
+        let setAccessParam = {
+            id: channelInfoIdHash,
+            person: this.partnerAccess,
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
+        };
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [setAccessParam]
+        );
+        // share my consent files with partner for backup
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: await getInstanceOwnerIdHash()
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        try {
+            // share old partner consent files with partner for backup
+            setAccessParam.id = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: 'consentFile',
+                owner: partnerIdHash
+            });
+
+            await getObjectByIdHash(setAccessParam.id);
+
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        } catch (error) {
+            // If the partner was not connected with this instance previously,
+            // then the calculateIdHashOfObj function will return a FileNotFoundError.
+            if (error.name !== 'FileNotFoundError') {
+                console.error(error);
+            }
+        }
+    }
+
+    async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
+        this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
+        const owner = await getInstanceOwnerIdHash();
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: owner
+        });
+        let setAccessParam = {
+            id: channelInfoIdHash,
+            person: this.partnerAccess,
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
+        };
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [setAccessParam]
+        );
+        // share my consent files with partner for backup
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: await getInstanceOwnerIdHash()
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 }
