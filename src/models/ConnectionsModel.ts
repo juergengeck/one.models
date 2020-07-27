@@ -6,6 +6,7 @@ import EncryptedConnection from '../misc/EncryptedConnection';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
+    createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectWithType,
@@ -486,28 +487,28 @@ export default class ConnectionsModel extends EventEmitter {
                                     },
                                     personObj
                                 );
+
+                                this.communicationModule.addNewUnknownConnection(
+                                    localPublicKey,
+                                    remotePublicKey,
+                                    conn
+                                );
+
+                                setTimeout(() => {
+                                    this.startChum(
+                                        conn,
+                                        takeOver ? this.me : this.meAnon,
+                                        personInfo.personId
+                                    ).then(() => {
+                                        connectionDetails.connectionState = false;
+                                    });
+                                }, 1000);
+
+                                clearTimeout(timeoutHandle);
+                                oce.stop();
+                                resolve();
                             }
                         });
-
-                        this.communicationModule.addNewUnknownConnection(
-                            localPublicKey,
-                            remotePublicKey,
-                            conn
-                        );
-
-                        setTimeout(() => {
-                            this.startChum(
-                                conn,
-                                takeOver ? this.me : this.meAnon,
-                                personInfo.personId
-                            ).then(() => {
-                                connectionDetails.connectionState = false;
-                            });
-                        }, 1000);
-
-                        clearTimeout(timeoutHandle);
-                        oce.stop();
-                        resolve();
                     })
                     .catch(e => {
                         clearTimeout(timeoutHandle);
