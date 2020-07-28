@@ -8,10 +8,10 @@ import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
+    getObject,
     getObjectByIdHash,
+    getObjectByIdObj,
     getObjectWithType,
-    onUnversionedObj,
-    onVersionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES,
     WriteStorageApi
@@ -28,7 +28,15 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import {
+    Keys,
+    Person,
+    SHA256IdHash,
+    VersionedObjectResult,
+    ConnectionDetails,
+    PairingInformation,
+    AvailableConnections
+} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -38,23 +46,9 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 const MessageBus = createMessageBus('ConnectionsModel');
-
-export interface PairingInformation {
-    authenticationTag: string;
-    publicKeyLocal: string;
-    url: string;
-    takeOver: boolean;
-    takeOverDetails?: TakeOverInformation;
-}
-
-export interface TakeOverInformation {
-    nonce: string;
-    email: string;
-}
 
 interface AuthenticationMessage {
     personIdHash: SHA256IdHash<Person>;
@@ -64,12 +58,6 @@ interface AuthenticationMessage {
 
 interface TakeOverMessage {
     encryptedAuthenticationTag: string;
-}
-
-export interface Connection {
-    remoteInstancePublicKey: string;
-    // true if the instance is connected and false if not
-    connectionState: boolean;
 }
 
 export default class ConnectionsModel extends EventEmitter {
@@ -83,16 +71,15 @@ export default class ConnectionsModel extends EventEmitter {
     private anonInstanceKeys: Keys;
     private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
-    private meAnnonObj: VersionedObjectResult<Person>;
+    private meAnonObj: VersionedObjectResult<Person>;
     private myInstanceKeys: Keys;
     private myCrypto: CryptoAPI;
     private me: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
-    private readonly partnerConnections: Connection[];
-    private readonly personalCloudConnections: Connection[];
+    private availableConnections: AvailableConnections;
     private myEmail: string;
-    private partnerAccess: SHA256IdHash<Person>[];
+    private partnerAccess: Array<SHA256IdHash<Person>>;
 
     constructor(
         commServerUrl: string,
@@ -105,8 +92,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.password = '';
         this.salt = '';
         this.myEmail = '';
-        this.partnerConnections = [];
-        this.personalCloudConnections = [];
+        this.availableConnections = {} as AvailableConnections;
         this.commServerUrl = commServerUrl;
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
@@ -126,7 +112,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.myCrypto = {} as CryptoAPI;
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
-        this.meAnnonObj = {} as VersionedObjectResult<Person>;
+        this.meAnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
     }
 
@@ -135,6 +121,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         this.me = await this.contactModel.myMainIdentity();
         this.myEmail = (await getObjectByIdHash(this.me)).obj.email;
+
         const myInstance = await this.instancesModel.localInstanceIdForPerson(this.me);
         this.myInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.me);
         this.myCrypto = createCrypto(myInstance);
@@ -145,16 +132,34 @@ export default class ConnectionsModel extends EventEmitter {
             throw new Error('This applications needs exactly one alternate identity!');
         }
         this.meAnon = meAlternates[0];
-        this.meAnnonObj = await getObjectByIdHash(this.meAnon);
+        this.meAnonObj = await getObjectByIdHash(this.meAnon);
+
         const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
 
-        console.log('me:', this.me);
-        console.log('myInstanceKeys:', this.myInstanceKeys);
-
-        console.log('anon me:', this.meAnon);
-        console.log('anonInstanceKeys:', this.anonInstanceKeys);
+        try {
+            // Get previous connection that my instance had.
+            this.availableConnections = (
+                await getObjectByIdObj({
+                    $type$: 'AvailableConnections',
+                    instanceIdHash: myInstance
+                })
+            ).obj;
+        } catch (error) {
+            if (error.name === 'FileNotFoundError') {
+                // My instance didn't have connections in the past.
+                this.availableConnections = {
+                    $type$: 'AvailableConnections',
+                    instanceIdHash: myInstance,
+                    personalCloudConnections: [],
+                    partnerContacts: []
+                };
+            } else {
+                this.emit('error', error.name);
+                throw error;
+            }
+        }
     }
 
     async shutdown(): Promise<void> {
@@ -188,6 +193,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         let remotePersonId: SHA256IdHash<Person>;
         let isNew: boolean;
+
         try {
             const remotePersonInfo = await this.verifyAndExchangePersonId(
                 conn,
@@ -234,6 +240,7 @@ export default class ConnectionsModel extends EventEmitter {
         MessageBus.send('log', `${wslogId(conn.webSocket)}: onUnknownConnection()`);
 
         let remotePersonId: SHA256IdHash<Person>;
+
         try {
             const remotePersonInfo = await this.verifyAndExchangePersonId(
                 conn,
@@ -268,7 +275,8 @@ export default class ConnectionsModel extends EventEmitter {
                 throw new Error('Received authentication tag does not match the sent one.');
             }
 
-            const connectionDetails: Connection = {
+            const connectionDetails: ConnectionDetails = {
+                $type$: 'ConnectionDetails',
                 remoteInstancePublicKey: fromByteArray(remotePublicKey),
                 connectionState: true
             };
@@ -297,28 +305,30 @@ export default class ConnectionsModel extends EventEmitter {
                     );
                 }
 
-                this.personalCloudConnections.push(connectionDetails);
+                await this.saveConnectionDetails(connectionDetails, true);
                 this.emit('authenticatedPersonalCloudDevice');
             } else {
-                this.partnerConnections.push(connectionDetails);
+                await this.saveConnectionDetails(connectionDetails, false);
                 this.emit('authenticatedPartnerDevice');
-            }
 
-            await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-            const personObj = await conn.waitForJSONMessage();
-            console.log('message received:', personObj);
-            if (personObj.$type$ === 'Person') {
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    personObj
-                );
+                // send anonymous Person object for access rights
+                await conn.sendMessage(JSON.stringify(this.meAnonObj.obj));
+                const personObj = await conn.waitForJSONMessage();
+
+                if (personObj.$type$ === 'Person') {
+                    // save other instance anonymous Person object for access rights
+                    await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        personObj
+                    );
+                }
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
-
+            // when the chum is returned, the connection is closed
             connectionDetails.connectionState = false;
         }
     }
@@ -356,6 +366,7 @@ export default class ConnectionsModel extends EventEmitter {
         // Exchange and challenge response the person keys
         let remotePersonId: SHA256IdHash<Person>;
         let remotePersonKey: Uint8Array;
+
         if (initiatedLocally) {
             // Step1: Send my person information
             await this.sendPersonInformation(conn, localPersonId, localPersonKey, takeOver);
@@ -397,9 +408,11 @@ export default class ConnectionsModel extends EventEmitter {
             const remotePersonKey2 = (
                 await getObjectWithType(remotePersonKeyReverse[0].toHash, 'Keys')
             ).publicKey;
+
             if (fromByteArray(remotePersonKey) !== remotePersonKey2) {
                 throw new Error('Key does not match your previous visit');
             }
+
             return {
                 isNew: false,
                 personId: remotePersonId,
@@ -453,35 +466,34 @@ export default class ConnectionsModel extends EventEmitter {
                     true,
                     takeOver
                 )
-                    .then(personInfo => {
+                    .then(async personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
                             personIdHash: takeOver ? this.me : this.meAnon
                         };
 
-                        conn.sendMessage(JSON.stringify(authenticationMessage));
+                        await conn.sendMessage(JSON.stringify(authenticationMessage));
 
-                        const connectionDetails: Connection = {
+                        const connectionDetails: ConnectionDetails = {
+                            $type$: 'ConnectionDetails',
                             remoteInstancePublicKey: fromByteArray(remotePublicKey),
                             connectionState: true
                         };
 
                         if (pairingInformation.takeOver && pairingInformation.takeOverDetails) {
-                            this.sendTakeOverInformation(
+                            await this.sendTakeOverInformation(
                                 conn,
                                 pairingInformation.takeOverDetails.nonce,
                                 password,
                                 pairingInformation.authenticationTag
                             );
-                            this.personalCloudConnections.push(connectionDetails);
+                            await this.saveConnectionDetails(connectionDetails, true);
                             this.emit('authenticatedPersonalCloudDevice');
                         } else {
-                            this.partnerConnections.push(connectionDetails);
+                            await this.saveConnectionDetails(connectionDetails, false);
                             this.emit('authenticatedPartnerDevice');
-                        }
 
-                        conn.waitForJSONMessage().then(async personObj => {
-                            console.log('message received:', personObj);
+                            const personObj = await conn.waitForJSONMessage();
                             if (personObj.$type$ === 'Person') {
                                 await createSingleObjectThroughPurePlan(
                                     {
@@ -491,29 +503,30 @@ export default class ConnectionsModel extends EventEmitter {
                                     personObj
                                 );
 
-                                conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-
-                                this.communicationModule.addNewUnknownConnection(
-                                    localPublicKey,
-                                    remotePublicKey,
-                                    conn
-                                );
-
-                                setTimeout(() => {
-                                    this.startChum(
-                                        conn,
-                                        takeOver ? this.me : this.meAnon,
-                                        personInfo.personId
-                                    ).then(() => {
-                                        connectionDetails.connectionState = false;
-                                    });
-                                }, 1000);
-
-                                clearTimeout(timeoutHandle);
-                                oce.stop();
-                                resolve();
+                                await conn.sendMessage(JSON.stringify(this.meAnonObj.obj));
                             }
-                        });
+                        }
+
+                        this.communicationModule.addNewUnknownConnection(
+                            localPublicKey,
+                            remotePublicKey,
+                            conn
+                        );
+
+                        // the timout is needed so that the other instance has time to register all services
+                        setTimeout(() => {
+                            this.startChum(
+                                conn,
+                                takeOver ? this.me : this.meAnon,
+                                personInfo.personId
+                            ).then(() => {
+                                connectionDetails.connectionState = false;
+                            });
+                        }, 1000);
+
+                        clearTimeout(timeoutHandle);
+                        await oce.stop();
+                        resolve();
                     })
                     .catch(e => {
                         clearTimeout(timeoutHandle);
@@ -549,14 +562,25 @@ export default class ConnectionsModel extends EventEmitter {
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
-
+        // Core takes either de ws package or the default websocket
+        // depending on for what environment it was compiled. In this
+        // project we use the isomorphic-ws library for this. This is
+        // why we need to ignore the below error, because after compilation
+        // the types of the websockets will be the same.
+        // @ts-ignore
         const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
-        await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
-
-        await this.giveAccessToPartner(remotePersonId);
+        if (localPersonId !== remotePersonId) {
+            // For instances that I own the localPersonId and remotePersonID will be the same,
+            // so if the id's are different, that means that I am connecting to a partner.
+            await this.accessModel.addPersonToAccessGroup(
+                FreedaAccessGroups.partner,
+                remotePersonId
+            );
+            await this.giveAccessToPartner(remotePersonId);
+        }
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
@@ -569,8 +593,6 @@ export default class ConnectionsModel extends EventEmitter {
             keepRunning: true,
             maxNotificationDelay: 20
         };
-
-        console.log('defaultInitialChumObj:', defaultInitialChumObj);
 
         const chum = createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
@@ -644,6 +666,7 @@ export default class ConnectionsModel extends EventEmitter {
         command: T
     ): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
         const message = await conn.waitForJSONMessageWithType(command, 'command');
+
         if (isPeerMessage(message, command)) {
             return message;
         }
@@ -662,6 +685,7 @@ export default class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedChallenge);
+
         for (let elem of challenge) {
             elem = ~elem;
         }
@@ -672,6 +696,7 @@ export default class ConnectionsModel extends EventEmitter {
             remotePersonPublicKey,
             encryptedResponse
         );
+
         if (!tweetnacl.verify(challenge, response)) {
             conn.close();
             throw new Error('Failed to authenticate connection.');
@@ -689,9 +714,11 @@ export default class ConnectionsModel extends EventEmitter {
             remotePersonPublicKey,
             encryptedChallenge
         );
+
         for (let elem of challenge) {
             elem = ~elem;
         }
+
         const encryptedResponse = crypto.encryptWithPersonPublicKey(
             remotePersonPublicKey,
             challenge
@@ -721,6 +748,7 @@ export default class ConnectionsModel extends EventEmitter {
         if (salt === undefined) {
             throw new Error('The received information do not contain nonce');
         }
+
         const kdf = await this.keyDerivationFunction(salt, password);
         const encryptedAuthTag = await encryptWithSymmetricKey(kdf, authenticationTag);
         const takeOverMessage: TakeOverMessage = {
@@ -730,29 +758,40 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 
-    getPartnerConnections(): Connection[] {
-        return this.partnerConnections;
+    async getPartnerConnections(): Promise<ConnectionDetails[]> {
+        const partnerConnections: ConnectionDetails[] = [];
+
+        await this.availableConnections.partnerContacts.map(async connectionsHash => {
+            partnerConnections.push(await getObject(connectionsHash));
+        });
+
+        return partnerConnections;
     }
 
-    getPersonalCloudConnections(): Connection[] {
-        return this.personalCloudConnections;
+    async getPersonalCloudConnections(): Promise<ConnectionDetails[]> {
+        const personalCloudConnections: ConnectionDetails[] = [];
+
+        await this.availableConnections.personalCloudConnections.map(async connectionsHash => {
+            personalCloudConnections.push(await getObject(connectionsHash));
+        });
+
+        return personalCloudConnections;
     }
 
     // todo: just for testing purpose give access directly to the person - should be removed
-
     async giveAccessToPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
         this.partnerAccess.push(partnerIdHash);
-        const owner = await getInstanceOwnerIdHash();
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: owner
+            owner: this.me
         });
-        let setAccessParam = {
+        const setAccessParam = {
             id: channelInfoIdHash,
             person: this.partnerAccess,
             group: [],
-            mode: SET_ACCESS_MODE.REPLACE
+            mode: SET_ACCESS_MODE.ADD
         };
         await createSingleObjectThroughPurePlan(
             {
@@ -764,7 +803,7 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: await getInstanceOwnerIdHash()
+            owner: this.me
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
@@ -791,13 +830,13 @@ export default class ConnectionsModel extends EventEmitter {
 
     async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
         this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
-        const owner = await getInstanceOwnerIdHash();
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: owner
+            owner: this.me
         });
-        let setAccessParam = {
+        const setAccessParam = {
             id: channelInfoIdHash,
             person: this.partnerAccess,
             group: [],
@@ -813,9 +852,38 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: await getInstanceOwnerIdHash()
+            owner: this.me
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+    }
+
+    private async saveAvailableConnectionsList(): Promise<void> {
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            this.availableConnections
+        );
+    }
+
+    private async saveConnectionDetails(
+        connection: ConnectionDetails,
+        takeOver: boolean
+    ): Promise<void> {
+        const connectionObj = await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            connection
+        );
+
+        takeOver
+            ? this.availableConnections.personalCloudConnections.push(connectionObj.hash)
+            : this.availableConnections.partnerContacts.push(connectionObj.hash);
+
+        await this.saveAvailableConnectionsList();
     }
 }

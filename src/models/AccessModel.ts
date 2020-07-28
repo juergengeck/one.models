@@ -88,7 +88,6 @@ export default class AccessModel extends EventEmitter {
             ) === undefined
         ) {
             group.obj.person.push(personId);
-            console.log('person added to the group:', group);
             await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',

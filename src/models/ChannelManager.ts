@@ -302,8 +302,6 @@ export default class ChannelManager extends EventEmitter {
                 sharedWith: Array.from([...new Set(persons)])
             };
 
-            console.log('in channel:', channelId, ' found object:', obj);
-
             objectsCount++;
             yield obj;
         }
@@ -515,8 +513,6 @@ export default class ChannelManager extends EventEmitter {
     > {
         const channels = await this.findChannelsForSpecificId(channelId);
 
-        console.log('access to channel:', channelId, ' to person:', to);
-
         if (to === undefined) {
             const accessChannels = await Promise.all(
                 channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
@@ -538,7 +534,6 @@ export default class ChannelManager extends EventEmitter {
         }
 
         const group = await this.accessModel.getAccessGroupByName(to);
-        console.log('giveAccessToChannelInfo to group:', group);
 
         const accessObjects = await Promise.all(
             channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {

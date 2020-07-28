@@ -273,7 +273,6 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * @returns {Uint8Array} The encrypted text
      */
     private encryptMessage(plainText: Uint8Array): Uint8Array {
-        console.log('message to encrypt:', new TextDecoder().decode(plainText));
         if (!this.sharedKey) {
             throw Error('The encryption keys have not been set up correctly.');
         }
@@ -299,7 +298,6 @@ class EncryptedConnection extends EncryptedConnectionInterface {
             this.close();
             throw new Error('Decryption of message failed.');
         }
-        console.log('decrypted message:', new TextDecoder().decode(plainText));
         return plainText;
     }
 
