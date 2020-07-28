@@ -778,39 +778,9 @@ export default class ConnectionsModel extends EventEmitter {
                 // Person id authentication
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
-                        const connectionDetails: ConnectionDetails = {
-                            $type$: 'ConnectionDetails',
-                            remoteInstancePublicKey: fromByteArray(remotePublicKey),
-                            connectionState: true
-                        };
-
-                        await this.saveConnectionDetails(connectionDetails, false);
-                        this.emit('authenticatedPartnerDevice');
-
-                        const personObj = await conn.waitForJSONMessage();
-                        if (personObj.$type$ === 'Person') {
-                            await createSingleObjectThroughPurePlan(
-                                {
-                                    module: '@one/identity',
-                                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                                },
-                                personObj
-                            );
-
-                            await conn.sendMessage(JSON.stringify(this.meAnonObj.obj));
-                        }
-
-                        this.communicationModule.addNewUnknownConnection(
-                            localPublicKey,
-                            remotePublicKey,
-                            conn
-                        );
-
                         // the timout is needed so that the other instance has time to register all services
                         setTimeout(() => {
-                            this.startChum(conn, this.meAnon, personInfo.personId).then(() => {
-                                connectionDetails.connectionState = false;
-                            });
+                            this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
                         }, 1000);
 
                         clearTimeout(timeoutHandle);
