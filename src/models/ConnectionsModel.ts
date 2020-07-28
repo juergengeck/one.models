@@ -758,6 +758,87 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 
+    async connectToReplicant(remoteInstanceKey: string): Promise<void> {
+        const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
+
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(remoteInstanceKey);
+
+        return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                oce.stop();
+                reject(new Error('timeout expired'));
+            }, 60000);
+
+            oce.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                // Person id authentication
+                this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
+                    .then(async personInfo => {
+                        const connectionDetails: ConnectionDetails = {
+                            $type$: 'ConnectionDetails',
+                            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+                            connectionState: true
+                        };
+
+                        await this.saveConnectionDetails(connectionDetails, false);
+                        this.emit('authenticatedPartnerDevice');
+
+                        const personObj = await conn.waitForJSONMessage();
+                        if (personObj.$type$ === 'Person') {
+                            await createSingleObjectThroughPurePlan(
+                                {
+                                    module: '@one/identity',
+                                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                                },
+                                personObj
+                            );
+
+                            await conn.sendMessage(JSON.stringify(this.meAnonObj.obj));
+                        }
+
+                        this.communicationModule.addNewUnknownConnection(
+                            localPublicKey,
+                            remotePublicKey,
+                            conn
+                        );
+
+                        // the timout is needed so that the other instance has time to register all services
+                        setTimeout(() => {
+                            this.startChum(conn, this.meAnon, personInfo.personId).then(() => {
+                                connectionDetails.connectionState = false;
+                            });
+                        }, 1000);
+
+                        clearTimeout(timeoutHandle);
+                        await oce.stop();
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        conn.close(e.toString());
+                        reject(e);
+                    });
+            };
+
+            oce.start(
+                this.commServerUrl,
+                sourceKey,
+                targetKey,
+                text => {
+                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                },
+                cypherText => {
+                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                }
+            );
+        });
+    }
+
     async getPartnerConnections(): Promise<ConnectionDetails[]> {
         const partnerConnections: ConnectionDetails[] = [];
 
