@@ -47,7 +47,6 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 const MessageBus = createMessageBus('ConnectionsModel');
@@ -339,7 +338,7 @@ export default class ConnectionsModel extends EventEmitter {
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
-
+            // when the chum is returned, the connection is closed
             connectionDetails.connectionState = false;
         }
     }
@@ -571,15 +570,25 @@ export default class ConnectionsModel extends EventEmitter {
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
-
+        // Core takes either de ws package or the default websocket
+        // depending on for what environment it was compiled. In this
+        // project we use the isomorphic-ws library for this. This is
+        // why we need to ignore the below error, because after compilation
+        // the types of the websockets will be the same.
         // @ts-ignore
         const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
-        await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.partner, remotePersonId);
-
-        await this.giveAccessToPartner(remotePersonId);
+        if (localPersonId !== remotePersonId) {
+            // For instances that I own the localPersonId and remotePersonID will be the same,
+            // so if the id's are different, that means that I am connecting to a partner.
+            await this.accessModel.addPersonToAccessGroup(
+                FreedaAccessGroups.partner,
+                remotePersonId
+            );
+            await this.giveAccessToPartner(remotePersonId);
+        }
 
         const defaultInitialChumObj: ChumSyncOptions = {
             connection: websocketPromisifierAPI,
@@ -755,6 +764,57 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 
+    async connectToReplicant(remoteInstanceKey: string): Promise<void> {
+        const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
+
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(remoteInstanceKey);
+
+        return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                oce.stop();
+                reject(new Error('timeout expired'));
+            }, 60000);
+
+            oce.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                // Person id authentication
+                this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
+                    .then(async personInfo => {
+                        // the timout is needed so that the other instance has time to register all services
+                        setTimeout(() => {
+                            this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
+                        }, 1000);
+
+                        clearTimeout(timeoutHandle);
+                        await oce.stop();
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        conn.close(e.toString());
+                        reject(e);
+                    });
+            };
+
+            oce.start(
+                this.commServerUrl,
+                sourceKey,
+                targetKey,
+                text => {
+                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                },
+                cypherText => {
+                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                }
+            );
+        });
+    }
+
     getPartnerConnections(): ConnectionDetails[] {
         return this.partnerConnections;
     }
@@ -764,16 +824,15 @@ export default class ConnectionsModel extends EventEmitter {
     }
 
     // todo: just for testing purpose give access directly to the person - should be removed
-
     async giveAccessToPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
         this.partnerAccess.push(partnerIdHash);
-        const owner = await getInstanceOwnerIdHash();
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: owner
+            owner: this.me
         });
-        let setAccessParam = {
+        const setAccessParam = {
             id: channelInfoIdHash,
             person: this.partnerAccess,
             group: [],
@@ -789,7 +848,7 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: await getInstanceOwnerIdHash()
+            owner: this.me
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
@@ -816,13 +875,13 @@ export default class ConnectionsModel extends EventEmitter {
 
     async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
         this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
-        const owner = await getInstanceOwnerIdHash();
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: owner
+            owner: this.me
         });
-        let setAccessParam = {
+        const setAccessParam = {
             id: channelInfoIdHash,
             person: this.partnerAccess,
             group: [],
@@ -838,7 +897,7 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: await getInstanceOwnerIdHash()
+            owner: this.me
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
