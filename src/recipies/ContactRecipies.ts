@@ -278,6 +278,10 @@ export const ProfileImageRecipe: Recipe = {
 // ######## Connections Recipes ########
 
 declare module '@OneCoreTypes' {
+    export interface OneIdObjectInterfaces {
+        AvailableConnections: Pick<AvailableConnections, 'instanceIdHash' | '$type$'>;
+    }
+
     export interface OneVersionedObjectInterfaces {
         AvailableConnections: AvailableConnections;
         ConnectionDetails: ConnectionDetails;
@@ -286,8 +290,8 @@ declare module '@OneCoreTypes' {
     export interface AvailableConnections {
         $type$: 'AvailableConnections';
         instanceIdHash: SHA256IdHash<Instance>;
-        personalCloudConnections?: SHA256Hash<ConnectionDetails>[];
-        partnerContacts?: SHA256Hash<ConnectionDetails>[];
+        personalCloudConnections: SHA256Hash<ConnectionDetails>[];
+        partnerContacts: SHA256Hash<ConnectionDetails>[];
     }
     export interface ConnectionDetails {
         $type$: 'ConnectionDetails';
@@ -333,11 +337,13 @@ export const AvailableConnectionsRecipe: Recipe = {
         },
         {
             itemprop: 'personalCloudConnections',
-            referenceToObj: new Set(['ConnectionDetails'])
+            referenceToObj: new Set(['ConnectionDetails']),
+            list: ORDERED_BY.ONE
         },
         {
             itemprop: 'partnerContacts',
-            referenceToObj: new Set(['ConnectionDetails'])
+            referenceToObj: new Set(['ConnectionDetails']),
+            list: ORDERED_BY.ONE
         }
     ]
 };
