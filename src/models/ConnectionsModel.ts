@@ -784,6 +784,7 @@ export default class ConnectionsModel extends EventEmitter {
                 // Person id authentication
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
+                        await this.giveAccessToReplicant(personInfo.personId);
                         // the timout is needed so that the other instance has time to register all services
                         setTimeout(() => {
                             this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
@@ -900,6 +901,40 @@ export default class ConnectionsModel extends EventEmitter {
             owner: this.me
         });
 
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+    }
+
+    async giveAccessToReplicant(replicantIdHash: SHA256IdHash<Person>): Promise<void> {
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: this.me
+        });
+        const setAccessParam = {
+            id: channelInfoIdHash,
+            person: [replicantIdHash],
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
+        };
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [setAccessParam]
+        );
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'feedbackChannel',
+            owner: this.me
+        });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 
