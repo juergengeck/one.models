@@ -1,4 +1,4 @@
-import {getObjectByIdHash, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {getObject, getObjectByIdHash, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {
     OneUnversionedObjectTypes,
     SHA256IdHash,
@@ -6,7 +6,7 @@ import {
     ChannelEntry,
     ChannelInfo, Person
 } from '@OneCoreTypes';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**
  * Create a new questionnaire entry in the passed channel
@@ -31,13 +31,19 @@ export async function createObjects(
     });
     const channelInfoResult = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
 
+    const payloadHash = await calculateHashOfObj(payload);
+    try {
+        await getObject(payloadHash)
+    } catch (e) {
+        await WriteStorage.storeUnversionedObject(payload);
+    }
+
     // Create payload
-    const payloadResult = await WriteStorage.storeUnversionedObject(payload);
     // Create creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
         $type$: 'CreationTime',
         timestamp: Date.now(),
-        data: payloadResult.hash
+        data: payloadHash
     });
 
     // Create the channel entry
