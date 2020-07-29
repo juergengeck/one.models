@@ -101,8 +101,9 @@ export default class ContactModel extends EventEmitter {
 
 
     public async createContactChannel(){
-        this.isChannelManagerInitiliazed = true;
         await this.channelManager.createChannel(this.channelId);
+        this.isChannelManagerInitiliazed = true;
+
         for(const contact of this.contactObjectBuffer){
             await this.channelManager.postToChannel(this.channelId, contact);
         }
