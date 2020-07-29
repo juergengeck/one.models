@@ -71,6 +71,7 @@ export default class Model {
         this.oneInstance = new OneInstanceModel(
             this.connections,
             this.channelManager,
+            this.match,
             this.consentFile
         );
         this.contactModel = new ContactModel(this.oneInstance);
