@@ -894,7 +894,6 @@ export default class ChannelManager extends EventEmitter {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         channelRegistry.obj.channels.set(channelIdHash, channelHash);
 
-        return await serializeWithType('ChannelRegistry', async () => {
             return await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -902,7 +901,6 @@ export default class ChannelManager extends EventEmitter {
                 },
                 channelRegistry.obj
             );
-        });
     }
 
     /**
