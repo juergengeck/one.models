@@ -191,8 +191,7 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email);
-        this.initialisingApplication(anonymousEmail);
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
     }
 
     /**
@@ -227,15 +226,7 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
-
-        /**
-         * In instance take over the model initialisation should
-         * be done before the anonymous user exists, so a new
-         * event should be emitted only for this case.
-         */
-        if (takeOver) {
-            this.emit('instance_from_take_over', anonymousEmail);
-        }
+        this.initialisingApplication(anonymousEmail);
     }
 
     /**

@@ -74,7 +74,6 @@ export default class ConnectionsModel extends EventEmitter {
     private meAnon: SHA256IdHash<Person>;
     private meAnnonObj: VersionedObjectResult<Person>;
     private myInstanceKeys: Keys;
-    private myCrypto: CryptoAPI;
     private me: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
@@ -114,7 +113,6 @@ export default class ConnectionsModel extends EventEmitter {
         this.anonInstanceKeys = {} as Keys;
         this.anonCrypto = {} as CryptoAPI;
         this.myInstanceKeys = {} as Keys;
-        this.myCrypto = {} as CryptoAPI;
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
@@ -130,7 +128,6 @@ export default class ConnectionsModel extends EventEmitter {
         this.myEmail = (await getObjectByIdHash(this.me)).obj.email;
         this.myInstance = await this.instancesModel.localInstanceIdForPerson(this.me);
         this.myInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.me);
-        this.myCrypto = createCrypto(this.myInstance);
 
         const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== this.me);
 
@@ -495,11 +492,7 @@ export default class ConnectionsModel extends EventEmitter {
     ): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
-        const sourceKey = toByteArray(
-            pairingInformation.takeOver
-                ? this.myInstanceKeys.publicKey
-                : this.anonInstanceKeys.publicKey
-        );
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
         const targetKey = toByteArray(pairingInformation.publicKeyLocal);
         const takeOver = pairingInformation.takeOver;
 
@@ -515,16 +508,11 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePublicKey: Uint8Array
             ) => {
                 // Person id authentication
-                this.verifyAndExchangePersonId(
-                    conn,
-                    takeOver ? this.me : this.meAnon,
-                    true,
-                    takeOver
-                )
+                this.verifyAndExchangePersonId(conn, this.meAnon, true, takeOver)
                     .then(personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
-                            personIdHash: takeOver ? this.me : this.meAnon
+                            personIdHash: this.meAnon
                         };
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
@@ -549,15 +537,13 @@ export default class ConnectionsModel extends EventEmitter {
                             this.emit('authenticatedPersonalCloudDevice');
 
                             setTimeout(() => {
-                                this.startChum(
-                                    conn,
-                                    takeOver ? this.me : this.meAnon,
-                                    personInfo.personId
-                                ).then(async () => {
-                                    connectionDetails.connectionState = false;
-                                    await this.saveAvailableConnectionsList();
-                                    this.emit('authenticatedPersonalCloudDevice');
-                                });
+                                this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                    async () => {
+                                        connectionDetails.connectionState = false;
+                                        await this.saveAvailableConnectionsList();
+                                        this.emit('authenticatedPersonalCloudDevice');
+                                    }
+                                );
                             }, 1000);
 
                             clearTimeout(timeoutHandle);
@@ -587,15 +573,13 @@ export default class ConnectionsModel extends EventEmitter {
                                     );
 
                                     setTimeout(() => {
-                                        this.startChum(
-                                            conn,
-                                            takeOver ? this.me : this.meAnon,
-                                            personInfo.personId
-                                        ).then(async () => {
-                                            connectionDetails.connectionState = false;
-                                            await this.saveAvailableConnectionsList();
-                                            this.emit('authenticatedPartnerDevice');
-                                        });
+                                        this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                            async () => {
+                                                connectionDetails.connectionState = false;
+                                                await this.saveAvailableConnectionsList();
+                                                this.emit('authenticatedPartnerDevice');
+                                            }
+                                        );
                                     }, 1000);
 
                                     clearTimeout(timeoutHandle);
@@ -618,14 +602,10 @@ export default class ConnectionsModel extends EventEmitter {
                 sourceKey,
                 targetKey,
                 text => {
-                    return pairingInformation.takeOver
-                        ? this.myCrypto.encryptWithInstancePublicKey(targetKey, text)
-                        : this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return pairingInformation.takeOver
-                        ? this.myCrypto.decryptWithInstancePublicKey(targetKey, cypherText)
-                        : this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
         });
