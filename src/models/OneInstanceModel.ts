@@ -103,6 +103,7 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
+     * @param {AccessModel} accessModel
      */
     constructor(
         connectionsModel: ConnectionsModel,
@@ -200,8 +201,13 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * @param {string} email
      * @param {boolean} takeOver
+     * @param {string} anonymousEmail
      */
-    async createNewInstanceWithReceivedEmail(email: string, takeOver = false): Promise<void> {
+    async createNewInstanceWithReceivedEmail(
+        email: string,
+        takeOver = false,
+        anonymousEmail?: string
+    ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -228,7 +234,7 @@ export default class OneInstanceModel extends EventEmitter {
          * event should be emitted only for this case.
          */
         if (takeOver) {
-            this.emit('instance_from_take_over');
+            this.emit('instance_from_take_over', anonymousEmail);
         }
     }
 
