@@ -696,7 +696,8 @@ export default class ConnectionsModel extends EventEmitter {
             takeOverDetails: takeOver
                 ? {
                       nonce: this.salt,
-                      email: this.myEmail
+                      email: this.myEmail,
+                      anonymousEmail: this.meAnnonObj.obj.email
                   }
                 : undefined
         };

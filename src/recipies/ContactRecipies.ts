@@ -309,6 +309,7 @@ declare module '@OneCoreTypes' {
     export interface TakeOverInformation {
         nonce: string;
         email: string;
+        anonymousEmail: string;
     }
 }
 export const ConnectionsRecipe: Recipe = {
