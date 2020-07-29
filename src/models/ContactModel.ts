@@ -235,7 +235,6 @@ export default class ContactModel extends EventEmitter {
         // If someone object does not exist, then just return the current id
         if (otherPersonSomeoneObject === undefined) {
             if (excludeMain) {
-                console.log('BLAH');
                 return [];
             } else {
                 return [personId];
