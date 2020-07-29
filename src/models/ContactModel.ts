@@ -92,10 +92,14 @@ export default class ContactModel extends EventEmitter {
                 this.commServerUrl
             );
         }
-        await this.channelManager.createChannel(this.channelId);
 
         this.registerHooks();
         await this.shareContactAppWithYourInstances();
+    }
+
+
+    public async createContactChannel(){
+        await this.channelManager.createChannel(this.channelId);
     }
 
     /**

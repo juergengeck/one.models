@@ -35,18 +35,18 @@ describe('Contact model test', () => {
         await importModules();
         const accessModel = new AccessModel();
         await accessModel.init();
-
-        const instanceModel = new InstancesModel();
         const channelManager = new ChannelManager(accessModel);
+        const instanceModel = new InstancesModel();
+        contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
         await channelManager.init();
-
         await accessModel.createAccessGroup(FreedaAccessGroups.partner);
         await accessModel.createAccessGroup(FreedaAccessGroups.clinic);
         await accessModel.createAccessGroup(FreedaAccessGroups.myself);
         await instanceModel.init('1234');
 
-        contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
+
         await contactModel.init();
+        await contactModel.createContactChannel();
     });
 
     it('should test init() function on a fresh instance', async () => {

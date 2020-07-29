@@ -114,6 +114,7 @@ export default class Model {
         await this.access.createAccessGroup(FreedaAccessGroups.myself);
         this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.channelManager);
         await this.contactModel.init();
+        await this.contactModel.createContactChannel();
     }
     access: AccessModel;
     channelManager: ChannelManager;
