@@ -37,7 +37,7 @@ import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
-import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import ChannelManager from "./ChannelManager";
 
 /**
  * This represents a ContactEvent
@@ -59,12 +59,13 @@ export enum ContactEvent {
 export default class ContactModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
-    private readonly accessModel: AccessModel;
-    constructor(instancesModel: InstancesModel, commServerUrl: string, accessModel: AccessModel) {
+    private readonly channelManager: ChannelManager;
+    private readonly channelId: string = 'contacts';
+    constructor(instancesModel: InstancesModel, commServerUrl: string, channelManager: ChannelManager) {
         super();
         this.instancesModel = instancesModel;
         this.commServerUrl = commServerUrl;
-        this.accessModel = accessModel;
+        this.channelManager = channelManager;
     }
 
     /** ########################################## Public ########################################## **/
@@ -91,6 +92,7 @@ export default class ContactModel extends EventEmitter {
                 this.commServerUrl
             );
         }
+        await this.channelManager.createChannel(this.channelId);
 
         this.registerHooks();
         await this.shareContactAppWithYourInstances();
@@ -468,14 +470,11 @@ export default class ContactModel extends EventEmitter {
         let allIdsPromise: Promise<SHA256IdHash<Person>[]>[];
         if (forMe) {
             if (onlyMain) {
-                console.log('ME:', await this.myMainIdentity());
                 allIdsPromise = [Promise.resolve([await this.myMainIdentity()])];
             } else {
-                console.log('MES:', await this.myIdentities());
                 allIdsPromise = [this.myIdentities()];
             }
         } else {
-            console.log('CONTACTS:', await this.contacts());
             allIdsPromise = (await this.contacts()).map(personId =>
                 this.listAlternateIdentities(personId)
             );
@@ -485,7 +484,6 @@ export default class ContactModel extends EventEmitter {
             (acc, curr) => acc.concat(curr),
             []
         );
-        console.log('ALLIDS:', allIds);
 
         // Get all contact objects as 1-dim array
         const allContactObjectsNonFlat: Contact[][] = await Promise.all(
@@ -636,10 +634,8 @@ export default class ContactModel extends EventEmitter {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
                 await serializeWithType('Contacts', async () => {
-                    await this.accessModel.giveGroupAccessToObject(
-                        FreedaAccessGroups.partner,
-                        caughtObject.hash
-                    );
+                    await this.channelManager.postToChannel(this.channelId, caughtObject.obj);
+
                     const personId = caughtObject.obj.personId;
                     const personEmail = (await getObjectByIdHash(personId)).obj.email;
 

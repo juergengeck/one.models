@@ -56,7 +56,8 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 
 export default class Model {
     constructor() {
-        this.channelManager = new ChannelManager();
+        this.access = new AccessModel();
+        this.channelManager = new ChannelManager(this.access);
         this.questionnaires = new QuestionnaireModel(this.channelManager);
         this.wbcDiffs = new WbcDiffModel();
         this.heartEvents = new HeartEventModel();
@@ -64,7 +65,6 @@ export default class Model {
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
         this.connections = new ConnectionsModel();
-        this.access = new AccessModel();
         this.news = new NewsModel(this.channelManager);
 
         this.consentFile = new ConsentFileModel(this.channelManager);
@@ -112,7 +112,7 @@ export default class Model {
         await this.access.createAccessGroup(FreedaAccessGroups.partner);
         await this.access.createAccessGroup(FreedaAccessGroups.clinic);
         await this.access.createAccessGroup(FreedaAccessGroups.myself);
-        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.access);
+        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.channelManager);
         await this.contactModel.init();
     }
     access: AccessModel;

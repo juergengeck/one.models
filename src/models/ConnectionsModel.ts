@@ -920,7 +920,14 @@ export default class ConnectionsModel extends EventEmitter {
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        // share my contacts with partner
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'contacts',
+            owner: this.me
+        });
 
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         try {
             // share old partner consent files with partner for backup
             setAccessParam.id = await calculateIdHashOfObj({
@@ -1002,6 +1009,13 @@ export default class ConnectionsModel extends EventEmitter {
             id: 'feedbackChannel',
             owner: this.me
         });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'contacts',
+            owner: this.me
+        });
+
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 

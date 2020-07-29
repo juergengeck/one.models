@@ -24,7 +24,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {dbKey, importModules} from './utils/Model';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipies/recipies';
-import {AccessModel} from "../lib/models";
+import {AccessModel, ChannelManager} from "../lib/models";
 import {FreedaAccessGroups} from "../lib/models/AccessModel";
 let contactModel: ContactModel;
 
@@ -33,15 +33,19 @@ describe('Contact model test', () => {
         await StorageTestInit.init({dbKey: dbKey, secret: '1234'});
         await registerRecipes(Recipes);
         await importModules();
-
-        const instanceModel = new InstancesModel();
         const accessModel = new AccessModel();
         await accessModel.init();
+
+        const instanceModel = new InstancesModel();
+        const channelManager = new ChannelManager(accessModel);
+        await channelManager.init();
+
         await accessModel.createAccessGroup(FreedaAccessGroups.partner);
         await accessModel.createAccessGroup(FreedaAccessGroups.clinic);
         await accessModel.createAccessGroup(FreedaAccessGroups.myself);
         await instanceModel.init('1234');
-        contactModel = new ContactModel(instanceModel, 'localhost:8000',accessModel);
+
+        contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
         await contactModel.init();
     });
 
