@@ -162,14 +162,19 @@ export default class OneInstanceModel extends EventEmitter {
      * The previously created instance with that email as owner is deleted and a new one is created.
      * The user has to re-enter a password, which will be used for the new instance.
      *
+     * @param {string} email
      * @param {string} secret
      * @param {string} patientType
+     * @param {string} anonymousEmail
      * @returns {Promise<void>}
      */
-    async recoverInstance(secret: string, patientType: string): Promise<void> {
+    async recoverInstance(
+        email: string,
+        secret: string,
+        patientType: string,
+        anonymousEmail: string
+    ): Promise<void> {
         this.currentPatientTypeState = patientType;
-
-        const email = window.location.hash.substr(1);
 
         try {
             const ownerIdHash = await calculateIdHashOfObj({
@@ -187,7 +192,7 @@ export default class OneInstanceModel extends EventEmitter {
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email);
-        this.initialisingApplication();
+        this.initialisingApplication(anonymousEmail);
     }
 
     /**
@@ -195,8 +200,9 @@ export default class OneInstanceModel extends EventEmitter {
      * via qr code and the new instance will be created using that email.
      *
      * @param {string} email
+     * @param {boolean} takeOver
      */
-    async createNewInstanceWithReceivedEmail(email: string): Promise<void> {
+    async createNewInstanceWithReceivedEmail(email: string, takeOver = false): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -212,10 +218,19 @@ export default class OneInstanceModel extends EventEmitter {
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
             initialRecipes: Recipies,
-            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
         });
 
         await importModules();
+
+        /**
+         * In instance take over the model initialisation should
+         * be done before the anonymous user exists, so a new
+         * event should be emitted only for this case.
+         */
+        if (takeOver) {
+            this.emit('instance_from_take_over');
+        }
         console.log(await this.match.createChumConnectionHandler());
     }
 
@@ -248,7 +263,7 @@ export default class OneInstanceModel extends EventEmitter {
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
                 initialRecipes: Recipies,
-                initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+                initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
             });
 
             await importModules();
@@ -259,7 +274,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(): void {
+    initialisingApplication(anonymousEmail?: string): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -282,7 +297,12 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit('authstate_changed_first', firstCallback);
+        this.emit(
+            'authstate_changed_first',
+            this.currentRegistrationState,
+            firstCallback,
+            anonymousEmail
+        );
     }
 
     /**
