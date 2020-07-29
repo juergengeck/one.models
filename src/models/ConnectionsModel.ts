@@ -36,7 +36,8 @@ import {
     ConnectionDetails,
     PairingInformation,
     SHA256Hash,
-    Instance
+    Instance,
+    Chum
 } from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
@@ -78,11 +79,12 @@ export default class ConnectionsModel extends EventEmitter {
     private me: SHA256IdHash<Person>;
     private password: string;
     private salt: string;
-    private readonly partnerConnections: ConnectionDetails[];
-    private readonly personalCloudConnections: ConnectionDetails[];
+    private partnerConnections: ConnectionDetails[];
+    private personalCloudConnections: ConnectionDetails[];
     private myEmail: string;
     private partnerAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
+    private openedChums: Promise<VersionedObjectResult<Chum>>[];
 
     constructor(
         commServerUrl: string,
@@ -119,6 +121,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
+        this.openedChums = [];
     }
 
     async init(): Promise<void> {
@@ -140,6 +143,8 @@ export default class ConnectionsModel extends EventEmitter {
         const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
         this.anonCrypto = createCrypto(anonInstance);
+        this.personalCloudConnections = [];
+        this.partnerConnections = [];
 
         try {
             // Get previous connection that my instance had.
@@ -178,6 +183,11 @@ export default class ConnectionsModel extends EventEmitter {
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
+
+        // Close all existing chums before stopping the application.
+        for await (const chum of this.openedChums) {
+            await chum;
+        }
     }
 
     setPassword(password: string) {
@@ -228,7 +238,29 @@ export default class ConnectionsModel extends EventEmitter {
             return;
         }
 
+        const connectionDetails: ConnectionDetails = {
+            $type$: 'ConnectionDetails',
+            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+            connectionState: true
+        };
+
+        const takeOver = localPersonId === remotePersonId;
+
+        if (takeOver) {
+            this.personalCloudConnections.push(connectionDetails);
+            this.emit('authenticatedPersonalCloudDevice');
+        } else {
+            this.partnerConnections.push(connectionDetails);
+            this.emit('authenticatedPartnerDevice');
+        }
+
         await this.startChum(conn, localPersonId, remotePersonId);
+        connectionDetails.connectionState = false;
+        await this.saveAvailableConnectionsList();
+
+        takeOver
+            ? this.emit('authenticatedPersonalCloudDevice')
+            : this.emit('authenticatedPartnerDevice');
     }
 
     /**
@@ -322,24 +354,28 @@ export default class ConnectionsModel extends EventEmitter {
             } else {
                 this.partnerConnections.push(connectionDetails);
                 this.emit('authenticatedPartnerDevice');
-            }
 
-            await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-            const personObj = await conn.waitForJSONMessage();
-            console.log('message received:', personObj);
-            if (personObj.$type$ === 'Person') {
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    personObj
-                );
+                await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+                const personObj = await conn.waitForJSONMessage();
+                if (personObj.$type$ === 'Person') {
+                    await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        personObj
+                    );
+                }
             }
 
             await this.startChum(conn, localPersonId, remotePersonId);
             // when the chum is returned, the connection is closed
             connectionDetails.connectionState = false;
+            await this.saveAvailableConnectionsList();
+
+            takeOver
+                ? this.emit('authenticatedPersonalCloudDevice')
+                : this.emit('authenticatedPartnerDevice');
         }
     }
 
@@ -496,45 +532,63 @@ export default class ConnectionsModel extends EventEmitter {
                             );
                             this.personalCloudConnections.push(connectionDetails);
                             this.emit('authenticatedPersonalCloudDevice');
+
+                            setTimeout(() => {
+                                this.startChum(
+                                    conn,
+                                    takeOver ? this.me : this.meAnon,
+                                    personInfo.personId
+                                ).then(async () => {
+                                    connectionDetails.connectionState = false;
+                                    await this.saveAvailableConnectionsList();
+                                    this.emit('authenticatedPersonalCloudDevice');
+                                });
+                            }, 1000);
+
+                            clearTimeout(timeoutHandle);
+                            oce.stop();
+                            resolve();
                         } else {
                             this.partnerConnections.push(connectionDetails);
                             this.emit('authenticatedPartnerDevice');
+
+                            conn.waitForJSONMessage().then(async personObj => {
+                                console.log('message received:', personObj);
+                                if (personObj.$type$ === 'Person') {
+                                    await createSingleObjectThroughPurePlan(
+                                        {
+                                            module: '@one/identity',
+                                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                                        },
+                                        personObj
+                                    );
+
+                                    await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+
+                                    this.communicationModule.addNewUnknownConnection(
+                                        localPublicKey,
+                                        remotePublicKey,
+                                        conn
+                                    );
+
+                                    setTimeout(() => {
+                                        this.startChum(
+                                            conn,
+                                            takeOver ? this.me : this.meAnon,
+                                            personInfo.personId
+                                        ).then(async () => {
+                                            connectionDetails.connectionState = false;
+                                            await this.saveAvailableConnectionsList();
+                                            this.emit('authenticatedPartnerDevice');
+                                        });
+                                    }, 1000);
+
+                                    clearTimeout(timeoutHandle);
+                                    await oce.stop();
+                                    resolve();
+                                }
+                            });
                         }
-
-                        conn.waitForJSONMessage().then(async personObj => {
-                            console.log('message received:', personObj);
-                            if (personObj.$type$ === 'Person') {
-                                await createSingleObjectThroughPurePlan(
-                                    {
-                                        module: '@one/identity',
-                                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                                    },
-                                    personObj
-                                );
-
-                                conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-
-                                this.communicationModule.addNewUnknownConnection(
-                                    localPublicKey,
-                                    remotePublicKey,
-                                    conn
-                                );
-
-                                setTimeout(() => {
-                                    this.startChum(
-                                        conn,
-                                        takeOver ? this.me : this.meAnon,
-                                        personInfo.personId
-                                    ).then(() => {
-                                        connectionDetails.connectionState = false;
-                                    });
-                                }, 1000);
-
-                                clearTimeout(timeoutHandle);
-                                oce.stop();
-                                resolve();
-                            }
-                        });
                     })
                     .catch(e => {
                         clearTimeout(timeoutHandle);
@@ -609,10 +663,9 @@ export default class ConnectionsModel extends EventEmitter {
             defaultInitialChumObj
         );
 
+        this.openedChums.push(chum);
         await this.saveAvailableConnectionsList();
-
         this.emit('connectionEstablished');
-
         await chum;
     }
 
@@ -837,7 +890,7 @@ export default class ConnectionsModel extends EventEmitter {
             id: channelInfoIdHash,
             person: this.partnerAccess,
             group: [],
-            mode: SET_ACCESS_MODE.REPLACE
+            mode: SET_ACCESS_MODE.ADD
         };
         await createSingleObjectThroughPurePlan(
             {
@@ -941,6 +994,9 @@ export default class ConnectionsModel extends EventEmitter {
     private async saveAvailableConnectionsList(): Promise<void> {
         let personalCloudConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
         let partnerConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
+
+        this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+        this.partnerConnections = [...new Set(this.partnerConnections)];
 
         personalCloudConnectionsHash = await Promise.all(
             this.personalCloudConnections.map(async connection => {
