@@ -36,8 +36,7 @@ import {
     ConnectionDetails,
     PairingInformation,
     SHA256Hash,
-    Instance,
-    Chum
+    Instance
 } from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
@@ -84,7 +83,6 @@ export default class ConnectionsModel extends EventEmitter {
     private myEmail: string;
     private partnerAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
-    private openedChums: Promise<VersionedObjectResult<Chum>>[];
 
     constructor(
         commServerUrl: string,
@@ -121,7 +119,6 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
-        this.openedChums = [];
     }
 
     async init(): Promise<void> {
@@ -183,11 +180,6 @@ export default class ConnectionsModel extends EventEmitter {
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
-
-        // Close all existing chums before stopping the application.
-        for await (const chum of this.openedChums) {
-            await chum;
-        }
     }
 
     setPassword(password: string) {
@@ -248,9 +240,11 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (takeOver) {
             this.personalCloudConnections.push(connectionDetails);
+            this.personalCloudConnections = [...new Set(this.personalCloudConnections)]
             this.emit('authenticatedPersonalCloudDevice');
         } else {
             this.partnerConnections.push(connectionDetails);
+            this.partnerConnections = [...new Set(this.partnerConnections)];
             this.emit('authenticatedPartnerDevice');
         }
 
@@ -350,9 +344,11 @@ export default class ConnectionsModel extends EventEmitter {
                 }
 
                 this.personalCloudConnections.push(connectionDetails);
+                this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
                 this.emit('authenticatedPersonalCloudDevice');
             } else {
                 this.partnerConnections.push(connectionDetails);
+                this.partnerConnections = [...new Set(this.partnerConnections)];
                 this.emit('authenticatedPartnerDevice');
 
                 await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
@@ -531,6 +527,7 @@ export default class ConnectionsModel extends EventEmitter {
                                 pairingInformation.authenticationTag
                             );
                             this.personalCloudConnections.push(connectionDetails);
+                            this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
                             this.emit('authenticatedPersonalCloudDevice');
 
                             setTimeout(() => {
@@ -550,10 +547,10 @@ export default class ConnectionsModel extends EventEmitter {
                             resolve();
                         } else {
                             this.partnerConnections.push(connectionDetails);
+                            this.partnerConnections = [...new Set(this.partnerConnections)];
                             this.emit('authenticatedPartnerDevice');
 
                             conn.waitForJSONMessage().then(async personObj => {
-                                console.log('message received:', personObj);
                                 if (personObj.$type$ === 'Person') {
                                     await createSingleObjectThroughPurePlan(
                                         {
@@ -656,14 +653,11 @@ export default class ConnectionsModel extends EventEmitter {
             maxNotificationDelay: 20
         };
 
-        console.log('defaultInitialChumObj:', defaultInitialChumObj);
-
         const chum = createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             defaultInitialChumObj
         );
 
-        this.openedChums.push(chum);
         await this.saveAvailableConnectionsList();
         this.emit('connectionEstablished');
         await chum;
@@ -994,9 +988,6 @@ export default class ConnectionsModel extends EventEmitter {
     private async saveAvailableConnectionsList(): Promise<void> {
         let personalCloudConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
         let partnerConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
-
-        this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
-        this.partnerConnections = [...new Set(this.partnerConnections)];
 
         personalCloudConnectionsHash = await Promise.all(
             this.personalCloudConnections.map(async connection => {
