@@ -83,6 +83,7 @@ export default class ConnectionsModel extends EventEmitter {
     private myEmail: string;
     private partnerAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
+    private readonly openedConnections: EncryptedConnection[];
 
     constructor(
         commServerUrl: string,
@@ -119,6 +120,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
+        this.openedConnections = [];
     }
 
     async init(): Promise<void> {
@@ -180,6 +182,20 @@ export default class ConnectionsModel extends EventEmitter {
 
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
+
+        for (const conn of this.openedConnections) {
+            conn.webSocket.close();
+        }
+
+        for (const connection of this.personalCloudConnections) {
+            connection.connectionState = false;
+        }
+
+        for (const connection of this.partnerConnections) {
+            connection.connectionState = false;
+        }
+
+        await this.saveAvailableConnectionsList();
     }
 
     setPassword(password: string) {
@@ -240,7 +256,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (takeOver) {
             this.personalCloudConnections.push(connectionDetails);
-            this.personalCloudConnections = [...new Set(this.personalCloudConnections)]
+            this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
             this.emit('authenticatedPersonalCloudDevice');
         } else {
             this.partnerConnections.push(connectionDetails);
@@ -527,7 +543,9 @@ export default class ConnectionsModel extends EventEmitter {
                                 pairingInformation.authenticationTag
                             );
                             this.personalCloudConnections.push(connectionDetails);
-                            this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+                            this.personalCloudConnections = [
+                                ...new Set(this.personalCloudConnections)
+                            ];
                             this.emit('authenticatedPersonalCloudDevice');
 
                             setTimeout(() => {
@@ -657,6 +675,8 @@ export default class ConnectionsModel extends EventEmitter {
             {module: '@one/chum-sync'},
             defaultInitialChumObj
         );
+
+        this.openedConnections.push(conn);
 
         await this.saveAvailableConnectionsList();
         this.emit('connectionEstablished');
