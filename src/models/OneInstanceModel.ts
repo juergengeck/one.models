@@ -17,6 +17,7 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import MatchingModel from "./MatchingModel";
 
 /**
  * Represents the state of authentication.
@@ -91,6 +92,7 @@ export default class OneInstanceModel extends EventEmitter {
     private connectionsModel: ConnectionsModel;
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
+    private match: MatchingModel;
 
     // encrypt everything by default
     private encryptStorage: boolean = true;
@@ -100,11 +102,13 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
+     * @param {MatchingModel} match
      * @param {ConsentFileModel} consentFileModel
      */
     constructor(
         connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
+        match: MatchingModel,
         consentFileModel: ConsentFileModel
     ) {
         super();
@@ -118,6 +122,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
+        this.match = match;
     }
 
     authenticationState(): AuthenticationState {
@@ -211,6 +216,7 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
+        console.log(await this.match.createChumConnectionHandler());
     }
 
     /**

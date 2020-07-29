@@ -13,6 +13,7 @@ import ContactModel from './ContactModel';
 import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
+import MatchingModel from "./MatchingModel";
 
 /** for one line imports **/
 export {
@@ -32,5 +33,6 @@ export {
     ConsentFileModel,
     PropertyTreeStore,
     PropertyTree,
-    AccessModel
+    AccessModel,
+    MatchingModel
 };

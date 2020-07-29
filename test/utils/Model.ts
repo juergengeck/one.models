@@ -17,6 +17,7 @@ import {Module, Person, VersionedObjectResult, BodyTemperature} from '@OneCoreTy
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
+import {MatchingModel} from "../../src/models";
 
 export const dbKey = './testDb';
 
@@ -63,6 +64,7 @@ export default class Model {
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
         this.connections = new ConnectionsModel();
         this.access = new AccessModel();
+        this.match = new MatchingModel();
         this.news = new NewsModel(this.channelManager);
 
         this.consentFile = new ConsentFileModel(this.channelManager);
@@ -101,6 +103,7 @@ export default class Model {
         await this.contactModel.init();
         await this.questionnaires.init();
         await this.connections.init();
+        await this.match.init();
         await this.access.init();
         await this.diary.init();
         await this.bodyTemperature.init();
@@ -116,6 +119,7 @@ export default class Model {
     heartEvents: HeartEventModel;
     documents: DocumentModel;
     news: NewsModel;
+    match: MatchingModel;
     oneInstance: OneInstanceModel;
     connections: ConnectionsModel;
     diary: DiaryModel;
