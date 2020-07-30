@@ -231,7 +231,6 @@ export default class OneInstanceModel extends EventEmitter {
         if (takeOver) {
             this.emit('instance_from_take_over');
         }
-        console.log(await this.match.createChumConnectionHandler());
     }
 
     /**
@@ -267,6 +266,7 @@ export default class OneInstanceModel extends EventEmitter {
             });
 
             await importModules();
+            console.log(await this.match.createChumConnectionHandler());
         }
         this.initialisingApplication();
     }

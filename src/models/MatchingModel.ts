@@ -9,13 +9,11 @@ import {createChumApi} from "one.utils/lib/ChumApi";
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
 
-
-
-
 /**
  * Model that connects to the one.match server
  */
 export default class MatchingModel extends EventEmitter {
+
     private Chums = new Map();
     private minimalWriteStorageApiObj = {
         createFileWriteStream: createFileWriteStream
