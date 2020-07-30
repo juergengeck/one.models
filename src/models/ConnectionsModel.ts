@@ -23,6 +23,7 @@ import {
     CryptoAPI,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
+    overwritePersonKeys,
     stringToUint8Array,
     Uint8ArrayToString
 } from 'one.core/lib/instance-crypto';
@@ -48,6 +49,7 @@ import {wslogId} from '../misc/LogUtils';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -63,6 +65,17 @@ interface TakeOverMessage {
 
 interface AcknowledgeTakeOverMessage {
     acknowledge: boolean;
+}
+
+interface ExchangeOwnerKeys {
+    ownerId: SHA256IdHash<Person>;
+    publicKeys: Keys;
+    privateEncryptionKeys: string;
+    privateSignKeys: string;
+    anonymousOwnerId: SHA256IdHash<Person>;
+    anonymousPublicKeys: Keys;
+    anonymousPrivateEncryptionKeys: string;
+    anonymousPrivateSignKeys: string;
 }
 
 export default class ConnectionsModel extends EventEmitter {
@@ -339,16 +352,11 @@ export default class ConnectionsModel extends EventEmitter {
             let timeout = 0;
 
             if (takeOver) {
-                timeout = 1000;
+                timeout = 2000;
 
                 const message = await conn.waitForJSONMessage();
                 const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
                 const kdf = await this.keyDerivationFunction(this.salt, this.password);
-
-                // for each connection to personal cloud we need to set up the password and
-                // the salt, so the information is kept as short ass possible in memory
-                this.password = '';
-                this.salt = '';
 
                 const decryptedAuthTag = Uint8ArrayToString(
                     await decryptWithSymmetricKey(kdf, encryptedAuthTag)
@@ -369,6 +377,8 @@ export default class ConnectionsModel extends EventEmitter {
                     // send acknowledge message
                     acknowledgeTakeOverMessage.acknowledge = true;
                     await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
+                    await this.sendOwnerKeys(conn);
+
                     this.personalCloudConnections.push(connectionDetails);
                     this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
                     this.emit('authenticatedPersonalCloudDevice');
@@ -555,8 +565,11 @@ export default class ConnectionsModel extends EventEmitter {
                             );
 
                             conn.waitForJSONMessage().then(
-                                (acknowledgeMessage: AcknowledgeTakeOverMessage) => {
+                                async (acknowledgeMessage: AcknowledgeTakeOverMessage) => {
                                     if (acknowledgeMessage.acknowledge) {
+                                        const exchangeOwnerKeys: ExchangeOwnerKeys = await conn.waitForJSONMessage();
+                                        await this.overwriteExistingPersonKeys(exchangeOwnerKeys);
+
                                         this.personalCloudConnections.push(connectionDetails);
                                         this.personalCloudConnections = [
                                             ...new Set(this.personalCloudConnections)
@@ -1121,5 +1134,94 @@ export default class ConnectionsModel extends EventEmitter {
                 partnerContacts: partnerConnectionsHash
             }
         );
+    }
+
+    async overwritePrivateKeys(encryptedBase64Key: string, filename: string): Promise<void> {
+        await writeUTF8TextFile(encryptedBase64Key, filename, 'private');
+    }
+
+    async readPrivateKeys(filename: string): Promise<string> {
+        return await readUTF8TextFile(filename, 'private');
+    }
+
+    async sendOwnerKeys(conn: EncryptedConnection): Promise<void> {
+        const ownerId = this.me;
+        const personKeyLink = await getAllValues(this.me, true, 'Keys');
+        const publicKeys = await getObjectWithType(
+            personKeyLink[personKeyLink.length - 1].toHash,
+            'Keys'
+        );
+        const privateEncryptionKeys = await this.readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const privateSignKeys = await this.readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+        );
+        const anonymousOwnerId = this.meAnon;
+        const anonymousPersonKeyLink = await getAllValues(this.meAnon, true, 'Keys');
+        const anonymousPublicKeys = await getObjectWithType(
+            anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash,
+            'Keys'
+        );
+        const anonymousPrivateEncryptionKeys = await this.readPrivateKeys(
+            `${anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const anonymousPrivateSignKeys = await this.readPrivateKeys(
+            `${anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash}.owner.sign`
+        );
+
+        const exchangeOwnerKeys: ExchangeOwnerKeys = {
+            ownerId,
+            publicKeys,
+            privateEncryptionKeys,
+            privateSignKeys,
+            anonymousOwnerId,
+            anonymousPublicKeys,
+            anonymousPrivateEncryptionKeys,
+            anonymousPrivateSignKeys
+        };
+
+        await conn.sendMessage(JSON.stringify(exchangeOwnerKeys));
+    }
+
+    async overwriteExistingPersonKeys(exchangeOwnerKeys: ExchangeOwnerKeys): Promise<void> {
+        if (
+            this.me !== exchangeOwnerKeys.ownerId ||
+            this.meAnon !== exchangeOwnerKeys.anonymousOwnerId
+        ) {
+            throw new Error('Users not match from one instance to the other!');
+        }
+        const savedOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            exchangeOwnerKeys.publicKeys
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.privateEncryptionKeys,
+            `${savedOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.privateSignKeys,
+            `${savedOwnerKeys.hash}.owner.sign`
+        );
+        const savedAnonOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            exchangeOwnerKeys.anonymousPublicKeys
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.anonymousPrivateEncryptionKeys,
+            `${savedAnonOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.anonymousPrivateSignKeys,
+            `${savedAnonOwnerKeys.hash}.owner.sign`
+        );
+
+        await overwritePersonKeys(this.password, this.me, this.myInstance);
     }
 }
