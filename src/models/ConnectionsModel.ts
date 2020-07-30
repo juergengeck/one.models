@@ -61,6 +61,10 @@ interface TakeOverMessage {
     encryptedAuthenticationTag: string;
 }
 
+interface AcknowledgeTakeOverMessage {
+    acknowledge: boolean;
+}
+
 export default class ConnectionsModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly contactModel: ContactModel;
@@ -353,11 +357,21 @@ export default class ConnectionsModel extends EventEmitter {
                     }
                 });
 
+                const acknowledgeTakeOverMessage: AcknowledgeTakeOverMessage = {
+                    acknowledge: false
+                };
+
                 if (found) {
+                    // send acknowledge message
+                    acknowledgeTakeOverMessage.acknowledge = true;
+                    await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
                     this.personalCloudConnections.push(connectionDetails);
                     this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
                     this.emit('authenticatedPersonalCloudDevice');
                 } else {
+                    // send error message
+                    acknowledgeTakeOverMessage.acknowledge = true;
+                    await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
                     throw new Error(
                         'Received authentication tag for take over does not match the sent one.'
                     );
@@ -534,25 +548,32 @@ export default class ConnectionsModel extends EventEmitter {
                                 password,
                                 pairingInformation.authenticationTag
                             );
-                            this.personalCloudConnections.push(connectionDetails);
-                            this.personalCloudConnections = [
-                                ...new Set(this.personalCloudConnections)
-                            ];
-                            this.emit('authenticatedPersonalCloudDevice');
 
-                            setTimeout(() => {
-                                this.startChum(conn, this.meAnon, personInfo.personId).then(
-                                    async () => {
-                                        connectionDetails.connectionState = false;
-                                        await this.saveAvailableConnectionsList();
+                            conn.waitForJSONMessage().then(
+                                (acknowledgeMessage: AcknowledgeTakeOverMessage) => {
+                                    if (acknowledgeMessage.acknowledge) {
+                                        this.personalCloudConnections.push(connectionDetails);
+                                        this.personalCloudConnections = [
+                                            ...new Set(this.personalCloudConnections)
+                                        ];
                                         this.emit('authenticatedPersonalCloudDevice');
-                                    }
-                                );
-                            }, 1000);
 
-                            clearTimeout(timeoutHandle);
-                            oce.stop();
-                            resolve();
+                                        this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                            async () => {
+                                                connectionDetails.connectionState = false;
+                                                await this.saveAvailableConnectionsList();
+                                                this.emit('authenticatedPersonalCloudDevice');
+                                            }
+                                        );
+                                    } else {
+                                        throw new Error('Wrong password!');
+                                    }
+
+                                    clearTimeout(timeoutHandle);
+                                    oce.stop();
+                                    resolve();
+                                }
+                            );
                         } else {
                             this.partnerConnections.push(connectionDetails);
                             this.partnerConnections = [...new Set(this.partnerConnections)];
