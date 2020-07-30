@@ -344,21 +344,24 @@ export default class ConnectionsModel extends EventEmitter {
 
                 const decryptedAuthTag = Uint8ArrayToString(
                     await decryptWithSymmetricKey(kdf, encryptedAuthTag)
-                );
+                ).replace(new RegExp('"', 'g'), '');
 
-                const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
-                    pairingInfo => pairingInfo.authenticationTag === decryptedAuthTag
-                );
+                let found = false;
+                this.generatedPairingInformation.forEach(pairingInfo => {
+                    if (pairingInfo.authenticationTag === decryptedAuthTag) {
+                        found = true;
+                    }
+                });
 
-                if (checkReceivedAuthenticationTag.length != 1) {
+                if (found) {
+                    this.personalCloudConnections.push(connectionDetails);
+                    this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+                    this.emit('authenticatedPersonalCloudDevice');
+                } else {
                     throw new Error(
                         'Received authentication tag for take over does not match the sent one.'
                     );
                 }
-
-                this.personalCloudConnections.push(connectionDetails);
-                this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
-                this.emit('authenticatedPersonalCloudDevice');
             } else {
                 this.partnerConnections.push(connectionDetails);
                 this.partnerConnections = [...new Set(this.partnerConnections)];
