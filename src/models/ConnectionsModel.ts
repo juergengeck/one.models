@@ -334,7 +334,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             if (takeOver) {
                 const message = await conn.waitForJSONMessage();
-                const encryptedAuthTag = stringToUint8Array(message.encryptedAuthenticationTag);
+                const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
                 const kdf = await this.keyDerivationFunction(this.salt, this.password);
 
                 // for each connection to personal cloud we need to set up the password and
@@ -512,7 +512,8 @@ export default class ConnectionsModel extends EventEmitter {
                     .then(personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
-                            personIdHash: this.meAnon
+                            personIdHash: this.meAnon,
+                            takeOver: takeOver
                         };
 
                         conn.sendMessage(JSON.stringify(authenticationMessage));
@@ -806,7 +807,7 @@ export default class ConnectionsModel extends EventEmitter {
         const kdf = await this.keyDerivationFunction(salt, password);
         const encryptedAuthTag = await encryptWithSymmetricKey(kdf, authenticationTag);
         const takeOverMessage: TakeOverMessage = {
-            encryptedAuthenticationTag: Uint8ArrayToString(encryptedAuthTag)
+            encryptedAuthenticationTag: fromByteArray(encryptedAuthTag)
         };
 
         await conn.sendMessage(JSON.stringify(takeOverMessage));
