@@ -336,7 +336,11 @@ export default class ConnectionsModel extends EventEmitter {
                 connectionState: true
             };
 
+            let timeout = 0;
+
             if (takeOver) {
+                timeout = 1000;
+
                 const message = await conn.waitForJSONMessage();
                 const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
                 const kdf = await this.keyDerivationFunction(this.salt, this.password);
@@ -393,15 +397,16 @@ export default class ConnectionsModel extends EventEmitter {
                     );
                 }
             }
+            setTimeout(async () => {
+                await this.startChum(conn, localPersonId, remotePersonId);
+                // when the chum is returned, the connection is closed
+                connectionDetails.connectionState = false;
+                await this.saveAvailableConnectionsList();
 
-            await this.startChum(conn, localPersonId, remotePersonId);
-            // when the chum is returned, the connection is closed
-            connectionDetails.connectionState = false;
-            await this.saveAvailableConnectionsList();
-
-            takeOver
-                ? this.emit('authenticatedPersonalCloudDevice')
-                : this.emit('authenticatedPartnerDevice');
+                takeOver
+                    ? this.emit('authenticatedPersonalCloudDevice')
+                    : this.emit('authenticatedPartnerDevice');
+            }, timeout);
         }
     }
 
@@ -641,6 +646,8 @@ export default class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>
     ): Promise<void> {
+        await this.giveAccessToMyself();
+
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
@@ -1019,6 +1026,52 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'contacts',
+            owner: this.me
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+    }
+
+    async giveAccessToMyself(): Promise<void> {
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: this.me
+        });
+        const setAccessParam = {
+            id: channelInfoIdHash,
+            person: [this.meAnon],
+            group: [],
+            mode: SET_ACCESS_MODE.ADD
+        };
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [setAccessParam]
+        );
+        // share my consent files with partner for backup
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: this.me
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        // share my contacts with partner
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'contacts',
+            owner: this.me
+        });
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        // share my contacts with partner
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'diary',
             owner: this.me
         });
 
