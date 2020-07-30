@@ -13,7 +13,7 @@
   "dependencies": {
     "i18next": "^19.4.2",
     "one.core": "refinio/one.core",
-    "one.utils": "refinio/one.utils"
+    "one.match": "refinio/one.match"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",

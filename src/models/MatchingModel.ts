@@ -1,20 +1,24 @@
 import EventEmitter from "events";
 import {createRandomString} from "one.core/lib/system/crypto-helpers";
-import {Chum, Person,VersionedObjectResult} from "@OneCoreTypes";
-import {createSingleObjectThroughPurePlan} from "one.core/lib/plan";
-import {VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
+import {
+    Chum,
+    Person,
+    UnversionedObjectResult,
+    VersionedObjectResult,
+    Supply
+} from "@OneCoreTypes";
+import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
+import {SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
 import { ChumSyncOptions } from "one.core/lib/chum-sync";
-import {createChumConnectionHandler} from 'one.utils/lib/ChumConnectionHandler';
-import {createChumApi} from "one.utils/lib/ChumApi";
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
+import {calculateIdHashOfObj} from "one.core/lib/util/object";
 
 /**
  * Model that connects to the one.match server
  */
 export default class MatchingModel extends EventEmitter {
 
-    private Chums = new Map();
     private minimalWriteStorageApiObj = {
         createFileWriteStream: createFileWriteStream
     } as WriteStorageApi;
@@ -38,22 +42,9 @@ export default class MatchingModel extends EventEmitter {
         idObjectsLatestOnly: false
     };
 
-     promisifiedChumCreateAndStartFunction(
-        chumSyncOptions: ChumSyncOptions
-    ): Promise<VersionedObjectResult<Chum>> {
-        const chum = createChumApi(chumSyncOptions);
-        this.Chums.set(chumSyncOptions.remoteInstanceName, chum);
-        chum.start();
-        return chum.getResults();
-    }
-    async createChumConnectionHandler() {
-        createChumConnectionHandler(
-            this.promisifiedChumCreateAndStartFunction,1000
-        );
-    }
-
-    async  setUpMatchServerConnection(): Promise<ChumSyncOptions | Chum> {
+    async  setUpMatchServerConnection(): Promise<Chum | undefined> {
         try {
+            //TODO USE ANONYMUS FROM SETTER
             const identity = await createRandomString(15);
             const res = await fetch(this.match.url + identity);
             const json = await res.json();
@@ -73,7 +64,8 @@ export default class MatchingModel extends EventEmitter {
                     )) as VersionedObjectResult<Person>;
                 })
             );
-
+            this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
+            this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 
             const chumConfig = {
                 ...this.defaultChumConfig,
@@ -85,18 +77,10 @@ export default class MatchingModel extends EventEmitter {
                 secretForAuthAtRemote: server.hash
             };
 
-            const chumConfigRes = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/chumSyncOptions',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
+            const chumConfigRes = await createSingleObjectThroughImpurePlan(
+                {module: '@one/chum-sync'},
                 chumConfig
-            )) as VersionedObjectResult<Chum>;
-
-            createChumConnectionHandler(
-                this.promisifiedChumCreateAndStartFunction,
-                1000
-            ).connect(chumConfig);
+            );
 
             return chumConfigRes.obj;
 
@@ -105,7 +89,49 @@ export default class MatchingModel extends EventEmitter {
         } catch (err) {
             // eslint-disable-next-line no-console
             console.error(`Error setting up match server: ${err}`);
-            return this.defaultChumConfig;
         }
+        return ;
+    }
+
+    async sendSupplyObject(): Promise<void> {
+
+        const supply = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supply',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                type: 'Supply',
+                identity: this.defaultChumConfig.localInstanceName,
+                match: 'match'
+            }
+        )) as UnversionedObjectResult<Supply>;
+
+        const matchServer = await calculateIdHashOfObj({
+            $type$:'Person',
+            email: this.defaultChumConfig.remoteInstanceName
+        });
+
+        const matchClient = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: this.defaultChumConfig.localInstanceName
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('sending supply object to match server');
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: supply.hash,
+                    person: [matchServer, matchClient],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
     }
 }
