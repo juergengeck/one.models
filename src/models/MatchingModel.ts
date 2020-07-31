@@ -52,13 +52,13 @@ export default class MatchingModel extends EventEmitter {
             const [client, server] = await Promise.all(
                 ['client', 'server'].map(async key => {
                     const config = json[key];
-                   return  (await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@module/person',
-                            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                        },
-                        {
-                            type: 'Person',
+                   return  ( await createSingleObjectThroughPurePlan(
+                       {
+                           module: '@one/identity',
+                           versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                       },
+                       {
+                           $type$: 'Person',
                             email: config
                         }
                     )) as VersionedObjectResult<Person>;
