@@ -1,4 +1,4 @@
-import {Recipe} from '@OneCoreTypes';
+import {Recipe, SHA256Hash, BLOB} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -7,7 +7,7 @@ declare module '@OneCoreTypes' {
 
     export interface Slider {
         $type$: 'Slider';
-        items: ArrayBuffer[];
+        items: SHA256Hash<BLOB>[];
     }
 }
 

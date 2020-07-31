@@ -1,6 +1,8 @@
 import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
-import {Slider as OneSlider} from '@OneCoreTypes';
+import {Slider as OneSlider, SHA256Hash, BLOB} from '@OneCoreTypes';
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import {WriteStorageApi} from 'one.core/lib/storage';
 
 export type Slider = ArrayBuffer[];
 
@@ -36,7 +38,21 @@ export default class SliderModel extends EventEmitter {
     }
 
     async addSlider(slider: Slider): Promise<void> {
-        await this.channelManager.postToChannel(this.channelId, convertToOne(slider));
+        const minimalWriteStorageApiObj = {
+            createFileWriteStream: createFileWriteStream
+        } as WriteStorageApi;
+
+        let ids: SHA256Hash<BLOB>[] = [];
+
+        for (const item of slider) {
+            const stream = minimalWriteStorageApiObj.createFileWriteStream();
+            stream.write(item);
+            const blob = await stream.end();
+
+            ids.push(blob.hash);
+        }
+
+        await this.channelManager.postToChannel(this.channelId, {$type$: 'Slider', items: ids});
     }
 
     async sliders(): Promise<Slider[]> {
