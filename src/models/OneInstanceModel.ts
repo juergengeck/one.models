@@ -226,7 +226,8 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
-        this.initialisingApplication(anonymousEmail);
+        this.unregister();
+        this.initialisingApplication(anonymousEmail, takeOver);
     }
 
     /**
@@ -269,7 +270,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(anonymousEmail?: string): void {
+    initialisingApplication(anonymousEmail?: string, takeOver?: boolean): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -303,7 +304,8 @@ export default class OneInstanceModel extends EventEmitter {
             'authstate_changed_first',
             this.currentRegistrationState,
             firstCallback,
-            anonymousEmail
+            anonymousEmail,
+            takeOver
         );
     }
 

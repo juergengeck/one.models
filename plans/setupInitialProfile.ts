@@ -17,7 +17,8 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
-    url: string
+    url: string,
+    takeOver?: boolean
 ): Promise<VersionedObjectResult<ContactApp>> {
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
@@ -30,10 +31,16 @@ export async function createObjects(
     const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
     const instanceKeyLink = await getAllValues(instanceIdHash, true, 'Keys');
     /** Person key **/
-    const personPubEncryptionKeys = await getObjectWithType(personKeyLink[personKeyLink.length - 1].toHash, 'Keys');
+    const personPubEncryptionKeys = await getObjectWithType(
+        personKeyLink[personKeyLink.length - 1].toHash,
+        'Keys'
+    );
     const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
     /** Instance key **/
-    const instancePubEncryptionKeys = await getObjectWithType(instanceKeyLink[instanceKeyLink.length - 1].toHash, 'Keys');
+    const instancePubEncryptionKeys = await getObjectWithType(
+        instanceKeyLink[instanceKeyLink.length - 1].toHash,
+        'Keys'
+    );
     const instancePubEncryptionKeysHash = await calculateHashOfObj(instancePubEncryptionKeys);
     // 1. Decide for which instance -> current instance
     // 2. get the instance hash by ``const instanceIdHash = getInstanceIdHash();``
@@ -52,7 +59,7 @@ export async function createObjects(
     const contactObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Contact',
         personId: personIdHash,
-        communicationEndpoints: [instanceEndpoint.hash],
+        communicationEndpoints: takeOver ? [] : [instanceEndpoint.hash],
         contactDescriptions: []
     });
 

@@ -37,7 +37,7 @@ import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
-import ChannelManager from "./ChannelManager";
+import ChannelManager from './ChannelManager';
 
 /**
  * This represents a ContactEvent
@@ -63,7 +63,11 @@ export default class ContactModel extends EventEmitter {
     private isChannelManagerInitiliazed: boolean = false;
     private contactObjectBuffer: Contact[] = [];
     private readonly channelId: string = 'contacts';
-    constructor(instancesModel: InstancesModel, commServerUrl: string, channelManager: ChannelManager) {
+    constructor(
+        instancesModel: InstancesModel,
+        commServerUrl: string,
+        channelManager: ChannelManager
+    ) {
         super();
         this.instancesModel = instancesModel;
         this.commServerUrl = commServerUrl;
@@ -86,12 +90,13 @@ export default class ContactModel extends EventEmitter {
      * Initialize the structure. This has to be called after the one instance is initialized.
      * @returns {Promise<void>}
      */
-    public async init(): Promise<void> {
+    public async init(takeOver?: boolean): Promise<void> {
         /** if the contactApp exists, the structure must not be initialised, otherwise will be overwritten **/
         if (!(await ContactModel.doesContactAppObjectExist())) {
             await createSingleObjectThroughPurePlan(
                 {module: '@module/setupInitialProfile'},
-                this.commServerUrl
+                this.commServerUrl,
+                takeOver
             );
         }
 
@@ -99,12 +104,11 @@ export default class ContactModel extends EventEmitter {
         await this.shareContactAppWithYourInstances();
     }
 
-
-    public async createContactChannel(){
+    public async createContactChannel() {
         await this.channelManager.createChannel(this.channelId);
         this.isChannelManagerInitiliazed = true;
 
-        for(const contact of this.contactObjectBuffer){
+        for (const contact of this.contactObjectBuffer) {
             await this.channelManager.postToChannel(this.channelId, contact);
         }
     }
@@ -644,7 +648,7 @@ export default class ContactModel extends EventEmitter {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
                 await serializeWithType('Contacts', async () => {
-                    if(this.isChannelManagerInitiliazed) {
+                    if (this.isChannelManagerInitiliazed) {
                         await this.channelManager.postToChannel(this.channelId, caughtObject.obj);
                     } else {
                         this.contactObjectBuffer.push(caughtObject.obj);
