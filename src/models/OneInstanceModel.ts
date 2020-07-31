@@ -266,7 +266,7 @@ export default class OneInstanceModel extends EventEmitter {
             });
 
             await importModules();
-            console.log(await this.match.createChumConnectionHandler());
+            console.log(await this.match.setUpMatchServerConnection());
         }
         this.initialisingApplication();
     }
