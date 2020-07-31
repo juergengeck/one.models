@@ -3,6 +3,7 @@ import ChannelManager from './ChannelManager';
 import {Slider as OneSlider, SHA256Hash, BLOB} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
+import * as Storage from 'one.core/lib/storage.js';
 
 export type Slider = ArrayBuffer[];
 
@@ -53,16 +54,26 @@ export default class SliderModel extends EventEmitter {
         }
 
         await this.channelManager.postToChannel(this.channelId, {$type$: 'Slider', items: ids});
+        this.emit('sliders');
     }
 
     async sliders(): Promise<Slider[]> {
         const sliders: Slider[] = [];
+
         const oneObjects = await this.channelManager.getObjectsWithType(this.channelId, 'Slider');
 
-        for (const slider of oneObjects) {
-            sliders.push(convertSliderFromOne(slider.data));
+        const lastSlider = oneObjects[oneObjects.length - 1];
+
+        let slider: ArrayBuffer[] = [];
+        for (const item of lastSlider.data.items) {
+            const stream = Storage.createFileReadStream(item);
+            stream.onData.addListener(data => {
+                slider.push(data);
+            });
+            await stream.promise;
         }
 
+        sliders.push(slider);
         return sliders;
     }
 }
