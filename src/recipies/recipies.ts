@@ -8,7 +8,7 @@ import QuestionnaireRecipes from './QuestionnaireRecipies';
 import ConsentFileRecipes from './ConsentFileRecipies';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from "./NewsRecipes";
-import {Recipes as MatchRecipes} from '../../node_modules/one.match/lib/recipes';
+import {Recipes as MatchRecipes} from 'one.match/lib/recipes';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
