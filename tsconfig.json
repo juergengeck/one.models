@@ -26,6 +26,7 @@
     },
     "include": [
         "node_modules/one.core/@OneCoreTypes.d.ts",
+        "node_modules/one.match/@OneCoreTypes.d.ts",
         "@OneCoreTypes.d.ts",
         "plans",
         "src/*.ts",

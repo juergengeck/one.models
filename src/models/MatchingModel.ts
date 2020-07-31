@@ -64,6 +64,7 @@ export default class MatchingModel extends EventEmitter {
                     )) as VersionedObjectResult<Person>;
                 })
             );
+            this.websocketPromisifierAPI.connect('ws://localhost:8000/');
             this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
             this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 
@@ -77,7 +78,7 @@ export default class MatchingModel extends EventEmitter {
                 secretForAuthAtRemote: server.hash
             };
 
-            const chumConfigRes = await createSingleObjectThroughImpurePlan(
+            const chumConfigRes =  createSingleObjectThroughImpurePlan(
                 {module: '@one/chum-sync'},
                 chumConfig
             );
@@ -97,11 +98,11 @@ export default class MatchingModel extends EventEmitter {
 
         const supply = (await createSingleObjectThroughPurePlan(
             {
-                module: '@module/supply',
+                module: '@one/identity',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
             },
             {
-                type: 'Supply',
+                $type$: 'Supply',
                 identity: this.defaultChumConfig.localInstanceName,
                 match: 'match'
             }

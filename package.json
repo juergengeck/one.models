@@ -6,6 +6,7 @@
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
   "scripts": {
+    "install": "node ./install.js",
     "build": "node ./build.js",
     "start": "node lib/model/index.js",
     "test": "nyc mocha test/**-test.js"

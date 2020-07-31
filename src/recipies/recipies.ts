@@ -9,6 +9,7 @@ import ConsentFileRecipes from './ConsentFileRecipies';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from "./NewsRecipes";
 
+
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
     ...ChannelRecipes,
