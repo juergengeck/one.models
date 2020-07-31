@@ -114,7 +114,7 @@ export default class WebSocketPromiseBased extends EventEmitter
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
         if (this.webSocket) {
             if (reason) {
-                this.webSocket.close(1011, reason);
+                this.webSocket.close(1000, reason);
             } else {
                 this.webSocket.close();
             }
