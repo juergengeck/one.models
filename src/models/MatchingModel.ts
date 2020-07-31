@@ -5,7 +5,8 @@ import {
     Person,
     UnversionedObjectResult,
     VersionedObjectResult,
-    Supply
+    Supply,
+    Demand
 } from "@OneCoreTypes";
 import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
 import {SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
@@ -94,7 +95,7 @@ export default class MatchingModel extends EventEmitter {
         return ;
     }
 
-    async sendSupplyObject(): Promise<void> {
+    async sendSupplyObject(match: string): Promise<void> {
 
         const supply = (await createSingleObjectThroughPurePlan(
             {
@@ -104,7 +105,7 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'Supply',
                 identity: this.defaultChumConfig.localInstanceName,
-                match: 'match'
+                match: match
             }
         )) as UnversionedObjectResult<Supply>;
 
@@ -128,6 +129,46 @@ export default class MatchingModel extends EventEmitter {
             [
                 {
                     object: supply.hash,
+                    person: [matchServer, matchClient],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+    }
+    async sendDemandObject(match: string): Promise<void> {
+        const demand = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Demand',
+                identity: this.defaultChumConfig.localInstanceName,
+                match: match
+            }
+        )) as UnversionedObjectResult<Demand>;
+
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: this.defaultChumConfig.remoteInstanceName
+        });
+
+        const matchClient = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: this.defaultChumConfig.localInstanceName
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('sending demand object to match server');
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: demand.hash,
                     person: [matchServer, matchClient],
                     group: [],
                     mode: SET_ACCESS_MODE.REPLACE
