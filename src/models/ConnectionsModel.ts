@@ -11,7 +11,8 @@ import {
     AuthenticatedContactsList,
     VersionedObjectResult,
     Chum,
-    SHA256IdHash
+    SHA256IdHash,
+    Person
 } from '@OneCoreTypes';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {
@@ -61,6 +62,7 @@ export default class ConnectionsModel extends EventEmitter {
     // private readonly commServerUrl = 'ws://localhost:8000';
     private myInstance: VersionedObjectResult<Instance> | undefined;
     private authenticatedContactsList: AuthenticatedContactsList;
+    private personId: SHA256IdHash<Person> | undefined;
 
     constructor() {
         super();
@@ -70,6 +72,11 @@ export default class ConnectionsModel extends EventEmitter {
             $type$: 'AuthenticatedContactsList',
             instanceIdHash: '' as SHA256IdHash<Instance>
         };
+        this.personId = undefined;
+    }
+
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.personId = id;
     }
 
     /**
@@ -440,10 +447,50 @@ export default class ConnectionsModel extends EventEmitter {
             this.personalCloudConnections.push(connection);
         }
 
-        this.emit('authenticatedPersonalCloudDevice');
+        await this.connectOneTimeChum(connection);
+    }
 
-        this.startChum(connection, pairingInformation.takeOver);
-        this.emit('connectionEstablished');
+    private async connectOneTimeChum(connection: Connection): Promise<void> {
+        if (this.myInstance === undefined) {
+            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
+        const {communicationManagerAPI} = connection;
+
+        // todo: other instance object is never saved
+        // const otherInstance = await getObjectByIdHash(authenticatedContact.instanceIdHash);
+        const websocketPromisifierAPI = communicationManagerAPI.getWebSocketPromisifier();
+        websocketPromisifierAPI.promise.catch(error => {
+            this.emit('error', error.name);
+            throw error;
+        });
+
+        if (connection.authenticatedContact) {
+            websocketPromisifierAPI.localPersonIdHash =
+                connection.authenticatedContact.personIdHash;
+            websocketPromisifierAPI.remotePersonIdHash =
+                connection.authenticatedContact.personIdHash;
+        }
+
+        const defaultInitialChumObj: ChumSyncOptions = {
+            connection: websocketPromisifierAPI,
+            chumName: 'MochaTest',
+            localInstanceName: this.myInstance.obj.name,
+            // remoteInstanceName: otherInstance.obj.name,
+            remoteInstanceName: this.myInstance.obj.name,
+            keepRunning: false,
+            maxNotificationDelay: 20
+        };
+
+        connection.connectionState = true;
+
+        connection.chum = createSingleObjectThroughImpurePlan(
+            {module: '@one/chum-sync'},
+            defaultInitialChumObj
+        );
+
+        await connection.chum;
     }
 
     /**
@@ -516,6 +563,8 @@ export default class ConnectionsModel extends EventEmitter {
             {module: '@one/chum-sync'},
             defaultInitialChumObj
         );
+
+        this.emit('connectionEstablished');
 
         connection.chum.finally(() => {
             connection.connectionState = false;
@@ -707,17 +756,24 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {AuthenticatedContact} authenticatedContact
      */
     async shareDataWithPartner(authenticatedContact: AuthenticatedContact): Promise<void> {
+        const ownerIdHash = this.personId ? this.personId : getInstanceOwnerIdHash();
+
+        if (ownerIdHash === undefined) {
+            this.emit('error', 'Unable to find instance.');
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: await getInstanceOwnerIdHash()
+            owner: ownerIdHash
         });
 
         let setAccessParam: SetAccessParam = {
             group: [],
             id: channelInfoIdHash,
             mode: SET_ACCESS_MODE.REPLACE,
-            person: [authenticatedContact.personIdHash]
+            person: [authenticatedContact.personIdHash, ownerIdHash]
         };
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
@@ -726,7 +782,7 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: await getInstanceOwnerIdHash()
+            owner: ownerIdHash
         });
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);

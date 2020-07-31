@@ -31,14 +31,14 @@ export function createRandomBodyTemperature(): BodyTemperature {
  * Import all plan modules
  */
 export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map((key) => ({
+    const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
         code: oneModules[key]
     }));
 
     return await Promise.all(
         modules.map(
-            async (module) =>
+            async module =>
                 await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/module-importer',
@@ -61,7 +61,7 @@ export default class Model {
         this.documents = new DocumentModel();
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-        this.connections = new ConnectionsModel();
+        this.connections = new ConnectionsModel(this.channelManager);
         this.access = new AccessModel();
         this.news = new NewsModel(this.channelManager);
 
@@ -83,29 +83,59 @@ export default class Model {
             this.consentFile
         );
 
-        this.oneInstance.on('authstate_changed_first', (firstCallback: (err?: Error) => void) => {
-            if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
-                this.init()
-                    .then(() => {
-                        firstCallback();
-                    })
-                    .catch((err: any) => {
-                        firstCallback(err);
-                    });
+        this.oneInstance.on(
+            'authstate_changed_first',
+            registrationState,
+            (firstCallback: (err?: Error) => void) => {
+                // todo: add a parameter for knowing if it's take over or not
+                if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
+                    this.init(registrationState)
+                        .then(() => {
+                            firstCallback();
+                        })
+                        .catch((err: any) => {
+                            firstCallback(err);
+                        });
+                }
             }
-        });
+        );
     }
 
-    async init(): Promise<void> {
-        await this.channelManager.init();
+    async init(registrationState: boolean): Promise<void> {
         await this.contactModel.init();
-        await this.questionnaires.init();
-        await this.connections.init();
-        await this.access.init();
-        await this.diary.init();
-        await this.bodyTemperature.init();
+        await this.accessModel.init();
+        await this.channelManager.init();
         await this.consentFile.init();
+        await this.news.init();
+        await this.questionnaires.init();
+        await this.diary.init();
+        await this.covidWorkflow.init();
+        await this.bodyTemperature.init();
         await this.settings.init();
+        await this.connections.init();
+
+        if (registrationState) {
+            /**
+             * The user has register on this device for the first time without
+             * trying to synchronise the data from other device that he owns.
+             * The anonymous user should be generated.
+             */
+            const anonymousId = await this.contactModel.createProfile(true);
+            await this.channelManager.setPersonId(anonymousId);
+        } else {
+            /**
+             * Wit until the anonymous user is read from memory if in login or
+             * received via chums if in instance take over.
+             */
+            this.contactModel.on('update', async () => {
+                const myIdentities = await this.contactModel.myIdentities();
+                if (myIdentities.length > 1) {
+                    const anonymousId = myIdentities[myIdentities.length - 1];
+                    await this.channelManager.setPersonId(anonymousId);
+                    this.contactModel.off('update');
+                }
+            });
+        }
     }
     access: AccessModel;
     channelManager: ChannelManager;
