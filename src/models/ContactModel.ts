@@ -119,12 +119,17 @@ export default class ContactModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} email
      * @returns {Promise<SHA256IdHash<Person>>}
      */
-    public async createProfile(myself: boolean, email?: string): Promise<SHA256IdHash<Person>> {
+    public async createProfile(
+        myself: boolean,
+        email?: string,
+        takeOver?: boolean
+    ): Promise<SHA256IdHash<Person>> {
         const personEmail = email === undefined ? await createRandomString(20) : email;
 
         const createdProfile = await this.serializeProfileCreatingByPersonEmail(
             personEmail,
-            myself
+            myself,
+            takeOver
         );
         return createdProfile.obj.personId;
     }
@@ -543,7 +548,8 @@ export default class ContactModel extends EventEmitter {
      */
     private async serializeProfileCreatingByPersonEmail(
         personEmail: string,
-        forMyself: boolean
+        forMyself: boolean,
+        takeOver?: boolean
     ): Promise<VersionedObjectResult<Profile>> {
         // Create a profile for myself
         if (forMyself) {
@@ -558,7 +564,8 @@ export default class ContactModel extends EventEmitter {
                     {module: '@module/createOwnProfile'},
                     personEmail,
                     createdInstance,
-                    this.commServerUrl
+                    this.commServerUrl,
+                    takeOver
                 )) as VersionedObjectResult<Profile>;
 
                 // Add the profile to the someone object

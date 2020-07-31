@@ -24,9 +24,9 @@ export async function createObjects(
     WriteStorage: WriteStorageApi,
     email: string,
     instanceIdHash: SHA256IdHash<Instance>,
-    contactObjUrl: string
+    contactObjUrl: string,
+    takeOver?: boolean
 ): Promise<VersionedObjectResult<Profile>> {
-
     const personIdHash = (await getObjectByIdObj({$type$: 'Person', email})).idHash;
 
     /** Person key **/
@@ -58,7 +58,7 @@ export async function createObjects(
     const contactObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Contact',
         personId: personIdHash,
-        communicationEndpoints: [instanceEndpoint.hash],
+        communicationEndpoints: takeOver ? [] : [instanceEndpoint.hash],
         contactDescriptions: []
     });
 
