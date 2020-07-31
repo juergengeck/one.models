@@ -198,7 +198,7 @@ export default class ConnectionsModel extends EventEmitter {
         await this.communicationModule.shutdown();
 
         for (const conn of this.openedConnections) {
-            conn.webSocket.close();
+            conn.close();
         }
 
         for (const connection of this.personalCloudConnections) {
