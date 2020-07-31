@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
-import {ConnectionsModel, ContactModel} from '../models';
+import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
@@ -76,10 +76,12 @@ async function main(): Promise<void> {
     }
 
     // Initialize models
+    const accessModel = new AccessModel();
     const instancesModel = new InstancesModel();
-    const contactModel = new ContactModel(instancesModel, argv.u);
+    const channelManager = new ChannelManager(accessModel);
+    const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
-    const connectionsModel = new ConnectionsModel(argv.u, contactModel, instancesModel, false);
+    const connectionsModel = new ConnectionsModel(argv.u, contactModel, instancesModel, accessModel, false);
 
     // Create the instance
     await initInstance({
@@ -94,14 +96,19 @@ async function main(): Promise<void> {
     await importModules();
 
     // Init models
+    await accessModel.init();
+
     await instancesModel.init('secret_' + argv.i);
     await contactModel.init();
+
+    await channelManager.init();
+    await contactModel.createContactChannel();
     const person = await contactModel.myMainIdentity();
 
     // Find the anonymous id
     let personAnon: SHA256IdHash<Person>;
     let alternateIds = await contactModel.myIdentities();
-    alternateIds = alternateIds.filter(id => id !== person);
+    alternateIds = alternateIds.filter((id: SHA256IdHash<Person>) => id !== person);
     if (alternateIds.length > 1) {
         throw new Error('Application expects exactly one alternate identity.');
     } else if (alternateIds.length < 1) {

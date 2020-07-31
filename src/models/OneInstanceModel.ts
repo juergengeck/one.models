@@ -103,6 +103,7 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
+     * @param {AccessModel} accessModel
      */
     constructor(
         connectionsModel: ConnectionsModel,
@@ -190,8 +191,7 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email);
-        this.initialisingApplication(anonymousEmail);
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
     }
 
     /**
@@ -200,8 +200,13 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * @param {string} email
      * @param {boolean} takeOver
+     * @param {string} anonymousEmail
      */
-    async createNewInstanceWithReceivedEmail(email: string, takeOver = false): Promise<void> {
+    async createNewInstanceWithReceivedEmail(
+        email: string,
+        takeOver = false,
+        anonymousEmail?: string
+    ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -221,15 +226,7 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
-
-        /**
-         * In instance take over the model initialisation should
-         * be done before the anonymous user exists, so a new
-         * event should be emitted only for this case.
-         */
-        if (takeOver) {
-            this.emit('instance_from_take_over');
-        }
+        this.initialisingApplication(anonymousEmail);
     }
 
     /**

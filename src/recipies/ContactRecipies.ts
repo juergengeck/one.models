@@ -309,6 +309,7 @@ declare module '@OneCoreTypes' {
     export interface TakeOverInformation {
         nonce: string;
         email: string;
+        anonymousEmail: string;
     }
 }
 export const ConnectionsRecipe: Recipe = {
@@ -337,11 +338,13 @@ export const AvailableConnectionsRecipe: Recipe = {
         },
         {
             itemprop: 'personalCloudConnections',
-            referenceToObj: new Set(['ConnectionDetails'])
+            referenceToObj: new Set(['ConnectionDetails']),
+            list: ORDERED_BY.ONE
         },
         {
             itemprop: 'partnerContacts',
-            referenceToObj: new Set(['ConnectionDetails'])
+            referenceToObj: new Set(['ConnectionDetails']),
+            list: ORDERED_BY.ONE
         }
     ]
 };
