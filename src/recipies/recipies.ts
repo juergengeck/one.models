@@ -7,7 +7,8 @@ import MetaRecipes from './MetaRecipies';
 import QuestionnaireRecipes from './QuestionnaireRecipies';
 import ConsentFileRecipes from './ConsentFileRecipies';
 import SettingsRecipe from './SettingsRecipe';
-import NewsRecipes from "./NewsRecipes";
+import NewsRecipes from './NewsRecipes';
+import SliderRecipes from './SliderRecipies';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -18,7 +19,8 @@ const Recipes: Recipe[] = [
     ...MetaRecipes,
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
-    ...SettingsRecipe
+    ...SettingsRecipe,
+    ...SliderRecipes
 ];
 
 export default Recipes;
