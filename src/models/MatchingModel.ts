@@ -9,9 +9,9 @@ import {
     Demand
 } from "@OneCoreTypes";
 import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
-import {SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
+import {onUnversionedObj, SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
 import { ChumSyncOptions } from "one.core/lib/chum-sync";
-import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
+import {createWebsocketPromisifier, WebsocketPromisifierAPI} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
 import {calculateIdHashOfObj} from "one.core/lib/util/object";
 
@@ -24,14 +24,12 @@ export default class MatchingModel extends EventEmitter {
         createFileWriteStream: createFileWriteStream
     } as WriteStorageApi;
 
-
-
     private match = {
         name: 'ONE.Match',
         url: 'http://localhost:2929/'
     };
 
-    private websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj);
+    private websocketPromisifierAPI: WebsocketPromisifierAPI;
 
     private defaultChumConfig: ChumSyncOptions = {
         connection: this.websocketPromisifierAPI,
@@ -43,9 +41,25 @@ export default class MatchingModel extends EventEmitter {
         idObjectsLatestOnly: false
     };
 
+    constructor() {
+        super();
+        this.websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj);
+    }
+    async init() {
+        this.registerHooks();
+    }
+
+    private registerHooks(): void {
+        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
+            if (caughtObject.obj.$type$ ==='MatchResponse') {
+                console.log(caughtObject);
+            }
+        });
+    }
+
     async  setUpMatchServerConnection(): Promise<Chum | undefined> {
         try {
-            //TODO USE ANONYMUS FROM SETTER
+            //TODO USE ANONYMOUS FROM SETTER FUTURE
             const identity = await createRandomString(15);
             const res = await fetch(this.match.url + identity);
             const json = await res.json();

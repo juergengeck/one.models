@@ -110,7 +110,7 @@ export default class Model {
         await this.channelManager.init();
         await this.consentFile.init();
         await this.news.init();
-    await this.match.init();
+        await this.match.init();
         await this.questionnaires.init();
         await this.diary.init();
         await this.covidWorkflow.init();
