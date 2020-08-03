@@ -11,7 +11,7 @@ import {
 import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
 import {onUnversionedObj, SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
 import { ChumSyncOptions } from "one.core/lib/chum-sync";
-import {createWebsocketPromisifier, WebsocketPromisifierAPI} from 'one.core/lib/websocket-promisifier';
+import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
 import {calculateIdHashOfObj} from "one.core/lib/util/object";
 
@@ -29,7 +29,7 @@ export default class MatchingModel extends EventEmitter {
         url: 'http://localhost:2929/'
     };
 
-    private websocketPromisifierAPI: WebsocketPromisifierAPI;
+    private websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj);
 
     private defaultChumConfig: ChumSyncOptions = {
         connection: this.websocketPromisifierAPI,
@@ -40,11 +40,8 @@ export default class MatchingModel extends EventEmitter {
         maxNotificationDelay: 20,
         idObjectsLatestOnly: false
     };
+    private chumConfigRes: any;
 
-    constructor() {
-        super();
-        this.websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj);
-    }
     async init() {
         this.registerHooks();
     }
@@ -83,7 +80,7 @@ export default class MatchingModel extends EventEmitter {
             this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
             this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 
-            const chumConfig = {
+            this.chumConfigRes = {
                 ...this.defaultChumConfig,
                 chumName: [client.obj.email, server.obj.email].sort().toString(),
                 commServerGroupName: [client.obj.email, server.obj.email].sort().toString(),
@@ -95,10 +92,10 @@ export default class MatchingModel extends EventEmitter {
 
             const chumConfigRes =  createSingleObjectThroughImpurePlan(
                 {module: '@one/chum-sync'},
-                chumConfig
+                this.chumConfigRes
             );
 
-            return chumConfigRes.obj;
+            return (await chumConfigRes).obj;
 
             // This can fail if the match server is unreachable
             // in which case we just retry when the app starts again.
@@ -110,7 +107,7 @@ export default class MatchingModel extends EventEmitter {
     }
 
     async sendSupplyObject(match: string): Promise<void> {
-
+        //todo use chumSync not default chum
         const supply = (await createSingleObjectThroughPurePlan(
             {
                 module: '@one/identity',
@@ -118,7 +115,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.defaultChumConfig.localInstanceName,
+                identity: this.chumConfigRes.localInstanceName?this.chumConfigRes.localInstanceName,
                 match: match
             }
         )) as UnversionedObjectResult<Supply>;
@@ -158,7 +155,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: this.defaultChumConfig.localInstanceName,
+                identity: this.chumConfigRes.localInstanceName,
                 match: match
             }
         )) as UnversionedObjectResult<Demand>;
