@@ -167,8 +167,7 @@ export const ContactRecipe: Recipe = {
         {
             itemprop: 'communicationEndpoints',
             referenceToObj: new Set(['OneInstanceEndpoint']),
-            list: ORDERED_BY.ONE,
-            optional: true
+            list: ORDERED_BY.ONE
         },
         {
             itemprop: 'contactDescriptions',
@@ -241,7 +240,8 @@ export const OneInstanceEndpointRecipe: Recipe = {
         },
         {
             itemprop: 'personKeys',
-            referenceToObj: new Set(['Keys'])
+            referenceToObj: new Set(['Keys']),
+            optional: true
         },
         {
             itemprop: 'instanceKeys',
