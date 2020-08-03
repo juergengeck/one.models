@@ -76,7 +76,7 @@ export default class MatchingModel extends EventEmitter {
                     )) as VersionedObjectResult<Person>;
                 })
             );
-            this.websocketPromisifierAPI.connect('ws://localhost:8000/');
+            this.websocketPromisifierAPI.connect('ws://localhost:8000/',client.obj.email);
             this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
             this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 
@@ -95,7 +95,7 @@ export default class MatchingModel extends EventEmitter {
                 this.chumConfigRes
             );
 
-            return (await chumConfigRes).obj;
+            return  chumConfigRes.obj;
 
             // This can fail if the match server is unreachable
             // in which case we just retry when the app starts again.

@@ -16,7 +16,8 @@ describe('test sendSupplyToMatch', function() {
         });
         await importModules();
     });
-    it('should test init() function on a fresh instance', async () => {
+    it('should test the send supply function', async () => {
         await matchingModel.init();
-    });
+        await matchingModel.sendSupplyObject('roxana');
+    })
 })
