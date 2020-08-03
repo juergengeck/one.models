@@ -38,7 +38,7 @@ declare module '@OneCoreTypes' {
         $type$: 'OneInstanceEndpoint';
         personId: SHA256IdHash<Person>;
         instanceId: SHA256IdHash<Instance>;
-        personKeys: SHA256Hash<Keys>;
+        personKeys: SHA256Hash<Keys> | undefined;
         instanceKeys: SHA256Hash<Keys>;
         url: string;
     }
@@ -167,7 +167,8 @@ export const ContactRecipe: Recipe = {
         {
             itemprop: 'communicationEndpoints',
             referenceToObj: new Set(['OneInstanceEndpoint']),
-            list: ORDERED_BY.ONE
+            list: ORDERED_BY.ONE,
+            optional: true
         },
         {
             itemprop: 'contactDescriptions',

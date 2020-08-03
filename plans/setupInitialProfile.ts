@@ -51,7 +51,7 @@ export async function createObjects(
         $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
         instanceId: instanceIdHash,
-        personKeys: personPubEncryptionKeysHash,
+        personKeys: takeOver ? undefined : personPubEncryptionKeysHash,
         instanceKeys: instancePubEncryptionKeysHash,
         url
     });
@@ -59,7 +59,7 @@ export async function createObjects(
     const contactObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Contact',
         personId: personIdHash,
-        communicationEndpoints: takeOver ? [] : [instanceEndpoint.hash],
+        communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
     });
 

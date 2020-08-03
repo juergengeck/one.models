@@ -649,7 +649,7 @@ export default class ChannelManager extends EventEmitter {
                 );
             }
 
-            if (firstChannelCreationTime.timestamp > secondChannelCreationTime.timestamp) {
+            if (firstChannelCreationTime.timestamp >= secondChannelCreationTime.timestamp) {
                 sortedChannelEntries.push(firstChannelHead);
                 if (firstChannelHead.previous === undefined) {
                     return await this.reBuildChannelChain(
@@ -894,13 +894,13 @@ export default class ChannelManager extends EventEmitter {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         channelRegistry.obj.channels.set(channelIdHash, channelHash);
 
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                channelRegistry.obj
-            );
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            channelRegistry.obj
+        );
     }
 
     /**
