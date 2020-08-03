@@ -4977,7 +4977,7 @@ once@^1.3.0, once@^1.3.1, once@^1.4.0:
 
 one.core@refinio/one.core:
   version "0.2.5"
-  resolved "git+ssh://git@github.com/refinio/one.core.git#f1577e39c31dbdbb8e08020c1189da494437e371"
+  resolved "git+ssh://git@github.com/refinio/one.core.git#fff48e9ad57fd8a5ac38609d2c238415998ac82b"
   dependencies:
     "@babel/core" "*"
     "@babel/plugin-proposal-class-properties" "*"

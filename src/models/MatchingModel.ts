@@ -120,15 +120,9 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Supply>;
 
-        const matchServer = await calculateIdHashOfObj({
-            $type$:'Person',
-            email: this.defaultChumConfig.remoteInstanceName
-        });
+        const matchServer = this.defaultChumConfig.connection.remotePersonIdHash;
 
-        const matchClient = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.defaultChumConfig.localInstanceName
-        });
+        const matchClient = this.defaultChumConfig.connection.localPersonIdHash;
 
         // eslint-disable-next-line no-console
         console.log('sending supply object to match server');
