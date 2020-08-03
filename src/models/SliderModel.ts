@@ -1,22 +1,11 @@
 import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
-import {Slider as OneSlider, SHA256Hash, BLOB} from '@OneCoreTypes';
+import {SHA256Hash, BLOB} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
-export type Slider = ArrayBuffer[];
-
-function convertToOne(slider: Slider): OneSlider {
-    return {
-        $type$: 'Slider',
-        items: slider
-    };
-}
-
-function convertSliderFromOne(slider: OneSlider): Slider {
-    return slider.items;
-}
+export type SliderInterfaceUI = ArrayBuffer[];
 
 export default class SliderModel extends EventEmitter {
     channelManager: ChannelManager;
@@ -25,7 +14,7 @@ export default class SliderModel extends EventEmitter {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'Slider';
+        this.channelId = 'slider';
         this.channelManager = channelManager;
     }
 
@@ -38,27 +27,30 @@ export default class SliderModel extends EventEmitter {
         });
     }
 
-    async addSlider(slider: Slider): Promise<void> {
+    async addSlider(slider: SliderInterfaceUI): Promise<void> {
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
 
-        let ids: SHA256Hash<BLOB>[] = [];
+        let slidesBlobId: SHA256Hash<BLOB>[] = [];
 
         for (const item of slider) {
             const stream = minimalWriteStorageApiObj.createFileWriteStream();
             stream.write(item);
             const blob = await stream.end();
 
-            ids.push(blob.hash);
+            slidesBlobId.push(blob.hash);
         }
 
-        await this.channelManager.postToChannel(this.channelId, {$type$: 'Slider', items: ids});
+        await this.channelManager.postToChannel(this.channelId, {
+            $type$: 'Slider',
+            items: slidesBlobId
+        });
         this.emit('sliders');
     }
 
-    async sliders(): Promise<Slider[]> {
-        const sliders: Slider[] = [];
+    async sliders(): Promise<SliderInterfaceUI[]> {
+        const sliders: SliderInterfaceUI[] = [];
 
         const oneObjects = await this.channelManager.getObjectsWithType(this.channelId, 'Slider');
 
