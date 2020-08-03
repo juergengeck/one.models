@@ -87,7 +87,6 @@ export default class ConnectionsModel extends EventEmitter {
     private generatedPairingInformation: PairingInformation[];
     private readonly isReplicant: boolean;
     private anonInstanceKeys: Keys;
-    private anonCrypto: CryptoAPI;
     private meAnon: SHA256IdHash<Person>;
     private meAnnonObj: VersionedObjectResult<Person>;
     private myInstanceKeys: Keys;
@@ -99,6 +98,7 @@ export default class ConnectionsModel extends EventEmitter {
     private myEmail: string;
     private partnerAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
+    private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
 
     constructor(
@@ -128,13 +128,13 @@ export default class ConnectionsModel extends EventEmitter {
         this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
         this.isReplicant = isReplicant;
         this.anonInstanceKeys = {} as Keys;
-        this.anonCrypto = {} as CryptoAPI;
         this.myInstanceKeys = {} as Keys;
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
+        this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
     }
 
@@ -153,9 +153,8 @@ export default class ConnectionsModel extends EventEmitter {
         }
         this.meAnon = meAlternates[0];
         this.meAnnonObj = await getObjectByIdHash(this.meAnon);
-        const anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
+        this.anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
         this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
-        this.anonCrypto = createCrypto(anonInstance);
         this.personalCloudConnections = [];
         this.partnerConnections = [];
 
@@ -524,9 +523,9 @@ export default class ConnectionsModel extends EventEmitter {
     ): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
-        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
-        const targetKey = toByteArray(pairingInformation.publicKeyLocal);
         const takeOver = pairingInformation.takeOver;
+        const sourceKey = toByteArray(takeOver? this.myInstanceKeys.publicKey : this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(pairingInformation.publicKeyLocal);
 
         return new Promise((resolve, reject) => {
             const timeoutHandle = setTimeout(() => {
@@ -540,11 +539,11 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePublicKey: Uint8Array
             ) => {
                 // Person id authentication
-                this.verifyAndExchangePersonId(conn, this.meAnon, true, takeOver)
+                this.verifyAndExchangePersonId(conn, takeOver? this.me : this.meAnon, true, takeOver)
                     .then(personInfo => {
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
-                            personIdHash: this.meAnon,
+                            personIdHash: takeOver? this.me : this.meAnon,
                             takeOver: takeOver
                         };
 
@@ -576,7 +575,7 @@ export default class ConnectionsModel extends EventEmitter {
                                         ];
                                         this.emit('authenticatedPersonalCloudDevice');
 
-                                        this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                        this.startChum(conn, this.me, personInfo.personId).then(
                                             async () => {
                                                 connectionDetails.connectionState = false;
                                                 await this.saveAvailableConnectionsList();
@@ -640,15 +639,17 @@ export default class ConnectionsModel extends EventEmitter {
                     });
             };
 
+            const crypto = createCrypto(takeOver? this.myInstance : this.anonInstance);
+
             oce.start(
                 this.commServerUrl,
                 sourceKey,
                 targetKey,
                 text => {
-                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return crypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return crypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
         });
@@ -672,7 +673,37 @@ export default class ConnectionsModel extends EventEmitter {
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
-        if (localPersonId !== remotePersonId) {
+        console.log('local person id:', localPersonId);
+        console.log('remote person id:', remotePersonId);
+        console.log('me:', this.me);
+        console.log('anon me:', this.meAnon);
+
+        if (remotePersonId === this.me || remotePersonId === this.meAnon) {
+            const channelInfoIdHash = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: 'diary',
+                owner: this.me
+            });
+            const setAccessParam = {
+                id: channelInfoIdHash,
+                person: [localPersonId, remotePersonId],
+                group: [],
+                mode: SET_ACCESS_MODE.ADD
+            };
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/access'
+                },
+                [setAccessParam]
+            );
+            setAccessParam.id = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: 'consentFile',
+                owner: this.me
+            });
+
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        } else if (localPersonId !== remotePersonId) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
             // so if the id's are different, that means that I am connecting to a partner.
             await this.accessModel.addPersonToAccessGroup(
@@ -893,15 +924,18 @@ export default class ConnectionsModel extends EventEmitter {
                     });
             };
 
+            const crypto = createCrypto(this.anonInstance);
+
+
             oce.start(
                 this.commServerUrl,
                 sourceKey,
                 targetKey,
                 text => {
-                    return this.anonCrypto.encryptWithInstancePublicKey(targetKey, text);
+                    return crypto.encryptWithInstancePublicKey(targetKey, text);
                 },
                 cypherText => {
-                    return this.anonCrypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                    return crypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
             );
         });
