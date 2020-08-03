@@ -115,7 +115,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.chumConfigRes.localInstanceName?this.chumConfigRes.localInstanceName,
+                identity: this.chumConfigRes.localInstanceName,
                 match: match
             }
         )) as UnversionedObjectResult<Supply>;
