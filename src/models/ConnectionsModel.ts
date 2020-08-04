@@ -100,6 +100,7 @@ export default class ConnectionsModel extends EventEmitter {
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
+    private readonly chumTimeout: number;
 
     constructor(
         commServerUrl: string,
@@ -136,6 +137,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
+        this.chumTimeout = 1000;
     }
 
     async init(): Promise<void> {
@@ -193,6 +195,10 @@ export default class ConnectionsModel extends EventEmitter {
         }
     }
 
+    /**
+     * Close all web socket connections and change connection state to disconnected.
+     * @returns {Promise<void>}
+     */
     async shutdown(): Promise<void> {
         await this.communicationModule.shutdown();
 
@@ -325,98 +331,108 @@ export default class ConnectionsModel extends EventEmitter {
         // For replicant, just accept everything
         if (this.isReplicant) {
             await this.startChum(conn, localPersonId, remotePersonId);
+            return;
         }
 
         // For non replicants accept only pairing requests
-        else {
+        // Wait for authentication message.
+        const message = await conn.waitForJSONMessage();
+        const authenticationTag = message.authenticationTag;
+        remotePersonId = message.personIdHash;
+        const takeOver = message.takeOver;
+
+        // Check if the received authentication tag corresponds with a generated one.
+        const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
+            pairingInfo => pairingInfo.authenticationTag === authenticationTag
+        );
+
+        if (checkReceivedAuthenticationTag.length != 1) {
+            throw new Error('Received authentication tag does not match the sent one.');
+        }
+
+        const connectionDetails: ConnectionDetails = {
+            $type$: 'ConnectionDetails',
+            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+            connectionState: true
+        };
+
+        let timeout = 0;
+
+        if (takeOver) {
+            // In takeOver process the timeout is required in order for the other
+            // instance to have time to register it's services for chums, before
+            // this instance sends the corresponding messages.
+            timeout = this.chumTimeout;
+
             const message = await conn.waitForJSONMessage();
-            const authenticationTag = message.authenticationTag;
-            const remotePersonId = message.personIdHash;
-            const takeOver = message.takeOver;
+            const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
+            const kdf = await this.keyDerivationFunction(this.salt, this.password);
 
-            const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
-                pairingInfo => pairingInfo.authenticationTag === authenticationTag
-            );
+            // Verify if the other instance has the same password as the current instance.
+            const decryptedAuthTag = Uint8ArrayToString(
+                await decryptWithSymmetricKey(kdf, encryptedAuthTag)
+                // remove all quotes from the decrypted string
+            ).replace(new RegExp('"', 'g'), '');
 
-            if (checkReceivedAuthenticationTag.length != 1) {
-                throw new Error('Received authentication tag does not match the sent one.');
-            }
+            let found = false;
+            this.generatedPairingInformation.forEach(pairingInfo => {
+                if (pairingInfo.authenticationTag === decryptedAuthTag) {
+                    found = true;
+                }
+            });
 
-            const connectionDetails: ConnectionDetails = {
-                $type$: 'ConnectionDetails',
-                remoteInstancePublicKey: fromByteArray(remotePublicKey),
-                connectionState: true
+            const acknowledgeTakeOverMessage: AcknowledgeTakeOverMessage = {
+                acknowledge: false
             };
 
-            let timeout = 0;
+            if (found) {
+                // send acknowledge message
+                acknowledgeTakeOverMessage.acknowledge = true;
+                await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
+                // Send the person keys in order to overwrite them in the other instance.
+                // At the end all instances will have the same keys for the same person.
+                await this.sendOwnerKeys(conn);
 
-            if (takeOver) {
-                timeout = 2000;
-
-                const message = await conn.waitForJSONMessage();
-                const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
-                const kdf = await this.keyDerivationFunction(this.salt, this.password);
-
-                const decryptedAuthTag = Uint8ArrayToString(
-                    await decryptWithSymmetricKey(kdf, encryptedAuthTag)
-                ).replace(new RegExp('"', 'g'), '');
-
-                let found = false;
-                this.generatedPairingInformation.forEach(pairingInfo => {
-                    if (pairingInfo.authenticationTag === decryptedAuthTag) {
-                        found = true;
-                    }
-                });
-
-                const acknowledgeTakeOverMessage: AcknowledgeTakeOverMessage = {
-                    acknowledge: false
-                };
-
-                if (found) {
-                    // send acknowledge message
-                    acknowledgeTakeOverMessage.acknowledge = true;
-                    await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
-                    await this.sendOwnerKeys(conn);
-
-                    this.personalCloudConnections.push(connectionDetails);
-                    this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
-                    this.emit('authenticatedPersonalCloudDevice');
-                } else {
-                    // send error message
-                    acknowledgeTakeOverMessage.acknowledge = true;
-                    await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
-                    throw new Error(
-                        'Received authentication tag for take over does not match the sent one.'
-                    );
-                }
+                this.personalCloudConnections.push(connectionDetails);
+                this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+                this.emit('authenticatedPersonalCloudDevice');
             } else {
-                this.partnerConnections.push(connectionDetails);
-                this.partnerConnections = [...new Set(this.partnerConnections)];
-                this.emit('authenticatedPartnerDevice');
-
-                await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
-                const personObj = await conn.waitForJSONMessage();
-                if (personObj.$type$ === 'Person') {
-                    await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        personObj
-                    );
-                }
+                // send error message
+                acknowledgeTakeOverMessage.acknowledge = true;
+                await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
+                throw new Error(
+                    'Received authentication tag for take over does not match the sent one.'
+                );
             }
-            setTimeout(async () => {
-                await this.startChum(conn, localPersonId, remotePersonId);
-                // when the chum is returned, the connection is closed
-                connectionDetails.connectionState = false;
-                await this.saveAvailableConnectionsList();
+        } else {
+            // partner connection
+            this.partnerConnections.push(connectionDetails);
+            this.partnerConnections = [...new Set(this.partnerConnections)];
+            this.emit('authenticatedPartnerDevice');
 
-                takeOver
-                    ? this.emit('authenticatedPersonalCloudDevice')
-                    : this.emit('authenticatedPartnerDevice');
-            }, timeout);
+            // Exchange person object - required for giving access using groups.
+            await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+            const personObj = await conn.waitForJSONMessage();
+            if (personObj.$type$ === 'Person') {
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    personObj
+                );
+            }
         }
+        setTimeout(async () => {
+            await this.startChum(conn, localPersonId, remotePersonId);
+            // when the chum is returned, the connection is closed
+            connectionDetails.connectionState = false;
+            await this.saveAvailableConnectionsList();
+
+            takeOver
+                ? this.emit('authenticatedPersonalCloudDevice')
+                : this.emit('authenticatedPartnerDevice');
+        }, timeout);
     }
 
     /**
@@ -512,6 +528,7 @@ export default class ConnectionsModel extends EventEmitter {
     }
 
     /**
+     * The instance that receives the invitation has to explicitly call the connect function.
      *
      * @param {PairingInformation} pairingInformation
      * @param {string} password
@@ -524,7 +541,11 @@ export default class ConnectionsModel extends EventEmitter {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
         const takeOver = pairingInformation.takeOver;
-        const sourceKey = toByteArray(takeOver? this.myInstanceKeys.publicKey : this.anonInstanceKeys.publicKey);
+
+        // In takeOver process use the normal identity and in other connections ude the anonymous one.
+        const sourceKey = toByteArray(
+            takeOver ? this.myInstanceKeys.publicKey : this.anonInstanceKeys.publicKey
+        );
         const targetKey = toByteArray(pairingInformation.publicKeyLocal);
 
         return new Promise((resolve, reject) => {
@@ -539,11 +560,18 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePublicKey: Uint8Array
             ) => {
                 // Person id authentication
-                this.verifyAndExchangePersonId(conn, takeOver? this.me : this.meAnon, true, takeOver)
+                this.verifyAndExchangePersonId(
+                    conn,
+                    takeOver ? this.me : this.meAnon,
+                    true,
+                    takeOver
+                )
                     .then(personInfo => {
+                        // Send the received authentication tag for the other instance
+                        // to check if it corresponds with the one that was generated.
                         const authenticationMessage: AuthenticationMessage = {
                             authenticationTag: pairingInformation.authenticationTag,
-                            personIdHash: takeOver? this.me : this.meAnon,
+                            personIdHash: takeOver ? this.me : this.meAnon,
                             takeOver: takeOver
                         };
 
@@ -575,6 +603,14 @@ export default class ConnectionsModel extends EventEmitter {
                                         ];
                                         this.emit('authenticatedPersonalCloudDevice');
 
+                                        // Add the connection to the unknown list, so when the contact object is
+                                        // received the connection to be moved in the known connections list.
+                                        this.communicationModule.addNewUnknownConnection(
+                                            localPublicKey,
+                                            remotePublicKey,
+                                            conn
+                                        );
+
                                         this.startChum(conn, this.me, personInfo.personId).then(
                                             async () => {
                                                 connectionDetails.connectionState = false;
@@ -587,7 +623,7 @@ export default class ConnectionsModel extends EventEmitter {
                                     }
 
                                     clearTimeout(timeoutHandle);
-                                    oce.stop();
+                                    await oce.stop();
                                     resolve();
                                 }
                             );
@@ -596,6 +632,7 @@ export default class ConnectionsModel extends EventEmitter {
                             this.partnerConnections = [...new Set(this.partnerConnections)];
                             this.emit('authenticatedPartnerDevice');
 
+                            // Exchange person object in order to give access using groups.
                             conn.waitForJSONMessage().then(async personObj => {
                                 if (personObj.$type$ === 'Person') {
                                     await createSingleObjectThroughPurePlan(
@@ -608,12 +645,16 @@ export default class ConnectionsModel extends EventEmitter {
 
                                     await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
 
+                                    // Add the connection to the unknown list, so when the contact object is
+                                    // received the connection to be moved in the known connections list.
                                     this.communicationModule.addNewUnknownConnection(
                                         localPublicKey,
                                         remotePublicKey,
                                         conn
                                     );
 
+                                    // The other instance need time to memorize the received Person
+                                    // object, this is the reason for the timeout.
                                     setTimeout(() => {
                                         this.startChum(conn, this.meAnon, personInfo.personId).then(
                                             async () => {
@@ -622,7 +663,7 @@ export default class ConnectionsModel extends EventEmitter {
                                                 this.emit('authenticatedPartnerDevice');
                                             }
                                         );
-                                    }, 1000);
+                                    }, this.chumTimeout);
 
                                     clearTimeout(timeoutHandle);
                                     await oce.stop();
@@ -639,7 +680,8 @@ export default class ConnectionsModel extends EventEmitter {
                     });
             };
 
-            const crypto = createCrypto(takeOver? this.myInstance : this.anonInstance);
+            // In takeOver process use normal identity and in partner connection use anonymous one.
+            const crypto = createCrypto(takeOver ? this.myInstance : this.anonInstance);
 
             oce.start(
                 this.commServerUrl,
@@ -655,6 +697,14 @@ export default class ConnectionsModel extends EventEmitter {
         });
     }
 
+    /**
+     * Starts the corresponding chum connection.
+     *
+     * @param {EncryptedConnection} conn
+     * @param {SHA256IdHash<Person>} localPersonId
+     * @param {SHA256IdHash<Person>} remotePersonId
+     * @returns {Promise<void>}
+     */
     async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
@@ -663,7 +713,7 @@ export default class ConnectionsModel extends EventEmitter {
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
         } as WriteStorageApi;
-        // Core takes either de ws package or the default websocket
+        // Core takes either the ws package or the default websocket
         // depending on for what environment it was compiled. In this
         // project we use the isomorphic-ws library for this. This is
         // why we need to ignore the below error, because after compilation
@@ -678,32 +728,7 @@ export default class ConnectionsModel extends EventEmitter {
         console.log('me:', this.me);
         console.log('anon me:', this.meAnon);
 
-        if (remotePersonId === this.me || remotePersonId === this.meAnon) {
-            const channelInfoIdHash = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: 'diary',
-                owner: this.me
-            });
-            const setAccessParam = {
-                id: channelInfoIdHash,
-                person: [localPersonId, remotePersonId],
-                group: [],
-                mode: SET_ACCESS_MODE.ADD
-            };
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access'
-                },
-                [setAccessParam]
-            );
-            setAccessParam.id = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: 'consentFile',
-                owner: this.me
-            });
-
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-        } else if (localPersonId !== remotePersonId) {
+        if (localPersonId !== remotePersonId) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
             // so if the id's are different, that means that I am connecting to a partner.
             await this.accessModel.addPersonToAccessGroup(
@@ -910,7 +935,7 @@ export default class ConnectionsModel extends EventEmitter {
                         // the timout is needed so that the other instance has time to register all services
                         setTimeout(() => {
                             this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
-                        }, 1000);
+                        }, this.chumTimeout);
 
                         clearTimeout(timeoutHandle);
                         await oce.stop();
@@ -925,7 +950,6 @@ export default class ConnectionsModel extends EventEmitter {
             };
 
             const crypto = createCrypto(this.anonInstance);
-
 
             oce.start(
                 this.commServerUrl,
@@ -1077,6 +1101,12 @@ export default class ConnectionsModel extends EventEmitter {
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 
+    /**
+     * Saves the current state of the connections list.
+     *
+     * @returns {Promise<void>}
+     * @private
+     */
     private async saveAvailableConnectionsList(): Promise<void> {
         let personalCloudConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
         let partnerConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
@@ -1130,6 +1160,12 @@ export default class ConnectionsModel extends EventEmitter {
         return await readUTF8TextFile(filename, 'private');
     }
 
+    /**
+     * Gets the person keys (both public and private) and sends them to the other instance.
+     *
+     * @param {EncryptedConnection} conn
+     * @returns {Promise<void>}
+     */
     async sendOwnerKeys(conn: EncryptedConnection): Promise<void> {
         const ownerId = this.me;
         const personKeyLink = await getAllValues(this.me, true, 'Keys');
@@ -1170,6 +1206,15 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(exchangeOwnerKeys));
     }
 
+    /**
+     * Receives the person keys from the other instance (both private and public)
+     * and overwrites the existing person keys with the received one - this is
+     * required in order for all instances to have the same person keys for the
+     * same person object.
+     *
+     * @param {ExchangeOwnerKeys} exchangeOwnerKeys
+     * @returns {Promise<void>}
+     */
     async overwriteExistingPersonKeys(exchangeOwnerKeys: ExchangeOwnerKeys): Promise<void> {
         if (
             this.me !== exchangeOwnerKeys.ownerId ||
