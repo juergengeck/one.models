@@ -1,12 +1,15 @@
 import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
-import {SHA256Hash, BLOB} from '@OneCoreTypes';
+import {SHA256Hash, BLOB, Slider} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
 export type SliderInterfaceUI = ArrayBuffer[];
 
+/**
+ * The slider model, used to manipulate slider objects saved in ONE.
+ */
 export default class SliderModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
@@ -18,6 +21,9 @@ export default class SliderModel extends EventEmitter {
         this.channelManager = channelManager;
     }
 
+    /**
+     * used to init the model to recive the updates.
+     */
     async init() {
         await this.channelManager.createChannel(this.channelId);
         this.channelManager.on('updated', id => {
@@ -27,6 +33,11 @@ export default class SliderModel extends EventEmitter {
         });
     }
 
+    /**
+     * This function take the items from a slider and save them into salider object.
+     *
+     * @param {SliderInterfaceUI} slider - the images from a slider which have the format used by UI.
+     */
     async addSlider(slider: SliderInterfaceUI): Promise<void> {
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream
@@ -42,13 +53,15 @@ export default class SliderModel extends EventEmitter {
             slidesBlobId.push(blob.hash);
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
-            $type$: 'Slider',
-            items: slidesBlobId
-        });
+        const sliderObject: Slider = {$type$: 'Slider', items: slidesBlobId};
+
+        await this.channelManager.postToChannel(this.channelId, sliderObject);
         this.emit('sliders');
     }
 
+    /**
+     * @returns {Promise<SliderInterfaceUI[]>} last saved slider.
+     */
     async sliders(): Promise<SliderInterfaceUI[]> {
         const sliders: SliderInterfaceUI[] = [];
 
