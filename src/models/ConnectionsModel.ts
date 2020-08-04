@@ -283,7 +283,7 @@ export default class ConnectionsModel extends EventEmitter {
             this.emit('authenticatedPartnerDevice');
         }
 
-        await this.startChum(conn, localPersonId, remotePersonId);
+        await this.startChum(conn, localPersonId, remotePersonId, true);
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
 
@@ -356,13 +356,10 @@ export default class ConnectionsModel extends EventEmitter {
             connectionState: true
         };
 
-        let timeout = 0;
-
         if (takeOver) {
             // In takeOver process the timeout is required in order for the other
             // instance to have time to register it's services for chums, before
             // this instance sends the corresponding messages.
-            timeout = this.chumTimeout;
 
             const message = await conn.waitForJSONMessage();
             const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
@@ -423,16 +420,14 @@ export default class ConnectionsModel extends EventEmitter {
                 );
             }
         }
-        setTimeout(async () => {
-            await this.startChum(conn, localPersonId, remotePersonId);
-            // when the chum is returned, the connection is closed
-            connectionDetails.connectionState = false;
-            await this.saveAvailableConnectionsList();
+        await this.startChum(conn, localPersonId, remotePersonId, true);
+        // when the chum is returned, the connection is closed
+        connectionDetails.connectionState = false;
+        await this.saveAvailableConnectionsList();
 
-            takeOver
-                ? this.emit('authenticatedPersonalCloudDevice')
-                : this.emit('authenticatedPartnerDevice');
-        }, timeout);
+        takeOver
+            ? this.emit('authenticatedPersonalCloudDevice')
+            : this.emit('authenticatedPartnerDevice');
     }
 
     /**
@@ -708,21 +703,9 @@ export default class ConnectionsModel extends EventEmitter {
     async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
-        remotePersonId: SHA256IdHash<Person>
+        remotePersonId: SHA256IdHash<Person>,
+        sendSync: boolean = false
     ): Promise<void> {
-        const minimalWriteStorageApiObj = {
-            createFileWriteStream: createFileWriteStream
-        } as WriteStorageApi;
-        // Core takes either the ws package or the default websocket
-        // depending on for what environment it was compiled. In this
-        // project we use the isomorphic-ws library for this. This is
-        // why we need to ignore the below error, because after compilation
-        // the types of the websockets will be the same.
-        // @ts-ignore
-        const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
-        websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
-        websocketPromisifierAPI.localPersonIdHash = localPersonId;
-
         console.log('local person id:', localPersonId);
         console.log('remote person id:', remotePersonId);
         console.log('me:', this.me);
@@ -738,28 +721,60 @@ export default class ConnectionsModel extends EventEmitter {
             await this.giveAccessToPartner(remotePersonId);
         }
 
-        const defaultInitialChumObj: ChumSyncOptions = {
-            connection: websocketPromisifierAPI,
+        if (sendSync) {
+            await conn.sendMessage('synchronisation');
+            console.log('sync sent');
+            const msg = await conn.waitForMessage();
+            console.log('message received:', msg);
+        } else {
+            const msg = await conn.waitForMessage();
+            console.log('message received:', msg);
+            await conn.sendMessage('synchronisation');
+            console.log('sync sent');
+        }
 
-            // used only for logging purpose
-            chumName: 'ConnectionsChum',
-            localInstanceName: 'local',
-            remoteInstanceName: 'remote',
+        try {
+            const minimalWriteStorageApiObj = {
+                createFileWriteStream: createFileWriteStream
+            } as WriteStorageApi;
+            // Core takes either the ws package or the default websocket
+            // depending on for what environment it was compiled. In this
+            // project we use the isomorphic-ws library for this. This is
+            // why we need to ignore the below error, because after compilation
+            // the types of the websockets will be the same.
+            const websocketPromisifierAPI = createWebsocketPromisifier(
+                minimalWriteStorageApiObj,
+                // @ts-ignore
+                conn
+            );
+            websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
+            websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
-            keepRunning: true,
-            maxNotificationDelay: 20
-        };
+            const defaultInitialChumObj: ChumSyncOptions = {
+                connection: websocketPromisifierAPI,
 
-        const chum = createSingleObjectThroughImpurePlan(
-            {module: '@one/chum-sync'},
-            defaultInitialChumObj
-        );
+                // used only for logging purpose
+                chumName: 'ConnectionsChum',
+                localInstanceName: 'local',
+                remoteInstanceName: 'remote',
 
-        this.openedConnections.push(conn);
+                keepRunning: true,
+                maxNotificationDelay: 20
+            };
 
-        await this.saveAvailableConnectionsList();
-        this.emit('connectionEstablished');
-        await chum;
+            const chum = createSingleObjectThroughImpurePlan(
+                {module: '@one/chum-sync'},
+                defaultInitialChumObj
+            );
+
+            this.openedConnections.push(conn);
+
+            await this.saveAvailableConnectionsList();
+            this.emit('connectionEstablished');
+            await chum;
+        } catch (e) {
+            console.error('Error in start chum:', e);
+        }
     }
 
     async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
