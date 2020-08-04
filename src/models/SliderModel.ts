@@ -22,7 +22,7 @@ export default class SliderModel extends EventEmitter {
     }
 
     /**
-     * used to init the model to recive the updates.
+     * Used to init the model to receive the updates.
      */
     async init() {
         await this.channelManager.createChannel(this.channelId);
@@ -34,7 +34,7 @@ export default class SliderModel extends EventEmitter {
     }
 
     /**
-     * This function take the items from a slider and save them into salider object.
+     * This function takes the items from a slider and save them into slider object.
      *
      * @param {SliderInterfaceUI} slider - the images from a slider which have the format used by UI.
      */
@@ -45,6 +45,7 @@ export default class SliderModel extends EventEmitter {
 
         let slidesBlobId: SHA256Hash<BLOB>[] = [];
 
+        // converting items from array buffer to BLOB by saving them in ONE
         for (const item of slider) {
             const stream = minimalWriteStorageApiObj.createFileWriteStream();
             stream.write(item);
@@ -70,6 +71,7 @@ export default class SliderModel extends EventEmitter {
         const lastSlider = oneObjects[oneObjects.length - 1];
 
         let slider: ArrayBuffer[] = [];
+
         for (const item of lastSlider.data.items) {
             const stream = Storage.createFileReadStream(item);
             stream.onData.addListener(data => {
