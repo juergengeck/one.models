@@ -13,7 +13,6 @@ import {onUnversionedObj, SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} fro
 import { ChumSyncOptions } from "one.core/lib/chum-sync";
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
-import {calculateIdHashOfObj} from "one.core/lib/util/object";
 
 /**
  * Model that connects to the one.match server
@@ -40,7 +39,6 @@ export default class MatchingModel extends EventEmitter {
         maxNotificationDelay: 20,
         idObjectsLatestOnly: false
     };
-    private chumConfigRes: any;
 
     async init() {
         this.registerHooks();
@@ -80,19 +78,17 @@ export default class MatchingModel extends EventEmitter {
             this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
             this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 
-            this.chumConfigRes = {
-                ...this.defaultChumConfig,
-                chumName: [client.obj.email, server.obj.email].sort().toString(),
-                commServerGroupName: [client.obj.email, server.obj.email].sort().toString(),
-                remoteInstanceName: server.obj.email,
-                localInstanceName: client.obj.email,
-                personForAuthAtRemote: server.idHash,
-                secretForAuthAtRemote: server.hash
-            };
-
             const chumConfigRes =  createSingleObjectThroughImpurePlan(
                 {module: '@one/chum-sync'},
-                this.chumConfigRes
+                {
+                    ...this.defaultChumConfig,
+                    chumName: [client.obj.email, server.obj.email].sort().toString(),
+                    commServerGroupName: [client.obj.email, server.obj.email].sort().toString(),
+                    remoteInstanceName: server.obj.email,
+                    localInstanceName: client.obj.email,
+                    personForAuthAtRemote: server.idHash,
+                    secretForAuthAtRemote: server.hash
+                }
             );
 
             return  chumConfigRes.obj;
@@ -115,7 +111,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.chumConfigRes.localInstanceName,
+                identity: this.defaultChumConfig.connection.localPersonIdHash,
                 match: match
             }
         )) as UnversionedObjectResult<Supply>;
@@ -149,20 +145,14 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: this.chumConfigRes.localInstanceName,
+                identity: this.defaultChumConfig.connection.localPersonIdHash,
                 match: match
             }
         )) as UnversionedObjectResult<Demand>;
 
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.defaultChumConfig.remoteInstanceName
-        });
+        const matchServer = this.defaultChumConfig.connection.remotePersonIdHash;
 
-        const matchClient = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.defaultChumConfig.localInstanceName
-        });
+        const matchClient = this.defaultChumConfig.connection.localPersonIdHash;
 
         // eslint-disable-next-line no-console
         console.log('sending demand object to match server');
