@@ -328,7 +328,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         // For replicant, just accept everything
         if (this.isReplicant) {
-            await this.startChum(conn, localPersonId, remotePersonId);
+            await this.startChum(conn, localPersonId, remotePersonId, true);
             return;
         }
 
@@ -695,13 +695,15 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} localPersonId
      * @param {SHA256IdHash<Person>} remotePersonId
      * @param {boolean} sendSync
+     * @param {boolean} isConnectionWithReplicant
      * @returns {Promise<void>}
      */
     async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
-        sendSync: boolean = false
+        sendSync: boolean = false,
+        isConnectionWithReplicant: boolean = false,
     ): Promise<void> {
         console.log('local person id:', localPersonId);
         console.log('remote person id:', remotePersonId);
@@ -715,7 +717,9 @@ export default class ConnectionsModel extends EventEmitter {
                 FreedaAccessGroups.partner,
                 remotePersonId
             );
-            await this.giveAccessToPartner(remotePersonId);
+            if(!isConnectionWithReplicant) {
+                await this.giveAccessToPartner(remotePersonId);
+            }
         }
 
         if (sendSync) {
@@ -940,8 +944,7 @@ export default class ConnectionsModel extends EventEmitter {
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
                         await this.giveAccessToReplicant(personInfo.personId);
-                        this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
-
+                        this.startChum(conn, this.meAnon, personInfo.personId, false, true).then(() => {});
                         clearTimeout(timeoutHandle);
                         await oce.stop();
                         resolve();
