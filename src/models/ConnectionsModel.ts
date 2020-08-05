@@ -705,20 +705,18 @@ export default class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         sendSync: boolean = false,
-        isConnectionWithReplicant: boolean = false,
+        isConnectionWithReplicant: boolean = false
     ): Promise<void> {
         await this.giveAccessToMyself();
 
-        if (localPersonId !== remotePersonId) {
+        if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
             // so if the id's are different, that means that I am connecting to a partner.
             await this.accessModel.addPersonToAccessGroup(
                 FreedaAccessGroups.partner,
                 remotePersonId
             );
-            if(!isConnectionWithReplicant) {
-                await this.giveAccessToPartner(remotePersonId);
-            }
+            await this.giveAccessToPartner(remotePersonId);
         }
 
         if (sendSync) {
@@ -943,7 +941,13 @@ export default class ConnectionsModel extends EventEmitter {
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
                         await this.giveAccessToReplicant(personInfo.personId);
-                        this.startChum(conn, this.meAnon, personInfo.personId, false, true).then(() => {});
+                        this.startChum(
+                            conn,
+                            this.meAnon,
+                            personInfo.personId,
+                            false,
+                            true
+                        ).then(() => {});
                         clearTimeout(timeoutHandle);
                         await oce.stop();
                         resolve();
@@ -1080,7 +1084,7 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: [this.me],
+            person: [this.me, ...this.partnerAccess, ...this.replicantAccess],
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
         };
@@ -1095,13 +1099,6 @@ export default class ConnectionsModel extends EventEmitter {
 
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: 'feedbackChannel',
-            owner: this.me
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
             id: 'contacts',
             owner: this.me
         });
@@ -1109,9 +1106,18 @@ export default class ConnectionsModel extends EventEmitter {
 
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
+            id: 'feedbackChannel',
+            owner: this.me
+        });
+        setAccessParam.person = [this.me, ...this.replicantAccess];
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
             id: 'bodyTemperature',
             owner: this.me
         });
+        setAccessParam.person = [this.me];
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         setAccessParam.id = await calculateIdHashOfObj({
