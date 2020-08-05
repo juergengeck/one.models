@@ -8,7 +8,7 @@ import QuestionnaireRecipes from './QuestionnaireRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
-import SliderRecipes from './SliderRecipies';
+import SliderRecipes from './SliderRecipes';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
