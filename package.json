@@ -17,7 +17,7 @@
   "dependencies": {
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core#120df5654d8b732b9a84e0e14f12064c184962dc",
+    "one.core": "refinio/one.core#feature/20200720_communication_og",
     "yargs": "^15.4.0"
   },
   "devDependencies": {

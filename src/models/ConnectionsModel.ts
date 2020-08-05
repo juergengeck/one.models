@@ -281,7 +281,7 @@ export default class ConnectionsModel extends EventEmitter {
             this.emit('authenticatedPartnerDevice');
         }
 
-        await this.startChum(conn, localPersonId, remotePersonId);
+        await this.startChum(conn, localPersonId, remotePersonId, true);
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
 
@@ -418,7 +418,7 @@ export default class ConnectionsModel extends EventEmitter {
                 );
             }
         }
-        await this.startChum(conn, localPersonId, remotePersonId);
+        await this.startChum(conn, localPersonId, remotePersonId, true);
         // when the chum is returned, the connection is closed
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
@@ -694,12 +694,14 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {EncryptedConnection} conn
      * @param {SHA256IdHash<Person>} localPersonId
      * @param {SHA256IdHash<Person>} remotePersonId
+     * @param {boolean} sendSync
      * @returns {Promise<void>}
      */
     async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
-        remotePersonId: SHA256IdHash<Person>
+        remotePersonId: SHA256IdHash<Person>,
+        sendSync: boolean = false
     ): Promise<void> {
         console.log('local person id:', localPersonId);
         console.log('remote person id:', remotePersonId);
@@ -714,6 +716,14 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePersonId
             );
             await this.giveAccessToPartner(remotePersonId);
+        }
+
+        if (sendSync) {
+            await conn.sendMessage('synchronisation');
+            await conn.waitForMessage();
+        } else {
+            await conn.waitForMessage();
+            await conn.sendMessage('synchronisation');
         }
 
         try {
