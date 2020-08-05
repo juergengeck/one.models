@@ -100,7 +100,6 @@ export default class ConnectionsModel extends EventEmitter {
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
-    private readonly chumTimeout: number;
 
     constructor(
         commServerUrl: string,
@@ -137,7 +136,6 @@ export default class ConnectionsModel extends EventEmitter {
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
-        this.chumTimeout = 1000;
     }
 
     async init(): Promise<void> {
@@ -283,7 +281,7 @@ export default class ConnectionsModel extends EventEmitter {
             this.emit('authenticatedPartnerDevice');
         }
 
-        await this.startChum(conn, localPersonId, remotePersonId, true);
+        await this.startChum(conn, localPersonId, remotePersonId);
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
 
@@ -420,7 +418,7 @@ export default class ConnectionsModel extends EventEmitter {
                 );
             }
         }
-        await this.startChum(conn, localPersonId, remotePersonId, true);
+        await this.startChum(conn, localPersonId, remotePersonId);
         // when the chum is returned, the connection is closed
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
@@ -650,15 +648,13 @@ export default class ConnectionsModel extends EventEmitter {
 
                                     // The other instance need time to memorize the received Person
                                     // object, this is the reason for the timeout.
-                                    setTimeout(() => {
-                                        this.startChum(conn, this.meAnon, personInfo.personId).then(
-                                            async () => {
-                                                connectionDetails.connectionState = false;
-                                                await this.saveAvailableConnectionsList();
-                                                this.emit('authenticatedPartnerDevice');
-                                            }
-                                        );
-                                    }, this.chumTimeout);
+                                    this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                        async () => {
+                                            connectionDetails.connectionState = false;
+                                            await this.saveAvailableConnectionsList();
+                                            this.emit('authenticatedPartnerDevice');
+                                        }
+                                    );
 
                                     clearTimeout(timeoutHandle);
                                     await oce.stop();
@@ -703,8 +699,7 @@ export default class ConnectionsModel extends EventEmitter {
     async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
-        remotePersonId: SHA256IdHash<Person>,
-        sendSync: boolean = false
+        remotePersonId: SHA256IdHash<Person>
     ): Promise<void> {
         console.log('local person id:', localPersonId);
         console.log('remote person id:', remotePersonId);
@@ -719,18 +714,6 @@ export default class ConnectionsModel extends EventEmitter {
                 remotePersonId
             );
             await this.giveAccessToPartner(remotePersonId);
-        }
-
-        if (sendSync) {
-            await conn.sendMessage('synchronisation');
-            console.log('sync sent');
-            const msg = await conn.waitForMessage();
-            console.log('message received:', msg);
-        } else {
-            const msg = await conn.waitForMessage();
-            console.log('message received:', msg);
-            await conn.sendMessage('synchronisation');
-            console.log('sync sent');
         }
 
         try {
@@ -947,10 +930,7 @@ export default class ConnectionsModel extends EventEmitter {
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
                         await this.giveAccessToReplicant(personInfo.personId);
-                        // the timout is needed so that the other instance has time to register all services
-                        setTimeout(() => {
-                            this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
-                        }, this.chumTimeout);
+                        this.startChum(conn, this.meAnon, personInfo.personId).then(() => {});
 
                         clearTimeout(timeoutHandle);
                         await oce.stop();
