@@ -97,6 +97,7 @@ export default class ConnectionsModel extends EventEmitter {
     private personalCloudConnections: ConnectionDetails[];
     private myEmail: string;
     private partnerAccess: SHA256IdHash<Person>[];
+    private replicantAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
@@ -133,6 +134,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.me = '' as SHA256IdHash<Person>;
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
         this.partnerAccess = [];
+        this.replicantAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
@@ -703,10 +705,7 @@ export default class ConnectionsModel extends EventEmitter {
         remotePersonId: SHA256IdHash<Person>,
         sendSync: boolean = false
     ): Promise<void> {
-        console.log('local person id:', localPersonId);
-        console.log('remote person id:', remotePersonId);
-        console.log('me:', this.me);
-        console.log('anon me:', this.meAnon);
+        await this.giveAccessToMyself();
 
         if (localPersonId !== remotePersonId) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
@@ -978,7 +977,7 @@ export default class ConnectionsModel extends EventEmitter {
         return this.personalCloudConnections;
     }
 
-    // todo: just for testing purpose give access directly to the person - should be removed
+    // todo: should be removed when the group data sharing is working
     async giveAccessToPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
         this.partnerAccess.push(partnerIdHash);
 
@@ -989,32 +988,28 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: [...this.partnerAccess, this.me],
+            person: [...this.partnerAccess, this.me, ...this.replicantAccess],
             group: [],
             mode: SET_ACCESS_MODE.ADD
         };
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [setAccessParam]
-        );
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
         // share my consent files with partner for backup
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
             owner: this.me
         });
-
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
         // share my contacts with partner
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'contacts',
             owner: this.me
         });
-
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
         try {
             // share old partner consent files with partner for backup
             setAccessParam.id = await calculateIdHashOfObj({
@@ -1022,9 +1017,8 @@ export default class ConnectionsModel extends EventEmitter {
                 id: 'consentFile',
                 owner: partnerIdHash
             });
-
+            setAccessParam.person = [...this.partnerAccess, this.me];
             await getObjectByIdHash(setAccessParam.id);
-
             await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         } catch (error) {
             // If the partner was not connected with this instance previously,
@@ -1035,37 +1029,10 @@ export default class ConnectionsModel extends EventEmitter {
         }
     }
 
-    // async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
-    //     this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
-    //
-    //     const channelInfoIdHash = await calculateIdHashOfObj({
-    //         $type$: 'ChannelInfo',
-    //         id: 'questionnaire',
-    //         owner: this.me
-    //     });
-    //     const setAccessParam = {
-    //         id: channelInfoIdHash,
-    //         person: this.partnerAccess,
-    //         group: [],
-    //         mode: SET_ACCESS_MODE.REPLACE
-    //     };
-    //     await createSingleObjectThroughPurePlan(
-    //         {
-    //             module: '@one/access'
-    //         },
-    //         [setAccessParam]
-    //     );
-    //     // share my consent files with partner for backup
-    //     setAccessParam.id = await calculateIdHashOfObj({
-    //         $type$: 'ChannelInfo',
-    //         id: 'consentFile',
-    //         owner: this.me
-    //     });
-    //
-    //     await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-    // }
-
+    // todo: should be removed when the group data sharing is working
     async giveAccessToReplicant(replicantIdHash: SHA256IdHash<Person>): Promise<void> {
+        this.replicantAccess.push(replicantIdHash);
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
@@ -1073,16 +1040,48 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: [replicantIdHash, this.me],
+            person: [...this.replicantAccess, this.me, ...this.partnerAccess],
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
         };
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [setAccessParam]
-        );
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'consentFile',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'contacts',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'feedbackChannel',
+            owner: this.me
+        });
+        setAccessParam.person = [...this.replicantAccess, this.me];
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+    }
+    // todo: should be removed when the group data sharing is working
+    async giveAccessToMyself(): Promise<void> {
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'questionnaire',
+            owner: this.me
+        });
+        const setAccessParam = {
+            id: channelInfoIdHash,
+            person: [this.me],
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
+        };
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
@@ -1097,12 +1096,33 @@ export default class ConnectionsModel extends EventEmitter {
             owner: this.me
         });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'contacts',
             owner: this.me
         });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'bodyTemperature',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'diary',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'newsChannel',
+            owner: this.me
+        });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
 
