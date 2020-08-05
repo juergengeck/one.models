@@ -157,6 +157,7 @@ export default class CommunicationModule {
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
                         const keys = await getObject(endpoint.personKeys);
+                        const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
 
                         const sourceKey = toByteArray(anonInstanceKeys.publicKey);
                         const targetKey = toByteArray(keys.publicKey);
@@ -172,7 +173,7 @@ export default class CommunicationModule {
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
                             sourcePublicKey: anonInstanceKeys.publicKey,
-                            targetPublicKey: keys.publicKey,
+                            targetPublicKey: remoteInstanceKeys.publicKey,
                             sourceInstanceId: anonInstance,
                             targetInstanceId: endpoint.instanceId,
                             sourcePersonId: meAnon,
@@ -215,6 +216,19 @@ export default class CommunicationModule {
                         // If no active connection exists for this endpoint, then we need to start outgoing connections
                         else {
                             if (connInfo.connEst) {
+                                // Establish connection to the outside
+                                connInfo.connEst.onConnection = (
+                                    conn: EncryptedConnection,
+                                    localPublicKey: Uint8Array,
+                                    remotePublicKey: Uint8Array
+                                ) => {
+                                    this.acceptConnection(
+                                        conn,
+                                        localPublicKey,
+                                        remotePublicKey,
+                                        true
+                                    );
+                                };
                                 connInfo.connEst.start(
                                     connInfo.url,
                                     toByteArray(connInfo.sourcePublicKey),

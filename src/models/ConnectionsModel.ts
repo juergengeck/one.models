@@ -989,7 +989,7 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: this.partnerAccess,
+            person: [...this.partnerAccess, this.me],
             group: [],
             mode: SET_ACCESS_MODE.ADD
         };
@@ -1073,7 +1073,7 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: [replicantIdHash],
+            person: [replicantIdHash, this.me],
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
         };
