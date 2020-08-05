@@ -1035,35 +1035,35 @@ export default class ConnectionsModel extends EventEmitter {
         }
     }
 
-    async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
-        this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
-
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'questionnaire',
-            owner: this.me
-        });
-        const setAccessParam = {
-            id: channelInfoIdHash,
-            person: this.partnerAccess,
-            group: [],
-            mode: SET_ACCESS_MODE.REPLACE
-        };
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [setAccessParam]
-        );
-        // share my consent files with partner for backup
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'consentFile',
-            owner: this.me
-        });
-
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-    }
+    // async revokeAccessFromPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
+    //     this.partnerAccess = this.partnerAccess.filter(obj => obj !== partnerIdHash);
+    //
+    //     const channelInfoIdHash = await calculateIdHashOfObj({
+    //         $type$: 'ChannelInfo',
+    //         id: 'questionnaire',
+    //         owner: this.me
+    //     });
+    //     const setAccessParam = {
+    //         id: channelInfoIdHash,
+    //         person: this.partnerAccess,
+    //         group: [],
+    //         mode: SET_ACCESS_MODE.REPLACE
+    //     };
+    //     await createSingleObjectThroughPurePlan(
+    //         {
+    //             module: '@one/access'
+    //         },
+    //         [setAccessParam]
+    //     );
+    //     // share my consent files with partner for backup
+    //     setAccessParam.id = await calculateIdHashOfObj({
+    //         $type$: 'ChannelInfo',
+    //         id: 'consentFile',
+    //         owner: this.me
+    //     });
+    //
+    //     await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+    // }
 
     async giveAccessToReplicant(replicantIdHash: SHA256IdHash<Person>): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
