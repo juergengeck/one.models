@@ -6,10 +6,16 @@ import {
     UnversionedObjectResult,
     VersionedObjectResult,
     Supply,
-    Demand
+    Demand, DemandMap, SupplyMap
 } from "@OneCoreTypes";
 import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
-import {onUnversionedObj, SET_ACCESS_MODE, VERSION_UPDATES, WriteStorageApi} from "one.core/lib/storage";
+import {
+    getObjectByIdObj,
+    onUnversionedObj,
+    SET_ACCESS_MODE,
+    VERSION_UPDATES,
+    WriteStorageApi
+} from "one.core/lib/storage";
 import { ChumSyncOptions } from "one.core/lib/chum-sync";
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {createFileWriteStream} from "one.core/lib/system/storage-streams";
@@ -170,5 +176,17 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
+    }
+    async getSupplyMap(): Promise<VersionedObjectResult<SupplyMap>> {
+        return await getObjectByIdObj({
+            $type$: 'SupplyMap',
+            name: 'SupplyMap'
+        }) as VersionedObjectResult<SupplyMap>;
+    }
+    async getDemandMap():Promise<VersionedObjectResult<DemandMap>> {
+        return await getObjectByIdObj({
+            $type$: 'DemandMap',
+            name: 'DemandMap'
+        }) as VersionedObjectResult<DemandMap>;
     }
 }
