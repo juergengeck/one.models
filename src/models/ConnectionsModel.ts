@@ -99,8 +99,6 @@ export default class ConnectionsModel extends EventEmitter {
     private partnerConnections: ConnectionDetails[];
     private personalCloudConnections: ConnectionDetails[];
     private myEmail: string;
-    private readonly partnerAccess: SHA256IdHash<Person>[];
-    private readonly replicantAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
@@ -137,8 +135,6 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnon = '' as SHA256IdHash<Person>;
         this.me = '' as SHA256IdHash<Person>;
         this.meAnnonObj = {} as VersionedObjectResult<Person>;
-        this.partnerAccess = [];
-        this.replicantAccess = [];
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
@@ -714,7 +710,6 @@ export default class ConnectionsModel extends EventEmitter {
         sendSync: boolean = false,
         isConnectionWithReplicant: boolean = false
     ): Promise<void> {
-        await this.giveAccessToChannels();
 
         if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
@@ -723,8 +718,9 @@ export default class ConnectionsModel extends EventEmitter {
                 FreedaAccessGroups.partner,
                 remotePersonId
             );
-            this.partnerAccess.push(remotePersonId);
         }
+
+        await this.giveAccessToChannels();
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (sendSync) {
@@ -989,7 +985,7 @@ export default class ConnectionsModel extends EventEmitter {
                 // Person id authentication
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
-                        this.replicantAccess.push(personInfo.personId);
+                        await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.clinic, personInfo.personId);
                         this.startChum(
                             conn,
                             this.meAnon,
@@ -1052,7 +1048,8 @@ export default class ConnectionsModel extends EventEmitter {
         });
         const setAccessParam = {
             id: channelInfoIdHash,
-            person: [this.me, ...this.partnerAccess, ...this.replicantAccess],
+            person: [this.me, ...(await this.accessModel.getAccessGroupPersons([FreedaAccessGroups.clinic, FreedaAccessGroups.partner]))],
+//          person: [this.me, ...this.partnerAccess, ...this.replicantAccess],
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
         };
@@ -1077,7 +1074,8 @@ export default class ConnectionsModel extends EventEmitter {
             id: 'feedbackChannel',
             owner: this.me
         });
-        setAccessParam.person = [this.me, ...this.replicantAccess];
+        //setAccessParam.person = [this.me, ...this.replicantAccess];
+        setAccessParam.person = [this.me, ...(await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.clinic))];
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         setAccessParam.id = await calculateIdHashOfObj({
@@ -1104,7 +1102,8 @@ export default class ConnectionsModel extends EventEmitter {
 
         // For each partner check if I have an old version of it's consent file channel
         // and if so share it back with him. (for backup purpose)
-        for await (const partnerIdHash of this.partnerAccess) {
+        const partners = await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.partner);
+        for await (const partnerIdHash of partners) {
             try {
                 // share old partner consent files with partner for backup
                 setAccessParam.id = await calculateIdHashOfObj({
@@ -1112,7 +1111,7 @@ export default class ConnectionsModel extends EventEmitter {
                     id: 'consentFile',
                     owner: partnerIdHash
                 });
-                setAccessParam.person = [...this.partnerAccess, this.me];
+                setAccessParam.person = [...partners, this.me];
                 await getObjectByIdHash(setAccessParam.id);
                 await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
             } catch (error) {

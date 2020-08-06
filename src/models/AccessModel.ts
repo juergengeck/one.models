@@ -17,11 +17,16 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import {serializeWithType} from "one.core/lib/util/promise";
 
 export const FreedaAccessGroups = {
     partner: 'partners',
     clinic: 'clinic',
     myself: 'myself'
+};
+
+const ACCESS_LOCKS = {
+    GROUP_LOCK : 'GROUP_LOCK'
 };
 
 /**
@@ -44,9 +49,21 @@ export default class AccessModel extends EventEmitter {
      * @param {AccessGroupNames}groupName
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
-    async getAccessGroupPersons(groupName: string): Promise<SHA256IdHash<Person>[]> {
-        const group = await this.getAccessGroupByName(groupName);
-        return group === undefined ? [] : group.obj.person;
+    async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
+        return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
+            if (Array.isArray(groupName)) {
+                return [...new Set((await Promise.all(groupName.map(async (group) => {
+                    const groupObj = await this.getAccessGroupByName(group);
+                    return groupObj === undefined ? [] : groupObj.obj.person;
+                }))).reduce(
+                    (acc, curr) => acc.concat(curr),
+                    []
+                ))];
+            } else {
+                const group = await this.getAccessGroupByName(groupName);
+                return group === undefined ? [] : group.obj.person;
+            }
+        });
     }
 
     /**
@@ -80,22 +97,25 @@ export default class AccessModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
-        const group = await this.getAccessGroupByName(name);
-        /** add the person only if it does not exist and prevent unnecessary one updates **/
-        if (
-            group.obj.person.find(
-                (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
-            ) === undefined
-        ) {
-            group.obj.person.push(personId);
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                group.obj
-            );
-        }
+        return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
+
+            const group = await this.getAccessGroupByName(name);
+            /** add the person only if it does not exist and prevent unnecessary one updates **/
+            if (
+                group.obj.person.find(
+                    (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
+                ) === undefined
+            ) {
+                group.obj.person.push(personId);
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    group.obj
+                );
+            }
+        });
     }
 
     async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>) {

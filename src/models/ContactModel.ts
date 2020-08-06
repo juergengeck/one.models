@@ -60,8 +60,6 @@ export default class ContactModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
     private readonly channelManager: ChannelManager;
-    private isChannelManagerInitiliazed: boolean = false;
-    private contactObjectBuffer: Contact[] = [];
     private readonly channelId: string = 'contacts';
     constructor(
         instancesModel: InstancesModel,
@@ -106,11 +104,6 @@ export default class ContactModel extends EventEmitter {
 
     public async createContactChannel() {
         await this.channelManager.createChannel(this.channelId);
-        this.isChannelManagerInitiliazed = true;
-
-        for (const contact of this.contactObjectBuffer) {
-            await this.channelManager.postToChannel(this.channelId, contact);
-        }
     }
 
     /**
@@ -655,11 +648,6 @@ export default class ContactModel extends EventEmitter {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (this.isContactUnVersionedObjectResult(caughtObject)) {
                 await serializeWithType('Contacts', async () => {
-                    if (this.isChannelManagerInitiliazed) {
-                        await this.channelManager.postToChannel(this.channelId, caughtObject.obj);
-                    } else {
-                        this.contactObjectBuffer.push(caughtObject.obj);
-                    }
                     const personId = caughtObject.obj.personId;
                     const personEmail = (await getObjectByIdHash(personId)).obj.email;
 
