@@ -84,7 +84,10 @@ export default class ConnectionsModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly accessModel: AccessModel;
     private communicationModule: CommunicationModule;
-    private generatedPairingInformation: PairingInformation[];
+    private generatedPairingInformation: {
+        pairingInformation: PairingInformation;
+        creationTimestamp: number;
+    }[];
     private readonly isReplicant: boolean;
     private anonInstanceKeys: Keys;
     private meAnon: SHA256IdHash<Person>;
@@ -96,11 +99,12 @@ export default class ConnectionsModel extends EventEmitter {
     private partnerConnections: ConnectionDetails[];
     private personalCloudConnections: ConnectionDetails[];
     private myEmail: string;
-    private partnerAccess: SHA256IdHash<Person>[];
-    private replicantAccess: SHA256IdHash<Person>[];
+    private readonly partnerAccess: SHA256IdHash<Person>[];
+    private readonly replicantAccess: SHA256IdHash<Person>[];
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
+    private readonly isValidFor: number;
 
     constructor(
         commServerUrl: string,
@@ -138,6 +142,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
+        this.isValidFor = 300000; // 5 minutes
     }
 
     async init(): Promise<void> {
@@ -217,6 +222,11 @@ export default class ConnectionsModel extends EventEmitter {
         await this.saveAvailableConnectionsList();
     }
 
+    /**
+     * The password needs to be memorised for personal cloud connections authentication.
+     *
+     * @param {string} password
+     */
     setPassword(password: string) {
         this.password = password;
     }
@@ -343,7 +353,10 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Check if the received authentication tag corresponds with a generated one.
         const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
-            pairingInfo => pairingInfo.authenticationTag === authenticationTag
+            pairingInfo => {
+                const isValid = pairingInfo.creationTimestamp <= Date.now() - this.isValidFor;
+                return pairingInfo.pairingInformation.authenticationTag === authenticationTag && isValid ? pairingInfo : undefined
+            }
         );
 
         if (checkReceivedAuthenticationTag.length != 1) {
@@ -357,10 +370,6 @@ export default class ConnectionsModel extends EventEmitter {
         };
 
         if (takeOver) {
-            // In takeOver process the timeout is required in order for the other
-            // instance to have time to register it's services for chums, before
-            // this instance sends the corresponding messages.
-
             const message = await conn.waitForJSONMessage();
             const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
             const kdf = await this.keyDerivationFunction(this.salt, this.password);
@@ -373,7 +382,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             let found = false;
             this.generatedPairingInformation.forEach(pairingInfo => {
-                if (pairingInfo.authenticationTag === decryptedAuthTag) {
+                if (pairingInfo.pairingInformation.authenticationTag === decryptedAuthTag) {
                     found = true;
                 }
             });
@@ -648,8 +657,6 @@ export default class ConnectionsModel extends EventEmitter {
                                         conn
                                     );
 
-                                    // The other instance need time to memorize the received Person
-                                    // object, this is the reason for the timeout.
                                     this.startChum(conn, this.meAnon, personInfo.personId).then(
                                         async () => {
                                             connectionDetails.connectionState = false;
@@ -707,7 +714,7 @@ export default class ConnectionsModel extends EventEmitter {
         sendSync: boolean = false,
         isConnectionWithReplicant: boolean = false
     ): Promise<void> {
-        await this.giveAccessToMyself();
+        await this.giveAccessToChannels();
 
         if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
@@ -716,9 +723,10 @@ export default class ConnectionsModel extends EventEmitter {
                 FreedaAccessGroups.partner,
                 remotePersonId
             );
-            await this.giveAccessToPartner(remotePersonId);
+            this.partnerAccess.push(remotePersonId);
         }
 
+        // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (sendSync) {
             await conn.sendMessage('synchronisation');
             await conn.waitForMessage();
@@ -771,6 +779,12 @@ export default class ConnectionsModel extends EventEmitter {
         }
     }
 
+    /**
+     * Generates the information for sharing which will be sent in the QR code.
+     *
+     * @param {boolean} takeOver
+     * @returns {Promise<PairingInformation>}
+     */
     async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         this.salt = await this.generateSalt();
 
@@ -789,7 +803,10 @@ export default class ConnectionsModel extends EventEmitter {
                   }
                 : undefined
         };
-        this.generatedPairingInformation.push(pairingInformation);
+        this.generatedPairingInformation.push({
+            pairingInformation,
+            creationTimestamp: Date.now()
+        });
 
         return pairingInformation;
     }
@@ -889,6 +906,14 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendBinaryMessage(encryptedResponse);
     }
 
+    /**
+     * Generates a symmetric key using password and salt (nonce).
+     *
+     * @param {string} saltString
+     * @param {string} passwordString
+     * @returns {Promise<Uint8Array>}
+     * @private
+     */
     private async keyDerivationFunction(
         saltString: string,
         passwordString: string
@@ -898,10 +923,27 @@ export default class ConnectionsModel extends EventEmitter {
         return await scrypt(password, salt);
     }
 
+    /**
+     * Generates a random nonce.
+     *
+     * @returns {Promise<string>}
+     */
     async generateSalt(): Promise<string> {
         return await createRandomString();
     }
 
+    /**
+     * In take over process the received authentication tag is re-sent
+     * to the other instance using symmetric encryption. If both instances
+     * have the same password, then they will see the same authentication tag.
+     *
+     * @param {EncryptedConnection} conn
+     * @param {string | undefined} salt
+     * @param {string} password
+     * @param {string} authenticationTag
+     * @returns {Promise<void>}
+     * @private
+     */
     private async sendTakeOverInformation(
         conn: EncryptedConnection,
         salt: string | undefined,
@@ -920,6 +962,13 @@ export default class ConnectionsModel extends EventEmitter {
         await conn.sendMessage(JSON.stringify(takeOverMessage));
     }
 
+    /**
+     * Knowing the public key of the replicant an instance can connect to it
+     * using the communication server.
+     *
+     * @param {string} remoteInstanceKey
+     * @returns {Promise<void>}
+     */
     async connectToReplicant(remoteInstanceKey: string): Promise<void> {
         const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
 
@@ -940,7 +989,7 @@ export default class ConnectionsModel extends EventEmitter {
                 // Person id authentication
                 this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
                     .then(async personInfo => {
-                        await this.giveAccessToReplicant(personInfo.personId);
+                        this.replicantAccess.push(personInfo.personId);
                         this.startChum(
                             conn,
                             this.meAnon,
@@ -984,99 +1033,18 @@ export default class ConnectionsModel extends EventEmitter {
         return this.personalCloudConnections;
     }
 
-    // todo: should be removed when the group data sharing is working
-    async giveAccessToPartner(partnerIdHash: SHA256IdHash<Person>): Promise<void> {
-        this.partnerAccess.push(partnerIdHash);
-
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'questionnaire',
-            owner: this.me
-        });
-        const setAccessParam = {
-            id: channelInfoIdHash,
-            person: [...this.partnerAccess, this.me, ...this.replicantAccess],
-            group: [],
-            mode: SET_ACCESS_MODE.ADD
-        };
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        // share my consent files with partner for backup
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'consentFile',
-            owner: this.me
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        // share my contacts with partner
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'contacts',
-            owner: this.me
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        try {
-            // share old partner consent files with partner for backup
-            setAccessParam.id = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: 'consentFile',
-                owner: partnerIdHash
-            });
-            setAccessParam.person = [...this.partnerAccess, this.me];
-            await getObjectByIdHash(setAccessParam.id);
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-        } catch (error) {
-            // If the partner was not connected with this instance previously,
-            // then the calculateIdHashOfObj function will return a FileNotFoundError.
-            if (error.name !== 'FileNotFoundError') {
-                console.error(error);
-            }
-        }
-    }
-
-    // todo: should be removed when the group data sharing is working
-    async giveAccessToReplicant(replicantIdHash: SHA256IdHash<Person>): Promise<void> {
-        this.replicantAccess.push(replicantIdHash);
-
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'questionnaire',
-            owner: this.me
-        });
-        const setAccessParam = {
-            id: channelInfoIdHash,
-            person: [...this.replicantAccess, this.me, ...this.partnerAccess],
-            group: [],
-            mode: SET_ACCESS_MODE.REPLACE
-        };
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'consentFile',
-            owner: this.me
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'contacts',
-            owner: this.me
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'feedbackChannel',
-            owner: this.me
-        });
-        setAccessParam.person = [...this.replicantAccess, this.me];
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-    }
-    // todo: should be removed when the group data sharing is working
-    async giveAccessToMyself(): Promise<void> {
+    /**
+     * The channels need to be shared as follow:
+     * - bodyTemperature:   myself
+     * - consentFile:       myself      replicant       partner(also old partner consent file channel)
+     * - contacts:          myself      replicant       partner
+     * - diary:             myself
+     * - feedbackChannel:   myself      replicant
+     * - newsChannel:       myself
+     * - questionnaire:     myself      replicant       partner
+     */
+    // todo: this function should be removed when the group data sharing is working
+    async giveAccessToChannels(): Promise<void> {
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
@@ -1133,6 +1101,28 @@ export default class ConnectionsModel extends EventEmitter {
             owner: this.me
         });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        // For each partner check if I have an old version of it's consent file channel
+        // and if so share it back with him. (for backup purpose)
+        for await (const partnerIdHash of this.partnerAccess) {
+            try {
+                // share old partner consent files with partner for backup
+                setAccessParam.id = await calculateIdHashOfObj({
+                    $type$: 'ChannelInfo',
+                    id: 'consentFile',
+                    owner: partnerIdHash
+                });
+                setAccessParam.person = [...this.partnerAccess, this.me];
+                await getObjectByIdHash(setAccessParam.id);
+                await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            } catch (error) {
+                // If the partner was not connected with this instance previously,
+                // then the calculateIdHashOfObj function will return a FileNotFoundError.
+                if (error.name !== 'FileNotFoundError') {
+                    console.error(error);
+                }
+            }
+        }
     }
 
     /**
