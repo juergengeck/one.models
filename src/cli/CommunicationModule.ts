@@ -331,6 +331,12 @@ async function main(): Promise<void> {
     //         await consoleWs.sendMessage(line);
     //     }
     // }
+
+    function sigintHandler() {
+        console.log('SHUTDOWN STUFF');
+        communicationModule.shutdown();
+    }
+    process.on('SIGINT', sigintHandler);
 }
 
 // Execute main function

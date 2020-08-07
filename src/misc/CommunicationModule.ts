@@ -50,6 +50,7 @@ export default class CommunicationModule {
     private myIdsMap: Map<string, SHA256IdHash<Person>>;
     private incomingConnectionManager: IncomingConnectionManager;
     private commServer: string;
+    private initialized: boolean;
 
     public onUnknownConnection:
         | ((
@@ -95,6 +96,7 @@ export default class CommunicationModule {
         this.myIdsMap = new Map<string, SHA256IdHash<Person>>();
         this.incomingConnectionManager = new IncomingConnectionManager();
         this.commServer = commServer;
+        this.initialized = false;
 
         this.incomingConnectionManager.onConnection = (
             conn: EncryptedConnection,
@@ -111,6 +113,7 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     public async init(): Promise<void> {
+        this.initialized = true;
         await this.setupPeerMap();
         this.instancesModel.on('created_instance', instance => {
             this.setupIncomingConnectionsForInstance(instance);
@@ -188,6 +191,10 @@ export default class CommunicationModule {
 
                             // Handle the close events
                             activeConnection.webSocket.addEventListener('close', () => {
+                                if(!this.initialized) {
+                                    return;
+                                }
+
                                 // Restart the connection attempts
                                 if (connInfo.connEst) {
                                     connInfo.connEst.start(
@@ -285,6 +292,7 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
+        this.initialized = false;
         for (const v of this.knownPeerMap.values()) {
             if (v.connEst) {
                 await v.connEst.stop();
@@ -297,6 +305,9 @@ export default class CommunicationModule {
             await v.close();
         }
         await this.incomingConnectionManager.shutdown();
+        this.knownPeerMap.clear();
+        this.unknownPeerMap.clear();
+        this.myIdsMap.clear();
     }
 
     addNewUnknownConnection(
@@ -372,6 +383,10 @@ export default class CommunicationModule {
 
             // Handle the close events
             conn.webSocket.addEventListener('close', () => {
+                if(!this.initialized) {
+                    return;
+                }
+
                 // Restart the connection attempts
                 if (endpoint.connEst) {
                     endpoint.connEst.start(

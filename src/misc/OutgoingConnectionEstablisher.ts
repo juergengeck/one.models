@@ -50,6 +50,7 @@ class OutgoingConnectionEstablisher {
         decrypt: (cypher: Uint8Array) => Uint8Array,
         retryTimeout = 5000
     ): void {
+        MessageBus.send('log', `start(${url})`);
         const makeAsync = async () => {
             this.stopped = false;
 
@@ -93,6 +94,7 @@ class OutgoingConnectionEstablisher {
      * @returns {Promise<void>}
      */
     public async stop() {
+        MessageBus.send('log', `stop()`);
         this.stopped = true;
         if (this.retryTimeoutHandle) {
             clearTimeout(this.retryTimeoutHandle);
