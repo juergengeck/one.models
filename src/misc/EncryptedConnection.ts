@@ -308,7 +308,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      */
     private getAndIncLocalNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.localNonceCounter);
-        // this.localNonceCounter += 2;
+        this.localNonceCounter += 2;
         return nonce;
     }
 
@@ -319,7 +319,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      */
     private getAndIncRemoteNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.remoteNonceCounter);
-        // this.remoteNonceCounter += 2;
+        this.remoteNonceCounter += 2;
         return nonce;
     }
 

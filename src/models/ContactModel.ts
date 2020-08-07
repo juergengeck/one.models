@@ -370,6 +370,18 @@ export default class ContactModel extends EventEmitter {
         }
     }
 
+    public async updateTakeOverProfile(personEmail: string): Promise<void>{
+        const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
+            personEmail
+        );
+        await createSingleObjectThroughPurePlan(
+            {module: '@module/updateTakeOverProfile'},
+            this.commServerUrl,
+            createdInstance,
+            personEmail,
+        );
+    }
+
     /**
      * HOOK function
      * @description Serialized since it's part of an object listener or not

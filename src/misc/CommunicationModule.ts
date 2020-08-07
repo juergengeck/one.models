@@ -542,7 +542,7 @@ export default class CommunicationModule {
                     };
                 })
             )
-        ).filter(info => info.sourcePublicKey !== mainInstanceKeys.publicKey);
+        ).filter(info => info.targetInstanceId !== mainInstance);
 
         // Iterate over all contacts and connect with them (anonymous IDs)
         const otherEndpoints = await this.contactModel.findAllOneInstanceEndpoints(false);
