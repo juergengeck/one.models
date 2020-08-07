@@ -359,10 +359,13 @@ export default class OneInstanceModel extends EventEmitter {
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
         await this.connectionsModel.shutdown();
-        closeInstance();
-
         const dbInstance = getDbInstance();
-        dbInstance.close();
+
+        setTimeout( () => {
+            dbInstance.close();
+            closeInstance();
+        },1500);
+
 
         if (logoutMode === LogoutMode.PurgeData) {
             await this.deleteInstance(dbInstance.name);

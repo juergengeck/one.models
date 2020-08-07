@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {getObjectByIdObj, getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {ContactApp, Instance, SHA256IdHash} from '@OneCoreTypes';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
@@ -15,13 +15,18 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
  * @param {WriteStorageApi} WriteStorage
  * @param url
  * @param anonInstanceIdHash
+ * @param anonEmail
  * @returns {Promise<VersionedObjectResult<ContactApp>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
     url: string,
     anonInstanceIdHash: SHA256IdHash<Instance>,
+    anonEmail: string,
 ): Promise<VersionedObjectResult<ContactApp>> {
+    const anonPersonIdHash = (await getObjectByIdObj({$type$: 'Person', email: anonEmail})).idHash;
+
+
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
     const instanceIdHash = getInstanceIdHash();
@@ -78,7 +83,7 @@ export async function createObjects(
     /** Create the structure **/
     const anonInstanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
-        personId: personIdHash,
+        personId: anonPersonIdHash,
         instanceId: anonInstanceIdHash,
         personKeys: personPubEncryptionKeysHash,
         instanceKeys: instancePubEncryptionKeysHash,
@@ -87,14 +92,14 @@ export async function createObjects(
 
     const anonContactObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Contact',
-        personId: personIdHash,
+        personId: anonPersonIdHash,
         communicationEndpoints: [anonInstanceEndpoint.hash],
         contactDescriptions: []
     });
 
     const anonProfile = await WriteStorage.storeVersionedObject({
         $type$: 'Profile',
-        personId: personIdHash,
+        personId: anonPersonIdHash,
         mainContact: anonContactObject.hash,
         contactObjects: [anonContactObject.hash]
     });

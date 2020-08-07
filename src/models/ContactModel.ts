@@ -377,7 +377,8 @@ export default class ContactModel extends EventEmitter {
         await createSingleObjectThroughPurePlan(
             {module: '@module/updateTakeOverProfile'},
             this.commServerUrl,
-            createdInstance
+            createdInstance,
+            personEmail,
         );
     }
 
