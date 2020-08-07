@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
-import Recipies from '../recipies/recipies';
+import Recipes from '../recipes/recipes';
 import oneModules from '../generated/oneModules';
 import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
 import {
@@ -212,7 +212,7 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipies,
+            initialRecipes: Recipes,
             initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
         });
 
@@ -256,7 +256,7 @@ export default class OneInstanceModel extends EventEmitter {
                 secret,
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipies,
+                initialRecipes: Recipes,
                 initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
             });
 

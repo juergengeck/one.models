@@ -65,15 +65,15 @@ Main models used in one built in one package
  │           QuestionnaireIKV.ts
  │           QuestionTypes.ts
  │
- └───recipies
-         BodyTemperatureRecipies.ts
-         ChannelRecipies.ts
-         ConsentFileRecipies.ts
-         ContactRecipies.ts
-         DiaryRecipies.ts
-         MetaRecipies.ts
-         QuestionnaireRecipies.ts
-         recipies.ts
+ └───recipes
+         BodyTemperatureRecipe.ts
+         ChannelRecipes.ts
+         ConsentFileRecipes.ts
+         ContactRecipes.ts
+         DiaryRecipes.ts
+         MetaRecipes.ts
+         QuestionnaireRecipes.ts
+         recipes.ts
          SettingsRecipe.ts
 ```
 

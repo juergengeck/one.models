@@ -17,7 +17,7 @@ import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import Model, {dbKey, importModules} from './utils/Model';
-import Recipies from "../lib/recipies/recipies";
+import Recipes from "../lib/recipes/recipes";
 
 const contactModel = new Model().contactModel;
 let contactAppIdHash: SHA256Hash<ContactApp>;
@@ -30,7 +30,7 @@ describe('Contact model test', () => {
             email: 'instanceName',
             secret:'1234',
             ownerName: 'instanceName',
-            initialRecipes: Recipies,
+            initialRecipes: Recipes,
             initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
         });
         await importModules();
