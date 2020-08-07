@@ -113,6 +113,9 @@ export default class WebSocketPromiseBased extends EventEmitter
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
         if (this.webSocket) {
+            if(this.webSocket.readyState !== WebSocket.OPEN){
+                return;
+            }
             if (reason) {
                 this.webSocket.close(1000, reason);
             } else {

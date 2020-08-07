@@ -289,7 +289,7 @@ export default class ConnectionsModel extends EventEmitter {
             this.emit('authenticatedPartnerDevice');
         }
 
-        await this.startChum(conn, localPersonId, remotePersonId, true);
+        await this.startChum(conn, localPersonId, remotePersonId, initiatedLocally);
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
 
@@ -462,7 +462,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Get my own person key
         const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');
-        const localPersonKey = (await getObjectWithType(localPersonKeyReverse[0].toHash, 'Keys'))
+        const localPersonKey = (await getObjectWithType(localPersonKeyReverse[localPersonKeyReverse.length - 1].toHash, 'Keys'))
             .publicKey;
 
         // Exchange and challenge response the person keys
@@ -507,7 +507,7 @@ export default class ConnectionsModel extends EventEmitter {
         try {
             const remotePersonKeyReverse = await getAllValues(remotePersonId, true, 'Keys');
             const remotePersonKey2 = (
-                await getObjectWithType(remotePersonKeyReverse[0].toHash, 'Keys')
+                await getObjectWithType(remotePersonKeyReverse[remotePersonKeyReverse.length - 1].toHash, 'Keys')
             ).publicKey;
             if (fromByteArray(remotePersonKey) !== remotePersonKey2) {
                 throw new Error('Key does not match your previous visit');
