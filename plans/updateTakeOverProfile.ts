@@ -27,6 +27,25 @@ export async function createObjects(
     const anonPersonIdHash = (await getObjectByIdObj({$type$: 'Person', email: anonEmail})).idHash;
 
 
+    /** anon keys **/
+    const anonPersonKeyLink = await getAllValues(anonPersonIdHash, true, 'Keys');
+    const anonPersonPubEncryptionKeys = await getObjectWithType(
+        anonPersonKeyLink[anonPersonKeyLink.length - 1].toHash,
+        'Keys'
+    );
+    const anonPersonPubEncryptionKeysHash = await calculateHashOfObj(anonPersonPubEncryptionKeys);
+
+    /** Instance key **/
+    const anonInstanceKeyLink = await getAllValues(anonInstanceIdHash, true, 'Keys');
+    const anonInstancePubEncryptionKeys = await getObjectWithType(
+        anonInstanceKeyLink[anonInstanceKeyLink.length - 1].toHash,
+        'Keys'
+    );
+    const anonInstancePubEncryptionKeysHash = await calculateHashOfObj(anonInstancePubEncryptionKeys);
+
+
+    /** anon keys **/
+
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
     const instanceIdHash = getInstanceIdHash();
@@ -85,8 +104,8 @@ export async function createObjects(
         $type$: 'OneInstanceEndpoint',
         personId: anonPersonIdHash,
         instanceId: anonInstanceIdHash,
-        personKeys: personPubEncryptionKeysHash,
-        instanceKeys: instancePubEncryptionKeysHash,
+        personKeys: anonPersonPubEncryptionKeysHash,
+        instanceKeys: anonInstancePubEncryptionKeysHash,
         url: url
     });
 

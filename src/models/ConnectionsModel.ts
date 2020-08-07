@@ -350,8 +350,8 @@ export default class ConnectionsModel extends EventEmitter {
         // Check if the received authentication tag corresponds with a generated one.
         const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
             pairingInfo => {
-                const isValid = pairingInfo.creationTimestamp <= Date.now() - this.isValidFor;
-                return pairingInfo.pairingInformation.authenticationTag === authenticationTag && isValid ? pairingInfo : undefined
+                // const isValid = pairingInfo.creationTimestamp <= Date.now() - this.isValidFor;
+                return pairingInfo.pairingInformation.authenticationTag === authenticationTag ? pairingInfo : undefined
             }
         );
 
