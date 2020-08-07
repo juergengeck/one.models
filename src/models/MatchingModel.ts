@@ -6,11 +6,10 @@ import {
     UnversionedObjectResult,
     VersionedObjectResult,
     Supply,
-    Demand, DemandMap, SupplyMap
+    Demand
 } from "@OneCoreTypes";
 import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
 import {
-    getObjectByIdObj,
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES,
@@ -176,17 +175,5 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
-    }
-    async getSupplyMap(): Promise<VersionedObjectResult<SupplyMap>> {
-        return await getObjectByIdObj({
-            $type$: 'SupplyMap',
-            name: 'SupplyMap'
-        }) as VersionedObjectResult<SupplyMap>;
-    }
-    async getDemandMap():Promise<VersionedObjectResult<DemandMap>> {
-        return await getObjectByIdObj({
-            $type$: 'DemandMap',
-            name: 'DemandMap'
-        }) as VersionedObjectResult<DemandMap>;
     }
 }
