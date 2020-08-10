@@ -105,24 +105,25 @@ export default class CommunicationModule {
         ) => {
             this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
         };
-    }
 
-    /**
-     * Initialize the communication.
-     *
-     * @returns {Promise<void>}
-     */
-    public async init(): Promise<void> {
-        this.initialized = true;
-        await this.setupPeerMap();
+        // Register handler for new local instances
         this.instancesModel.on('created_instance', instance => {
+            if(!this.initialized) {
+                return;
+            }
+
             this.setupIncomingConnectionsForInstance(instance);
             this.updateMyIdsMap().catch(e => console.log(e));
         });
-        await this.updateMyIdsMap();
+
+        // Register handler for new contacts
         this.contactModel.on(
             ContactEvent.NewCommunicationEndpointArrived,
             async (endpointHashes: SHA256Hash<OneInstanceEndpoint>[]) => {
+                if(!this.initialized) {
+                    return;
+                }
+
                 // Load the OneInstanceEndpoint objects
                 const endpoints = await Promise.all(
                     endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
@@ -159,11 +160,10 @@ export default class CommunicationModule {
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        const keys = await getObject(endpoint.personKeys);
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
 
                         const sourceKey = toByteArray(anonInstanceKeys.publicKey);
-                        const targetKey = toByteArray(keys.publicKey);
+                        const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
                         let activeConnection = this.unknownPeerMap.get(mapKey);
@@ -259,11 +259,20 @@ export default class CommunicationModule {
                 );
             }
         );
+    }
 
+    /**
+     * Initialize the communication.
+     *
+     * @returns {Promise<void>}
+     */
+    public async init(): Promise<void> {
+        this.initialized = true;
+        await this.setupPeerMap();
+        await this.updateMyIdsMap();
         if (this.listenForOutgoingConnections) {
             await this.setupOutgoingConnections();
         }
-
         await this.setupIncomingConnections();
     }
 
