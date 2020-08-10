@@ -159,11 +159,11 @@ export default class CommunicationModule {
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        const keys = await getObject(endpoint.personKeys);
+                        // const keys = await getObject(endpoint.personKeys);
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
 
                         const sourceKey = toByteArray(anonInstanceKeys.publicKey);
-                        const targetKey = toByteArray(keys.publicKey);
+                        const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
                         let activeConnection = this.unknownPeerMap.get(mapKey);
