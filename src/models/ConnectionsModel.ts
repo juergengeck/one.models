@@ -104,6 +104,22 @@ export default class ConnectionsModel extends EventEmitter {
     private readonly openedConnections: EncryptedConnection[];
     private readonly isValidFor: number;
 
+    /**
+     * Event that is emitted when the online state changes
+     */
+    public onOnlineStateChange: ((online: boolean) => void) | null = null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        return this.communicationModule.onlineState;
+    }
+
     constructor(
         commServerUrl: string,
         contactModel: ContactModel,
@@ -139,6 +155,13 @@ export default class ConnectionsModel extends EventEmitter {
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
         this.isValidFor = 300000; // 5 minutes
+
+        // Forward the online state to this level
+        this.communicationModule.onOnlineStateChange = (onlineState: boolean) => {
+            if (this.onOnlineStateChange) {
+                this.onOnlineStateChange(onlineState);
+            }
+        }
     }
 
     async init(): Promise<void> {

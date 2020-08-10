@@ -72,6 +72,23 @@ export default class CommunicationModule {
               initiatedLocally: boolean
           ) => void)
         | null = null;
+
+    /**
+     * Event that is emitted when the online state changes
+     */
+    public onOnlineStateChange: ((online: boolean) => void) | null = null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        return this.incomingConnectionManager.onlineState;
+    }
+
     private listenForOutgoingConnections: boolean;
 
     /**
@@ -105,6 +122,12 @@ export default class CommunicationModule {
         ) => {
             this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
         };
+
+        this.incomingConnectionManager.onOnlineStateChange = (onlineState: boolean) => {
+            if (this.onOnlineStateChange) {
+                this.onOnlineStateChange(onlineState);
+            }
+        }
 
         // Register handler for new local instances
         this.instancesModel.on('created_instance', instance => {
