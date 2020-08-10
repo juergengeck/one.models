@@ -105,9 +105,13 @@ class IncomingConnectionManager {
 
         // Connect the stateChanged event to the onelineStateChanged event
         listener.onStateChange = () => {
-            if (this.onOnlineStateChange) {
-                this.onOnlineStateChange(this.onlineState);
-            }
+            // Delay the notification to remove short offline states
+            // TODO: this emits the event multiple times ... fix this later
+            setTimeout(() => {
+                if (this.onOnlineStateChange) {
+                    this.onOnlineStateChange(this.onlineState);
+                }
+            }, 1000);
         };
 
         // Start listener
