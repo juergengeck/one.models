@@ -584,13 +584,13 @@ export default class CommunicationModule {
                 return {
                     activeConnection: null,
                     url: endpoint.url,
-                    sourcePublicKey: anonInstanceKeys.publicKey,
+                    sourcePublicKey: mainInstanceKeys.publicKey,
                     targetPublicKey: instanceKeys.publicKey,
-                    sourceInstanceId: anonInstance,
+                    sourceInstanceId: mainInstance,
                     targetInstanceId: endpoint.instanceId,
-                    sourcePersonId: meAnon,
+                    sourcePersonId: me,
                     targetPersonId: endpoint.personId,
-                    cryptoApi: anonCrypto
+                    cryptoApi: mainCrypto
                 };
             })
         );
