@@ -13,7 +13,7 @@
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
     "start-comm-server-aws": "node lib/cli/CommunicationServer -l -p 8002 > server.log",
-    "bundle": "webpack"
+    "bundle-comm-server": "webpack"
   },
   "dependencies": {
     "@types/yargs": "^15.0.5",

@@ -1,9 +1,9 @@
-var path =  require('path');
+const path =  require('path');
 
 module.exports = {
-    entry: ["./index.ts"],
+    entry: ["./src/cli/CommunicationServer.ts"],
     output: {
-        filename: 'api.bundle.js',
+        filename: 'commServer.bundle.js',
         path: path.resolve(__dirname,"dist")
     },
     module: {
