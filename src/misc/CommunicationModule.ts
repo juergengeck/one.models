@@ -72,6 +72,23 @@ export default class CommunicationModule {
               initiatedLocally: boolean
           ) => void)
         | null = null;
+
+    /**
+     * Event that is emitted when the online state changes
+     */
+    public onOnlineStateChange: ((online: boolean) => void) | null = null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        return this.incomingConnectionManager.onlineState;
+    }
+
     private listenForOutgoingConnections: boolean;
 
     /**
@@ -105,24 +122,31 @@ export default class CommunicationModule {
         ) => {
             this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
         };
-    }
 
-    /**
-     * Initialize the communication.
-     *
-     * @returns {Promise<void>}
-     */
-    public async init(): Promise<void> {
-        this.initialized = true;
-        await this.setupPeerMap();
+        this.incomingConnectionManager.onOnlineStateChange = (onlineState: boolean) => {
+            if (this.onOnlineStateChange) {
+                this.onOnlineStateChange(onlineState);
+            }
+        }
+
+        // Register handler for new local instances
         this.instancesModel.on('created_instance', instance => {
+            if(!this.initialized) {
+                return;
+            }
+
             this.setupIncomingConnectionsForInstance(instance);
             this.updateMyIdsMap().catch(e => console.log(e));
         });
-        await this.updateMyIdsMap();
+
+        // Register handler for new contacts
         this.contactModel.on(
             ContactEvent.NewCommunicationEndpointArrived,
             async (endpointHashes: SHA256Hash<OneInstanceEndpoint>[]) => {
+                if(!this.initialized) {
+                    return;
+                }
+
                 // Load the OneInstanceEndpoint objects
                 const endpoints = await Promise.all(
                     endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
@@ -159,7 +183,6 @@ export default class CommunicationModule {
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        // const keys = await getObject(endpoint.personKeys);
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
 
                         const sourceKey = toByteArray(anonInstanceKeys.publicKey);
@@ -259,11 +282,20 @@ export default class CommunicationModule {
                 );
             }
         );
+    }
 
+    /**
+     * Initialize the communication.
+     *
+     * @returns {Promise<void>}
+     */
+    public async init(): Promise<void> {
+        this.initialized = true;
+        await this.setupPeerMap();
+        await this.updateMyIdsMap();
         if (this.listenForOutgoingConnections) {
             await this.setupOutgoingConnections();
         }
-
         await this.setupIncomingConnections();
     }
 
