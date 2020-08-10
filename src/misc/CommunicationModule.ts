@@ -159,6 +159,7 @@ export default class CommunicationModule {
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
+                        // @ts-ignore
                         const keys = await getObject(endpoint.personKeys);
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
 

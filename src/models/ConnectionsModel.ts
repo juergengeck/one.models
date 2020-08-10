@@ -102,6 +102,7 @@ export default class ConnectionsModel extends EventEmitter {
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
+    // @ts-ignore
     private readonly isValidFor: number;
 
     constructor(
