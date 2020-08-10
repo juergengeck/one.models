@@ -83,6 +83,11 @@ async function main(): Promise<void> {
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     const connectionsModel = new ConnectionsModel(argv.u, contactModel, instancesModel, accessModel, false);
 
+    console.log('INITIAL ONLINE STATE IS: ' + connectionsModel.onlineState);
+    connectionsModel.onOnlineStateChange = (state: boolean) => {
+        console.log('ONLINE STATE IS NOW: ' + state);
+    }
+
     // Create the instance
     await initInstance({
         name: 'inst_' + argv.i,
