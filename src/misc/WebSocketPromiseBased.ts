@@ -207,6 +207,11 @@ export default class WebSocketPromiseBased extends EventEmitter
                 return;
             }
 
+            if(this.webSocket.readyState !== WebSocket.OPEN){
+                reject(new Error('The websocket is CLOSED.'));
+                return;
+            }
+
             this.webSocket.send(data);
             resolve();
         });
