@@ -225,6 +225,18 @@ export default class CommunicationModule {
 
                                 // Restart the connection attempts
                                 if (connInfo.connEst) {
+                                    connInfo.connEst.onConnection = (
+                                        conn: EncryptedConnection,
+                                        localPublicKey: Uint8Array,
+                                        remotePublicKey: Uint8Array
+                                    ) => {
+                                        this.acceptConnection(
+                                            conn,
+                                            localPublicKey,
+                                            remotePublicKey,
+                                            true
+                                        );
+                                    };
                                     connInfo.connEst.start(
                                         connInfo.url,
                                         toByteArray(connInfo.sourcePublicKey),
@@ -587,7 +599,7 @@ export default class CommunicationModule {
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
                 // if it's not a replicant 
-                if(this.listenForOutgoingConnections) {
+                if(!this.listenForOutgoingConnections) {
                     return {
                         activeConnection: null,
                         url: endpoint.url,
