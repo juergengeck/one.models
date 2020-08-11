@@ -581,8 +581,8 @@ export default class CommunicationModule {
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                // if it's not a replicant 
-                if(this.listenForOutgoingConnections) {
+                // if it's not a replicant
+                if(!this.listenForOutgoingConnections) {
                     return {
                         activeConnection: null,
                         url: endpoint.url,
