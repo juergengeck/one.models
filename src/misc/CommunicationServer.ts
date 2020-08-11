@@ -200,12 +200,12 @@ class CommunicationServer {
                 wsThis.addEventListener('close', e => {
                     this.openedConnections.delete(wsThis);
                     MessageBus.send('log', `${wslogId(wsThis)}: Relay closed - ${e.reason}`);
-                    wsOther.close(1000, `Closed by relay: ${e.reason}`);
+                    wsOther.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
                 });
                 wsOther.addEventListener('close', e => {
                     this.openedConnections.delete(wsOther);
                     MessageBus.send('log', `${wslogId(wsOther)}: Relay closed - ${e.reason}`);
-                    wsThis.close(1000, `Closed by relay: ${e.reason}`);
+                    wsThis.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
                 });
 
                 this.openedConnections.add(wsThis);
