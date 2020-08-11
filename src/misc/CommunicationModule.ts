@@ -581,17 +581,31 @@ export default class CommunicationModule {
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                return {
-                    activeConnection: null,
-                    url: endpoint.url,
-                    sourcePublicKey: mainInstanceKeys.publicKey,
-                    targetPublicKey: instanceKeys.publicKey,
-                    sourceInstanceId: mainInstance,
-                    targetInstanceId: endpoint.instanceId,
-                    sourcePersonId: me,
-                    targetPersonId: endpoint.personId,
-                    cryptoApi: mainCrypto
-                };
+                if(this.listenForOutgoingConnections) {
+                    return {
+                        activeConnection: null,
+                        url: endpoint.url,
+                        sourcePublicKey: mainInstanceKeys.publicKey,
+                        targetPublicKey: instanceKeys.publicKey,
+                        sourceInstanceId: mainInstance,
+                        targetInstanceId: endpoint.instanceId,
+                        sourcePersonId: me,
+                        targetPersonId: endpoint.personId,
+                        cryptoApi: mainCrypto
+                    };
+                } else {
+                    return {
+                        activeConnection: null,
+                        url: endpoint.url,
+                        sourcePublicKey: anonInstanceKeys.publicKey,
+                        targetPublicKey: instanceKeys.publicKey,
+                        sourceInstanceId: anonInstance,
+                        targetInstanceId: endpoint.instanceId,
+                        sourcePersonId: meAnon,
+                        targetPersonId: endpoint.personId,
+                        cryptoApi: anonCrypto
+                    };
+                }
             })
         );
 
