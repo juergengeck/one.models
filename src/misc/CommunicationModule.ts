@@ -154,16 +154,9 @@ export default class CommunicationModule {
                     )
                 );
 
-                // Only OneInstanceEndpoints from other persons
-                const myIds = await this.contactModel.myIdentities();
-                const instanceEndpoints = endpoints.filter(
-                    (endpoint: OneInstanceEndpoint) =>
-                        endpoint.$type$ === 'OneInstanceEndpoint' &&
-                        !myIds.includes(endpoint.personId)
-                );
-
                 // Extract my identities
                 const me = await this.contactModel.myMainIdentity();
+                const myIds = await this.contactModel.myIdentities();
                 const meAlternates = (await this.contactModel.myIdentities()).filter(
                     id => id !== me
                 );
@@ -171,26 +164,38 @@ export default class CommunicationModule {
                     throw new Error('This applications needs exactly one alternate identity!');
                 }
                 const meAnon = meAlternates[0];
-
+                
                 // Get instances
+                const mainInstance = await this.instancesModel.localInstanceIdForPerson(me);
                 const anonInstance = await this.instancesModel.localInstanceIdForPerson(meAnon);
 
                 // Get keys
+                const mainInstanceKeys = await this.instancesModel.instanceKeysForPerson(me);
                 const anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(meAnon);
 
                 // Instantiate crypto API
+                const mainCrypto = createCrypto(mainInstance);
                 const anonCrypto = createCrypto(anonInstance);
+                
+                // Only OneInstanceEndpoints
+                // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
+                const instanceEndpoints = endpoints.filter(
+                    (endpoint: OneInstanceEndpoint) => endpoint.$type$ === 'OneInstanceEndpoint' && endpoint.personId !== meAnon
+                );
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
+                        // Check whether this is an endpoint for me or for somebody else
+                        const isMyEndpoint = myIds.includes(endpoint.personId);
 
-                        const sourceKey = toByteArray(anonInstanceKeys.publicKey);
+                        const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
+                        const sourceKey = toByteArray(isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey);
                         const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
+                        // Check if there is already a matching active connection in the unknown peer maps
                         let activeConnection = this.unknownPeerMap.get(mapKey);
-
+                        
                         // Create the entry in the knownPeerMap
                         const connInfo = {
                             connEst: this.listenForOutgoingConnections
@@ -198,13 +203,13 @@ export default class CommunicationModule {
                                 : undefined,
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
-                            sourcePublicKey: anonInstanceKeys.publicKey,
+                            sourcePublicKey: isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey,
                             targetPublicKey: remoteInstanceKeys.publicKey,
-                            sourceInstanceId: anonInstance,
+                            sourceInstanceId: isMyEndpoint ? mainInstance : anonInstance,
                             targetInstanceId: endpoint.instanceId,
-                            sourcePersonId: meAnon,
+                            sourcePersonId: isMyEndpoint ? me : meAnon,
                             targetPersonId: endpoint.personId,
-                            cryptoApi: anonCrypto
+                            cryptoApi: isMyEndpoint ? mainCrypto : anonCrypto
                         };
                         this.knownPeerMap.set(mapKey, connInfo);
 
@@ -581,8 +586,8 @@ export default class CommunicationModule {
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                // if it's not a replicant
-                if(!this.listenForOutgoingConnections) {
+                // if it's not a replicant 
+                if(this.listenForOutgoingConnections) {
                     return {
                         activeConnection: null,
                         url: endpoint.url,

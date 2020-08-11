@@ -681,6 +681,19 @@ export default class ContactModel extends EventEmitter {
                         (contactHash: SHA256Hash<Contact>) => contactHash === caughtObject.hash
                     );
 
+                    // Emit the signals before filtering for already existing contacts because
+                    // This code might fetch a profile "from the future" (after the callback here was started)
+                    // So this object might already exist in the profile, because the new profile version was
+                    // synchronized. So emit the signals before returning!
+                    this.emit(ContactEvent.UpdatedContact, profile);
+                    this.emit(
+                        ContactEvent.NewCommunicationEndpointArrived,
+                        caughtObject.obj.communicationEndpoints
+                    );
+
+                    // Do not write a new profile version if this contact object is already part of it
+                    // This also might happen when a new profile object ist synchronized with a new contact
+                    // object, because the synchronized profile object already references this contact object
                     if (existingContact) {
                         return;
                     }
@@ -696,11 +709,6 @@ export default class ContactModel extends EventEmitter {
                             profile.obj
                         );
                     });
-                    this.emit(ContactEvent.UpdatedContact, profile);
-                    this.emit(
-                        ContactEvent.NewCommunicationEndpointArrived,
-                        caughtObject.obj.communicationEndpoints
-                    );
                 });
             }
         });
