@@ -748,7 +748,9 @@ export default class ConnectionsModel extends EventEmitter {
             );
         }
 
-        await this.giveAccessToChannels();
+        await serializeWithType('giveAccessToChannels', async () => {
+            await this.giveAccessToChannels();
+        });
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (sendSync) {
