@@ -195,6 +195,9 @@ export default class CommunicationModule {
 
                         // Check if there is already a matching active connection in the unknown peer maps
                         let activeConnection = this.unknownPeerMap.get(mapKey);
+                        if (this.knownPeerMap.has(mapKey)) {
+                            return;
+                        }
                         
                         // Create the entry in the knownPeerMap
                         const connInfo = {
