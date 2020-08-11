@@ -186,7 +186,7 @@ export default class CommunicationModule {
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
                         // Check whether this is an endpoint for me or for somebody else
-                        const isMyEndpoint = myIds.includes(endpoint.personId);
+                        const isMyEndpoint = myIds.includes(endpoint.personId) || !this.listenForOutgoingConnections;
 
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
                         const sourceKey = toByteArray(isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey);
