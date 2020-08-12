@@ -306,11 +306,11 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (takeOver) {
             this.personalCloudConnections.push(connectionDetails);
-            this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+            this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
             this.emit('authenticatedPersonalCloudDevice');
         } else {
             this.partnerConnections.push(connectionDetails);
-            this.partnerConnections = [...new Set(this.partnerConnections)];
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
             this.emit('authenticatedPartnerDevice');
         }
 
@@ -422,7 +422,7 @@ export default class ConnectionsModel extends EventEmitter {
                 await this.sendOwnerKeys(conn);
 
                 this.personalCloudConnections.push(connectionDetails);
-                this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+                this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
                 this.emit('authenticatedPersonalCloudDevice');
             } else {
                 // send error message
@@ -435,7 +435,7 @@ export default class ConnectionsModel extends EventEmitter {
         } else {
             // partner connection
             this.partnerConnections.push(connectionDetails);
-            this.partnerConnections = [...new Set(this.partnerConnections)];
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
             this.emit('authenticatedPartnerDevice');
 
             // Exchange person object - required for giving access using groups.
@@ -624,9 +624,7 @@ export default class ConnectionsModel extends EventEmitter {
                                         await this.overwriteExistingPersonKeys(exchangeOwnerKeys);
 
                                         this.personalCloudConnections.push(connectionDetails);
-                                        this.personalCloudConnections = [
-                                            ...new Set(this.personalCloudConnections)
-                                        ];
+                                        this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
                                         this.emit('authenticatedPersonalCloudDevice');
 
                                         // Add the connection to the unknown list, so when the contact object is
@@ -656,7 +654,7 @@ export default class ConnectionsModel extends EventEmitter {
                             );
                         } else {
                             this.partnerConnections.push(connectionDetails);
-                            this.partnerConnections = [...new Set(this.partnerConnections)];
+                            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
                             this.emit('authenticatedPartnerDevice');
 
                             // Exchange person object in order to give access using groups.
@@ -1205,8 +1203,8 @@ export default class ConnectionsModel extends EventEmitter {
                 {
                     $type$: 'AvailableConnections',
                     instanceIdHash: this.myInstance,
-                    personalCloudConnections: personalCloudConnectionsHash,
-                    partnerContacts: partnerConnectionsHash
+                    personalCloudConnections: [...new Set(personalCloudConnectionsHash)],
+                    partnerContacts: [...new Set(partnerConnectionsHash)]
                 }
             );
         });
