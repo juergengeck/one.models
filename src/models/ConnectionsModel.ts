@@ -103,7 +103,7 @@ export default class ConnectionsModel extends EventEmitter {
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
-    private readonly isValidFor: number;
+    //private readonly isValidFor: number;
 
     /**
      * Event that is emitted when the online state changes
@@ -156,7 +156,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
-        this.isValidFor = 300000; // 5 minutes
+        //this.isValidFor = 300000; // 5 minutes
 
         // Forward the online state to this level
         this.communicationModule.onOnlineStateChange = (onlineState: boolean) => {

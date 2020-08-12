@@ -6,7 +6,7 @@ import {AccessModel, ChannelManager, ContactModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import Recipies from '../recipies/recipies';
+import Recipies from '../recipes/recipes';
 import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
 import oneModules from '../generated/oneModules';
 import {

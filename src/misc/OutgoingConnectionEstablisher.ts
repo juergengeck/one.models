@@ -85,7 +85,11 @@ class OutgoingConnectionEstablisher {
                 }
             }
         };
-        makeAsync();
+
+        // This catch should not be necessary. Apparently the catch above is not called.
+        // TODO: It is a bug that the above catch is not called, so the connection will not be restarted ...
+        // We should fix it somehow!
+        makeAsync().catch(() => {});
     }
 
     /**
