@@ -12,7 +12,7 @@
     "test": "nyc mocha test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
-    "start-comm-server-aws": "node lib/cli/CommunicationServer -l -p 8002 > server.log"
+    "start-aws": "node lib/cli/CommunicationServer -l -p 8000 > server.log"
   },
   "dependencies": {
     "@types/yargs": "^15.0.5",
