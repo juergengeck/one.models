@@ -51,6 +51,8 @@ export default class CommunicationModule {
     private incomingConnectionManager: IncomingConnectionManager;
     private commServer: string;
     private initialized: boolean;
+    private reconnectDelay: number;
+    private reconnectHandles: Set<ReturnType<typeof setTimeout>>;
 
     public onUnknownConnection:
         | ((
@@ -103,7 +105,8 @@ export default class CommunicationModule {
         commServer: string,
         contactModel: ContactModel,
         instancesModel: InstancesModel,
-        listenForOutgoingConnections: boolean = true
+        listenForOutgoingConnections: boolean = true,
+        reconnectDelay: number = 5000
     ) {
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
@@ -114,6 +117,8 @@ export default class CommunicationModule {
         this.incomingConnectionManager = new IncomingConnectionManager();
         this.commServer = commServer;
         this.initialized = false;
+        this.reconnectDelay = reconnectDelay;
+        this.reconnectHandles = new Set<ReturnType<typeof setTimeout>>();
 
         this.incomingConnectionManager.onConnection = (
             conn: EncryptedConnection,
@@ -201,9 +206,6 @@ export default class CommunicationModule {
                         
                         // Create the entry in the knownPeerMap
                         const connInfo = {
-                            connEst: this.listenForOutgoingConnections
-                                ? new OutgoingConnectionEstablisher()
-                                : undefined,
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
                             sourcePublicKey: isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey,
@@ -222,81 +224,14 @@ export default class CommunicationModule {
 
                             // Handle the close events
                             activeConnection.webSocket.addEventListener('close', () => {
-                                if(!this.initialized) {
-                                    return;
-                                }
-
-                                // Restart the connection attempts
-                                if (connInfo.connEst) {
-                                    connInfo.connEst.onConnection = (
-                                        conn: EncryptedConnection,
-                                        localPublicKey: Uint8Array,
-                                        remotePublicKey: Uint8Array
-                                    ) => {
-                                        this.acceptConnection(
-                                            conn,
-                                            localPublicKey,
-                                            remotePublicKey,
-                                            true
-                                        );
-                                    };
-                                    connInfo.connEst.start(
-                                        connInfo.url,
-                                        toByteArray(connInfo.sourcePublicKey),
-                                        toByteArray(connInfo.targetPublicKey),
-                                        text => {
-                                            return connInfo.cryptoApi.encryptWithInstancePublicKey(
-                                                toByteArray(connInfo.targetPublicKey),
-                                                text
-                                            );
-                                        },
-                                        cypherText => {
-                                            return connInfo.cryptoApi.decryptWithInstancePublicKey(
-                                                toByteArray(connInfo.targetPublicKey),
-                                                cypherText
-                                            );
-                                        }
-                                    );
-                                }
-
                                 connInfo.activeConnection = null;
+                                this.reconnect(connInfo, this.reconnectDelay);
                             });
                         }
 
                         // If no active connection exists for this endpoint, then we need to start outgoing connections
                         else {
-                            if (connInfo.connEst) {
-                                // Establish connection to the outside
-                                connInfo.connEst.onConnection = (
-                                    conn: EncryptedConnection,
-                                    localPublicKey: Uint8Array,
-                                    remotePublicKey: Uint8Array
-                                ) => {
-                                    this.acceptConnection(
-                                        conn,
-                                        localPublicKey,
-                                        remotePublicKey,
-                                        true
-                                    );
-                                };
-                                connInfo.connEst.start(
-                                    connInfo.url,
-                                    toByteArray(connInfo.sourcePublicKey),
-                                    toByteArray(connInfo.targetPublicKey),
-                                    text => {
-                                        return connInfo.cryptoApi.encryptWithInstancePublicKey(
-                                            toByteArray(connInfo.targetPublicKey),
-                                            text
-                                        );
-                                    },
-                                    cypherText => {
-                                        return connInfo.cryptoApi.decryptWithInstancePublicKey(
-                                            toByteArray(connInfo.targetPublicKey),
-                                            cypherText
-                                        );
-                                    }
-                                );
-                            }
+                            this.reconnect(connInfo, reconnectDelay);
                         }
                     })
                 );
@@ -345,6 +280,8 @@ export default class CommunicationModule {
      */
     async shutdown(): Promise<void> {
         this.initialized = false;
+
+        // Stop all knownPeerMap connections
         for (const v of this.knownPeerMap.values()) {
             if (v.connEst) {
                 await v.connEst.stop();
@@ -353,13 +290,23 @@ export default class CommunicationModule {
                 await v.activeConnection.close();
             }
         }
+
+        // Kill all unknown peer map connections
         for (const v of this.unknownPeerMap.values()) {
             await v.close();
         }
+
+        // Stop all reconnect timeouts
+        for(const handle of this.reconnectHandles) {
+            clearTimeout(handle);
+        }
+
+        // clear everything / reset to initial values
         await this.incomingConnectionManager.shutdown();
         this.knownPeerMap.clear();
         this.unknownPeerMap.clear();
         this.myIdsMap.clear();
+        this.reconnectHandles.clear();
     }
 
     addNewUnknownConnection(
@@ -433,34 +380,10 @@ export default class CommunicationModule {
                 endpoint.connEst.stop().catch(e => console.log(e));
             }
 
-            // Handle the close events
+            // Connect close handler
             conn.webSocket.addEventListener('close', () => {
-                if(!this.initialized) {
-                    return;
-                }
-
-                // Restart the connection attempts
-                if (endpoint.connEst) {
-                    endpoint.connEst.start(
-                        endpoint.url,
-                        localPublicKey,
-                        remotePublicKey,
-                        text => {
-                            return endpoint.cryptoApi.encryptWithInstancePublicKey(
-                                remotePublicKey,
-                                text
-                            );
-                        },
-                        cypherText => {
-                            return endpoint.cryptoApi.decryptWithInstancePublicKey(
-                                remotePublicKey,
-                                cypherText
-                            );
-                        }
-                    );
-                }
-
                 endpoint.activeConnection = null;
+                this.reconnect(endpoint, this.reconnectDelay);
             });
 
             // Set the current connectino as active connection
@@ -489,36 +412,8 @@ export default class CommunicationModule {
      * @returns {Promise<void>}
      */
     private async setupOutgoingConnections(): Promise<void> {
-        // Establish connections to all outgoing endpoints
         for (const endpoint of this.knownPeerMap.values()) {
-            // Create instance of connection establisher
-            if (!endpoint.connEst) {
-                endpoint.connEst = new OutgoingConnectionEstablisher();
-            }
-
-            // Establish connection to the outside
-            endpoint.connEst.onConnection = (
-                conn: EncryptedConnection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array
-            ) => {
-                this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
-            };
-
-            // Start the connection establisher
-            const sourceKey = toByteArray(endpoint.sourcePublicKey);
-            const targetKey = toByteArray(endpoint.targetPublicKey);
-            endpoint.connEst.start(
-                endpoint.url,
-                sourceKey,
-                targetKey,
-                text => {
-                    return endpoint.cryptoApi.encryptWithInstancePublicKey(targetKey, text);
-                },
-                cypherText => {
-                    return endpoint.cryptoApi.decryptWithInstancePublicKey(targetKey, cypherText);
-                }
-            );
+            this.reconnect(endpoint, 0);
         }
     }
 
@@ -638,6 +533,79 @@ export default class CommunicationModule {
             // Append to peer map
             const mapKey = genMapKey(sourceKey, targetKey);
             this.knownPeerMap.set(mapKey, endpoint);
+        }
+    }
+
+    /**
+     * Reconnect to the target described by connInfo adter a certain delay.
+     *
+     * @param {ConnectionInfo} connInfo - The information about the connection
+     * @param {number} delay - the delay
+     */
+    private reconnect(connInfo: ConnectionInfo, delay: number) {
+        if(!this.initialized) {
+            return;
+        }
+        if (!this.listenForOutgoingConnections) {
+            return;
+        }
+
+        // This function does the connect
+        const connect = () => {
+            if(!this.initialized) {
+                return;
+            }
+            if (!this.listenForOutgoingConnections) {
+                return;
+            }
+
+            // If outgoing connection establisher does not exist, then create one
+            if (!connInfo.connEst) {
+                connInfo.connEst = new OutgoingConnectionEstablisher();
+                connInfo.connEst.onConnection = (
+                    conn: EncryptedConnection,
+                    localPublicKey: Uint8Array,
+                    remotePublicKey: Uint8Array
+                ) => {
+                    this.acceptConnection(
+                        conn,
+                        localPublicKey,
+                        remotePublicKey,
+                        true
+                    );
+                };
+            }
+
+            // Start outgoing connections
+            connInfo.connEst.start(
+                connInfo.url,
+                toByteArray(connInfo.sourcePublicKey),
+                toByteArray(connInfo.targetPublicKey),
+                text => {
+                    return connInfo.cryptoApi.encryptWithInstancePublicKey(
+                        toByteArray(connInfo.targetPublicKey),
+                        text
+                    );
+                },
+                cypherText => {
+                    return connInfo.cryptoApi.decryptWithInstancePublicKey(
+                        toByteArray(connInfo.targetPublicKey),
+                        cypherText
+                    );
+                }
+            );
+        };
+
+        // Schedule the call delayed
+        if(delay) {
+            const handle = setTimeout(() => {
+                this.reconnectHandles.delete(handle);
+                connect();
+            }, delay);
+            this.reconnectHandles.add(handle);
+        }
+        else {
+            connect();
         }
     }
 }
