@@ -38,6 +38,7 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
+import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 
 /**
  * This represents a ContactEvent
@@ -644,10 +645,20 @@ export default class ContactModel extends EventEmitter {
             }
             if (this.isProfileVersionedObjectResult(caughtObject)) {
                 await serializeWithType('Contacts', async () => {
-                    await createSingleObjectThroughPurePlan(
-                        {module: '@module/mergeProfile'},
-                        caughtObject.idHash
-                    );
+                    try {
+                        const firstPreviousProfileObjectHash = await getNthVersionMapHash(
+                            caughtObject.idHash,
+                            -1
+                        );
+                        if (firstPreviousProfileObjectHash !== caughtObject.hash) {
+                            await createSingleObjectThroughPurePlan(
+                                {module: '@module/mergeProfile'},
+                                caughtObject.idHash
+                            );
+                        }
+                    } catch (_) {
+                        return;
+                    }
                 });
             }
         });
