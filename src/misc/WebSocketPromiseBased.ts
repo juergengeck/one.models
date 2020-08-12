@@ -37,7 +37,7 @@ export default class WebSocketPromiseBased extends EventEmitter
         this.dataAvailableFn = null;
         this.maxDataQueueSize = maxDataQueueSize;
         this.dataQueueOverflow = false;
-        this.defaultTimeout = -1;
+        this.defaultTimeout = 5000;
         this.disableWaitForMessageInt = false;
 
         // Configure for binary messages
