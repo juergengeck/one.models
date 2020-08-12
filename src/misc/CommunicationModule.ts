@@ -132,11 +132,11 @@ export default class CommunicationModule {
             if (this.onOnlineStateChange) {
                 this.onOnlineStateChange(onlineState);
             }
-        }
+        };
 
         // Register handler for new local instances
         this.instancesModel.on('created_instance', instance => {
-            if(!this.initialized) {
+            if (!this.initialized) {
                 return;
             }
 
@@ -148,7 +148,7 @@ export default class CommunicationModule {
         this.contactModel.on(
             ContactEvent.NewCommunicationEndpointArrived,
             async (endpointHashes: SHA256Hash<OneInstanceEndpoint>[]) => {
-                if(!this.initialized) {
+                if (!this.initialized) {
                     return;
                 }
 
@@ -169,7 +169,7 @@ export default class CommunicationModule {
                     throw new Error('This applications needs exactly one alternate identity!');
                 }
                 const meAnon = meAlternates[0];
-                
+
                 // Get instances
                 const mainInstance = await this.instancesModel.localInstanceIdForPerson(me);
                 const anonInstance = await this.instancesModel.localInstanceIdForPerson(meAnon);
@@ -181,20 +181,24 @@ export default class CommunicationModule {
                 // Instantiate crypto API
                 const mainCrypto = createCrypto(mainInstance);
                 const anonCrypto = createCrypto(anonInstance);
-                
+
                 // Only OneInstanceEndpoints
                 // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
                 const instanceEndpoints = endpoints.filter(
-                    (endpoint: OneInstanceEndpoint) => endpoint.$type$ === 'OneInstanceEndpoint' && endpoint.personId !== meAnon
+                    (endpoint: OneInstanceEndpoint) =>
+                        endpoint.$type$ === 'OneInstanceEndpoint' && endpoint.personId !== meAnon
                 );
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
                         // Check whether this is an endpoint for me or for somebody else
-                        const isMyEndpoint = myIds.includes(endpoint.personId) || !this.listenForOutgoingConnections;
+                        const isMyEndpoint =
+                            myIds.includes(endpoint.personId) || !this.listenForOutgoingConnections;
 
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
-                        const sourceKey = toByteArray(isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey);
+                        const sourceKey = toByteArray(
+                            isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey
+                        );
                         const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
@@ -203,12 +207,14 @@ export default class CommunicationModule {
                         if (this.knownPeerMap.has(mapKey)) {
                             return;
                         }
-                        
+
                         // Create the entry in the knownPeerMap
                         const connInfo = {
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
-                            sourcePublicKey: isMyEndpoint ? mainInstanceKeys.publicKey : anonInstanceKeys.publicKey,
+                            sourcePublicKey: isMyEndpoint
+                                ? mainInstanceKeys.publicKey
+                                : anonInstanceKeys.publicKey,
                             targetPublicKey: remoteInstanceKeys.publicKey,
                             sourceInstanceId: isMyEndpoint ? mainInstance : anonInstance,
                             targetInstanceId: endpoint.instanceId,
@@ -297,7 +303,7 @@ export default class CommunicationModule {
         }
 
         // Stop all reconnect timeouts
-        for(const handle of this.reconnectHandles) {
+        for (const handle of this.reconnectHandles) {
             clearTimeout(handle);
         }
 
@@ -496,8 +502,8 @@ export default class CommunicationModule {
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                // if it's not a replicant 
-                if(!this.listenForOutgoingConnections) {
+                // if it's not a replicant
+                if (!this.listenForOutgoingConnections) {
                     return {
                         activeConnection: null,
                         url: endpoint.url,
@@ -543,7 +549,7 @@ export default class CommunicationModule {
      * @param {number} delay - the delay
      */
     private reconnect(connInfo: ConnectionInfo, delay: number) {
-        if(!this.initialized) {
+        if (!this.initialized) {
             return;
         }
         if (!this.listenForOutgoingConnections) {
@@ -552,7 +558,7 @@ export default class CommunicationModule {
 
         // This function does the connect
         const connect = () => {
-            if(!this.initialized) {
+            if (!this.initialized) {
                 return;
             }
             if (!this.listenForOutgoingConnections) {
@@ -567,12 +573,7 @@ export default class CommunicationModule {
                     localPublicKey: Uint8Array,
                     remotePublicKey: Uint8Array
                 ) => {
-                    this.acceptConnection(
-                        conn,
-                        localPublicKey,
-                        remotePublicKey,
-                        true
-                    );
+                    this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
                 };
             }
 
@@ -597,14 +598,13 @@ export default class CommunicationModule {
         };
 
         // Schedule the call delayed
-        if(delay) {
+        if (delay) {
             const handle = setTimeout(() => {
                 this.reconnectHandles.delete(handle);
                 connect();
             }, delay);
             this.reconnectHandles.add(handle);
-        }
-        else {
+        } else {
             connect();
         }
     }
