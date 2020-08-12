@@ -1,809 +1,1316 @@
-import {PairingInformation} from 'one.core/lib/communication-creator';
 import EventEmitter from 'events';
-import {
-    CommunicationManagerAPI,
-    createCommunicationManager
-} from 'one.core/lib/communication-manager';
-import {
-    AuthenticatedContact,
-    Instance,
-    SHA256Hash,
-    AuthenticatedContactsList,
-    VersionedObjectResult,
-    Chum,
-    SHA256IdHash,
-    Person
-} from '@OneCoreTypes';
+import CommunicationModule from '../misc/CommunicationModule';
+import ContactModel from './ContactModel';
+import InstancesModel from './InstancesModel';
+import EncryptedConnection from '../misc/EncryptedConnection';
 import {ChumSyncOptions} from 'one.core/lib/chum-sync';
+import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
+    getObjectWithType,
     SET_ACCESS_MODE,
-    SetAccessParam,
-    VERSION_UPDATES
+    VERSION_UPDATES,
+    WriteStorageApi
 } from 'one.core/lib/storage';
-import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import i18nModelsInstance from '../i18n';
-import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {
+    createCrypto,
+    CryptoAPI,
+    decryptWithSymmetricKey,
+    encryptWithSymmetricKey,
+    overwritePersonKeys,
+    stringToUint8Array,
+    Uint8ArrayToString
+} from 'one.core/lib/instance-crypto';
+import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
+import {fromByteArray, toByteArray} from 'base64-js';
+import {
+    Keys,
+    Person,
+    SHA256IdHash,
+    VersionedObjectResult,
+    ConnectionDetails,
+    PairingInformation,
+    SHA256Hash,
+    Instance
+} from '@OneCoreTypes';
+import {getAllValues} from 'one.core/lib/reverse-map-query';
+import tweetnacl from 'tweetnacl';
+import CommunicationInitiationProtocol, {
+    isPeerMessage
+} from '../misc/CommunicationInitiationProtocol';
+import {createMessageBus} from 'one.core/lib/message-bus';
+import {wslogId} from '../misc/LogUtils';
+import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import {scrypt} from 'one.core/lib/system/crypto-scrypt';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import {serializeWithType} from "one.core/lib/util/promise";
 
-/**
- * All data about an connection are keept in this type.
- */
-export type Connection = {
-    pairingInformation?: PairingInformation;
-    communicationManagerAPI: CommunicationManagerAPI;
-    authenticatedContact?: AuthenticatedContact;
-    // if the connection is opened, the value will be true, else false
-    connectionState: boolean;
-    chum?: Promise<VersionedObjectResult<Chum>>;
-};
+const MessageBus = createMessageBus('ConnectionsModel');
 
-/**
- * The take over case is a bit different from the partner connection, because
- * the generated email will be sent from the instance that generates the QR code
- * to the second instance and also the nonce for generating the kdf will be sent.
- */
-export type InformationForTakeOver = {
-    pairingInformation: PairingInformation;
-    randomEmail: string;
-    generatedNonce: string;
-};
+interface AuthenticationMessage {
+    personIdHash: SHA256IdHash<Person>;
+    authenticationTag: string;
+    takeOver?: boolean;
+}
 
-/**
- * This model represents everything related to Connections.
- */
+interface TakeOverMessage {
+    encryptedAuthenticationTag: string;
+}
+
+interface AcknowledgeTakeOverMessage {
+    acknowledge: boolean;
+}
+
+interface ExchangeOwnerKeys {
+    ownerId: SHA256IdHash<Person>;
+    publicKeys: Keys;
+    privateEncryptionKeys: string;
+    privateSignKeys: string;
+    anonymousOwnerId: SHA256IdHash<Person>;
+    anonymousPublicKeys: Keys;
+    anonymousPrivateEncryptionKeys: string;
+    anonymousPrivateSignKeys: string;
+}
+
 export default class ConnectionsModel extends EventEmitter {
-    private personalCloudConnections: Connection[]; // List of all know connections with personal devices
-    private partnerConnections: Connection[]; // List of all know connections with partner devices
-    private readonly commServerUrl = 'wss://uke-comm.freeda.one';
-    // private readonly commServerUrl = 'ws://localhost:8000';
-    private myInstance: VersionedObjectResult<Instance> | undefined;
-    private authenticatedContactsList: AuthenticatedContactsList;
-    private personId: SHA256IdHash<Person> | undefined;
-
-    constructor() {
-        super();
-        this.personalCloudConnections = [];
-        this.partnerConnections = [];
-        this.authenticatedContactsList = {
-            $type$: 'AuthenticatedContactsList',
-            instanceIdHash: '' as SHA256IdHash<Instance>
-        };
-        this.personId = undefined;
-    }
-
-    setPersonId(id: SHA256IdHash<Person>): void {
-        this.personId = id;
-    }
+    private readonly commServerUrl: string;
+    private readonly contactModel: ContactModel;
+    private readonly instancesModel: InstancesModel;
+    private readonly accessModel: AccessModel;
+    private communicationModule: CommunicationModule;
+    private generatedPairingInformation: {
+        pairingInformation: PairingInformation;
+        creationTimestamp: number;
+    }[];
+    private readonly isReplicant: boolean;
+    private anonInstanceKeys: Keys;
+    private meAnon: SHA256IdHash<Person>;
+    private meAnnonObj: VersionedObjectResult<Person>;
+    private myInstanceKeys: Keys;
+    private me: SHA256IdHash<Person>;
+    private password: string;
+    private salt: string;
+    private partnerConnections: ConnectionDetails[];
+    private personalCloudConnections: ConnectionDetails[];
+    private myEmail: string;
+    private myInstance: SHA256IdHash<Instance>;
+    private anonInstance: SHA256IdHash<Instance>;
+    private readonly openedConnections: EncryptedConnection[];
+    private readonly isValidFor: number;
 
     /**
-     * At instance initialisation search for old connections saved in memory and try to reopen them.
+     * Event that is emitted when the online state changes
      */
+    public onOnlineStateChange: ((online: boolean) => void) | null = null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        return this.communicationModule.onlineState;
+    }
+
+    constructor(
+        commServerUrl: string,
+        contactModel: ContactModel,
+        instancesModel: InstancesModel,
+        accessModel: AccessModel,
+        isReplicant: boolean = false
+    ) {
+        super();
+        this.password = '';
+        this.salt = '';
+        this.myEmail = '';
+        this.partnerConnections = [];
+        this.personalCloudConnections = [];
+        this.commServerUrl = commServerUrl;
+        this.contactModel = contactModel;
+        this.instancesModel = instancesModel;
+        this.accessModel = accessModel;
+        this.communicationModule = new CommunicationModule(
+            commServerUrl,
+            contactModel,
+            instancesModel,
+            !isReplicant
+        );
+        this.generatedPairingInformation = [];
+        this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
+        this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
+        this.isReplicant = isReplicant;
+        this.anonInstanceKeys = {} as Keys;
+        this.myInstanceKeys = {} as Keys;
+        this.meAnon = '' as SHA256IdHash<Person>;
+        this.me = '' as SHA256IdHash<Person>;
+        this.meAnnonObj = {} as VersionedObjectResult<Person>;
+        this.myInstance = '' as SHA256IdHash<Instance>;
+        this.anonInstance = '' as SHA256IdHash<Instance>;
+        this.openedConnections = [];
+        this.isValidFor = 300000; // 5 minutes
+
+        // Forward the online state to this level
+        this.communicationModule.onOnlineStateChange = (onlineState: boolean) => {
+            if (this.onOnlineStateChange) {
+                this.onOnlineStateChange(onlineState);
+            }
+        }
+    }
+
     async init(): Promise<void> {
+        await this.communicationModule.init();
+
+        this.me = await this.contactModel.myMainIdentity();
+        this.myEmail = (await getObjectByIdHash(this.me)).obj.email;
+        this.myInstance = await this.instancesModel.localInstanceIdForPerson(this.me);
+        this.myInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.me);
+
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== this.me);
+
+        if (meAlternates.length !== 1) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+        this.meAnon = meAlternates[0];
+        this.meAnnonObj = await getObjectByIdHash(this.meAnon);
+        this.anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
+        this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
         this.personalCloudConnections = [];
         this.partnerConnections = [];
-
-        const myInstanceIdHash = getInstanceIdHash();
-
-        if (myInstanceIdHash === undefined) {
-            this.emit('error', 'Unable to find instance.');
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-
-        this.myInstance = await getObjectByIdHash(myInstanceIdHash);
 
         try {
             // Get previous connection that my instance had.
-            this.authenticatedContactsList = (
+            const availableConnections = (
                 await getObjectByIdObj({
-                    $type$: 'AuthenticatedContactsList',
-                    instanceIdHash: myInstanceIdHash
+                    $type$: 'AvailableConnections',
+                    instanceIdHash: this.myInstance
                 })
             ).obj;
 
-            if (this.authenticatedContactsList.personalContacts) {
-                await this.fillConnectionsList(
-                    this.authenticatedContactsList.personalContacts,
-                    this.personalCloudConnections,
-                    'authenticatedPersonalCloudDevice',
-                    true
+            if (availableConnections.personalCloudConnections) {
+                this.personalCloudConnections.push(
+                    ...(await Promise.all(
+                        availableConnections.personalCloudConnections.map(
+                            async hash => await getObject(hash)
+                        )
+                    ))
                 );
             }
 
-            if (this.authenticatedContactsList.otherContacts) {
-                await this.fillConnectionsList(
-                    this.authenticatedContactsList.otherContacts,
-                    this.partnerConnections,
-                    'authenticatedPartnerDevice',
-                    false
+            if (availableConnections.partnerContacts) {
+                this.partnerConnections.push(
+                    ...(await Promise.all(
+                        availableConnections.partnerContacts.map(
+                            async hash => await getObject(hash)
+                        )
+                    ))
                 );
             }
         } catch (error) {
-            if (error.name === 'FileNotFoundError') {
-                // My instance didn't have connections in the past.
-                this.authenticatedContactsList = {
-                    $type$: 'AuthenticatedContactsList',
-                    instanceIdHash: myInstanceIdHash,
-                    personalContacts: [],
-                    otherContacts: []
-                };
-            } else {
-                this.emit('error', error.name);
+            if (error.name !== 'FileNotFoundError') {
                 throw error;
             }
         }
     }
 
     /**
-     * At instance reload we take all the previous saved authenticated contacts for this instance
-     * (previous open connections with other instances) and for each authenticated contact object
-     * we create a new entrance in the destinationList list and restart the connections with the
-     * instance memorised in the authenticated contact object.
-     *
-     * @param {SHA256Hash<AuthenticatedContact>[]} sourceList -> for instances that I own will be
-     * this.authenticatedContactsList.personalContacts and for friends instance will be
-     * this.authenticatedContactsList.otherContacts
-     *
-     * @param {Connection[]} destinationList -> for instances that I own will be
-     * this.personalCloudConnections and for friends instance will be this.friendConnections
-     *
-     * @param {string} eventMessage -> for instances that I own will be
-     * authenticatedPersonalCloudDevice and for friends instance will be authenticatedPartnerDevice
-     *
-     * @param {boolean} takeOver
+     * Close all web socket connections and change connection state to disconnected.
+     * @returns {Promise<void>}
      */
-    async fillConnectionsList(
-        sourceList: SHA256Hash<AuthenticatedContact>[],
-        destinationList: Connection[],
-        eventMessage: string,
-        takeOver: boolean
-    ): Promise<void> {
-        if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+    async shutdown(): Promise<void> {
+        await this.communicationModule.shutdown();
+
+        for (const conn of this.openedConnections) {
+            conn.close();
         }
 
-        for await (const authContactHash of sourceList) {
-            const authenticatedContact = await getObject(authContactHash);
-            const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
-            const connection = {
-                communicationManagerAPI,
-                authenticatedContact,
-                connectionState: false
+        for (const connection of this.personalCloudConnections) {
+            connection.connectionState = false;
+        }
+
+        for (const connection of this.partnerConnections) {
+            connection.connectionState = false;
+        }
+
+        await this.saveAvailableConnectionsList();
+    }
+
+    /**
+     * The password needs to be memorised for personal cloud connections authentication.
+     *
+     * @param {string} password
+     */
+    setPassword(password: string) {
+        this.password = password;
+    }
+
+    /**
+     * This function is called whenever a connection with a known instance was established
+     *
+     * @param {EncryptedConnection} conn
+     * @param {Uint8Array} localPublicKey
+     * @param {Uint8Array} remotePublicKey
+     * @param {SHA256IdHash<Person>} localPersonId
+     * @param {SHA256IdHash<Person>} remotePersonId2
+     * @param {boolean} initiatedLocally
+     * @returns {Promise<void>}
+     */
+    async onKnownConnection(
+        conn: EncryptedConnection,
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>,
+        remotePersonId2: SHA256IdHash<Person>,
+        initiatedLocally: boolean
+    ): Promise<void> {
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: onKnownConnection()`);
+
+        let remotePersonId: SHA256IdHash<Person>;
+        let isNew: boolean;
+        try {
+            const remotePersonInfo = await this.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                initiatedLocally,
+                false,
+                remotePersonId2
+            );
+            remotePersonId = remotePersonInfo.personId;
+            isNew = remotePersonInfo.isNew;
+        } catch (e) {
+            conn.close(e.toString());
+            return;
+        }
+
+        // This should always be false, but ....
+        if (isNew) {
+            conn.close('You are not known. This should not happen, but ... it did.');
+            return;
+        }
+
+        const connectionDetails: ConnectionDetails = {
+            $type$: 'ConnectionDetails',
+            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+            connectionState: true
+        };
+
+        const takeOver = localPersonId === remotePersonId;
+
+        if (takeOver) {
+            this.personalCloudConnections.push(connectionDetails);
+            this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
+            this.emit('authenticatedPersonalCloudDevice');
+        } else {
+            this.partnerConnections.push(connectionDetails);
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
+            this.emit('authenticatedPartnerDevice');
+        }
+
+        await this.startChum(conn, localPersonId, remotePersonId, initiatedLocally);
+        connectionDetails.connectionState = false;
+        await this.saveAvailableConnectionsList();
+
+        takeOver
+            ? this.emit('authenticatedPersonalCloudDevice')
+            : this.emit('authenticatedPartnerDevice');
+    }
+
+    /**
+     * This function is called whenever a connection with an unknown instance was established
+     *
+     * @param {EncryptedConnection} conn
+     * @param {Uint8Array} localPublicKey
+     * @param {Uint8Array} remotePublicKey
+     * @param {SHA256IdHash<Person>} localPersonId
+     * @param {boolean} initiatedLocally
+     * @param {SHA256IdHash<Person>} remotePersonId2
+     * @returns {Promise<void>}
+     */
+    async onUnknownConnection(
+        conn: EncryptedConnection,
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array,
+        localPersonId: SHA256IdHash<Person>,
+        initiatedLocally: boolean,
+        remotePersonId2?: SHA256IdHash<Person>
+    ): Promise<void> {
+        MessageBus.send('log', `${wslogId(conn.webSocket)}: onUnknownConnection()`);
+
+        let remotePersonId: SHA256IdHash<Person>;
+        try {
+            const remotePersonInfo = await this.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                initiatedLocally,
+                false,
+                remotePersonId2
+            );
+            remotePersonId = remotePersonInfo.personId;
+        } catch (e) {
+            conn.close(e.toString());
+            return;
+        }
+
+        // For replicant, just accept everything
+        if (this.isReplicant) {
+            await this.startChum(conn, localPersonId, remotePersonId, true);
+            conn.close();
+            return;
+        }
+
+        // For non replicants accept only pairing requests
+        // Wait for authentication message.
+        const message = await conn.waitForJSONMessage();
+        const authenticationTag = message.authenticationTag;
+        remotePersonId = message.personIdHash;
+        const takeOver = message.takeOver;
+
+        // Check if the received authentication tag corresponds with a generated one.
+        const checkReceivedAuthenticationTag = this.generatedPairingInformation.filter(
+            pairingInfo => {
+                // const isValid = pairingInfo.creationTimestamp <= Date.now() - this.isValidFor;
+                return pairingInfo.pairingInformation.authenticationTag === authenticationTag ? pairingInfo : undefined
+            }
+        );
+
+        if (checkReceivedAuthenticationTag.length != 1) {
+            throw new Error('Received authentication tag does not match the sent one.');
+        }
+
+        const connectionDetails: ConnectionDetails = {
+            $type$: 'ConnectionDetails',
+            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+            connectionState: true
+        };
+
+        if (takeOver) {
+            const message = await conn.waitForJSONMessage();
+            const encryptedAuthTag = toByteArray(message.encryptedAuthenticationTag);
+            const kdf = await this.keyDerivationFunction(this.salt, this.password);
+
+            // Verify if the other instance has the same password as the current instance.
+            const decryptedAuthTag = Uint8ArrayToString(
+                await decryptWithSymmetricKey(kdf, encryptedAuthTag)
+                // remove all quotes from the decrypted string
+            ).replace(new RegExp('"', 'g'), '');
+
+            let found = false;
+            this.generatedPairingInformation.forEach(pairingInfo => {
+                if (pairingInfo.pairingInformation.authenticationTag === decryptedAuthTag) {
+                    found = true;
+                }
+            });
+
+            const acknowledgeTakeOverMessage: AcknowledgeTakeOverMessage = {
+                acknowledge: false
             };
 
-            destinationList.push(connection);
+            if (found) {
+                // send acknowledge message
+                acknowledgeTakeOverMessage.acknowledge = true;
+                await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
+                // Send the person keys in order to overwrite them in the other instance.
+                // At the end all instances will have the same keys for the same person.
+                await this.sendOwnerKeys(conn);
 
-            this.emit(eventMessage);
+                this.personalCloudConnections.push(connectionDetails);
+                this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
+                this.emit('authenticatedPersonalCloudDevice');
+            } else {
+                // send error message
+                acknowledgeTakeOverMessage.acknowledge = true;
+                await conn.sendMessage(JSON.stringify(acknowledgeTakeOverMessage));
+                throw new Error(
+                    'Received authentication tag for take over does not match the sent one.'
+                );
+            }
+        } else {
+            // partner connection
+            this.partnerConnections.push(connectionDetails);
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
+            this.emit('authenticatedPartnerDevice');
 
-            // we don't wait until the other instance connects with us,
-            // just start the connection from our point of view
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            this.connectNextTime(connection, takeOver);
+            // Exchange person object - required for giving access using groups.
+            await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+            const personObj = await conn.waitForJSONMessage();
+            if (personObj.$type$ === 'Person') {
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    personObj
+                );
+            }
+        }
+        await this.startChum(conn, localPersonId, remotePersonId, true);
+        // when the chum is returned, the connection is closed
+        connectionDetails.connectionState = false;
+        await this.saveAvailableConnectionsList();
+        conn.close();
+        takeOver
+            ? this.emit('authenticatedPersonalCloudDevice')
+            : this.emit('authenticatedPartnerDevice');
+    }
+
+    /**
+     * This process exchanges and verifies person keys.
+     *
+     * @param {EncryptedConnection} conn - The connection used to exchange this data
+     * @param {SHA256IdHash<Person>} localPersonId - The local person id (used for getting keys)
+     * @param {boolean} initiatedLocally
+     * @param {boolean} takeOver
+     * @param {SHA256IdHash<Person>} remotePersonId2 - It is verified that the transmitted person id matches this one.
+     * @returns {Promise<{isNew: boolean; personId: SHA256IdHash<Person>; personPublicKey: Uint8Array}>}
+     */
+    private async verifyAndExchangePersonId(
+        conn: EncryptedConnection,
+        localPersonId: SHA256IdHash<Person>,
+        initiatedLocally: boolean,
+        takeOver: boolean = false,
+        remotePersonId2?: SHA256IdHash<Person>
+    ): Promise<{
+        isNew: boolean;
+        personId: SHA256IdHash<Person>;
+        personPublicKey: Uint8Array;
+    }> {
+        // Initialize the crypto stuff
+        const instanceHash = await this.instancesModel.localInstanceIdForPerson(localPersonId);
+        const crypto = createCrypto(instanceHash);
+
+        // Get my own person key
+        const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');
+        const localPersonKey = (await getObjectWithType(localPersonKeyReverse[localPersonKeyReverse.length - 1].toHash, 'Keys'))
+            .publicKey;
+
+        // Exchange and challenge response the person keys
+        let remotePersonId: SHA256IdHash<Person>;
+        let remotePersonKey: Uint8Array;
+        if (initiatedLocally) {
+            // Step1: Send my person information
+            await this.sendPersonInformation(conn, localPersonId, localPersonKey, takeOver);
+
+            // Step 2: Wait for remote information
+            const remotePersonInfo = await this.waitForMessage(conn, 'person_information');
+            remotePersonId = remotePersonInfo.personId as SHA256IdHash<Person>;
+            remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
+
+            // Step 3: Perform challenge / response
+            await this.challengePersonKey(conn, remotePersonKey, crypto);
+
+            // Step 4: Answer challenge response
+            await this.challengeRespondPersonKey(conn, remotePersonKey, crypto);
+        } else {
+            // Step 1: Wait for remote information
+            const remotePersonInfo = await this.waitForMessage(conn, 'person_information');
+            remotePersonId = remotePersonInfo.personId as SHA256IdHash<Person>;
+            remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
+
+            // Step2: Send my person information
+            await this.sendPersonInformation(conn, localPersonId, localPersonKey, takeOver);
+
+            // Step 3: Answer challenge response
+            await this.challengeRespondPersonKey(conn, remotePersonKey, crypto);
+
+            // Step 4: Perform challenge / response
+            await this.challengePersonKey(conn, remotePersonKey, crypto);
+        }
+
+        // Verify that the remote person id is the same as the one we have from the callback
+        if (remotePersonId2 && remotePersonId !== remotePersonId2) {
+            throw new Error('The person id does not match the one we have on record.');
+        }
+
+        // Verify that the transmitted key matches the one we already have
+        try {
+            const remotePersonKeyReverse = await getAllValues(remotePersonId, true, 'Keys');
+            const remotePersonKey2 = (
+                await getObjectWithType(remotePersonKeyReverse[remotePersonKeyReverse.length - 1].toHash, 'Keys')
+            ).publicKey;
+            if (fromByteArray(remotePersonKey) !== remotePersonKey2) {
+                throw new Error('Key does not match your previous visit');
+            }
+            return {
+                isNew: false,
+                personId: remotePersonId,
+                personPublicKey: remotePersonKey
+            };
+        } catch (e) {
+            // This means that we have not encountered the person, yet. => ok
+            return {
+                isNew: true,
+                personId: remotePersonId,
+                personPublicKey: remotePersonKey
+            };
         }
     }
 
     /**
-     * Generated the pairing information needed for generating the QR code for
-     * pairing with partner instance.
+     * The instance that receives the invitation has to explicitly call the connect function.
+     *
+     * @param {PairingInformation} pairingInformation
+     * @param {string} password
+     * @returns {Promise<void>}
      */
-    async generatePairingInformation(): Promise<PairingInformation> {
-        if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+    async connectUsingPairingInformation(
+        pairingInformation: PairingInformation,
+        password: string
+    ): Promise<void> {
+        const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
+
+        const takeOver = pairingInformation.takeOver;
+
+        // In takeOver process use the normal identity and in other connections ude the anonymous one.
+        const sourceKey = toByteArray(
+            takeOver ? this.myInstanceKeys.publicKey : this.anonInstanceKeys.publicKey
+        );
+        const targetKey = toByteArray(pairingInformation.publicKeyLocal);
+
+        return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                oce.stop();
+                reject(new Error('timeout expired'));
+            }, 60000);
+
+            oce.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                // Person id authentication
+                this.verifyAndExchangePersonId(
+                    conn,
+                    takeOver ? this.me : this.meAnon,
+                    true,
+                    takeOver
+                )
+                    .then(personInfo => {
+                        // Send the received authentication tag for the other instance
+                        // to check if it corresponds with the one that was generated.
+                        const authenticationMessage: AuthenticationMessage = {
+                            authenticationTag: pairingInformation.authenticationTag,
+                            personIdHash: takeOver ? this.me : this.meAnon,
+                            takeOver: takeOver
+                        };
+
+                        conn.sendMessage(JSON.stringify(authenticationMessage));
+
+                        const connectionDetails: ConnectionDetails = {
+                            $type$: 'ConnectionDetails',
+                            remoteInstancePublicKey: fromByteArray(remotePublicKey),
+                            connectionState: true
+                        };
+
+                        if (pairingInformation.takeOver && pairingInformation.takeOverDetails) {
+                            this.sendTakeOverInformation(
+                                conn,
+                                pairingInformation.takeOverDetails.nonce,
+                                password,
+                                pairingInformation.authenticationTag
+                            );
+
+                            conn.waitForJSONMessage().then(
+                                async (acknowledgeMessage: AcknowledgeTakeOverMessage) => {
+                                    if (acknowledgeMessage.acknowledge) {
+                                        const exchangeOwnerKeys: ExchangeOwnerKeys = await conn.waitForJSONMessage();
+                                        await this.overwriteExistingPersonKeys(exchangeOwnerKeys);
+
+                                        this.personalCloudConnections.push(connectionDetails);
+                                        this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
+                                        this.emit('authenticatedPersonalCloudDevice');
+
+                                        // Add the connection to the unknown list, so when the contact object is
+                                        // received the connection to be moved in the known connections list.
+                                        this.communicationModule.addNewUnknownConnection(
+                                            localPublicKey,
+                                            remotePublicKey,
+                                            conn
+                                        );
+
+                                        this.startChum(conn, this.me, personInfo.personId).then(
+                                            async () => {
+                                                connectionDetails.connectionState = false;
+                                                await this.saveAvailableConnectionsList();
+                                                conn.close();
+                                                this.emit('authenticatedPersonalCloudDevice');
+                                            }
+                                        );
+                                    } else {
+                                        throw new Error('Wrong password!');
+                                    }
+
+                                    clearTimeout(timeoutHandle);
+                                    await oce.stop();
+                                    resolve();
+                                }
+                            );
+                        } else {
+                            this.partnerConnections.push(connectionDetails);
+                            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
+                            this.emit('authenticatedPartnerDevice');
+
+                            // Exchange person object in order to give access using groups.
+                            conn.waitForJSONMessage().then(async personObj => {
+                                if (personObj.$type$ === 'Person') {
+                                    await createSingleObjectThroughPurePlan(
+                                        {
+                                            module: '@one/identity',
+                                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                                        },
+                                        personObj
+                                    );
+
+                                    await conn.sendMessage(JSON.stringify(this.meAnnonObj.obj));
+
+                                    // Add the connection to the unknown list, so when the contact object is
+                                    // received the connection to be moved in the known connections list.
+                                    this.communicationModule.addNewUnknownConnection(
+                                        localPublicKey,
+                                        remotePublicKey,
+                                        conn
+                                    );
+
+                                    this.startChum(conn, this.meAnon, personInfo.personId).then(
+                                        async () => {
+                                            connectionDetails.connectionState = false;
+                                            await this.saveAvailableConnectionsList();
+                                            conn.close();
+                                            this.emit('authenticatedPartnerDevice');
+                                        }
+                                    );
+
+                                    clearTimeout(timeoutHandle);
+                                    await oce.stop();
+                                    resolve();
+                                }
+                            });
+                        }
+                    })
+                    .catch(e => {
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        conn.close(e.toString());
+                        reject(e);
+                    });
+            };
+
+            // In takeOver process use normal identity and in partner connection use anonymous one.
+            const crypto = createCrypto(takeOver ? this.myInstance : this.anonInstance);
+
+            oce.start(
+                this.commServerUrl,
+                sourceKey,
+                targetKey,
+                text => {
+                    return crypto.encryptWithInstancePublicKey(targetKey, text);
+                },
+                cypherText => {
+                    return crypto.decryptWithInstancePublicKey(targetKey, cypherText);
+                }
+            );
+        });
+    }
+
+    /**
+     * Starts the corresponding chum connection.
+     *
+     * @param {EncryptedConnection} conn
+     * @param {SHA256IdHash<Person>} localPersonId
+     * @param {SHA256IdHash<Person>} remotePersonId
+     * @param {boolean} sendSync
+     * @param {boolean} isConnectionWithReplicant
+     * @returns {Promise<void>}
+     */
+    async startChum(
+        conn: EncryptedConnection,
+        localPersonId: SHA256IdHash<Person>,
+        remotePersonId: SHA256IdHash<Person>,
+        sendSync: boolean = false,
+        isConnectionWithReplicant: boolean = false
+    ): Promise<void> {
+
+        if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
+            // For instances that I own the localPersonId and remotePersonID will be the same,
+            // so if the id's are different, that means that I am connecting to a partner.
+            await this.accessModel.addPersonToAccessGroup(
+                FreedaAccessGroups.partner,
+                remotePersonId
+            );
         }
 
-        const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
-        const pairingInformation = await communicationManagerAPI.getFirstPairingInformation(false);
-        this.partnerConnections.push({
+        await serializeWithType('giveAccessToChannels', async () => {
+            await this.giveAccessToChannels();
+        });
+
+        // Send synchronisation messages to make sure both instances start the chum at the same time.
+        if (sendSync) {
+            await conn.sendMessage('synchronisation');
+            await conn.waitForMessage();
+        } else {
+            await conn.waitForMessage();
+            await conn.sendMessage('synchronisation');
+        }
+
+        try {
+            const minimalWriteStorageApiObj = {
+                createFileWriteStream: createFileWriteStream
+            } as WriteStorageApi;
+            // Core takes either the ws package or the default websocket
+            // depending on for what environment it was compiled. In this
+            // project we use the isomorphic-ws library for this. This is
+            // why we need to ignore the below error, because after compilation
+            // the types of the websockets will be the same.
+            const websocketPromisifierAPI = createWebsocketPromisifier(
+                minimalWriteStorageApiObj,
+                // @ts-ignore
+                conn
+            );
+            websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
+            websocketPromisifierAPI.localPersonIdHash = localPersonId;
+
+            const defaultInitialChumObj: ChumSyncOptions = {
+                connection: websocketPromisifierAPI,
+
+                // used only for logging purpose
+                chumName: 'ConnectionsChum',
+                localInstanceName: 'local',
+                remoteInstanceName: 'remote',
+
+                keepRunning: true,
+                maxNotificationDelay: 20
+            };
+
+            const chum = createSingleObjectThroughImpurePlan(
+                {module: '@one/chum-sync'},
+                defaultInitialChumObj
+            );
+
+            this.openedConnections.push(conn);
+
+            await this.saveAvailableConnectionsList();
+            this.emit('connectionEstablished');
+            await chum;
+        } catch (e) {
+            console.error('Error in start chum:', e);
+        }
+    }
+
+    /**
+     * Generates the information for sharing which will be sent in the QR code.
+     *
+     * @param {boolean} takeOver
+     * @returns {Promise<PairingInformation>}
+     */
+    async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+        this.salt = await this.generateSalt();
+
+        const pairingInformation: PairingInformation = {
+            authenticationTag: await createRandomString(),
+            publicKeyLocal: takeOver
+                ? this.myInstanceKeys.publicKey
+                : this.anonInstanceKeys.publicKey,
+            url: this.commServerUrl,
+            takeOver,
+            takeOverDetails: takeOver
+                ? {
+                      nonce: this.salt,
+                      email: this.myEmail,
+                      anonymousEmail: this.meAnnonObj.obj.email
+                  }
+                : undefined
+        };
+        this.generatedPairingInformation.push({
             pairingInformation,
-            communicationManagerAPI,
-            connectionState: false
+            creationTimestamp: Date.now()
         });
 
         return pairingInformation;
     }
 
-    /**
-     * This function is used for connecting for the first time with a partner instance.
-     *
-     * @param {PairingInformation} pairingInformation
-     * @param {boolean} invited
-     * @param {string} secret
-     */
-    async connect(
-        pairingInformation: PairingInformation,
-        invited: boolean,
-        secret: string
-    ): Promise<void> {
-        if (this.myInstance === undefined) {
-            this.emit(
-                'error',
-                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
-            );
-            throw new Error(
-                i18nModelsInstance.t('errors:connectionModel.connectionWithoutInstance')
-            );
-        }
-
-        if (invited) {
-            // exchange public key information so that other instance's public key will be the remote public key
-            const otherInstancePubKey = pairingInformation.publicKeyLocal;
-            pairingInformation.publicKeyLocal = pairingInformation.publicKeyRemote;
-            pairingInformation.publicKeyRemote = otherInstancePubKey;
-
-            const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
-            this.partnerConnections.push({
-                pairingInformation,
-                communicationManagerAPI,
-                connectionState: false
-            });
-        }
-
-        const connection = this.partnerConnections.find(con => {
-            return con.pairingInformation
-                ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : false;
-        });
-
-        if (connection === undefined) {
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
-        }
-
-        const communicationManagerAPI = connection.communicationManagerAPI;
-        communicationManagerAPI.setPassword(secret);
-
-        try {
-            connection.authenticatedContact = await communicationManagerAPI.connectFirstTime(
-                this.commServerUrl,
-                pairingInformation,
-                invited
-            );
-        } catch (error) {
-            this.emit('error', error.name);
-            throw error;
-        }
-
-        if (connection.authenticatedContact === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noConnection'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noConnection'));
-        }
-
-        await this.shareDataWithPartner(connection.authenticatedContact);
-
-        await this.saveAuthenticatedContact(
-            connection.authenticatedContact,
-            pairingInformation.takeOver
-        );
-
-        this.emit('authenticatedPartnerDevice');
-
-        this.startChum(connection, pairingInformation.takeOver);
-        this.emit('connectionEstablished');
-    }
-
-    /**
-     * This function is used for reestablishing a connection with another instance.
-     * The authenticated contact object which is needed for this function is the
-     * result if the first connection between two instances.
-     *
-     * @param {Connection} connection
-     * @param {boolean} takeOver
-     */
-    async connectNextTime(connection: Connection, takeOver: boolean): Promise<void> {
-        const {communicationManagerAPI, authenticatedContact} = connection;
-
-        if (authenticatedContact) {
-            await communicationManagerAPI.connectNextTime(this.commServerUrl, authenticatedContact);
-            this.startChum(connection, takeOver);
-        }
-    }
-
-    /**
-     * Generated the pairing information needed for creating the QR code for
-     * pairing for the first time with another instance that I own.
-     *
-     * @param {string} secret
-     */
-    async generateInformationForTakeOver(secret: string): Promise<InformationForTakeOver> {
-        if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-
-        const communicationManagerAPI = createCommunicationManager(this.myInstance.idHash);
-        communicationManagerAPI.setPassword(secret);
-
-        const pairingInformation = await communicationManagerAPI.getFirstPairingInformation(true);
-        this.personalCloudConnections.push({
-            pairingInformation,
-            communicationManagerAPI,
-            connectionState: false
-        });
-
-        const instanceOwner = await getObjectByIdHash(this.myInstance.obj.owner);
-        const randomEmail = instanceOwner.obj.email;
-
-        const generatedNonce = await communicationManagerAPI.generateDerivationKey();
-
-        return {pairingInformation, randomEmail, generatedNonce};
-    }
-
-    /**
-     * Connect for the first time with a instance that I own. The QR code should
-     * contain all the required information.
-     * The user has to use the same password in both devices and after the authentication
-     * is done, the function will return. The method takeOverInstance should be called so
-     * the connection can be established.
-     * In this step the instance that has scanned the QR code only tries to authenticate to the
-     * instance that has generated the QR code. The instance object for the instance that will be
-     * tacked over is not generated yet.
-     *
-     * @param {PairingInformation} pairingInformation
-     * @param {boolean} invited
-     * @param {string} secret
-     * @param {string} receivedNonce
-     */
-    async connectToPersonalCloud(
-        pairingInformation: PairingInformation,
-        invited: boolean,
-        secret: string,
-        receivedNonce?: string
-    ): Promise<void> {
-        let communicationManager;
-
-        if (invited) {
-            // exchange public key information so that other instance's public key will be the remote public key
-            const otherInstancePubKey = pairingInformation.publicKeyLocal;
-            pairingInformation.publicKeyLocal = pairingInformation.publicKeyRemote;
-            pairingInformation.publicKeyRemote = otherInstancePubKey;
-
-            communicationManager = createCommunicationManager();
-            communicationManager.setPassword(secret);
-            await communicationManager.generateDerivationKey(receivedNonce);
-
-            this.personalCloudConnections.push({
-                pairingInformation,
-                communicationManagerAPI: communicationManager,
-                connectionState: false
-            });
-        } else {
-            if (this.myInstance === undefined) {
-                this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-                throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            }
-
-            const connection = this.personalCloudConnections.find(con => {
-                return con.pairingInformation
-                    ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                    : false;
-            });
-
-            if (connection === undefined) {
-                this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
-                throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
-            }
-
-            communicationManager = connection.communicationManagerAPI;
-            communicationManager.setPassword(secret);
-        }
-
-        await communicationManager.connectToPersonalCloud(
-            this.commServerUrl,
-            pairingInformation,
-            invited
-        );
-    }
-
-    /**
-     * After the second instance (the one that will be tacked over) was
-     * created, the connection can be established.
-     * After the person keys were overwritten, the chum connection can
-     * be established between the two instances.
-     *
-     * @param {PairingInformation} pairingInformation
-     * @param {boolean} invited
-     */
-    async takeOverInstance(
-        pairingInformation: PairingInformation,
-        invited: boolean
-    ): Promise<void> {
-        const connection = this.personalCloudConnections.find(con => {
-            return con.pairingInformation
-                ? con.pairingInformation.publicKeyRemote === pairingInformation.publicKeyRemote
-                : false;
-        });
-
-        if (connection === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.connectionFailed'));
-        }
-
-        const communicationManager = connection.communicationManagerAPI;
-        const thisInstanceIdHash = getInstanceIdHash();
-
-        if (thisInstanceIdHash === undefined) {
-            this.emit('error', 'Unable to find instance.');
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-        this.myInstance = await getObjectByIdHash(thisInstanceIdHash);
-
-        connection.authenticatedContact = await communicationManager.overwriteOwner(
-            thisInstanceIdHash,
-            invited
-        );
-
-        connection.authenticatedContact.personIdHash = this.myInstance.obj.owner;
-
-        await this.saveAuthenticatedContact(
-            connection.authenticatedContact,
-            pairingInformation.takeOver
-        );
-
-        if (!this.personalCloudConnections.includes(connection)) {
-            this.personalCloudConnections.push(connection);
-        }
-
-        await this.connectOneTimeChum(connection);
-    }
-
-    private async connectOneTimeChum(connection: Connection): Promise<void> {
-        if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-
-        const {communicationManagerAPI} = connection;
-
-        // todo: other instance object is never saved
-        // const otherInstance = await getObjectByIdHash(authenticatedContact.instanceIdHash);
-        const websocketPromisifierAPI = communicationManagerAPI.getWebSocketPromisifier();
-        websocketPromisifierAPI.promise.catch(error => {
-            this.emit('error', error.name);
-            throw error;
-        });
-
-        if (connection.authenticatedContact) {
-            websocketPromisifierAPI.localPersonIdHash =
-                connection.authenticatedContact.personIdHash;
-            websocketPromisifierAPI.remotePersonIdHash =
-                connection.authenticatedContact.personIdHash;
-        }
-
-        const defaultInitialChumObj: ChumSyncOptions = {
-            connection: websocketPromisifierAPI,
-            chumName: 'MochaTest',
-            localInstanceName: this.myInstance.obj.name,
-            // remoteInstanceName: otherInstance.obj.name,
-            remoteInstanceName: this.myInstance.obj.name,
-            keepRunning: false,
-            maxNotificationDelay: 20
-        };
-
-        connection.connectionState = true;
-
-        connection.chum = createSingleObjectThroughImpurePlan(
-            {module: '@one/chum-sync'},
-            defaultInitialChumObj
-        );
-
-        await connection.chum;
-    }
-
-    /**
-     * Starts a chum connection with the instance from the authenticated contact.
-     *
-     * @param {Connection} connection
-     * @param {boolean} takeOver
-     */
-    startChum(connection: Connection, takeOver: boolean): void {
-        connection.communicationManagerAPI
-            .consumeReceivedMessage()
-            .then(async message => {
-                if (message === 'delete') {
-                    await this.closeConnection(connection, takeOver);
-                }
-            })
-            .catch(err => console.error(err));
-
-        if (this.myInstance === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-
-        const {communicationManagerAPI, authenticatedContact, pairingInformation} = connection;
-
-        if (
-            pairingInformation &&
-            !pairingInformation.takeOver &&
-            authenticatedContact === undefined
-        ) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.noPartner'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noPartner'));
-        }
-
-        // todo: other instance object is never saved
-        // const otherInstance = await getObjectByIdHash(authenticatedContact.instanceIdHash);
-        const websocketPromisifierAPI = communicationManagerAPI.getWebSocketPromisifier();
-        websocketPromisifierAPI.promise.catch(error => {
-            this.emit('error', error.name);
-            throw error;
-        });
-
-        if (connection.authenticatedContact) {
-            websocketPromisifierAPI.localPersonIdHash =
-                connection.authenticatedContact.personIdHash;
-            websocketPromisifierAPI.remotePersonIdHash =
-                connection.authenticatedContact.personIdHash;
-        }
-
-        const defaultInitialChumObj: ChumSyncOptions = {
-            connection: websocketPromisifierAPI,
-            chumName: 'MochaTest',
-            localInstanceName: this.myInstance.obj.name,
-            // remoteInstanceName: otherInstance.obj.name,
-            remoteInstanceName: this.myInstance.obj.name,
-            keepRunning: true,
-            maxNotificationDelay: 20
-        };
-
-        connection.connectionState = true;
-        // emit the event for the available devices list to refresh
-        // in Personal Cloud page and the new state to be displayed
-        takeOver
-            ? this.emit('authenticatedPersonalCloudDevice')
-            : this.emit('authenticatedPartnerDevice');
-
-        // the chum will be saved after the connection is closed
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        connection.chum = createSingleObjectThroughImpurePlan(
-            {module: '@one/chum-sync'},
-            defaultInitialChumObj
-        );
-
-        this.emit('connectionEstablished');
-
-        connection.chum.finally(() => {
-            connection.connectionState = false;
-            takeOver
-                ? this.emit('authenticatedPersonalCloudDevice')
-                : this.emit('authenticatedPartnerDevice');
-        });
-    }
-
-    private checkAuthenticatedContactList(): void {
-        if (this.authenticatedContactsList === undefined) {
-            this.emit('error', i18nModelsInstance.t('errors:connectionModel.saveAuthContact'));
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.saveAuthContact'));
-        }
-
-        if (this.authenticatedContactsList.personalContacts === undefined) {
-            this.authenticatedContactsList.personalContacts = [];
-        }
-
-        if (this.authenticatedContactsList.otherContacts === undefined) {
-            this.authenticatedContactsList.otherContacts = [];
-        }
-    }
-
-    /**
-     * Every time a connection is being established, an authenticated contact object is returned.
-     * In order to reopen the connections at instance login we need to store the authenticated
-     * contacts objects. This function stores the authenticated contact objects and also keeps
-     * the hash of the object in a list which can be used to reopen at instance reload using only
-     * the id hash of the instance.
-     *
-     * @param {AuthenticatedContact} authenticatedContact
-     * @param {boolean} takeOver
-     */
-    async saveAuthenticatedContact(
-        authenticatedContact: AuthenticatedContact,
+    private async sendPersonInformation(
+        conn: EncryptedConnection,
+        personId: SHA256IdHash<Person>,
+        personPublicKey: string,
         takeOver: boolean
     ): Promise<void> {
-        this.checkAuthenticatedContactList();
+        await this.sendMessage(conn, {
+            command: 'person_information',
+            personId: personId,
+            personPublicKey: personPublicKey,
+            takeOver: takeOver
+        });
+    }
 
-        const authenticatedContactObj = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'AuthenticatedContact',
-                ...authenticatedContact
-            }
+    /**
+     * Send a peer message
+     *
+     * @param {EncryptedConnection} conn
+     * @param {T} message - The message to send
+     * @returns {Promise<void>}
+     */
+    private async sendMessage<T extends CommunicationInitiationProtocol.PeerMessageTypes>(
+        conn: EncryptedConnection,
+        message: T
+    ): Promise<void> {
+        await conn.sendMessage(JSON.stringify(message));
+    }
+
+    /**
+     * Wait for a peer message
+     *
+     * @param {EncryptedConnection} conn
+     * @param {T} command - the command to wait for
+     * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
+     */
+    public async waitForMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
+        conn: EncryptedConnection,
+        command: T
+    ): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
+        const message = await conn.waitForJSONMessageWithType(command, 'command');
+        if (isPeerMessage(message, command)) {
+            return message;
+        }
+        throw Error("Received data does not match the data expected for command '" + command + "'");
+    }
+
+    private async challengePersonKey(
+        conn: EncryptedConnection,
+        remotePersonPublicKey: Uint8Array,
+        crypto: CryptoAPI
+    ): Promise<void> {
+        // Send the challenge
+        const challenge = tweetnacl.randomBytes(64);
+        const encryptedChallenge = crypto.encryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            challenge
         );
-
-        if (takeOver && this.authenticatedContactsList.personalContacts) {
-            this.authenticatedContactsList.personalContacts.push(authenticatedContactObj.hash);
-        } else if (!takeOver && this.authenticatedContactsList.otherContacts) {
-            this.authenticatedContactsList.otherContacts.push(authenticatedContactObj.hash);
+        await conn.sendBinaryMessage(encryptedChallenge);
+        for (let elem of challenge) {
+            elem = ~elem;
         }
 
-        // in instance take over the invited instance will not have the instance id set
-        if (this.authenticatedContactsList.instanceIdHash === '') {
-            const myInstanceIdHash = getInstanceIdHash();
-
-            if (myInstanceIdHash === undefined) {
-                this.emit('error', 'Unable to find instance.');
-                throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-            }
-
-            this.authenticatedContactsList.instanceIdHash = myInstanceIdHash;
-        }
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            this.authenticatedContactsList
+        // Wait for response
+        const encryptedResponse = await conn.waitForBinaryMessage();
+        const response = crypto.decryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            encryptedResponse
         );
-    }
-
-    /**
-     * Get a list of connections/known devices that I own.
-     *
-     * @returns {Connection[]}
-     */
-    getPersonalCloudDevices(): Connection[] {
-        return [...this.personalCloudConnections];
-    }
-
-    /**
-     * Get a list of connections/known devices from friends.
-     *
-     * @returns {Connection[]}
-     */
-    getPartnerDevices(): Connection[] {
-        return [...this.partnerConnections];
-    }
-
-    /**
-     * Closes all existing connection with the web sockets server.
-     */
-    async closeAllConnections(): Promise<void> {
-        for await (const personalCloudConnection of this.personalCloudConnections) {
-            personalCloudConnection.communicationManagerAPI.closeConnection();
-            await personalCloudConnection.chum;
-        }
-
-        for await (const friendConnection of this.partnerConnections) {
-            friendConnection.communicationManagerAPI.closeConnection();
-            await friendConnection.chum;
+        if (!tweetnacl.verify(challenge, response)) {
+            conn.close();
+            throw new Error('Failed to authenticate connection.');
         }
     }
 
+    private async challengeRespondPersonKey(
+        conn: EncryptedConnection,
+        remotePersonPublicKey: Uint8Array,
+        crypto: CryptoAPI
+    ): Promise<void> {
+        // Wait for challenge
+        const encryptedChallenge = await conn.waitForBinaryMessage();
+        const challenge = crypto.decryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            encryptedChallenge
+        );
+        for (let elem of challenge) {
+            elem = ~elem;
+        }
+        const encryptedResponse = crypto.encryptWithPersonPublicKey(
+            remotePersonPublicKey,
+            challenge
+        );
+        await conn.sendBinaryMessage(encryptedResponse);
+    }
+
     /**
-     * Close the connection identified by the connection parameter.
+     * Generates a symmetric key using password and salt (nonce).
      *
-     * @param {Connection} connection
-     * @param {boolean} takeOver
+     * @param {string} saltString
+     * @param {string} passwordString
+     * @returns {Promise<Uint8Array>}
+     * @private
      */
-    async closeConnection(connection: Connection, takeOver: boolean): Promise<void> {
-        // tell the instance on the other end to delete this connection
-        connection.communicationManagerAPI
-            .sendEncryptedMessage('delete', false, false)
-            .catch(err => {
-                {
-                    if (err.name !== 'WebsocketError') {
-                        console.error(err);
-                    }
+    private async keyDerivationFunction(
+        saltString: string,
+        passwordString: string
+    ): Promise<Uint8Array> {
+        const salt = stringToUint8Array(saltString);
+        const password = stringToUint8Array(passwordString);
+        return await scrypt(password, salt);
+    }
+
+    /**
+     * Generates a random nonce.
+     *
+     * @returns {Promise<string>}
+     */
+    async generateSalt(): Promise<string> {
+        return await createRandomString();
+    }
+
+    /**
+     * In take over process the received authentication tag is re-sent
+     * to the other instance using symmetric encryption. If both instances
+     * have the same password, then they will see the same authentication tag.
+     *
+     * @param {EncryptedConnection} conn
+     * @param {string | undefined} salt
+     * @param {string} password
+     * @param {string} authenticationTag
+     * @returns {Promise<void>}
+     * @private
+     */
+    private async sendTakeOverInformation(
+        conn: EncryptedConnection,
+        salt: string | undefined,
+        password: string,
+        authenticationTag: string
+    ): Promise<void> {
+        if (salt === undefined) {
+            throw new Error('The received information do not contain nonce');
+        }
+        const kdf = await this.keyDerivationFunction(salt, password);
+        const encryptedAuthTag = await encryptWithSymmetricKey(kdf, authenticationTag);
+        const takeOverMessage: TakeOverMessage = {
+            encryptedAuthenticationTag: fromByteArray(encryptedAuthTag)
+        };
+
+        await conn.sendMessage(JSON.stringify(takeOverMessage));
+    }
+
+    /**
+     * Knowing the public key of the replicant an instance can connect to it
+     * using the communication server.
+     *
+     * @param {string} remoteInstanceKey
+     * @returns {Promise<void>}
+     */
+    async connectToReplicant(remoteInstanceKey: string): Promise<void> {
+        const oce: OutgoingConnectionEstablisher = new OutgoingConnectionEstablisher();
+
+        const sourceKey = toByteArray(this.anonInstanceKeys.publicKey);
+        const targetKey = toByteArray(remoteInstanceKey);
+
+        return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                oce.stop();
+                reject(new Error('timeout expired'));
+            }, 60000);
+
+            oce.onConnection = (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                // Person id authentication
+                this.verifyAndExchangePersonId(conn, this.meAnon, true, false)
+                    .then(async personInfo => {
+                        await this.accessModel.addPersonToAccessGroup(FreedaAccessGroups.clinic, personInfo.personId);
+                        this.startChum(
+                            conn,
+                            this.meAnon,
+                            personInfo.personId,
+                            false,
+                            true
+                        ).then(() => {});
+                        clearTimeout(timeoutHandle);
+                        await oce.stop();
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(timeoutHandle);
+                        oce.stop();
+                        conn.close(e.toString());
+                        reject(e);
+                    });
+            };
+
+            const crypto = createCrypto(this.anonInstance);
+
+            oce.start(
+                this.commServerUrl,
+                sourceKey,
+                targetKey,
+                text => {
+                    return crypto.encryptWithInstancePublicKey(targetKey, text);
+                },
+                cypherText => {
+                    return crypto.decryptWithInstancePublicKey(targetKey, cypherText);
                 }
-            });
-
-        connection.communicationManagerAPI.closeConnection();
-        connection.connectionState = false;
-
-        await connection.chum;
-
-        if (takeOver) {
-            this.personalCloudConnections = this.personalCloudConnections.filter(
-                obj => obj !== connection
             );
+        });
+    }
 
-            this.emit('authenticatedPersonalCloudDevice');
-        } else {
-            this.partnerConnections = this.partnerConnections.filter(obj => obj !== connection);
+    getPartnerConnections(): ConnectionDetails[] {
+        return this.partnerConnections;
+    }
 
-            this.emit('authenticatedPartnerDevice');
-        }
-
-        /**
-         * Save this state of the application.
-         * Remove the deleted connections in order to not be displayed anymore.
-         */
-
-        this.checkAuthenticatedContactList();
-
-        const personalContactsList = [];
-        const otherContactsList = [];
-
-        for await (const personalContact of this.personalCloudConnections) {
-            if (personalContact.authenticatedContact) {
-                personalContactsList.push(
-                    await calculateHashOfObj(personalContact.authenticatedContact)
-                );
-            }
-        }
-
-        this.authenticatedContactsList.personalContacts = personalContactsList;
-
-        for await (const partnerContact of this.partnerConnections) {
-            if (partnerContact.authenticatedContact) {
-                otherContactsList.push(
-                    await calculateHashOfObj(partnerContact.authenticatedContact)
-                );
-            }
-        }
-
-        this.authenticatedContactsList.otherContacts = otherContactsList;
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            this.authenticatedContactsList
-        );
+    getPersonalCloudConnections(): ConnectionDetails[] {
+        return this.personalCloudConnections;
     }
 
     /**
-     * When connecting with a partner, the only data that will be synchronised is the questionnaire.
-     *
-     * @param {AuthenticatedContact} authenticatedContact
+     * The channels need to be shared as follow:
+     * - bodyTemperature:   myself
+     * - consentFile:       myself      replicant       partner(also old partner consent file channel)
+     * - contacts:          myself      replicant       partner
+     * - diary:             myself
+     * - feedbackChannel:   myself      replicant
+     * - newsChannel:       myself
+     * - questionnaire:     myself      replicant       partner
      */
-    async shareDataWithPartner(authenticatedContact: AuthenticatedContact): Promise<void> {
-        const ownerIdHash = this.personId ? this.personId : getInstanceOwnerIdHash();
-
-        if (ownerIdHash === undefined) {
-            this.emit('error', 'Unable to find instance.');
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+    // todo: this function should be removed when the group data sharing is working
+    async giveAccessToChannels(): Promise<void> {
+        if(this.isReplicant){
+            return;
         }
 
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
-            owner: ownerIdHash
+            owner: this.me
         });
-
-        let setAccessParam: SetAccessParam = {
-            group: [],
+        const setAccessParam = {
             id: channelInfoIdHash,
-            mode: SET_ACCESS_MODE.REPLACE,
-            person: [authenticatedContact.personIdHash, ownerIdHash]
+            person: [this.me, ...(await this.accessModel.getAccessGroupPersons([FreedaAccessGroups.clinic, FreedaAccessGroups.partner]))],
+//          person: [this.me, ...this.partnerAccess, ...this.replicantAccess],
+            group: [],
+            mode: SET_ACCESS_MODE.REPLACE
         };
-
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
-        // share my consent files with partner for backup
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'consentFile',
-            owner: ownerIdHash
+            owner: this.me
         });
-
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
-        try {
-            // share old partner consent files with partner for backup
-            setAccessParam.id = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: 'consentFile',
-                owner: authenticatedContact.personIdHash
-            });
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'contacts',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
-            await getObjectByIdHash(setAccessParam.id);
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'feedbackChannel',
+            owner: this.me
+        });
+        //setAccessParam.person = [this.me, ...this.replicantAccess];
+        setAccessParam.person = [this.me, ...(await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.clinic))];
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-        } catch (error) {
-            // If the partner was not connected with this instance previously,
-            // then the calculateIdHashOfObj function will return a FileNotFoundError.
-            if (error.name !== 'FileNotFoundError') {
-                console.error(error);
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'bodyTemperature',
+            owner: this.me
+        });
+        setAccessParam.person = [this.me];
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'diary',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'newsChannel',
+            owner: this.me
+        });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+        // For each partner check if I have an old version of it's consent file channel
+        // and if so share it back with him. (for backup purpose)
+        const partners = await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.partner);
+        for await (const partnerIdHash of partners) {
+            try {
+                // share old partner consent files with partner for backup
+                setAccessParam.id = await calculateIdHashOfObj({
+                    $type$: 'ChannelInfo',
+                    id: 'consentFile',
+                    owner: partnerIdHash
+                });
+                setAccessParam.person = [...partners, this.me];
+                await getObjectByIdHash(setAccessParam.id);
+                await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            } catch (error) {
+                // If the partner was not connected with this instance previously,
+                // then the calculateIdHashOfObj function will return a FileNotFoundError.
+                if (error.name !== 'FileNotFoundError') {
+                    console.error(error);
+                }
             }
         }
+    }
+
+    /**
+     * Saves the current state of the connections list.
+     *
+     * @returns {Promise<void>}
+     * @private
+     */
+    private async saveAvailableConnectionsList(): Promise<void> {
+        let personalCloudConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
+        let partnerConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
+
+        await serializeWithType('saveAvailableConnectionsList', async () => {
+
+            personalCloudConnectionsHash = await Promise.all(
+                this.personalCloudConnections.map(async connection => {
+                    return (
+                        await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@one/identity',
+                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                            },
+                            connection
+                        )
+                    ).hash;
+                })
+            );
+            partnerConnectionsHash = await Promise.all(
+                this.partnerConnections.map(async connection => {
+                    return (
+                        await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@one/identity',
+                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                            },
+                            connection
+                        )
+                    ).hash;
+                })
+            );
+
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'AvailableConnections',
+                    instanceIdHash: this.myInstance,
+                    personalCloudConnections: [...new Set(personalCloudConnectionsHash)],
+                    partnerContacts: [...new Set(partnerConnectionsHash)]
+                }
+            );
+        });
+    }
+
+    async overwritePrivateKeys(encryptedBase64Key: string, filename: string): Promise<void> {
+        await writeUTF8TextFile(encryptedBase64Key, filename, 'private');
+    }
+
+    async readPrivateKeys(filename: string): Promise<string> {
+        return await readUTF8TextFile(filename, 'private');
+    }
+
+    /**
+     * Gets the person keys (both public and private) and sends them to the other instance.
+     *
+     * @param {EncryptedConnection} conn
+     * @returns {Promise<void>}
+     */
+    async sendOwnerKeys(conn: EncryptedConnection): Promise<void> {
+        const ownerId = this.me;
+        const personKeyLink = await getAllValues(this.me, true, 'Keys');
+        const publicKeys = await getObjectWithType(
+            personKeyLink[personKeyLink.length - 1].toHash,
+            'Keys'
+        );
+        const privateEncryptionKeys = await this.readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const privateSignKeys = await this.readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+        );
+        const anonymousOwnerId = this.meAnon;
+        const anonymousPersonKeyLink = await getAllValues(this.meAnon, true, 'Keys');
+        const anonymousPublicKeys = await getObjectWithType(
+            anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash,
+            'Keys'
+        );
+        const anonymousPrivateEncryptionKeys = await this.readPrivateKeys(
+            `${anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const anonymousPrivateSignKeys = await this.readPrivateKeys(
+            `${anonymousPersonKeyLink[anonymousPersonKeyLink.length - 1].toHash}.owner.sign`
+        );
+
+        const exchangeOwnerKeys: ExchangeOwnerKeys = {
+            ownerId,
+            publicKeys,
+            privateEncryptionKeys,
+            privateSignKeys,
+            anonymousOwnerId,
+            anonymousPublicKeys,
+            anonymousPrivateEncryptionKeys,
+            anonymousPrivateSignKeys
+        };
+
+        await conn.sendMessage(JSON.stringify(exchangeOwnerKeys));
+    }
+
+    /**
+     * Receives the person keys from the other instance (both private and public)
+     * and overwrites the existing person keys with the received one - this is
+     * required in order for all instances to have the same person keys for the
+     * same person object.
+     *
+     * @param {ExchangeOwnerKeys} exchangeOwnerKeys
+     * @returns {Promise<void>}
+     */
+    async overwriteExistingPersonKeys(exchangeOwnerKeys: ExchangeOwnerKeys): Promise<void> {
+        if (
+            this.me !== exchangeOwnerKeys.ownerId ||
+            this.meAnon !== exchangeOwnerKeys.anonymousOwnerId
+        ) {
+            throw new Error('Users not match from one instance to the other!');
+        }
+        const savedOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            exchangeOwnerKeys.publicKeys
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.privateEncryptionKeys,
+            `${savedOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.privateSignKeys,
+            `${savedOwnerKeys.hash}.owner.sign`
+        );
+        const savedAnonOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            exchangeOwnerKeys.anonymousPublicKeys
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.anonymousPrivateEncryptionKeys,
+            `${savedAnonOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.overwritePrivateKeys(
+            exchangeOwnerKeys.anonymousPrivateSignKeys,
+            `${savedAnonOwnerKeys.hash}.owner.sign`
+        );
+
+        await overwritePersonKeys(this.password, this.me, this.myInstance);
     }
 }

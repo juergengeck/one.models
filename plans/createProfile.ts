@@ -16,12 +16,16 @@ export async function createObjects(
     WriteStorage: WriteStorageApi,
     email: string
 ): Promise<VersionedObjectResult<Profile>> {
+
+    // Create the person
     const personIdHash = (
         await WriteStorage.storeVersionedObject({
             $type$: 'Person',
             email: email
         })
     ).idHash;
+
+    // Create empty contact object and add it to profile
     const contactObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Contact',
         personId: personIdHash,

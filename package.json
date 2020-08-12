@@ -6,13 +6,19 @@
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
   "scripts": {
+    "install": "node ./install.js",
     "build": "node ./build.js",
     "start": "node lib/model/index.js",
-    "test": "nyc mocha test/**-test.js"
+    "test": "nyc mocha test/**-test.js",
+    "start-comm-server": "node lib/cli/CommunicationServer",
+    "start-comm-server-log": "node lib/cli/CommunicationServer -l",
+    "start-comm-server-aws": "node lib/cli/CommunicationServer -l -p 8002 > server.log"
   },
   "dependencies": {
+    "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core"
+    "one.core": "refinio/one.core#feature/20200720_communication_og",
+    "yargs": "^15.4.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
@@ -33,6 +39,7 @@
     "eslint": "*",
     "eslint-plugin-import": "*",
     "eslint-plugin-jsdoc": "*",
+    "isomorphic-ws": "^4.0.1",
     "jsdoc": "*",
     "jsdoc-babel": "*",
     "jsdoc-plantuml": "^1.0.1",

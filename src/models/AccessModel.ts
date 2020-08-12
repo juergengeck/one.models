@@ -3,14 +3,31 @@
  */
 
 import EventEmitter from 'events';
-import {Group, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import {
+    Group,
+    OneObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash,
+    VersionedObjectResult
+} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {serializeWithType} from "one.core/lib/util/promise";
+
+export const FreedaAccessGroups = {
+    partner: 'partners',
+    clinic: 'clinic',
+    myself: 'myself'
+};
+
+const ACCESS_LOCKS = {
+    GROUP_LOCK : 'GROUP_LOCK'
+};
 
 /**
  *
@@ -32,9 +49,21 @@ export default class AccessModel extends EventEmitter {
      * @param {AccessGroupNames}groupName
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
-    async getAccessGroupPersons(groupName: string): Promise<SHA256IdHash<Person>[]> {
-        const group = await this.getAccessGroupByName(groupName);
-        return group === undefined ? [] : group.obj.person;
+    async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
+        return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
+            if (Array.isArray(groupName)) {
+                return [...new Set((await Promise.all(groupName.map(async (group) => {
+                    const groupObj = await this.getAccessGroupByName(group);
+                    return groupObj === undefined ? [] : groupObj.obj.person;
+                }))).reduce(
+                    (acc, curr) => acc.concat(curr),
+                    []
+                ))];
+            } else {
+                const group = await this.getAccessGroupByName(groupName);
+                return group === undefined ? [] : group.obj.person;
+            }
+        });
     }
 
     /**
@@ -68,22 +97,43 @@ export default class AccessModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
-        const group = await this.getAccessGroupByName(name);
-        /** add the person only if it does not exist and prevent unnecessary one updates **/
-        if (
-            group.obj.person.find(
-                (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
-            ) === undefined
-        ) {
-            group.obj.person.push(personId);
-            await createSingleObjectThroughPurePlan(
+        return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
+
+            const group = await this.getAccessGroupByName(name);
+            /** add the person only if it does not exist and prevent unnecessary one updates **/
+            if (
+                group.obj.person.find(
+                    (accPersonIdHash: SHA256IdHash<Person>) => accPersonIdHash === personId
+                ) === undefined
+            ) {
+                group.obj.person.push(personId);
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    group.obj
+                );
+            }
+        });
+    }
+
+    async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>) {
+        const group = await this.getAccessGroupByName(groupName);
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
                 {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                group.obj
-            );
-        }
+                    object: objectHash,
+                    person: [],
+                    group: [...group.obj.person],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
     }
 
     /**
@@ -104,7 +154,7 @@ export default class AccessModel extends EventEmitter {
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
-            const group = await createSingleObjectThroughPurePlan(
+            await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -114,19 +164,6 @@ export default class AccessModel extends EventEmitter {
                     name: name,
                     person: []
                 }
-            );
-            const accessPlainObject = {
-                object: group.hash,
-                person: [await getInstanceOwnerIdHash()],
-                group: [],
-                mode: SET_ACCESS_MODE.REPLACE
-            };
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                [accessPlainObject]
             );
         }
     }

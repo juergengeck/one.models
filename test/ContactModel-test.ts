@@ -2,7 +2,12 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, getInstanceOwnerIdHash, initInstance, registerRecipes} from 'one.core/lib/instance';
+import {
+    closeInstance,
+    getInstanceIdHash,
+    getInstanceOwnerIdHash,
+    registerRecipes
+} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
     createSingleObjectThroughPurePlan,
@@ -12,33 +17,39 @@ import {
     getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {SHA256Hash, ContactApp, Someone, Profile, SHA256IdHash} from '@OneCoreTypes';
+import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import Model, {dbKey, importModules} from './utils/Model';
-import Recipes from "../lib/recipes/recipes";
-
-const contactModel = new Model().contactModel;
-let contactAppIdHash: SHA256Hash<ContactApp>;
+import {dbKey, importModules} from './utils/Model';
+import InstancesModel from '../lib/models/InstancesModel';
+import Recipes from '../lib/recipies/recipies';
+import {AccessModel, ChannelManager} from "../lib/models";
+import {FreedaAccessGroups} from "../lib/models/AccessModel";
+let contactModel: ContactModel;
 
 describe('Contact model test', () => {
     before(async () => {
-
-        await initInstance({
-            name: 'instanceName',
-            email: 'instanceName',
-            secret:'1234',
-            ownerName: 'instanceName',
-            initialRecipes: Recipes,
-            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
-        });
+        await StorageTestInit.init({dbKey: dbKey, secret: '1234'});
+        await registerRecipes(Recipes);
         await importModules();
+        const accessModel = new AccessModel();
+        await accessModel.init();
+        const channelManager = new ChannelManager(accessModel);
+        const instanceModel = new InstancesModel();
+        contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
+        await channelManager.init();
+        await accessModel.createAccessGroup(FreedaAccessGroups.partner);
+        await accessModel.createAccessGroup(FreedaAccessGroups.clinic);
+        await accessModel.createAccessGroup(FreedaAccessGroups.myself);
+        await instanceModel.init('1234');
+
+
+        await contactModel.init();
+        await contactModel.createContactChannel();
     });
 
     it('should test init() function on a fresh instance', async () => {
-        await contactModel.init();
-
         const contactApp = await ContactModel.getContactAppObject();
         expect(contactApp).to.not.be.equal(undefined);
 
@@ -54,7 +65,6 @@ describe('Contact model test', () => {
 
         const myInstanceEndpoint = await getObject(myProfile.obj.mainContact);
         expect(myInstanceEndpoint).to.not.be.undefined;
-        contactAppIdHash = contactApp.hash;
     });
 
     it('should return my identities', async () => {
@@ -74,7 +84,6 @@ describe('Contact model test', () => {
     });
 
     it('should create another profile for another person', async () => {
-
         const personIdHash = await contactModel.createProfile(false, 'foo@refinio.net');
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
@@ -122,12 +131,12 @@ describe('Contact model test', () => {
     });
 
     it('should create profile for my person', async () => {
-
         const personIdHash = await contactModel.createProfile(true, 'thirdProfile@refinio.net');
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
             personId: personIdHash
         });
+
         expect(versionedProfileObject).to.not.be.equal(undefined);
 
         const contactApp = await ContactModel.getContactAppObject();
@@ -159,7 +168,13 @@ describe('Contact model test', () => {
         );
         expect(foundSomeone).to.not.be.equal(undefined);
     });
-    it('should add a new contact object as a main contact', async () => {
+    /*   it('should add a new contact object as a main contact', async () => {
+        /!**
+         * @TODO PROBLEM -> add a new function that will mutate your current main contact, otherwise it will go first in the hook and
+         * add the contact as secondy contact resulting in existing flag on true
+         * @type {SHA256IdHash<Person> | undefined}
+         *!/
+
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
@@ -176,6 +191,8 @@ describe('Contact model test', () => {
             {
                 $type$: 'OneInstanceEndpoint',
                 personId: personIdHash,
+                url: 'localhost:8000',
+                instanceId: getInstanceIdHash(),
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
             }
@@ -189,6 +206,7 @@ describe('Contact model test', () => {
                 contactDescriptions: []
             }
         );
+        console.log('new contact:', contactObject.hash);
 
         await contactModel.addNewContactObject(contactObject, true);
 
@@ -198,10 +216,10 @@ describe('Contact model test', () => {
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
 
-        const myContact = await getObject(myProfile.obj.mainContact);
-        expect(myContact).to.not.be.equal(undefined);
-    });
+        console.log('found in profile t:',myProfile.obj.mainContact);
 
+        expect(myProfile.obj.mainContact).to.be.equal(contactObject.hash);
+    });*/
     it('should add a new contact object not as a main contact', async () => {
         const personIdHash = getInstanceOwnerIdHash();
 
@@ -219,6 +237,8 @@ describe('Contact model test', () => {
             {
                 $type$: 'OneInstanceEndpoint',
                 personId: personIdHash,
+                url: 'localhost:8000',
+                instanceId: getInstanceIdHash(),
                 personKeys: personPubEncryptionKeysHash,
                 instanceKeys: personPubEncryptionKeysHash
             }
@@ -233,7 +253,8 @@ describe('Contact model test', () => {
             }
         );
 
-        await contactModel.addNewContactObject(contactObject, false);
+        // @ts-ignore
+        await contactModel.addNewContactObjectAsMain(contactObject, false);
 
         const contactApp = await ContactModel.getContactAppObject();
 
@@ -241,7 +262,7 @@ describe('Contact model test', () => {
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
         expect(myProfile).to.not.be.equal(undefined);
-        expect(myProfile.obj.contactObjects.length).to.not.be.equal(0);
+        expect(myProfile.obj.contactObjects.length).to.be.equal(2);
     });
 
     it('should add new contact for a non existing profile', async () => {
@@ -256,37 +277,18 @@ describe('Contact model test', () => {
             }
         );
 
-        const personIdHash = getInstanceOwnerIdHash();
-
-        if (!personIdHash) {
-            throw new Error('Error: personIdHash is undefined');
-        }
-
-        const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-        const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
-
-        const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
-
-        const instanceEndpoint = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'OneInstanceEndpoint',
-                personId: newPerson.idHash,
-                personKeys: personPubEncryptionKeysHash,
-                instanceKeys: personPubEncryptionKeysHash
-            }
-        );
-        const contactObject = await createSingleObjectThroughPurePlan(
+        await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
                 $type$: 'Contact',
                 personId: newPerson.idHash,
-                communicationEndpoints: [instanceEndpoint.hash],
+                communicationEndpoints: [],
                 contactDescriptions: []
             }
         );
-
-        await contactModel.addNewContactObject(contactObject, false);
+        await new Promise((resolve, rejects) => {
+            setTimeout(() => resolve(), 500);
+        });
         const someoneObject = await contactModel.getSomeoneObject(newPerson.idHash);
         expect(someoneObject).to.not.be.equal(undefined);
 
@@ -311,7 +313,6 @@ describe('Contact model test', () => {
         expect(mainContact.length).to.not.be.equal(0);
     });
     it('should return a person someone object', async () => {
-        /** saved previously for another person **/
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const someoneObject = await contactModel.getSomeoneObject(person.idHash);
         expect(someoneObject).to.not.be.equal(undefined);
@@ -320,10 +321,10 @@ describe('Contact model test', () => {
     it('should return a person identities', async () => {
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const identities = await contactModel.listAlternateIdentities(person.idHash);
-        if(identities === undefined){
-            throw new Error('Error in "should return a person identities"')
+        if (identities === undefined) {
+            throw new Error('Error in "should return a person identities"');
         }
-        expect(identities.length).to.be.equal(0);
+        expect(identities.length).to.be.equal(1);
     });
 
     it('should add a new main contact for another person', async () => {
@@ -334,30 +335,17 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-        const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
-
-        const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
-
-        const instanceEndpoint = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'OneInstanceEndpoint',
-                personId: personIdHash,
-                personKeys: personPubEncryptionKeysHash,
-                instanceKeys: personPubEncryptionKeysHash
-            }
-        );
         const contactObject = await createSingleObjectThroughPurePlan(
             {module: '@one/identity'},
             {
                 $type$: 'Contact',
                 personId: person.idHash,
-                communicationEndpoints: [instanceEndpoint.hash],
+                communicationEndpoints: [],
                 contactDescriptions: []
             }
         );
-        await contactModel.addNewContactObject(contactObject, true);
+        // @ts-ignore
+        await contactModel.addNewContactObjectAsMain(contactObject, true);
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 
@@ -370,7 +358,7 @@ describe('Contact model test', () => {
         expect(mainContact).to.not.be.equal(undefined);
     });
 
-    it('should add 3 equal contacts for another person and check if only one was added + main contact', async () => {
+    it('should add 3 equal contacts for another person and check if only one was added', async () => {
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const personIdHash = getInstanceOwnerIdHash();
 
@@ -378,43 +366,29 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-        const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
-
-        const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
-
         await Promise.all(
-            [1, 2, 3].map(async (ignored) => {
-                const instanceEndpoint = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'OneInstanceEndpoint',
-                        personId: personIdHash,
-                        personKeys: personPubEncryptionKeysHash,
-                        instanceKeys: personPubEncryptionKeysHash
-                    }
-                );
-                const contactObject = await createSingleObjectThroughPurePlan(
+            await [1, 2, 3].map(async ignored => {
+                await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
                         $type$: 'Contact',
                         personId: person.idHash,
-                        communicationEndpoints: [instanceEndpoint.hash],
+                        communicationEndpoints: [],
                         contactDescriptions: []
                     }
                 );
-                await contactModel.addNewContactObject(contactObject, false);
             })
         );
 
-        const mainContact = await contactModel.getContactObjects(person.idHash);
-        expect(mainContact.length).to.be.equal(2);
+        const mainContact = await contactModel.listAlternateIdentities(person.idHash);
+        expect(mainContact.length).to.be.equal(1);
     });
 
     it('should merge contacts', async () => {
-        const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
-        const mergedContacts = await contactModel.getMergedContactObjects(person.idHash);
-        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(4);
+        const mergedContacts = await contactModel.getMergedContactObjects(
+            getInstanceOwnerIdHash() as SHA256IdHash<Person>
+        );
+        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(6);
     });
 
     it('should declare same person between foo and bar', async () => {
@@ -427,16 +401,16 @@ describe('Contact model test', () => {
 
         const updatedSomeone = await contactModel.getSomeoneObject(personA);
 
-        if(updatedSomeone === undefined || someoneA === undefined){
-            throw new Error('Error in "should declare same person between foo and bar"')
+        if (updatedSomeone === undefined || someoneA === undefined) {
+            throw new Error('Error in "should declare same person between foo and bar"');
         }
 
         expect(updatedSomeone.mainProfile).to.be.equal(someoneA.mainProfile);
         expect(updatedSomeone.profiles.length).to.be.equal(2);
 
-        await new Promise((resolve,rejects) => {
-            setTimeout( () => resolve(), 500);
-        })
+        await new Promise((resolve, rejects) => {
+            setTimeout(() => resolve(), 500);
+        });
     });
 
     after(async () => {

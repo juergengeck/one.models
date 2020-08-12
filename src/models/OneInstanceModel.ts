@@ -17,6 +17,7 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import AccessModel, {FreedaAccessGroups} from './AccessModel';
 
 /**
  * Represents the state of authentication.
@@ -91,6 +92,7 @@ export default class OneInstanceModel extends EventEmitter {
     private connectionsModel: ConnectionsModel;
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
+    private accessModel: AccessModel;
 
     // encrypt everything by default
     private encryptStorage: boolean = true;
@@ -101,11 +103,13 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
+     * @param {AccessModel} accessModel
      */
     constructor(
         connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
-        consentFileModel: ConsentFileModel
+        consentFileModel: ConsentFileModel,
+        accessModel: AccessModel
     ) {
         super();
         this.password = '';
@@ -118,6 +122,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
+        this.accessModel = accessModel;
     }
 
     authenticationState(): AuthenticationState {
@@ -186,8 +191,7 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email);
-        this.initialisingApplication(anonymousEmail);
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
     }
 
     /**
@@ -196,8 +200,13 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * @param {string} email
      * @param {boolean} takeOver
+     * @param {string} anonymousEmail
      */
-    async createNewInstanceWithReceivedEmail(email: string, takeOver = false): Promise<void> {
+    async createNewInstanceWithReceivedEmail(
+        email: string,
+        takeOver = false,
+        anonymousEmail?: string
+    ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -212,20 +221,12 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipes,
-            initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
+            initialRecipes: Recipes
         });
 
         await importModules();
-
-        /**
-         * In instance take over the model initialisation should
-         * be done before the anonymous user exists, so a new
-         * event should be emitted only for this case.
-         */
-        if (takeOver) {
-            this.emit('instance_from_take_over');
-        }
+        this.unregister();
+        this.initialisingApplication(anonymousEmail, takeOver);
     }
 
     /**
@@ -256,8 +257,7 @@ export default class OneInstanceModel extends EventEmitter {
                 secret,
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipes,
-                initiallyEnabledReverseMapTypes: new Map([['Instance', new Set(['owner'])]])
+                initialRecipes: Recipes
             });
 
             await importModules();
@@ -268,7 +268,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(anonymousEmail?: string): void {
+    initialisingApplication(anonymousEmail?: string, takeOver?: boolean): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -279,13 +279,20 @@ export default class OneInstanceModel extends EventEmitter {
                 // if a partner has no patients associated, then he enters in a
                 // partner state, where the application is not available until a
                 // patient is being associated with this partner
-                if (
-                    this.currentPatientTypeState.includes('partner') &&
-                    this.connectionsModel.getPartnerDevices().length === 0
-                ) {
-                    this.currentPartnerState = true;
-                    this.emit('partner_state_changed');
-                }
+                this.accessModel
+                    .getAccessGroupPersons(FreedaAccessGroups.partner)
+                    .then(partners => {
+                        if (
+                            this.currentPatientTypeState.includes('partner') &&
+                            partners.length === 0
+                        ) {
+                            this.currentPartnerState = true;
+                            this.emit('partner_state_changed');
+                        }
+                    })
+                    .catch(e => {
+                        console.error('Error getting access group members:', e);
+                    });
             }
         };
         // The AuthenticationState is needed to be on Authenticated so that
@@ -295,7 +302,8 @@ export default class OneInstanceModel extends EventEmitter {
             'authstate_changed_first',
             this.currentRegistrationState,
             firstCallback,
-            anonymousEmail
+            anonymousEmail,
+            takeOver
         );
     }
 
@@ -350,11 +358,14 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {logout} logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
-        await this.connectionsModel.closeAllConnections();
-        closeInstance();
-
+        await this.connectionsModel.shutdown();
         const dbInstance = getDbInstance();
-        dbInstance.close();
+
+        setTimeout( () => {
+            dbInstance.close();
+            closeInstance();
+        },1500);
+
 
         if (logoutMode === LogoutMode.PurgeData) {
             await this.deleteInstance(dbInstance.name);

@@ -86,7 +86,6 @@ module.exports = {
         ],
         '@typescript-eslint/no-use-before-define': 'off',
         '@typescript-eslint/prefer-for-of': ['error'],
-
         // ENABLE TEMPORARILY: Used to check the whole code, but left disabled because we have
         // too many false positives which we don't want to disable individually
         '@typescript-eslint/return-await': ['off', 'always'],

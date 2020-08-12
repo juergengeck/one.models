@@ -15,6 +15,7 @@ import {
     Access
 } from '@OneCoreTypes';
 import {
+    createManyObjectsThroughPurePlan,
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getHashByIdHash,
@@ -32,8 +33,6 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
-import {isHash} from 'one.core/lib/util/type-checks';
-import {isString} from 'one.core/lib/util/type-checks-basic';
 import AccessModel from './AccessModel';
 
 /**
@@ -228,7 +227,7 @@ export default class ChannelManager extends EventEmitter {
         const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
         let channelEntryHash = channelInfo.head;
 
-        // Iterate over the whoe list and append it to the output array
+        // Iterate over the whole list and append it to the output array
         while (channelEntryHash) {
             // Forward channelEntryHash to next element in chain
             // eslint-disable-next-line no-await-in-loop
@@ -265,15 +264,33 @@ export default class ChannelManager extends EventEmitter {
                 await Promise.all(
                     channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
                         const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
-                        return accessObject.person;
+                        let allSharedPersons: SHA256IdHash<Person>[] = [];
+                        if (accessObject.group.length > 0) {
+                            const groupPersons = await Promise.all(
+                                accessObject.group.map(async groupId => {
+                                    const groupObject = await getObjectByIdHash(groupId);
+                                    return groupObject.obj.person;
+                                })
+                            );
+                            allSharedPersons = allSharedPersons.concat(
+                                groupPersons.reduce(
+                                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) =>
+                                        acc.concat(val),
+                                    []
+                                )
+                            );
+                        }
+
+                        if (accessObject.person.length > 0) {
+                            allSharedPersons = allSharedPersons.concat(accessObject.person);
+                        }
+                        return allSharedPersons;
                     })
                 )
-            )
-                //@ts-ignore
-                .reduce(
-                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
-                    []
-                );
+            ).reduce(
+                (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
+                []
+            );
 
             // eslint-disable-next-line no-await-in-loop
             const data = await getObject(creationTime.data);
@@ -486,26 +503,28 @@ export default class ChannelManager extends EventEmitter {
     /**
      *
      * @param {string} channelId
-     * @param {SHA256IdHash<Person>[] | SHA256IdHash<Person> | string} to
+     * @param {string} to - group name
      */
     async giveAccessToChannelInfo(
         channelId: string,
-        to?: SHA256IdHash<Person>[] | SHA256IdHash<Person> | string
-    ): Promise<VersionedObjectResult<Access | IdAccess> | undefined> {
+        to?: string
+    ): Promise<
+        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
+    > {
         const channels = await this.findChannelsForSpecificId(channelId);
 
         if (to === undefined) {
             const accessChannels = await Promise.all(
                 channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
                     return {
-                        object: channel.hash,
+                        id: channel.idHash,
                         person: [this.personId],
                         group: [],
                         mode: SET_ACCESS_MODE.REPLACE
                     };
                 })
             );
-            return await createSingleObjectThroughPurePlan(
+            return await createManyObjectsThroughPurePlan(
                 {
                     module: '@one/access',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -514,49 +533,26 @@ export default class ChannelManager extends EventEmitter {
             );
         }
 
-        if (to.length !== undefined || isHash(to)) {
-            const accessChannels = await Promise.all(
-                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                    return {
-                        object: channel.hash,
-                        person: Array.from(to),
-                        group: [],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                accessChannels
-            );
-        }
+        const group = await this.accessModel.getAccessGroupByName(to);
 
-        if (isString(to)) {
-            const group = await this.accessModel.getAccessGroupByName(to);
+        const accessObjects = await Promise.all(
+            channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
+                return {
+                    id: channel.idHash,
+                    person: [],
+                    group: [group.idHash],
+                    mode: SET_ACCESS_MODE.REPLACE
+                };
+            })
+        );
 
-            const accessChannels = await Promise.all(
-                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                    return {
-                        object: channel.hash,
-                        person: [],
-                        group: [group.idHash],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                accessChannels
-            );
-        }
-
-        return;
+        return await createManyObjectsThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            accessObjects
+        );
     }
 
     /**
@@ -653,7 +649,7 @@ export default class ChannelManager extends EventEmitter {
                 );
             }
 
-            if (firstChannelCreationTime.timestamp > secondChannelCreationTime.timestamp) {
+            if (firstChannelCreationTime.timestamp >= secondChannelCreationTime.timestamp) {
                 sortedChannelEntries.push(firstChannelHead);
                 if (firstChannelHead.previous === undefined) {
                     return await this.reBuildChannelChain(
@@ -898,15 +894,13 @@ export default class ChannelManager extends EventEmitter {
         const channelRegistry = await ChannelManager.getChannelRegistry();
         channelRegistry.obj.channels.set(channelIdHash, channelHash);
 
-        return await serializeWithType('ChannelRegistry', async () => {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                channelRegistry.obj
-            );
-        });
+        return await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            channelRegistry.obj
+        );
     }
 
     /**
