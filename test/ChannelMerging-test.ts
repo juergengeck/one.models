@@ -4,7 +4,7 @@
 import {expect} from 'chai';
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import Recipes from '../lib/recipies/recipies';
+import Recipes from '../lib/recipes/recipes';
 import Model, {dbKey, importModules} from './utils/Model';
 import {ChannelManager} from '../lib/models';
 import {
