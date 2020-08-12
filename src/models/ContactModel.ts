@@ -370,18 +370,6 @@ export default class ContactModel extends EventEmitter {
         }
     }
 
-    public async updateTakeOverProfile(personEmail: string): Promise<void>{
-        const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
-            personEmail
-        );
-        await createSingleObjectThroughPurePlan(
-            {module: '@module/updateTakeOverProfile'},
-            this.commServerUrl,
-            createdInstance,
-            personEmail,
-        );
-    }
-
     /**
      * HOOK function
      * @description Serialized since it's part of an object listener or not
@@ -654,6 +642,14 @@ export default class ContactModel extends EventEmitter {
                 );
                 this.emit(ContactEvent.UpdatedContactApp);
             }
+            if (this.isProfileVersionedObjectResult(caughtObject)) {
+                await serializeWithType('Contacts', async () => {
+                    await createSingleObjectThroughPurePlan(
+                        {module: '@module/mergeProfile'},
+                        caughtObject.idHash
+                    );
+                });
+            }
         });
 
         // Listen for new contact objects
@@ -723,6 +719,17 @@ export default class ContactModel extends EventEmitter {
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<ContactApp> {
         return (caughtObject as VersionedObjectResult<ContactApp>).obj.$type$ === 'ContactApp';
+    }
+
+    /**
+     * @description type check
+     * @param {VersionedObjectResult} caughtObject
+     * @returns {VersionedObjectResult<Profile>}
+     */
+    private isProfileVersionedObjectResult(
+        caughtObject: VersionedObjectResult
+    ): caughtObject is VersionedObjectResult<Profile> {
+        return (caughtObject as VersionedObjectResult<Profile>).obj.$type$ === 'Profile';
     }
 
     /**
