@@ -484,6 +484,7 @@ export default class OneInstanceModel extends EventEmitter {
         } else {
             const dbInstance = getDbInstance();
             await this.deleteInstance(dbInstance.name);
+            return;
         }
     }
 }
