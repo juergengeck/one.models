@@ -9,7 +9,19 @@ import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {ContactEvent} from '../models/ContactModel';
 
-type ConnectionInfo = {
+
+export type ConnectionInfo = {
+    isConnected: boolean;
+    url: string;
+    sourcePublicKey: string;
+    targetPublicKey: string;
+    sourceInstanceId: SHA256IdHash<Instance>;
+    targetInstanceId: SHA256IdHash<Instance>;
+    sourcePersonId: SHA256IdHash<Person>;
+    targetPersonId: SHA256IdHash<Person>;
+}
+
+type ConnectionContainer = {
     connEst?: OutgoingConnectionEstablisher;
     activeConnection: EncryptedConnection | null;
     url: string;
@@ -45,7 +57,7 @@ function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): str
 export default class CommunicationModule {
     private contactModel: ContactModel;
     private instancesModel: InstancesModel;
-    private knownPeerMap: Map<string, ConnectionInfo>; // Map from srcKey + dstKey
+    private knownPeerMap: Map<string, ConnectionContainer>; // Map from srcKey + dstKey
     private unknownPeerMap: Map<string, EncryptedConnection>; // Map from srcKey + dstKey
     private myIdsMap: Map<string, SHA256IdHash<Person>>;
     private incomingConnectionManager: IncomingConnectionManager;
@@ -81,6 +93,13 @@ export default class CommunicationModule {
     public onOnlineStateChange: ((online: boolean) => void) | null = null;
 
     /**
+     * Event that is emitted when any connection changes (added, removed, is connected/disconnected)
+     *
+     * @type {null}
+     */
+    public onConnectionsChange: (() => void) | null = null
+
+    /**
      * Retrieve the online state based on connections to comm servers.
      *
      * If we don't have connections to comm servers, the state will always be true.
@@ -111,7 +130,7 @@ export default class CommunicationModule {
         this.contactModel = contactModel;
         this.instancesModel = instancesModel;
         this.listenForOutgoingConnections = listenForOutgoingConnections;
-        this.knownPeerMap = new Map<string, ConnectionInfo>(); // List with endpoints we want to connect to
+        this.knownPeerMap = new Map<string, ConnectionContainer>(); // List with endpoints we want to connect to
         this.unknownPeerMap = new Map<string, EncryptedConnection>(); // List with endpoints we want to connect to
         this.myIdsMap = new Map<string, SHA256IdHash<Person>>();
         this.incomingConnectionManager = new IncomingConnectionManager();
@@ -224,6 +243,11 @@ export default class CommunicationModule {
                         };
                         this.knownPeerMap.set(mapKey, connInfo);
 
+                        // Notify the user of a change in connections
+                        if (this.onConnectionsChange) {
+                            this.onConnectionsChange();
+                        }
+
                         // If the connection is already active, then setup the close handler so that it is reactiveated on close
                         if (activeConnection) {
                             this.unknownPeerMap.delete(mapKey);
@@ -231,6 +255,12 @@ export default class CommunicationModule {
                             // Handle the close events
                             activeConnection.webSocket.addEventListener('close', () => {
                                 connInfo.activeConnection = null;
+
+                                // Notify the user of a change in connections
+                                if (this.onConnectionsChange) {
+                                    this.onConnectionsChange();
+                                }
+
                                 this.reconnect(connInfo, this.reconnectDelay);
                             });
                         }
@@ -261,30 +291,11 @@ export default class CommunicationModule {
     }
 
     /**
-     * Update my own ids for unknown incoming connections.
-     *
-     * @returns {Promise<void>}
-     */
-    private async updateMyIdsMap(): Promise<void> {
-        const me = await this.contactModel.myMainIdentity();
-        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
-        const meAll = meAlternates.concat([me]);
-
-        // retrieve public keys and store them in the map
-        await Promise.all(
-            meAll.map(async id => {
-                const keys = await this.instancesModel.instanceKeysForPerson(id);
-                this.myIdsMap.set(keys.publicKey, id);
-            })
-        );
-    }
-
-    /**
      * Shotdown process
      *
      * @returns {Promise<void>}
      */
-    async shutdown(): Promise<void> {
+    public async shutdown(): Promise<void> {
         this.initialized = false;
 
         // Stop all knownPeerMap connections
@@ -315,7 +326,13 @@ export default class CommunicationModule {
         this.reconnectHandles.clear();
     }
 
-    addNewUnknownConnection(
+    /**
+     *
+     * @param {Uint8Array} localPublicKey
+     * @param {Uint8Array} remotePublicKey
+     * @param {EncryptedConnection} conn
+     */
+    public addNewUnknownConnection(
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
         conn: EncryptedConnection
@@ -325,6 +342,46 @@ export default class CommunicationModule {
         conn.webSocket.addEventListener('close', () => {
             this.unknownPeerMap.delete(mapKey);
         });
+    }
+
+    /**
+     *
+     * @returns {ConnectionInfo[]}
+     */
+    public connectionsInfo(): ConnectionInfo[] {
+        const connectionsInfo: ConnectionInfo[] = [];
+        for (const container of this.knownPeerMap.values()) {
+            connectionsInfo.push({
+                isConnected: container.activeConnection !== null,
+                url: container.url,
+                sourcePublicKey: container.sourcePublicKey,
+                targetPublicKey: container.targetPublicKey,
+                sourceInstanceId: container.sourceInstanceId,
+                targetInstanceId: container.targetInstanceId,
+                sourcePersonId: container.sourcePersonId,
+                targetPersonId: container.targetPersonId
+            });
+        }
+        return connectionsInfo;
+    }
+
+    /**
+     * Update my own ids for unknown incoming connections.
+     *
+     * @returns {Promise<void>}
+     */
+    private async updateMyIdsMap(): Promise<void> {
+        const me = await this.contactModel.myMainIdentity();
+        const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== me);
+        const meAll = meAlternates.concat([me]);
+
+        // retrieve public keys and store them in the map
+        await Promise.all(
+            meAll.map(async id => {
+                const keys = await this.instancesModel.instanceKeysForPerson(id);
+                this.myIdsMap.set(keys.publicKey, id);
+            })
+        );
     }
 
     /**
@@ -389,11 +446,22 @@ export default class CommunicationModule {
             // Connect close handler
             conn.webSocket.addEventListener('close', () => {
                 endpoint.activeConnection = null;
+
+                // Notify the user of a change in connections
+                if (this.onConnectionsChange) {
+                    this.onConnectionsChange();
+                }
+
                 this.reconnect(endpoint, this.reconnectDelay);
             });
 
             // Set the current connectino as active connection
             endpoint.activeConnection = conn;
+
+            // Notify the user of a change in connections
+            if (this.onConnectionsChange) {
+                this.onConnectionsChange();
+            }
 
             // Notify the outside
             if (this.onKnownConnection) {
@@ -540,15 +608,20 @@ export default class CommunicationModule {
             const mapKey = genMapKey(sourceKey, targetKey);
             this.knownPeerMap.set(mapKey, endpoint);
         }
+
+        // Notify the user of a change in connections
+        if (this.onConnectionsChange) {
+            this.onConnectionsChange();
+        }
     }
 
     /**
      * Reconnect to the target described by connInfo adter a certain delay.
      *
-     * @param {ConnectionInfo} connInfo - The information about the connection
+     * @param {ConnectionContainer} connInfo - The information about the connection
      * @param {number} delay - the delay
      */
-    private reconnect(connInfo: ConnectionInfo, delay: number) {
+    private reconnect(connInfo: ConnectionContainer, delay: number) {
         if (!this.initialized) {
             return;
         }

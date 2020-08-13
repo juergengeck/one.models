@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import CommunicationModule from '../misc/CommunicationModule';
+import CommunicationModule, {ConnectionInfo} from '../misc/CommunicationModule';
 import ContactModel from './ContactModel';
 import InstancesModel from './InstancesModel';
 import EncryptedConnection from '../misc/EncryptedConnection';
@@ -111,6 +111,13 @@ export default class ConnectionsModel extends EventEmitter {
     public onOnlineStateChange: ((online: boolean) => void) | null = null;
 
     /**
+     * Event that is emitted when any connection changes (added, removed, is connected/disconnected)
+     *
+     * @type {null}
+     */
+    public onConnectionsChange: (() => void) | null = null
+
+    /**
      * Retrieve the online state based on connections to comm servers.
      *
      * If we don't have connections to comm servers, the state will always be true.
@@ -162,6 +169,13 @@ export default class ConnectionsModel extends EventEmitter {
         this.communicationModule.onOnlineStateChange = (onlineState: boolean) => {
             if (this.onOnlineStateChange) {
                 this.onOnlineStateChange(onlineState);
+            }
+        }
+
+        // Forward the connection changed event to this level
+        this.communicationModule.onConnectionsChange = () => {
+            if (this.onConnectionsChange) {
+                this.onConnectionsChange();
             }
         }
     }
@@ -241,6 +255,14 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         await this.saveAvailableConnectionsList();
+    }
+
+    /**
+     *
+     * @returns {ConnectionInfo[]}
+     */
+    public connectionsInfo(): ConnectionInfo[] {
+        return this.communicationModule.connectionsInfo();
     }
 
     /**
