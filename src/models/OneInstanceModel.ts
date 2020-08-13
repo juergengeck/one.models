@@ -477,9 +477,16 @@ export default class OneInstanceModel extends EventEmitter {
         sessionStorage.clear();
         return new Promise((resolve, reject) => {
             const deletion = indexedDB.deleteDatabase(nameOfDBInstance);
-            deletion.onsuccess = () => resolve();
-            deletion.onerror = () =>
+            deletion.onsuccess = () => {
+                console.log(111111);
+                resolve();
+                console.log(22222222);
+            };
+            deletion.onerror = () => {
+                console.log(3333333);
                 reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
+                console.log(4444444444);
+            };
         });
     }
 }
