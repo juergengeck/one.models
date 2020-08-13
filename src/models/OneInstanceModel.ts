@@ -471,14 +471,19 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} dbInstanceName
      * @returns {Promise<void>}
      */
-    async deleteInstance(dbInstanceName: string): Promise<void> {
-        localStorage.clear();
-        sessionStorage.clear();
-        return new Promise((resolve, reject) => {
-            const deletion = indexedDB.deleteDatabase(dbInstanceName);
-            deletion.onsuccess = () => resolve();
-            deletion.onerror = () =>
-                reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
-        });
+    async deleteInstance(dbInstanceName?: string): Promise<void> {
+        if(dbInstanceName) {
+            localStorage.clear();
+            sessionStorage.clear();
+            return new Promise((resolve, reject) => {
+                const deletion = indexedDB.deleteDatabase(dbInstanceName);
+                deletion.onsuccess = () => resolve();
+                deletion.onerror = () =>
+                    reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
+            });
+        } else {
+            const dbInstance = getDbInstance();
+            await this.deleteInstance(dbInstance.name);
+        }
     }
 }
