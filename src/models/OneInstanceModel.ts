@@ -361,11 +361,10 @@ export default class OneInstanceModel extends EventEmitter {
         await this.connectionsModel.shutdown();
         const dbInstance = getDbInstance();
 
-        setTimeout( () => {
+        setTimeout(() => {
             dbInstance.close();
             closeInstance();
-        },1500);
-
+        }, 1500);
 
         if (logoutMode === LogoutMode.PurgeData) {
             await this.deleteInstance(dbInstance.name);
@@ -472,19 +471,15 @@ export default class OneInstanceModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async deleteInstance(dbInstanceName?: string): Promise<void> {
-        if(dbInstanceName) {
-            localStorage.clear();
-            sessionStorage.clear();
-            return new Promise((resolve, reject) => {
-                const deletion = indexedDB.deleteDatabase(dbInstanceName);
-                deletion.onsuccess = () => resolve();
-                deletion.onerror = () =>
-                    reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
-            });
-        } else {
-            const dbInstance = getDbInstance();
-            await this.deleteInstance(dbInstance.name);
-            return;
-        }
+        const nameOfDBInstance = dbInstanceName ? dbInstanceName : getDbInstance().name;
+
+        localStorage.clear();
+        sessionStorage.clear();
+        return new Promise((resolve, reject) => {
+            const deletion = indexedDB.deleteDatabase(nameOfDBInstance);
+            deletion.onsuccess = () => resolve();
+            deletion.onerror = () =>
+                reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
+        });
     }
 }
