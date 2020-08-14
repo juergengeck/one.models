@@ -485,9 +485,9 @@ export default class OneInstanceModel extends EventEmitter {
     }
 
     /**
-     * User will logout and the instance will be deleted.
+     * Erase the instance while the user is logged out.
      */
-    async eraseLogout(): Promise<void> {
+    async eraseWhileLoggedOut(): Promise<void> {
         const dbInstance = getDbInstance();
 
         setTimeout(() => {
