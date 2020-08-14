@@ -1,7 +1,7 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, getInstanceIdHash, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
 import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
@@ -18,6 +18,7 @@ let specificObjectHash: SHA256Hash<BodyTemperature>;
 describe('Channel Iterators test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey});
+        // @ts-ignore
         await registerRecipes(Recipes);
         await importModules();
         owner = (
@@ -588,7 +589,7 @@ describe('Channel Iterators test', () => {
                     'BodyTemperature',
                     //@ts-ignore
                     {
-                        owner: getInstanceIdHash()
+                        owner
                     }
                 );
             } catch (e) {

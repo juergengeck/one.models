@@ -16,6 +16,7 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  */
 export default class WebSocketPromiseBased extends EventEmitter
     implements WebSocketPromiseBasedInterface {
+    // @ts-ignore
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
     private dataQueue: WebSocket.MessageEvent[];

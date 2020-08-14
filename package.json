@@ -13,12 +13,14 @@
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
     "start-aws": "node lib/cli/CommunicationServer -l -p 8000 > server.log",
-    "start-uke": "node lib/cli/CommunicationServer -p 8000"
+    "start-uke": "node lib/cli/CommunicationServer -p 8000",
+    "bundle": "webpack"
   },
   "dependencies": {
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
     "one.core": "refinio/one.core#feature/20200720_communication_og",
+    "ts-loader": "^8.0.2",
     "yargs": "^15.4.0"
   },
   "devDependencies": {
@@ -50,6 +52,7 @@
     "prettier": "*",
     "sinon": "*",
     "ts-node": "^8.10.1",
+    "webpack": "*",
     "webpack-cli": "*"
   }
 }

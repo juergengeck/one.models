@@ -14,6 +14,7 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * acceptor of the connection) the key exchange procedure changes.
  */
 class EncryptedConnection extends EncryptedConnectionInterface {
+    // @ts-ignore
     public webSocketPB: WebSocketPromiseBased; // Websocket used for communication
     protected sharedKey: Uint8Array | null = null; // The shared key used for encryption
     private localNonceCounter: number = 0; // The counter for the local nonce
