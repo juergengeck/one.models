@@ -5,7 +5,7 @@ import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../mo
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import Recipies from '../recipies/recipies';
+import Recipies from '../recipes/recipes';
 import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
 import oneModules from '../generated/oneModules';
 import {
@@ -82,6 +82,11 @@ async function main(): Promise<void> {
     const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     const connectionsModel = new ConnectionsModel(argv.u, contactModel, instancesModel, accessModel, false);
+
+    console.log('INITIAL ONLINE STATE IS: ' + connectionsModel.onlineState);
+    connectionsModel.onOnlineStateChange = (state: boolean) => {
+        console.log('ONLINE STATE IS NOW: ' + state);
+    }
 
     // Create the instance
     await initInstance({

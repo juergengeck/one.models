@@ -9,7 +9,7 @@ import {
     getObjectByIdObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import Recipes from '../lib/recipies/recipies';
+import Recipes from '../lib/recipes/recipes';
 import Model, {dbKey, importModules} from './utils/Model';
 
 const accessModel = new Model().access;

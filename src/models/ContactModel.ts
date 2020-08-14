@@ -38,6 +38,7 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
+import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 
 /**
  * This represents a ContactEvent
@@ -370,18 +371,6 @@ export default class ContactModel extends EventEmitter {
         }
     }
 
-    public async updateTakeOverProfile(personEmail: string): Promise<void>{
-        const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
-            personEmail
-        );
-        await createSingleObjectThroughPurePlan(
-            {module: '@module/updateTakeOverProfile'},
-            this.commServerUrl,
-            createdInstance,
-            personEmail,
-        );
-    }
-
     /**
      * HOOK function
      * @description Serialized since it's part of an object listener or not
@@ -654,6 +643,24 @@ export default class ContactModel extends EventEmitter {
                 );
                 this.emit(ContactEvent.UpdatedContactApp);
             }
+            if (this.isProfileVersionedObjectResult(caughtObject)) {
+                await serializeWithType('Contacts', async () => {
+                    try {
+                        const firstPreviousProfileObjectHash = await getNthVersionMapHash(
+                            caughtObject.idHash,
+                            -1
+                        );
+                        if (firstPreviousProfileObjectHash !== caughtObject.hash) {
+                            await createSingleObjectThroughPurePlan(
+                                {module: '@module/mergeProfile'},
+                                caughtObject.idHash
+                            );
+                        }
+                    } catch (_) {
+                        return;
+                    }
+                });
+            }
         });
 
         // Listen for new contact objects
@@ -681,6 +688,19 @@ export default class ContactModel extends EventEmitter {
                         (contactHash: SHA256Hash<Contact>) => contactHash === caughtObject.hash
                     );
 
+                    // Emit the signals before filtering for already existing contacts because
+                    // This code might fetch a profile "from the future" (after the callback here was started)
+                    // So this object might already exist in the profile, because the new profile version was
+                    // synchronized. So emit the signals before returning!
+                    this.emit(ContactEvent.UpdatedContact, profile);
+                    this.emit(
+                        ContactEvent.NewCommunicationEndpointArrived,
+                        caughtObject.obj.communicationEndpoints
+                    );
+
+                    // Do not write a new profile version if this contact object is already part of it
+                    // This also might happen when a new profile object ist synchronized with a new contact
+                    // object, because the synchronized profile object already references this contact object
                     if (existingContact) {
                         return;
                     }
@@ -696,11 +716,6 @@ export default class ContactModel extends EventEmitter {
                             profile.obj
                         );
                     });
-                    this.emit(ContactEvent.UpdatedContact, profile);
-                    this.emit(
-                        ContactEvent.NewCommunicationEndpointArrived,
-                        caughtObject.obj.communicationEndpoints
-                    );
                 });
             }
         });
@@ -715,6 +730,17 @@ export default class ContactModel extends EventEmitter {
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<ContactApp> {
         return (caughtObject as VersionedObjectResult<ContactApp>).obj.$type$ === 'ContactApp';
+    }
+
+    /**
+     * @description type check
+     * @param {VersionedObjectResult} caughtObject
+     * @returns {VersionedObjectResult<Profile>}
+     */
+    private isProfileVersionedObjectResult(
+        caughtObject: VersionedObjectResult
+    ): caughtObject is VersionedObjectResult<Profile> {
+        return (caughtObject as VersionedObjectResult<Profile>).obj.$type$ === 'Profile';
     }
 
     /**

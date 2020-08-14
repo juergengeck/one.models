@@ -3,7 +3,7 @@
  */
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import Recipes from '../lib/recipies/recipies';
+import Recipes from '../lib/recipes/recipes';
 import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';

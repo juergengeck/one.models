@@ -50,6 +50,7 @@ import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import {serializeWithType} from "one.core/lib/util/promise";
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -102,8 +103,23 @@ export default class ConnectionsModel extends EventEmitter {
     private myInstance: SHA256IdHash<Instance>;
     private anonInstance: SHA256IdHash<Instance>;
     private readonly openedConnections: EncryptedConnection[];
-    // @ts-ignore
-    private readonly isValidFor: number;
+    //private readonly isValidFor: number;
+
+    /**
+     * Event that is emitted when the online state changes
+     */
+    public onOnlineStateChange: ((online: boolean) => void) | null = null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        return this.communicationModule.onlineState;
+    }
 
     constructor(
         commServerUrl: string,
@@ -125,7 +141,8 @@ export default class ConnectionsModel extends EventEmitter {
         this.communicationModule = new CommunicationModule(
             commServerUrl,
             contactModel,
-            instancesModel
+            instancesModel,
+            !isReplicant
         );
         this.generatedPairingInformation = [];
         this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
@@ -139,7 +156,14 @@ export default class ConnectionsModel extends EventEmitter {
         this.myInstance = '' as SHA256IdHash<Instance>;
         this.anonInstance = '' as SHA256IdHash<Instance>;
         this.openedConnections = [];
-        this.isValidFor = 300000; // 5 minutes
+        //this.isValidFor = 300000; // 5 minutes
+
+        // Forward the online state to this level
+        this.communicationModule.onOnlineStateChange = (onlineState: boolean) => {
+            if (this.onOnlineStateChange) {
+                this.onOnlineStateChange(onlineState);
+            }
+        }
     }
 
     async init(): Promise<void> {
@@ -282,11 +306,11 @@ export default class ConnectionsModel extends EventEmitter {
 
         if (takeOver) {
             this.personalCloudConnections.push(connectionDetails);
-            this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+            this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
             this.emit('authenticatedPersonalCloudDevice');
         } else {
             this.partnerConnections.push(connectionDetails);
-            this.partnerConnections = [...new Set(this.partnerConnections)];
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
             this.emit('authenticatedPartnerDevice');
         }
 
@@ -338,6 +362,7 @@ export default class ConnectionsModel extends EventEmitter {
         // For replicant, just accept everything
         if (this.isReplicant) {
             await this.startChum(conn, localPersonId, remotePersonId, true);
+            conn.close();
             return;
         }
 
@@ -397,7 +422,7 @@ export default class ConnectionsModel extends EventEmitter {
                 await this.sendOwnerKeys(conn);
 
                 this.personalCloudConnections.push(connectionDetails);
-                this.personalCloudConnections = [...new Set(this.personalCloudConnections)];
+                this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
                 this.emit('authenticatedPersonalCloudDevice');
             } else {
                 // send error message
@@ -410,7 +435,7 @@ export default class ConnectionsModel extends EventEmitter {
         } else {
             // partner connection
             this.partnerConnections.push(connectionDetails);
-            this.partnerConnections = [...new Set(this.partnerConnections)];
+            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
             this.emit('authenticatedPartnerDevice');
 
             // Exchange person object - required for giving access using groups.
@@ -430,7 +455,7 @@ export default class ConnectionsModel extends EventEmitter {
         // when the chum is returned, the connection is closed
         connectionDetails.connectionState = false;
         await this.saveAvailableConnectionsList();
-
+        conn.close();
         takeOver
             ? this.emit('authenticatedPersonalCloudDevice')
             : this.emit('authenticatedPartnerDevice');
@@ -599,9 +624,7 @@ export default class ConnectionsModel extends EventEmitter {
                                         await this.overwriteExistingPersonKeys(exchangeOwnerKeys);
 
                                         this.personalCloudConnections.push(connectionDetails);
-                                        this.personalCloudConnections = [
-                                            ...new Set(this.personalCloudConnections)
-                                        ];
+                                        this.personalCloudConnections = this.personalCloudConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i)
                                         this.emit('authenticatedPersonalCloudDevice');
 
                                         // Add the connection to the unknown list, so when the contact object is
@@ -616,6 +639,7 @@ export default class ConnectionsModel extends EventEmitter {
                                             async () => {
                                                 connectionDetails.connectionState = false;
                                                 await this.saveAvailableConnectionsList();
+                                                conn.close();
                                                 this.emit('authenticatedPersonalCloudDevice');
                                             }
                                         );
@@ -630,7 +654,7 @@ export default class ConnectionsModel extends EventEmitter {
                             );
                         } else {
                             this.partnerConnections.push(connectionDetails);
-                            this.partnerConnections = [...new Set(this.partnerConnections)];
+                            this.partnerConnections = this.partnerConnections.filter((v,i,a)=>a.findIndex(t=>(JSON.stringify(t) === JSON.stringify(v)))===i);
                             this.emit('authenticatedPartnerDevice');
 
                             // Exchange person object in order to give access using groups.
@@ -658,6 +682,7 @@ export default class ConnectionsModel extends EventEmitter {
                                         async () => {
                                             connectionDetails.connectionState = false;
                                             await this.saveAvailableConnectionsList();
+                                            conn.close();
                                             this.emit('authenticatedPartnerDevice');
                                         }
                                     );
@@ -721,7 +746,9 @@ export default class ConnectionsModel extends EventEmitter {
             );
         }
 
-        await this.giveAccessToChannels();
+        await serializeWithType('giveAccessToChannels', async () => {
+            await this.giveAccessToChannels();
+        });
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (sendSync) {
@@ -1042,6 +1069,10 @@ export default class ConnectionsModel extends EventEmitter {
      */
     // todo: this function should be removed when the group data sharing is working
     async giveAccessToChannels(): Promise<void> {
+        if(this.isReplicant){
+            return;
+        }
+
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'questionnaire',
@@ -1135,45 +1166,48 @@ export default class ConnectionsModel extends EventEmitter {
         let personalCloudConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
         let partnerConnectionsHash: SHA256Hash<ConnectionDetails>[] = [];
 
-        personalCloudConnectionsHash = await Promise.all(
-            this.personalCloudConnections.map(async connection => {
-                return (
-                    await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        connection
-                    )
-                ).hash;
-            })
-        );
-        partnerConnectionsHash = await Promise.all(
-            this.partnerConnections.map(async connection => {
-                return (
-                    await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        connection
-                    )
-                ).hash;
-            })
-        );
+        await serializeWithType('saveAvailableConnectionsList', async () => {
 
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'AvailableConnections',
-                instanceIdHash: this.myInstance,
-                personalCloudConnections: personalCloudConnectionsHash,
-                partnerContacts: partnerConnectionsHash
-            }
-        );
+            personalCloudConnectionsHash = await Promise.all(
+                this.personalCloudConnections.map(async connection => {
+                    return (
+                        await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@one/identity',
+                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                            },
+                            connection
+                        )
+                    ).hash;
+                })
+            );
+            partnerConnectionsHash = await Promise.all(
+                this.partnerConnections.map(async connection => {
+                    return (
+                        await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@one/identity',
+                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                            },
+                            connection
+                        )
+                    ).hash;
+                })
+            );
+
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'AvailableConnections',
+                    instanceIdHash: this.myInstance,
+                    personalCloudConnections: [...new Set(personalCloudConnectionsHash)],
+                    partnerContacts: [...new Set(partnerConnectionsHash)]
+                }
+            );
+        });
     }
 
     async overwritePrivateKeys(encryptedBase64Key: string, filename: string): Promise<void> {

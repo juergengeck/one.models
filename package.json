@@ -1,6 +1,6 @@
 {
   "name": "one.filer",
-  "version": "1.0.0-next",
+  "version": "2.0.0-next",
   "main": "index.js",
   "repository": "https://github.com/refinio/one.filer",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -12,8 +12,8 @@
     "test": "nyc mocha test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
-    "start-comm-server-aws": "node lib/cli/CommunicationServer -l -p 8002 > server.log",
-    "bundle-comm-server": "webpack"
+    "start-aws": "node lib/cli/CommunicationServer -l -p 8000 > server.log",
+    "start-uke": "node lib/cli/CommunicationServer -p 8000"
   },
   "dependencies": {
     "@types/yargs": "^15.0.5",

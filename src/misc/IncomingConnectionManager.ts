@@ -1,4 +1,4 @@
-import CommunicationServerListener from './CommunicationServerListener';
+import CommunicationServerListener, {CommunicationServerListenerState} from './CommunicationServerListener';
 import WebSocketListener from './WebSocketListener';
 import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
@@ -31,6 +31,33 @@ class IncomingConnectionManager {
         | null;
 
     /**
+     * Handler for state change.
+     *
+     * When the state of the connector changes, this callback will be called
+     * in order to have access from outside to the errors that occur on the
+     * web socket level.
+     */
+    public onOnlineStateChange: ((online: boolean) => void) | null;
+
+    /**
+     * Retrieve the online state based on connections to comm servers.
+     *
+     * If we don't have connections to comm servers, the state will always be true.
+     *
+     * @returns {boolean}
+     */
+    get onlineState(): boolean {
+        for(const listeners of this.commServerListener.values()) {
+            for(const listener of listeners) {
+                if(listener.state !== CommunicationServerListenerState.Listening) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Construct a new IncomingConnectionManager
      */
     constructor() {
@@ -43,6 +70,7 @@ class IncomingConnectionManager {
             }
         >();
         this.onConnection = null;
+        this.onOnlineStateChange = null;
     }
 
     /**
@@ -66,13 +94,24 @@ class IncomingConnectionManager {
         const strPublicKey = Buffer.from(publicKey).toString('hex');
 
         // Create listener for this key
-        const listener = new CommunicationServerListener(1, 10000);
+        const listener = new CommunicationServerListener(2, 10000);
         listener.onChallenge = (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
             const decryptedChallenge = decrypt(publicKey, challenge);
             return encrypt(publicKey, decryptedChallenge);
         };
         listener.onConnection = (ws: WebSocket) => {
             this.acceptConnection(ws, [publicKey], encrypt, decrypt);
+        };
+
+        // Connect the stateChanged event to the onelineStateChanged event
+        listener.onStateChange = () => {
+            // Delay the notification to remove short offline states
+            // TODO: this emits the event multiple times ... fix this later
+            setTimeout(() => {
+                if (this.onOnlineStateChange) {
+                    this.onOnlineStateChange(this.onlineState);
+                }
+            }, 1000);
         };
 
         // Start listener
