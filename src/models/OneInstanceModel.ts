@@ -496,4 +496,12 @@ export default class OneInstanceModel extends EventEmitter {
             };
         });
     }
+
+    async deleteData(): Promise<void> {
+        console.log(2.1);
+        const dbInstance = getDbInstance();
+        console.log(2.2);
+        await this.deleteInstance(dbInstance.name);
+        console.log(2.3);
+    }
 }
