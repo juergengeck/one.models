@@ -1,4 +1,4 @@
-import {Recipe, SHA256Hash, BLOB} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
