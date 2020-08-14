@@ -358,24 +358,18 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {logout} logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
-        // await this.connectionsModel.shutdown();
+        await this.connectionsModel.shutdown();
         const dbInstance = getDbInstance();
 
         setTimeout(() => {
-            console.log(1);
             dbInstance.close();
-            console.log(2);
             closeInstance();
-            console.log(3);
         }, 1500);
 
-        console.log(4);
         if (logoutMode === LogoutMode.PurgeData) {
-            console.log(5, dbInstance.name);
             await this.deleteInstance(dbInstance.name);
-            console.log(6);
         }
-        console.log(7);
+
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
         this.emit('authstate_changed_first');
         this.emit('authstate_changed');
@@ -476,32 +470,32 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} dbInstanceName
      * @returns {Promise<void>}
      */
-    async deleteInstance(dbInstanceName?: string): Promise<void> {
-        const nameOfDBInstance = dbInstanceName ? dbInstanceName : getDbInstance().name;
-
-        console.log('db name: ', nameOfDBInstance);
+    async deleteInstance(dbInstanceName: string): Promise<void> {
         localStorage.clear();
         sessionStorage.clear();
         return new Promise((resolve, reject) => {
-            const deletion = indexedDB.deleteDatabase(nameOfDBInstance);
+            const deletion = indexedDB.deleteDatabase(dbInstanceName);
             deletion.onsuccess = () => {
-                console.log(111111);
                 resolve();
-                console.log(22222222);
             };
             deletion.onerror = () => {
-                console.log(3333333);
                 reject(new Error(`Error deleting indexedDB: ${deletion.error}`));
-                console.log(4444444444);
             };
         });
     }
 
-    async deleteData(): Promise<void> {
-        console.log(2.1);
+    /**
+     * User will logout and the instance will be deleted.
+     *
+     * @param {logout} logoutMode
+     */
+    async eraseLogout(): Promise<void> {
         const dbInstance = getDbInstance();
-        console.log(2.2);
+
+        setTimeout(() => {
+            dbInstance.close();
+        }, 1500);
+
         await this.deleteInstance(dbInstance.name);
-        console.log(2.3);
     }
 }
