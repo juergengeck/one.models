@@ -13,6 +13,7 @@ test/testDb
 .nyc_output
 # ONE Database
 OneDB
+dist/
 
 #########
 # Node.js
