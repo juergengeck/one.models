@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import {createRandomString} from "one.core/lib/system/crypto-helpers";
+import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {
     Chum,
     Person,
@@ -8,16 +8,16 @@ import {
     Supply,
     Demand
 } from "@OneCoreTypes";
-import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from "one.core/lib/plan";
+import {createSingleObjectThroughImpurePlan, createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES,
     WriteStorageApi
-} from "one.core/lib/storage";
-import { ChumSyncOptions } from "one.core/lib/chum-sync";
+} from 'one.core/lib/storage';
+import { ChumSyncOptions } from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
-import {createFileWriteStream} from "one.core/lib/system/storage-streams";
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 
 /**
  * Model that connects to the one.match server
@@ -79,7 +79,7 @@ export default class MatchingModel extends EventEmitter {
                     )) as VersionedObjectResult<Person>;
                 })
             );
-            this.websocketPromisifierAPI.connect('ws://localhost:8000/',client.obj.email);
+            this.websocketPromisifierAPI.connect('comm.freeda.refinio.one',client.obj.email);
             this.websocketPromisifierAPI.localPersonIdHash = client.idHash;
             this.websocketPromisifierAPI.remotePersonIdHash = server.idHash;
 

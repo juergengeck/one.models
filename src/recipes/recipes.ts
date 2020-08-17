@@ -4,6 +4,7 @@ import ChannelRecipes from './ChannelRecipes';
 import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';
 import MetaRecipes from './MetaRecipes';
+import {Recipes as MatchRecipes} from 'one.match/lib/recipes';
 import QuestionnaireRecipes from './QuestionnaireRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
@@ -18,6 +19,7 @@ const Recipes: Recipe[] = [
     ...NewsRecipes,
     ...DiaryRecipes,
     ...MetaRecipes,
+    ...MatchRecipes,
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
