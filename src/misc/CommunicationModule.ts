@@ -413,8 +413,8 @@ export default class CommunicationModule extends EventEmitter {
             connectionsInfo.push({
                 isConnected: container.activeConnection !== null,
                 url: container.url,
-                sourcePublicKey: container.sourcePublicKey,
-                targetPublicKey: container.targetPublicKey,
+                sourcePublicKey: Buffer.from(toByteArray(container.sourcePublicKey)).toString('hex'),
+                targetPublicKey: Buffer.from(toByteArray(container.targetPublicKey)).toString('hex'),
                 sourceInstanceId: container.sourceInstanceId,
                 targetInstanceId: container.targetInstanceId,
                 sourcePersonId: container.sourcePersonId,
