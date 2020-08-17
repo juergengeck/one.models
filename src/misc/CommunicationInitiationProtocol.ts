@@ -1,6 +1,8 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
+import {Person} from "@OneCoreTypes";
+
 declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########
 
@@ -30,6 +32,15 @@ declare module CommunicationInitiationProtocol {
     };
 
     /**
+     * Message used by one side to tell the other side that a special protocol flow with a certain version shall be started.
+     */
+    export type StartProtocolMessage = {
+        command: 'start_protocol';
+        protocol: string;
+        version: string;
+    }
+
+    /**
      * Message for exchanging person information like person id and keys.
      */
     export type PersonInformationMessage = {
@@ -38,6 +49,22 @@ declare module CommunicationInitiationProtocol {
         personPublicKey: string;
     };
 
+    /**
+     * Message that transports a authentication tag.
+     */
+    export type AuthenticationTokenMessage = {
+        command: 'authentication_token',
+        token: string;
+    };
+
+    /**
+     * Message that transports a person object.
+     */
+    export type PersonObjectMessage = {
+        command: 'person_object',
+        obj: Person
+    }
+
     // ######## Message to Role (Client / Server) Mapping ########
 
     /**
@@ -45,7 +72,6 @@ declare module CommunicationInitiationProtocol {
      */
     export interface ClientMessages {
         communication_request: CommunicationRequestMessage;
-        person_information: PersonInformationMessage;
     }
 
     /**
@@ -59,7 +85,10 @@ declare module CommunicationInitiationProtocol {
      * Those messages are sent by both peering partners (in a later stage both sides act as the same)
      */
     export interface PeerMessages {
+        start_protocol: StartProtocolMessage;
         person_information: PersonInformationMessage;
+        authentication_token: AuthenticationTokenMessage;
+        person_object: PersonObjectMessage;
     }
 
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
@@ -124,8 +153,17 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
         return false;
     }
 
+    if (command === 'start_protocol') {
+        return typeof arg.protocol === 'string' && arg.version === 'string';
+    }
     if (command === 'person_information') {
         return arg.personId && arg.personPublicKey; // Make this better by checking for length of person id and it being a hash
+    }
+    if (command === 'authentication_token') {
+        return typeof arg.tag === 'string'; // Make this better by checking for length of person id and it being a hash
+    }
+    if (command === 'person_object') {
+        return typeof arg.obj && arg.obj.$type$ === 'Person';
     }
     return false;
 }
