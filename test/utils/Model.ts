@@ -17,7 +17,9 @@ import {Module, Person, VersionedObjectResult, BodyTemperature} from '@OneCoreTy
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
-import {MatchingModel} from "../../src/models";
+import InstancesModel from '../../lib/models/InstancesModel';
+import {FreedaAccessGroups} from "../../lib/models/AccessModel";
+import {MatchingModel} from "../../lib/models";
 
 export const dbKey = './testDb';
 
@@ -55,15 +57,15 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 
 export default class Model {
     constructor() {
-        this.channelManager = new ChannelManager();
+        this.access = new AccessModel();
+        this.channelManager = new ChannelManager(this.access);
         this.questionnaires = new QuestionnaireModel(this.channelManager);
         this.wbcDiffs = new WbcDiffModel();
         this.heartEvents = new HeartEventModel();
         this.documents = new DocumentModel();
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-        this.connections = new ConnectionsModel(this.channelManager);
-        this.access = new AccessModel();
+        this.connections = new ConnectionsModel();
         this.match = new MatchingModel();
         this.news = new NewsModel(this.channelManager);
 
@@ -74,7 +76,7 @@ export default class Model {
             this.match,
             this.consentFile
         );
-        this.contactModel = new ContactModel(this.oneInstance);
+
         this.settings = new PropertyTreeStore('Settings', '.');
         this.journal = new JournalModel(
             this.wbcDiffs,
@@ -86,60 +88,37 @@ export default class Model {
             this.consentFile
         );
 
-        this.oneInstance.on(
-            'authstate_changed_first',
-            registrationState,
-            (firstCallback: (err?: Error) => void) => {
-                // todo: add a parameter for knowing if it's take over or not
-                if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
-                    this.init(registrationState)
-                        .then(() => {
-                            firstCallback();
-                        })
-                        .catch((err: any) => {
-                            firstCallback(err);
-                        });
-                }
+        this.oneInstance.on('authstate_changed_first', (firstCallback: (err?: Error) => void) => {
+            if (this.oneInstance.authenticationState() === AuthenticationState.Authenticated) {
+                this.init()
+                    .then(() => {
+                        firstCallback();
+                    })
+                    .catch((err: any) => {
+                        firstCallback(err);
+                    });
             }
-        );
+        });
     }
 
-    async init(registrationState: boolean): Promise<void> {
-        await this.contactModel.init();
-        await this.accessModel.init();
+    async init(): Promise<void> {
         await this.channelManager.init();
-        await this.consentFile.init();
-        await this.news.init();
-        await this.match.init();
         await this.questionnaires.init();
-        await this.diary.init();
-        await this.covidWorkflow.init();
-        await this.bodyTemperature.init();
-        await this.settings.init();
         await this.connections.init();
-
-        if (registrationState) {
-            /**
-             * The user has register on this device for the first time without
-             * trying to synchronise the data from other device that he owns.
-             * The anonymous user should be generated.
-             */
-            const anonymousId = await this.contactModel.createProfile(true);
-            await this.channelManager.setPersonId(anonymousId);
-        } else {
-            /**
-             * Wit until the anonymous user is read from memory if in login or
-             * received via chums if in instance take over.
-             */
-            this.contactModel.on('update', async () => {
-                const myIdentities = await this.contactModel.myIdentities();
-                if (myIdentities.length > 1) {
-                    const anonymousId = myIdentities[myIdentities.length - 1];
-                    await this.channelManager.setPersonId(anonymousId);
-                    this.contactModel.off('update');
-                }
-            });
-        }
+        await this.access.init();
+        await this.match.init();
+        await this.diary.init();
+        await this.bodyTemperature.init();
+        await this.consentFile.init();
+        await this.settings.init();
+        this.instanceModel = new InstancesModel(this.oneInstance.getSecret());
+        await this.instanceModel.init();
+        await this.access.createAccessGroup(FreedaAccessGroups.partner);
+        await this.access.createAccessGroup(FreedaAccessGroups.clinic);
+        await this.access.createAccessGroup(FreedaAccessGroups.myself);
+        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.channelManager);
+        await this.contactModel.init();
+        await this.contactModel.createContactChannel();
     }
     access: AccessModel;
     channelManager: ChannelManager;
@@ -148,6 +127,7 @@ export default class Model {
     questionnaires: QuestionnaireModel;
     wbcDiffs: WbcDiffModel;
     heartEvents: HeartEventModel;
+    instanceModel: InstancesModel;
     documents: DocumentModel;
     news: NewsModel;
     match: MatchingModel;

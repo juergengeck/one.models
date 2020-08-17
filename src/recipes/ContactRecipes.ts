@@ -30,14 +30,17 @@ declare module '@OneCoreTypes' {
      * - one instance with keys
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    // @ts-ignore
     export type CommunicationEndpointTypes = OneInstanceEndpoint;
     export interface CommunicationEndpoint {}
 
     export interface OneInstanceEndpoint extends CommunicationEndpoint {
         $type$: 'OneInstanceEndpoint';
         personId: SHA256IdHash<Person>;
-        personKeys: SHA256Hash<Keys>;
+        instanceId: SHA256IdHash<Instance>;
+        personKeys: SHA256Hash<Keys> | undefined;
         instanceKeys: SHA256Hash<Keys>;
+        url: string;
     }
 
     // #### Contact Descriptions #####
@@ -49,6 +52,7 @@ declare module '@OneCoreTypes' {
      * - profile image
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    // @ts-ignore
     export type ContactDescriptionTypes = PersonName | ProfileImage;
     export interface ContactDescription {}
 
@@ -231,12 +235,21 @@ export const OneInstanceEndpointRecipe: Recipe = {
             referenceToId: new Set(['Person'])
         },
         {
+            itemprop: 'instanceId',
+            referenceToId: new Set(['Instance'])
+        },
+        {
             itemprop: 'personKeys',
-            referenceToObj: new Set(['Keys'])
+            referenceToObj: new Set(['Keys']),
+            optional: true
         },
         {
             itemprop: 'instanceKeys',
             referenceToObj: new Set(['Keys'])
+        },
+        {
+            itemprop: 'url',
+            valueType: 'string'
         }
     ]
 };
@@ -263,69 +276,75 @@ export const ProfileImageRecipe: Recipe = {
     ]
 };
 
-// ######## Authenticated Contact ########
+// ######## Connections Recipes ########
 
 declare module '@OneCoreTypes' {
     export interface OneIdObjectInterfaces {
-        AuthenticatedContactsList: Pick<AuthenticatedContactsList, 'instanceIdHash' | '$type$'>;
+        AvailableConnections: Pick<AvailableConnections, 'instanceIdHash' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
-        AuthenticatedContactsList: AuthenticatedContactsList;
-        AuthenticatedContact: AuthenticatedContact;
+        AvailableConnections: AvailableConnections;
+        ConnectionDetails: ConnectionDetails;
     }
 
-    export interface AuthenticatedContact {
-        $type$: 'AuthenticatedContact';
-        instanceKeysHash: SHA256Hash<Keys>;
-        personIdHash: SHA256IdHash<Person>;
-        invited: boolean;
-    }
-
-    export interface AuthenticatedContactsList {
-        $type$: 'AuthenticatedContactsList';
+    export interface AvailableConnections {
+        $type$: 'AvailableConnections';
         instanceIdHash: SHA256IdHash<Instance>;
-        personalContacts?: SHA256Hash<AuthenticatedContact>[];
-        otherContacts?: SHA256Hash<AuthenticatedContact>[];
+        personalCloudConnections: SHA256Hash<ConnectionDetails>[];
+        partnerContacts: SHA256Hash<ConnectionDetails>[];
+    }
+    export interface ConnectionDetails {
+        $type$: 'ConnectionDetails';
+        remoteInstancePublicKey: string;
+        // true if the instance is connected and false if not
+        connectionState: boolean;
+    }
+    export interface PairingInformation {
+        authenticationTag: string;
+        publicKeyLocal: string;
+        url: string;
+        takeOver: boolean;
+        takeOverDetails?: TakeOverInformation;
+    }
+    export interface TakeOverInformation {
+        nonce: string;
+        email: string;
+        anonymousEmail: string;
     }
 }
-
-export const AuthenticatedContactRecipe: Recipe = {
+export const ConnectionsRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'AuthenticatedContact',
+    name: 'ConnectionDetails',
     rule: [
         {
-            itemprop: 'instanceKeysHash',
-            referenceToObj: new Set(['Keys'])
+            itemprop: 'remoteInstancePublicKey',
+            valueType: 'string'
         },
         {
-            itemprop: 'personIdHash',
-            referenceToId: new Set(['Person'])
-        },
-        {
-            itemprop: 'invited',
+            itemprop: 'connectionState',
             valueType: 'boolean'
         }
     ]
 };
 
-export const AuthenticatedContactsListRecipe: Recipe = {
+export const AvailableConnectionsRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'AuthenticatedContactsList',
+    name: 'AvailableConnections',
     rule: [
         {
             itemprop: 'instanceIdHash',
-            isId: true,
-            referenceToObj: new Set(['Instance'])
+            referenceToId: new Set(['Instance']),
+            isId: true
         },
         {
-            itemprop: 'personalContacts',
-            referenceToObj: new Set(['AuthenticatedContact']),
+            itemprop: 'personalCloudConnections',
+            referenceToObj: new Set(['ConnectionDetails']),
             list: ORDERED_BY.ONE
         },
         {
-            itemprop: 'otherContacts',
-            referenceToObj: new Set(['AuthenticatedContact']),
+            itemprop: 'partnerContacts',
+            referenceToObj: new Set(['ConnectionDetails']),
             list: ORDERED_BY.ONE
         }
     ]
@@ -341,8 +360,8 @@ const ContactRecipes: Recipe[] = [
     ContactAppRecipe,
     ContactRecipe,
     ProfileRecipe,
-    AuthenticatedContactRecipe,
-    AuthenticatedContactsListRecipe
+    AvailableConnectionsRecipe,
+    ConnectionsRecipe
 ];
 
 export default ContactRecipes;

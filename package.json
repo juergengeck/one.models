@@ -1,6 +1,6 @@
 {
   "name": "one.filer",
-  "version": "1.0.0-next",
+  "version": "2.0.0-next",
   "main": "index.js",
   "repository": "https://github.com/refinio/one.filer",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -9,12 +9,20 @@
     "install": "node ./install.js",
     "build": "node ./build.js",
     "start": "node lib/model/index.js",
-    "test": "nyc mocha test/**-test.js"
+    "test": "nyc mocha test/**-test.js",
+    "start-comm-server": "node lib/cli/CommunicationServer",
+    "start-comm-server-log": "node lib/cli/CommunicationServer -l",
+    "start-aws": "node lib/cli/CommunicationServer -l -p 8000 > server.log",
+    "start-uke": "node lib/cli/CommunicationServer -p 8000",
+    "bundle": "webpack"
   },
   "dependencies": {
+    "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
-    "one.core": "refinio/one.core",
-    "one.match": "refinio/one.match#ONES-486/20200730/view_one_matching_ri"
+    "one.core": "refinio/one.core#feature/20200720_communication_og",
+    "one.match": "refinio/one.match#ONES-486/20200730/view_one_matching_ri",
+    "ts-loader": "^8.0.2",
+    "yargs": "^15.4.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
@@ -35,6 +43,7 @@
     "eslint": "*",
     "eslint-plugin-import": "*",
     "eslint-plugin-jsdoc": "*",
+    "isomorphic-ws": "^4.0.1",
     "jsdoc": "*",
     "jsdoc-babel": "*",
     "jsdoc-plantuml": "^1.0.1",
@@ -44,6 +53,7 @@
     "prettier": "*",
     "sinon": "*",
     "ts-node": "^8.10.1",
+    "webpack": "*",
     "webpack-cli": "*"
   }
 }

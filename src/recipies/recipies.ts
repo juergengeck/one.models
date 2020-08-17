@@ -1,3 +1,4 @@
+
 import {Recipe} from '@OneCoreTypes';
 import BodyTemperatureRecipes from './BodyTemperatureRecipies';
 import ChannelRecipes from './ChannelRecipies';
@@ -12,6 +13,7 @@ import {Recipes as MatchRecipes} from 'one.match/lib/recipes';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
+    ...MatchRecipes,
     ...MatchRecipes,
     ...ChannelRecipes,
     ...ContactRecipes,

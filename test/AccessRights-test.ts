@@ -9,9 +9,8 @@ import {
     getObjectByIdObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import Recipes from '../lib/recipies/recipies';
+import Recipes from '../lib/recipes/recipes';
 import Model, {dbKey, importModules} from './utils/Model';
-import {AccessGroupNames} from '../lib/models/AccessModel';
 
 const accessModel = new Model().access;
 
@@ -24,15 +23,18 @@ describe('AccessRights model test', () => {
 
     it('should see if the access groups were created on init', async () => {
         await accessModel.init();
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
-        const clinicGroup = await accessModel.getAccessGroupByName(AccessGroupNames.clinic);
+        await accessModel.createAccessGroup('partners');
+        await accessModel.createAccessGroup('clinic');
+
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
+        const clinicGroup = await accessModel.getAccessGroupByName('clinic');
         expect(partnerGroup).to.not.be.undefined;
         expect(clinicGroup).to.not.be.undefined;
     });
 
     it('should get a group by name', async () => {
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
-        const clinicGroup = await accessModel.getAccessGroupByName(AccessGroupNames.clinic);
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
+        const clinicGroup = await accessModel.getAccessGroupByName('clinic');
         expect(partnerGroup).to.not.be.undefined;
         expect(clinicGroup).to.not.be.undefined;
         try {
@@ -54,8 +56,8 @@ describe('AccessRights model test', () => {
                 email: 'foo@refinio.net'
             }
         );
-        await accessModel.addPersonToAccessGroup(AccessGroupNames.partners, newPerson.idHash);
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
+        await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person[0]).to.be.equal(newPerson.idHash);
     });
 
@@ -70,15 +72,15 @@ describe('AccessRights model test', () => {
                 email: 'foo@refinio.net'
             }
         );
-        await accessModel.addPersonToAccessGroup(AccessGroupNames.partners, newPerson.idHash);
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
+        await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person.length).to.be.equal(1);
     });
 
     it('should delete a person from an access group', async () => {
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
-        await accessModel.removePersonFromAccessGroup(AccessGroupNames.partners, person.idHash);
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
+        await accessModel.removePersonFromAccessGroup('partners', person.idHash);
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person).to.have.length(0);
     });
 
@@ -93,8 +95,8 @@ describe('AccessRights model test', () => {
                 email: 'foo111@refinio.net'
             }
         );
-        await accessModel.removePersonFromAccessGroup(AccessGroupNames.partners, newPerson.idHash);
-        const partnerGroup = await accessModel.getAccessGroupByName(AccessGroupNames.partners);
+        await accessModel.removePersonFromAccessGroup('partners', newPerson.idHash);
+        const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person).to.have.length(0);
     });
 
@@ -109,8 +111,8 @@ describe('AccessRights model test', () => {
                 email: 'foo@refinio.net'
             }
         );
-        await accessModel.addPersonToAccessGroup(AccessGroupNames.partners, newPerson.idHash);
-        const persons = await accessModel.getAccessGroupPersons(AccessGroupNames.partners);
+        await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
+        const persons = await accessModel.getAccessGroupPersons('partners');
         expect(persons).to.have.length(1);
     });
 

@@ -1,9 +1,9 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, getInstanceIdHash, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import Recipes from '../lib/recipies/recipies';
+import Recipes from '../lib/recipes/recipes';
 import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';
@@ -18,6 +18,7 @@ let specificObjectHash: SHA256Hash<BodyTemperature>;
 describe('Channel Iterators test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey});
+        // @ts-ignore
         await registerRecipes(Recipes);
         await importModules();
         owner = (
@@ -44,7 +45,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await(const {} of channelManager.objectIterator(channelId, {})) {
+            for await (const {} of channelManager.objectIterator(channelId, {})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
@@ -63,22 +64,25 @@ describe('Channel Iterators test', () => {
             channelsIdentifiers.map(async (identifier: string) => {
                 for (let i = 0; i < howMany; i++) {
                     await channelManager.postToChannel(identifier, createRandomBodyTemperature());
-                    await new Promise((resolve,rejects) => {
-                        setTimeout( () => resolve(), 300);
-                    })
+                    await new Promise((resolve, rejects) => {
+                        setTimeout(() => resolve(), 300);
+                    });
                 }
             })
         );
-        const channelRegistry = Array.from((await ChannelManager.getChannelRegistry()).obj.channels.keys());
+        const channelRegistry = Array.from(
+            (await ChannelManager.getChannelRegistry()).obj.channels.keys()
+        );
         expect(channelRegistry).to.have.length(channelsIdentifiers.length);
     }).timeout(20000);
 
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects(channelId);
-            await new Promise((resolve,rejects) => {
-                setTimeout( () => resolve(), 500);
-            })
+            console.log(objects1);
+            await new Promise((resolve, rejects) => {
+                setTimeout(() => resolve(), 500);
+            });
             expect(objects1).to.have.length(howMany);
         }
     });
@@ -99,9 +103,9 @@ describe('Channel Iterators test', () => {
                         createRandomBodyTemperature(),
                         owner
                     );
-                    await new Promise((resolve,rejects) => {
-                        setTimeout( () => resolve(), 100);
-                    })
+                    await new Promise((resolve, rejects) => {
+                        setTimeout(() => resolve(), 100);
+                    });
                 }
             })
         );
@@ -585,7 +589,7 @@ describe('Channel Iterators test', () => {
                     'BodyTemperature',
                     //@ts-ignore
                     {
-                        owner: getInstanceIdHash()
+                        owner
                     }
                 );
             } catch (e) {
