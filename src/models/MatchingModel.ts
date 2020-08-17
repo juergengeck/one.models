@@ -41,16 +41,16 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ ==='MatchResponse') {
+            if (caughtObject.obj.$type$ === 'MatchResponse') {
                 console.log(caughtObject);
             }
         });
     }
 
-    async startChum(conn: EncryptedConnection,client: VersionedObjectResult<Person>,server: VersionedObjectResult<Person>): Promise<Chum | undefined> {
+    async startChum(conn: EncryptedConnection, client: VersionedObjectResult<Person>, server: VersionedObjectResult<Person>): Promise<Chum | undefined> {
         try {
-         const websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj,conn);
-         const defaultChumConfig: ChumSyncOptions = {
+            const websocketPromisifierAPI = createWebsocketPromisifier(this.minimalWriteStorageApiObj, conn);
+            const defaultChumConfig: ChumSyncOptions = {
                 connection: websocketPromisifierAPI,
                 chumName: 'match.chum',
                 localInstanceName: 'local',
@@ -61,10 +61,10 @@ export default class MatchingModel extends EventEmitter {
             };
             websocketPromisifierAPI.localPersonIdHash = client.idHash;
             websocketPromisifierAPI.remotePersonIdHash = server.idHash;
-            websocketPromisifierAPI.connect('comm.freeda.refinio.one',client.obj.email);
+            websocketPromisifierAPI.connect('comm.freeda.refinio.one', client.obj.email);
 
 
-            const chumConfigRes =  createSingleObjectThroughImpurePlan(
+            const chumConfigRes = createSingleObjectThroughImpurePlan(
                 {module: '@one/chum-sync'},
                 {
                     ...defaultChumConfig,
@@ -77,7 +77,7 @@ export default class MatchingModel extends EventEmitter {
                 }
             );
 
-            return  chumConfigRes.obj;
+            return chumConfigRes.obj;
 
             // This can fail if the match server is unreachable
             // in which case we just retry when the app starts again.
@@ -85,10 +85,10 @@ export default class MatchingModel extends EventEmitter {
             // eslint-disable-next-line no-console
             console.error(`Error setting up match server: ${err}`);
         }
-        return ;
+        return;
     }
 
-    async  setUpMatchServerConnection(): Promise<void> {
+    async setUpMatchServerConnection(): Promise<void> {
         //TODO USE ANONYMOUS FROM SETTER FUTURE
         const identity = await createRandomString(15);
         const res = await fetch(this.match.url + identity);
@@ -97,7 +97,7 @@ export default class MatchingModel extends EventEmitter {
         const [client, server] = await Promise.all(
             ['client', 'server'].map(async key => {
                 const config = json[key];
-                return  ( await createSingleObjectThroughPurePlan(
+                return (await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -155,38 +155,39 @@ export default class MatchingModel extends EventEmitter {
         //     ]
         // );
     }
+
     async sendDemandObject(match: string): Promise<void> {
-    //     const demand = (await createSingleObjectThroughPurePlan(
-    //         {
-    //             module: '@one/identity',
-    //             versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-    //         },
-    //         {
-    //             $type$: 'Demand',
-    //             identity: this.defaultChumConfig.connection.localPersonIdHash,
-    //             match: match
-    //         }
-    //     )) as UnversionedObjectResult<Demand>;
-    //
-    //     const matchServer = this.defaultChumConfig.connection.remotePersonIdHash;
-    //
-    //     const matchClient = this.defaultChumConfig.connection.localPersonIdHash;
-    //
-    //     // eslint-disable-next-line no-console
-    //     console.log('sending demand object to match server');
-    //
-    //     await createSingleObjectThroughPurePlan(
-    //         {
-    //             module: '@one/access'
-    //         },
-    //         [
-    //             {
-    //                 object: demand.hash,
-    //                 person: [matchServer, matchClient],
-    //                 group: [],
-    //                 mode: SET_ACCESS_MODE.REPLACE
-    //             }
-    //         ]
-    //     );
-    // }
+        //     const demand = (await createSingleObjectThroughPurePlan(
+        //         {
+        //             module: '@one/identity',
+        //             versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+        //         },
+        //         {
+        //             $type$: 'Demand',
+        //             identity: this.defaultChumConfig.connection.localPersonIdHash,
+        //             match: match
+        //         }
+        //     )) as UnversionedObjectResult<Demand>;
+        //
+        //     const matchServer = this.defaultChumConfig.connection.remotePersonIdHash;
+        //
+        //     const matchClient = this.defaultChumConfig.connection.localPersonIdHash;
+        //
+        //     // eslint-disable-next-line no-console
+        //     console.log('sending demand object to match server');
+        //
+        //     await createSingleObjectThroughPurePlan(
+        //         {
+        //             module: '@one/access'
+        //         },
+        //         [
+        //             {
+        //                 object: demand.hash,
+        //                 person: [matchServer, matchClient],
+        //                 group: [],
+        //                 mode: SET_ACCESS_MODE.REPLACE
+        //             }
+        //         ]
+        //     );
+    }
 }
