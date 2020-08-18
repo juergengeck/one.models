@@ -115,7 +115,7 @@ export default class ConnectionsModel extends EventEmitter {
      *
      * @type {null}
      */
-    public onConnectionsChange: (() => void) | null = null
+    public onConnectionsChange: (() => void) | null = null;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -172,12 +172,9 @@ export default class ConnectionsModel extends EventEmitter {
             }
         }
 
-        // Forward the connection changed event to this level
-        this.communicationModule.onConnectionsChange = () => {
-            if (this.onConnectionsChange) {
-                this.onConnectionsChange();
-            }
-        }
+        this.communicationModule.on('connectionsChange', state => {
+            this.emit('connectionsChange', state);
+        });
     }
 
     async init(): Promise<void> {
@@ -186,7 +183,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.me = await this.contactModel.myMainIdentity();
         this.myEmail = (await getObjectByIdHash(this.me)).obj.email;
         this.myInstance = await this.instancesModel.localInstanceIdForPerson(this.me);
-        this.myInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.me);
+        this.myInstanceKeys = await this.instancesModel.localInstanceKeysForPerson(this.me);
 
         const meAlternates = (await this.contactModel.myIdentities()).filter(id => id !== this.me);
 
@@ -196,7 +193,7 @@ export default class ConnectionsModel extends EventEmitter {
         this.meAnon = meAlternates[0];
         this.meAnnonObj = await getObjectByIdHash(this.meAnon);
         this.anonInstance = await this.instancesModel.localInstanceIdForPerson(this.meAnon);
-        this.anonInstanceKeys = await this.instancesModel.instanceKeysForPerson(this.meAnon);
+        this.anonInstanceKeys = await this.instancesModel.localInstanceKeysForPerson(this.meAnon);
         this.personalCloudConnections = [];
         this.partnerConnections = [];
 
