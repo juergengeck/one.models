@@ -62,6 +62,7 @@ export default class ContactModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly channelManager: ChannelManager;
     private readonly channelId: string = 'contacts';
+    private readonly realChannelId: string = 'realChannelId';
     constructor(
         instancesModel: InstancesModel,
         commServerUrl: string,
@@ -105,6 +106,7 @@ export default class ContactModel extends EventEmitter {
 
     public async createContactChannel() {
         await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(this.realChannelId);
     }
 
     /**
