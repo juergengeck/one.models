@@ -81,12 +81,17 @@ async function main(): Promise<void> {
     const channelManager = new ChannelManager(accessModel);
     const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
-    const connectionsModel = new ConnectionsModel(argv.u, contactModel, instancesModel, accessModel, false);
+    const connectionsModel = new ConnectionsModel(
+        argv.u,
+        contactModel,
+        instancesModel,
+        accessModel
+    );
 
     console.log('INITIAL ONLINE STATE IS: ' + connectionsModel.onlineState);
-    connectionsModel.onOnlineStateChange = (state: boolean) => {
+    connectionsModel.on('onlineStateChange', (state: boolean) => {
         console.log('ONLINE STATE IS NOW: ' + state);
-    }
+    });
 
     // Create the instance
     await initInstance({

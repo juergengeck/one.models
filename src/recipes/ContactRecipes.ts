@@ -276,80 +276,6 @@ export const ProfileImageRecipe: Recipe = {
     ]
 };
 
-// ######## Connections Recipes ########
-
-declare module '@OneCoreTypes' {
-    export interface OneIdObjectInterfaces {
-        AvailableConnections: Pick<AvailableConnections, 'instanceIdHash' | '$type$'>;
-    }
-
-    export interface OneVersionedObjectInterfaces {
-        AvailableConnections: AvailableConnections;
-        ConnectionDetails: ConnectionDetails;
-    }
-
-    export interface AvailableConnections {
-        $type$: 'AvailableConnections';
-        instanceIdHash: SHA256IdHash<Instance>;
-        personalCloudConnections: SHA256Hash<ConnectionDetails>[];
-        partnerContacts: SHA256Hash<ConnectionDetails>[];
-    }
-    export interface ConnectionDetails {
-        $type$: 'ConnectionDetails';
-        remoteInstancePublicKey: string;
-        // true if the instance is connected and false if not
-        connectionState: boolean;
-    }
-    export interface PairingInformation {
-        authenticationTag: string;
-        publicKeyLocal: string;
-        url: string;
-        takeOver: boolean;
-        takeOverDetails?: TakeOverInformation;
-    }
-    export interface TakeOverInformation {
-        nonce: string;
-        email: string;
-        anonymousEmail: string;
-    }
-}
-export const ConnectionsRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'ConnectionDetails',
-    rule: [
-        {
-            itemprop: 'remoteInstancePublicKey',
-            valueType: 'string'
-        },
-        {
-            itemprop: 'connectionState',
-            valueType: 'boolean'
-        }
-    ]
-};
-
-export const AvailableConnectionsRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'AvailableConnections',
-    rule: [
-        {
-            itemprop: 'instanceIdHash',
-            referenceToId: new Set(['Instance']),
-            isId: true
-        },
-        {
-            itemprop: 'personalCloudConnections',
-            referenceToObj: new Set(['ConnectionDetails']),
-            list: ORDERED_BY.ONE
-        },
-        {
-            itemprop: 'partnerContacts',
-            referenceToObj: new Set(['ConnectionDetails']),
-            list: ORDERED_BY.ONE
-        }
-    ]
-};
-
 // ######## Export recipes ########
 
 const ContactRecipes: Recipe[] = [
@@ -359,9 +285,7 @@ const ContactRecipes: Recipe[] = [
     SomeoneRecipe,
     ContactAppRecipe,
     ContactRecipe,
-    ProfileRecipe,
-    AvailableConnectionsRecipe,
-    ConnectionsRecipe
+    ProfileRecipe
 ];
 
 export default ContactRecipes;

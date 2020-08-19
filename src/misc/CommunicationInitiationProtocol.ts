@@ -1,7 +1,7 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import {Person} from "@OneCoreTypes";
+import {Person, SHA256IdHash} from '@OneCoreTypes';
 
 declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########
@@ -36,9 +36,9 @@ declare module CommunicationInitiationProtocol {
      */
     export type StartProtocolMessage = {
         command: 'start_protocol';
-        protocol: string;
+        protocol: 'chum' | 'chum_onetimeauth_withtoken' | 'chumAndPkExchange_onetimeauth_withtoken';
         version: string;
-    }
+    };
 
     /**
      * Message for exchanging person information like person id and keys.
@@ -53,7 +53,15 @@ declare module CommunicationInitiationProtocol {
      * Message that transports a authentication tag.
      */
     export type AuthenticationTokenMessage = {
-        command: 'authentication_token',
+        command: 'authentication_token';
+        token: string;
+    };
+
+    /**
+     * Message that transports a authentication tag.
+     */
+    export type EncryptedAuthenticationTokenMessage = {
+        command: 'encrypted_authentication_token';
         token: string;
     };
 
@@ -61,9 +69,26 @@ declare module CommunicationInitiationProtocol {
      * Message that transports a person object.
      */
     export type PersonObjectMessage = {
-        command: 'person_object',
-        obj: Person
-    }
+        command: 'person_object';
+        obj: Person;
+    };
+
+    /**
+     * Message for exchanging private person information like person id and private keys.
+     */
+    export type PrivatePersonInformationMessage = {
+        command: 'private_person_information';
+        personId: SHA256IdHash<Person>;
+        personPublicKey: string;
+        personPublicSignKey: string;
+        personPrivateKey: string;
+        personPrivateSignKey: string;
+        anonPersonId: SHA256IdHash<Person>;
+        anonPersonPublicKey: string;
+        anonPersonPublicSignKey: string;
+        anonPersonPrivateKey: string;
+        anonPersonPrivateSignKey: string;
+    };
 
     // ######## Message to Role (Client / Server) Mapping ########
 
@@ -87,7 +112,9 @@ declare module CommunicationInitiationProtocol {
     export interface PeerMessages {
         start_protocol: StartProtocolMessage;
         person_information: PersonInformationMessage;
+        private_person_information: PrivatePersonInformationMessage;
         authentication_token: AuthenticationTokenMessage;
+        encrypted_authentication_token: EncryptedAuthenticationTokenMessage;
         person_object: PersonObjectMessage;
     }
 
@@ -159,8 +186,25 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
     if (command === 'person_information') {
         return arg.personId && arg.personPublicKey; // Make this better by checking for length of person id and it being a hash
     }
+    if (command === 'private_person_information') {
+        return (
+            typeof arg.personId === 'string' &&
+            typeof arg.personPublicKey === 'string' &&
+            typeof arg.personPublicSignKey === 'string' &&
+            typeof arg.personPrivateKey === 'string' &&
+            typeof arg.personPrivateSignKey === 'string' &&
+            typeof arg.anonPersonId === 'string' &&
+            typeof arg.anonPersonPublicKey === 'string' &&
+            typeof arg.anonPersonPublicSignKey === 'string' &&
+            typeof arg.anonPersonPrivateKey === 'string' &&
+            typeof arg.anonPersonPrivateSignKey === 'string'
+        );
+    }
     if (command === 'authentication_token') {
-        return typeof arg.tag === 'string'; // Make this better by checking for length of person id and it being a hash
+        return typeof arg.tag === 'string';
+    }
+    if (command === 'encrypted_authentication_token') {
+        return typeof arg.tag === 'string';
     }
     if (command === 'person_object') {
         return typeof arg.obj && arg.obj.$type$ === 'Person';
