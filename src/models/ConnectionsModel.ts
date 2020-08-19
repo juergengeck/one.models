@@ -1079,7 +1079,6 @@ export default class ConnectionsModel extends EventEmitter {
                     FreedaAccessGroups.partner
                 ]))
             ],
-            //          person: [this.mainInstanceInfo.personId, ...this.partnerAccess, ...this.replicantAccess],
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
         };
@@ -1131,6 +1130,16 @@ export default class ConnectionsModel extends EventEmitter {
             id: 'newsChannel',
             owner: this.mainInstanceInfo.personId
         });
+        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+
+        setAccessParam.id = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: 'realContacts',
+            owner: this.me
+        });
+        setAccessParam.person = [this.me];
+
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
         // For each partner check if I have an old version of it's consent file channel

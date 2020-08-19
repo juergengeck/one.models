@@ -3,13 +3,13 @@
  */
 
 import {
+    getAllVersionMapEntries,
     getObject,
     getObjectByIdHash,
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Profile, SHA256IdHash} from '@OneCoreTypes';
-import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {Profile, SHA256IdHash, Contact, SHA256Hash} from '@OneCoreTypes';
 
 /**
  *
@@ -22,25 +22,13 @@ export async function createObjects(
     latestProfile: SHA256IdHash<Profile>
 ): Promise<VersionedObjectResult<Profile>> {
     const latestProfileObject = await getObjectByIdHash(latestProfile);
-    let firstPreviousProfileObject: Profile | {contactObjects: []} = {contactObjects: []};
-    let secondPreviousProfileObject: Profile | {contactObjects: []} = {contactObjects: []};
+    let contacts: SHA256Hash<Contact>[] = [];
+    const versions = await getAllVersionMapEntries(latestProfile);
+    for (const versionMapEntry of versions) {
+        const currentProfileVersion = await getObject(versionMapEntry.hash);
+        contacts = contacts.concat(currentProfileVersion.contactObjects);
+    }
 
-    try {
-        firstPreviousProfileObject = await getObject(await getNthVersionMapHash(latestProfile, -1));
-    } catch (_) {}
-
-    try {
-        secondPreviousProfileObject = await getObject(
-            await getNthVersionMapHash(latestProfile, -2)
-        );
-    } catch (_) {}
-
-    latestProfileObject.obj.contactObjects = [
-        ...new Set([
-            ...latestProfileObject.obj.contactObjects,
-            ...firstPreviousProfileObject.contactObjects,
-            ...secondPreviousProfileObject.contactObjects
-        ])
-    ];
+    latestProfileObject.obj.contactObjects = [...new Set(contacts)];
     return await WriteStorage.storeVersionedObject(latestProfileObject.obj);
 }
