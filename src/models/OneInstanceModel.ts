@@ -264,9 +264,7 @@ export default class OneInstanceModel extends EventEmitter {
                 ownerName: 'name' + this.randomEmail,
                 initialRecipes: Recipes
             });
-
             await importModules();
-            console.log(await this.match.setUpMatchServerConnection());
         }
         this.initialisingApplication();
     }
