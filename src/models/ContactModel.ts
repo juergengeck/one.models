@@ -28,7 +28,7 @@ import {
     SetAccessParam,
     SET_ACCESS_MODE,
     onVersionedObj,
-    getObjectWithType
+    getObjectWithType, createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -651,7 +651,7 @@ export default class ContactModel extends EventEmitter {
                             -1
                         );
                         if (firstPreviousProfileObjectHash !== caughtObject.hash) {
-                            await createSingleObjectThroughPurePlan(
+                            await createSingleObjectThroughImpurePlan(
                                 {module: '@module/mergeProfile'},
                                 caughtObject.idHash
                             );
