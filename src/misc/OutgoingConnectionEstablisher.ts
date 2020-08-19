@@ -70,7 +70,7 @@ class OutgoingConnectionEstablisher {
 
                     // Notify the listener of a new connection
                     if (this.onConnection) {
-                        this.onConnection(conn);
+                        this.onConnection(conn,myPublicKey, targetPublicKey);
                         break;
                     }
                 } catch (e) {
