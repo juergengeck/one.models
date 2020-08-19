@@ -1136,9 +1136,9 @@ export default class ConnectionsModel extends EventEmitter {
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: 'realContacts',
-            owner: this.me
+            owner: this.mainInstanceInfo.personId
         });
-        setAccessParam.person = [this.me];
+        setAccessParam.person = [this.mainInstanceInfo.personId];
 
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
 
