@@ -62,7 +62,7 @@ export default class ContactModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly channelManager: ChannelManager;
     private readonly channelId: string = 'contacts';
-    private readonly realChannelId: string = 'realChannelId';
+    private readonly realChannelId: string = 'realContacts';
     constructor(
         instancesModel: InstancesModel,
         commServerUrl: string,

@@ -1153,7 +1153,7 @@ export default class ConnectionsModel extends EventEmitter {
 
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
-            id: 'realChannelId',
+            id: 'realContacts',
             owner: this.me
         });
         setAccessParam.person = [this.me];
