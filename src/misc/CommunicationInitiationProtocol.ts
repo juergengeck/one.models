@@ -181,7 +181,7 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
     }
 
     if (command === 'start_protocol') {
-        return typeof arg.protocol === 'string' && arg.version === 'string';
+        return typeof arg.protocol === 'string' && typeof arg.version === 'string';
     }
     if (command === 'person_information') {
         return arg.personId && arg.personPublicKey; // Make this better by checking for length of person id and it being a hash
@@ -201,13 +201,13 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
         );
     }
     if (command === 'authentication_token') {
-        return typeof arg.tag === 'string';
+        return typeof arg.token === 'string';
     }
     if (command === 'encrypted_authentication_token') {
-        return typeof arg.tag === 'string';
+        return typeof arg.token === 'string';
     }
     if (command === 'person_object') {
-        return typeof arg.obj && arg.obj.$type$ === 'Person';
+        return arg.obj && arg.obj.$type$ === 'Person';
     }
     return false;
 }
