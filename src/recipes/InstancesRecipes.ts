@@ -17,7 +17,7 @@ declare module '@OneCoreTypes' {
     }
 }
 
-const LocalInstancesListRecipie: Recipe = {
+const LocalInstancesListRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'LocalInstancesList',
     rule: [
@@ -41,6 +41,6 @@ const LocalInstancesListRecipie: Recipe = {
 
 // Export recipes
 
-const InstancesRecipes: Recipe[] = [LocalInstancesListRecipie];
+const InstancesRecipes: Recipe[] = [LocalInstancesListRecipe];
 
 export default InstancesRecipes;

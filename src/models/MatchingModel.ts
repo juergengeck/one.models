@@ -1,10 +1,12 @@
 import EventEmitter from "events";
+import {Supply, UnversionedObjectResult} from "@OneCoreTypes";
 import {
-    UnversionedObjectResult,
-} from "@OneCoreTypes";
-import {
+    createSingleObjectThroughPurePlan,
     onUnversionedObj,
+    SET_ACCESS_MODE,
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**
  * Model that connects to the one.match server
@@ -21,4 +23,46 @@ export default class MatchingModel extends EventEmitter {
             }
         });
     }
+
+    async sendSupplyObject(): Promise<void> {
+        const supply = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supply',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Supply',
+                identity: 'local',
+                match: 'match'
+            }
+        )) as UnversionedObjectResult<Supply>;
+
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'remote'
+        });
+
+        const matchClient = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'local'
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('sending supply object to match server');
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: supply.hash,
+                    person: [matchServer, matchClient],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+    }
+
 }

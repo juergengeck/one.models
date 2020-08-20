@@ -4,13 +4,13 @@ import ChannelRecipes from './ChannelRecipes';
 import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';
 import MetaRecipes from './MetaRecipes';
-import {Recipes as MatchRecipes} from 'one.match/lib/recipes';
 import QuestionnaireRecipes from './QuestionnaireRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import SliderRecipes from './SliderRecipes';
-import InstancesRecipes from './InstancesRecipies';
+import InstancesRecipes from './InstancesRecipes';
+import MatchingRecipes from "./MatchingRecipes";
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -19,12 +19,12 @@ const Recipes: Recipe[] = [
     ...NewsRecipes,
     ...DiaryRecipes,
     ...MetaRecipes,
-    ...MatchRecipes,
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...SliderRecipes,
-    ...InstancesRecipes
+    ...InstancesRecipes,
+    ...MatchingRecipes
 ];
 
 export default Recipes;
