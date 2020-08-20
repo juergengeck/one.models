@@ -25,6 +25,9 @@ export default class WebSocketPromiseBased extends EventEmitter
     private deregisterHandlers: () => void;
     private dataQueueOverflow: boolean;
     private disableWaitForMessageInt: boolean;
+    private closeReason: string;
+    private firstError: string;
+    private lastError: string;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
@@ -39,6 +42,9 @@ export default class WebSocketPromiseBased extends EventEmitter
         this.dataQueueOverflow = false;
         this.defaultTimeout = -1;
         this.disableWaitForMessageInt = false;
+        this.closeReason = '';
+        this.firstError = '';
+        this.lastError = '';
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -113,7 +119,7 @@ export default class WebSocketPromiseBased extends EventEmitter
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
         if (this.webSocket) {
-            if(this.webSocket.readyState !== WebSocket.OPEN){
+            if (this.webSocket.readyState !== WebSocket.OPEN) {
                 return;
             }
             if (reason) {
@@ -207,13 +213,13 @@ export default class WebSocketPromiseBased extends EventEmitter
                 return;
             }
 
-            if(this.webSocket.readyState !== WebSocket.OPEN){
-                reject(new Error('The websocket is CLOSED.'));
-                return;
+            try {
+                this.assertOpen();
+                this.webSocket.send(data);
+                resolve();
+            } catch (e) {
+                reject(e);
             }
-
-            this.webSocket.send(data);
-            resolve();
         });
     }
 
@@ -316,65 +322,27 @@ export default class WebSocketPromiseBased extends EventEmitter
         }
 
         return new Promise((resolve, reject) => {
-            // Check prerequisites (Websocket exists & nobody is listening & no overflow)
-            if (!this.webSocket) {
-                reject(new Error('No websocket is bound to this instance.'));
-                return;
-            }
-            if (this.dataAvailableFn) {
-                reject(Error('Another call is already wating for a message.'));
-                return;
-            }
-            if (this.dataQueueOverflow) {
-                reject(Error('The incoming message data queue overflowed.'));
-                return;
-            }
-            if (this.disableWaitForMessage) {
-                reject(Error('Waiting for incoming messages was disabled.'));
-                return;
-            }
-
-            // If we have data in the queue, then resolve with the first element
-            if (this.dataQueue.length > 0) {
-                let data = this.dataQueue.shift();
-                if (data !== undefined) {
-                    resolve(data.data);
-                } else {
-                    reject(
-                        new Error(
-                            'Internal error: Queue is empty, but dataAvailable event happened.'
-                        )
-                    );
+            try {
+                // Check prerequisites (Websocket exists & nobody is listening & no overflow)
+                if (!this.webSocket) {
+                    reject(new Error('No websocket is bound to this instance.'));
+                    return;
                 }
-                return;
-            }
+                if (this.dataAvailableFn) {
+                    reject(Error('Another call is already waiting for a message.'));
+                    return;
+                }
+                if (this.dataQueueOverflow) {
+                    reject(Error('The incoming message data queue overflowed.'));
+                    return;
+                }
+                if (this.disableWaitForMessage) {
+                    reject(Error('Waiting for incoming messages was disabled.'));
+                    return;
+                }
 
-            // If we have no data in the queue, start the timer and wait for a message
-            else {
-                // Start the timeout for waiting on a new message
-                const timeoutHandle =
-                    timeout > -1
-                        ? setTimeout(() => {
-                              reject(new Error('Timeout expired'));
-                              this.dataAvailableFn = null;
-                          }, timeout)
-                        : null;
-
-                // Register the dataAvailable handler that is called when data is available
-                this.dataAvailableFn = (err: Error | undefined) => {
-                    // Stop the timer and deregister the handler, so that it is not called again
-                    if (timeoutHandle) {
-                        clearTimeout(timeoutHandle);
-                    }
-                    this.dataAvailableFn = null;
-
-                    // Reject when error happened
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    // Resolve first element in array
+                // If we have data in the queue, then resolve with the first element
+                if (this.dataQueue.length > 0) {
                     let data = this.dataQueue.shift();
                     if (data !== undefined) {
                         resolve(data.data);
@@ -385,7 +353,51 @@ export default class WebSocketPromiseBased extends EventEmitter
                             )
                         );
                     }
-                };
+                    return;
+                }
+
+                // If we have no data in the queue, start the timer and wait for a message
+                else {
+                    this.assertOpen();
+
+                    // Start the timeout for waiting on a new message
+                    const timeoutHandle =
+                        timeout > -1
+                            ? setTimeout(() => {
+                                  reject(new Error('Timeout expired'));
+                                  this.dataAvailableFn = null;
+                              }, timeout)
+                            : null;
+
+                    // Register the dataAvailable handler that is called when data is available
+                    this.dataAvailableFn = (err: Error | undefined) => {
+                        // Stop the timer and deregister the handler, so that it is not called again
+                        if (timeoutHandle) {
+                            clearTimeout(timeoutHandle);
+                        }
+                        this.dataAvailableFn = null;
+
+                        // Reject when error happened
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+
+                        // Resolve first element in array
+                        let data = this.dataQueue.shift();
+                        if (data !== undefined) {
+                            resolve(data.data);
+                        } else {
+                            reject(
+                                new Error(
+                                    'Internal error: Queue is empty, but dataAvailable event happened.'
+                                )
+                            );
+                        }
+                    };
+                }
+            } catch (e) {
+                reject(e);
             }
         });
     }
@@ -440,6 +452,34 @@ export default class WebSocketPromiseBased extends EventEmitter
     }
 
     /**
+     * Function asserts that the connection is open.
+     *
+     * If it is closed it will reject the promise with a message having the close reason.
+     *
+     * @returns {Promise<void>}
+     */
+    private assertOpen(): void {
+        if (!this.webSocket) {
+            throw new Error('No websocket is bound to this instance.');
+            return;
+        }
+
+        if (this.webSocket.readyState !== WebSocket.OPEN) {
+            let errorMessage = 'The websocket is closed.';
+            if (this.closeReason !== '') {
+                errorMessage += ` Close Reason: '${this.closeReason}'.`;
+            }
+            if (this.firstError !== '') {
+                errorMessage += ` First Error: '${this.firstError}'.`;
+            }
+            if (this.lastError !== '') {
+                errorMessage += ` Last Error: '${this.lastError}'.`;
+            }
+            throw new Error(errorMessage);
+        }
+    }
+
+    /**
      * This function handles the websockets close event
      *
      * It notifies any waiting reader.
@@ -448,6 +488,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      */
     private handleClose(closeEvent: WebSocket.CloseEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleClose()`);
+        this.closeReason = closeEvent.reason;
         if (this.dataAvailableFn) {
             this.dataAvailableFn(new Error('Connection was closed: ' + closeEvent.reason));
         }
@@ -465,11 +506,16 @@ export default class WebSocketPromiseBased extends EventEmitter
      */
     private handleError(errorEvent: WebSocket.ErrorEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
+        if (this.firstError === '') {
+            this.firstError = errorEvent.message;
+        } else {
+            this.lastError = errorEvent.message;
+        }
         if (this.dataAvailableFn) {
-            this.dataAvailableFn(errorEvent.error);
+            this.dataAvailableFn(new Error(errorEvent.message));
         }
         if (this.socketOpenFn) {
-            this.socketOpenFn(errorEvent.error);
+            this.socketOpenFn(new Error(errorEvent.message));
         }
     }
 }
