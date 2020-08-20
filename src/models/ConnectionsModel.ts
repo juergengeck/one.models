@@ -929,7 +929,13 @@ export default class ConnectionsModel extends EventEmitter {
         password: string
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
-        const personInfo = await this.verifyAndExchangePersonId(conn, localPersonId, true);
+        const personInfo = await this.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            true,
+            undefined,
+            true
+        );
 
         // Step 2: Send the authentication token
         await ConnectionsModel.sendMessage(conn, {
@@ -1133,7 +1139,6 @@ export default class ConnectionsModel extends EventEmitter {
             owner: this.mainInstanceInfo.personId
         });
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
 
         setAccessParam.id = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
@@ -1350,17 +1355,26 @@ export default class ConnectionsModel extends EventEmitter {
     /**
      * This process exchanges and verifies person keys.
      *
+     * The verification checks the following:
+     * - Does the peer have the private key to the corresponding public key
+     * - Does the peer use the same key as the last time (key lookup in storage)
+     *   -> skipped if
+     * - Does the person id communicated by the peer match the expected person id
+     *   -> Only checked if matchRemotePersonId is specified
+     *
      * @param {EncryptedConnection} conn - The connection used to exchange this data
      * @param {SHA256IdHash<Person>} localPersonId - The local person id (used for getting keys)
      * @param {boolean} initiatedLocally
-     * @param {SHA256IdHash<Person>} mathRemotePersonId - It is verified that the transmitted person id matches this one.
+     * @param {SHA256IdHash<Person>} matchRemotePersonId - It is verified that the transmitted person id matches this one.
+     * @param {boolean} skipLocalKeyCompare - Skips the comparision of local keys. Defaults to false. Use with care!
      * @returns {Promise<{isNew: boolean; personId: SHA256IdHash<Person>; personPublicKey: Uint8Array}>}
      */
     private async verifyAndExchangePersonId(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
-        mathRemotePersonId?: SHA256IdHash<Person>
+        matchRemotePersonId?: SHA256IdHash<Person>,
+        skipLocalKeyCompare?: boolean
     ): Promise<{
         isNew: boolean;
         personId: SHA256IdHash<Person>;
@@ -1395,7 +1409,7 @@ export default class ConnectionsModel extends EventEmitter {
                 conn,
                 'person_information'
             );
-            remotePersonId = remotePersonInfo.personId as SHA256IdHash<Person>;
+            remotePersonId = remotePersonInfo.personId;
             remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
 
             // Step 3: Perform challenge / response
@@ -1409,7 +1423,7 @@ export default class ConnectionsModel extends EventEmitter {
                 conn,
                 'person_information'
             );
-            remotePersonId = remotePersonInfo.personId as SHA256IdHash<Person>;
+            remotePersonId = remotePersonInfo.personId;
             remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
 
             // Step2: Send my person information
@@ -1427,7 +1441,7 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         // Verify that the remote person id is the same as the one we have from the callback
-        if (mathRemotePersonId && remotePersonId !== mathRemotePersonId) {
+        if (matchRemotePersonId && remotePersonId !== matchRemotePersonId) {
             throw new Error('The person id does not match the one we have on record.');
         }
 
@@ -1467,7 +1481,7 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         // Throw error when key comparision failed.
-        if (keyComparisionFailed) {
+        if (keyComparisionFailed && !skipLocalKeyCompare) {
             throw new Error('Key does not match your previous visit');
         }
 

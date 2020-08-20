@@ -45,7 +45,7 @@ declare module CommunicationInitiationProtocol {
      */
     export type PersonInformationMessage = {
         command: 'person_information';
-        personId: string;
+        personId: SHA256IdHash<Person>;
         personPublicKey: string;
     };
 
