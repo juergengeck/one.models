@@ -427,7 +427,7 @@ export default class ConnectionsModel extends EventEmitter {
                 // Send the other side the protocol we'd like to use
                 await ConnectionsModel.sendMessage(conn, {
                     command: 'start_protocol',
-                    protocol: 'chumAndPkExchange_onetimeauth_withtoken',
+                    protocol: 'chum_onetimeauth_withtoken',
                     version: '1.0'
                 });
 
