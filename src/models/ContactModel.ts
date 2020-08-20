@@ -28,7 +28,8 @@ import {
     SetAccessParam,
     SET_ACCESS_MODE,
     onVersionedObj,
-    getObjectWithType
+    getObjectWithType,
+    createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -62,6 +63,7 @@ export default class ContactModel extends EventEmitter {
     private readonly commServerUrl: string;
     private readonly channelManager: ChannelManager;
     private readonly channelId: string = 'contacts';
+    private readonly channelIdForRealContacts: string = 'realContacts';
     constructor(
         instancesModel: InstancesModel,
         commServerUrl: string,
@@ -105,6 +107,7 @@ export default class ContactModel extends EventEmitter {
 
     public async createContactChannel() {
         await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(this.channelIdForRealContacts);
     }
 
     /**
@@ -332,7 +335,6 @@ export default class ContactModel extends EventEmitter {
     ): Promise<void> {
         /** first, we need to get the personId from the contact **/
         const personId = contact.obj.personId;
-        const personEmail = (await getObjectByIdHash(personId)).obj.email;
 
         /** see if the profile does exist **/
         try {
@@ -349,7 +351,7 @@ export default class ContactModel extends EventEmitter {
             profile.obj.mainContact = contact.hash;
 
             /** update the profile **/
-            await serializeWithType(personEmail, async () => {
+            await serializeWithType('Contacts', async () => {
                 return await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/identity',
@@ -651,7 +653,7 @@ export default class ContactModel extends EventEmitter {
                             -1
                         );
                         if (firstPreviousProfileObjectHash !== caughtObject.hash) {
-                            await createSingleObjectThroughPurePlan(
+                            await createSingleObjectThroughImpurePlan(
                                 {module: '@module/mergeProfile'},
                                 caughtObject.idHash
                             );
@@ -701,21 +703,18 @@ export default class ContactModel extends EventEmitter {
                     // Do not write a new profile version if this contact object is already part of it
                     // This also might happen when a new profile object ist synchronized with a new contact
                     // object, because the synchronized profile object already references this contact object
-                    if (existingContact) {
-                        return;
+                    if (!existingContact) {
+                        profile.obj.contactObjects.push(caughtObject.hash);
                     }
 
-                    profile.obj.contactObjects.push(caughtObject.hash);
                     /** update the profile **/
-                    await serializeWithType(personEmail, async () => {
-                        return await createSingleObjectThroughPurePlan(
-                            {
-                                module: '@one/identity',
-                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                            },
-                            profile.obj
-                        );
-                    });
+                    return await createSingleObjectThroughImpurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        profile.obj
+                    );
                 });
             }
         });

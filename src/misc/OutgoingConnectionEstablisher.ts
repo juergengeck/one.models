@@ -57,7 +57,7 @@ class OutgoingConnectionEstablisher {
             while (true) {
                 try {
                     // Try to establish a connection
-                    const conn = await this.establishConnection(
+                    const conn = await OutgoingConnectionEstablisher.connectOnce(
                         url,
                         myPublicKey,
                         targetPublicKey,
@@ -115,7 +115,7 @@ class OutgoingConnectionEstablisher {
      * @param {(cypher: Uint8Array) => Uint8Array} decrypt
      * @returns {Promise<void>}
      */
-    private async establishConnection(
+    public static async connectOnce(
         url: string,
         myPublicKey: Uint8Array,
         targetPublicKey: Uint8Array,

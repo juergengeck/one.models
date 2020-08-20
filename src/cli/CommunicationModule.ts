@@ -165,11 +165,11 @@ async function main(): Promise<void> {
     console.log('ANON ID: ', personAnon);
     printUint8Array(
         'MAIN pubkey',
-        toByteArray((await instancesModel.instanceKeysForPerson(person)).publicKey)
+        toByteArray((await instancesModel.localInstanceKeysForPerson(person)).publicKey)
     );
     printUint8Array(
         'ANON pubkey',
-        toByteArray((await instancesModel.instanceKeysForPerson(personAnon)).publicKey)
+        toByteArray((await instancesModel.localInstanceKeysForPerson(personAnon)).publicKey)
     );
 
     // Get the contact objects for the main and anon id
