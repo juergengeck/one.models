@@ -848,7 +848,13 @@ export default class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
+        const remotePersonInfo = await this.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            false,
+            localPersonId, // Since we have created the instance already with the takeover id it should match
+            true // Skip key verification, because we have an old key
+        );
         // We cannot know the user, so checking for isNew is not necessary
 
         // Step 2: Wait for the authentication token and verify it against the token list
@@ -933,8 +939,8 @@ export default class ConnectionsModel extends EventEmitter {
             conn,
             localPersonId,
             true,
-            undefined,
-            true
+            localPersonId, // Since we have created the instance already with the takeover id it should match
+            true // Skip key verification, because we have an old key
         );
 
         // Step 2: Send the authentication token
