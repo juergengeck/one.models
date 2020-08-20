@@ -386,7 +386,8 @@ export default class ConnectionsModel extends EventEmitter {
                     this.password
                 );
             } catch (e) {
-                conn.close(e.reason());
+                conn.close(e.message);
+                throw e;
             }
         }
 
@@ -437,7 +438,8 @@ export default class ConnectionsModel extends EventEmitter {
                     pairingInformation.authenticationTag
                 );
             } catch (e) {
-                conn.close(e.reason());
+                conn.close(e.message);
+                throw e;
             }
         }
     }
