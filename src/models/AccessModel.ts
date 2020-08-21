@@ -93,6 +93,7 @@ export default class AccessModel extends EventEmitter {
                 },
                 group.obj
             );
+            this.emit('groups_updated');
         }
     }
 
@@ -119,7 +120,7 @@ export default class AccessModel extends EventEmitter {
                     group.obj
                 );
 
-                this.emit('person_added');
+                this.emit('groups_updated');
             }
         });
     }

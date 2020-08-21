@@ -271,38 +271,9 @@ export default class OneInstanceModel extends EventEmitter {
             } else {
                 this.emit('authstate_changed');
 
-                // if a partner has no patients associated, then he enters in a
-                // partner state, where the application is not available until a
-                // patient is being associated with this partner
-                this.accessModel
-                    .getAccessGroupPersons(FreedaAccessGroups.partner)
-                    .then(partners => {
-                        if (
-                            this.currentPatientTypeState.includes('partner') &&
-                            partners.length === 0
-                        ) {
-                            this.currentPartnerState = true;
-                            this.emit('partner_state_changed');
-
-                            // listen for update events in access model until first connection with patient is established
-                            this.accessModel.on('person_added', () => {
-                                this.accessModel
-                                    .getAccessGroupPersons(FreedaAccessGroups.partner)
-                                    .then(partners => {
-                                        if (partners.length > 0) {
-                                            this.currentPartnerState = false;
-                                            this.emit('partner_state_changed');
-                                        }
-                                    })
-                                    .catch(e => {
-                                        console.error('Error getting access group members:', e);
-                                    });
-                            });
-                        }
-                    })
-                    .catch(e => {
-                        console.error('Error getting access group members:', e);
-                    });
+                if (this.currentPatientTypeState.includes('partner')) {
+                    this.updatePartnerState();
+                }
             }
         };
         // The AuthenticationState is needed to be on Authenticated so that
@@ -315,6 +286,41 @@ export default class OneInstanceModel extends EventEmitter {
             anonymousEmail,
             takeOver
         );
+    }
+
+    updatePartnerState(): void {
+        // if a partner has no patients associated, then he enters in a
+        // partner state, where the application is not available until a
+        // patient is being associated with this partner
+        this.accessModel
+            .getAccessGroupPersons(FreedaAccessGroups.partner)
+            .then(partners => {
+                if (partners.length === 0) {
+                    this.currentPartnerState = true;
+                    this.emit('partner_state_changed');
+
+                    // listen for update events in access model and check for patient connections
+                    this.accessModel.on('groups_updated', () => {
+                        this.accessModel
+                            .getAccessGroupPersons(FreedaAccessGroups.partner)
+                            .then(partners => {
+                                if (partners.length > 0) {
+                                    this.currentPartnerState = false;
+                                    this.emit('partner_state_changed');
+                                } else {
+                                    this.currentPartnerState = true;
+                                    this.emit('partner_state_changed');
+                                }
+                            })
+                            .catch(e => {
+                                console.error('Error getting access group members:', e);
+                            });
+                    });
+                }
+            })
+            .catch(e => {
+                console.error('Error getting access group members:', e);
+            });
     }
 
     /**
