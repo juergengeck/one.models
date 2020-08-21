@@ -141,11 +141,6 @@ export default class OneInstanceModel extends EventEmitter {
         return this.currentPartnerState;
     }
 
-    partnerConnectedWithPatient(): void {
-        this.currentPartnerState = false;
-        this.emit('partner_state_changed');
-    }
-
     /**
      * Both in register and login cases we need to know if the instance already exists:
      * if the user has login before on this device, the instance name will be available
@@ -288,6 +283,21 @@ export default class OneInstanceModel extends EventEmitter {
                         ) {
                             this.currentPartnerState = true;
                             this.emit('partner_state_changed');
+
+                            // listen for update events in access model until first connection with patient is established
+                            this.accessModel.on('person_added', () => {
+                                this.accessModel
+                                    .getAccessGroupPersons(FreedaAccessGroups.partner)
+                                    .then(partners => {
+                                        if (partners.length > 0) {
+                                            this.currentPartnerState = false;
+                                            this.emit('partner_state_changed');
+                                        }
+                                    })
+                                    .catch(e => {
+                                        console.error('Error getting access group members:', e);
+                                    });
+                            });
                         }
                     })
                     .catch(e => {
