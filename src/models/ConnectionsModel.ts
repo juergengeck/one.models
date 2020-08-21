@@ -785,6 +785,9 @@ export default class ConnectionsModel extends EventEmitter {
         clearTimeout(authData.expirationTimeoutHandle);
         this.oneTimeAutheticationTokens.delete(authToken.token);
 
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authToken.token);
+
         // Step 4: Start the chum
         await this.startChum(conn, localPersonId, remotePersonInfo.personId, false);
         conn.close();
@@ -916,6 +919,9 @@ export default class ConnectionsModel extends EventEmitter {
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
         this.pkOneTimeAutheticationTokens.delete(authToken.token);
+
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authToken.token);
 
         // Step 5: Start the chum
         await this.startChum(conn, localPersonId, remotePersonInfo.personId, false);
