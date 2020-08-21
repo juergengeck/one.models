@@ -7,6 +7,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {getInstanceOwnerIdHash} from "one.core/lib/instance";
 
 /**
  * Model that connects to the one.match server
@@ -39,7 +40,7 @@ export default class MatchingModel extends EventEmitter {
 
         const matchServer = await calculateIdHashOfObj({
             $type$: 'Person',
-            email: 'remote'
+            email: 'person@match.one'
         });
 
         const matchClient = await calculateIdHashOfObj({
@@ -64,5 +65,39 @@ export default class MatchingModel extends EventEmitter {
             ]
         );
     }
+    async sendDemand(): Promise<void> {
+        const demand = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/demand',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                    $type$: 'Demand',
+                identity: 'local',
+                match: 'match'
+            }
+        )) as UnversionedObjectResult<Supply>;
 
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'person@match.one'
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('sending supply object to match server');
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: demand.hash,
+                    person: [matchServer, getInstanceOwnerIdHash()],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+    }
 }
