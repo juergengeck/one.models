@@ -172,6 +172,7 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
+            this.emit('groups_updated');
         }
     }
 }
