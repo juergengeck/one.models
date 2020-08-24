@@ -280,7 +280,9 @@ export default class OneInstanceModel extends EventEmitter {
                 throw error;
             } else {
                 this.emit('authstate_changed');
-                this.updatePartnerState().catch(e => console.error(e));
+                if (this.currentPatientTypeState.includes('partner')) {
+                    this.updatePartnerState().catch(e => console.error(e));
+                }
             }
         };
         // The AuthenticationState is needed to be on Authenticated so that
