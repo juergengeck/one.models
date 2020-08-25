@@ -35,12 +35,10 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
-import Configuration = ConnectionsModel.Configuration;
-import PairingInformation = ConnectionsModel.PairingInformation;
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
-export module ConnectionsModel {
+export declare module ConnectionsModel {
     /**
      * This is the information that needs to pe transmitted securely to the device that shall be paired
      *
@@ -152,7 +150,7 @@ class ConnectionsModel extends EventEmitter {
     private communicationModule: CommunicationModule;
 
     // Global settings
-    private readonly config: Configuration;
+    private readonly config: ConnectionsModel.Configuration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -184,12 +182,12 @@ class ConnectionsModel extends EventEmitter {
      *
      * @param {ContactModel} contactModel
      * @param {InstancesModel} instancesModel
-     * @param {Partial<Configuration>} config
+     * @param {Partial<ConnectionsModel.Configuration>} config
      */
     constructor(
         contactModel: ContactModel,
         instancesModel: InstancesModel,
-        config: Partial<Configuration>
+        config: Partial<ConnectionsModel.Configuration>
     ) {
         super();
 
@@ -314,9 +312,9 @@ class ConnectionsModel extends EventEmitter {
      * Generates the information for sharing which will be sent in the QR code.
      *
      * @param {boolean} takeOver
-     * @returns {Promise<PairingInformation>}
+     * @returns {Promise<ConnectionsModel.PairingInformation>}
      */
-    public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+    public async generatePairingInformation(takeOver: boolean): Promise<ConnectionsModel.PairingInformation> {
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -387,12 +385,12 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Connect to target using pairing information with the goal to pair / being taken over
      *
-     * @param {PairingInformation} pairingInformation
+     * @param {ConnectionsModel.PairingInformation} pairingInformation
      * @param {string} password
      * @returns {Promise<void>}
      */
     public async connectUsingPairingInformation(
-        pairingInformation: PairingInformation,
+        pairingInformation: ConnectionsModel.PairingInformation,
         password: string
     ): Promise<void> {
         if (!this.initialized) {
