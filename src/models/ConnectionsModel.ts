@@ -1008,7 +1008,11 @@ export default class ConnectionsModel extends EventEmitter {
         sendSync: boolean = false,
         isConnectionWithReplicant: boolean = false
     ): Promise<void> {
-        if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
+        const clinicPersons = await this.accessModel.getAccessGroupPersons(
+            FreedaAccessGroups.clinic
+        );
+
+        if (localPersonId !== remotePersonId && remotePersonId !== clinicPersons[0]) {
             // For instances that I own the localPersonId and remotePersonID will be the same,
             // so if the id's are different, that means that I am connecting to a partner.
             await this.accessModel.addPersonToAccessGroup(
