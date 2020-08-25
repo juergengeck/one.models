@@ -38,75 +38,73 @@ import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-b
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
-export declare module ConnectionsModel {
-    /**
-     * This is the information that needs to pe transmitted securely to the device that shall be paired
-     *
-     * TODO: the content should be cleaned up.
-     */
-    export type PairingInformation = {
-        authenticationTag: string;
-        publicKeyLocal: string;
-        url: string;
-        takeOver: boolean;
-        takeOverDetails?: TakeOverInformation;
-    };
+/**
+ * This is the information that needs to pe transmitted securely to the device that shall be paired
+ *
+ * TODO: the content should be cleaned up.
+ */
+export type PairingInformation = {
+    authenticationTag: string;
+    publicKeyLocal: string;
+    url: string;
+    takeOver: boolean;
+    takeOverDetails?: TakeOverInformation;
+};
 
-    /**
-     * Additional information for instance takeover.
-     */
-    export type TakeOverInformation = {
-        nonce: string;
-        email: string;
-        anonymousEmail: string;
-    };
+/**
+ * Additional information for instance takeover.
+ */
+export type TakeOverInformation = {
+    nonce: string;
+    email: string;
+    anonymousEmail: string;
+};
 
-    /**
-     * Configuration parameters for the ConnectionsModel
-     *
-     * TODO: Most of the config values will come from the local instance config
-     *       So each instance can decide how it can be reached.
-     */
-    export type Configuration = {
-        // #### Incoming connections ####
+/**
+ * Configuration parameters for the ConnectionsModel
+ *
+ * TODO: Most of the config values will come from the local instance config
+ *       So each instance can decide how it can be reached.
+ */
+export type ConnectionsModelConfiguration = {
+    // #### Incoming connections ####
 
-        // The comm server to use for incoming connections.
-        // Default: ws://localhost:8000
-        commServerUrl: string;
+    // The comm server to use for incoming connections.
+    // Default: ws://localhost:8000
+    commServerUrl: string;
 
-        // If true accept incoming connections. If not do only outgoing
-        // Default: true
-        acceptIncomingConnections: boolean;
+    // If true accept incoming connections. If not do only outgoing
+    // Default: true
+    acceptIncomingConnections: boolean;
 
-        // #### Incoming connections - chum workflow settings (incoming) ####
+    // #### Incoming connections - chum workflow settings (incoming) ####
 
-        // If true accept unknown instances of known persons (incoming connections)
-        // Default: false
-        acceptUnknownInstances: boolean;
+    // If true accept unknown instances of known persons (incoming connections)
+    // Default: false
+    acceptUnknownInstances: boolean;
 
-        // If true accept unknown instances and unknown persons (incoming connections)
-        // Default: false
-        acceptUnknownPersons: boolean;
+    // If true accept unknown instances and unknown persons (incoming connections)
+    // Default: false
+    acceptUnknownPersons: boolean;
 
-        // #### Incoming connections - One time auth workflow settings (incoming) ####
+    // #### Incoming connections - One time auth workflow settings (incoming) ####
 
-        // If true allow one time authentication workflows (incoming connections)
-        // Default: true
-        allowOneTimeAuth: boolean;
+    // If true allow one time authentication workflows (incoming connections)
+    // Default: true
+    allowOneTimeAuth: boolean;
 
-        // The amount of time an authentication token is valid (incoming connections)
-        // Default: 60000 (1 minute)
-        authTokenExpirationDuration: number;
+    // The amount of time an authentication token is valid (incoming connections)
+    // Default: 60000 (1 minute)
+    authTokenExpirationDuration: number;
 
-        // #### Outgoing connection configuration ####
-        // If true automatically establish outgoing connections
-        // Default: true
-        establishOutgoingConnections: boolean;
+    // #### Outgoing connection configuration ####
+    // If true automatically establish outgoing connections
+    // Default: true
+    establishOutgoingConnections: boolean;
 
-        // If true then use the anon id as local id for outgoing connections
-        connectToOthersWithAnonId: boolean;
-    };
-}
+    // If true then use the anon id as local id for outgoing connections
+    connectToOthersWithAnonId: boolean;
+};
 
 /**
  * This type holds the data associated with an authentication token for pairing
@@ -150,7 +148,7 @@ class ConnectionsModel extends EventEmitter {
     private communicationModule: CommunicationModule;
 
     // Global settings
-    private readonly config: ConnectionsModel.Configuration;
+    private readonly config: ConnectionsModelConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -187,7 +185,7 @@ class ConnectionsModel extends EventEmitter {
     constructor(
         contactModel: ContactModel,
         instancesModel: InstancesModel,
-        config: Partial<ConnectionsModel.Configuration>
+        config: Partial<ConnectionsModelConfiguration>
     ) {
         super();
 
@@ -312,9 +310,9 @@ class ConnectionsModel extends EventEmitter {
      * Generates the information for sharing which will be sent in the QR code.
      *
      * @param {boolean} takeOver
-     * @returns {Promise<ConnectionsModel.PairingInformation>}
+     * @returns {Promise<PairingInformation>}
      */
-    public async generatePairingInformation(takeOver: boolean): Promise<ConnectionsModel.PairingInformation> {
+    public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -385,12 +383,12 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Connect to target using pairing information with the goal to pair / being taken over
      *
-     * @param {ConnectionsModel.PairingInformation} pairingInformation
+     * @param {PairingInformation} pairingInformation
      * @param {string} password
      * @returns {Promise<void>}
      */
     public async connectUsingPairingInformation(
-        pairingInformation: ConnectionsModel.PairingInformation,
+        pairingInformation: PairingInformation,
         password: string
     ): Promise<void> {
         if (!this.initialized) {
