@@ -47,7 +47,7 @@
     "jsdoc-babel": "*",
     "jsdoc-plantuml": "^1.0.1",
     "jsdoc-strip-async-await": "*",
-    "mocha": "*",
+    "mocha": "8.1.2",
     "nyc": "^15.0.1",
     "prettier": "*",
     "sinon": "*",
