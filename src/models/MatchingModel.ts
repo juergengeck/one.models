@@ -22,8 +22,8 @@ import {
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
-const supplyMapName = 'SupplyMap';
-const demandMapName = 'DemandMap';
+const supplyMapName: string = 'SupplyMap';
+const demandMapName: string = 'DemandMap';
 
 /**
  * Model that implements functions for sending a supply and demand to the matching server
@@ -64,7 +64,7 @@ export default class MatchingModel extends EventEmitter {
 
         await createSingleObjectThroughPurePlan(
             {
-                model: '@model/supplyMap',
+                model: '@plans/supplyMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
             },
             {
