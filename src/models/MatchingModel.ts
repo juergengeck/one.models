@@ -119,7 +119,7 @@ export default class MatchingModel extends EventEmitter {
 
         await createSingleObjectThroughPurePlan(
             {
-                modele: '@module/demandMap',
+                module: '@module/demandMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
             },
             {
