@@ -74,10 +74,6 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as VersionedObjectResult<SupplyMap>;
 
-        console.log('map: ', map);
-
-        this.emit('supplyUpdate');
-
         const matchServer = await calculateIdHashOfObj({
             $type$: 'Person',
             email: 'person@match.one'
@@ -99,6 +95,8 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
+
+        this.emit('supplyUpdate');
     }
     async sendDemandObject(demandInput: string): Promise<void> {
         const demand = (await createSingleObjectThroughPurePlan(
@@ -180,8 +178,19 @@ export default class MatchingModel extends EventEmitter {
         }
     }
 
-    supplies(): Map<string, Supply[]> {
-        return this.supplyMap;
+    async supplies(): Promise<Map<string, Supply[]>> {
+        let supplyMap: Map<string, Supply[]> = new Map<string, Supply[]>();
+
+        const supplyMapObj = (await getObjectByIdObj({
+            $type$: 'SupplyMap',
+            name: supplyMapName.toString()
+        })) as VersionedObjectResult<SupplyMap>;
+
+        if (supplyMapObj.obj.map) {
+            supplyMap = supplyMapObj.obj.map;
+        }
+
+        return supplyMap;
     }
 
     demands(): Map<string, Demand[]> {
