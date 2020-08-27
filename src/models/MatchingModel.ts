@@ -69,7 +69,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'SupplyMap',
-                name: supplyMapName,
+                name: supplyMapName.toString(),
                 map: this.supplyMap
             }
         );
@@ -122,7 +122,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'DemandMap',
-                name: demandMapName,
+                name: demandMapName.toString(),
                 map: this.demandMap
             }
         );
@@ -157,7 +157,7 @@ export default class MatchingModel extends EventEmitter {
         try {
             const supplyMapObj = (await getObjectByIdObj({
                 $type$: 'SupplyMap',
-                name: supplyMapName
+                name: supplyMapName.toString()
             })) as VersionedObjectResult<SupplyMap>;
 
             if (supplyMapObj.obj.map) {
@@ -165,7 +165,7 @@ export default class MatchingModel extends EventEmitter {
             }
             const demandMapObj = (await getObjectByIdObj({
                 $type$: 'DemandMap',
-                name: demandMapName
+                name: demandMapName.toString()
             })) as VersionedObjectResult<DemandMap>;
 
             if (demandMapObj.obj.map) {
