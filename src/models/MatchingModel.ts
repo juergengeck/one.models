@@ -64,13 +64,13 @@ export default class MatchingModel extends EventEmitter {
 
         const map = (await createSingleObjectThroughPurePlan(
             {
-                model: '@plans/supplyMap',
+                module: '@module/supplyMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
             },
             {
                 $type$: 'SupplyMap',
-                name: supplyMapName.toString(),
-                map: this.supplyMap
+                name: supplyMapName,
+                map: this.supplyMap as Map<string, Supply[]>
             }
         )) as VersionedObjectResult<SupplyMap>;
 
@@ -119,7 +119,7 @@ export default class MatchingModel extends EventEmitter {
 
         await createSingleObjectThroughPurePlan(
             {
-                model: '@model/demandMap',
+                modele: '@model/demandMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
             },
             {
