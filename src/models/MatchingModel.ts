@@ -62,7 +62,7 @@ export default class MatchingModel extends EventEmitter {
         const allSourceClients = existingClients ? [...existingClients, supply.obj] : [supply.obj];
         this.supplyMap.set(supply.obj.match, allSourceClients);
 
-        await createSingleObjectThroughPurePlan(
+        const map = (await createSingleObjectThroughPurePlan(
             {
                 model: '@plans/supplyMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
@@ -72,7 +72,9 @@ export default class MatchingModel extends EventEmitter {
                 name: supplyMapName.toString(),
                 map: this.supplyMap
             }
-        );
+        )) as VersionedObjectResult<SupplyMap>;
+
+        console.log('map: ', map);
 
         this.emit('supplyUpdate');
 
