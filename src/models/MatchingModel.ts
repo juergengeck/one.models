@@ -113,9 +113,9 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Supply>;
 
-        const existingClients = this.supplyMap.get(demand.obj.match);
+        const existingClients = this.demandMap.get(demand.obj.match);
         const allSourceClients = existingClients ? [...existingClients, demand.obj] : [demand.obj];
-        this.supplyMap.set(demand.obj.match, allSourceClients);
+        this.demandMap.set(demand.obj.match, allSourceClients);
 
         await createSingleObjectThroughPurePlan(
             {
@@ -128,8 +128,6 @@ export default class MatchingModel extends EventEmitter {
                 map: this.demandMap
             }
         );
-
-        this.emit('demandUpdate');
 
         const matchServer = await calculateIdHashOfObj({
             $type$: 'Person',
@@ -152,6 +150,8 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
+
+        this.emit('demandUpdate');
     }
 
     // init the maps with saved values
