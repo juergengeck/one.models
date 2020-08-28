@@ -10,6 +10,7 @@ declare module '@OneCoreTypes' {
     export interface OneVersionedObjectInterfaces {
         SupplyMap: SupplyMap;
         DemandMap: DemandMap;
+        MatchMap: MatchMap;
     }
 
     /**
@@ -72,6 +73,18 @@ declare module '@OneCoreTypes' {
         name: string;
         map?: Map<string, Demand[]>;
     }
+
+    /**
+     * @typedef {object} MatchMap
+     * @property {'MatchMap'} type
+     * @property {string} name
+     * @property Array<MatchResponse> array
+     */
+    export interface MatchMap {
+        $type$: 'MatchMap';
+        name: string;
+        array?: Array<MatchResponse>;
+    }
 }
 
 export const SupplyRecipe: Recipe = {
@@ -89,22 +102,22 @@ export const SupplyRecipe: Recipe = {
     ]
 };
 
-export  const DemandRecipe: Recipe = {
-        $type$: 'Recipe',
-        name: 'Demand',
-        rule: [
-            {
-                itemprop: 'identity',
-                valueType: 'string'
-            },
-            {
-                itemprop: 'match',
-                valueType: 'string'
-            }
-        ]
-}
+export const DemandRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Demand',
+    rule: [
+        {
+            itemprop: 'identity',
+            valueType: 'string'
+        },
+        {
+            itemprop: 'match',
+            valueType: 'string'
+        }
+    ]
+};
 
-export  const SupplyMapRecipe: Recipe = {
+export const SupplyMapRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'SupplyMap',
     rule: [
@@ -118,9 +131,9 @@ export  const SupplyMapRecipe: Recipe = {
             valueType: 'Map'
         }
     ]
-}
+};
 
-export const DemandMapRecipe:Recipe = {
+export const DemandMapRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'DemandMap',
     rule: [
@@ -134,30 +147,53 @@ export const DemandMapRecipe:Recipe = {
             valueType: 'Map'
         }
     ]
-}
+};
 
 export const MatchingResponseRecipe: Recipe = {
-        $type$: 'Recipe',
-        name: 'MatchResponse',
-        rule: [
-            {
-                itemprop: 'identity',
-                valueType: 'string'
-            },
-            {
-                itemprop: 'match',
-                valueType: 'string'
-            },
-            {
-                // will be true if the above identity belongs to
-                // the person who has send the Demand object
-                itemprop: 'identityOfDemand',
-                valueType: 'boolean'
-            }
-        ]
-    }
+    $type$: 'Recipe',
+    name: 'MatchResponse',
+    rule: [
+        {
+            itemprop: 'identity',
+            valueType: 'string'
+        },
+        {
+            itemprop: 'match',
+            valueType: 'string'
+        },
+        {
+            // will be true if the above identity belongs to
+            // the person who has send the Demand object
+            itemprop: 'identityOfDemand',
+            valueType: 'boolean'
+        }
+    ]
+};
+
+export const MatchMapRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'MatchMap',
+    rule: [
+        {
+            itemprop: 'name',
+            valueType: 'string',
+            isId: true
+        },
+        {
+            itemprop: 'array',
+            list: 'orderedByONE'
+        }
+    ]
+};
 
 // Export recipes
-const MatchingRecipes: Recipe[] = [SupplyRecipe,DemandRecipe,SupplyMapRecipe,DemandMapRecipe,MatchingResponseRecipe];
+const MatchingRecipes: Recipe[] = [
+    SupplyRecipe,
+    DemandRecipe,
+    SupplyMapRecipe,
+    DemandMapRecipe,
+    MatchingResponseRecipe,
+    MatchMapRecipe
+];
 
 export default MatchingRecipes;

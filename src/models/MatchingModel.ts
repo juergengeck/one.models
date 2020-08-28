@@ -5,12 +5,9 @@ import {
     Supply,
     UnversionedObjectResult,
     VersionedObjectResult,
-    NotifiedUsers,
-    SHA256Hash,
-    SHA256IdHash,
-    Person,
     SupplyMap,
-    DemandMap
+    DemandMap,
+    MatchMap
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -24,6 +21,7 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 
 const supplyMapName: string = 'SupplyMap';
 const demandMapName: string = 'DemandMap';
+const matchMapName: stirng = 'MatchMap';
 
 /**
  * Model that implements functions for sending a supply and demand to the matching server
@@ -74,10 +72,6 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as VersionedObjectResult<SupplyMap>;
 
-        console.log('map: ', map);
-
-        this.emit('supplyUpdate');
-
         const matchServer = await calculateIdHashOfObj({
             $type$: 'Person',
             email: 'person@match.one'
@@ -99,6 +93,10 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
+
+        console.log('map: ', map);
+
+        this.emit('supplyUpdate');
     }
     async sendDemandObject(demandInput: string): Promise<void> {
         const demand = (await createSingleObjectThroughPurePlan(
@@ -177,6 +175,56 @@ export default class MatchingModel extends EventEmitter {
             if (err.name !== 'FileNotFoundError') {
                 throw err;
             }
+        }
+    }
+
+    async addMatch(matchResponse: MatchResponse): Promise<void> {
+        const savedMatchResponse = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/matchResponse',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'MatchResponse',
+                identity: matchResponse.identity,
+                match: matchResponse.match,
+                identityOfDemand: matchResponse.identityOfDemand
+            }
+        )) as UnversionedObjectResult<MatchResponse>;
+
+        const matchMapObj = (await getObjectByIdObj({
+            $type$: 'MatchMap',
+            name: matchMapName.toString()
+        })) as VersionedObjectResult<MatchMap>;
+
+        const array = matchMapObj.obj.array;
+
+        if (array) {
+            array.push(savedMatchResponse.obj);
+
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/matchMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'MatchMap',
+                    name: matchMapName,
+                    array: array
+                }
+            );
+        } else {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/matchMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'MatchMap',
+                    name: matchMapName,
+                    array: [savedMatchResponse]
+                }
+            );
         }
     }
 
