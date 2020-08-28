@@ -37,6 +37,8 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
+            console.log('caughtObject: ', caughtObject);
+
             if (caughtObject.obj.$type$ === 'MatchResponse') {
                 console.log(caughtObject);
             }
