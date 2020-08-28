@@ -178,6 +178,21 @@ export default class MatchingModel extends EventEmitter {
         }
     }
 
+    async getMatchMap(): Promise<MatchResponse[]> {
+        let matchMap: MatchResponse[] = [];
+
+        const matchMapObj = (await getObjectByIdObj({
+            $type$: 'MatchMap',
+            name: matchMapName.toString()
+        })) as VersionedObjectResult<MatchMap>;
+
+        if (matchMapObj.obj.array) {
+            matchMap = matchMapObj.obj.array;
+        }
+
+        return matchMap;
+    }
+
     async addMatch(matchResponse: MatchResponse): Promise<void> {
         const savedMatchResponse = (await createSingleObjectThroughPurePlan(
             {
