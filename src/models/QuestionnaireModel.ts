@@ -2,7 +2,6 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
 import {Questionnaire} from './QuestionTypes';
-import {FreedaAccessGroups} from './AccessModel';
 
 /**
  * Type defines the data of a questionnaire response
@@ -94,14 +93,6 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.partner
-        );
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.clinic
-        );
         this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');

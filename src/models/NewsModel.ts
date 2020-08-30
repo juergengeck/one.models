@@ -1,7 +1,6 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {News as OneNews} from '@OneCoreTypes';
-import {FreedaAccessGroups} from './AccessModel';
 
 /**
  * This represents the model of a news for now
@@ -46,10 +45,6 @@ export default class NewsModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel('feedbackChannel');
-        await this.channelManager.giveAccessToChannelInfo(
-            'feedbackChannel',
-            FreedaAccessGroups.clinic
-        );
         await this.channelManager.createChannel('newsChannel');
         this.channelManager.on('updated', id => {
             if (id === 'feedbackChannel' || id === 'newsChannel') {
