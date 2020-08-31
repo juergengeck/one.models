@@ -270,6 +270,8 @@ export default class MatchingModel extends EventEmitter {
                 array: array ? [...array, savedMatchResponse] : [savedMatchResponse]
             }
         );
+
+        this.emit('newMatch');
     }
 
     supplies(): Map<string, Supply[]> {
