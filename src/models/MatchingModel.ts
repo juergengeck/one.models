@@ -252,12 +252,14 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<MatchResponse>;
 
-        const matchMapObj = (await getObjectByIdObj({
-            $type$: 'MatchMap',
-            name: matchMapName.toString()
-        })) as VersionedObjectResult<MatchMap>;
+        let matchMapObj;
 
-        const array = matchMapObj.obj.array;
+        try {
+            matchMapObj = (await getObjectByIdObj({
+                $type$: 'MatchMap',
+                name: matchMapName.toString()
+            })) as VersionedObjectResult<MatchMap>;
+        } catch (err) {}
 
         await createSingleObjectThroughPurePlan(
             {
