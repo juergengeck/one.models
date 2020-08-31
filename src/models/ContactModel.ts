@@ -31,7 +31,7 @@ import {
     getObjectWithType,
     createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import EventEmitter from 'events';
@@ -100,7 +100,7 @@ export default class ContactModel extends EventEmitter {
                 takeOver
             );
         } else{
-            const contactObjectIdHash = await getObjectByIdObj({$type$: 'ContactApp', appId: 'ContactApp'});
+            const contactObjectIdHash = await calculateIdHashOfObj({$type$: 'ContactApp', appId: 'ContactApp'});
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/mergeContactApp'},
                 contactObjectIdHash
