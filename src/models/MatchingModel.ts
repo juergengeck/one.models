@@ -7,7 +7,8 @@ import {
     VersionedObjectResult,
     SupplyMap,
     DemandMap,
-    MatchMap
+    MatchMap,
+    Person
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -18,6 +19,8 @@ import {
 } from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
+import {getObjectByIdHash} from 'one.core/lib/storage';
 
 const supplyMapName: string = 'SupplyMap';
 const demandMapName: string = 'DemandMap';
@@ -27,12 +30,47 @@ const matchMapName: stirng = 'MatchMap';
  * Model that implements functions for sending a supply and demand to the matching server
  */
 export default class MatchingModel extends EventEmitter {
+    private instanceModel: InstancesModel;
+
     private supplyMap: Map<string, Supply[]> = new Map<string, Supply[]>();
     private demandMap: Map<string, Demand[]> = new Map<string, Demand[]>();
+
+    private anonInstanceInfo: LocalInstanceInfo | null;
+
+    private person: Person | null;
+
+    constructor(instancesModel: InstancesModel) {
+        super();
+        this.instanceModel = instancesModel;
+        this.anonInstanceInfo = null;
+    }
 
     async init() {
         this.registerHooks();
         this.initMaps();
+        await this.updateInstanceInfo();
+
+        this.person = await getObjectByIdHash(this.anonInstanceInfo?.personId);
+    }
+
+    public shutdown(): void {
+        this.anonInstanceInfo = null;
+    }
+
+    private async updateInstanceInfo(): Promise<void> {
+        const infos = await this.instanceModel.localInstancesInfo();
+
+        if (infos.length !== 2) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+
+        await Promise.all(
+            infos.map(async instanceInfo => {
+                if (!instanceInfo.isMain) {
+                    this.anonInstanceInfo = instanceInfo;
+                }
+            })
+        );
     }
 
     private registerHooks(): void {
@@ -53,7 +91,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: 'local',
+                identity: this.person?.email,
                 match: supplyInput
             }
         )) as UnversionedObjectResult<Supply>;
@@ -108,7 +146,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: 'local',
+                identity: this.person?.email,
                 match: demandInput
             }
         )) as UnversionedObjectResult<Supply>;
