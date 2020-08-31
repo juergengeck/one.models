@@ -18,7 +18,6 @@ import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel, {FreedaAccessGroups} from './AccessModel';
-import MatchingModel from "./MatchingModel";
 
 /**
  * Represents the state of authentication.
@@ -94,7 +93,6 @@ export default class OneInstanceModel extends EventEmitter {
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
     private accessModel: AccessModel;
-    private match: MatchingModel;
 
     // encrypt everything by default
     private encryptStorage: boolean = true;
@@ -104,7 +102,6 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
-     * @param {MatchingModel} match
      * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
      */
@@ -112,8 +109,7 @@ export default class OneInstanceModel extends EventEmitter {
         connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
         consentFileModel: ConsentFileModel,
-        accessModel: AccessModel,
-        match: MatchingModel
+        accessModel: AccessModel
     ) {
         super();
         this.password = '';
@@ -127,7 +123,6 @@ export default class OneInstanceModel extends EventEmitter {
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
-        this.match = match;
     }
 
     authenticationState(): AuthenticationState {

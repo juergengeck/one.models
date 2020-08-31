@@ -15,12 +15,12 @@ import {
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES,
-    getObjectByIdObj
+    getObjectByIdObj,
+    getObjectByIdHash
 } from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
-import {getObjectByIdHash} from 'one.core/lib/storage';
 
 const supplyMapName: string = 'SupplyMap';
 const demandMapName: string = 'DemandMap';
@@ -52,6 +52,8 @@ export default class MatchingModel extends EventEmitter {
         await this.updateInstanceInfo();
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
+            const personId = this.anonInstanceInfo.personId;
+
             const person = (await getObjectByIdHash(
                 this.anonInstanceInfo?.personId
             )) as VersionedObjectResult<Person>;
