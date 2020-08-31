@@ -53,7 +53,7 @@ export default class MatchingModel extends EventEmitter {
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
             const person = (await getObjectByIdHash(
-                this.anonInstanceInfo?.personId
+                this.anonInstanceInfo.personId
             )) as VersionedObjectResult<Person>;
 
             this.personEmail = person.obj.email;
