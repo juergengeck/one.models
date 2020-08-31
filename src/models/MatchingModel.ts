@@ -82,7 +82,7 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'MatchResponse') {
+            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
         });
@@ -268,7 +268,10 @@ export default class MatchingModel extends EventEmitter {
                 {
                     $type$: 'MatchMap',
                     name: matchMapName,
-                    array: [matchMapObj.obj.array, savedMatchResponse]
+                    array: [
+                        matchMapObj.obj.array,
+                        savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
+                    ]
                 }
             );
         } catch (err) {
@@ -280,7 +283,7 @@ export default class MatchingModel extends EventEmitter {
                 {
                     $type$: 'MatchMap',
                     name: matchMapName,
-                    array: [savedMatchResponse]
+                    array: [savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity]
                 }
             );
         }
