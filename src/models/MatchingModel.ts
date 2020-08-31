@@ -259,23 +259,31 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'MatchMap',
                 name: matchMapName.toString()
             })) as VersionedObjectResult<MatchMap>;
-        } catch (err) {
-            console.error(err);
-        }
 
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/matchMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'MatchMap',
-                name: matchMapName,
-                array: matchMapObj?.obj.array
-                    ? [matchMapObj.obj.array, savedMatchResponse]
-                    : [savedMatchResponse]
-            }
-        );
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/matchMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'MatchMap',
+                    name: matchMapName,
+                    array: [matchMapObj.obj.array, savedMatchResponse]
+                }
+            );
+        } catch (err) {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/matchMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'MatchMap',
+                    name: matchMapName,
+                    array: [savedMatchResponse]
+                }
+            );
+        }
 
         this.emit('newMatch');
     }
