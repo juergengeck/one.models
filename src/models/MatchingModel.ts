@@ -24,7 +24,7 @@ import {getObjectByIdHash} from 'one.core/lib/storage';
 
 const supplyMapName: string = 'SupplyMap';
 const demandMapName: string = 'DemandMap';
-const matchMapName: stirng = 'MatchMap';
+const matchMapName: string = 'MatchMap';
 
 /**
  * Model that implements functions for sending a supply and demand to the matching server
@@ -37,12 +37,13 @@ export default class MatchingModel extends EventEmitter {
 
     private anonInstanceInfo: LocalInstanceInfo | null;
 
-    private person: Person | null;
+    private personEmail: string | null;
 
     constructor(instancesModel: InstancesModel) {
         super();
         this.instanceModel = instancesModel;
         this.anonInstanceInfo = null;
+        this.personEmail = null;
     }
 
     async init() {
@@ -50,7 +51,13 @@ export default class MatchingModel extends EventEmitter {
         this.initMaps();
         await this.updateInstanceInfo();
 
-        this.person = await getObjectByIdHash(this.anonInstanceInfo?.personId);
+        if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
+            const person = (await getObjectByIdHash(
+                this.anonInstanceInfo?.personId
+            )) as VersionedObjectResult<Person>;
+
+            this.personEmail = person.obj.email;
+        }
     }
 
     public shutdown(): void {
@@ -91,7 +98,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.person?.email,
+                identity: this.personEmail,
                 match: supplyInput
             }
         )) as UnversionedObjectResult<Supply>;
@@ -146,10 +153,10 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: this.person?.email,
+                identity: this.personEmail,
                 match: demandInput
             }
-        )) as UnversionedObjectResult<Supply>;
+        )) as UnversionedObjectResult<Demand>;
 
         const existingClients = this.demandMap.get(demand.obj.match);
         const allSourceClients = existingClients ? [...existingClients, demand.obj] : [demand.obj];
