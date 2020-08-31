@@ -52,8 +52,6 @@ export default class MatchingModel extends EventEmitter {
         await this.updateInstanceInfo();
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
-            const personId = this.anonInstanceInfo.personId;
-
             const person = (await getObjectByIdHash(
                 this.anonInstanceInfo?.personId
             )) as VersionedObjectResult<Person>;
@@ -84,10 +82,8 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            console.log('caughtObject: ', caughtObject);
-
             if (caughtObject.obj.$type$ === 'MatchResponse') {
-                console.log(caughtObject);
+                this.addMatch(caughtObject.obj);
             }
         });
     }
@@ -263,33 +259,17 @@ export default class MatchingModel extends EventEmitter {
 
         const array = matchMapObj.obj.array;
 
-        if (array) {
-            array.push(savedMatchResponse.obj);
-
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/matchMap',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchMap',
-                    name: matchMapName,
-                    array: array
-                }
-            );
-        } else {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/matchMap',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchMap',
-                    name: matchMapName,
-                    array: [savedMatchResponse]
-                }
-            );
-        }
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/matchMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'MatchMap',
+                name: matchMapName,
+                array: array ? [...array, savedMatchResponse] : [savedMatchResponse]
+            }
+        );
     }
 
     supplies(): Map<string, Supply[]> {
