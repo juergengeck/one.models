@@ -259,7 +259,9 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'MatchMap',
                 name: matchMapName.toString()
             })) as VersionedObjectResult<MatchMap>;
-        } catch (err) {}
+        } catch (err) {
+            console.error(err);
+        }
 
         await createSingleObjectThroughPurePlan(
             {
