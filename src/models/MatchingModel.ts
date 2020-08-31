@@ -271,7 +271,9 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'MatchMap',
                 name: matchMapName,
-                array: array ? [...array, savedMatchResponse] : [savedMatchResponse]
+                array: matchMapObj?.obj.array
+                    ? [matchMapObj.obj.array, savedMatchResponse]
+                    : [savedMatchResponse]
             }
         );
 
