@@ -351,13 +351,25 @@ export default class MatchingModel extends EventEmitter {
 
         this.supplyMap.set(value, newSupply.obj);
 
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supplyMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'SupplyMap',
+                name: supplyMapName,
+                map: this.supplyMap as Map<string, Supply>
+            }
+        );
+
         this.emit('supplyUpdate');
     }
 
-    async deactivateDemand(value: string): Promise<void> {
+    async changeDemandStatus(value: string): Promise<void> {
         const demand = this.demandMap.get(value);
 
-        const newSupply = (await createSingleObjectThroughPurePlan(
+        const newDemand = (await createSingleObjectThroughPurePlan(
             {
                 module: '@module/demand',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
@@ -368,9 +380,21 @@ export default class MatchingModel extends EventEmitter {
                 match: value,
                 isActive: demand ? !demand.isActive : false
             }
-        )) as UnversionedObjectResult<Supply>;
+        )) as UnversionedObjectResult<Demand>;
 
-        this.supplyMap.set(value, newSupply.obj);
+        this.demandMap.set(value, newDemand.obj);
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/demandMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'DemandMap',
+                name: demandMapName.toString(),
+                map: this.demandMap
+            }
+        );
 
         this.emit('demandUpdate');
     }
