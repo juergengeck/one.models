@@ -1,6 +1,10 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
+import {
+    Person,
+    QuestionnaireResponse as OneQuestionnaireResponse,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {Questionnaire} from './QuestionTypes';
 
 /**
@@ -132,8 +136,9 @@ export default class QuestionnaireModel extends EventEmitter {
      * Create a new response for the Covid2 Patient questionnaire
      *
      * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
      */
-    async postResponse(data: QuestionnaireResponse): Promise<void> {
+    async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
         // Assert that the questionnaire with questionnaireId exists
         let questionnaireExists = false;
 
@@ -154,7 +159,7 @@ export default class QuestionnaireModel extends EventEmitter {
         // Todo: Assert that the mandatory fields have been set in the answer
 
         // Post the result to the one instance
-        await this.channelManager.postToChannel(this.channelId, convertToOne(data));
+        await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
     }
 
     /**
