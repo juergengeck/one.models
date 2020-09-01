@@ -22,6 +22,13 @@ declare module '@OneCoreTypes' {
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Types
         type: string;
     }
+
+    export interface PlanResultTypes {
+        '@module/createBlobCollection': {
+            args: any;
+            result: UnversionedObjectResult<BlobCollection>;
+        };
+    }
 }
 
 export const BlobCollection: Recipe = {

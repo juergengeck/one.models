@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import {BlobCollection} from '@OneCoreTypes';
 import ChannelManager from './ChannelManager';
+import {createSingleObjectThroughPurePlan} from 'one.core/lib/storage';
 
 export default class BlobCollectionModel extends EventEmitter {
     private collections: BlobCollection[] = [];
@@ -13,7 +14,13 @@ export default class BlobCollectionModel extends EventEmitter {
         this.channelManager = channelManager;
     }
 
-    addCollection(files: File[]): void {}
+    async addCollection(files: File[], name: string): Promise<void> {
+        const blobCollection = await createSingleObjectThroughPurePlan(
+            {module: '@module/createBlobCollection'},
+            files,
+            name
+        );
+    }
 
     getCollection(name: BlobCollection['name']): BlobCollection {
         const collection = this.collections.find(collection => collection.name === name);

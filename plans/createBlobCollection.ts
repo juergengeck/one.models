@@ -3,12 +3,12 @@ import {BlobDescriptor, BlobCollection, UnversionedObjectResult} from '@OneCoreT
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,
-    Files: File[],
+    files: File[],
     name: string
 ): Promise<UnversionedObjectResult<BlobCollection>> {
     const blobs: UnversionedObjectResult<BlobDescriptor>[] = [];
 
-    for (const file of Files) {
+    for (const file of files) {
         const stream = WriteStorage.createFileWriteStream();
         stream.write(await file.arrayBuffer());
         const blob = await stream.end();
