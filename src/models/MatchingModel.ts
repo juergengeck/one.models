@@ -139,8 +139,6 @@ export default class MatchingModel extends EventEmitter {
             ]
         );
 
-        console.log('map: ', map);
-
         this.emit('supplyUpdate');
     }
     async sendDemandObject(demandInput: string): Promise<void> {
@@ -297,5 +295,41 @@ export default class MatchingModel extends EventEmitter {
 
     demands(): Map<string, Demand[]> {
         return this.demandMap;
+    }
+
+    async deleteSupply(supplyValue: string): Promise<void> {
+        this.supplyMap.delete(supplyValue);
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supplyMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'SupplyMap',
+                name: supplyMapName,
+                map: this.supplyMap as Map<string, Supply[]>
+            }
+        );
+
+        this.emit('supplyUpdate');
+    }
+
+    async deleteDemand(demandValue: string): Promise<void> {
+        this.demandMap.delete(demandValue);
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/demandMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'DemandMap',
+                name: demandMapName,
+                map: this.demandMap as Map<string, Demand[]>
+            }
+        );
+
+        this.emit('demandUpdate');
     }
 }
