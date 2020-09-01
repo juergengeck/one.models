@@ -1,6 +1,6 @@
+import {Recipe} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
-
     export interface OneUnversionedObjectInterfaces {
         BlobCollection: BlobCollection;
         BlobDescriptor: BlobDescriptor;
@@ -9,7 +9,7 @@ declare module '@OneCoreTypes' {
     export interface BlobCollection {
         $type$: 'BlobCollection';
         name: string;
-        blobs: BlobDescriptor[];
+        blobs: SHA256Hash<BlobDescriptor>[];
     }
 
     export interface BlobDescriptor {
@@ -23,3 +23,54 @@ declare module '@OneCoreTypes' {
         type: string;
     }
 }
+
+export const BlobCollection: Recipe = {
+    $type$: 'Recipe',
+    name: 'BlobCollection',
+    rule: [
+        {
+            itemprop: 'name',
+            valueType: 'string',
+            isId: true
+        },
+        {
+            itemprop: 'blobs',
+            referenceToObj: new Set(['BlobDescriptor'])
+        }
+    ]
+};
+
+export const BlobDescriptor: Recipe = {
+    $type$: 'Recipe',
+    name: 'BlobDescriptor',
+    rule: [
+        {
+            itemprop: 'data',
+            referenceToBlob: true
+        },
+        {
+            itemprop: 'lastModified',
+            valueType: 'number'
+        },
+        {
+            itemprop: 'name',
+            valueType: 'string'
+        },
+        {
+            // size in bytes
+            itemprop: 'size',
+            valueType: 'number'
+        },
+        {
+            // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Types
+            itemprop: 'type',
+            valueType: 'number'
+        }
+    ]
+};
+
+// ######## Export recipes ########
+
+const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
+
+export default BlobRecipes;

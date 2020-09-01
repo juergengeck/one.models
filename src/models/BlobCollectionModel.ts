@@ -1,4 +1,4 @@
-import EventEmitter = NodeJS.EventEmitter;
+import EventEmitter from 'events';
 import {BlobCollection} from '@OneCoreTypes';
 import ChannelManager from './ChannelManager';
 
