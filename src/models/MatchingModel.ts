@@ -350,7 +350,28 @@ export default class MatchingModel extends EventEmitter {
         )) as UnversionedObjectResult<Supply>;
 
         this.supplyMap.set(value, newSupply.obj);
+
+        this.emit('supplyUpdate');
     }
 
-    async deactivateDemand(): Promise<void> {}
+    async deactivateDemand(value: string): Promise<void> {
+        const demand = this.demandMap.get(value);
+
+        const newSupply = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/demand',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Demand',
+                identity: this.personEmail,
+                match: value,
+                isActive: demand ? !demand.isActive : false
+            }
+        )) as UnversionedObjectResult<Supply>;
+
+        this.supplyMap.set(value, newSupply.obj);
+
+        this.emit('demandUpdate');
+    }
 }
