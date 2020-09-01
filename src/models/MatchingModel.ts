@@ -325,8 +325,8 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'DemandMap',
-                name: demandMapName,
-                map: this.demandMap as Map<string, Demand[]>
+                name: demandMapName.toString(),
+                map: this.demandMap
             }
         );
 
