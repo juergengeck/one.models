@@ -14,6 +14,7 @@ import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import SliderModel from './SliderModel';
+import BlobCollectionModel from './BlobCollectionModel';
 
 /** for one line imports **/
 export {
@@ -34,5 +35,6 @@ export {
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
-    SliderModel
+    SliderModel,
+    BlobCollectionModel
 };
