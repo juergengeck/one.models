@@ -36,6 +36,7 @@ declare module '@OneCoreTypes' {
         $type$: 'Supply';
         identity: string;
         match: string;
+        isActive: boolean;
     }
 
     /**
@@ -48,30 +49,31 @@ declare module '@OneCoreTypes' {
         $type$: 'Demand';
         identity: string;
         match: string;
+        isActive: boolean;
     }
 
     /**
      * @typedef {object} SupplyMap
      * @property {'SupplyMap'} type
      * @property {string} name
-     * @property {Map<string, Supply[]>} map
+     * @property {Map<string, Supply>} map
      */
     export interface SupplyMap {
         $type$: 'SupplyMap';
         name: string;
-        map?: Map<string, Supply[]>;
+        map?: Map<string, Supply>;
     }
 
     /**
      * @typedef {object} DemandMap
      * @property {'DemandMap'} type
      * @property {string} name
-     * @property {Map<string, Demand[]>} map
+     * @property {Map<string, Demand>} map
      */
     export interface DemandMap {
         $type$: 'DemandMap';
         name: string;
-        map?: Map<string, Demand[]>;
+        map?: Map<string, Demand>;
     }
 
     /**
@@ -98,6 +100,10 @@ export const SupplyRecipe: Recipe = {
         {
             itemprop: 'match',
             valueType: 'string'
+        },
+        {
+            itemprop: 'isActive',
+            valueType: 'boolean'
         }
     ]
 };
@@ -113,6 +119,10 @@ export const DemandRecipe: Recipe = {
         {
             itemprop: 'match',
             valueType: 'string'
+        },
+        {
+            itemprop: 'isActive',
+            valueType: 'boolean'
         }
     ]
 };

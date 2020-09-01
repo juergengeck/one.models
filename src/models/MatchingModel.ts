@@ -32,8 +32,10 @@ const matchMapName: string = 'MatchMap';
 export default class MatchingModel extends EventEmitter {
     private instanceModel: InstancesModel;
 
-    private supplyMap: Map<string, Supply[]> = new Map<string, Supply[]>();
-    private demandMap: Map<string, Demand[]> = new Map<string, Demand[]>();
+    private supplyMap: Map<string, Supply> = new Map<string, Supply>();
+    private demandMap: Map<string, Demand> = new Map<string, Demand>();
+    // TO DO implement all tags with matching server :) (for raul or roxana)
+    private allTags: Array<Demand | Supply> = new Array<Demand | Supply>();
 
     private anonInstanceInfo: LocalInstanceInfo | null;
 
@@ -97,13 +99,12 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'Supply',
                 identity: this.personEmail,
-                match: supplyInput
+                match: supplyInput,
+                isActive: true
             }
         )) as UnversionedObjectResult<Supply>;
 
-        const existingClients = this.supplyMap.get(supply.obj.match);
-        const allSourceClients = existingClients ? [...existingClients, supply.obj] : [supply.obj];
-        this.supplyMap.set(supply.obj.match, allSourceClients);
+        this.supplyMap.set(supply.obj.match, supply.obj);
 
         const map = (await createSingleObjectThroughPurePlan(
             {
@@ -113,7 +114,7 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'SupplyMap',
                 name: supplyMapName,
-                map: this.supplyMap as Map<string, Supply[]>
+                map: this.supplyMap as Map<string, Supply>
             }
         )) as VersionedObjectResult<SupplyMap>;
 
@@ -150,13 +151,12 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'Demand',
                 identity: this.personEmail,
-                match: demandInput
+                match: demandInput,
+                isActive: true
             }
         )) as UnversionedObjectResult<Demand>;
 
-        const existingClients = this.demandMap.get(demand.obj.match);
-        const allSourceClients = existingClients ? [...existingClients, demand.obj] : [demand.obj];
-        this.demandMap.set(demand.obj.match, allSourceClients);
+        this.demandMap.set(demand.obj.match, demand.obj);
 
         await createSingleObjectThroughPurePlan(
             {
@@ -289,11 +289,11 @@ export default class MatchingModel extends EventEmitter {
         this.emit('newMatch');
     }
 
-    supplies(): Map<string, Supply[]> {
+    supplies(): Map<string, Supply> {
         return this.supplyMap;
     }
 
-    demands(): Map<string, Demand[]> {
+    demands(): Map<string, Demand> {
         return this.demandMap;
     }
 
@@ -308,7 +308,7 @@ export default class MatchingModel extends EventEmitter {
             {
                 $type$: 'SupplyMap',
                 name: supplyMapName,
-                map: this.supplyMap as Map<string, Supply[]>
+                map: this.supplyMap as Map<string, Supply>
             }
         );
 
@@ -332,4 +332,25 @@ export default class MatchingModel extends EventEmitter {
 
         this.emit('demandUpdate');
     }
+
+    async changeSupplyStatus(value: string): Promise<void> {
+        const supply = this.supplyMap.get(value);
+
+        const newSupply = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supply',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Supply',
+                identity: this.personEmail,
+                match: value,
+                isActive: supply ? !supply.isActive : false
+            }
+        )) as UnversionedObjectResult<Supply>;
+
+        this.supplyMap.set(value, newSupply.obj);
+    }
+
+    async deactivateDemand(): Promise<void> {}
 }
