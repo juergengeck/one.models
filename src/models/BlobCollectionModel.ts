@@ -9,7 +9,6 @@ import {
 import ContactModel from './ContactModel';
 
 export interface ResolvedBlobDescriptor {
-    $type$: 'BlobDescriptor';
     data: ArrayBuffer;
     lastModified: number;
     name: string;
@@ -18,7 +17,6 @@ export interface ResolvedBlobDescriptor {
 }
 
 export interface ResolvedBlobCollection {
-    $type$: 'BlobCollection';
     name: string;
     blobs: ResolvedBlobDescriptor[];
 }
