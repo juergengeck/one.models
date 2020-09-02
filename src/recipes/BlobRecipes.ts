@@ -1,4 +1,5 @@
 import {Recipe} from '@OneCoreTypes';
+import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -41,7 +42,8 @@ export const BlobCollection: Recipe = {
         },
         {
             itemprop: 'blobs',
-            referenceToObj: new Set(['BlobDescriptor'])
+            referenceToObj: new Set(['BlobDescriptor']),
+            list: ORDERED_BY.APP
         }
     ]
 };
