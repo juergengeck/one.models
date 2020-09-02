@@ -11,6 +11,7 @@ declare module '@OneCoreTypes' {
         SupplyMap: SupplyMap;
         DemandMap: DemandMap;
         MatchMap: MatchMap;
+        Catalog: Catalog;
     }
 
     /**
@@ -78,6 +79,18 @@ declare module '@OneCoreTypes' {
         $type$: 'DemandMap';
         name: string;
         map?: Map<string, Demand>;
+    }
+
+    /**
+     * @typedef {object} Catalog
+     * @property {'Catalog'} type
+     * @property {'string'} name
+     * @property {Array<Demand | Supply>} array
+     */
+    export interface Catalog {
+        $type$: 'TagsArray';
+        name: string;
+        array?: Array<Demand | Supply>;
     }
 
     /**
@@ -170,6 +183,22 @@ export const DemandMapRecipe: Recipe = {
         }
     ]
 };
+export const CatalogRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Catalog',
+    rule: [
+        {
+            itemprop: 'name',
+            valueType: 'string',
+            isId: true
+        },
+        {
+            itemprop: 'array',
+            list: 'orderedByONE'
+        }
+    ]
+};
+
 
 export const MatchingResponseRecipe: Recipe = {
     $type$: 'Recipe',
@@ -215,7 +244,8 @@ const MatchingRecipes: Recipe[] = [
     SupplyMapRecipe,
     DemandMapRecipe,
     MatchingResponseRecipe,
-    MatchMapRecipe
+    MatchMapRecipe,
+    CatalogRecipe
 ];
 
 export default MatchingRecipes;

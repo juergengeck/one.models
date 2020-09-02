@@ -34,7 +34,7 @@ export default class MatchingModel extends EventEmitter {
 
     private supplyMap: Map<string, Supply> = new Map<string, Supply>();
     private demandMap: Map<string, Demand> = new Map<string, Demand>();
-    // TO DO implement all tags with matching server :) (for raul or roxana)
+
     private allTags: Array<Demand | Supply> = new Array<Demand | Supply>();
 
     private anonInstanceInfo: LocalInstanceInfo | null;
@@ -87,9 +87,16 @@ export default class MatchingModel extends EventEmitter {
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
+            if(caughtObject.obj.$type$ ==='Demand' || caughtObject.obj.$type$ ==='Supply' ) {
+                this.allTags.push(caughtObject.obj);
+
+            }
         });
     }
 
+    getTags(): Array<Supply | Demand> {
+        return  this.allTags;
+    }
     async sendSupplyObject(supplyInput: string): Promise<void> {
         const supply = (await createSingleObjectThroughPurePlan(
             {
