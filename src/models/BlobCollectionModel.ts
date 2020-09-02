@@ -92,17 +92,23 @@ export default class BlobCollectionModel extends EventEmitter {
         }
     }
 
-    async resolveBlobCollection(blobCollection: BlobCollection): Promise<ResolvedBlobCollection> {
+    private async resolveBlobCollection(
+        blobCollection: BlobCollection
+    ): Promise<ResolvedBlobCollection> {
         const blobDescriptors: BlobDescriptor[] = await Promise.all(
             blobCollection.blobs.map(hash => getObject(hash))
         );
         const resolvedBlobDescriptors: ResolvedBlobDescriptor[] = await Promise.all(
-            blobDescriptors.map(blobDescriptor => this.resolveBlobDescriptor(blobDescriptor))
+            blobDescriptors.map(blobDescriptor =>
+                BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
+            )
         );
         return {...blobCollection, blobs: resolvedBlobDescriptors};
     }
 
-    async resolveBlobDescriptor(blobDescriptor: BlobDescriptor): Promise<ResolvedBlobDescriptor> {
+    private static async resolveBlobDescriptor(
+        blobDescriptor: BlobDescriptor
+    ): Promise<ResolvedBlobDescriptor> {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);
 
         return {...blobDescriptor, data: blobData};
