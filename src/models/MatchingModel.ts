@@ -7,6 +7,7 @@ import {
     VersionedObjectResult,
     SupplyMap,
     DemandMap,
+    Catalog,
     MatchMap,
     Person
 } from '@OneCoreTypes';
@@ -22,9 +23,10 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
 
-const supplyMapName: string = 'SupplyMap';
-const demandMapName: string = 'DemandMap';
-const matchMapName: string = 'MatchMap';
+const supplyMapName = 'SupplyMap';
+const demandMapName = 'DemandMap';
+const matchMapName = 'MatchMap';
+const catalogName = 'Catalog';
 
 /**
  * Model that implements functions for sending a supply and demand to the matching server
@@ -34,8 +36,7 @@ export default class MatchingModel extends EventEmitter {
 
     private supplyMap: Map<string, Supply> = new Map<string, Supply>();
     private demandMap: Map<string, Demand> = new Map<string, Demand>();
-
-    private allTags: Array<Demand | Supply> = new Array<Demand | Supply>();
+    private catalogTags: Array<Demand | Supply> = new Array<Demand | Supply>();
 
     private anonInstanceInfo: LocalInstanceInfo | null;
 
@@ -84,18 +85,19 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
+            console.log('UNVERSIONED',caughtObject);
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
             if(caughtObject.obj.$type$ ==='Demand' || caughtObject.obj.$type$ ==='Supply' ) {
-                this.allTags.push(caughtObject.obj);
-
+                this.catalogTags.push(caughtObject.obj);
+                this.emit('catalog-updated');
             }
         });
     }
 
     getTags(): Array<Supply | Demand> {
-        return  this.allTags;
+        return  this.catalogTags;
     }
     async sendSupplyObject(supplyInput: string): Promise<void> {
         const supply = (await createSingleObjectThroughPurePlan(
@@ -222,6 +224,14 @@ export default class MatchingModel extends EventEmitter {
 
             if (demandMapObj.obj.map) {
                 this.demandMap = demandMapObj.obj.map;
+            }
+            const catalog = (await getObjectByIdObj({
+                $type$: 'Catalog',
+                name: catalogName.toString()
+            })) as VersionedObjectResult<Catalog>;
+
+            if (catalog.obj.array) {
+                this.catalogTags = catalog.obj.array;
             }
         } catch (err) {
             if (err.name !== 'FileNotFoundError') {
