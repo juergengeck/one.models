@@ -31,12 +31,14 @@ declare module '@OneCoreTypes' {
      * @property {'Supply'} type
      * @property {string} identity
      * @property {string} match
+     * @property {number} timestamp
      */
     export interface Supply {
         $type$: 'Supply';
         identity: string;
         match: string;
         isActive: boolean;
+        timestamp: number;
     }
 
     /**
@@ -44,12 +46,14 @@ declare module '@OneCoreTypes' {
      * @property {'Demand'} type
      * @property {string} identity
      * @property {string} match
+     * @property {number} timestamp
      */
     export interface Demand {
         $type$: 'Demand';
         identity: string;
         match: string;
         isActive: boolean;
+        timestamp: number;
     }
 
     /**
@@ -104,6 +108,10 @@ export const SupplyRecipe: Recipe = {
         {
             itemprop: 'isActive',
             valueType: 'boolean'
+        },
+        {
+            itemprop: 'timestamp',
+            valueType: 'number'
         }
     ]
 };
@@ -123,6 +131,10 @@ export const DemandRecipe: Recipe = {
         {
             itemprop: 'isActive',
             valueType: 'boolean'
+        },
+        {
+            itemprop: 'timestamp',
+            valueType: 'number'
         }
     ]
 };

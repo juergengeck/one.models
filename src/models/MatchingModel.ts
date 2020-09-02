@@ -50,7 +50,7 @@ export default class MatchingModel extends EventEmitter {
 
     async init() {
         this.registerHooks();
-        this.initMaps();
+        await this.initMaps();
         await this.updateInstanceInfo();
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
@@ -100,13 +100,14 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'Supply',
                 identity: this.personEmail,
                 match: supplyInput,
-                isActive: true
+                isActive: true,
+                timestamp: Date.now()
             }
         )) as UnversionedObjectResult<Supply>;
 
         this.supplyMap.set(supply.obj.match, supply.obj);
 
-        const map = (await createSingleObjectThroughPurePlan(
+        await createSingleObjectThroughPurePlan(
             {
                 module: '@module/supplyMap',
                 versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
@@ -116,7 +117,7 @@ export default class MatchingModel extends EventEmitter {
                 name: supplyMapName,
                 map: this.supplyMap as Map<string, Supply>
             }
-        )) as VersionedObjectResult<SupplyMap>;
+        );
 
         const matchServer = await calculateIdHashOfObj({
             $type$: 'Person',
@@ -152,7 +153,8 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'Demand',
                 identity: this.personEmail,
                 match: demandInput,
-                isActive: true
+                isActive: true,
+                timestamp: Date.now()
             }
         )) as UnversionedObjectResult<Demand>;
 
@@ -345,7 +347,8 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'Supply',
                 identity: this.personEmail,
                 match: value,
-                isActive: supply ? !supply.isActive : false
+                isActive: supply ? !supply.isActive : false,
+                timestamp: Date.now()
             }
         )) as UnversionedObjectResult<Supply>;
 
@@ -397,7 +400,8 @@ export default class MatchingModel extends EventEmitter {
                 $type$: 'Demand',
                 identity: this.personEmail,
                 match: value,
-                isActive: demand ? !demand.isActive : false
+                isActive: demand ? !demand.isActive : false.valueOf(),
+                timestamp: Date.now()
             }
         )) as UnversionedObjectResult<Demand>;
 
