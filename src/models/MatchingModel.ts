@@ -363,6 +363,25 @@ export default class MatchingModel extends EventEmitter {
             }
         );
 
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'person@match.one'
+        });
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: newSupply.hash,
+                    person: [matchServer, getInstanceOwnerIdHash()],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+
         this.emit('supplyUpdate');
     }
 
@@ -394,6 +413,25 @@ export default class MatchingModel extends EventEmitter {
                 name: demandMapName.toString(),
                 map: this.demandMap
             }
+        );
+
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'person@match.one'
+        });
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: newDemand.hash,
+                    person: [matchServer, getInstanceOwnerIdHash()],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
         );
 
         this.emit('demandUpdate');
