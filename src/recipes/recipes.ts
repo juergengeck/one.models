@@ -10,6 +10,7 @@ import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import SliderRecipes from './SliderRecipes';
 import InstancesRecipes from './InstancesRecipies';
+import BlobRecipes from './BlobRecipes';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -22,7 +23,8 @@ const Recipes: Recipe[] = [
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...SliderRecipes,
-    ...InstancesRecipes
+    ...InstancesRecipes,
+    ...BlobRecipes
 ];
 
 export default Recipes;
