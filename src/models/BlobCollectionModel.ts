@@ -85,7 +85,6 @@ export default class BlobCollectionModel extends EventEmitter {
             }
         );
         if (collection) {
-            // todo change return value, load all blobs as arrayBuffers
             return this.resolveBlobCollection(collection[0].data);
         } else {
             throw new Error(`BlobCollection ${name} not found.`);
