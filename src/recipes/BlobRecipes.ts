@@ -37,8 +37,7 @@ export const BlobCollection: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string',
-            isId: true
+            valueType: 'string'
         },
         {
             itemprop: 'blobs',
