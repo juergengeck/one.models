@@ -88,7 +88,7 @@ declare module '@OneCoreTypes' {
      * @property {Array<Demand | Supply>} array
      */
     export interface Catalog {
-        $type$: 'TagsArray';
+        $type$: 'Catalog';
         name: string;
         array?: Array<Demand | Supply>;
     }
