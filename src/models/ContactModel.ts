@@ -99,8 +99,11 @@ export default class ContactModel extends EventEmitter {
                 this.commServerUrl,
                 takeOver
             );
-        } else{
-            const contactObjectIdHash = await calculateIdHashOfObj({$type$: 'ContactApp', appId: 'ContactApp'});
+        } else {
+            const contactObjectIdHash = await calculateIdHashOfObj({
+                $type$: 'ContactApp',
+                appId: 'ContactApp'
+            });
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/mergeContactApp'},
                 contactObjectIdHash
@@ -650,7 +653,7 @@ export default class ContactModel extends EventEmitter {
                     })
                 );
 
-                await serializeWithType('ContactApp', async () => {
+                /*await serializeWithType('ContactApp', async () => {
                     try {
                         const firstPreviousContactObjectHash = await getNthVersionMapHash(
                             caughtObject.idHash,
@@ -665,7 +668,7 @@ export default class ContactModel extends EventEmitter {
                     } catch (_) {
                         return;
                     }
-                });
+                });*/
 
                 this.emit(ContactEvent.UpdatedContactApp);
             }

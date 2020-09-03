@@ -765,13 +765,7 @@ class ConnectionsModel extends EventEmitter {
         }
 
         // Step 2: Start the chum
-        await this.startChum(
-            conn,
-            localPersonId,
-            remotePersonInfo.personId,
-            'chum',
-            isClient
-        );
+        await this.startChum(conn, localPersonId, remotePersonInfo.personId, 'chum', isClient);
         conn.close();
     }
 
@@ -958,10 +952,7 @@ class ConnectionsModel extends EventEmitter {
             'encrypted_authentication_token'
         );
         const encryptedAuthTag = toByteArray(encAuthData.token);
-        const derivedKey = await scrypt(
-            stringToUint8Array(this.password),
-            authData.salt
-        );
+        const derivedKey = await scrypt(stringToUint8Array(this.password), authData.salt);
 
         // Verify if the other instance has the same password as the current instance.
         // We need to remove the "" that is added by Uint8ArrayToString ....
@@ -1277,6 +1268,11 @@ class ConnectionsModel extends EventEmitter {
             this.password,
             this.mainInstanceInfo.personId,
             this.mainInstanceInfo.instanceId
+        );
+        await overwritePersonKeys(
+            this.password,
+            this.anonInstanceInfo.personId,
+            this.anonInstanceInfo.instanceId
         );
     }
 

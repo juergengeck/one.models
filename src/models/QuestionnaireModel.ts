@@ -85,7 +85,7 @@ export default class QuestionnaireModel extends EventEmitter {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'questionnaire';
+        this.channelId = 'questionnaire_response';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
     }
