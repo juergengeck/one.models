@@ -17,7 +17,24 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import AccessModel from './AccessModel';
+
+/**
+ * This is only a temporary solution, until all Freeda group stuff is moved out from this model
+ * It must match the group definition in the main project.
+ *
+ * ATTENTION: Do not dare to export this definition in order to use it in another model
+ *            I am just in the process of getting rid of it everywhere!
+ *            If you do - you will experience your personal Judgment day. I'll be back!
+ *            (If you do not know what that is - google the movie terminator)
+ *
+ * TODO: remove me when the model is cleaned up from app specific stuff
+ */
+const FreedaAccessGroups = {
+    partner: 'partners',
+    clinic: 'clinic',
+    myself: 'myself'
+};
 
 /**
  * Represents the state of authentication.

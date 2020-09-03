@@ -21,11 +21,10 @@ import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes'
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {dbKey, importModules} from './utils/Model';
+import {dbKey, importModules, TestAccessGroups} from './utils/Model';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from "../lib/models";
-import {FreedaAccessGroups} from "../lib/models/AccessModel";
 let contactModel: ContactModel;
 
 describe('Contact model test', () => {
@@ -39,9 +38,9 @@ describe('Contact model test', () => {
         const instanceModel = new InstancesModel();
         contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
         await channelManager.init();
-        await accessModel.createAccessGroup(FreedaAccessGroups.partner);
-        await accessModel.createAccessGroup(FreedaAccessGroups.clinic);
-        await accessModel.createAccessGroup(FreedaAccessGroups.myself);
+        await accessModel.createAccessGroup(TestAccessGroups.partner);
+        await accessModel.createAccessGroup(TestAccessGroups.clinic);
+        await accessModel.createAccessGroup(TestAccessGroups.myself);
         await instanceModel.init('1234');
 
 
