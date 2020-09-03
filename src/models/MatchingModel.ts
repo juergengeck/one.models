@@ -18,7 +18,8 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES,
     getObjectByIdObj,
-    getObjectByIdHash
+    getObjectByIdHash,
+    onVersionedObj
 } from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
@@ -37,7 +38,7 @@ export default class MatchingModel extends EventEmitter {
 
     private supplyMap: Map<string, Supply> = new Map<string, Supply>();
     private demandMap: Map<string, Demand> = new Map<string, Demand>();
-    private catalogTags: Array<Demand | Supply> = new Array<Demand | Supply>();
+    private catalogTags: Array<string> = new Array<string>();
 
     private anonInstanceInfo: LocalInstanceInfo | null;
 
@@ -86,18 +87,32 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            console.log('UNVERSIONED', caughtObject);
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
             if (caughtObject.obj.$type$ === 'Demand' || caughtObject.obj.$type$ === 'Supply') {
-                this.catalogTags.push(caughtObject.obj);
                 this.emit('catalog-updated');
+            }
+        });
+        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+            if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
+                this.catalogTags = caughtObject.obj.array;
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@module/catalog',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    {
+                        $type$: 'Catalog',
+                        name: 'Catalog',
+                        array: this.catalogTags
+                    }
+                );
             }
         });
     }
 
-    getTags(): Array<Supply | Demand> {
+    getCatalogTags(): Array<string> {
         return this.catalogTags;
     }
     async sendSupplyObject(supplyInput: string): Promise<void> {

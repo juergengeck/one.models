@@ -95,15 +95,16 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * contains all demands and supply tags for the catalog
      * @typedef {object} Catalog
      * @property {'Catalog'} type
      * @property {'string'} name
-     * @property {Array<Demand | Supply>} array
+     * @property {Array<string>} array
      */
     export interface Catalog {
         $type$: 'Catalog';
         name: string;
-        array?: Array<Demand | Supply>;
+        array: Array<string>;
     }
 
     /**
