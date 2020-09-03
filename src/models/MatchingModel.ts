@@ -90,9 +90,6 @@ export default class MatchingModel extends EventEmitter {
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
-            if (caughtObject.obj.$type$ === 'Demand' || caughtObject.obj.$type$ === 'Supply') {
-                this.emit('catalog-updated');
-            }
         });
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
