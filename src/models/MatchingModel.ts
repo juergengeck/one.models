@@ -31,7 +31,23 @@ const matchMapName = 'MatchMap';
 const catalogName = 'Catalog';
 
 /**
- * Model that implements functions for sending a supply and demand to the matching server
+ * This represents a MatchingEvents
+ * @enum CatalogUpdate -> updates the catalog tags
+ *       SupplyUpdate -> updates the supplies
+ *       DemandUpdate -> updates the demands
+ *       NewMatch -> updates the matches
+ */
+export enum MatchingEvents {
+    CatalogUpdate = 'catalogUpdate',
+    SupplyUpdate = 'supplyUpdate',
+    DemandUpdate = 'demandUpdate',
+    MatchUpdate = 'matchUpdate'
+}
+
+/**
+ *
+ * @description Matching Model class
+ * @augments EventEmitter
  */
 export default class MatchingModel extends EventEmitter {
     private instanceModel: InstancesModel;
@@ -65,8 +81,67 @@ export default class MatchingModel extends EventEmitter {
         }
     }
 
-    public shutdown(): void {
-        this.anonInstanceInfo = null;
+    private async initMaps(): Promise<void> {
+        try {
+            const supplyMapObj = (await getObjectByIdObj({
+                $type$: 'SupplyMap',
+                name: supplyMapName
+            })) as VersionedObjectResult<SupplyMap>;
+
+            if (supplyMapObj.obj.map) {
+                this.supplyMap = supplyMapObj.obj.map;
+            }
+            const demandMapObj = (await getObjectByIdObj({
+                $type$: 'DemandMap',
+                name: demandMapName
+            })) as VersionedObjectResult<DemandMap>;
+
+            if (demandMapObj.obj.map) {
+                this.demandMap = demandMapObj.obj.map;
+            }
+            const catalog = (await getObjectByIdObj({
+                $type$: 'Catalog',
+                name: catalogName
+            })) as VersionedObjectResult<Catalog>;
+
+            if (catalog.obj.array) {
+                this.catalogTags = catalog.obj.array;
+            }
+        } catch (err) {
+            return;
+        }
+    }
+
+    private registerHooks(): void {
+        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
+            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
+                await this.addMatch(caughtObject.obj);
+            }
+        });
+        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
+            if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
+                await this.registerCatalog(caughtObject.obj);
+            }
+        });
+    }
+
+    private async registerCatalog(catalog: Catalog): Promise<void> {
+        this.catalogTags = catalog.array ? catalog.array : [];
+        if (!this.catalogTags) {
+            return;
+        }
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/catalog',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Catalog',
+                name: 'Catalog',
+                array: this.catalogTags
+            }
+        );
+        this.emit(MatchingEvents.CatalogUpdate);
     }
 
     private async updateInstanceInfo(): Promise<void> {
@@ -85,36 +160,6 @@ export default class MatchingModel extends EventEmitter {
         );
     }
 
-    private registerHooks(): void {
-        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
-                this.addMatch(caughtObject.obj);
-            }
-        });
-        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
-                this.catalogTags = caughtObject.obj.array ? caughtObject.obj.array : [];
-                if (!this.catalogTags) {
-                    return;
-                }
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@module/catalog',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'Catalog',
-                        name: 'Catalog',
-                        array: this.catalogTags
-                    }
-                );
-            }
-        });
-    }
-
-    getCatalogTags(): Array<string> {
-        return this.catalogTags;
-    }
     async sendSupplyObject(supplyInput: string): Promise<void> {
         const supply = (await createSingleObjectThroughPurePlan(
             {
@@ -166,7 +211,7 @@ export default class MatchingModel extends EventEmitter {
             ]
         );
 
-        this.emit('supplyUpdate');
+        this.emit(MatchingEvents.SupplyUpdate);
     }
     async sendDemandObject(demandInput: string): Promise<void> {
         const demand = (await createSingleObjectThroughPurePlan(
@@ -219,7 +264,7 @@ export default class MatchingModel extends EventEmitter {
             ]
         );
 
-        this.emit('demandUpdate');
+        this.emit(MatchingEvents.DemandUpdate);
     }
 
     async requestCatalogTags(): Promise<void> {
@@ -254,38 +299,8 @@ export default class MatchingModel extends EventEmitter {
         );
     }
 
-    // init the maps with saved values
-    private async initMaps(): Promise<void> {
-        try {
-            const supplyMapObj = (await getObjectByIdObj({
-                $type$: 'SupplyMap',
-                name: supplyMapName.toString()
-            })) as VersionedObjectResult<SupplyMap>;
-
-            if (supplyMapObj.obj.map) {
-                this.supplyMap = supplyMapObj.obj.map;
-            }
-            const demandMapObj = (await getObjectByIdObj({
-                $type$: 'DemandMap',
-                name: demandMapName.toString()
-            })) as VersionedObjectResult<DemandMap>;
-
-            if (demandMapObj.obj.map) {
-                this.demandMap = demandMapObj.obj.map;
-            }
-            const catalog = (await getObjectByIdObj({
-                $type$: 'Catalog',
-                name: catalogName.toString()
-            })) as VersionedObjectResult<Catalog>;
-
-            if (catalog.obj.array) {
-                this.catalogTags = catalog.obj.array;
-            }
-        } catch (err) {
-            if (err.name !== 'FileNotFoundError') {
-                throw err;
-            }
-        }
+    getCatalogTags(): Array<string> {
+        return this.catalogTags;
     }
 
     async getMatchMap(): Promise<MatchResponse[]> {
@@ -293,7 +308,7 @@ export default class MatchingModel extends EventEmitter {
 
         const matchMapObj = (await getObjectByIdObj({
             $type$: 'MatchMap',
-            name: matchMapName.toString()
+            name: matchMapName
         })) as VersionedObjectResult<MatchMap>;
 
         if (matchMapObj.obj.array) {
@@ -322,7 +337,7 @@ export default class MatchingModel extends EventEmitter {
         try {
             matchMapObj = (await getObjectByIdObj({
                 $type$: 'MatchMap',
-                name: matchMapName.toString()
+                name: matchMapName
             })) as VersionedObjectResult<MatchMap>;
 
             await createSingleObjectThroughPurePlan(
@@ -352,8 +367,7 @@ export default class MatchingModel extends EventEmitter {
                 }
             );
         }
-
-        this.emit('newMatch');
+        this.emit(MatchingEvents.MatchUpdate);
     }
 
     supplies(): Map<string, Supply> {
@@ -378,8 +392,7 @@ export default class MatchingModel extends EventEmitter {
                 map: this.supplyMap as Map<string, Supply>
             }
         );
-
-        this.emit('supplyUpdate');
+        this.emit(MatchingEvents.SupplyUpdate);
     }
 
     async deleteDemand(demandValue: string): Promise<void> {
@@ -396,8 +409,7 @@ export default class MatchingModel extends EventEmitter {
                 map: this.demandMap
             }
         );
-
-        this.emit('demandUpdate');
+        this.emit(MatchingEvents.DemandUpdate);
     }
 
     async changeSupplyStatus(value: string): Promise<void> {
@@ -450,7 +462,7 @@ export default class MatchingModel extends EventEmitter {
             ]
         );
 
-        this.emit('supplyUpdate');
+        this.emit(MatchingEvents.SupplyUpdate);
     }
 
     async changeDemandStatus(value: string): Promise<void> {
@@ -502,7 +514,6 @@ export default class MatchingModel extends EventEmitter {
                 }
             ]
         );
-
-        this.emit('demandUpdate');
+        this.emit(MatchingEvents.DemandUpdate);
     }
 }
