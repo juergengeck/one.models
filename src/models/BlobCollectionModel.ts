@@ -94,6 +94,12 @@ export default class BlobCollectionModel extends EventEmitter {
         }
     }
 
+    /**
+     * Resolves the OneBlobCollection.blobs hash references to the actual ONE objects
+     * @param {OneBlobCollection} blobCollection
+     * @return {Promise<BlobCollection>}
+     * @private
+     */
     private async resolveBlobCollection(
         blobCollection: OneBlobCollection
     ): Promise<BlobCollection> {
@@ -108,6 +114,12 @@ export default class BlobCollectionModel extends EventEmitter {
         return {...blobCollection, blobs: resolvedBlobDescriptors};
     }
 
+    /**
+     * Resolves the OneBlobDescirptor.data blob reference to tha actual ArrayBuffer data
+     * @param {OneBlobDescirptor} blobDescriptor
+     * @return {Promise<BlobDescriptor>}
+     * @private
+     */
     private static async resolveBlobDescriptor(
         blobDescriptor: OneBlobDescirptor
     ): Promise<BlobDescriptor> {
