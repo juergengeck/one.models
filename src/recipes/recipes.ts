@@ -8,7 +8,6 @@ import QuestionnaireRecipes from './QuestionnaireRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
-import SliderRecipes from './SliderRecipes';
 import InstancesRecipes from './InstancesRecipies';
 import BlobRecipes from './BlobRecipes';
 
@@ -22,7 +21,6 @@ const Recipes: Recipe[] = [
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
-    ...SliderRecipes,
     ...InstancesRecipes,
     ...BlobRecipes
 ];
