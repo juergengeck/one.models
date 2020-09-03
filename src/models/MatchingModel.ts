@@ -215,7 +215,7 @@ export default class MatchingModel extends EventEmitter {
             [
                 {
                     $type$: 'RequestCatalog',
-                    identity: getInstanceOwnerIdHash(),
+                    identity: this.personEmail,
                     timestamp: new Date()
                 }
             ]
