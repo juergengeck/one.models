@@ -5,6 +5,7 @@ declare module '@OneCoreTypes' {
         Supply: Supply;
         Demand: Demand;
         MatchResponse: MatchResponse;
+        RequestCatalog: RequestCatalog;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -67,6 +68,18 @@ declare module '@OneCoreTypes' {
         $type$: 'SupplyMap';
         name: string;
         map?: Map<string, Supply>;
+    }
+
+    /**
+     * @typedef {object} RequestCatalog
+     * @property {'RequestCatalog'} type
+     * @property {string} identity
+     * @property {number} timestamp
+     */
+    export interface RequestCatalog {
+        $type$: 'RequestCatalog';
+        identity: string;
+        timestamp: number;
     }
 
     /**
@@ -199,6 +212,20 @@ export const CatalogRecipe: Recipe = {
     ]
 };
 
+export const RequestCatalogRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'RequestCatalog',
+    rule: [
+        {
+            itemprop: 'identity',
+            valueType: 'string'
+        },
+        {
+            itemprop: 'timestamp',
+            valueType: 'number'
+        }
+    ]
+};
 
 export const MatchingResponseRecipe: Recipe = {
     $type$: 'Recipe',
@@ -245,7 +272,8 @@ const MatchingRecipes: Recipe[] = [
     DemandMapRecipe,
     MatchingResponseRecipe,
     MatchMapRecipe,
-    CatalogRecipe
+    CatalogRecipe,
+    RequestCatalogRecipe
 ];
 
 export default MatchingRecipes;

@@ -9,7 +9,8 @@ import {
     DemandMap,
     Catalog,
     MatchMap,
-    Person
+    Person,
+    RequestCatalog
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -85,11 +86,11 @@ export default class MatchingModel extends EventEmitter {
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            console.log('UNVERSIONED',caughtObject);
+            console.log('UNVERSIONED', caughtObject);
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 this.addMatch(caughtObject.obj);
             }
-            if(caughtObject.obj.$type$ ==='Demand' || caughtObject.obj.$type$ ==='Supply' ) {
+            if (caughtObject.obj.$type$ === 'Demand' || caughtObject.obj.$type$ === 'Supply') {
                 this.catalogTags.push(caughtObject.obj);
                 this.emit('catalog-updated');
             }
@@ -97,7 +98,7 @@ export default class MatchingModel extends EventEmitter {
     }
 
     getTags(): Array<Supply | Demand> {
-        return  this.catalogTags;
+        return this.catalogTags;
     }
     async sendSupplyObject(supplyInput: string): Promise<void> {
         const supply = (await createSingleObjectThroughPurePlan(
@@ -204,6 +205,39 @@ export default class MatchingModel extends EventEmitter {
         );
 
         this.emit('demandUpdate');
+    }
+
+    async requestCatalogTags(): Promise<void> {
+        const requestCatalog = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/requestCatalog'
+            },
+            [
+                {
+                    $type$: 'RequestCatalog',
+                    identity: getInstanceOwnerIdHash(),
+                    timestamp: new Date()
+                }
+            ]
+        )) as UnversionedObjectResult<RequestCatalog>;
+
+        const matchServer = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: 'person@match.one'
+        });
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access'
+            },
+            [
+                {
+                    object: requestCatalog.hash,
+                    person: [matchServer, getInstanceOwnerIdHash()],
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
     }
 
     // init the maps with saved values
