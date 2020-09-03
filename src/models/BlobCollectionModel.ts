@@ -82,7 +82,7 @@ export default class BlobCollectionModel extends EventEmitter {
                 owner: this.owner
             }
         );
-        if (collection) {
+        if (collection && collection.length > 0) {
             return this.resolveBlobCollection(collection[0].data);
         } else {
             throw new Error(`BlobCollection ${name} not found.`);
