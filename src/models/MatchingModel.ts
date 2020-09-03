@@ -212,13 +212,12 @@ export default class MatchingModel extends EventEmitter {
             {
                 module: '@module/requestCatalog'
             },
-            [
-                {
-                    $type$: 'RequestCatalog',
-                    identity: this.personEmail,
-                    timestamp: new Date()
-                }
-            ]
+
+            {
+                $type$: 'RequestCatalog',
+                identity: this.personEmail,
+                timestamp: Date.now()
+            }
         )) as UnversionedObjectResult<RequestCatalog>;
 
         const matchServer = await calculateIdHashOfObj({
