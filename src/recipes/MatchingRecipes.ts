@@ -104,7 +104,7 @@ declare module '@OneCoreTypes' {
     export interface Catalog {
         $type$: 'Catalog';
         name: string;
-        array: Array<string>;
+        array?: Array<string>;
     }
 
     /**

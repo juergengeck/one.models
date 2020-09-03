@@ -96,7 +96,10 @@ export default class MatchingModel extends EventEmitter {
         });
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
             if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
-                this.catalogTags = caughtObject.obj.array;
+                this.catalogTags = caughtObject.obj.array ? caughtObject.obj.array : [];
+                if (!this.catalogTags) {
+                    return;
+                }
                 await createSingleObjectThroughPurePlan(
                     {
                         module: '@module/catalog',
