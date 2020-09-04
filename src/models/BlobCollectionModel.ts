@@ -11,7 +11,6 @@ import {
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
-import ContactModel from './ContactModel';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -28,15 +27,17 @@ export interface BlobCollection {
 
 export default class BlobCollectionModel extends EventEmitter {
     channelManager: ChannelManager;
-    contactManager: ContactModel;
     owner: SHA256IdHash<Person> | undefined;
     channelId = 'blobCollections';
 
-    constructor(channelManager: ChannelManager, contactModel: ContactModel) {
+    constructor(channelManager: ChannelManager) {
         super();
 
         this.channelManager = channelManager;
-        this.contactManager = contactModel;
+    }
+
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.owner = id;
     }
 
     /**
@@ -44,7 +45,6 @@ export default class BlobCollectionModel extends EventEmitter {
      */
     async init() {
         await this.channelManager.createChannel(this.channelId);
-        this.owner = await this.contactManager.myMainIdentity();
         this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');
