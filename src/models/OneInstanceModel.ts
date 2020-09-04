@@ -17,7 +17,24 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import AccessModel from './AccessModel';
+
+/**
+ * This is only a temporary solution, until all Freeda group stuff is moved out from this model
+ * It must match the group definition in the main project.
+ *
+ * ATTENTION: Do not dare to export this definition in order to use it in another model
+ *            I am just in the process of getting rid of it everywhere!
+ *            If you do - you will experience your personal Judgment day. I'll be back!
+ *            (If you do not know what that is - google the movie terminator)
+ *
+ * TODO: remove me when the model is cleaned up from app specific stuff
+ */
+const FreedaAccessGroups = {
+    partner: 'partners',
+    clinic: 'clinic',
+    myself: 'myself'
+};
 
 /**
  * Represents the state of authentication.
@@ -123,6 +140,16 @@ export default class OneInstanceModel extends EventEmitter {
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
+
+        // listen for update events in access model and check for patient connections
+        this.accessModel.on('groups_updated', () => {
+            if (
+                this.currentAuthenticationState === AuthenticationState.Authenticated &&
+                this.currentPatientTypeState.includes('partner')
+            ) {
+                this.updatePartnerState().catch(e => console.error(e));
+            }
+        });
     }
 
     authenticationState(): AuthenticationState {
@@ -139,11 +166,6 @@ export default class OneInstanceModel extends EventEmitter {
 
     partnerState(): boolean {
         return this.currentPartnerState;
-    }
-
-    partnerConnectedWithPatient(): void {
-        this.currentPartnerState = false;
-        this.emit('partner_state_changed');
     }
 
     /**
@@ -274,24 +296,9 @@ export default class OneInstanceModel extends EventEmitter {
                 throw error;
             } else {
                 this.emit('authstate_changed');
-
-                // if a partner has no patients associated, then he enters in a
-                // partner state, where the application is not available until a
-                // patient is being associated with this partner
-                this.accessModel
-                    .getAccessGroupPersons(FreedaAccessGroups.partner)
-                    .then(partners => {
-                        if (
-                            this.currentPatientTypeState.includes('partner') &&
-                            partners.length === 0
-                        ) {
-                            this.currentPartnerState = true;
-                            this.emit('partner_state_changed');
-                        }
-                    })
-                    .catch(e => {
-                        console.error('Error getting access group members:', e);
-                    });
+                if (this.currentPatientTypeState.includes('partner')) {
+                    this.updatePartnerState().catch(e => console.error(e));
+                }
             }
         };
         // The AuthenticationState is needed to be on Authenticated so that
@@ -304,6 +311,23 @@ export default class OneInstanceModel extends EventEmitter {
             anonymousEmail,
             takeOver
         );
+    }
+
+    async updatePartnerState(): Promise<void> {
+        // if a partner has no patients associated, then he enters in a
+        // partner state, where the application is not available until a
+        // patient is being associated with this partner
+        const availablePatientConnections = await this.accessModel.getAccessGroupPersons(
+            FreedaAccessGroups.partner
+        );
+
+        if (availablePatientConnections.length > 0) {
+            this.currentPartnerState = false;
+            this.emit('partner_state_changed');
+        } else {
+            this.currentPartnerState = true;
+            this.emit('partner_state_changed');
+        }
     }
 
     /**

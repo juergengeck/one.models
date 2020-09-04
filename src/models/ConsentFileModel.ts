@@ -3,7 +3,6 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {ConsentFile as OneConsentFile, Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
-import {FreedaAccessGroups} from './AccessModel';
 
 export enum FileType {
     Consent = 'consent',
@@ -88,14 +87,6 @@ export default class ConsentFileModel extends EventEmmiter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.partner
-        );
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.clinic
-        );
         this.channelManager.on('updated', id => {
             if (id === this.channelId) {
                 this.emit('updated');

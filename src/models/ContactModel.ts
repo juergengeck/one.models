@@ -31,7 +31,7 @@ import {
     getObjectWithType,
     createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import EventEmitter from 'events';
@@ -98,6 +98,15 @@ export default class ContactModel extends EventEmitter {
                 {module: '@module/setupInitialProfile'},
                 this.commServerUrl,
                 takeOver
+            );
+        } else {
+            const contactObjectIdHash = await calculateIdHashOfObj({
+                $type$: 'ContactApp',
+                appId: 'ContactApp'
+            });
+            await createSingleObjectThroughImpurePlan(
+                {module: '@module/mergeContactApp'},
+                contactObjectIdHash
             );
         }
 
@@ -643,6 +652,24 @@ export default class ContactModel extends EventEmitter {
                         await this.serializeProfileCreatingByPersonEmail(personEmail, true);
                     })
                 );
+
+                /*await serializeWithType('ContactApp', async () => {
+                    try {
+                        const firstPreviousContactObjectHash = await getNthVersionMapHash(
+                            caughtObject.idHash,
+                            -1
+                        );
+                        if (firstPreviousContactObjectHash !== caughtObject.hash) {
+                            await createSingleObjectThroughImpurePlan(
+                                {module: '@module/mergeContactApp'},
+                                caughtObject.idHash
+                            );
+                        }
+                    } catch (_) {
+                        return;
+                    }
+                });*/
+
                 this.emit(ContactEvent.UpdatedContactApp);
             }
             if (this.isProfileVersionedObjectResult(caughtObject)) {

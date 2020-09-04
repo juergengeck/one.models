@@ -17,16 +17,10 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {serializeWithType} from "one.core/lib/util/promise";
-
-export const FreedaAccessGroups = {
-    partner: 'partners',
-    clinic: 'clinic',
-    myself: 'myself'
-};
+import {serializeWithType} from 'one.core/lib/util/promise';
 
 const ACCESS_LOCKS = {
-    GROUP_LOCK : 'GROUP_LOCK'
+    GROUP_LOCK: 'GROUP_LOCK'
 };
 
 /**
@@ -52,13 +46,18 @@ export default class AccessModel extends EventEmitter {
     async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
             if (Array.isArray(groupName)) {
-                return [...new Set((await Promise.all(groupName.map(async (group) => {
-                    const groupObj = await this.getAccessGroupByName(group);
-                    return groupObj === undefined ? [] : groupObj.obj.person;
-                }))).reduce(
-                    (acc, curr) => acc.concat(curr),
-                    []
-                ))];
+                return [
+                    ...new Set(
+                        (
+                            await Promise.all(
+                                groupName.map(async group => {
+                                    const groupObj = await this.getAccessGroupByName(group);
+                                    return groupObj === undefined ? [] : groupObj.obj.person;
+                                })
+                            )
+                        ).reduce((acc, curr) => acc.concat(curr), [])
+                    )
+                ];
             } else {
                 const group = await this.getAccessGroupByName(groupName);
                 return group === undefined ? [] : group.obj.person;
@@ -88,6 +87,7 @@ export default class AccessModel extends EventEmitter {
                 },
                 group.obj
             );
+            this.emit('groups_updated');
         }
     }
 
@@ -98,7 +98,6 @@ export default class AccessModel extends EventEmitter {
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
-
             const group = await this.getAccessGroupByName(name);
             /** add the person only if it does not exist and prevent unnecessary one updates **/
             if (
@@ -114,6 +113,8 @@ export default class AccessModel extends EventEmitter {
                     },
                     group.obj
                 );
+
+                this.emit('groups_updated');
             }
         });
     }
@@ -165,6 +166,7 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
+            this.emit('groups_updated');
         }
     }
 }

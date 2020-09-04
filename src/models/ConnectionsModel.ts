@@ -3,14 +3,12 @@ import CommunicationModule, {ConnectionInfo} from '../misc/CommunicationModule';
 import ContactModel from './ContactModel';
 import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
 import EncryptedConnection from '../misc/EncryptedConnection';
-import {ChumSyncOptions} from 'one.core/lib/chum-sync';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectWithType,
-    SET_ACCESS_MODE,
     VERSION_UPDATES,
     WriteStorageApi
 } from 'one.core/lib/storage';
@@ -35,14 +33,16 @@ import CommunicationInitiationProtocol, {
 } from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
-import AccessModel, {FreedaAccessGroups} from './AccessModel';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
-import {serializeWithType} from 'one.core/lib/util/promise';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
+/**
+ * This is the information that needs to pe transmitted securely to the device that shall be paired
+ *
+ * TODO: the content should be cleaned up.
+ */
 export type PairingInformation = {
     authenticationTag: string;
     publicKeyLocal: string;
@@ -51,10 +51,59 @@ export type PairingInformation = {
     takeOverDetails?: TakeOverInformation;
 };
 
+/**
+ * Additional information for instance takeover.
+ */
 export type TakeOverInformation = {
     nonce: string;
     email: string;
     anonymousEmail: string;
+};
+
+/**
+ * Configuration parameters for the ConnectionsModel
+ *
+ * TODO: Most of the config values will come from the local instance config
+ *       So each instance can decide how it can be reached.
+ */
+export type ConnectionsModelConfiguration = {
+    // #### Incoming connections ####
+
+    // The comm server to use for incoming connections.
+    // Default: ws://localhost:8000
+    commServerUrl: string;
+
+    // If true accept incoming connections. If not do only outgoing
+    // Default: true
+    acceptIncomingConnections: boolean;
+
+    // #### Incoming connections - chum workflow settings (incoming) ####
+
+    // If true accept unknown instances of known persons (incoming connections)
+    // Default: false
+    acceptUnknownInstances: boolean;
+
+    // If true accept unknown instances and unknown persons (incoming connections)
+    // Default: false
+    acceptUnknownPersons: boolean;
+
+    // #### Incoming connections - One time auth workflow settings (incoming) ####
+
+    // If true allow one time authentication workflows (incoming connections)
+    // Default: true
+    allowOneTimeAuth: boolean;
+
+    // The amount of time an authentication token is valid (incoming connections)
+    // Default: 60000 (1 minute)
+    authTokenExpirationDuration: number;
+
+    // #### Outgoing connection configuration ####
+    // If true automatically establish outgoing connections
+    // Default: true
+    establishOutgoingConnections: boolean;
+
+    // If true then use the anon id as local id for outgoing connections
+    connectToOthersWithAnonId: boolean;
 };
 
 /**
@@ -72,7 +121,7 @@ type AuthenticationTokenInfo = {
 type PkAuthenticationTokenInfo = {
     token: string;
     localPersonId: SHA256IdHash<Person>;
-    salt: string;
+    salt: Uint8Array;
     expirationTimeoutHandle: ReturnType<typeof setTimeout>;
 };
 
@@ -93,16 +142,13 @@ type PkAuthenticationTokenInfo = {
  * - The chum is then used to exchange contact information
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
-export default class ConnectionsModel extends EventEmitter {
+class ConnectionsModel extends EventEmitter {
     // Models
     private readonly instancesModel: InstancesModel;
-    private readonly accessModel: AccessModel;
     private communicationModule: CommunicationModule;
 
     // Global settings
-    private readonly commServerUrl: string;
-    private readonly isReplicant: boolean;
-    private readonly authTokenExpirationDuration: number;
+    private readonly config: ConnectionsModelConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -112,9 +158,10 @@ export default class ConnectionsModel extends EventEmitter {
     private anonInstanceInfo: LocalInstanceInfo | null; // My person info - anonymous id -> TODO: should be removed in the future
 
     // Other stuff
-    private oneTimeAutheticationTokens: Map<string, AuthenticationTokenInfo>;
-    private pkOneTimeAutheticationTokens: Map<string, PkAuthenticationTokenInfo>;
+    private oneTimeAuthenticationTokens: Map<string, AuthenticationTokenInfo>;
+    private pkOneTimeAuthenticationTokens: Map<string, PkAuthenticationTokenInfo>;
 
+    // TODO: try to remove the password dependency
     private password: string;
 
     /**
@@ -131,32 +178,53 @@ export default class ConnectionsModel extends EventEmitter {
     /**
      * Construct a new instance
      *
-     * @param {string} commServerUrl
      * @param {ContactModel} contactModel
      * @param {InstancesModel} instancesModel
-     * @param {AccessModel} accessModel
-     * @param {number} authTokenExpirationDuration
-     * @param {boolean} isReplicant
+     * @param {Partial<ConnectionsModel.Configuration>} config
      */
     constructor(
-        commServerUrl: string,
         contactModel: ContactModel,
         instancesModel: InstancesModel,
-        accessModel: AccessModel,
-        authTokenExpirationDuration: number = 60000,
-        isReplicant: boolean = false
+        config: Partial<ConnectionsModelConfiguration>
     ) {
         super();
 
+        // Build configuration object by using default values
+        this.config = {
+            commServerUrl:
+                config.commServerUrl !== undefined ? config.commServerUrl : 'ws://localhost:8000',
+            acceptIncomingConnections:
+                config.acceptIncomingConnections !== undefined
+                    ? config.acceptIncomingConnections
+                    : true,
+            acceptUnknownInstances:
+                config.acceptUnknownInstances !== undefined ? config.acceptUnknownInstances : false,
+            acceptUnknownPersons:
+                config.acceptUnknownPersons !== undefined ? config.acceptUnknownPersons : false,
+            allowOneTimeAuth:
+                config.allowOneTimeAuth !== undefined ? config.allowOneTimeAuth : true,
+            authTokenExpirationDuration:
+                config.authTokenExpirationDuration !== undefined
+                    ? config.authTokenExpirationDuration
+                    : 60000,
+            establishOutgoingConnections:
+                config.establishOutgoingConnections !== undefined
+                    ? config.establishOutgoingConnections
+                    : false,
+            connectToOthersWithAnonId:
+                config.connectToOthersWithAnonId !== undefined
+                    ? config.connectToOthersWithAnonId
+                    : true
+        };
+
         // Setup / init modules
         this.instancesModel = instancesModel;
-        this.accessModel = accessModel;
         this.communicationModule = new CommunicationModule(
-            commServerUrl,
+            this.config.commServerUrl,
             contactModel,
             instancesModel,
-            !isReplicant,
-            !isReplicant
+            this.config.establishOutgoingConnections,
+            this.config.connectToOthersWithAnonId
         );
         this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
         this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
@@ -167,17 +235,12 @@ export default class ConnectionsModel extends EventEmitter {
             this.emit('connectionsChange', state);
         });
 
-        // Init configuration values (stay the same through init)
-        this.commServerUrl = commServerUrl;
-        this.isReplicant = isReplicant;
-        this.authTokenExpirationDuration = authTokenExpirationDuration;
-
         // Changed by init
         this.initialized = false;
         this.mainInstanceInfo = null;
         this.anonInstanceInfo = null;
-        this.oneTimeAutheticationTokens = new Map<string, AuthenticationTokenInfo>();
-        this.pkOneTimeAutheticationTokens = new Map<string, PkAuthenticationTokenInfo>();
+        this.oneTimeAuthenticationTokens = new Map<string, AuthenticationTokenInfo>();
+        this.pkOneTimeAuthenticationTokens = new Map<string, PkAuthenticationTokenInfo>();
 
         this.password = '';
     }
@@ -210,15 +273,15 @@ export default class ConnectionsModel extends EventEmitter {
         this.initialized = false;
         await this.communicationModule.shutdown();
 
-        for (const authTokenData of this.oneTimeAutheticationTokens.values()) {
+        for (const authTokenData of this.oneTimeAuthenticationTokens.values()) {
             clearTimeout(authTokenData.expirationTimeoutHandle);
         }
-        this.oneTimeAutheticationTokens.clear();
+        this.oneTimeAuthenticationTokens.clear();
 
-        for (const authTokenData of this.pkOneTimeAutheticationTokens.values()) {
+        for (const authTokenData of this.pkOneTimeAuthenticationTokens.values()) {
             clearTimeout(authTokenData.expirationTimeoutHandle);
         }
-        this.pkOneTimeAutheticationTokens.clear();
+        this.pkOneTimeAuthenticationTokens.clear();
 
         this.mainInstanceInfo = null;
         this.anonInstanceInfo = null;
@@ -265,16 +328,16 @@ export default class ConnectionsModel extends EventEmitter {
         if (takeOver) {
             const myEmail = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj.email;
             const myAnonEmail = (await getObjectByIdHash(this.anonInstanceInfo.personId)).obj.email;
-            const salt = await ConnectionsModel.generateSalt();
+            const salt = tweetnacl.randomBytes(64);
 
             // Set up the expiration of the token
             const expirationTimeoutHandle = setTimeout(
-                () => this.pkOneTimeAutheticationTokens.delete(authenticationToken),
-                this.authTokenExpirationDuration
+                () => this.pkOneTimeAuthenticationTokens.delete(authenticationToken),
+                this.config.authTokenExpirationDuration
             );
 
             // Add the token to the list of valid tokens
-            this.pkOneTimeAutheticationTokens.set(authenticationToken, {
+            this.pkOneTimeAuthenticationTokens.set(authenticationToken, {
                 token: authenticationToken,
                 localPersonId: this.mainInstanceInfo.personId,
                 salt: salt,
@@ -285,10 +348,10 @@ export default class ConnectionsModel extends EventEmitter {
             return {
                 authenticationTag: authenticationToken,
                 publicKeyLocal: this.mainInstanceInfo.instanceKeys.publicKey,
-                url: this.commServerUrl,
+                url: this.config.commServerUrl,
                 takeOver: true,
                 takeOverDetails: {
-                    nonce: salt,
+                    nonce: fromByteArray(salt),
                     email: myEmail,
                     anonymousEmail: myAnonEmail
                 }
@@ -296,12 +359,12 @@ export default class ConnectionsModel extends EventEmitter {
         } else {
             // Set up the expiration of the token
             const expirationTimeoutHandle = setTimeout(
-                () => this.oneTimeAutheticationTokens.delete(authenticationToken),
-                this.authTokenExpirationDuration
+                () => this.oneTimeAuthenticationTokens.delete(authenticationToken),
+                this.config.authTokenExpirationDuration
             );
 
             // Add the token to the list of valid tokens
-            this.oneTimeAutheticationTokens.set(authenticationToken, {
+            this.oneTimeAuthenticationTokens.set(authenticationToken, {
                 token: authenticationToken,
                 localPersonId: this.anonInstanceInfo.personId,
                 expirationTimeoutHandle
@@ -311,7 +374,7 @@ export default class ConnectionsModel extends EventEmitter {
             return {
                 authenticationTag: authenticationToken,
                 publicKeyLocal: this.anonInstanceInfo.instanceKeys.publicKey,
-                url: this.commServerUrl,
+                url: this.config.commServerUrl,
                 takeOver: false
             };
         }
@@ -345,7 +408,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
-                this.commServerUrl,
+                this.config.commServerUrl,
                 toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
                 remotePublicKey,
                 text => {
@@ -389,7 +452,7 @@ export default class ConnectionsModel extends EventEmitter {
                     conn,
                     this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag,
-                    pairingInformation.takeOverDetails.nonce,
+                    toByteArray(pairingInformation.takeOverDetails.nonce),
                     this.password
                 );
             } catch (e) {
@@ -406,7 +469,7 @@ export default class ConnectionsModel extends EventEmitter {
 
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
-                this.commServerUrl,
+                this.config.commServerUrl,
                 toByteArray(this.anonInstanceInfo.instanceKeys.publicKey),
                 toByteArray(pairingInformation.publicKeyLocal),
                 text => {
@@ -498,36 +561,6 @@ export default class ConnectionsModel extends EventEmitter {
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
 
-                // ######## REPLICANT SPECIFIC ########
-                // TODO: remove the relicant specific part later.
-                if (this.isReplicant) {
-                    if (protocolMsg.protocol === 'chum') {
-                        if (protocolMsg.version !== '1.0') {
-                            // noinspection ExceptionCaughtLocallyJS
-                            throw new Error('Unsupported chum protocol version.');
-                        }
-
-                        await this.startChumProtocol(
-                            conn,
-                            localPersonId,
-                            false,
-                            false,
-                            remotePersonId
-                        );
-                    } else if (protocolMsg.protocol === 'chum_onetimeauth_withtoken') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not supported by replicant.');
-                    } else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not supported by replicant.');
-                    } else {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not implemented.');
-                    }
-                    return;
-                }
-                // ######## REPLICANT SPECIFIC - END ########
-
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum') {
                     if (protocolMsg.version !== '1.0') {
@@ -543,6 +576,12 @@ export default class ConnectionsModel extends EventEmitter {
                 // Why support this in the known case? If the exchange of contact objects didn't work reliably
                 // we need to be able to pair even if one of the peers thinks it is a known connection.
                 else if (protocolMsg.protocol === 'chum_onetimeauth_withtoken') {
+                    if (!this.config.allowOneTimeAuth) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'chum_onetimeauth_withtoken protocol is disabled through configuration.'
+                        );
+                    }
                     if (protocolMsg.version !== '1.0') {
                         // noinspection ExceptionCaughtLocallyJS
                         throw new Error('Unsupported chum_onetimeauth_withtoken protocol version.');
@@ -556,6 +595,12 @@ export default class ConnectionsModel extends EventEmitter {
                 // Why support this in the known case? If the exchange of contact objects didn't work reliably
                 // we need to be able to pair even if one of the peers thinks it is a known connection.
                 else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
+                    if (!this.config.allowOneTimeAuth) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'chumAndPkExchange_onetimeauth_withtoken protocol is disabled through configuration.'
+                        );
+                    }
                     if (protocolMsg.version !== '1.0') {
                         // noinspection ExceptionCaughtLocallyJS
                         throw new Error(
@@ -612,39 +657,34 @@ export default class ConnectionsModel extends EventEmitter {
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
 
-                // ######## REPLICANT SPECIFIC ########
-                // TODO: remove the relicant specific part later.
-                if (this.isReplicant) {
-                    if (protocolMsg.protocol === 'chum') {
-                        if (protocolMsg.version !== '1.0') {
-                            // noinspection ExceptionCaughtLocallyJS
-                            throw new Error('Unsupported chum protocol version.');
-                        }
-
-                        await this.startChumProtocol(conn, localPersonId, false, false);
-                    } else if (protocolMsg.protocol === 'chum_onetimeauth_withtoken') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not supported by replicant.');
-                    } else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not supported by replicant.');
-                    } else {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Protocol not implemented.');
-                    }
-                    return;
-                }
-                // ######## REPLICANT SPECIFIC - END ########
-
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum') {
-                    // noinspection ExceptionCaughtLocallyJS
-                    throw new Error('You are not authorized to build up a chum connection.');
+                    if (!this.config.acceptUnknownPersons && !this.config.acceptUnknownInstances) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error('Unknown connections are disabled by the configuration.');
+                    }
+                    if (protocolMsg.version !== '1.0') {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error('Unsupported chum protocol version.');
+                    }
+
+                    await this.startChumProtocol(
+                        conn,
+                        localPersonId,
+                        false,
+                        !this.config.acceptUnknownPersons
+                    );
                 }
 
                 // A chum with a one time auth token that was generated by this instance.
                 // Used for pairing instances of other people.
                 else if (protocolMsg.protocol === 'chum_onetimeauth_withtoken') {
+                    if (!this.config.allowOneTimeAuth) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'chum_onetimeauth_withtoken protocol is disabled through configuration.'
+                        );
+                    }
                     if (protocolMsg.version !== '1.0') {
                         // noinspection ExceptionCaughtLocallyJS
                         throw new Error('Unsupported chum_onetimeauth_withtoken protocol version.');
@@ -656,6 +696,12 @@ export default class ConnectionsModel extends EventEmitter {
                 // A chum and private key exchange protocol.
                 // Used for pairing internet of me devices
                 else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
+                    if (!this.config.allowOneTimeAuth) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'chumAndPkExchange_onetimeauth_withtoken protocol is disabled through configuration.'
+                        );
+                    }
                     if (protocolMsg.version !== '1.0') {
                         // noinspection ExceptionCaughtLocallyJS
                         throw new Error(
@@ -719,7 +765,7 @@ export default class ConnectionsModel extends EventEmitter {
         }
 
         // Step 2: Start the chum
-        await this.startChum(conn, localPersonId, remotePersonInfo.personId, isClient);
+        await this.startChum(conn, localPersonId, remotePersonInfo.personId, 'chum', isClient);
         conn.close();
     }
 
@@ -756,7 +802,7 @@ export default class ConnectionsModel extends EventEmitter {
         const authToken = await ConnectionsModel.waitForMessage(conn, 'authentication_token');
 
         // Verify the auth token
-        const authData = this.oneTimeAutheticationTokens.get(authToken.token);
+        const authData = this.oneTimeAuthenticationTokens.get(authToken.token);
         if (authData === undefined) {
             throw new Error('Authentication token is not existing.');
         }
@@ -783,10 +829,19 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
-        this.oneTimeAutheticationTokens.delete(authToken.token);
+        this.oneTimeAuthenticationTokens.delete(authToken.token);
+
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authToken.token);
 
         // Step 4: Start the chum
-        await this.startChum(conn, localPersonId, remotePersonInfo.personId, false);
+        await this.startChum(
+            conn,
+            localPersonId,
+            remotePersonInfo.personId,
+            'chum_onetimeauth_withtoken',
+            false
+        );
         conn.close();
     }
 
@@ -802,7 +857,7 @@ export default class ConnectionsModel extends EventEmitter {
      *
      * @param {EncryptedConnection} conn - Connection to the peer.
      * @param {SHA256IdHash<Person>} localPersonId - The local person id used to setup the chum
-     * @param {string} authenticationToken - The authentiation token received via a secure channel from the peer
+     * @param {string} authenticationToken - The authentication token received via a secure channel from the peer
      * @returns {Promise<void>}
      */
     private async startChumOneTimeAuthProtocol_Client(
@@ -835,7 +890,13 @@ export default class ConnectionsModel extends EventEmitter {
         });
 
         // Step 4: Start the chum
-        await this.startChum(conn, localPersonId, personInfo.personId, true);
+        await this.startChum(
+            conn,
+            localPersonId,
+            personInfo.personId,
+            'chum_onetimeauth_withtoken',
+            true
+        );
         conn.close();
     }
 
@@ -875,7 +936,7 @@ export default class ConnectionsModel extends EventEmitter {
         const authToken = await ConnectionsModel.waitForMessage(conn, 'authentication_token');
 
         // Verify the auth token
-        const authData = this.pkOneTimeAutheticationTokens.get(authToken.token);
+        const authData = this.pkOneTimeAuthenticationTokens.get(authToken.token);
         if (authData === undefined) {
             throw new Error('Authentication token is not existing.');
         }
@@ -891,17 +952,14 @@ export default class ConnectionsModel extends EventEmitter {
             'encrypted_authentication_token'
         );
         const encryptedAuthTag = toByteArray(encAuthData.token);
-        const kdf = await scrypt(
-            stringToUint8Array(this.password),
-            stringToUint8Array(authData.salt)
-        );
+        const derivedKey = await scrypt(stringToUint8Array(this.password), authData.salt);
 
         // Verify if the other instance has the same password as the current instance.
         // We need to remove the "" that is added by Uint8ArrayToString ....
         // TODO: do this smarter! Without conversion and stuff.
         // TODO: think about whether it is a good idea to reuse the authentication token for this stuff
         const decryptedAuthTag = Uint8ArrayToString(
-            await decryptWithSymmetricKey(kdf, encryptedAuthTag)
+            await decryptWithSymmetricKey(derivedKey, encryptedAuthTag)
             // remove all quotes from the decrypted string
         ).replace(new RegExp('"', 'g'), '');
 
@@ -915,10 +973,19 @@ export default class ConnectionsModel extends EventEmitter {
 
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
-        this.pkOneTimeAutheticationTokens.delete(authToken.token);
+        this.pkOneTimeAuthenticationTokens.delete(authToken.token);
+
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authToken.token);
 
         // Step 5: Start the chum
-        await this.startChum(conn, localPersonId, remotePersonInfo.personId, false);
+        await this.startChum(
+            conn,
+            localPersonId,
+            remotePersonInfo.personId,
+            'chumAndPkExchange_onetimeauth_withtoken',
+            false
+        );
         conn.close();
     }
 
@@ -937,7 +1004,7 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {EncryptedConnection} conn
      * @param {SHA256IdHash<Person>} localPersonId
      * @param {string} authenticationToken
-     * @param {string} kdfSalt
+     * @param {Uint8Array} kdfSalt
      * @param {string} password
      * @returns {Promise<void>}
      */
@@ -945,7 +1012,7 @@ export default class ConnectionsModel extends EventEmitter {
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
         authenticationToken: string,
-        kdfSalt: string,
+        kdfSalt: Uint8Array,
         password: string
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
@@ -964,8 +1031,8 @@ export default class ConnectionsModel extends EventEmitter {
         });
 
         // Step 3: Authenticate by sending the token
-        const kdf = await scrypt(stringToUint8Array(password), stringToUint8Array(kdfSalt));
-        const encryptedAuthTag = await encryptWithSymmetricKey(kdf, authenticationToken);
+        const derivedKey = await scrypt(stringToUint8Array(password), kdfSalt);
+        const encryptedAuthTag = await encryptWithSymmetricKey(derivedKey, authenticationToken);
         await ConnectionsModel.sendMessage(conn, {
             command: 'encrypted_authentication_token',
             token: fromByteArray(encryptedAuthTag)
@@ -979,7 +1046,13 @@ export default class ConnectionsModel extends EventEmitter {
         await this.overwriteExistingPersonKeys(privatePersonInfo);
 
         // Step 5: Start the chum with the new id
-        await this.startChum(conn, localPersonId, personInfo.personId, true);
+        await this.startChum(
+            conn,
+            localPersonId,
+            personInfo.personId,
+            'chumAndPkExchange_onetimeauth_withtoken',
+            true
+        );
         conn.close();
     }
 
@@ -991,32 +1064,21 @@ export default class ConnectionsModel extends EventEmitter {
      * @param {EncryptedConnection} conn
      * @param {SHA256IdHash<Person>} localPersonId
      * @param {SHA256IdHash<Person>} remotePersonId
-     * @param {boolean} sendSync
-     * @param {boolean} isConnectionWithReplicant
+     * @param {CommunicationInitiationProtocol.Protocols} protocol
+     * @param {boolean} initiatedLocally
      * @returns {Promise<void>}
      */
     private async startChum(
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
-        sendSync: boolean = false,
-        isConnectionWithReplicant: boolean = false
+        protocol: CommunicationInitiationProtocol.Protocols,
+        initiatedLocally: boolean
     ): Promise<void> {
-        if (localPersonId !== remotePersonId && !isConnectionWithReplicant) {
-            // For instances that I own the localPersonId and remotePersonID will be the same,
-            // so if the id's are different, that means that I am connecting to a partner.
-            await this.accessModel.addPersonToAccessGroup(
-                FreedaAccessGroups.partner,
-                remotePersonId
-            );
-        }
-
-        await serializeWithType('giveAccessToChannels', async () => {
-            await this.giveAccessToChannels();
-        });
+        this.emit('chum_start', localPersonId, remotePersonId, protocol, initiatedLocally);
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
-        if (sendSync) {
+        if (initiatedLocally) {
             await conn.sendMessage('synchronisation');
             await conn.waitForMessage();
         } else {
@@ -1024,24 +1086,27 @@ export default class ConnectionsModel extends EventEmitter {
             await conn.sendMessage('synchronisation');
         }
 
-        try {
-            const minimalWriteStorageApiObj = {
-                createFileWriteStream: createFileWriteStream
-            } as WriteStorageApi;
-            // Core takes either the ws package or the default websocket
-            // depending on for what environment it was compiled. In this
-            // project we use the isomorphic-ws library for this. This is
-            // why we need to ignore the below error, because after compilation
-            // the types of the websockets will be the same.
-            const websocketPromisifierAPI = createWebsocketPromisifier(
-                minimalWriteStorageApiObj,
-                // @ts-ignore
-                conn
-            );
-            websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
-            websocketPromisifierAPI.localPersonIdHash = localPersonId;
+        const minimalWriteStorageApiObj = {
+            createFileWriteStream: createFileWriteStream
+        } as WriteStorageApi;
 
-            const defaultInitialChumObj: ChumSyncOptions = {
+        // Core takes either the ws package or the default websocket
+        // depending on for what environment it was compiled. In this
+        // project we use the isomorphic-ws library for this. This is
+        // why we need to ignore the below error, because after compilation
+        // the types of the websockets will be the same.
+        const websocketPromisifierAPI = createWebsocketPromisifier(
+            minimalWriteStorageApiObj,
+            // @ts-ignore
+            conn
+        );
+        websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
+        websocketPromisifierAPI.localPersonIdHash = localPersonId;
+
+        // Start the chum
+        await createSingleObjectThroughImpurePlan(
+            {module: '@one/chum-sync'},
+            {
                 connection: websocketPromisifierAPI,
 
                 // used only for logging purpose
@@ -1051,146 +1116,8 @@ export default class ConnectionsModel extends EventEmitter {
 
                 keepRunning: true,
                 maxNotificationDelay: 20
-            };
-
-            const chum = createSingleObjectThroughImpurePlan(
-                {module: '@one/chum-sync'},
-                defaultInitialChumObj
-            );
-
-            await chum;
-        } catch (e) {
-            console.error('Error in start chum:', e);
-        }
-    }
-
-    /**
-     * Generates a random nonce.
-     *
-     * TODO: to this with tweetnacl to be more secure.
-     * @returns {Promise<string>}
-     */
-    private static async generateSalt(): Promise<string> {
-        return await createRandomString();
-    }
-
-    /**
-     * The channels need to be shared as follow:
-     * - bodyTemperature:   myself
-     * - consentFile:       myself      replicant       partner(also old partner consent file channel)
-     * - contacts:          myself      replicant       partner
-     * - diary:             myself
-     * - feedbackChannel:   myself      replicant
-     * - newsChannel:       myself
-     * - questionnaire:     myself      replicant       partner
-     */
-    // todo: this function should be removed when the group data sharing is working
-    async giveAccessToChannels(): Promise<void> {
-        if (this.isReplicant) {
-            return;
-        }
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo is not initialized.');
-        }
-
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'questionnaire',
-            owner: this.mainInstanceInfo.personId
-        });
-        const setAccessParam = {
-            id: channelInfoIdHash,
-            person: [
-                this.mainInstanceInfo.personId,
-                ...(await this.accessModel.getAccessGroupPersons([
-                    FreedaAccessGroups.clinic,
-                    FreedaAccessGroups.partner
-                ]))
-            ],
-            group: [],
-            mode: SET_ACCESS_MODE.REPLACE
-        };
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'consentFile',
-            owner: this.mainInstanceInfo.personId
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'contacts',
-            owner: this.mainInstanceInfo.personId
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'feedbackChannel',
-            owner: this.mainInstanceInfo.personId
-        });
-        //setAccessParam.person = [this.mainInstanceInfo.personId, ...this.replicantAccess];
-        setAccessParam.person = [
-            this.mainInstanceInfo.personId,
-            ...(await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.clinic))
-        ];
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'bodyTemperature',
-            owner: this.mainInstanceInfo.personId
-        });
-        setAccessParam.person = [this.mainInstanceInfo.personId];
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'diary',
-            owner: this.mainInstanceInfo.personId
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'newsChannel',
-            owner: this.mainInstanceInfo.personId
-        });
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        setAccessParam.id = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: 'realContacts',
-            owner: this.mainInstanceInfo.personId
-        });
-        setAccessParam.person = [this.mainInstanceInfo.personId];
-
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-
-        // For each partner check if I have an old version of it's consent file channel
-        // and if so share it back with him. (for backup purpose)
-        const partners = await this.accessModel.getAccessGroupPersons(FreedaAccessGroups.partner);
-        for await (const partnerIdHash of partners) {
-            try {
-                // share old partner consent files with partner for backup
-                setAccessParam.id = await calculateIdHashOfObj({
-                    $type$: 'ChannelInfo',
-                    id: 'consentFile',
-                    owner: partnerIdHash
-                });
-                setAccessParam.person = [...partners, this.mainInstanceInfo.personId];
-                await getObjectByIdHash(setAccessParam.id);
-                await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-            } catch (error) {
-                // If the partner was not connected with this instance previously,
-                // then the calculateIdHashOfObj function will return a FileNotFoundError.
-                if (error.name !== 'FileNotFoundError') {
-                    console.error(error);
-                }
             }
-        }
+        );
     }
 
     /**
@@ -1341,6 +1268,11 @@ export default class ConnectionsModel extends EventEmitter {
             this.password,
             this.mainInstanceInfo.personId,
             this.mainInstanceInfo.instanceId
+        );
+        await overwritePersonKeys(
+            this.password,
+            this.anonInstanceInfo.personId,
+            this.anonInstanceInfo.instanceId
         );
     }
 
@@ -1614,3 +1546,5 @@ export default class ConnectionsModel extends EventEmitter {
         throw Error("Received data does not match the data expected for command '" + command + "'");
     }
 }
+
+export default ConnectionsModel;
