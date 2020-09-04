@@ -1,7 +1,6 @@
 {
-  "name": "one.filer",
-  "version": "2.0.0-next",
-  "main": "index.js",
+  "name": "one.smiler.models",
+  "version": "2.1.0",
   "repository": "https://github.com/refinio/one.filer",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
