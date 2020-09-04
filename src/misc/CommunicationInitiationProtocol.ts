@@ -7,6 +7,11 @@ declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########
 
     /**
+     * Protocols that are supported by the StartProtocolMessage
+     */
+    export type Protocols = 'chum' | 'chum_onetimeauth_withtoken' | 'chumAndPkExchange_onetimeauth_withtoken';
+
+    /**
      * This request is sent by a client to request communication with somebody that has the specified public key.
      *
      * The target of this message can either be a communication server or an instance that accepts direct connections.
@@ -36,7 +41,7 @@ declare module CommunicationInitiationProtocol {
      */
     export type StartProtocolMessage = {
         command: 'start_protocol';
-        protocol: 'chum' | 'chum_onetimeauth_withtoken' | 'chumAndPkExchange_onetimeauth_withtoken';
+        protocol: Protocols
         version: string;
     };
 

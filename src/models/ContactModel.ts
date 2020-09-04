@@ -31,7 +31,7 @@ import {
     getObjectWithType,
     createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import EventEmitter from 'events';
@@ -99,8 +99,11 @@ export default class ContactModel extends EventEmitter {
                 this.commServerUrl,
                 takeOver
             );
-        } else{
-            const contactObjectIdHash = await getObjectByIdObj({$type$: 'ContactApp', appId: 'ContactApp'});
+        } else {
+            const contactObjectIdHash = await calculateIdHashOfObj({
+                $type$: 'ContactApp',
+                appId: 'ContactApp'
+            });
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/mergeContactApp'},
                 contactObjectIdHash
@@ -650,7 +653,7 @@ export default class ContactModel extends EventEmitter {
                     })
                 );
 
-                await serializeWithType('ContactApp', async () => {
+                /*await serializeWithType('ContactApp', async () => {
                     try {
                         const firstPreviousContactObjectHash = await getNthVersionMapHash(
                             caughtObject.idHash,
@@ -665,7 +668,7 @@ export default class ContactModel extends EventEmitter {
                     } catch (_) {
                         return;
                     }
-                });
+                });*/
 
                 this.emit(ContactEvent.UpdatedContactApp);
             }

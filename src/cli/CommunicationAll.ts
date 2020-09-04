@@ -82,10 +82,11 @@ async function main(): Promise<void> {
     const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     const connectionsModel = new ConnectionsModel(
-        argv.u,
         contactModel,
         instancesModel,
-        accessModel
+        {
+            commServerUrl: argv.u
+        }
     );
 
     console.log('INITIAL ONLINE STATE IS: ' + connectionsModel.onlineState);

@@ -211,10 +211,12 @@ export default class ChannelManager extends EventEmitter {
      *
      * @param {string} channelId - The channel for which to create the iterator
      * @param {QueryOptions} queryOptions
+     * @param {SHA256Hash<ChannelInfo>} channelHash
      */
     async *singleChannelIterator(
         channelId: string,
-        queryOptions: QueryOptions
+        queryOptions: QueryOptions,
+        channelHash?: SHA256Hash<ChannelInfo>
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
         let objectsCount = 0;
 
@@ -224,7 +226,9 @@ export default class ChannelManager extends EventEmitter {
             id: channelId,
             owner: queryOptions.owner
         });
-        const channelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
+        // if a channelHash is provided, get this specific channel info, otherwise get the latest by the idHash
+        // this flow is only called within the getObjectsByHash function
+        const channelInfo = channelHash ? await getObject(channelHash) : (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
         let channelEntryHash = channelInfo.head;
 
         // Iterate over the whole list and append it to the output array
@@ -355,6 +359,24 @@ export default class ChannelManager extends EventEmitter {
             }
             return objects.reverse();
         }
+    }
+
+    /**
+     * iterate over a specific channel by hash
+     * @param {SHA256Hash<ChannelInfo>} channelHash
+     * @param {QueryOptions} queryOptions
+     * @return {Promise<ObjectData<OneUnversionedObjectTypes>[]>}
+     */
+    async getObjectsByHash(
+        channelHash: SHA256Hash<ChannelInfo>,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+        const channel = await getObject(channelHash);
+        for await (const obj of this.singleChannelIterator(channel.id, {owner: channel.owner}, channelHash)) {
+            objects.push(obj);
+        }
+        return objects.reverse();
     }
 
     /**
