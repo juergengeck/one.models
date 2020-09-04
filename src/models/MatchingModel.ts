@@ -32,7 +32,7 @@ const catalogName = 'Catalog';
 
 /**
  * This represents a MatchingEvents
- * @enum CatalogUpdate -> updates the catalog tags
+ * @enum CatalogUpdate -> updates the catalog tags everytime a new supply or a demand is added
  *       SupplyUpdate -> updates the supplies
  *       DemandUpdate -> updates the demands
  *       NewMatch -> updates the matches
@@ -50,21 +50,20 @@ export enum MatchingEvents {
  * @augments EventEmitter
  */
 export default class MatchingModel extends EventEmitter {
-    private instanceModel: InstancesModel;
+    private instancesModel: InstancesModel;
 
     private supplyMap: Map<string, Supply> = new Map<string, Supply>();
     private demandMap: Map<string, Demand> = new Map<string, Demand>();
     private catalogTags: Array<string> = new Array<string>();
 
     private anonInstanceInfo: LocalInstanceInfo | null;
-
-    private personEmail: string | null;
+    private anonInstancePersonEmail: string | null;
 
     constructor(instancesModel: InstancesModel) {
         super();
-        this.instanceModel = instancesModel;
+        this.instancesModel = instancesModel;
         this.anonInstanceInfo = null;
-        this.personEmail = null;
+        this.anonInstancePersonEmail = null;
     }
 
     async init() {
@@ -77,10 +76,13 @@ export default class MatchingModel extends EventEmitter {
                 this.anonInstanceInfo.personId
             )) as VersionedObjectResult<Person>;
 
-            this.personEmail = person.obj.email;
+            this.anonInstancePersonEmail = person.obj.email;
         }
     }
 
+    /*
+     * initialize the supply and demandMap and the catalog tags
+     */
     private async initMaps(): Promise<void> {
         try {
             const supplyMapObj = (await getObjectByIdObj({
@@ -108,14 +110,16 @@ export default class MatchingModel extends EventEmitter {
                 this.catalogTags = catalog.obj.array;
             }
         } catch (err) {
-            return;
+            if (err.name !== 'FileNotFoundError') {
+                console.error(err);
+            }
         }
     }
 
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
-                await this.addMatch(caughtObject.obj);
+                await this.addMatchResponse(caughtObject.obj);
             }
         });
         onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
@@ -127,7 +131,7 @@ export default class MatchingModel extends EventEmitter {
 
     private async registerCatalog(catalog: Catalog): Promise<void> {
         this.catalogTags = catalog.array ? catalog.array : [];
-        if (!this.catalogTags) {
+        if (!this.catalogTags.length) {
             return;
         }
         await createSingleObjectThroughPurePlan(
@@ -145,10 +149,10 @@ export default class MatchingModel extends EventEmitter {
     }
 
     private async updateInstanceInfo(): Promise<void> {
-        const infos = await this.instanceModel.localInstancesInfo();
+        const infos = await this.instancesModel.localInstancesInfo();
 
         if (infos.length !== 2) {
-            throw new Error('This applications needs exactly one alternate identity!');
+            throw new Error('This application needs exactly one alternate identity!');
         }
 
         await Promise.all(
@@ -168,7 +172,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.personEmail,
+                identity: this.anonInstancePersonEmail,
                 match: supplyInput,
                 isActive: true,
                 timestamp: Date.now()
@@ -194,9 +198,6 @@ export default class MatchingModel extends EventEmitter {
             email: 'person@match.one'
         });
 
-        // eslint-disable-next-line no-console
-        console.log('sending supply object to match server');
-
         await createSingleObjectThroughPurePlan(
             {
                 module: '@one/access'
@@ -221,7 +222,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: this.personEmail,
+                identity: this.anonInstancePersonEmail,
                 match: demandInput,
                 isActive: true,
                 timestamp: Date.now()
@@ -246,9 +247,6 @@ export default class MatchingModel extends EventEmitter {
             $type$: 'Person',
             email: 'person@match.one'
         });
-
-        // eslint-disable-next-line no-console
-        console.log('sending demand object to match server');
 
         await createSingleObjectThroughPurePlan(
             {
@@ -275,7 +273,7 @@ export default class MatchingModel extends EventEmitter {
 
             {
                 $type$: 'RequestCatalog',
-                identity: this.personEmail,
+                identity: this.anonInstancePersonEmail,
                 timestamp: Date.now()
             }
         )) as UnversionedObjectResult<RequestCatalog>;
@@ -303,6 +301,14 @@ export default class MatchingModel extends EventEmitter {
         return this.catalogTags;
     }
 
+    supplies(): Map<string, Supply> {
+        return this.supplyMap;
+    }
+
+    demands(): Map<string, Demand> {
+        return this.demandMap;
+    }
+
     async getMatchMap(): Promise<MatchResponse[]> {
         let matchMap: MatchResponse[] = [];
 
@@ -318,7 +324,7 @@ export default class MatchingModel extends EventEmitter {
         return matchMap;
     }
 
-    async addMatch(matchResponse: MatchResponse): Promise<void> {
+    async addMatchResponse(matchResponse: MatchResponse): Promise<void> {
         const savedMatchResponse = (await createSingleObjectThroughPurePlan(
             {
                 module: '@module/matchResponse',
@@ -370,14 +376,6 @@ export default class MatchingModel extends EventEmitter {
         this.emit(MatchingEvents.MatchUpdate);
     }
 
-    supplies(): Map<string, Supply> {
-        return this.supplyMap;
-    }
-
-    demands(): Map<string, Demand> {
-        return this.demandMap;
-    }
-
     async deleteSupply(supplyValue: string): Promise<void> {
         this.supplyMap.delete(supplyValue);
 
@@ -412,8 +410,12 @@ export default class MatchingModel extends EventEmitter {
         this.emit(MatchingEvents.DemandUpdate);
     }
 
-    async changeSupplyStatus(value: string): Promise<void> {
-        const supply = this.supplyMap.get(value);
+    /*
+     * this function changes the status of a supply from active to inactive or the other way depending
+     * on the actual status of the tag and the user clicking on it
+     */
+    async changeSupplyStatus(supplyMatch: string): Promise<void> {
+        const supply = this.supplyMap.get(supplyMatch);
 
         const newSupply = (await createSingleObjectThroughPurePlan(
             {
@@ -422,14 +424,14 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Supply',
-                identity: this.personEmail,
-                match: value,
+                identity: this.anonInstancePersonEmail,
+                match: supplyMatch,
                 isActive: supply ? !supply.isActive : false,
                 timestamp: Date.now()
             }
         )) as UnversionedObjectResult<Supply>;
 
-        this.supplyMap.set(value, newSupply.obj);
+        this.supplyMap.set(supplyMatch, newSupply.obj);
 
         await createSingleObjectThroughPurePlan(
             {
@@ -465,6 +467,10 @@ export default class MatchingModel extends EventEmitter {
         this.emit(MatchingEvents.SupplyUpdate);
     }
 
+    /*
+     * this function changes the status of a demand from active to inactive or the other way depending
+     * on the actual status of the tag and the user clicking on it
+     */
     async changeDemandStatus(value: string): Promise<void> {
         const demand = this.demandMap.get(value);
 
@@ -475,7 +481,7 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'Demand',
-                identity: this.personEmail,
+                identity: this.anonInstancePersonEmail,
                 match: value,
                 isActive: demand ? !demand.isActive : false.valueOf(),
                 timestamp: Date.now()
