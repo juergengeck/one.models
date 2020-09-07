@@ -2,7 +2,7 @@
 
 export ONE_TARGET_PLATFORM=nodejs
 
-MODULES="one.core one.match"
+MODULES="one.core"
 
 for module in $MODULES; do
     cd "node_modules/$module"
