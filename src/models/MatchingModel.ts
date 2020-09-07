@@ -22,7 +22,7 @@ import {
     createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
 import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
-import matchingContact from './matching_contact/matching_public_contact.json';
+import matchingContact from '../../lib/models/matching_contact/matching_public_contact.json';
 import ChannelManager from './ChannelManager';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
@@ -93,6 +93,10 @@ export default class MatchingModel extends EventEmitter {
 
         this.matchingServerPersonIdHash = importedMatchingContact[0].obj.personId;
 
+        this.registerHooks();
+        await this.initMaps();
+        await this.updateInstanceInfo();
+
         await this.channelManager.createChannel(this.channelId);
         await this.applyAccessRights();
 
@@ -101,10 +105,6 @@ export default class MatchingModel extends EventEmitter {
                 this.emit('updated');
             }
         });
-
-        this.registerHooks();
-        await this.initMaps();
-        await this.updateInstanceInfo();
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
             const person = (await getObjectByIdHash(
