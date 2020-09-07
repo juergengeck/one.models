@@ -7,10 +7,10 @@ import {
     VersionedObjectResult,
     SupplyMap,
     DemandMap,
-    Catalog,
     MatchMap,
     Person,
-    RequestCatalog
+    Contact,
+    SHA256IdHash
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -19,16 +19,16 @@ import {
     VERSION_UPDATES,
     getObjectByIdObj,
     getObjectByIdHash,
-    onVersionedObj
+    createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
+import matchingContact from './matching_contact/matching_public_contact.json';
+import ChannelManager from './ChannelManager';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
-const supplyMapName = 'SupplyMap';
-const demandMapName = 'DemandMap';
+const mySupplyMapName = 'MySupplyMap';
+const myDemandMapName = 'MyDemandMap';
 const matchMapName = 'MatchMap';
-const catalogName = 'Catalog';
 
 /**
  * This represents a MatchingEvents
@@ -51,22 +51,57 @@ export enum MatchingEvents {
  */
 export default class MatchingModel extends EventEmitter {
     private instancesModel: InstancesModel;
+    private channelManager: ChannelManager;
 
-    private supplyMap: Map<string, Supply> = new Map<string, Supply>();
-    private demandMap: Map<string, Demand> = new Map<string, Demand>();
-    private catalogTags: Array<string> = new Array<string>();
+    private mySuppliesMap: Map<string, Supply>;
+    private myDemandsMap: Map<string, Demand>;
+
+    private allSuppliesMap: Map<string, Supply[]>;
+    private allDemandsMap: Map<string, Demand[]>;
 
     private anonInstanceInfo: LocalInstanceInfo | null;
     private anonInstancePersonEmail: string | null;
 
-    constructor(instancesModel: InstancesModel) {
+    private matchingServerPersonIdHash: SHA256IdHash<Person> | undefined;
+
+    private channelId = 'matching';
+
+    constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
         super();
         this.instancesModel = instancesModel;
+        this.channelManager = channelManager;
         this.anonInstanceInfo = null;
         this.anonInstancePersonEmail = null;
+        this.matchingServerPersonIdHash = undefined;
+        this.mySuppliesMap = new Map<string, Supply>();
+        this.myDemandsMap = new Map<string, Demand>();
+        this.allSuppliesMap = new Map<string, Supply[]>();
+        this.allDemandsMap = new Map<string, Demand[]>();
     }
 
     async init() {
+        // connect to the matching server
+        const importedMatchingContact: UnversionedObjectResult<
+            Contact
+        >[] = await createManyObjectsThroughPurePlan(
+            {
+                module: '@module/explodeObject',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            decodeURI(matchingContact.data)
+        );
+
+        this.matchingServerPersonIdHash = importedMatchingContact[0].obj.personId;
+
+        await this.channelManager.createChannel(this.channelId);
+        await this.applyAccessRights();
+
+        this.channelManager.on('updated', id => {
+            if (id === this.channelId) {
+                this.emit('updated');
+            }
+        });
+
         this.registerHooks();
         await this.initMaps();
         await this.updateInstanceInfo();
@@ -87,27 +122,19 @@ export default class MatchingModel extends EventEmitter {
         try {
             const supplyMapObj = (await getObjectByIdObj({
                 $type$: 'SupplyMap',
-                name: supplyMapName
+                name: mySupplyMapName
             })) as VersionedObjectResult<SupplyMap>;
 
             if (supplyMapObj.obj.map) {
-                this.supplyMap = supplyMapObj.obj.map;
+                this.mySuppliesMap = supplyMapObj.obj.map;
             }
             const demandMapObj = (await getObjectByIdObj({
                 $type$: 'DemandMap',
-                name: demandMapName
+                name: myDemandMapName
             })) as VersionedObjectResult<DemandMap>;
 
             if (demandMapObj.obj.map) {
-                this.demandMap = demandMapObj.obj.map;
-            }
-            const catalog = (await getObjectByIdObj({
-                $type$: 'Catalog',
-                name: catalogName
-            })) as VersionedObjectResult<Catalog>;
-
-            if (catalog.obj.array) {
-                this.catalogTags = catalog.obj.array;
+                this.myDemandsMap = demandMapObj.obj.map;
             }
         } catch (err) {
             if (err.name !== 'FileNotFoundError') {
@@ -121,31 +148,25 @@ export default class MatchingModel extends EventEmitter {
             if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
                 await this.addMatchResponse(caughtObject.obj);
             }
-        });
-        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'Catalog' && caughtObject.status === 'new') {
-                await this.registerCatalog(caughtObject.obj);
-            }
-        });
-    }
+            if (caughtObject.obj.$type$ === 'Supply') {
+                let existingSupplies = this.allSuppliesMap.get(caughtObject.obj.match);
 
-    private async registerCatalog(catalog: Catalog): Promise<void> {
-        this.catalogTags = catalog.array ? catalog.array : [];
-        if (!this.catalogTags.length) {
-            return;
-        }
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/catalog',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Catalog',
-                name: 'Catalog',
-                array: this.catalogTags
+                if (!existingSupplies) {
+                    existingSupplies = [];
+                }
+                existingSupplies.push(caughtObject.obj);
+                this.allSuppliesMap.set(caughtObject.obj.match, existingSupplies);
             }
-        );
-        this.emit(MatchingEvents.CatalogUpdate);
+            if (caughtObject.obj.$type$ === 'Demand') {
+                let existingDemands = this.allDemandsMap.get(caughtObject.obj.match);
+
+                if (!existingDemands) {
+                    existingDemands = [];
+                }
+                existingDemands.push(caughtObject.obj);
+                this.allDemandsMap.set(caughtObject.obj.match, existingDemands);
+            }
+        });
     }
 
     private async updateInstanceInfo(): Promise<void> {
@@ -179,41 +200,12 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Supply>;
 
-        this.supplyMap.set(supply.obj.match, supply.obj);
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supplyMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'SupplyMap',
-                name: supplyMapName,
-                map: this.supplyMap as Map<string, Supply>
-            }
-        );
-
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: 'person@match.one'
-        });
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: supply.hash,
-                    person: [matchServer, getInstanceOwnerIdHash()],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
-
+        this.mySuppliesMap.set(supply.obj.match, supply.obj);
+        await this.memoriseLatestVersionOfSupplyMap();
+        await this.channelManager.postToChannel(this.channelId, supply.obj);
         this.emit(MatchingEvents.SupplyUpdate);
     }
+
     async sendDemandObject(demandInput: string): Promise<void> {
         const demand = (await createSingleObjectThroughPurePlan(
             {
@@ -229,84 +221,34 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Demand>;
 
-        this.demandMap.set(demand.obj.match, demand.obj);
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demandMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'DemandMap',
-                name: demandMapName.toString(),
-                map: this.demandMap
-            }
-        );
-
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: 'person@match.one'
-        });
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: demand.hash,
-                    person: [matchServer, getInstanceOwnerIdHash()],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
-
+        this.myDemandsMap.set(demand.obj.match, demand.obj);
+        await this.memoriseLatestVersionOfDemandMap();
+        await this.channelManager.postToChannel(this.channelId, demand.obj);
         this.emit(MatchingEvents.DemandUpdate);
     }
 
-    async requestCatalogTags(): Promise<void> {
-        const requestCatalog = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/requestCatalog'
-            },
+    getMySupplies(): Map<string, Supply> {
+        return this.mySuppliesMap;
+    }
 
-            {
-                $type$: 'RequestCatalog',
-                identity: this.anonInstancePersonEmail,
-                timestamp: Date.now()
-            }
-        )) as UnversionedObjectResult<RequestCatalog>;
+    getMyDemands(): Map<string, Demand> {
+        return this.myDemandsMap;
+    }
 
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: 'person@match.one'
+    getAllAvailableSuppliesAndDemands(): Array<string> {
+        const allObjects: string[] = [];
+        this.allDemandsMap.forEach(allDemands => {
+            allDemands.forEach(demand => {
+                allObjects.push(demand.match);
+            });
         });
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: requestCatalog.hash,
-                    person: [matchServer, getInstanceOwnerIdHash()],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
-    }
+        this.allSuppliesMap.forEach(allSupplies => {
+            allSupplies.forEach(supply => {
+                allObjects.push(supply.match);
+            });
+        });
 
-    getCatalogTags(): Array<string> {
-        return this.catalogTags;
-    }
-
-    supplies(): Map<string, Supply> {
-        return this.supplyMap;
-    }
-
-    demands(): Map<string, Demand> {
-        return this.demandMap;
+        return [...new Set(allObjects)];
     }
 
     async getMatchMap(): Promise<MatchResponse[]> {
@@ -377,36 +319,14 @@ export default class MatchingModel extends EventEmitter {
     }
 
     async deleteSupply(supplyValue: string): Promise<void> {
-        this.supplyMap.delete(supplyValue);
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supplyMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'SupplyMap',
-                name: supplyMapName,
-                map: this.supplyMap as Map<string, Supply>
-            }
-        );
+        this.mySuppliesMap.delete(supplyValue);
+        await this.memoriseLatestVersionOfSupplyMap();
         this.emit(MatchingEvents.SupplyUpdate);
     }
 
     async deleteDemand(demandValue: string): Promise<void> {
-        this.demandMap.delete(demandValue);
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demandMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'DemandMap',
-                name: demandMapName.toString(),
-                map: this.demandMap
-            }
-        );
+        this.myDemandsMap.delete(demandValue);
+        await this.memoriseLatestVersionOfDemandMap();
         this.emit(MatchingEvents.DemandUpdate);
     }
 
@@ -415,7 +335,7 @@ export default class MatchingModel extends EventEmitter {
      * on the actual status of the tag and the user clicking on it
      */
     async changeSupplyStatus(supplyMatch: string): Promise<void> {
-        const supply = this.supplyMap.get(supplyMatch);
+        const supply = this.mySuppliesMap.get(supplyMatch);
 
         const newSupply = (await createSingleObjectThroughPurePlan(
             {
@@ -431,39 +351,9 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Supply>;
 
-        this.supplyMap.set(supplyMatch, newSupply.obj);
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supplyMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'SupplyMap',
-                name: supplyMapName,
-                map: this.supplyMap as Map<string, Supply>
-            }
-        );
-
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: 'person@match.one'
-        });
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: newSupply.hash,
-                    person: [matchServer, getInstanceOwnerIdHash()],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
-
+        this.mySuppliesMap.set(supplyMatch, newSupply.obj);
+        await this.memoriseLatestVersionOfSupplyMap();
+        await this.channelManager.postToChannel(this.channelId, newSupply.obj);
         this.emit(MatchingEvents.SupplyUpdate);
     }
 
@@ -472,7 +362,7 @@ export default class MatchingModel extends EventEmitter {
      * on the actual status of the tag and the user clicking on it
      */
     async changeDemandStatus(value: string): Promise<void> {
-        const demand = this.demandMap.get(value);
+        const demand = this.myDemandsMap.get(value);
 
         const newDemand = (await createSingleObjectThroughPurePlan(
             {
@@ -488,8 +378,27 @@ export default class MatchingModel extends EventEmitter {
             }
         )) as UnversionedObjectResult<Demand>;
 
-        this.demandMap.set(value, newDemand.obj);
+        this.myDemandsMap.set(value, newDemand.obj);
+        await this.memoriseLatestVersionOfDemandMap();
+        await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+        this.emit(MatchingEvents.DemandUpdate);
+    }
 
+    private async memoriseLatestVersionOfSupplyMap(): Promise<void> {
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@module/supplyMap',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'SupplyMap',
+                name: mySupplyMapName,
+                map: this.mySuppliesMap as Map<string, Supply>
+            }
+        );
+    }
+
+    private async memoriseLatestVersionOfDemandMap(): Promise<void> {
         await createSingleObjectThroughPurePlan(
             {
                 module: '@module/demandMap',
@@ -497,29 +406,35 @@ export default class MatchingModel extends EventEmitter {
             },
             {
                 $type$: 'DemandMap',
-                name: demandMapName.toString(),
-                map: this.demandMap
+                name: myDemandMapName.toString(),
+                map: this.myDemandsMap
             }
         );
+    }
 
-        const matchServer = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: 'person@match.one'
-        });
-
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: newDemand.hash,
-                    person: [matchServer, getInstanceOwnerIdHash()],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
-        this.emit(MatchingEvents.DemandUpdate);
+    private async applyAccessRights(): Promise<void> {
+        // Apply the access rights
+        try {
+            const setAccessParam = {
+                id: await calculateIdHashOfObj({
+                    $type$: 'ChannelInfo',
+                    id: this.channelId,
+                    owner: this.anonInstanceInfo ? this.anonInstanceInfo.personId : undefined
+                }),
+                person: [
+                    this.matchingServerPersonIdHash,
+                    this.anonInstanceInfo ? this.anonInstanceInfo.personId : ''
+                ],
+                group: [],
+                mode: SET_ACCESS_MODE.REPLACE
+            };
+            await getObjectByIdHash(setAccessParam.id); // To check whether a channel with this id exists
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            if (error.name !== 'FileNotFoundError') {
+                console.error(error);
+            }
+        }
     }
 }
