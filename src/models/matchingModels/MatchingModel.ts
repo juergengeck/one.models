@@ -18,6 +18,7 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import {serializeWithType} from 'one.core/lib/util/promise';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -185,17 +186,19 @@ export default abstract class MatchingModel extends EventEmitter {
      * @private
      */
     protected async memoriseLatestVersionOfSupplyMap(): Promise<void> {
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supplyMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'SupplyMap',
-                name: this.supplyMapName,
-                map: this.suppliesMap
-            }
-        );
+        await serializeWithType('SupplyMap', async () => {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/supplyMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'SupplyMap',
+                    name: this.supplyMapName,
+                    map: this.suppliesMap
+                }
+            );
+        });
     }
 
     /**
@@ -205,16 +208,18 @@ export default abstract class MatchingModel extends EventEmitter {
      * @private
      */
     protected async memoriseLatestVersionOfDemandMap(): Promise<void> {
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demandMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'DemandMap',
-                name: this.demandMapName,
-                map: this.demandsMap
-            }
-        );
+        await serializeWithType('DemandMap', async () => {
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/demandMap',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'DemandMap',
+                    name: this.demandMapName,
+                    map: this.demandsMap
+                }
+            );
+        });
     }
 }

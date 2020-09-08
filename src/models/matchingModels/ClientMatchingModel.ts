@@ -21,6 +21,7 @@ import {
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
 import matchingContact from '../../../matching_contact/matching_public_contact.json';
+import {serializeWithType} from 'one.core/lib/util/promise';
 
 /**
  * This represents a MatchingEvents
@@ -114,27 +115,29 @@ export default class ClientMatchingModel extends MatchingModel {
      * @returns {Promise<void>}
      */
     async sendSupplyObject(supplyInput: string): Promise<void> {
-        const supply = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supply',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Supply',
-                identity: this.anonInstancePersonEmail,
-                match: supplyInput,
-                isActive: true,
-                timestamp: Date.now()
-            }
-        )) as UnversionedObjectResult<Supply>;
+        await serializeWithType('Supply', async () => {
+            const supply = (await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/supply',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'Supply',
+                    identity: this.anonInstancePersonEmail,
+                    match: supplyInput,
+                    isActive: true,
+                    timestamp: Date.now()
+                }
+            )) as UnversionedObjectResult<Supply>;
 
-        // remember the Supply object that was created
-        this.addNewValueToSupplyMap(supply.obj);
-        await this.memoriseLatestVersionOfSupplyMap();
+            // remember the Supply object that was created
+            this.addNewValueToSupplyMap(supply.obj);
+            await this.memoriseLatestVersionOfSupplyMap();
 
-        await this.channelManager.postToChannel(this.channelId, supply.obj);
+            await this.channelManager.postToChannel(this.channelId, supply.obj);
 
-        this.emit(MatchingEvents.SupplyUpdate);
+            this.emit(MatchingEvents.SupplyUpdate);
+        });
     }
 
     /**
@@ -144,27 +147,29 @@ export default class ClientMatchingModel extends MatchingModel {
      * @returns {Promise<void>}
      */
     async sendDemandObject(demandInput: string): Promise<void> {
-        const demand = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demand',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Demand',
-                identity: this.anonInstancePersonEmail,
-                match: demandInput,
-                isActive: true,
-                timestamp: Date.now()
-            }
-        )) as UnversionedObjectResult<Demand>;
+        await serializeWithType('Demand', async () => {
+            const demand = (await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/demand',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'Demand',
+                    identity: this.anonInstancePersonEmail,
+                    match: demandInput,
+                    isActive: true,
+                    timestamp: Date.now()
+                }
+            )) as UnversionedObjectResult<Demand>;
 
-        // remember the Demand object that was created
-        this.addNewValueToDemandMap(demand.obj);
-        await this.memoriseLatestVersionOfDemandMap();
+            // remember the Demand object that was created
+            this.addNewValueToDemandMap(demand.obj);
+            await this.memoriseLatestVersionOfDemandMap();
 
-        await this.channelManager.postToChannel(this.channelId, demand.obj);
+            await this.channelManager.postToChannel(this.channelId, demand.obj);
 
-        this.emit(MatchingEvents.DemandUpdate);
+            this.emit(MatchingEvents.DemandUpdate);
+        });
     }
 
     /**
@@ -297,24 +302,26 @@ export default class ClientMatchingModel extends MatchingModel {
         if (supplyArray) {
             for (const supplyObj of supplyArray) {
                 if (supplyObj.identity === this.anonInstancePersonEmail) {
-                    const newSupply = (await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@module/supply',
-                            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                        },
-                        {
-                            $type$: 'Supply',
-                            identity: this.anonInstancePersonEmail,
-                            match: supplyMatch,
-                            isActive: supplyObj ? !supplyObj.isActive : false,
-                            timestamp: Date.now()
-                        }
-                    )) as UnversionedObjectResult<Supply>;
+                    await serializeWithType('Supply', async () => {
+                        const newSupply = (await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@module/supply',
+                                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                            },
+                            {
+                                $type$: 'Supply',
+                                identity: this.anonInstancePersonEmail,
+                                match: supplyMatch,
+                                isActive: supplyObj ? !supplyObj.isActive : false,
+                                timestamp: Date.now()
+                            }
+                        )) as UnversionedObjectResult<Supply>;
 
-                    this.addNewValueToSupplyMap(newSupply.obj);
-                    await this.memoriseLatestVersionOfSupplyMap();
-                    await this.channelManager.postToChannel(this.channelId, newSupply.obj);
-                    this.emit(MatchingEvents.SupplyUpdate);
+                        this.addNewValueToSupplyMap(newSupply.obj);
+                        await this.memoriseLatestVersionOfSupplyMap();
+                        await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+                        this.emit(MatchingEvents.SupplyUpdate);
+                    });
                 }
             }
         }
@@ -334,24 +341,26 @@ export default class ClientMatchingModel extends MatchingModel {
         if (demandArray) {
             for (const demandObj of demandArray) {
                 if (demandObj.identity === this.anonInstancePersonEmail) {
-                    const newDemand = (await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@module/demand',
-                            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                        },
-                        {
-                            $type$: 'Demand',
-                            identity: this.anonInstancePersonEmail,
-                            match: value,
-                            isActive: demandObj ? !demandObj.isActive : false.valueOf(),
-                            timestamp: Date.now()
-                        }
-                    )) as UnversionedObjectResult<Demand>;
+                    await serializeWithType('Demand', async () => {
+                        const newDemand = (await createSingleObjectThroughPurePlan(
+                            {
+                                module: '@module/demand',
+                                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                            },
+                            {
+                                $type$: 'Demand',
+                                identity: this.anonInstancePersonEmail,
+                                match: value,
+                                isActive: demandObj ? !demandObj.isActive : false.valueOf(),
+                                timestamp: Date.now()
+                            }
+                        )) as UnversionedObjectResult<Demand>;
 
-                    this.addNewValueToDemandMap(newDemand.obj);
-                    await this.memoriseLatestVersionOfDemandMap();
-                    await this.channelManager.postToChannel(this.channelId, newDemand.obj);
-                    this.emit(MatchingEvents.DemandUpdate);
+                        this.addNewValueToDemandMap(newDemand.obj);
+                        await this.memoriseLatestVersionOfDemandMap();
+                        await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+                        this.emit(MatchingEvents.DemandUpdate);
+                    });
                 }
             }
         }
@@ -404,54 +413,58 @@ export default class ClientMatchingModel extends MatchingModel {
      * @returns {Promise<void>}
      */
     private async memoriseMatchResponse(matchResponse: MatchResponse): Promise<void> {
-        const savedMatchResponse = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/matchResponse',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'MatchResponse',
-                identity: matchResponse.identity,
-                match: matchResponse.match,
-                identityOfDemand: matchResponse.identityOfDemand
+        await serializeWithType('MatchResponse', async () => {
+            const savedMatchResponse = (await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/matchResponse',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'MatchResponse',
+                    identity: matchResponse.identity,
+                    match: matchResponse.match,
+                    identityOfDemand: matchResponse.identityOfDemand
+                }
+            )) as UnversionedObjectResult<MatchResponse>;
+
+            let matchMapObj;
+
+            try {
+                matchMapObj = (await getObjectByIdObj({
+                    $type$: 'MatchMap',
+                    name: this.matchMapName
+                })) as VersionedObjectResult<MatchMap>;
+
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@module/matchMap',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    {
+                        $type$: 'MatchMap',
+                        name: this.matchMapName,
+                        array: [
+                            matchMapObj.obj.array,
+                            savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
+                        ]
+                    }
+                );
+            } catch (err) {
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@module/matchMap',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    {
+                        $type$: 'MatchMap',
+                        name: this.matchMapName,
+                        array: [
+                            savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
+                        ]
+                    }
+                );
             }
-        )) as UnversionedObjectResult<MatchResponse>;
-
-        let matchMapObj;
-
-        try {
-            matchMapObj = (await getObjectByIdObj({
-                $type$: 'MatchMap',
-                name: this.matchMapName
-            })) as VersionedObjectResult<MatchMap>;
-
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/matchMap',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchMap',
-                    name: this.matchMapName,
-                    array: [
-                        matchMapObj.obj.array,
-                        savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
-                    ]
-                }
-            );
-        } catch (err) {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/matchMap',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchMap',
-                    name: this.matchMapName,
-                    array: [savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity]
-                }
-            );
-        }
-        this.emit(MatchingEvents.MatchUpdate);
+            this.emit(MatchingEvents.MatchUpdate);
+        });
     }
 }
