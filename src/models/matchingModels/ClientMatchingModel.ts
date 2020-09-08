@@ -15,8 +15,6 @@ import {
     Person,
     Contact,
     VersionedObjectResult,
-    SupplyMap,
-    DemandMap,
     MatchMap,
     MatchResponse
 } from '@OneCoreTypes';
@@ -24,13 +22,10 @@ import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
 import matchingContact from '../../../lib/models/matching_contact/matching_public_contact.json';
 
-const mySupplyMapName = 'MySupplyMap';
-const myDemandMapName = 'MyDemandMap';
-const matchMapName = 'MatchMap';
-
 /**
  * This represents a MatchingEvents
- * @enum CatalogUpdate -> updates the catalog tags everytime a new supply or a demand is added
+ * @enum
+ *       CatalogUpdate -> updates the catalog tags everytime a new supply or a demand is added
  *       SupplyUpdate -> updates the supplies
  *       DemandUpdate -> updates the demands
  *       NewMatch -> updates the matches
@@ -42,12 +37,20 @@ export enum MatchingEvents {
     MatchUpdate = 'matchUpdate'
 }
 
+/**
+ * Inheriting the common behaviour from the Matching Model class, this
+ * class implements the specific behaviour for the client of the matching
+ * server.
+ *
+ * The identity of the matching server is read from the json file and the
+ * Contact object is memorised in order to establish a connection between
+ * the client and the server.
+ *
+ * @description Client Matching Model class
+ * @augments MatchingModel
+ */
 export default class ClientMatchingModel extends MatchingModel {
-    private mySuppliesMap: Map<string, Supply>;
-    private myDemandsMap: Map<string, Demand>;
-
-    private allSuppliesMap: Map<string, Supply[]>;
-    private allDemandsMap: Map<string, Demand[]>;
+    private matchMapName = 'MatchMap';
 
     private anonInstancePersonEmail: string | null;
     private matchingServerPersonIdHash: SHA256IdHash<Person> | undefined;
@@ -56,14 +59,23 @@ export default class ClientMatchingModel extends MatchingModel {
         super(instancesModel, channelManager);
         this.anonInstancePersonEmail = null;
         this.matchingServerPersonIdHash = undefined;
-        this.mySuppliesMap = new Map<string, Supply>();
-        this.myDemandsMap = new Map<string, Demand>();
-        this.allSuppliesMap = new Map<string, Supply[]>();
-        this.allDemandsMap = new Map<string, Demand[]>();
     }
 
+    /**
+     * 1. read the matching server details from the json file and memorise
+     * the corresponding Contact object in order to establish a connection
+     * with it.
+     *
+     * 2. initialise application resources (all maps that are used to memorising
+     * the data) and load the instance information in memory.
+     *
+     * 3. start the channels and add listeners for specific objects
+     *
+     * 4. share the channel with the matching server
+     *
+     * @returns {Promise<void>}
+     */
     async init() {
-        // connect to the matching server
         const importedMatchingContact: UnversionedObjectResult<
             Contact
         >[] = await createManyObjectsThroughPurePlan(
@@ -75,8 +87,7 @@ export default class ClientMatchingModel extends MatchingModel {
         );
         this.matchingServerPersonIdHash = importedMatchingContact[0].obj.personId;
 
-        // initialise application resources
-        await this.initMaps();
+        await this.initialiseMaps();
         await this.updateInstanceInfo();
 
         if (this.anonInstanceInfo && this.anonInstanceInfo.personId) {
@@ -87,7 +98,6 @@ export default class ClientMatchingModel extends MatchingModel {
             this.anonInstancePersonEmail = person.obj.email;
         }
 
-        // start the channels and add listeners for specific objects
         await this.startMatchingChannel();
         await this.registerHooks();
 
@@ -97,6 +107,12 @@ export default class ClientMatchingModel extends MatchingModel {
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
     }
 
+    /**
+     * Given the match value a Supply object is created and posted to the channel.
+     *
+     * @param {string} supplyInput
+     * @returns {Promise<void>}
+     */
     async sendSupplyObject(supplyInput: string): Promise<void> {
         const supply = (await createSingleObjectThroughPurePlan(
             {
@@ -112,12 +128,21 @@ export default class ClientMatchingModel extends MatchingModel {
             }
         )) as UnversionedObjectResult<Supply>;
 
-        this.mySuppliesMap.set(supply.obj.match, supply.obj);
+        // remember the Supply object that was created
+        this.addNewValueToSupplyMap(supply.obj);
         await this.memoriseLatestVersionOfSupplyMap();
+
         await this.channelManager.postToChannel(this.channelId, supply.obj);
+
         this.emit(MatchingEvents.SupplyUpdate);
     }
 
+    /**
+     * Given the match value a Demand object is created and posted to the channel.
+     *
+     * @param {string} demandInput
+     * @returns {Promise<void>}
+     */
     async sendDemandObject(demandInput: string): Promise<void> {
         const demand = (await createSingleObjectThroughPurePlan(
             {
@@ -133,28 +158,66 @@ export default class ClientMatchingModel extends MatchingModel {
             }
         )) as UnversionedObjectResult<Demand>;
 
-        this.myDemandsMap.set(demand.obj.match, demand.obj);
+        // remember the Demand object that was created
+        this.addNewValueToDemandMap(demand.obj);
         await this.memoriseLatestVersionOfDemandMap();
+
         await this.channelManager.postToChannel(this.channelId, demand.obj);
+
         this.emit(MatchingEvents.DemandUpdate);
     }
 
-    getMySupplies(): Map<string, Supply> {
-        return this.mySuppliesMap;
+    /**
+     * Return all Supply objects that were created by myself.
+     *
+     * @returns {Supply[]}
+     */
+    getMySupplies(): Supply[] {
+        const mySupplies: Supply[] = [];
+        this.suppliesMap.forEach(supplyArray => {
+            supplyArray.forEach(supplyObj => {
+                if (supplyObj.identity === this.anonInstancePersonEmail) {
+                    mySupplies.push(supplyObj);
+                }
+            });
+        });
+
+        return mySupplies;
     }
 
-    getMyDemands(): Map<string, Demand> {
-        return this.myDemandsMap;
+    /**
+     * Return all Demands objects that were created by myself.
+     *
+     * @returns {Demand[]}
+     */
+    getMyDemands(): Demand[] {
+        const myDemands: Demand[] = [];
+        this.demandsMap.forEach(demandArray => {
+            demandArray.forEach(demandObj => {
+                if (demandObj.identity === this.anonInstancePersonEmail) {
+                    myDemands.push(demandObj);
+                }
+            });
+        });
+
+        return myDemands;
     }
 
+    /**
+     * Returns all existing match property that correspond to the
+     * Supply and Demand objects found (created by myself and
+     * retrieved from the matching server via channels).
+     *
+     * @returns {Array<string>}
+     */
     getAllAvailableSuppliesAndDemands(): Array<string> {
         const allObjects: string[] = [];
-        this.allDemandsMap.forEach(allDemands => {
+        this.demandsMap.forEach(allDemands => {
             allDemands.forEach(demand => {
                 allObjects.push(demand.match);
             });
         });
-        this.allSuppliesMap.forEach(allSupplies => {
+        this.suppliesMap.forEach(allSupplies => {
             allSupplies.forEach(supply => {
                 allObjects.push(supply.match);
             });
@@ -163,22 +226,184 @@ export default class ClientMatchingModel extends MatchingModel {
         return [...new Set(allObjects)];
     }
 
-    async getMatchMap(): Promise<MatchResponse[]> {
+    /**
+     * Returns the array with all existing matches for this instance.
+     *
+     * @returns {Promise<MatchResponse[]>}
+     */
+    async getAllMatchResponses(): Promise<MatchResponse[]> {
         let matchMap: MatchResponse[] = [];
 
-        const matchMapObj = (await getObjectByIdObj({
-            $type$: 'MatchMap',
-            name: matchMapName
-        })) as VersionedObjectResult<MatchMap>;
+        try {
+            const matchMapObj = (await getObjectByIdObj({
+                $type$: 'MatchMap',
+                name: this.matchMapName
+            })) as VersionedObjectResult<MatchMap>;
 
-        if (matchMapObj.obj.array) {
-            matchMap = matchMapObj.obj.array;
+            if (matchMapObj.obj.array) {
+                matchMap = matchMapObj.obj.array;
+            }
+        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            if (error.name !== 'FileNotFoundError') {
+                throw error;
+            }
         }
 
         return matchMap;
     }
 
-    async addMatchResponse(matchResponse: MatchResponse): Promise<void> {
+    /**
+     * For the Supply objects that were created by myself I
+     * have complete control over them so I can also delete
+     * an object and remove it from the list, but the object
+     * will still be visible in the server list.
+     *
+     * @param {string} supplyValue
+     * @returns {Promise<void>}
+     */
+    async deleteSupply(supplyValue: string): Promise<void> {
+        this.suppliesMap.delete(supplyValue);
+        await this.memoriseLatestVersionOfSupplyMap();
+        this.emit(MatchingEvents.SupplyUpdate);
+    }
+
+    /**
+     * For the Demand objects that were created by myself I
+     * have complete control over them so I can also delete
+     * an object and remove it from the list, but the object
+     * will still be visible in the server list.
+     *
+     * @param {string} demandValue
+     * @returns {Promise<void>}
+     */
+    async deleteDemand(demandValue: string): Promise<void> {
+        this.demandsMap.delete(demandValue);
+        await this.memoriseLatestVersionOfDemandMap();
+        this.emit(MatchingEvents.DemandUpdate);
+    }
+
+    /**
+     * This function changes the status of a Supply from active to
+     * inactive or the other way depending on the actual status of
+     * the tag and the user clicking on it.
+     *
+     * @param {string} supplyMatch
+     * @returns {Promise<void>}
+     */
+    async changeSupplyStatus(supplyMatch: string): Promise<void> {
+        const supplyArray = this.suppliesMap.get(supplyMatch);
+
+        if (supplyArray) {
+            for (const supplyObj of supplyArray) {
+                if (supplyObj.identity === this.anonInstancePersonEmail) {
+                    const newSupply = (await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@module/supply',
+                            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                        },
+                        {
+                            $type$: 'Supply',
+                            identity: this.anonInstancePersonEmail,
+                            match: supplyMatch,
+                            isActive: supplyObj ? !supplyObj.isActive : false,
+                            timestamp: Date.now()
+                        }
+                    )) as UnversionedObjectResult<Supply>;
+
+                    this.addNewValueToSupplyMap(newSupply.obj);
+                    await this.memoriseLatestVersionOfSupplyMap();
+                    await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+                    this.emit(MatchingEvents.SupplyUpdate);
+                }
+            }
+        }
+    }
+
+    /**
+     * This function changes the status of a Demand from active to
+     * inactive or the other way depending on the actual status of
+     * the tag and the user clicking on it.
+     *
+     * @param {string} value
+     * @returns {Promise<void>}
+     */
+    async changeDemandStatus(value: string): Promise<void> {
+        const demandArray = this.demandsMap.get(value);
+
+        if (demandArray) {
+            for (const demandObj of demandArray) {
+                if (demandObj.identity === this.anonInstancePersonEmail) {
+                    const newDemand = (await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@module/demand',
+                            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                        },
+                        {
+                            $type$: 'Demand',
+                            identity: this.anonInstancePersonEmail,
+                            match: value,
+                            isActive: demandObj ? !demandObj.isActive : false.valueOf(),
+                            timestamp: Date.now()
+                        }
+                    )) as UnversionedObjectResult<Demand>;
+
+                    this.addNewValueToDemandMap(newDemand.obj);
+                    await this.memoriseLatestVersionOfDemandMap();
+                    await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+                    this.emit(MatchingEvents.DemandUpdate);
+                }
+            }
+        }
+    }
+
+    // ################ PRIVATE API ################
+
+    /**
+     * When MatchResponse, Supply and Demands objects are retrieved the client
+     * has to remember them and emit the corresponding event type.
+     *
+     * @private
+     */
+    private registerHooks(): void {
+        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
+            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
+                await this.memoriseMatchResponse(caughtObject.obj);
+            }
+            if (caughtObject.obj.$type$ === 'Supply') {
+                let existingSupplies = this.suppliesMap.get(caughtObject.obj.match);
+
+                if (!existingSupplies) {
+                    existingSupplies = [];
+                }
+                existingSupplies.push(caughtObject.obj);
+                this.suppliesMap.set(caughtObject.obj.match, existingSupplies);
+
+                this.emit(MatchingEvents.CatalogUpdate);
+            }
+            if (caughtObject.obj.$type$ === 'Demand') {
+                let existingDemands = this.demandsMap.get(caughtObject.obj.match);
+
+                if (!existingDemands) {
+                    existingDemands = [];
+                }
+                existingDemands.push(caughtObject.obj);
+                this.demandsMap.set(caughtObject.obj.match, existingDemands);
+
+                this.emit(MatchingEvents.CatalogUpdate);
+            }
+        });
+    }
+
+    /**
+     * When a match is found the result is memorised so the user
+     * can be notified about it's latest match even after application
+     * reload.
+     *
+     * @param {MatchResponse} matchResponse
+     * @returns {Promise<void>}
+     */
+    private async memoriseMatchResponse(matchResponse: MatchResponse): Promise<void> {
         const savedMatchResponse = (await createSingleObjectThroughPurePlan(
             {
                 module: '@module/matchResponse',
@@ -197,7 +422,7 @@ export default class ClientMatchingModel extends MatchingModel {
         try {
             matchMapObj = (await getObjectByIdObj({
                 $type$: 'MatchMap',
-                name: matchMapName
+                name: this.matchMapName
             })) as VersionedObjectResult<MatchMap>;
 
             await createSingleObjectThroughPurePlan(
@@ -207,7 +432,7 @@ export default class ClientMatchingModel extends MatchingModel {
                 },
                 {
                     $type$: 'MatchMap',
-                    name: matchMapName,
+                    name: this.matchMapName,
                     array: [
                         matchMapObj.obj.array,
                         savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
@@ -222,159 +447,11 @@ export default class ClientMatchingModel extends MatchingModel {
                 },
                 {
                     $type$: 'MatchMap',
-                    name: matchMapName,
+                    name: this.matchMapName,
                     array: [savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity]
                 }
             );
         }
         this.emit(MatchingEvents.MatchUpdate);
-    }
-
-    async deleteSupply(supplyValue: string): Promise<void> {
-        this.mySuppliesMap.delete(supplyValue);
-        await this.memoriseLatestVersionOfSupplyMap();
-        this.emit(MatchingEvents.SupplyUpdate);
-    }
-
-    async deleteDemand(demandValue: string): Promise<void> {
-        this.myDemandsMap.delete(demandValue);
-        await this.memoriseLatestVersionOfDemandMap();
-        this.emit(MatchingEvents.DemandUpdate);
-    }
-
-    /*
-     * this function changes the status of a supply from active to inactive or the other way depending
-     * on the actual status of the tag and the user clicking on it
-     */
-    async changeSupplyStatus(supplyMatch: string): Promise<void> {
-        const supply = this.mySuppliesMap.get(supplyMatch);
-
-        const newSupply = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supply',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Supply',
-                identity: this.anonInstancePersonEmail,
-                match: supplyMatch,
-                isActive: supply ? !supply.isActive : false,
-                timestamp: Date.now()
-            }
-        )) as UnversionedObjectResult<Supply>;
-
-        this.mySuppliesMap.set(supplyMatch, newSupply.obj);
-        await this.memoriseLatestVersionOfSupplyMap();
-        await this.channelManager.postToChannel(this.channelId, newSupply.obj);
-        this.emit(MatchingEvents.SupplyUpdate);
-    }
-
-    /*
-     * this function changes the status of a demand from active to inactive or the other way depending
-     * on the actual status of the tag and the user clicking on it
-     */
-    async changeDemandStatus(value: string): Promise<void> {
-        const demand = this.myDemandsMap.get(value);
-
-        const newDemand = (await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demand',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Demand',
-                identity: this.anonInstancePersonEmail,
-                match: value,
-                isActive: demand ? !demand.isActive : false.valueOf(),
-                timestamp: Date.now()
-            }
-        )) as UnversionedObjectResult<Demand>;
-
-        this.myDemandsMap.set(value, newDemand.obj);
-        await this.memoriseLatestVersionOfDemandMap();
-        await this.channelManager.postToChannel(this.channelId, newDemand.obj);
-        this.emit(MatchingEvents.DemandUpdate);
-    }
-
-    private async memoriseLatestVersionOfSupplyMap(): Promise<void> {
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/supplyMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'SupplyMap',
-                name: mySupplyMapName,
-                map: this.mySuppliesMap as Map<string, Supply>
-            }
-        );
-    }
-
-    private async memoriseLatestVersionOfDemandMap(): Promise<void> {
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@module/demandMap',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'DemandMap',
-                name: myDemandMapName.toString(),
-                map: this.myDemandsMap
-            }
-        );
-    }
-
-    private registerHooks(): void {
-        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
-                await this.addMatchResponse(caughtObject.obj);
-            }
-            if (caughtObject.obj.$type$ === 'Supply') {
-                let existingSupplies = this.allSuppliesMap.get(caughtObject.obj.match);
-
-                if (!existingSupplies) {
-                    existingSupplies = [];
-                }
-                existingSupplies.push(caughtObject.obj);
-                this.allSuppliesMap.set(caughtObject.obj.match, existingSupplies);
-            }
-            if (caughtObject.obj.$type$ === 'Demand') {
-                let existingDemands = this.allDemandsMap.get(caughtObject.obj.match);
-
-                if (!existingDemands) {
-                    existingDemands = [];
-                }
-                existingDemands.push(caughtObject.obj);
-                this.allDemandsMap.set(caughtObject.obj.match, existingDemands);
-            }
-        });
-    }
-
-    /*
-     * initialize the supply and demandMap and the catalog tags
-     */
-    private async initMaps(): Promise<void> {
-        try {
-            const supplyMapObj = (await getObjectByIdObj({
-                $type$: 'SupplyMap',
-                name: mySupplyMapName
-            })) as VersionedObjectResult<SupplyMap>;
-
-            if (supplyMapObj.obj.map) {
-                this.mySuppliesMap = supplyMapObj.obj.map;
-            }
-            const demandMapObj = (await getObjectByIdObj({
-                $type$: 'DemandMap',
-                name: myDemandMapName
-            })) as VersionedObjectResult<DemandMap>;
-
-            if (demandMapObj.obj.map) {
-                this.myDemandsMap = demandMapObj.obj.map;
-            }
-        } catch (err) {
-            if (err.name !== 'FileNotFoundError') {
-                console.error(err);
-            }
-        }
     }
 }

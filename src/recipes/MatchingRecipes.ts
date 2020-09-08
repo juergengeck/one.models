@@ -5,14 +5,13 @@ declare module '@OneCoreTypes' {
         Supply: Supply;
         Demand: Demand;
         MatchResponse: MatchResponse;
-        RequestCatalog: RequestCatalog;
     }
 
     export interface OneVersionedObjectInterfaces {
         SupplyMap: SupplyMap;
         DemandMap: DemandMap;
         MatchMap: MatchMap;
-        Catalog: Catalog;
+        NotifiedUsers: NotifiedUsers;
     }
 
     /**
@@ -67,19 +66,7 @@ declare module '@OneCoreTypes' {
     export interface SupplyMap {
         $type$: 'SupplyMap';
         name: string;
-        map?: Map<string, Supply>;
-    }
-
-    /**
-     * @typedef {object} RequestCatalog
-     * @property {'RequestCatalog'} type
-     * @property {string} identity
-     * @property {number} timestamp
-     */
-    export interface RequestCatalog {
-        $type$: 'RequestCatalog';
-        identity: string;
-        timestamp: number;
+        map?: Map<string, Supply[]>;
     }
 
     /**
@@ -91,20 +78,7 @@ declare module '@OneCoreTypes' {
     export interface DemandMap {
         $type$: 'DemandMap';
         name: string;
-        map?: Map<string, Demand>;
-    }
-
-    /**
-     * contains all demands and supply tags for the catalog
-     * @typedef {object} Catalog
-     * @property {'Catalog'} type
-     * @property {'string'} name
-     * @property {Array<string>} array
-     */
-    export interface Catalog {
-        $type$: 'Catalog';
-        name: string;
-        array?: Array<string>;
+        map?: Map<string, Demand[]>;
     }
 
     /**
@@ -117,6 +91,21 @@ declare module '@OneCoreTypes' {
         $type$: 'MatchMap';
         name: string;
         array?: Array<MatchResponse>;
+    }
+
+    /**
+     * @typedef {object} NotifiedUsers
+     * @property {'NotifiedUsers'} type
+     * @property {string} name
+     * @property {Set<string>} set
+     *
+     * in set we keep the identities of all notified users and
+     * their match string with which the match was made
+     */
+    export interface NotifiedUsers {
+        $type$: 'NotifiedUsers';
+        name: string;
+        existingMatches?: Map<SHA256IdHash<Person>, Set<SHA256Hash<MatchResponse>>>;
     }
 }
 
@@ -197,36 +186,6 @@ export const DemandMapRecipe: Recipe = {
         }
     ]
 };
-export const CatalogRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'Catalog',
-    rule: [
-        {
-            itemprop: 'name',
-            valueType: 'string',
-            isId: true
-        },
-        {
-            itemprop: 'array',
-            list: 'orderedByONE'
-        }
-    ]
-};
-
-export const RequestCatalogRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'RequestCatalog',
-    rule: [
-        {
-            itemprop: 'identity',
-            valueType: 'string'
-        },
-        {
-            itemprop: 'timestamp',
-            valueType: 'number'
-        }
-    ]
-};
 
 export const MatchingResponseRecipe: Recipe = {
     $type$: 'Recipe',
@@ -265,6 +224,25 @@ export const MatchMapRecipe: Recipe = {
     ]
 };
 
+export const NotifiedUsersRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'NotifiedUsers',
+    rule: [
+        {
+            itemprop: 'name',
+            valueType: 'string',
+            isId: true
+        },
+        {
+            // map with destination person id hash as key and set
+            // with hashes of sent MatchResponse objects as value
+            itemprop: 'existingMatches',
+            valueType: 'Map',
+            optional: true
+        }
+    ]
+};
+
 // Export recipes
 const MatchingRecipes: Recipe[] = [
     SupplyRecipe,
@@ -272,9 +250,7 @@ const MatchingRecipes: Recipe[] = [
     SupplyMapRecipe,
     DemandMapRecipe,
     MatchingResponseRecipe,
-    MatchMapRecipe,
-    CatalogRecipe,
-    RequestCatalogRecipe
+    MatchMapRecipe
 ];
 
 export default MatchingRecipes;
