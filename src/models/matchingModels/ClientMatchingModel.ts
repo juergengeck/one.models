@@ -20,7 +20,7 @@ import {
 } from '@OneCoreTypes';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
-import matchingContact from '../../../lib/models/matching_contact/matching_public_contact.json';
+import matchingContact from '../../../matching_contact/matching_public_contact.json';
 
 /**
  * This represents a MatchingEvents
