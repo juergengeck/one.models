@@ -250,7 +250,8 @@ const MatchingRecipes: Recipe[] = [
     SupplyMapRecipe,
     DemandMapRecipe,
     MatchingResponseRecipe,
-    MatchMapRecipe
+    MatchMapRecipe,
+    NotifiedUsersRecipe
 ];
 
 export default MatchingRecipes;

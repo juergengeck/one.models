@@ -112,6 +112,17 @@ export default abstract class MatchingModel extends EventEmitter {
             await getObjectByIdHash(setAccessParam.id);
             // if it exists, set the access rights
             await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+
+            // TODO: should we give access to matching server to the contacts channel?
+            setAccessParam.id = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: 'contacts',
+                owner: this.anonInstanceInfo ? this.anonInstanceInfo.personId : undefined
+            });
+            // check whether a channel with this id exists
+            await getObjectByIdHash(setAccessParam.id);
+            // if it exists, set the access rights
+            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
         } catch (error) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (error.name !== 'FileNotFoundError') {
