@@ -522,26 +522,29 @@ class ConnectionsModel extends EventEmitter {
     }
 
     /**
+     * Given the pairing information as parameter, the corresponding invitation will be invalidated.
+     *
+     * @param {PairingInformation} pairingInformation
+     */
+    public invalidateCurrentInvitation(pairingInformation: PairingInformation): void {
+        if (pairingInformation.takeOver) {
+            this.pkOneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
+        } else {
+            this.oneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
+        }
+    }
+
+    /**
      * Invalidate all existing invitations
      *
      * @param {boolean} takeOver
      */
     public invalidateAllInvitations(takeOver: boolean): void {
         if (takeOver) {
-            this.clearPKAAuthenticationToken();
+            this.pkOneTimeAuthenticationTokens.clear();
         } else {
-            this.clearOneTimeAuthenticationToken();
+            this.oneTimeAuthenticationTokens.clear();
         }
-    }
-
-    private clearPKAAuthenticationToken(): void {
-        // delete the token from the list of valid tokens
-        this.pkOneTimeAuthenticationTokens.clear();
-    }
-
-    private clearOneTimeAuthenticationToken(): void {
-        // delete the token from the list of valid tokens
-        this.oneTimeAuthenticationTokens.clear();
     }
 
     /**
