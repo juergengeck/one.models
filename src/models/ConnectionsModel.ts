@@ -148,7 +148,7 @@ class ConnectionsModel extends EventEmitter {
     private communicationModule: CommunicationModule;
 
     // Global settings
-    private config: ConnectionsModelConfiguration;
+    private readonly config: ConnectionsModelConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
