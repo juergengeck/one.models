@@ -143,12 +143,12 @@ type PkAuthenticationTokenInfo = {
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
 class ConnectionsModel extends EventEmitter {
+    // Global settings
+    public config: ConnectionsModelConfiguration;
+
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
-
-    // Global settings
-    private readonly config: ConnectionsModelConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -519,6 +519,29 @@ class ConnectionsModel extends EventEmitter {
                 throw e;
             }
         }
+    }
+
+    /**
+     * Invalidate an existing invitation
+     *
+     * @param {PairingInformation} pairingInformation
+     */
+    public invalidateAuthenticationToken(pairingInformation: PairingInformation): void {
+        if (pairingInformation.takeOver) {
+            this.deletePKAAuthenticationToken(pairingInformation.authenticationTag);
+        } else {
+            this.deleteOneTimeAuthenticationToken(pairingInformation.authenticationTag);
+        }
+    }
+
+    private deletePKAAuthenticationToken(authenticationToken: string): void {
+        // delete the token from the list of valid tokens
+        this.pkOneTimeAuthenticationTokens.delete(authenticationToken);
+    }
+
+    private deleteOneTimeAuthenticationToken(authenticationToken: string): void {
+        // delete the token from the list of valid tokens
+        this.oneTimeAuthenticationTokens.delete(authenticationToken);
     }
 
     /**
