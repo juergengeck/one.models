@@ -143,12 +143,12 @@ type PkAuthenticationTokenInfo = {
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
 class ConnectionsModel extends EventEmitter {
-    // Global settings
-    public config: ConnectionsModelConfiguration;
-
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
+
+    // Global settings
+    private config: ConnectionsModelConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -173,6 +173,24 @@ class ConnectionsModel extends EventEmitter {
      */
     public get onlineState(): boolean {
         return this.communicationModule.onlineState;
+    }
+
+    /**
+     * Retrieve the authentication token expiration time.
+     *
+     * @returns {number}
+     */
+    public get authTokenExpirationDuration(): number {
+        return this.config.authTokenExpirationDuration;
+    }
+
+    /**
+     * Set a new value to specify how long a created invite is valid.
+     *
+     * @param {number} newExpirationDuration
+     */
+    public set authTokenExpirationDuration(newExpirationDuration: number) {
+        this.config.authTokenExpirationDuration = newExpirationDuration;
     }
 
     /**
