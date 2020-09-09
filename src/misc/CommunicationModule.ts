@@ -42,6 +42,11 @@ type ConnectionContainer = {
     targetPersonId: SHA256IdHash<Person>;
     cryptoApi: ReturnType<typeof createCrypto>;
     isInternetOfMe: boolean;
+    dropDuplicates: boolean;    // If this is true, duplicate connections will be dropped,
+                                // otherwise they will override the current connection
+                                // This flag will change automatically from true to false
+                                // after two seconds of an connection to be established.
+    closeHandler?: () => void;
 };
 
 /**
@@ -127,7 +132,7 @@ export default class CommunicationModule extends EventEmitter {
               localPublicKey: Uint8Array,
               remotePublicKey: Uint8Array,
               localPersonId: SHA256IdHash<Person>,
-              initiatedLocally: boolean,
+              initiatedLocally: boolean
           ) => void)
         | null = null;
 
@@ -266,7 +271,9 @@ export default class CommunicationModule extends EventEmitter {
                         // Load endpoint sub-elements
                         const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
                         const sourceKey = toByteArray(
-                            useMainId ? mainInstanceInfo.instanceKeys.publicKey : anonInstanceInfo.instanceKeys.publicKey
+                            useMainId
+                                ? mainInstanceInfo.instanceKeys.publicKey
+                                : anonInstanceInfo.instanceKeys.publicKey
                         );
                         const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
@@ -278,19 +285,26 @@ export default class CommunicationModule extends EventEmitter {
                         }
 
                         // Create the entry in the knownPeerMap
-                        const connContainer = {
+                        const connContainer: ConnectionContainer = {
                             activeConnection: activeConnection ? activeConnection : null,
                             url: endpoint.url,
                             sourcePublicKey: useMainId
                                 ? mainInstanceInfo.instanceKeys.publicKey
                                 : anonInstanceInfo.instanceKeys.publicKey,
                             targetPublicKey: remoteInstanceKeys.publicKey,
-                            sourceInstanceId: useMainId ? mainInstanceInfo.instanceId : anonInstanceInfo.instanceId,
+                            sourceInstanceId: useMainId
+                                ? mainInstanceInfo.instanceId
+                                : anonInstanceInfo.instanceId,
                             targetInstanceId: endpoint.instanceId,
-                            sourcePersonId: useMainId ? mainInstanceInfo.personId : anonInstanceInfo.personId,
+                            sourcePersonId: useMainId
+                                ? mainInstanceInfo.personId
+                                : anonInstanceInfo.personId,
                             targetPersonId: endpoint.personId,
-                            cryptoApi: useMainId ? mainInstanceInfo.cryptoApi : anonInstanceInfo.cryptoApi,
-                            isInternetOfMe: isMyEndpoint
+                            cryptoApi: useMainId
+                                ? mainInstanceInfo.cryptoApi
+                                : anonInstanceInfo.cryptoApi,
+                            isInternetOfMe: isMyEndpoint,
+                            dropDuplicates: true
                         };
                         this.knownPeerMap.set(mapKey, connContainer);
                         this.emit('connectionsChange');
@@ -300,11 +314,15 @@ export default class CommunicationModule extends EventEmitter {
                             this.unknownPeerMap.delete(mapKey);
 
                             // Handle the close events
-                            activeConnection.webSocket.addEventListener('close', () => {
+                            const closeHandler = () => {
+                                connContainer.dropDuplicates = true;
                                 connContainer.activeConnection = null;
+                                delete connContainer.closeHandler;
                                 this.emit('connectionsChange');
                                 this.reconnect(connContainer, this.reconnectDelay);
-                            });
+                            };
+                            activeConnection.webSocket.addEventListener('close', closeHandler);
+                            connContainer.closeHandler = closeHandler;
                         }
 
                         // If no active connection exists for this endpoint, then we need to start outgoing connections
@@ -413,8 +431,12 @@ export default class CommunicationModule extends EventEmitter {
             connectionsInfo.push({
                 isConnected: container.activeConnection !== null,
                 url: container.url,
-                sourcePublicKey: Buffer.from(toByteArray(container.sourcePublicKey)).toString('hex'),
-                targetPublicKey: Buffer.from(toByteArray(container.targetPublicKey)).toString('hex'),
+                sourcePublicKey: Buffer.from(toByteArray(container.sourcePublicKey)).toString(
+                    'hex'
+                ),
+                targetPublicKey: Buffer.from(toByteArray(container.targetPublicKey)).toString(
+                    'hex'
+                ),
                 sourceInstanceId: container.sourceInstanceId,
                 targetInstanceId: container.targetInstanceId,
                 sourcePersonId: container.sourcePersonId,
@@ -462,7 +484,8 @@ export default class CommunicationModule extends EventEmitter {
                         sourcePersonId: mainInstanceInfo.personId,
                         targetPersonId: endpoint.personId,
                         cryptoApi: mainInstanceInfo.cryptoApi,
-                        isInternetOfMe: true
+                        isInternetOfMe: true,
+                        dropDuplicates: true
                     };
                 })
             )
@@ -484,7 +507,8 @@ export default class CommunicationModule extends EventEmitter {
                         sourcePersonId: anonInstanceInfo.personId,
                         targetPersonId: endpoint.personId,
                         cryptoApi: anonInstanceInfo.cryptoApi,
-                        isInternetOfMe: false
+                        isInternetOfMe: false,
+                        dropDuplicates: true
                     };
                 } else {
                     return {
@@ -497,7 +521,8 @@ export default class CommunicationModule extends EventEmitter {
                         sourcePersonId: mainInstanceInfo.personId,
                         targetPersonId: endpoint.personId,
                         cryptoApi: mainInstanceInfo.cryptoApi,
-                        isInternetOfMe: false
+                        isInternetOfMe: false,
+                        dropDuplicates: true
                     };
                 }
             })
@@ -525,18 +550,20 @@ export default class CommunicationModule extends EventEmitter {
     private async updateInstanceInfos(): Promise<void> {
         // Extract my local instance infos to build the map
         const infos = await this.instancesModel.localInstancesInfo();
-        if(infos.length !== 2) {
+        if (infos.length !== 2) {
             throw new Error('This applications needs exactly one alternate identity!');
         }
 
         // Setup the public key to instanceInfo map
         await Promise.all(
             infos.map(async instanceInfo => {
-                this.myPublicKeyToInstanceInfoMap.set(instanceInfo.instanceKeys.publicKey, instanceInfo);
-                if(instanceInfo.isMain) {
+                this.myPublicKeyToInstanceInfoMap.set(
+                    instanceInfo.instanceKeys.publicKey,
+                    instanceInfo
+                );
+                if (instanceInfo.isMain) {
                     this.mainInstanceInfo = instanceInfo;
-                }
-                else {
+                } else {
                     this.anonInstanceInfo = instanceInfo;
                 }
             })
@@ -724,15 +751,24 @@ export default class CommunicationModule extends EventEmitter {
             }
 
             // Connect close handler
-            conn.webSocket.addEventListener('close', () => {
+            const closeHandler = () => {
+                endpoint.dropDuplicates = true;
                 endpoint.activeConnection = null;
+                delete endpoint.closeHandler;
                 this.emit('connectionsChange');
                 this.reconnect(endpoint, this.reconnectDelay);
-            });
+            };
+            conn.webSocket.addEventListener('close', closeHandler);
+            endpoint.closeHandler = closeHandler;
 
             // Set the current connection as active connection
             endpoint.activeConnection = conn;
             this.emit('connectionsChange');
+
+            // Set timeout that changes duplicate connection behavior
+            setTimeout(() => {
+                endpoint.dropDuplicates = false;
+            }, 2000);
 
             // Notify the outside
             if (this.onKnownConnection) {
@@ -749,6 +785,18 @@ export default class CommunicationModule extends EventEmitter {
         }
 
         // Close if already a connection exists
-        conn.close('duplicate connection');
+        // Based on the dropDuplicates we either drop the new connection  (before 2 seconds of initial connection establishment).
+        // or the old one and replace it by the new one (after 2 seconds of initial connection establishment).
+        if (endpoint.dropDuplicates) {
+            conn.close('duplicate connection');
+        } else {
+            if (endpoint.closeHandler) {
+                conn.webSocket.removeEventListener('close', endpoint.closeHandler);
+            } else {
+                throw new Error('closeHandler is out of sync with activeConnection');
+            }
+            endpoint.activeConnection.close('duplicate connection');
+            endpoint.activeConnection = conn;
+        }
     }
 }
