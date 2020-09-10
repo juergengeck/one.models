@@ -18,6 +18,7 @@ import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
+import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -184,17 +185,22 @@ export default class OneInstanceModel extends EventEmitter {
      * The previously created instance with that email as owner is deleted and a new one is created.
      * The user has to re-enter a password, which will be used for the new instance.
      *
+     * After the instance is created, the person keys are overwritten with the old ones read from
+     * the qr code, because the person is the same, just the password has to change on recovery process.
+     *
      * @param {string} email
      * @param {string} secret
      * @param {string} patientType
      * @param {string} anonymousEmail
+     * @param {string} stringifyPrivatePersonInformation
      * @returns {Promise<void>}
      */
     async recoverInstance(
         email: string,
         secret: string,
         patientType: string,
-        anonymousEmail: string
+        anonymousEmail: string,
+        stringifyPrivatePersonInformation: string
     ): Promise<void> {
         this.currentPatientTypeState = patientType;
 
@@ -214,6 +220,12 @@ export default class OneInstanceModel extends EventEmitter {
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
+
+        // overwrite person keys with the old ones
+        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = JSON.parse(
+            stringifyPrivatePersonInformation
+        );
+        await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
     }
 
     /**
