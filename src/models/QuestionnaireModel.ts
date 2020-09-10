@@ -89,7 +89,7 @@ export default class QuestionnaireModel extends EventEmitter {
         this.channelId = 'questionnaireResponse';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
-        this.boundOnUpdatedHandler = this.handlerOnUpdated.bind(this);
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -109,17 +109,6 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     async shutdown(): Promise<void> {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
-    }
-
-    /**
-     * Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handlerOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
-        }
     }
 
     // #### Questionnaire functions ####
@@ -243,5 +232,16 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     registerQuestionnaires(questionnaires: Questionnaire[]): void {
         this.availableQuestionnaires.push(...questionnaires);
+    }
+
+    /**
+     * Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

@@ -41,6 +41,7 @@ export default class DiaryModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
     /**
      * Construct a new instance
      *
@@ -73,17 +74,6 @@ export default class DiaryModel extends EventEmitter {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
-    /**
-     *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
-        }
-    }
-
     async addEntry(diaryEntry: DiaryEntry): Promise<void> {
         if (!diaryEntry) {
             throw Error(i18nModelsInstance.t('errors:diaryModel.notEmptyField'));
@@ -112,5 +102,16 @@ export default class DiaryModel extends EventEmitter {
             await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DiaryEntry')
         )[0];
         return {...restObjectData, data: convertFromOne(data)};
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

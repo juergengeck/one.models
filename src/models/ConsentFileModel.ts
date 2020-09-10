@@ -83,17 +83,6 @@ export default class ConsentFileModel extends EventEmmiter {
     }
 
     /**
-     * Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
-        }
-    }
-
-    /**
      * Initialize this instance
      *
      * This must be done after the one instance was initialized.
@@ -196,5 +185,16 @@ export default class ConsentFileModel extends EventEmmiter {
             await this.channelManager.getObjectWithTypeById(this.channelId, id, 'ConsentFile')
         )[0];
         return {...restObjectData, data: convertFromOne(data)};
+    }
+
+    /**
+     * Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

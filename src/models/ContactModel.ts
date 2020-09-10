@@ -119,7 +119,12 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
-        this.registerHooks();
+        // Listen for new contact app objects -> own profiles
+        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+
+        // Listen for new contact objects
+        onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
+
         await this.shareContactAppWithYourInstances();
     }
 
@@ -762,19 +767,6 @@ export default class ContactModel extends EventEmitter {
                 );
             });
         }
-    }
-
-    /**
-     * @description Register the needed hooks
-     * @returns {void}
-     */
-    // @ts-ignore
-    private registerHooks(): void {
-        // Listen for new contact app objects -> own profiles
-        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
-
-        // Listen for new contact objects
-        onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
     }
 
     /**

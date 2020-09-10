@@ -116,7 +116,7 @@ export default class ChannelManager extends EventEmitter {
             throw new Error('Owner idHash cannot be undefined');
         }
         await this.checkMergeVersionsOfChannels();
-        this.registerHooks();
+        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
         this.personId = ownerIdHash;
     }
 
@@ -923,10 +923,6 @@ export default class ChannelManager extends EventEmitter {
             });
             this.emit('updated', caughtObject.obj.id);
         }
-    }
-
-    private registerHooks(): void {
-        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
     }
 
     /**

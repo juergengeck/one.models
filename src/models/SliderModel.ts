@@ -20,7 +20,7 @@ export default class SliderModel extends EventEmitter {
 
         this.channelId = 'slider';
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handlerOnUpdated.bind(this);
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -38,17 +38,6 @@ export default class SliderModel extends EventEmitter {
      */
     async shutdown(): Promise<void> {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
-    }
-
-    /**
-     * Handler function for 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    async handlerOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
-        }
     }
 
     /**
@@ -100,5 +89,16 @@ export default class SliderModel extends EventEmitter {
 
         sliders.push(slider);
         return sliders;
+    }
+
+    /**
+     * Handler function for 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }
