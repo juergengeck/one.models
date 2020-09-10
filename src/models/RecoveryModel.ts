@@ -70,7 +70,7 @@ export default class RecoveryModel {
             anonPersonPrivateSignKey: anonPersonPrivateSignKey
         };
 
-        return Uint8ArrayToString(await encryptWithSymmetricKey(derivedKey, objectToEncrypt));
+        return fromByteArray(await encryptWithSymmetricKey(derivedKey, objectToEncrypt));
     }
 
     async overwritePersonKeyWithReceivedEncryptedOnes(
@@ -78,7 +78,7 @@ export default class RecoveryModel {
         userEmail: string,
         anonymousEmail: string
     ): Promise<void> {
-        const objectToDecrypt = stringToUint8Array(encryptedPersonKeys);
+        const objectToDecrypt = toByteArray(encryptedPersonKeys);
         const derivedKey = await scrypt(
             stringToUint8Array(this.recoveryKeyString),
             toByteArray(this.recoveryNonceString)
@@ -113,7 +113,7 @@ export default class RecoveryModel {
     }
 
     private generateRandomReadableString(): string {
-        const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz.-_=!?';
+        const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz.-_=!';
         let randomstring = '';
         for (let i = 0; i < this.stringLength; i++) {
             const randomNumber = Math.floor(Math.random() * chars.length);
