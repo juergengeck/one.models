@@ -13,12 +13,14 @@ export type SliderInterfaceUI = ArrayBuffer[];
 export default class SliderModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     constructor(channelManager: ChannelManager) {
         super();
 
         this.channelId = 'slider';
         this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handlerOnUpdated.bind(this);
     }
 
     /**
@@ -26,11 +28,27 @@ export default class SliderModel extends EventEmitter {
      */
     async init() {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Handler function for 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    async handlerOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 
     /**

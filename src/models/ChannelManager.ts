@@ -95,10 +95,14 @@ export default class ChannelManager extends EventEmitter {
     // @ts-ignore
     private personId: SHA256IdHash<Person>;
     private accessModel: AccessModel;
+    private readonly boundOnVersionedObjHandler: (
+        caughtObject: VersionedObjectResult
+    ) => Promise<void>;
 
     constructor(accessModel: AccessModel) {
         super();
         this.accessModel = accessModel;
+        this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
     }
 
     /**
@@ -114,6 +118,15 @@ export default class ChannelManager extends EventEmitter {
         await this.checkMergeVersionsOfChannels();
         this.registerHooks();
         this.personId = ownerIdHash;
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    public async shutdown(): Promise<void> {
+        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
     }
 
     // ######## Channel management ########
@@ -228,7 +241,9 @@ export default class ChannelManager extends EventEmitter {
         });
         // if a channelHash is provided, get this specific channel info, otherwise get the latest by the idHash
         // this flow is only called within the getObjectsByHash function
-        const channelInfo = channelHash ? await getObject(channelHash) : (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
+        const channelInfo = channelHash
+            ? await getObject(channelHash)
+            : (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
         let channelEntryHash = channelInfo.head;
 
         // Iterate over the whole list and append it to the output array
@@ -373,7 +388,11 @@ export default class ChannelManager extends EventEmitter {
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
         const channel = await getObject(channelHash);
-        for await (const obj of this.singleChannelIterator(channel.id, {owner: channel.owner}, channelHash)) {
+        for await (const obj of this.singleChannelIterator(
+            channel.id,
+            {owner: channel.owner},
+            channelHash
+        )) {
             objects.push(obj);
         }
         return objects.reverse();
@@ -892,15 +911,22 @@ export default class ChannelManager extends EventEmitter {
         });
     }
 
+    /**
+     * Handler function for the VersionedObj
+     * @param {VersionedObjectResult} caughtObject
+     * @return {Promise<void>}
+     */
+    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
+        if (isChannelInfoResult(caughtObject)) {
+            await serializeWithType('ChannelRegistryMerging', async () => {
+                await this.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
+            });
+            this.emit('updated', caughtObject.obj.id);
+        }
+    }
+
     private registerHooks(): void {
-        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
-            if (isChannelInfoResult(caughtObject)) {
-                await serializeWithType('ChannelRegistryMerging', async () => {
-                    await this.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
-                });
-                this.emit('updated', caughtObject.obj.id);
-            }
-        });
+        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
     }
 
     /**
