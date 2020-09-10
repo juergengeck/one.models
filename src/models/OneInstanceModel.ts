@@ -18,7 +18,6 @@ import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
-import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -192,15 +191,13 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} secret
      * @param {string} patientType
      * @param {string} anonymousEmail
-     * @param {string} stringifyPrivatePersonInformation
      * @returns {Promise<void>}
      */
     async recoverInstance(
         email: string,
         secret: string,
         patientType: string,
-        anonymousEmail: string,
-        stringifyPrivatePersonInformation: string
+        anonymousEmail: string
     ): Promise<void> {
         this.currentPatientTypeState = patientType;
 
@@ -220,12 +217,6 @@ export default class OneInstanceModel extends EventEmitter {
         }
         this.password = secret;
         await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
-
-        // overwrite person keys with the old ones
-        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = JSON.parse(
-            stringifyPrivatePersonInformation
-        );
-        await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
     }
 
     /**
