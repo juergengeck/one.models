@@ -40,6 +40,7 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
 export default class DiaryModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     /**
      * Construct a new instance
@@ -51,20 +52,26 @@ export default class DiaryModel extends EventEmitter {
 
         this.channelId = 'diary';
         this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
-     * Initialize this inistance
+     * Initialize this instance
      *
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     async addEntry(diaryEntry: DiaryEntry): Promise<void> {
@@ -95,5 +102,16 @@ export default class DiaryModel extends EventEmitter {
             await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DiaryEntry')
         )[0];
         return {...restObjectData, data: convertFromOne(data)};
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

@@ -8,7 +8,6 @@ import {
     VERSION_UPDATES,
     createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
-import ConnectionsModel from './ConnectionsModel';
 //@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
@@ -83,6 +82,21 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
  * Model that exposes functionality closely related to one.core
  */
 export default class OneInstanceModel extends EventEmitter {
+    // This signal is emitted just before the login finishes and after the instance is created
+    // so that you can initialize the models
+    public loggingIn:
+        | ((
+              currentRegistrationState: boolean,
+              anonymousEmail?: string,
+              takeOver?: boolean,
+              recoveryState?: boolean
+          ) => Promise<void>)
+        | null;
+
+    // This signal is emitted just before the logout finishes and before the instance is closed
+    // so that you can shutdown the models
+    public loggingOut: (() => Promise<void>) | null;
+
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;
     /**
@@ -106,7 +120,6 @@ export default class OneInstanceModel extends EventEmitter {
     private randomEmail: string | null;
     private randomInstanceName: string | null;
 
-    private connectionsModel: ConnectionsModel;
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
     private accessModel: AccessModel;
@@ -117,13 +130,11 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Construct a new model instance
      *
-     * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
      */
     constructor(
-        connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
         consentFileModel: ConsentFileModel,
         accessModel: AccessModel
@@ -133,13 +144,15 @@ export default class OneInstanceModel extends EventEmitter {
         this.randomEmail = '';
         this.randomInstanceName = '';
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.connectionsModel = connectionsModel;
         this.currentRegistrationState = false;
         this.currentPartnerState = false;
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
+
+        this.loggingIn = null;
+        this.loggingOut = null;
 
         // listen for update events in access model and check for patient connections
         this.accessModel.on('groups_updated', () => {
@@ -300,33 +313,18 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(
-        anonymousEmail?: string,
-        takeOver?: boolean,
-        recoveryState?: boolean
-    ): void {
-        // TODO: replace this when we have events that can handle promises as return values
-        const firstCallback = (error?: Error): void => {
-            if (error) {
-                throw error;
-            } else {
-                this.emit('authstate_changed');
-                if (this.currentPatientTypeState.includes('partner')) {
-                    this.updatePartnerState().catch(e => console.error(e));
-                }
-            }
-        };
+    async initialisingApplication(anonymousEmail?: string, takeOver?: boolean, recoveryState?: boolean): Promise<void> {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit(
-            'authstate_changed_first',
-            this.currentRegistrationState,
-            firstCallback,
-            anonymousEmail,
-            takeOver,
-            recoveryState
-        );
+        if (this.loggingIn) {
+            await this.loggingIn(this.currentRegistrationState, anonymousEmail, takeOver, recoveryState);
+        }
+
+        this.emit('authstate_changed');
+        if (this.currentPatientTypeState.includes('partner')) {
+            this.updatePartnerState().catch(e => console.error(e));
+        }
     }
 
     async updatePartnerState(): Promise<void> {
@@ -397,21 +395,29 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {logout} logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
-        await this.connectionsModel.shutdown();
-        const dbInstance = getDbInstance();
+        // Signal the application that we are no longer authenticated
+        // This is done before everything else, so that the UI is updated and
+        // you won't see clitches, because of the indivdual models shutting down
+        this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
+        this.emit('authstate_changed');
 
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        if (this.loggingOut) {
+            await this.loggingOut();
+        }
+
+        // Close the one instance -> why delayed?
+        const dbInstance = getDbInstance();
         setTimeout(() => {
             dbInstance.close();
             closeInstance();
         }, 1500);
 
+        // Delete the one instance if requested
         if (logoutMode === LogoutMode.PurgeData) {
             await this.deleteInstance(dbInstance.name);
         }
-
-        this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.emit('authstate_changed_first');
-        this.emit('authstate_changed');
     }
 
     /**
