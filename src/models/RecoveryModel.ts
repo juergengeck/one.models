@@ -38,36 +38,13 @@ interface PersonInformation {
  */
 export default class RecoveryModel {
     private readonly stringLength: number;
-    private recoveryNonceString: string;
-    private recoveryKeyString: string;
     private connectionsModel: ConnectionsModel;
     private decryptedObject: PersonInformation | undefined;
 
     constructor(connectionsModel: ConnectionsModel) {
         // default length for the recovery key
         this.stringLength = 19;
-        // generate a new nonce which will be used in encrypting the person information
-        this.recoveryNonceString = fromByteArray(tweetnacl.randomBytes(64));
-        // generate a new key which will be used together with
-        // the nonce for encrypting the person information
-        this.recoveryKeyString = this.generateRandomReadableString();
         this.connectionsModel = connectionsModel;
-    }
-
-    /**
-     * Extract the recovery nonce value in order to add it to the recovery url.
-     * @returns {string}
-     */
-    public get recoveryNonce(): string {
-        return this.recoveryNonceString;
-    }
-
-    /**
-     * Extract the recovery key value in order to add it in the recovery file.
-     * @returns {string}
-     */
-    public get recoveryKey(): string {
-        return this.recoveryKeyString;
     }
 
     /**
@@ -77,9 +54,14 @@ export default class RecoveryModel {
      * @returns {Promise<string>}
      */
     async extractEncryptedPersonInformation(): Promise<string> {
+        // generate a new nonce which will be used in encrypting the person information
+        const recoveryNonce = fromByteArray(tweetnacl.randomBytes(64));
+        // generate a new key which will be used together with
+        // the nonce for encrypting the person information
+        const recoveryKey = this.generateRandomReadableString();
         const derivedKey = await scrypt(
-            stringToUint8Array(this.recoveryKeyString),
-            toByteArray(this.recoveryNonceString)
+            stringToUint8Array(recoveryKey),
+            toByteArray(recoveryNonce)
         );
 
         const privatePersonInformation = await this.connectionsModel.extractExistingPersonKeys();
@@ -135,12 +117,10 @@ export default class RecoveryModel {
         recoveryNonce: string,
         encryptedPersonInformation: string
     ): Promise<{personEmail: string; anonPersonEmail: string}> {
-        this.recoveryKeyString = recoveryKey;
-        this.recoveryNonceString = recoveryNonce;
         const objectToDecrypt = toByteArray(encryptedPersonInformation);
         const derivedKey = await scrypt(
-            stringToUint8Array(this.recoveryKeyString),
-            toByteArray(this.recoveryNonceString)
+            stringToUint8Array(recoveryKey),
+            toByteArray(recoveryNonce)
         );
         this.decryptedObject = JSON.parse(
             Uint8ArrayToString(await decryptWithSymmetricKey(derivedKey, objectToDecrypt))
@@ -193,11 +173,16 @@ export default class RecoveryModel {
             anonPersonPrivateSignKey: this.decryptedObject.anonPersonPrivateSignKey
         };
         await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
+        // remove from memory the decrypted person information because it's not important anymore
+        this.decryptedObject = undefined;
     }
 
     /**
      * For the recovery key we need a simple string random generator which will return
      * a user friendly string, which will be easy to read for the user.
+     *
+     * A user friendly string or a readable string can not contain o, O and 0, I and l.
+     *
      * @returns {string}
      * @private
      */
