@@ -41,13 +41,14 @@ function convertFromOne(oneObject: OneConsentFile): ConsentFile {
 }
 
 /**
- * This model implements the posibility to add new consent file to the journal
+ * This model implements the possibility to add new consent file to the journal
  *
  */
 export default class ConsentFileModel extends EventEmmiter {
     channelManager: ChannelManager;
     channelId: string;
     private personId: SHA256IdHash<Person> | undefined;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     /**
      * Construct a new instance
@@ -60,6 +61,7 @@ export default class ConsentFileModel extends EventEmmiter {
         this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     setPersonId(id: SHA256IdHash<Person>): void {
@@ -81,17 +83,22 @@ export default class ConsentFileModel extends EventEmmiter {
     }
 
     /**
-     * Initialize this inistance
+     * Initialize this instance
      *
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
@@ -168,7 +175,7 @@ export default class ConsentFileModel extends EventEmmiter {
             }
         }
 
-        // any user is sopose to heve just one consent file so if you are logged in,
+        // any user is suppose to have just one consent file so if you are logged in,
         // in one will be just your file and that's why this function returns just the first object of the consent array
         return objects[0];
     }
@@ -178,5 +185,16 @@ export default class ConsentFileModel extends EventEmmiter {
             await this.channelManager.getObjectWithTypeById(this.channelId, id, 'ConsentFile')
         )[0];
         return {...restObjectData, data: convertFromOne(data)};
+    }
+
+    /**
+     * Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

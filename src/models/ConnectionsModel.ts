@@ -176,6 +176,24 @@ class ConnectionsModel extends EventEmitter {
     }
 
     /**
+     * Retrieve the authentication token expiration time.
+     *
+     * @returns {number}
+     */
+    public get authTokenExpirationDuration(): number {
+        return this.config.authTokenExpirationDuration;
+    }
+
+    /**
+     * Set a new value to specify how long a created invite is valid.
+     *
+     * @param {number} newExpirationDuration
+     */
+    public set authTokenExpirationDuration(newExpirationDuration: number) {
+        this.config.authTokenExpirationDuration = newExpirationDuration;
+    }
+
+    /**
      * Construct a new instance
      *
      * @param {ContactModel} contactModel
@@ -518,6 +536,32 @@ class ConnectionsModel extends EventEmitter {
                 conn.close(e.message);
                 throw e;
             }
+        }
+    }
+
+    /**
+     * Given the pairing information as parameter, the corresponding invitation will be invalidated.
+     *
+     * @param {PairingInformation} pairingInformation
+     */
+    public invalidateCurrentInvitation(pairingInformation: PairingInformation): void {
+        if (pairingInformation.takeOver) {
+            this.pkOneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
+        } else {
+            this.oneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
+        }
+    }
+
+    /**
+     * Invalidate all existing invitations
+     *
+     * @param {boolean} takeOver
+     */
+    public invalidateAllInvitations(takeOver: boolean): void {
+        if (takeOver) {
+            this.pkOneTimeAuthenticationTokens.clear();
+        } else {
+            this.oneTimeAuthenticationTokens.clear();
         }
     }
 
