@@ -39,6 +39,14 @@ export default class RecoveryModel {
         this.connectionsModel = connectionsModel;
     }
 
+    public get recoveryNonce(): string {
+        return this.recoveryNonceString;
+    }
+
+    public get recoveryKey(): string {
+        return this.recoveryKeyString;
+    }
+
     async extractEncryptedPersonInformation(): Promise<string> {
         const derivedKey = await scrypt(
             stringToUint8Array(this.recoveryKeyString),
@@ -81,7 +89,7 @@ export default class RecoveryModel {
     async decryptReceivedRecoveryInformation(
         recoveryKey: string,
         recoveryNonce: string,
-        encryptedPersonInformation: string,
+        encryptedPersonInformation: string
     ): Promise<{personEmail: string; anonPersonEmail: string}> {
         this.recoveryKeyString = recoveryKey;
         this.recoveryNonceString = recoveryNonce;
