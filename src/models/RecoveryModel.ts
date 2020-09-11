@@ -12,6 +12,12 @@ import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProt
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 
+/**
+ * For the recovery process the person email with the corresponding
+ * person keys and the anonymous person email with the corresponding
+ * person keys have to be encrypted and added to the recovery url in
+ * order to have the same persons also after recovering the instance.
+ */
 interface PersonInformation {
     personEmail: string;
     personPublicKey: string;
@@ -25,6 +31,11 @@ interface PersonInformation {
     anonPersonEmail: string;
 }
 
+/**
+ * This model is responsible for generating the information which will
+ * be added in the recovery url and for extracting the data from the
+ * recovery url.
+ */
 export default class RecoveryModel {
     private readonly stringLength: number;
     private recoveryNonceString: string;
@@ -33,20 +44,38 @@ export default class RecoveryModel {
     private decryptedObject: PersonInformation | undefined;
 
     constructor(connectionsModel: ConnectionsModel) {
+        // default length for the recovery key
         this.stringLength = 19;
+        // generate a new nonce which will be used in encrypting the person information
         this.recoveryNonceString = fromByteArray(tweetnacl.randomBytes(64));
+        // generate a new key which will be used together with
+        // the nonce for encrypting the person information
         this.recoveryKeyString = this.generateRandomReadableString();
         this.connectionsModel = connectionsModel;
     }
 
+    /**
+     * Extract the recovery nonce value in order to add it to the recovery url.
+     * @returns {string}
+     */
     public get recoveryNonce(): string {
         return this.recoveryNonceString;
     }
 
+    /**
+     * Extract the recovery key value in order to add it in the recovery file.
+     * @returns {string}
+     */
     public get recoveryKey(): string {
         return this.recoveryKeyString;
     }
 
+    /**
+     * Extract all person information and encrypt them using the recovery nonce
+     * and recovery key.
+     *
+     * @returns {Promise<string>}
+     */
     async extractEncryptedPersonInformation(): Promise<string> {
         const derivedKey = await scrypt(
             stringToUint8Array(this.recoveryKeyString),
@@ -83,9 +112,24 @@ export default class RecoveryModel {
             anonPersonEmail: anonPersonEmail
         };
 
+        // encrypt the person information with the recovery nonce and recovery key
         return fromByteArray(await encryptWithSymmetricKey(derivedKey, objectToEncrypt));
     }
 
+    /**
+     * When the recovery process is started the first values that are required
+     * are the person email and the anonymous person email.
+     *
+     * Using the encrypted recovery information and the recovery nonce from the
+     * url and the recovery key which was entered by the user this function
+     * decrypts the person information and returns the user email and the
+     * anonymous person email.
+     *
+     * @param {string} recoveryKey
+     * @param {string} recoveryNonce
+     * @param {string} encryptedPersonInformation
+     * @returns {Promise<{personEmail: string, anonPersonEmail: string}>}
+     */
     async decryptReceivedRecoveryInformation(
         recoveryKey: string,
         recoveryNonce: string,
@@ -112,6 +156,14 @@ export default class RecoveryModel {
         };
     }
 
+    /**
+     * In recovery process a new person is created with the received email, but
+     * since the keys are different every time they are created, we need to overwrite
+     * the new created person keys with the old ones because the person is the same
+     * so the keys have to be the same also.
+     *
+     * @returns {Promise<void>}
+     */
     async overwritePersonKeyWithReceivedEncryptedOnes(): Promise<void> {
         if (!this.decryptedObject) {
             throw new Error('Received recovery information not found.');
@@ -143,6 +195,12 @@ export default class RecoveryModel {
         await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
     }
 
+    /**
+     * For the recovery key we need a simple string random generator which will return
+     * a user friendly string, which will be easy to read for the user.
+     * @returns {string}
+     * @private
+     */
     private generateRandomReadableString(): string {
         const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz.-_=!';
         let randomstring = '';

@@ -216,6 +216,11 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
+        /**
+         * In the recovery state the email and the anonymous email are read from the
+         * url, but the recovery state has to be passed to the models initialisation
+         * in order to overwrite the new generated person keys with the old ones.
+         */
         await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail, true);
     }
 
@@ -226,6 +231,7 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} email
      * @param {boolean} takeOver
      * @param {string} anonymousEmail
+     * @param {boolean} recoveryState
      */
     async createNewInstanceWithReceivedEmail(
         email: string,
