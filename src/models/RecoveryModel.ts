@@ -39,22 +39,6 @@ export default class RecoveryModel {
         this.connectionsModel = connectionsModel;
     }
 
-    public get recoveryNonce(): string {
-        return this.recoveryNonceString;
-    }
-
-    public set recoveryNonce(newNonce: string) {
-        this.recoveryNonceString = newNonce;
-    }
-
-    public get recoveryKey(): string {
-        return this.recoveryKeyString;
-    }
-
-    public set recoveryKey(newKey: string) {
-        this.recoveryKeyString = newKey;
-    }
-
     async extractEncryptedPersonInformation(): Promise<string> {
         const derivedKey = await scrypt(
             stringToUint8Array(this.recoveryKeyString),
@@ -95,8 +79,12 @@ export default class RecoveryModel {
     }
 
     async decryptReceivedRecoveryInformation(
-        encryptedPersonInformation: string
+        recoveryKey: string,
+        recoveryNonce: string,
+        encryptedPersonInformation: string,
     ): Promise<{personEmail: string; anonPersonEmail: string}> {
+        this.recoveryKeyString = recoveryKey;
+        this.recoveryNonceString = recoveryNonce;
         const objectToDecrypt = toByteArray(encryptedPersonInformation);
         const derivedKey = await scrypt(
             stringToUint8Array(this.recoveryKeyString),
@@ -106,8 +94,8 @@ export default class RecoveryModel {
             Uint8ArrayToString(await decryptWithSymmetricKey(derivedKey, objectToDecrypt))
         );
 
-        if(!this.decryptedObject){
-            throw new Error("Received recovery information could not be decrypted.")
+        if (!this.decryptedObject) {
+            throw new Error('Received recovery information could not be decrypted.');
         }
 
         return {
@@ -117,8 +105,8 @@ export default class RecoveryModel {
     }
 
     async overwritePersonKeyWithReceivedEncryptedOnes(): Promise<void> {
-        if(!this.decryptedObject){
-            throw new Error("Received recovery information not found.")
+        if (!this.decryptedObject) {
+            throw new Error('Received recovery information not found.');
         }
 
         const personId = await calculateIdHashOfObj({
