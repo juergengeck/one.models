@@ -53,7 +53,11 @@ export default class RecoveryModel {
      *
      * @returns {Promise<string>}
      */
-    async extractEncryptedPersonInformation(): Promise<string> {
+    async extractEncryptedPersonInformation(): Promise<{
+        recoveryKey: string;
+        recoveryNonce: string;
+        encryptedPersonInformation: string;
+    }> {
         // generate a new nonce which will be used in encrypting the person information
         const recoveryNonce = fromByteArray(tweetnacl.randomBytes(64));
         // generate a new key which will be used together with
@@ -95,7 +99,15 @@ export default class RecoveryModel {
         };
 
         // encrypt the person information with the recovery nonce and recovery key
-        return fromByteArray(await encryptWithSymmetricKey(derivedKey, objectToEncrypt));
+        const encryptedPersonInformation = fromByteArray(
+            await encryptWithSymmetricKey(derivedKey, objectToEncrypt)
+        );
+
+        return {
+            recoveryKey: recoveryKey,
+            recoveryNonce: recoveryNonce,
+            encryptedPersonInformation: encryptedPersonInformation
+        };
     }
 
     /**
