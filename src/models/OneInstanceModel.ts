@@ -216,7 +216,7 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail, true);
     }
 
     /**
@@ -230,7 +230,8 @@ export default class OneInstanceModel extends EventEmitter {
     async createNewInstanceWithReceivedEmail(
         email: string,
         takeOver = false,
-        anonymousEmail?: string
+        anonymousEmail?: string,
+        recoveryState?: boolean
     ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
@@ -251,7 +252,7 @@ export default class OneInstanceModel extends EventEmitter {
 
         await importModules();
         this.unregister();
-        this.initialisingApplication(anonymousEmail, takeOver);
+        this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
     }
 
     /**
@@ -293,7 +294,11 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(anonymousEmail?: string, takeOver?: boolean): void {
+    initialisingApplication(
+        anonymousEmail?: string,
+        takeOver?: boolean,
+        recoveryState?: boolean
+    ): void {
         // TODO: replace this when we have events that can handle promises as return values
         const firstCallback = (error?: Error): void => {
             if (error) {
@@ -313,7 +318,8 @@ export default class OneInstanceModel extends EventEmitter {
             this.currentRegistrationState,
             firstCallback,
             anonymousEmail,
-            takeOver
+            takeOver,
+            recoveryState
         );
     }
 
