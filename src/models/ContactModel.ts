@@ -61,9 +61,8 @@ export enum ContactEvent {
 export default class ContactModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
-    private readonly channelManager: ChannelManager;
-    private readonly channelId: string = 'contacts';
-    private readonly channelIdForRealContacts: string = 'realContacts';
+    // @ts-ignore
+    private readonly channelManager: ChannelManager; // Let's keep it for now, because we will need it later again!
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
@@ -136,11 +135,6 @@ export default class ContactModel extends EventEmitter {
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
         onUnversionedObj.removeListener(this.boundOnUnVersionedObjHandler);
-    }
-
-    public async createContactChannel() {
-        await this.channelManager.createChannel(this.channelId);
-        await this.channelManager.createChannel(this.channelIdForRealContacts);
     }
 
     /**
