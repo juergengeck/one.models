@@ -88,7 +88,8 @@ export default class OneInstanceModel extends EventEmitter {
         | ((
               currentRegistrationState: boolean,
               anonymousEmail?: string,
-              takeOver?: boolean
+              takeOver?: boolean,
+              recoveryState?: boolean
           ) => Promise<void>)
         | null;
 
@@ -196,6 +197,9 @@ export default class OneInstanceModel extends EventEmitter {
      * The previously created instance with that email as owner is deleted and a new one is created.
      * The user has to re-enter a password, which will be used for the new instance.
      *
+     * After the instance is created, the person keys are overwritten with the old ones read from
+     * the qr code, because the person is the same, just the password has to change on recovery process.
+     *
      * @param {string} email
      * @param {string} secret
      * @param {string} patientType
@@ -225,7 +229,12 @@ export default class OneInstanceModel extends EventEmitter {
             throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
+        /**
+         * In the recovery state the email and the anonymous email are read from the
+         * url, but the recovery state has to be passed to the models initialisation
+         * in order to overwrite the new generated person keys with the old ones.
+         */
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail, true);
     }
 
     /**
@@ -235,11 +244,13 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} email
      * @param {boolean} takeOver
      * @param {string} anonymousEmail
+     * @param {boolean} recoveryState
      */
     async createNewInstanceWithReceivedEmail(
         email: string,
         takeOver = false,
-        anonymousEmail?: string
+        anonymousEmail?: string,
+        recoveryState?: boolean
     ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
@@ -260,7 +271,7 @@ export default class OneInstanceModel extends EventEmitter {
 
         await importModules();
         this.unregister();
-        this.initialisingApplication(anonymousEmail, takeOver);
+        this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
     }
 
     /**
@@ -302,12 +313,12 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    async initialisingApplication(anonymousEmail?: string, takeOver?: boolean): Promise<void> {
+    async initialisingApplication(anonymousEmail?: string, takeOver?: boolean, recoveryState?: boolean): Promise<void> {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
         if (this.loggingIn) {
-            await this.loggingIn(this.currentRegistrationState, anonymousEmail, takeOver);
+            await this.loggingIn(this.currentRegistrationState, anonymousEmail, takeOver, recoveryState);
         }
 
         this.emit('authstate_changed');
