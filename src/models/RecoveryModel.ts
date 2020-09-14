@@ -1,16 +1,26 @@
-import {scrypt} from 'one.core/lib/system/crypto-scrypt';
+import {deriveBinaryKey, scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {
+    decryptSecretKey,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
+    overwritePersonKeys,
     stringToUint8Array,
     Uint8ArrayToString
 } from 'one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
 import ConnectionsModel from './ConnectionsModel';
-import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {getObjectByIdHash} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughImpurePlan,
+    getObjectByIdHash,
+    VERSION_UPDATES
+} from 'one.core/lib/storage';
+import {Person, SHA256IdHash} from '@OneCoreTypes';
+import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {randomBytes} from 'crypto';
+import {writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
 
 /**
  * For the recovery process the person email with the corresponding
@@ -40,11 +50,49 @@ export default class RecoveryModel {
     private readonly stringLength: number;
     private connectionsModel: ConnectionsModel;
     private decryptedObject: PersonInformation | undefined;
+    private password: string;
 
-    constructor(connectionsModel: ConnectionsModel) {
+    // Internal maps and lists (precomputed on init)
+    private mainInstanceInfo: LocalInstanceInfo | null; // My person info
+    private anonInstanceInfo: LocalInstanceInfo | null; // My person info - anonymous id -> TODO: should be removed in the future
+
+    private readonly instancesModel: InstancesModel;
+
+    constructor(connectionsModel: ConnectionsModel, instancesModel: InstancesModel) {
         // default length for the recovery key
         this.stringLength = 19;
         this.connectionsModel = connectionsModel;
+        this.instancesModel = instancesModel;
+        this.password = '';
+        this.mainInstanceInfo = null;
+        this.anonInstanceInfo = null;
+    }
+
+    /**
+     * Initialize this module.
+     *
+     * @returns {Promise<void>}
+     */
+    public async init(): Promise<void> {
+        await this.updateInstanceInfos();
+
+        if (!this.mainInstanceInfo) {
+            throw new Error('Programming error: mainInstanceInfo is not initialized');
+        }
+        if (!this.anonInstanceInfo) {
+            throw new Error('Programming error: anonInstanceInfo is not initialized');
+        }
+    }
+
+    /**
+     * The password needs to be memorised for personal cloud connections authentication.
+     *
+     * TODO: remove me and ask the user instead. Long term storage is a bad idea!
+     *
+     * @param {string} password
+     */
+    public setPassword(password: string) {
+        this.password = password;
     }
 
     /**
@@ -58,6 +106,12 @@ export default class RecoveryModel {
         recoveryNonce: string;
         encryptedPersonInformation: string;
     }> {
+        if (this.password === '') {
+            throw new Error(
+                'Can not generate recovery file without knowing the instance password!'
+            );
+        }
+
         // generate a new nonce which will be used in encrypting the person information
         const recoveryNonce = fromByteArray(tweetnacl.randomBytes(64));
         // generate a new key which will be used together with
@@ -73,15 +127,25 @@ export default class RecoveryModel {
         // extract person key information in order in integrate it in the url
         const personPublicKey = privatePersonInformation.personPublicKey;
         const personPublicSignKey = privatePersonInformation.personPublicSignKey;
-        const personPrivateKey = privatePersonInformation.personPrivateKey;
-        const personPrivateSignKey = privatePersonInformation.personPrivateSignKey;
+        // extract the decrypted private person keys
+        const personPrivateKeys = await RecoveryModel.extractDecryptedPrivateKeysForPerson(
+            privatePersonInformation.personId
+        );
+        const personPrivateKey = personPrivateKeys.privateKey;
+        const personPrivateSignKey = personPrivateKeys.privateSignKey;
+        // extract the person email
         const person = await getObjectByIdHash(privatePersonInformation.personId);
         const personEmail = person.obj.email;
         // extract anon person key information in order to integrate it in the url
         const anonPersonPublicKey = privatePersonInformation.anonPersonPublicKey;
         const anonPersonPublicSignKey = privatePersonInformation.anonPersonPublicSignKey;
-        const anonPersonPrivateKey = privatePersonInformation.anonPersonPrivateKey;
-        const anonPersonPrivateSignKey = privatePersonInformation.anonPersonPrivateSignKey;
+        // extract the decrypted private anonymous person keys
+        const anonPersonPrivateKeys = await RecoveryModel.extractDecryptedPrivateKeysForPerson(
+            privatePersonInformation.personId
+        );
+        const anonPersonPrivateKey = anonPersonPrivateKeys.privateKey;
+        const anonPersonPrivateSignKey = anonPersonPrivateKeys.privateSignKey;
+        // extract the anonymous person email
         const anonPerson = await getObjectByIdHash(privatePersonInformation.anonPersonId);
         const anonPersonEmail = anonPerson.obj.email;
 
@@ -97,6 +161,8 @@ export default class RecoveryModel {
             anonPersonPrivateSignKey: anonPersonPrivateSignKey,
             anonPersonEmail: anonPersonEmail
         };
+
+        this.password = '';
 
         // encrypt the person information with the recovery nonce and recovery key
         const encryptedPersonInformation = fromByteArray(
@@ -161,30 +227,9 @@ export default class RecoveryModel {
             throw new Error('Received recovery information not found.');
         }
 
-        const personId = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.decryptedObject.personEmail
-        });
-        const anonPersonId = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.decryptedObject.anonPersonEmail
-        });
-
         // overwrite person keys with the old ones
-        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = {
-            command: 'private_person_information',
-            personId,
-            personPublicKey: this.decryptedObject.personPublicKey,
-            personPublicSignKey: this.decryptedObject.personPublicSignKey,
-            personPrivateKey: this.decryptedObject.personPrivateKey,
-            personPrivateSignKey: this.decryptedObject.personPrivateSignKey,
-            anonPersonId,
-            anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
-            anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
-            anonPersonPrivateKey: this.decryptedObject.anonPersonPrivateKey,
-            anonPersonPrivateSignKey: this.decryptedObject.anonPersonPrivateSignKey
-        };
-        await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
+        await this.overwritePersonKeys();
+
         // remove from memory the decrypted person information because it's not important anymore
         this.decryptedObject = undefined;
     }
@@ -206,5 +251,153 @@ export default class RecoveryModel {
             randomstring += chars.substring(randomNumber, randomNumber + 1);
         }
         return randomstring;
+    }
+
+    private static async extractDecryptedPrivateKeysForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<{
+        privateKey: string;
+        privateSignKey: string;
+    }> {
+        // Obtain the person keys
+        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        const personPrivateEncryptionKey = await decryptSecretKey(
+            '',
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const personPrivateSignKey = await decryptSecretKey(
+            '',
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+        );
+
+        if (personPrivateEncryptionKey === null || personPrivateSignKey === null) {
+            throw new Error('Person keys could not be decrypted for the recovery information.');
+        }
+
+        return {
+            privateKey: fromByteArray(personPrivateEncryptionKey),
+            privateSignKey: fromByteArray(personPrivateSignKey)
+        };
+    }
+
+    private async writePrivateKey(
+        secret: string,
+        key: Uint8Array,
+        filename: string
+    ): Promise<void> {
+        const nonce = randomBytes(tweetnacl.secretbox.nonceLength);
+        const derivedKey = await deriveBinaryKey(secret, nonce, tweetnacl.secretbox.keyLength);
+        const encrypted = tweetnacl.secretbox(key, nonce, derivedKey);
+        const encryptedKey = new Uint8Array(tweetnacl.secretbox.nonceLength + encrypted.byteLength);
+        encryptedKey.set(nonce, 0);
+        encryptedKey.set(encrypted, nonce.byteLength);
+        await writeUTF8TextFile(fromByteArray(encryptedKey), filename, 'private');
+    }
+
+    private async overwritePersonKeys(): Promise<void> {
+        if (!this.decryptedObject) {
+            throw new Error('Received recovery information not found.');
+        }
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized.');
+        }
+        if (!this.anonInstanceInfo) {
+            throw new Error('anonInstanceInfo not initialized.');
+        }
+
+        const personId = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: this.decryptedObject.personEmail
+        });
+
+        try {
+            await getObjectByIdHash(personId);
+        } catch (_) {
+            throw new Error('Unknown person.');
+        }
+        // Save the public keys of main id
+        const savedOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'Keys',
+                owner: personId,
+                publicKey: this.decryptedObject.personPublicKey,
+                publicSignKey: this.decryptedObject.personPublicSignKey
+            }
+        );
+        await this.writePrivateKey(
+            this.password,
+            toByteArray(this.decryptedObject.personPrivateKey),
+            `${savedOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.writePrivateKey(
+            this.password,
+            toByteArray(this.decryptedObject.personPrivateSignKey),
+            `${savedOwnerKeys.hash}.owner.sign`
+        );
+
+        // Save the keys of the anonymous id
+        const anonPersonId = await calculateIdHashOfObj({
+            $type$: 'Person',
+            email: this.decryptedObject.anonPersonEmail
+        });
+
+        try {
+            await getObjectByIdHash(anonPersonId);
+        } catch (_) {
+            throw new Error('Unknown anonymous person.');
+        }
+        const savedAnonOwnerKeys = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'Keys',
+                owner: anonPersonId,
+                publicKey: this.decryptedObject.anonPersonPublicKey,
+                publicSignKey: this.decryptedObject.anonPersonPublicSignKey
+            }
+        );
+        await this.writePrivateKey(
+            this.password,
+            toByteArray(this.decryptedObject.anonPersonPrivateKey),
+            `${savedAnonOwnerKeys.hash}.owner.encrypt`
+        );
+        await this.writePrivateKey(
+            this.password,
+            toByteArray(this.decryptedObject.anonPersonPrivateSignKey),
+            `${savedAnonOwnerKeys.hash}.owner.sign`
+        );
+
+        await overwritePersonKeys(this.password, personId, this.mainInstanceInfo.instanceId);
+        await overwritePersonKeys(this.password, anonPersonId, this.anonInstanceInfo.instanceId);
+    }
+
+    /**
+     * Updates all the instance info related members in the class.
+     *
+     * @returns {Promise<void>}
+     */
+    private async updateInstanceInfos(): Promise<void> {
+        // Extract my local instance infos to build the map
+        const infos = await this.instancesModel.localInstancesInfo();
+        if (infos.length !== 2) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+
+        // Setup the public key to instanceInfo map
+        await Promise.all(
+            infos.map(async instanceInfo => {
+                if (instanceInfo.isMain) {
+                    this.mainInstanceInfo = instanceInfo;
+                } else {
+                    this.anonInstanceInfo = instanceInfo;
+                }
+            })
+        );
     }
 }
