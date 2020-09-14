@@ -41,20 +41,26 @@ interface PersonInformation {
  * recovery url.
  */
 export default class RecoveryModel {
-    private readonly stringLength: number;
+    private readonly recoveryKeyLength: number;
     private connectionsModel: ConnectionsModel;
     private decryptedObject: PersonInformation | undefined;
     private password: string;
 
     constructor(connectionsModel: ConnectionsModel) {
         // default length for the recovery key
-        this.stringLength = 19;
+        this.recoveryKeyLength = 19;
         this.connectionsModel = connectionsModel;
         this.password = '';
     }
 
     /**
-     * The password needs to be memorised for personal cloud connections authentication.
+     * The password needs to be memorised for encrypting and decrypting private person keys.
+     *
+     * This will be deleted after the recovery file is created or if the model was
+     * initialised for the recovery process, then the password will be deleted after
+     * the recovery process is finalised.
+     *
+     * For generating a second recovery file the password has to be re-memorised.
      *
      * TODO: remove me and ask the user instead. Long term storage is a bad idea!
      *
@@ -65,8 +71,13 @@ export default class RecoveryModel {
     }
 
     /**
-     * Extract all person information and encrypt them using the recovery nonce
-     * and recovery key.
+     * Extract all person information and encrypt them using the
+     * recovery nonce and recovery key.
+     *
+     * The person private keys are decrypted before creating the
+     * person information object.
+     *
+     * This function also removes the password value from memory.
      *
      * @returns {Promise<string>}
      */
@@ -91,49 +102,15 @@ export default class RecoveryModel {
             toByteArray(recoveryNonce)
         );
 
-        const privatePersonInformation = await this.connectionsModel.extractExistingPersonKeys();
+        // extract all information for main person and anonymous
+        // person that will be encrypted and added in the url
+        const objectToEncrypt = await this.extractPersonInformation();
 
-        // extract person key information in order in integrate it in the url
-        const personPublicKey = privatePersonInformation.personPublicKey;
-        const personPublicSignKey = privatePersonInformation.personPublicSignKey;
-        // extract the decrypted private person keys
-        const personPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
-            privatePersonInformation.personId
-        );
-        const personPrivateKey = personPrivateKeys.privateKey;
-        const personPrivateSignKey = personPrivateKeys.privateSignKey;
-        // extract the person email
-        const person = await getObjectByIdHash(privatePersonInformation.personId);
-        const personEmail = person.obj.email;
-        // extract anon person key information in order to integrate it in the url
-        const anonPersonPublicKey = privatePersonInformation.anonPersonPublicKey;
-        const anonPersonPublicSignKey = privatePersonInformation.anonPersonPublicSignKey;
-        // extract the decrypted private anonymous person keys
-        const anonPersonPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
-            privatePersonInformation.anonPersonId
-        );
-        const anonPersonPrivateKey = anonPersonPrivateKeys.privateKey;
-        const anonPersonPrivateSignKey = anonPersonPrivateKeys.privateSignKey;
-        // extract the anonymous person email
-        const anonPerson = await getObjectByIdHash(privatePersonInformation.anonPersonId);
-        const anonPersonEmail = anonPerson.obj.email;
-
-        const objectToEncrypt: PersonInformation = {
-            personEmail: personEmail,
-            personPublicKey: personPublicKey,
-            personPublicSignKey: personPublicSignKey,
-            personPrivateKey: personPrivateKey,
-            personPrivateSignKey: personPrivateSignKey,
-            anonPersonPublicKey: anonPersonPublicKey,
-            anonPersonPublicSignKey: anonPersonPublicSignKey,
-            anonPersonPrivateKey: anonPersonPrivateKey,
-            anonPersonPrivateSignKey: anonPersonPrivateSignKey,
-            anonPersonEmail: anonPersonEmail
-        };
-
+        // delete the password from memory after the recovery information were extracted
+        // for a new recovery file the model should be re-initialised
         this.password = '';
 
-        // encrypt the person information with the recovery nonce and recovery key
+        // encrypt the persons information with the recovery nonce and recovery key
         const encryptedPersonInformation = fromByteArray(
             await encryptWithSymmetricKey(derivedKey, objectToEncrypt)
         );
@@ -146,6 +123,8 @@ export default class RecoveryModel {
     }
 
     /**
+     * This is the first step in the recovery process.
+     *
      * When the recovery process is started the first values that are required
      * are the person email and the anonymous person email.
      *
@@ -153,6 +132,9 @@ export default class RecoveryModel {
      * url and the recovery key which was entered by the user this function
      * decrypts the person information and returns the user email and the
      * anonymous person email.
+     *
+     * The decrypted data will be saved in memory until the next step in the
+     * recovery process (overwritePersonKeyWithReceivedEncryptedOnes function).
      *
      * @param {string} recoveryKey
      * @param {string} recoveryNonce
@@ -184,10 +166,21 @@ export default class RecoveryModel {
     }
 
     /**
+     * This is the second and last step in the recovery process.
+     * Before calling this function the decryptReceivedRecoveryInformation
+     * function should be called in order to decrypt the received data and
+     * to memorise it for this step.
+     *
      * In recovery process a new person is created with the received email, but
      * since the keys are different every time they are created, we need to overwrite
      * the new created person keys with the old ones because the person is the same
      * so the keys have to be the same also.
+     *
+     * The received person private keys are decrypted, so before memorising them
+     * we first need to encrypt the received private keys with the new password.
+     *
+     * The password must be set before this function is called.
+     * After this step the password is deleted from the memory.
      *
      * @returns {Promise<void>}
      */
@@ -206,6 +199,7 @@ export default class RecoveryModel {
         });
 
         // overwrite person keys with the old ones
+        // for private keys we first need to encrypt them with the new password
         const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = {
             command: 'private_person_information',
             personId,
@@ -231,7 +225,11 @@ export default class RecoveryModel {
 
         // remove from memory the decrypted person information because it's not important anymore
         this.decryptedObject = undefined;
+        //remove the password from the memory
+        this.password = '';
     }
+
+    // ######## Private API ########
 
     /**
      * For the recovery key we need a simple string random generator which will return
@@ -245,13 +243,75 @@ export default class RecoveryModel {
     private generateRandomReadableString(): string {
         const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz.-_=!';
         let randomstring = '';
-        for (let i = 0; i < this.stringLength; i++) {
+        for (let i = 0; i < this.recoveryKeyLength; i++) {
             const randomNumber = Math.floor(Math.random() * chars.length);
             randomstring += chars.substring(randomNumber, randomNumber + 1);
         }
         return randomstring;
     }
 
+    /**
+     * For extracting the persons information the extractExistingPersonKeys function
+     * from ConnectionsModel is used.
+     *
+     * The private keys are decrypted before being added to the person information
+     * object.
+     *
+     * @returns {Promise<PersonInformation>}
+     * @private
+     */
+    private async extractPersonInformation(): Promise<PersonInformation> {
+        // extract main person and anonymous person public and encrypted private keys
+        const privatePersonInformation = await this.connectionsModel.extractExistingPersonKeys();
+        // extract main person public keys
+        const personPublicKey = privatePersonInformation.personPublicKey;
+        const personPublicSignKey = privatePersonInformation.personPublicSignKey;
+        // decrypt main person private keys
+        const personPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
+            privatePersonInformation.personId
+        );
+        const personPrivateKey = personPrivateKeys.privateKey;
+        const personPrivateSignKey = personPrivateKeys.privateSignKey;
+        // extract the main person email
+        const person = await getObjectByIdHash(privatePersonInformation.personId);
+        const personEmail = person.obj.email;
+        // extract anonymous person public keys
+        const anonPersonPublicKey = privatePersonInformation.anonPersonPublicKey;
+        const anonPersonPublicSignKey = privatePersonInformation.anonPersonPublicSignKey;
+        // decrypt anonymous person private keys
+        const anonPersonPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
+            privatePersonInformation.anonPersonId
+        );
+        const anonPersonPrivateKey = anonPersonPrivateKeys.privateKey;
+        const anonPersonPrivateSignKey = anonPersonPrivateKeys.privateSignKey;
+        // extract the anonymous person email
+        const anonPerson = await getObjectByIdHash(privatePersonInformation.anonPersonId);
+        const anonPersonEmail = anonPerson.obj.email;
+
+        // create the person information object which will be encrypted and added in the url
+        return {
+            personEmail: personEmail,
+            personPublicKey: personPublicKey,
+            personPublicSignKey: personPublicSignKey,
+            personPrivateKey: personPrivateKey,
+            personPrivateSignKey: personPrivateSignKey,
+            anonPersonPublicKey: anonPersonPublicKey,
+            anonPersonPublicSignKey: anonPersonPublicSignKey,
+            anonPersonPrivateKey: anonPersonPrivateKey,
+            anonPersonPrivateSignKey: anonPersonPrivateSignKey,
+            anonPersonEmail: anonPersonEmail
+        };
+    }
+
+    /**
+     * Decrypt the private keys for the person received as parameter.
+     *
+     * The password must be set before this function is called.
+     *
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<{privateKey: string, privateSignKey: string}>}
+     * @private
+     */
     private async extractDecryptedPrivateKeysForPerson(
         personId: SHA256IdHash<Person>
     ): Promise<{
@@ -285,6 +345,19 @@ export default class RecoveryModel {
         };
     }
 
+    /**
+     * Encrypt the private key received as parameter using the
+     * password from memory.
+     *
+     * The private keys will be memorised in the ConnectionsModel
+     * overwriteExistingPersonKeys function.
+     *
+     * The password must be set before this function is called.
+     *
+     * @param {string} keyAsString
+     * @returns {Promise<string>}
+     * @private
+     */
     private async encryptPersonPrivateKey(keyAsString: string): Promise<string> {
         const key = toByteArray(keyAsString);
         const nonce = randomBytes(tweetnacl.secretbox.nonceLength);
