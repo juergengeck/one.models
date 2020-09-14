@@ -218,7 +218,7 @@ export default class ChannelManager extends EventEmitter {
     ): Promise<void> {
         // Iterate over the channel to see whether the object exists.
         const dataHash = await calculateHashOfObj(data);
-        for await (const item of this.objectIterator('channelId', {
+        for await (const item of this.objectIterator(channelId, {
             owner: owner ? owner : this.personId
         })) {
             if ((await calculateHashOfObj(item.data)) === dataHash) {
