@@ -110,7 +110,7 @@ export default class RecoveryModel {
         const anonPersonPublicSignKey = privatePersonInformation.anonPersonPublicSignKey;
         // extract the decrypted private anonymous person keys
         const anonPersonPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
-            privatePersonInformation.personId
+            privatePersonInformation.anonPersonId
         );
         const anonPersonPrivateKey = anonPersonPrivateKeys.privateKey;
         const anonPersonPrivateSignKey = anonPersonPrivateKeys.privateSignKey;
