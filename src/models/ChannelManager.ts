@@ -216,18 +216,21 @@ export default class ChannelManager extends EventEmitter {
         data: T,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        // Iterate over the channel to see whether the object exists.
-        const dataHash = await calculateHashOfObj(data);
-        for await (const item of this.objectIterator(channelId, {
-            owner: owner ? owner : this.personId
-        })) {
-            if ((await calculateHashOfObj(item.data)) === dataHash) {
-                return;
-            }
-        }
+        await serializeWithType('ChannelManagerPostIfNotExist', async () => {
+            // Iterate over the channel to see whether the object exists.
+            const dataHash = await calculateHashOfObj(data);
 
-        // Post if above for loop didn't find the item (if it did, it returned)
-        await this.postToChannel(channelId, data, owner);
+            for await (const item of this.objectIterator(channelId, {
+                owner: owner ? owner : this.personId
+            })) {
+                if ((await calculateHashOfObj(item.data)) === dataHash) {
+                    return;
+                }
+            }
+
+            // Post if above for loop didn't find the item (if it did, it returned)
+            await this.postToChannel(channelId, data, owner);
+        });
     }
 
     // ######## Get data from the channel ########
@@ -955,7 +958,10 @@ export default class ChannelManager extends EventEmitter {
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
         if (isChannelInfoResult(caughtObject)) {
             await serializeWithType('ChannelRegistryMerging', async () => {
-                await ChannelManager.updateChannelRegistryMap(caughtObject.idHash, caughtObject.hash);
+                await ChannelManager.updateChannelRegistryMap(
+                    caughtObject.idHash,
+                    caughtObject.hash
+                );
             });
             this.emit('updated', caughtObject.obj.id);
         }
