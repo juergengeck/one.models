@@ -16,6 +16,7 @@ import {
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
+    getObject,
     getObjectByIdObj,
     onUnversionedObj,
     SET_ACCESS_MODE,
@@ -101,16 +102,31 @@ export default class ServerMatchingModel extends MatchingModel {
     private async registerHooks(): Promise<void> {
         onUnversionedObj.addListener(async res => {
             console.log('object received:', res);
-            if (res.obj.$type$ === 'Supply') {
-                console.log('Supply Obj Received');
-                await this.channelManager.postToChannel(this.channelId, res.obj);
-                await this.identifyMatching(res.obj, this.suppliesMap, this.demandsMap);
-            }
-
-            if (res.obj.$type$ === 'Demand') {
-                console.log('Demand Obj Received');
-                await this.channelManager.postToChannel(this.channelId, res.obj);
-                await this.identifyMatching(res.obj, this.demandsMap, this.suppliesMap);
+            if (res.obj.$type$ === 'CreationTime') {
+                try {
+                    const receivedObject = await getObject(res.obj.data);
+                    if (receivedObject.$type$ === 'Supply') {
+                        console.log('Supply Obj Received');
+                        await this.channelManager.postToChannel(this.channelId, res.obj);
+                        await this.identifyMatching(
+                            receivedObject,
+                            this.suppliesMap,
+                            this.demandsMap
+                        );
+                    } else if (receivedObject.$type$ === 'Demand') {
+                        console.log('Demand Obj Received');
+                        await this.channelManager.postToChannel(this.channelId, res.obj);
+                        await this.identifyMatching(
+                            receivedObject,
+                            this.demandsMap,
+                            this.suppliesMap
+                        );
+                    }
+                } catch (err) {
+                    if (err.name !== 'FileNotFoundError') {
+                        throw err;
+                    }
+                }
             }
         });
     }

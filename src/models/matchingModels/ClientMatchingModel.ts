@@ -2,6 +2,7 @@ import MatchingModel from './MatchingModel';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
+    getObject,
     getObjectByIdHash,
     getObjectByIdObj,
     onUnversionedObj,
@@ -376,30 +377,40 @@ export default class ClientMatchingModel extends MatchingModel {
      */
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'MatchResponse' && caughtObject.status === 'new') {
-                await this.memoriseMatchResponse(caughtObject.obj);
-            }
-            if (caughtObject.obj.$type$ === 'Supply') {
-                let existingSupplies = this.suppliesMap.get(caughtObject.obj.match);
+            console.log('object received:', caughtObject);
+            if (caughtObject.obj.$type$ === 'CreationTime') {
+                try {
+                    const receivedObject = await getObject(caughtObject.obj.data);
+                    if (receivedObject.$type$ === 'MatchResponse') {
+                        await this.memoriseMatchResponse(receivedObject);
+                    } else if (receivedObject.$type$ === 'Supply') {
+                        console.log('Supply Obj Received');
+                        let existingSupplies = this.suppliesMap.get(receivedObject.match);
 
-                if (!existingSupplies) {
-                    existingSupplies = [];
+                        if (!existingSupplies) {
+                            existingSupplies = [];
+                        }
+                        existingSupplies.push(receivedObject);
+                        this.suppliesMap.set(receivedObject.match, existingSupplies);
+
+                        this.emit(MatchingEvents.CatalogUpdate);
+                    } else if (receivedObject.$type$ === 'Demand') {
+                        console.log('Demand Obj Received');
+                        let existingDemands = this.demandsMap.get(receivedObject.match);
+
+                        if (!existingDemands) {
+                            existingDemands = [];
+                        }
+                        existingDemands.push(receivedObject);
+                        this.demandsMap.set(receivedObject.match, existingDemands);
+
+                        this.emit(MatchingEvents.CatalogUpdate);
+                    }
+                } catch (err) {
+                    if (err.name !== 'FileNotFoundError') {
+                        throw err;
+                    }
                 }
-                existingSupplies.push(caughtObject.obj);
-                this.suppliesMap.set(caughtObject.obj.match, existingSupplies);
-
-                this.emit(MatchingEvents.CatalogUpdate);
-            }
-            if (caughtObject.obj.$type$ === 'Demand') {
-                let existingDemands = this.demandsMap.get(caughtObject.obj.match);
-
-                if (!existingDemands) {
-                    existingDemands = [];
-                }
-                existingDemands.push(caughtObject.obj);
-                this.demandsMap.set(caughtObject.obj.match, existingDemands);
-
-                this.emit(MatchingEvents.CatalogUpdate);
             }
         });
     }
