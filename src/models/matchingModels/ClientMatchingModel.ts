@@ -135,7 +135,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToSupplyMap(supply.obj);
             await this.memoriseLatestVersionOfSupplyMap();
 
-            await this.channelManager.postToChannel(this.channelId, supply.obj);
+            await this.channelManager.postToChannelIfNotExist(this.channelId, supply.obj);
 
             this.emit(MatchingEvents.SupplyUpdate);
         });
@@ -167,7 +167,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToDemandMap(demand.obj);
             await this.memoriseLatestVersionOfDemandMap();
 
-            await this.channelManager.postToChannel(this.channelId, demand.obj);
+            await this.channelManager.postToChannelIfNotExist(this.channelId, demand.obj);
 
             this.emit(MatchingEvents.DemandUpdate);
         });
@@ -320,7 +320,10 @@ export default class ClientMatchingModel extends MatchingModel {
 
                         this.addNewValueToSupplyMap(newSupply.obj);
                         await this.memoriseLatestVersionOfSupplyMap();
-                        await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            this.channelId,
+                            newSupply.obj
+                        );
                         this.emit(MatchingEvents.SupplyUpdate);
                     });
                 }
@@ -359,7 +362,10 @@ export default class ClientMatchingModel extends MatchingModel {
 
                         this.addNewValueToDemandMap(newDemand.obj);
                         await this.memoriseLatestVersionOfDemandMap();
-                        await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            this.channelId,
+                            newDemand.obj
+                        );
                         this.emit(MatchingEvents.DemandUpdate);
                     });
                 }
@@ -382,6 +388,7 @@ export default class ClientMatchingModel extends MatchingModel {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
                     if (receivedObject.$type$ === 'MatchResponse') {
+                        console.log('MatchResponse Obj Received');
                         await this.memoriseMatchResponse(receivedObject);
                     } else if (receivedObject.$type$ === 'Supply') {
                         console.log('Supply Obj Received');
