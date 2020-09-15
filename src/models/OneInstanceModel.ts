@@ -313,12 +313,21 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    async initialisingApplication(anonymousEmail?: string, takeOver?: boolean, recoveryState?: boolean): Promise<void> {
+    async initialisingApplication(
+        anonymousEmail?: string,
+        takeOver?: boolean,
+        recoveryState?: boolean
+    ): Promise<void> {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
         if (this.loggingIn) {
-            await this.loggingIn(this.currentRegistrationState, anonymousEmail, takeOver, recoveryState);
+            await this.loggingIn(
+                this.currentRegistrationState,
+                anonymousEmail,
+                takeOver,
+                recoveryState
+            );
         }
 
         this.emit('authstate_changed');
@@ -540,5 +549,29 @@ export default class OneInstanceModel extends EventEmitter {
         }, 1500);
 
         await this.deleteInstance(dbInstance.name);
+    }
+
+    /**
+     *  Delete the unopened instance, this happens when the indexDb is not initialized
+     * @return {Promise<void>}
+     */
+    async deleteUnopenedInstance() {
+        const instance = localStorage.getItem('instance');
+        const email = localStorage.getItem('email');
+
+        if (!instance || !email) {
+            return;
+        }
+
+        const instanceIdHash = await calculateIdHashOfObj({
+            $type$: 'Instance',
+            name: localStorage.getItem('instance'),
+            owner: await calculateIdHashOfObj({
+                $type$: 'Person',
+                email: email
+            })
+        } as Instance);
+
+        await this.deleteInstance(`data#${instanceIdHash}`);
     }
 }
