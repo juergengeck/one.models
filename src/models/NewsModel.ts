@@ -33,10 +33,12 @@ function convertFromOne(oneObject: OneNews): News {
  */
 export default class NewsModel extends EventEmitter {
     channelManager: ChannelManager;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -46,11 +48,16 @@ export default class NewsModel extends EventEmitter {
     async init(): Promise<void> {
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
-        this.channelManager.on('updated', id => {
-            if (id === 'feedbackChannel' || id === 'newsChannel') {
-                this.emit('updated');
-            }
-        });
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     async addNews(content: string): Promise<void> {
@@ -81,5 +88,16 @@ export default class NewsModel extends EventEmitter {
         }
 
         return objects;
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === 'feedbackChannel' || id === 'newsChannel') {
+            this.emit('updated');
+        }
     }
 }

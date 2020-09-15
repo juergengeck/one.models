@@ -61,9 +61,15 @@ export enum ContactEvent {
 export default class ContactModel extends EventEmitter {
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
-    private readonly channelManager: ChannelManager;
-    private readonly channelId: string = 'contacts';
-    private readonly channelIdForRealContacts: string = 'realContacts';
+    // @ts-ignore
+    private readonly channelManager: ChannelManager; // Let's keep it for now, because we will need it later again!
+    private readonly boundOnVersionedObjHandler: (
+        caughtObject: VersionedObjectResult
+    ) => Promise<void>;
+    private readonly boundOnUnVersionedObjHandler: (
+        caughtObject: UnversionedObjectResult
+    ) => Promise<void>;
+
     constructor(
         instancesModel: InstancesModel,
         commServerUrl: string,
@@ -73,6 +79,8 @@ export default class ContactModel extends EventEmitter {
         this.instancesModel = instancesModel;
         this.commServerUrl = commServerUrl;
         this.channelManager = channelManager;
+        this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
+        this.boundOnUnVersionedObjHandler = this.handleOnUnVersionedObj.bind(this);
     }
 
     /** ########################################## Public ########################################## **/
@@ -110,13 +118,23 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
-        this.registerHooks();
+        // Listen for new contact app objects -> own profiles
+        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+
+        // Listen for new contact objects
+        onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
+
         await this.shareContactAppWithYourInstances();
     }
 
-    public async createContactChannel() {
-        await this.channelManager.createChannel(this.channelId);
-        await this.channelManager.createChannel(this.channelIdForRealContacts);
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    public async shutdown(): Promise<void> {
+        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+        onUnversionedObj.removeListener(this.boundOnUnVersionedObjHandler);
     }
 
     /**
@@ -619,41 +637,36 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * @description Register the needed hooks
-     * @returns {void}
+     * Handler function for the VersionedObj event
+     * @param {VersionedObjectResult} caughtObject
+     * @return {Promise<void>}
      */
-    // @ts-ignore
-    private registerHooks(): void {
-        // Listen for new contact app objects -> own profiles
-        onVersionedObj.addListener(async (caughtObject: VersionedObjectResult) => {
-            if (this.isContactAppVersionedObjectResult(caughtObject)) {
-                // Get the profiles of myself
-                const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
-                const profiles = await Promise.all(
-                    updatedSomeoneObjectForMyself.profiles.map(
-                        async (profileIdHash: SHA256IdHash<Profile>) => {
-                            return await getObjectByIdHash(profileIdHash);
-                        }
-                    )
-                );
+    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
+        if (this.isContactAppVersionedObjectResult(caughtObject)) {
+            // Get the profiles of myself
+            const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
+            const profiles = await Promise.all(
+                updatedSomeoneObjectForMyself.profiles.map(
+                    async (profileIdHash: SHA256IdHash<Profile>) => {
+                        return await getObjectByIdHash(profileIdHash);
+                    }
+                )
+            );
 
-                // Iterate over profiles and check which profile does not have a local instance -> generate them
-                await Promise.all(
-                    profiles.map(async (profile: VersionedObjectResult<Profile>) => {
-                        if (
-                            await this.instancesModel.hasPersonLocalInstance(profile.obj.personId)
-                        ) {
-                            return;
-                        }
+            // Iterate over profiles and check which profile does not have a local instance -> generate them
+            await Promise.all(
+                profiles.map(async (profile: VersionedObjectResult<Profile>) => {
+                    if (await this.instancesModel.hasPersonLocalInstance(profile.obj.personId)) {
+                        return;
+                    }
 
-                        // Create profile for this
-                        const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj
-                            .email;
-                        await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-                    })
-                );
+                    // Create profile for this
+                    const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj.email;
+                    await this.serializeProfileCreatingByPersonEmail(personEmail, true);
+                })
+            );
 
-                /*await serializeWithType('ContactApp', async () => {
+            /*await serializeWithType('ContactApp', async () => {
                     try {
                         const firstPreviousContactObjectHash = await getNthVersionMapHash(
                             caughtObject.idHash,
@@ -670,81 +683,84 @@ export default class ContactModel extends EventEmitter {
                     }
                 });*/
 
-                this.emit(ContactEvent.UpdatedContactApp);
-            }
-            if (this.isProfileVersionedObjectResult(caughtObject)) {
-                await serializeWithType('Contacts', async () => {
-                    try {
-                        const firstPreviousProfileObjectHash = await getNthVersionMapHash(
-                            caughtObject.idHash,
-                            -1
+            this.emit(ContactEvent.UpdatedContactApp);
+        }
+        if (this.isProfileVersionedObjectResult(caughtObject)) {
+            await serializeWithType('Contacts', async () => {
+                try {
+                    const firstPreviousProfileObjectHash = await getNthVersionMapHash(
+                        caughtObject.idHash,
+                        -1
+                    );
+                    if (firstPreviousProfileObjectHash !== caughtObject.hash) {
+                        await createSingleObjectThroughImpurePlan(
+                            {module: '@module/mergeProfile'},
+                            caughtObject.idHash
                         );
-                        if (firstPreviousProfileObjectHash !== caughtObject.hash) {
-                            await createSingleObjectThroughImpurePlan(
-                                {module: '@module/mergeProfile'},
-                                caughtObject.idHash
-                            );
-                        }
-                    } catch (_) {
-                        return;
                     }
-                });
-            }
-        });
+                } catch (_) {
+                    return;
+                }
+            });
+        }
+    }
 
-        // Listen for new contact objects
-        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (this.isContactUnVersionedObjectResult(caughtObject)) {
-                await serializeWithType('Contacts', async () => {
-                    const personId = caughtObject.obj.personId;
-                    const personEmail = (await getObjectByIdHash(personId)).obj.email;
+    /**
+     * Handler function for the UnVersionedObj event
+     * @param {UnversionedObjectResult} caughtObject
+     * @return {Promise<void>}
+     */
+    private async handleOnUnVersionedObj(caughtObject: UnversionedObjectResult): Promise<void> {
+        if (this.isContactUnVersionedObjectResult(caughtObject)) {
+            await serializeWithType('Contacts', async () => {
+                const personId = caughtObject.obj.personId;
+                const personEmail = (await getObjectByIdHash(personId)).obj.email;
 
-                    let profile: VersionedObjectResult<Profile>;
-                    /** see if the profile does exist **/
-                    try {
-                        profile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
-                    } catch (e) {
-                        /** otherwise create a new profile and register it with serialization **/
-                        profile = (await createSingleObjectThroughPurePlan(
-                            {module: '@module/createProfile'},
-                            personEmail
-                        )) as VersionedObjectResult<Profile>;
+                let profile: VersionedObjectResult<Profile>;
+                /** see if the profile does exist **/
+                try {
+                    profile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
+                } catch (e) {
+                    /** otherwise create a new profile and register it with serialization **/
+                    profile = (await createSingleObjectThroughPurePlan(
+                        {module: '@module/createProfile'},
+                        personEmail
+                    )) as VersionedObjectResult<Profile>;
 
-                        // Add the profile to the someone object (or create a new one)
-                        await this.registerProfile(profile);
-                    }
-                    const existingContact = profile.obj.contactObjects.find(
-                        (contactHash: SHA256Hash<Contact>) => contactHash === caughtObject.hash
-                    );
+                    // Add the profile to the someone object (or create a new one)
+                    await this.registerProfile(profile);
+                }
+                const existingContact = profile.obj.contactObjects.find(
+                    (contactHash: SHA256Hash<Contact>) => contactHash === caughtObject.hash
+                );
 
-                    // Emit the signals before filtering for already existing contacts because
-                    // This code might fetch a profile "from the future" (after the callback here was started)
-                    // So this object might already exist in the profile, because the new profile version was
-                    // synchronized. So emit the signals before returning!
-                    this.emit(ContactEvent.UpdatedContact, profile);
-                    this.emit(
-                        ContactEvent.NewCommunicationEndpointArrived,
-                        caughtObject.obj.communicationEndpoints
-                    );
+                // Emit the signals before filtering for already existing contacts because
+                // This code might fetch a profile "from the future" (after the callback here was started)
+                // So this object might already exist in the profile, because the new profile version was
+                // synchronized. So emit the signals before returning!
+                this.emit(ContactEvent.UpdatedContact, profile);
+                this.emit(
+                    ContactEvent.NewCommunicationEndpointArrived,
+                    caughtObject.obj.communicationEndpoints
+                );
 
-                    // Do not write a new profile version if this contact object is already part of it
-                    // This also might happen when a new profile object ist synchronized with a new contact
-                    // object, because the synchronized profile object already references this contact object
-                    if (!existingContact) {
-                        profile.obj.contactObjects.push(caughtObject.hash);
-                    }
+                // Do not write a new profile version if this contact object is already part of it
+                // This also might happen when a new profile object ist synchronized with a new contact
+                // object, because the synchronized profile object already references this contact object
+                if (!existingContact) {
+                    profile.obj.contactObjects.push(caughtObject.hash);
+                }
 
-                    /** update the profile **/
-                    return await createSingleObjectThroughImpurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        profile.obj
-                    );
-                });
-            }
-        });
+                /** update the profile **/
+                return await createSingleObjectThroughImpurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    profile.obj
+                );
+            });
+        }
     }
 
     /**

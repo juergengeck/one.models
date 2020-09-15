@@ -15,6 +15,7 @@ import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import MatchingModel from './matchingModels/MatchingModel';
 import SliderModel from './SliderModel';
+import RecoveryModel from './RecoveryModel';
 
 /** for one line imports **/
 export {
@@ -36,5 +37,6 @@ export {
     PropertyTree,
     AccessModel,
     SliderModel,
-    MatchingModel
+    MatchingModel,
+    RecoveryModel
 };
