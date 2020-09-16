@@ -2,7 +2,8 @@ import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
 import {BLOB, DocumentInfo as OneDocumentInfo, SHA256Hash} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {WriteStorageApi} from 'one.core/lib/storage';
+import {default as Storage, WriteStorageApi} from 'one.core/lib/storage';
+import * as Storage from 'one.core/lib/storage.js';
 
 /**
  * This represents a document but not the content,
@@ -93,23 +94,27 @@ export default class DocumentModel extends EventEmitter {
         await this.channelManager.postToChannel(this.channelId, convertToOne(blob.hash));
     }
 
-    // async documents(): Promise<DocumentInfo[]> {
-    //     const objects: DocumentInfo[] = [];
-    //     const oneObjects = await this.channelManager.getObjectsWithType(
-    //         this.channelId,
-    //         'DocumentInfo'
-    //     );
-    //
-    //     const documents: Buffer[] = [];
-    //
-    //     // Convert the data member from one to model representation
-    //     for (const oneObject of oneObjects) {
-    //         const {data, ...restObjectData} = oneObject;
-    //         objects.push({...restObjectData, data: convertFromOne(data)});
-    //     }
-    //
-    //     return objects;
-    // }
+    async documents(): Promise<DocumentInfo[]> {
+        const objects: DocumentInfo[] = [];
+
+        const oneObjects = await this.channelManager.getObjectsWithType(
+            this.channelId,
+            'DocumentInfo'
+        );
+
+        // Convert the data member from one to model representation
+        for (const oneObject of oneObjects) {
+
+            const stream = Storage.createFileReadStream(oneObject.data.document);
+            stream.onData.addListener(data => {
+                objects.push(data);
+            });
+            await stream.promise;
+        }
+        
+        console.log("For testing: ", objects.length);
+        return objects;
+    }
     //
     // async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
     //     const {data, ...restObjectData} = (
