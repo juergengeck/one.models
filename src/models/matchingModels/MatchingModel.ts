@@ -166,7 +166,7 @@ export default abstract class MatchingModel extends EventEmitter {
             availableSupplies = [];
         }
 
-        if (!availableSupplies.includes(supply)) {
+        if (!this.arrayIncludesObject(availableSupplies, supply)) {
             availableSupplies.push(supply);
         }
 
@@ -180,7 +180,7 @@ export default abstract class MatchingModel extends EventEmitter {
             availableDemands = [];
         }
 
-        if (!availableDemands.includes(demand)) {
+        if (!this.arrayIncludesObject(availableDemands, demand)) {
             availableDemands.push(demand);
         }
 
@@ -229,5 +229,23 @@ export default abstract class MatchingModel extends EventEmitter {
                 }
             );
         });
+    }
+
+    private arrayIncludesObject(
+        objectsArray: Supply[] | Demand[],
+        object: Supply | Demand
+    ): boolean {
+        for (let i = 0; i < objectsArray.length; i++) {
+            if (
+                objectsArray[i].$type$ === object.$type$ &&
+                objectsArray[i].identity === object.identity &&
+                objectsArray[i].match === object.match &&
+                objectsArray[i].isActive === object.isActive &&
+                objectsArray[i].timestamp === object.timestamp
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 }
