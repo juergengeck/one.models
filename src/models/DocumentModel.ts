@@ -1,11 +1,13 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from "./ChannelManager";
-import {DocumentInfo as OneDocumentInfo} from '@OneCoreTypes';
+import ChannelManager from './ChannelManager';
+import {BLOB, DocumentInfo as OneDocumentInfo, SHA256Hash} from '@OneCoreTypes';
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import {WriteStorageApi} from 'one.core/lib/storage';
 
 /**
  * This represents a document but not the content,
  */
-export type DocumentInfo = File;
+export type DocumentInfo = Buffer;
 
 /**
  * Convert from model representation to one representation.
@@ -13,7 +15,7 @@ export type DocumentInfo = File;
  * @param {DocumentInfo} modelObject - the model object
  * @returns {OneDocumentInfo} The corresponding one object
  */
-function convertToOne(modelObject: DocumentInfo): OneDocumentInfo {
+function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
     // Create the resulting object
     return {
         $type$: 'DocumentInfo',
@@ -27,7 +29,7 @@ function convertToOne(modelObject: DocumentInfo): OneDocumentInfo {
  * @param {OneDocumentInfo} oneObject - the one object
  * @returns {DocumentInfo} The corresponding model object
  */
-function convertFromOne(oneObject: OneDocumentInfo): DocumentInfo {
+function convertFromOne(oneObject: OneDocumentInfo): SHA256Hash<BLOB> {
     // Create the new ObjectData item
     return oneObject.document;
 }
@@ -78,32 +80,43 @@ export default class DocumentModel extends EventEmitter {
      *
      * @param {File} document - The data of the document
      */
-    async addDocument(document: File): Promise<void> {
-        await this.channelManager.postToChannel(this.channelId, convertToOne(document));
+    async addDocument(document: DocumentInfo): Promise<void> {
+        const minimalWriteStorageApiObj = {
+            createFileWriteStream: createFileWriteStream
+        } as WriteStorageApi;
+
+        const stream = minimalWriteStorageApiObj.createFileWriteStream();
+        stream.write(document);
+
+        const blob = await stream.end();
+
+        await this.channelManager.postToChannel(this.channelId, convertToOne(blob.hash));
     }
 
-    async documents(): Promise<ObjectData<DocumentInfo>[]> {
-        const objects: ObjectData<DocumentInfo>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'DocumentInfo'
-        );
-
-        // Convert the data member from one to model representation
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-            objects.push({...restObjectData, data: convertFromOne(data)});
-        }
-
-        return objects;
-    }
-
-    async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
-        )[0];
-        return {...restObjectData, data: convertFromOne(data)};
-    }
+    // async documents(): Promise<DocumentInfo[]> {
+    //     const objects: DocumentInfo[] = [];
+    //     const oneObjects = await this.channelManager.getObjectsWithType(
+    //         this.channelId,
+    //         'DocumentInfo'
+    //     );
+    //
+    //     const documents: Buffer[] = [];
+    //
+    //     // Convert the data member from one to model representation
+    //     for (const oneObject of oneObjects) {
+    //         const {data, ...restObjectData} = oneObject;
+    //         objects.push({...restObjectData, data: convertFromOne(data)});
+    //     }
+    //
+    //     return objects;
+    // }
+    //
+    // async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
+    //     const {data, ...restObjectData} = (
+    //         await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
+    //     )[0];
+    //     return {...restObjectData, data: convertFromOne(data)};
+    // }
 
     /**
      *  Handler function for the 'updated' event

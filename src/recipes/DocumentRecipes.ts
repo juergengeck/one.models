@@ -7,7 +7,7 @@ declare module '@OneCoreTypes' {
 
     export interface DocumentInfo {
         $type$: 'DocumentInfo';
-        document: File;
+        document: SHA256Hash<BLOB>;
     }
 }
 
@@ -17,7 +17,7 @@ const DocumentInfoRecipe: Recipe = {
     rule: [
         {
             itemprop: 'document',
-            valueType: 'object'
+            referenceToBlob: true
         }
     ]
 };
