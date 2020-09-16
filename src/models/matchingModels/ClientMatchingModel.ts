@@ -17,7 +17,8 @@ import {
     Contact,
     VersionedObjectResult,
     MatchMap,
-    MatchResponse
+    MatchResponse,
+    SHA256Hash
 } from '@OneCoreTypes';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
@@ -246,11 +247,15 @@ export default class ClientMatchingModel extends MatchingModel {
                 name: this.matchMapName
             })) as VersionedObjectResult<MatchMap>;
 
-            if (matchMapObj.obj.array) {
-                matchMap = matchMapObj.obj.array;
+            if (!matchMapObj.obj.array) {
+                return matchMap;
+            }
+
+            for await (const matchResponseHash of matchMapObj.obj.array) {
+                const matchResponse = await getObject(matchResponseHash);
+                matchMap.push(matchResponse);
             }
         } catch (error) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (error.name !== 'FileNotFoundError') {
                 throw error;
             }
@@ -420,9 +425,7 @@ export default class ClientMatchingModel extends MatchingModel {
             if (caughtObject.obj.$type$ === 'CreationTime') {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
-                    if (receivedObject.$type$ === 'MatchResponse') {
-                        await this.memoriseMatchResponse(receivedObject);
-                    } else if (receivedObject.$type$ === 'Supply') {
+                    if (receivedObject.$type$ === 'Supply') {
                         this.addNewValueToSupplyMap(receivedObject);
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
@@ -434,6 +437,15 @@ export default class ClientMatchingModel extends MatchingModel {
                         throw err;
                     }
                 }
+            } else if (caughtObject.obj.$type$ === 'MatchResponse') {
+                /**
+                 * The Match Response object is sent directly to the designated
+                 * person without using the channels.
+                 *
+                 * The type conversion is necessary because the caughtObject in a generic
+                 * UnversionedObjectResult.
+                 */
+                await this.memoriseMatchResponse(caughtObject.hash as SHA256Hash<MatchResponse>);
             }
         });
     }
@@ -443,31 +455,22 @@ export default class ClientMatchingModel extends MatchingModel {
      * can be notified about it's latest match even after application
      * reload.
      *
-     * @param {MatchResponse} matchResponse
+     * @param {SHA256Hash<MatchResponse>} matchResponseHash
      * @returns {Promise<void>}
      */
-    private async memoriseMatchResponse(matchResponse: MatchResponse): Promise<void> {
+    private async memoriseMatchResponse(
+        matchResponseHash: SHA256Hash<MatchResponse>
+    ): Promise<void> {
         await serializeWithType('MatchResponse', async () => {
-            const savedMatchResponse = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/matchResponse',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchResponse',
-                    identity: matchResponse.identity,
-                    match: matchResponse.match,
-                    identityOfDemand: matchResponse.identityOfDemand
-                }
-            )) as UnversionedObjectResult<MatchResponse>;
-
-            let matchMapObj;
-
             try {
-                matchMapObj = (await getObjectByIdObj({
+                const matchMapObj = (await getObjectByIdObj({
                     $type$: 'MatchMap',
                     name: this.matchMapName
                 })) as VersionedObjectResult<MatchMap>;
+
+                const matchArray = matchMapObj.obj.array
+                    ? matchMapObj.obj.array.push(matchResponseHash)
+                    : [matchResponseHash];
 
                 await createSingleObjectThroughPurePlan(
                     {
@@ -477,10 +480,7 @@ export default class ClientMatchingModel extends MatchingModel {
                     {
                         $type$: 'MatchMap',
                         name: this.matchMapName,
-                        array: [
-                            matchMapObj.obj.array,
-                            savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
-                        ]
+                        array: matchArray
                     }
                 );
             } catch (err) {
@@ -492,9 +492,7 @@ export default class ClientMatchingModel extends MatchingModel {
                     {
                         $type$: 'MatchMap',
                         name: this.matchMapName,
-                        array: [
-                            savedMatchResponse.obj.match + '|' + savedMatchResponse.obj.identity
-                        ]
+                        array: [matchResponseHash]
                     }
                 );
             }

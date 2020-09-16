@@ -1,4 +1,5 @@
 import {Recipe} from '@OneCoreTypes';
+import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -85,12 +86,12 @@ declare module '@OneCoreTypes' {
      * @typedef {object} MatchMap
      * @property {'MatchMap'} type
      * @property {string} name
-     * @property Array<MatchResponse> array
+     * @property {SHA256Hash<MatchResponse>[]} array
      */
     export interface MatchMap {
         $type$: 'MatchMap';
         name: string;
-        array?: Array<MatchResponse>;
+        array?: SHA256Hash<MatchResponse>[];
     }
 
     /**
@@ -219,7 +220,8 @@ export const MatchMapRecipe: Recipe = {
         },
         {
             itemprop: 'array',
-            list: 'orderedByONE'
+            referenceToObj: new Set(['MatchResponse']),
+            list: ORDERED_BY.ONE
         }
     ]
 };
