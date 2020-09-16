@@ -7,7 +7,7 @@ import {WriteStorageApi} from 'one.core/lib/storage';
 /**
  * This represents a document but not the content,
  */
-export type DocumentInfo = Buffer;
+export type DocumentInfo = ArrayBuffer;
 
 /**
  * Convert from model representation to one representation.
