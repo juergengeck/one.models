@@ -24,6 +24,17 @@ function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
     };
 }
 
+// /**
+//  * Convert from one representation to model representation.
+//  *
+//  * @param {OneDocumentInfo} oneObject - the one object
+//  * @returns {DocumentInfo} The corresponding model object
+//  */
+// function convertFromOne(oneObject: OneDocumentInfo): SHA256Hash<BLOB> {
+//     // Create the new ObjectData item
+//     return oneObject.document;
+// }
+
 /**
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents
@@ -93,7 +104,7 @@ export default class DocumentModel extends EventEmitter {
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
-
+            console.log("oneObject: ", oneObject);
             const stream = Storage.createFileReadStream(oneObject.data.document);
             stream.onData.addListener(data => {
                 objects.push(data);
@@ -104,7 +115,7 @@ export default class DocumentModel extends EventEmitter {
         console.log("For testing: ", objects.length);
         return objects;
     }
-    //
+
     // async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
     //     const {data, ...restObjectData} = (
     //         await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
