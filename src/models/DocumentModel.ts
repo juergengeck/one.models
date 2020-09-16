@@ -1,54 +1,118 @@
 import EventEmitter from 'events';
-import {SHA256Hash} from '@OneCoreTypes';
+import ChannelManager, {ObjectData} from "./ChannelManager";
+import {DocumentInfo as OneDocumentInfo} from '@OneCoreTypes';
 
 /**
  * This represents a document but not the content,
  */
-export type DocumentInfo = {
-    date: Date;
-    hash: SHA256Hash; // This is the hash of the files object
-};
+export type DocumentInfo = File;
 
 /**
- * This model implements a document storage that stores the time of creation.
+ * Convert from model representation to one representation.
+ *
+ * @param {DocumentInfo} modelObject - the model object
+ * @returns {OneDocumentInfo} The corresponding one object
+ */
+function convertToOne(modelObject: DocumentInfo): OneDocumentInfo {
+    // Create the resulting object
+    return {
+        $type$: 'DocumentInfo',
+        document: modelObject
+    };
+}
+
+/**
+ * Convert from one representation to model representation.
+ *
+ * @param {OneDocumentInfo} oneObject - the one object
+ * @returns {DocumentInfo} The corresponding model object
+ */
+function convertFromOne(oneObject: OneDocumentInfo): DocumentInfo {
+    // Create the new ObjectData item
+    return oneObject.document;
+}
+
+/**
+ * This model implements the possibility of adding a document into a journal
+ * and keeping track of the list of the documents
  */
 export default class DocumentModel extends EventEmitter {
-    constructor() {
+    channelManager: ChannelManager;
+    channelId: string;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
+    /**
+     * Construct a new instance
+     *
+     * @param {ChannelManager} channelManager - The channel manager instance
+     */
+    constructor(channelManager: ChannelManager) {
         super();
-        this.documentList = [];
+
+        this.channelId = 'document';
+        this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
+    }
+
+    /**
+     * Initialize this instance
+     *
+     * This must be done after the one instance was initialized.
+     */
+    async init(): Promise<void> {
+        await this.channelManager.createChannel(this.channelId);
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     /**
      * Create a new document.
      *
-     * @param {string} data - The data of the document
+     * @param {File} document - The data of the document
      */
-    async addDocument(data: Buffer): Promise<void> {
-        // Write the data to storage
-        /*this.documentList.push({
-            date: new Date(),
-            hash: '0123456789012345678901234567890123456789012345678901234567891234'
-        });*/
-        this.emit('updated');
+    async addDocument(document: File): Promise<void> {
+        await this.channelManager.postToChannel(this.channelId, convertToOne(document));
     }
 
-    /** Get a list of responses. */
-    async documents(): Promise<DocumentInfo[]> {
-        return [...this.documentList].sort((a, b) => {
-            return b.date.getTime() - a.date.getTime();
-        });
+    async documents(): Promise<ObjectData<DocumentInfo>[]> {
+        const objects: ObjectData<DocumentInfo>[] = [];
+        const oneObjects = await this.channelManager.getObjectsWithType(
+            this.channelId,
+            'DocumentInfo'
+        );
+
+        // Convert the data member from one to model representation
+        for (const oneObject of oneObjects) {
+            const {data, ...restObjectData} = oneObject;
+            objects.push({...restObjectData, data: convertFromOne(data)});
+        }
+
+        return objects;
+    }
+
+    async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
+        const {data, ...restObjectData} = (
+            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
+        )[0];
+        return {...restObjectData, data: convertFromOne(data)};
     }
 
     /**
-     * Returns the file content.
-     *
-     * TODO: implement when we know how to represent the content
-     *
-     * @param {SHA256Hash} hash -  The hash of the file.
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
      */
-    async getDocumentContent(hash: SHA256Hash): Promise<any> {
-        return null;
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
-
-    private readonly documentList: DocumentInfo[]; // List of measurements. Will be stored in one instance later
 }
