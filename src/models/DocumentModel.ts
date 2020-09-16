@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
 import {BLOB, DocumentInfo as OneDocumentInfo, SHA256Hash} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {default as Storage, WriteStorageApi} from 'one.core/lib/storage';
+import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
 /**
@@ -22,17 +22,6 @@ function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
         $type$: 'DocumentInfo',
         document: modelObject
     };
-}
-
-/**
- * Convert from one representation to model representation.
- *
- * @param {OneDocumentInfo} oneObject - the one object
- * @returns {DocumentInfo} The corresponding model object
- */
-function convertFromOne(oneObject: OneDocumentInfo): SHA256Hash<BLOB> {
-    // Create the new ObjectData item
-    return oneObject.document;
 }
 
 /**
@@ -111,7 +100,7 @@ export default class DocumentModel extends EventEmitter {
             });
             await stream.promise;
         }
-        
+
         console.log("For testing: ", objects.length);
         return objects;
     }
