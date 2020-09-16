@@ -294,41 +294,58 @@ export default class ClientMatchingModel extends MatchingModel {
      * inactive or the other way depending on the actual status of
      * the tag and the user clicking on it.
      *
+     * The old version of the Supply object will be deleted from memory
+     * and oly the new version will be remembered.
+     *
      * @param {string} supplyMatch
      * @returns {Promise<void>}
      */
     async changeSupplyStatus(supplyMatch: string): Promise<void> {
         const supplyArray = this.suppliesMap.get(supplyMatch);
 
-        if (supplyArray) {
-            for (const supplyObj of supplyArray) {
-                if (supplyObj.identity === this.anonInstancePersonEmail) {
-                    await serializeWithType('Supply', async () => {
-                        const newSupply = (await createSingleObjectThroughPurePlan(
-                            {
-                                module: '@module/supply',
-                                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                            },
-                            {
-                                $type$: 'Supply',
-                                identity: this.anonInstancePersonEmail,
-                                match: supplyMatch,
-                                isActive: supplyObj ? !supplyObj.isActive : false,
-                                timestamp: Date.now()
-                            }
-                        )) as UnversionedObjectResult<Supply>;
-
-                        this.addNewValueToSupplyMap(newSupply.obj);
-                        await this.memoriseLatestVersionOfSupplyMap();
-                        await this.channelManager.postToChannelIfNotExist(
-                            this.channelId,
-                            newSupply.obj
-                        );
-                        this.emit(MatchingEvents.SupplyUpdate);
-                    });
-                }
-            }
+        // check if there is a Supply object with the given match
+        if (!supplyArray) {
+            return;
         }
+
+        await serializeWithType('Supply', async () => {
+            // a person can create only one Supply object with a specific match
+            const availableSupply = supplyArray.find(
+                supplyObj => supplyObj.identity === this.anonInstancePersonEmail
+            );
+
+            // if the existing Supply object does not belong to the current user the
+            // active state can not be changed
+            if (!availableSupply) {
+                return;
+            }
+
+            // create the new version of the Supply object
+            const newSupply = (await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/supply',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'Supply',
+                    identity: this.anonInstancePersonEmail,
+                    match: supplyMatch,
+                    isActive: !availableSupply.isActive,
+                    timestamp: Date.now()
+                }
+            )) as UnversionedObjectResult<Supply>;
+
+            // delete the old version of the Supply object
+            this.suppliesMap.delete(availableSupply.match);
+
+            // remember the new version of the Supply object
+            this.addNewValueToSupplyMap(newSupply.obj);
+            await this.memoriseLatestVersionOfSupplyMap();
+
+            await this.channelManager.postToChannelIfNotExist(this.channelId, newSupply.obj);
+
+            this.emit(MatchingEvents.SupplyUpdate);
+        });
     }
 
     /**
@@ -336,41 +353,58 @@ export default class ClientMatchingModel extends MatchingModel {
      * inactive or the other way depending on the actual status of
      * the tag and the user clicking on it.
      *
+     * The old version of the Demand object will be deleted from memory
+     * and oly the new version will be remembered.
+     *
      * @param {string} value
      * @returns {Promise<void>}
      */
     async changeDemandStatus(value: string): Promise<void> {
         const demandArray = this.demandsMap.get(value);
 
-        if (demandArray) {
-            for (const demandObj of demandArray) {
-                if (demandObj.identity === this.anonInstancePersonEmail) {
-                    await serializeWithType('Demand', async () => {
-                        const newDemand = (await createSingleObjectThroughPurePlan(
-                            {
-                                module: '@module/demand',
-                                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                            },
-                            {
-                                $type$: 'Demand',
-                                identity: this.anonInstancePersonEmail,
-                                match: value,
-                                isActive: demandObj ? !demandObj.isActive : false.valueOf(),
-                                timestamp: Date.now()
-                            }
-                        )) as UnversionedObjectResult<Demand>;
-
-                        this.addNewValueToDemandMap(newDemand.obj);
-                        await this.memoriseLatestVersionOfDemandMap();
-                        await this.channelManager.postToChannelIfNotExist(
-                            this.channelId,
-                            newDemand.obj
-                        );
-                        this.emit(MatchingEvents.DemandUpdate);
-                    });
-                }
-            }
+        // check if there is a Demand object with the given match
+        if (!demandArray) {
+            return;
         }
+
+        await serializeWithType('Demand', async () => {
+            // a person can create only one Demand object with a specific match
+            const availableDemand = demandArray.find(
+                demandObj => demandObj.identity === this.anonInstancePersonEmail
+            );
+
+            // if the existing Demand object does not belong to the current user the
+            // active state can not be changed
+            if (!availableDemand) {
+                return;
+            }
+
+            // create the new version of the Demand object
+            const newDemand = (await createSingleObjectThroughPurePlan(
+                {
+                    module: '@module/demand',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                {
+                    $type$: 'Demand',
+                    identity: this.anonInstancePersonEmail,
+                    match: value,
+                    isActive: !availableDemand.isActive,
+                    timestamp: Date.now()
+                }
+            )) as UnversionedObjectResult<Demand>;
+
+            // delete the old version of the Demand object
+            this.demandsMap.delete(availableDemand.match);
+
+            // remember the new version of the Demand object
+            this.addNewValueToDemandMap(newDemand.obj);
+            await this.memoriseLatestVersionOfDemandMap();
+
+            await this.channelManager.postToChannelIfNotExist(this.channelId, newDemand.obj);
+
+            this.emit(MatchingEvents.DemandUpdate);
+        });
     }
 
     // ################ PRIVATE API ################
@@ -387,14 +421,11 @@ export default class ClientMatchingModel extends MatchingModel {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
                     if (receivedObject.$type$ === 'MatchResponse') {
-                        console.log('MatchResponse Obj Received');
                         await this.memoriseMatchResponse(receivedObject);
                     } else if (receivedObject.$type$ === 'Supply') {
-                        console.log('Supply Obj Received');
                         this.addNewValueToSupplyMap(receivedObject);
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
-                        console.log('Demand Obj Received');
                         this.addNewValueToDemandMap(receivedObject);
                         this.emit(MatchingEvents.CatalogUpdate);
                     }

@@ -132,6 +132,12 @@ export default abstract class MatchingModel extends EventEmitter {
         }
     }
 
+    /**
+     * Initialise supplies and demands maps.
+     *
+     * @returns {Promise<void>}
+     * @protected
+     */
     protected async initialiseMaps(): Promise<void> {
         try {
             const supplyMapObj = (await getObjectByIdObj({
@@ -159,6 +165,13 @@ export default abstract class MatchingModel extends EventEmitter {
         }
     }
 
+    /**
+     * Memorise the corresponding Supply object if it does not
+     * exist in the supplies map.
+     *
+     * @param {Supply} supply
+     * @protected
+     */
     protected addNewValueToSupplyMap(supply: Supply): void {
         let availableSupplies = this.suppliesMap.get(supply.match);
 
@@ -166,13 +179,20 @@ export default abstract class MatchingModel extends EventEmitter {
             availableSupplies = [];
         }
 
-        if (!this.arrayIncludesObject(availableSupplies, supply)) {
+        if (!MatchingModel.arrayIncludesObject(availableSupplies, supply)) {
             availableSupplies.push(supply);
         }
 
         this.suppliesMap.set(supply.match, availableSupplies);
     }
 
+    /**
+     * Memorise the corresponding Demand object if it does not
+     * exist in the supplies map.
+     *
+     * @param {Demand} demand
+     * @protected
+     */
     protected addNewValueToDemandMap(demand: Demand): void {
         let availableDemands = this.demandsMap.get(demand.match);
 
@@ -180,7 +200,7 @@ export default abstract class MatchingModel extends EventEmitter {
             availableDemands = [];
         }
 
-        if (!this.arrayIncludesObject(availableDemands, demand)) {
+        if (!MatchingModel.arrayIncludesObject(availableDemands, demand)) {
             availableDemands.push(demand);
         }
 
@@ -231,7 +251,19 @@ export default abstract class MatchingModel extends EventEmitter {
         });
     }
 
-    private arrayIncludesObject(
+    /**
+     * Verify if the Supply or De3mand object received as parameter
+     * does not exist in the objects array.
+     *
+     * This function is the corespondent of Array.includes but
+     * adapted specially for Supply and Demand objects.
+     *
+     * @param {Supply[] | Demand[]} objectsArray
+     * @param {Supply | Demand} object
+     * @returns {boolean}
+     * @private
+     */
+    private static arrayIncludesObject(
         objectsArray: Supply[] | Demand[],
         object: Supply | Demand
     ): boolean {
