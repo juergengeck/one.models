@@ -16,6 +16,8 @@ import AccessModel from './AccessModel';
 import MatchingModel from './matchingModels/MatchingModel';
 import SliderModel from './SliderModel';
 import RecoveryModel from './RecoveryModel';
+import ClientMatchingModel from './matchingModels/ClientMatchingModel';
+import ServerMatchingModel from './matchingModels/ServerMatchingModel';
 
 /** for one line imports **/
 export {
@@ -38,5 +40,7 @@ export {
     AccessModel,
     SliderModel,
     MatchingModel,
-    RecoveryModel
+    RecoveryModel,
+    ClientMatchingModel,
+    ServerMatchingModel
 };

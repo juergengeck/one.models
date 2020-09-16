@@ -101,7 +101,6 @@ export default class ServerMatchingModel extends MatchingModel {
      */
     private async registerHooks(): Promise<void> {
         onUnversionedObj.addListener(async res => {
-            console.log('object received:', res);
             if (res.obj.$type$ === 'CreationTime') {
                 try {
                     const receivedObject = await getObject(res.obj.data);

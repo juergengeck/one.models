@@ -161,21 +161,29 @@ export default abstract class MatchingModel extends EventEmitter {
 
     protected addNewValueToSupplyMap(supply: Supply): void {
         let availableSupplies = this.suppliesMap.get(supply.match);
-        if (availableSupplies) {
-            availableSupplies.push(supply);
-        } else {
-            availableSupplies = [supply];
+
+        if (!availableSupplies) {
+            availableSupplies = [];
         }
+
+        if (!availableSupplies.includes(supply)) {
+            availableSupplies.push(supply);
+        }
+
         this.suppliesMap.set(supply.match, availableSupplies);
     }
 
     protected addNewValueToDemandMap(demand: Demand): void {
         let availableDemands = this.demandsMap.get(demand.match);
-        if (availableDemands) {
-            availableDemands.push(demand);
-        } else {
-            availableDemands = [demand];
+
+        if (!availableDemands) {
+            availableDemands = [];
         }
+
+        if (!availableDemands.includes(demand)) {
+            availableDemands.push(demand);
+        }
+
         this.demandsMap.set(demand.match, availableDemands);
     }
 

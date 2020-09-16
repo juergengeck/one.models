@@ -383,7 +383,6 @@ export default class ClientMatchingModel extends MatchingModel {
      */
     private registerHooks(): void {
         onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            console.log('object received:', caughtObject);
             if (caughtObject.obj.$type$ === 'CreationTime') {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
@@ -392,25 +391,11 @@ export default class ClientMatchingModel extends MatchingModel {
                         await this.memoriseMatchResponse(receivedObject);
                     } else if (receivedObject.$type$ === 'Supply') {
                         console.log('Supply Obj Received');
-                        let existingSupplies = this.suppliesMap.get(receivedObject.match);
-
-                        if (!existingSupplies) {
-                            existingSupplies = [];
-                        }
-                        existingSupplies.push(receivedObject);
-                        this.suppliesMap.set(receivedObject.match, existingSupplies);
-
+                        this.addNewValueToSupplyMap(receivedObject);
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
                         console.log('Demand Obj Received');
-                        let existingDemands = this.demandsMap.get(receivedObject.match);
-
-                        if (!existingDemands) {
-                            existingDemands = [];
-                        }
-                        existingDemands.push(receivedObject);
-                        this.demandsMap.set(receivedObject.match, existingDemands);
-
+                        this.addNewValueToDemandMap(receivedObject);
                         this.emit(MatchingEvents.CatalogUpdate);
                     }
                 } catch (err) {
