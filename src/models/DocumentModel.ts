@@ -122,12 +122,13 @@ export default class DocumentModel extends EventEmitter {
         return documents;
     }
 
-    // async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
-    //     const {data, ...restObjectData} = (
-    //         await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
-    //     )[0];
-    //     return {...restObjectData, data: convertFromOne(data)};
-    // }
+    async getDocumentById(id: string): Promise<ObjectData<DocumentInfo>> {
+        const {data, ...restObjectData} = (
+            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
+        )[0];
+        const document = await convertFromOne(data);
+        return {...restObjectData, data: document};
+    }
 
     /**
      *  Handler function for the 'updated' event
