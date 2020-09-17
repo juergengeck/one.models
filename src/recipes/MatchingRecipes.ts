@@ -26,6 +26,7 @@ declare module '@OneCoreTypes' {
         identity: string;
         match: string;
         identityOfDemand: boolean;
+        creationTimestamp: number;
     }
 
     /**
@@ -205,6 +206,10 @@ export const MatchingResponseRecipe: Recipe = {
             // the person who has send the Demand object
             itemprop: 'identityOfDemand',
             valueType: 'boolean'
+        },
+        {
+            itemprop: 'creationTimestamp',
+            valueType: 'number'
         }
     ]
 };

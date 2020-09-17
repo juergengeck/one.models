@@ -222,7 +222,8 @@ export default class ServerMatchingModel extends MatchingModel {
                     $type$: 'MatchResponse',
                     identity: source.identity,
                     match: source.match,
-                    identityOfDemand
+                    identityOfDemand,
+                    creationTimestamp: Date.now()
                 }
             );
         })) as UnversionedObjectResult<MatchResponse>;
