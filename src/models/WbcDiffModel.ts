@@ -1,4 +1,6 @@
 import EventEmitter from 'events';
+import ChannelManager, {ObjectData} from './ChannelManager';
+import {WbcMeasurement} from '@OneCoreTypes';
 
 /**
  * This represents a Wbc Measurement.
@@ -37,44 +39,94 @@ export type WbcDiffMeasurement = {
  * This model implements methods related to differential blood counts of white blood cells.
  */
 export default class WbcDiffModel extends EventEmitter {
-    constructor() {
+    channelManager: ChannelManager;
+    channelId: string;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
+    constructor(channelManager: ChannelManager) {
         super();
-        this.measurementList = [];
+        this.channelId = 'WbcMeasurements';
+        this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
+    }
+
+    /**
+     * Initialize this instance
+     *
+     * This must be done after the one instance was initialized.
+     */
+    async init(): Promise<void> {
+        await this.channelManager.createChannel(this.channelId);
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     /**
      * Create a new response for a questionnaire.
      *
-     * @param {string} data - The answers for the questionnaire
+     * @param {string} wbcMeasurement - The answers for the questionnaire
      */
-    async postMeasurement(data: WbcDiffMeasurement): Promise<void> {
-        data = Object.assign({}, data); // shallow copy, because we modify it
+    async postMeasurement(wbcMeasurement: WbcDiffMeasurement): Promise<void> {
+        wbcMeasurement = Object.assign({}, wbcMeasurement); // shallow copy, because we modify it
         // Verify the consistency of optional classes
-        if (!(('neuCount' in data === 'neuCountUnit' in data) === 'neuCountUnsafe' in data)) {
+        if (
+            !(
+                ('neuCount' in wbcMeasurement === 'neuCountUnit' in wbcMeasurement) ===
+                'neuCountUnsafe' in wbcMeasurement
+            )
+        ) {
             throw Error(
                 'If one of the fields neuCount, neuCountUnit or neuCountUnsafe is specified, all need to be specified.'
             );
         }
 
-        if (!(('lymCount' in data === 'lymCountUnit' in data) === 'lymCountUnsafe' in data)) {
+        if (
+            !(
+                ('lymCount' in wbcMeasurement === 'lymCountUnit' in wbcMeasurement) ===
+                'lymCountUnsafe' in wbcMeasurement
+            )
+        ) {
             throw Error(
                 'If one of the fields lymCount, lymCountUnit or lymCountUnsafe is specified, all need to be specified.'
             );
         }
 
-        if (!(('monCount' in data === 'monCountUnit' in data) === 'monCountUnsafe' in data)) {
+        if (
+            !(
+                ('monCount' in wbcMeasurement === 'monCountUnit' in wbcMeasurement) ===
+                'monCountUnsafe' in wbcMeasurement
+            )
+        ) {
             throw Error(
                 'If one of the fields monCount, monCountUnit or monCountUnsafe is specified, all need to be specified.'
             );
         }
 
-        if (!(('eosCount' in data === 'eosCountUnit' in data) === 'eosCountUnsafe' in data)) {
+        if (
+            !(
+                ('eosCount' in wbcMeasurement === 'eosCountUnit' in wbcMeasurement) ===
+                'eosCountUnsafe' in wbcMeasurement
+            )
+        ) {
             throw Error(
                 'If one of the fields eosCount, eosCountUnit or eosCountUnsafe is specified, all need to be specified.'
             );
         }
 
-        if (!(('basCount' in data === 'basCountUnit' in data) === 'basCountUnsafe' in data)) {
+        if (
+            !(
+                ('basCount' in wbcMeasurement === 'basCountUnit' in wbcMeasurement) ===
+                'basCountUnsafe' in wbcMeasurement
+            )
+        ) {
             throw Error(
                 'If one of the fields basCount, basCountUnit or basCountUnsafe is specified, all need to be specified.'
             );
@@ -83,36 +135,36 @@ export default class WbcDiffModel extends EventEmitter {
         // Verify number format of *Count fields
         const numberRegex = /^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$/;
 
-        if (!numberRegex.test(data.wbcCount)) {
+        if (!numberRegex.test(wbcMeasurement.wbcCount)) {
             throw Error('The wbcCount number has wrong format.');
         }
 
-        if (data.neuCount !== undefined) {
-            if (!numberRegex.test(data.neuCount)) {
+        if (wbcMeasurement.neuCount !== undefined) {
+            if (!numberRegex.test(wbcMeasurement.neuCount)) {
                 throw Error('The neuCount field has wrong format.');
             }
         }
 
-        if (data.lymCount !== undefined) {
-            if (!numberRegex.test(data.lymCount)) {
+        if (wbcMeasurement.lymCount !== undefined) {
+            if (!numberRegex.test(wbcMeasurement.lymCount)) {
                 throw Error('The lymCount field has wrong format.');
             }
         }
 
-        if (data.monCount !== undefined) {
-            if (!numberRegex.test(data.monCount)) {
+        if (wbcMeasurement.monCount !== undefined) {
+            if (!numberRegex.test(wbcMeasurement.monCount)) {
                 throw Error('The monCount field has wrong format.');
             }
         }
 
-        if (data.eosCount !== undefined) {
-            if (!numberRegex.test(data.eosCount)) {
+        if (wbcMeasurement.eosCount !== undefined) {
+            if (!numberRegex.test(wbcMeasurement.eosCount)) {
                 throw Error('The eosCount field has wrong format.');
             }
         }
 
-        if (data.basCount !== undefined) {
-            if (!numberRegex.test(data.basCount)) {
+        if (wbcMeasurement.basCount !== undefined) {
+            if (!numberRegex.test(wbcMeasurement.basCount)) {
                 throw Error('The basCount field has wrong format.');
             }
         }
@@ -121,51 +173,74 @@ export default class WbcDiffModel extends EventEmitter {
         // TODO: Verify the units when they are clear!
         const unitRegex = /^(1000000000)(\/)(dL)|^(10)(\^)(9)(\/)(dL)$/;
 
-        if (!unitRegex.test(data.wbcCountUnit)) {
+        if (!unitRegex.test(wbcMeasurement.wbcCountUnit)) {
             throw Error('The wbcCountUnit number has wrong format.');
         }
 
-        if (data.neuCountUnit !== undefined) {
-            if (!unitRegex.test(data.neuCountUnit)) {
+        if (wbcMeasurement.neuCountUnit !== undefined) {
+            if (!unitRegex.test(wbcMeasurement.neuCountUnit)) {
                 throw Error('The neuCountUnit field has wrong format.');
             }
         }
 
-        if (data.lymCountUnit !== undefined) {
-            if (!unitRegex.test(data.lymCountUnit)) {
+        if (wbcMeasurement.lymCountUnit !== undefined) {
+            if (!unitRegex.test(wbcMeasurement.lymCountUnit)) {
                 throw Error('The lymCountUnit field has wrong format.');
             }
         }
 
-        if (data.monCountUnit !== undefined) {
-            if (!unitRegex.test(data.monCountUnit)) {
+        if (wbcMeasurement.monCountUnit !== undefined) {
+            if (!unitRegex.test(wbcMeasurement.monCountUnit)) {
                 throw Error('The monCountUnit field has wrong format.');
             }
         }
 
-        if (data.eosCountUnit !== undefined) {
-            if (!unitRegex.test(data.eosCountUnit)) {
+        if (wbcMeasurement.eosCountUnit !== undefined) {
+            if (!unitRegex.test(wbcMeasurement.eosCountUnit)) {
                 throw Error('The eosCountUnit field has wrong format.');
             }
         }
 
-        if (data.basCountUnit !== undefined) {
-            if (!unitRegex.test(data.basCountUnit)) {
+        if (wbcMeasurement.basCountUnit !== undefined) {
+            if (!unitRegex.test(wbcMeasurement.basCountUnit)) {
                 throw Error('The basCountUnit field has wrong format.');
             }
         }
 
         // Write the data to storage
-        this.measurementList.push(data);
+        await this.channelManager.postToChannel(this.channelId, {
+            $type$: 'WbcMeasurement',
+            measurement: wbcMeasurement
+        });
         this.emit('updated');
     }
 
-    /** Get a list of responses. */
-    async measurements(): Promise<WbcDiffMeasurement[]> {
-        return [...this.measurementList].sort((a, b) => {
-            return b.date.getTime() - a.date.getTime();
-        });
+    /**
+     * returns all the wbc measurements from the channel
+     */
+    async measurements(): Promise<ObjectData<WbcMeasurement>[]> {
+        const objects: ObjectData<WbcMeasurement>[] = [];
+        const oneObjects = await this.channelManager.getObjectsWithType(
+            this.channelId,
+            'WbcMeasurement'
+        );
+
+        // Convert the data member from one to model representation
+        for (const oneObject of oneObjects) {
+            const {data, ...restObjectData} = oneObject;
+            objects.push({...restObjectData, data: data});
+        }
+
+        return objects;
     }
 
-    private readonly measurementList: WbcDiffMeasurement[]; // List of measurements. Will be stored in one instance later
+    /**
+     * returns the wbc measurement with that specific id provided by the ObjectData type
+     */
+    async getEntryById(id: string): Promise<ObjectData<WbcMeasurement>> {
+        const {data, ...restObjectData} = (
+            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'WbcMeasurement')
+        )[0];
+        return {...restObjectData, data: data};
+    }
 }
