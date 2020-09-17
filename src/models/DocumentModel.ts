@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import ChannelManager from './ChannelManager';
+import ChannelManager, {ObjectData} from './ChannelManager';
 import {BLOB, DocumentInfo as OneDocumentInfo, SHA256Hash} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
@@ -24,16 +24,21 @@ function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
     };
 }
 
-// /**
-//  * Convert from one representation to model representation.
-//  *
-//  * @param {OneDocumentInfo} oneObject - the one object
-//  * @returns {DocumentInfo} The corresponding model object
-//  */
-// function convertFromOne(oneObject: OneDocumentInfo): SHA256Hash<BLOB> {
-//     // Create the new ObjectData item
-//     return oneObject.document;
-// }
+/**
+ * Convert from one representation to model representation.
+ *
+ * @param {OneDocumentInfo} oneObject - the one object
+ * @returns {DocumentInfo} The corresponding model object
+ */
+function convertFromOne(oneObject: OneDocumentInfo): DocumentInfo {
+    // Create the new ObjectData item
+    let document: DocumentInfo = {} as DocumentInfo;
+    const stream = Storage.createFileReadStream(oneObject.document);
+    stream.onData.addListener(data => {
+        document = data;
+    });
+    return document;
+}
 
 /**
  * This model implements the possibility of adding a document into a journal
@@ -94,8 +99,8 @@ export default class DocumentModel extends EventEmitter {
         await this.channelManager.postToChannel(this.channelId, convertToOne(blob.hash));
     }
 
-    async documents(): Promise<DocumentInfo[]> {
-        const objects: DocumentInfo[] = [];
+    async documents(): Promise<ObjectData<DocumentInfo>[]> {
+        const documents: ObjectData<DocumentInfo>[] = [];
 
         const oneObjects = await this.channelManager.getObjectsWithType(
             this.channelId,
@@ -105,15 +110,13 @@ export default class DocumentModel extends EventEmitter {
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
             console.log("oneObject: ", oneObject);
-            const stream = Storage.createFileReadStream(oneObject.data.document);
-            stream.onData.addListener(data => {
-                objects.push(data);
-            });
-            await stream.promise;
+            const {data, ...restObjectData} = oneObject;
+            documents.push({...restObjectData, data: convertFromOne(data)});
         }
 
-        console.log("For testing: ", objects.length);
-        return objects;
+        console.log("For testing: ", documents.length);
+        console.log("Documents content: ", documents);
+        return documents;
     }
 
     // async getEntryById(id: string): Promise<ObjectData<DocumentInfo>> {
