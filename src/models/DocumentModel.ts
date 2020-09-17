@@ -6,7 +6,7 @@ import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
 /**
- * This represents a document but not the content,
+ * This represents a document but not the content.
  */
 export type DocumentInfo = ArrayBuffer;
 
@@ -14,14 +14,35 @@ export type DocumentInfo = ArrayBuffer;
  * Convert from model representation to one representation.
  *
  * @param {DocumentInfo} modelObject - the model object
- * @returns {OneDocumentInfo} The corresponding one object
+ * @returns {Promise<OneDocumentInfo>} The corresponding one object
  */
-function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
+async function convertToOne(modelObject: DocumentInfo): Promise<OneDocumentInfo> {
     // Create the resulting object
+    const documentReference = await saveDocumentAsBLOB(modelObject);
+
     return {
         $type$: 'DocumentInfo',
-        document: modelObject
+        document: documentReference
     };
+}
+
+/**
+ * Saving the document in ONE as a BLOB and returning the reference for it.
+ *
+ * @param {DocumentInfo} document - the document that is saved in ONE as a BLOB.
+ * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
+ */
+async function saveDocumentAsBLOB(document: DocumentInfo): Promise<SHA256Hash<BLOB>> {
+    const minimalWriteStorageApiObj = {
+        createFileWriteStream: createFileWriteStream
+    } as WriteStorageApi;
+
+    const stream = minimalWriteStorageApiObj.createFileWriteStream();
+    stream.write(document);
+
+    const blob = await stream.end();
+
+    return blob.hash;
 }
 
 /**
@@ -31,7 +52,6 @@ function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
  * @returns {DocumentInfo} The corresponding model object
  */
 async function convertFromOne(oneObject: OneDocumentInfo): Promise<DocumentInfo> {
-    // Create the new ObjectData item
     let document: DocumentInfo = {} as DocumentInfo;
     const stream = Storage.createFileReadStream(oneObject.document);
     stream.onData.addListener(data => {
@@ -44,7 +64,7 @@ async function convertFromOne(oneObject: OneDocumentInfo): Promise<DocumentInfo>
 
 /**
  * This model implements the possibility of adding a document into a journal
- * and keeping track of the list of the documents
+ * and keeping track of the list of the documents.
  */
 export default class DocumentModel extends EventEmitter {
     channelManager: ChannelManager;
@@ -84,23 +104,20 @@ export default class DocumentModel extends EventEmitter {
     }
 
     /**
-     * Create a new document.
+     * Create a new reference to a document.
      *
-     * @param {File} document - The data of the document
+     * @param {DocumentInfo} document - The document.
      */
     async addDocument(document: DocumentInfo): Promise<void> {
-        const minimalWriteStorageApiObj = {
-            createFileWriteStream: createFileWriteStream
-        } as WriteStorageApi;
-
-        const stream = minimalWriteStorageApiObj.createFileWriteStream();
-        stream.write(document);
-
-        const blob = await stream.end();
-
-        await this.channelManager.postToChannel(this.channelId, convertToOne(blob.hash));
+        const oneDocument = await convertToOne(document);
+        await this.channelManager.postToChannel(this.channelId, oneDocument);
     }
 
+    /**
+     * Getting all the documents stored in ONE.
+     *
+     * @returns {Promise<ObjectData<DocumentInfo>[]>} - an array of documents.
+     */
     async documents(): Promise<ObjectData<DocumentInfo>[]> {
         const documents: ObjectData<DocumentInfo>[] = [];
 
@@ -111,17 +128,20 @@ export default class DocumentModel extends EventEmitter {
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
-            console.log("oneObject: ", oneObject);
             const {data, ...restObjectData} = oneObject;
             const document = await convertFromOne(data);
             documents.push({...restObjectData, data: document});
         }
 
-        console.log("For testing: ", documents.length);
-        console.log("Documents content: ", documents);
         return documents;
     }
 
+    /**
+     * Getting a document with a specific id.
+     *
+     * @param {string} id - the id of the document.
+     * @returns {Promise<ObjectData<DocumentInfo>>} the document.
+     */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo>> {
         const {data, ...restObjectData} = (
             await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
