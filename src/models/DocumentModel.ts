@@ -30,13 +30,15 @@ function convertToOne(modelObject: SHA256Hash<BLOB>): OneDocumentInfo {
  * @param {OneDocumentInfo} oneObject - the one object
  * @returns {DocumentInfo} The corresponding model object
  */
-function convertFromOne(oneObject: OneDocumentInfo): DocumentInfo {
+async function convertFromOne(oneObject: OneDocumentInfo): Promise<DocumentInfo> {
     // Create the new ObjectData item
     let document: DocumentInfo = {} as DocumentInfo;
     const stream = Storage.createFileReadStream(oneObject.document);
     stream.onData.addListener(data => {
         document = data;
     });
+    await stream.promise;
+
     return document;
 }
 
@@ -111,7 +113,8 @@ export default class DocumentModel extends EventEmitter {
         for (const oneObject of oneObjects) {
             console.log("oneObject: ", oneObject);
             const {data, ...restObjectData} = oneObject;
-            documents.push({...restObjectData, data: convertFromOne(data)});
+            const document = await convertFromOne(data);
+            documents.push({...restObjectData, data: document});
         }
 
         console.log("For testing: ", documents.length);
