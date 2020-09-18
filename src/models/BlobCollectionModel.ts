@@ -29,11 +29,13 @@ export default class BlobCollectionModel extends EventEmitter {
     channelManager: ChannelManager;
     owner: SHA256IdHash<Person> | undefined;
     channelId = 'blobCollections';
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     constructor(channelManager: ChannelManager) {
         super();
 
         this.channelManager = channelManager;
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     setPersonId(id: SHA256IdHash<Person>): void {
@@ -50,6 +52,17 @@ export default class BlobCollectionModel extends EventEmitter {
                 this.emit('updated');
             }
         });
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 
     async addCollection(files: File[], name: string): Promise<void> {
@@ -126,5 +139,14 @@ export default class BlobCollectionModel extends EventEmitter {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);
 
         return {...blobDescriptor, data: blobData};
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 }
