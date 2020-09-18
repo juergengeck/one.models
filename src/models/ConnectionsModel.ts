@@ -25,7 +25,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -1167,6 +1167,10 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Extract all private keys public keys and other private information from the current instance.
      *
+     * The returned private keys are encrypted using the instance secret.
+     *
+     * IMPORTANT: this function is used also in RecoveryModel.
+     *
      * @returns {Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage>}
      */
     async extractExistingPersonKeys(): Promise<
@@ -1179,36 +1183,17 @@ class ConnectionsModel extends EventEmitter {
             throw new Error('anonInstanceInfo not initialized.');
         }
 
-        const readPrivateKeys = async (filename: string): Promise<string> => {
-            return await readUTF8TextFile(filename, 'private');
-        };
-
         // Obtain the main keys
-        const mainPersonKeyLink = await getAllValues(this.mainInstanceInfo.personId, true, 'Keys');
-        const mainPublicKeys = await getObjectWithType(
-            mainPersonKeyLink[mainPersonKeyLink.length - 1].toHash,
-            'Keys'
-        );
-        const mainPrivateEncryptionKey = await readPrivateKeys(
-            `${mainPersonKeyLink[mainPersonKeyLink.length - 1].toHash}.owner.encrypt`
-        );
-        const mainPrivateSignKey = await readPrivateKeys(
-            `${mainPersonKeyLink[mainPersonKeyLink.length - 1].toHash}.owner.sign`
-        );
+        const mainPersonKeys = await this.extractKeysForPerson(this.mainInstanceInfo.personId);
+        const mainPublicKeys = mainPersonKeys.personPublicKeys;
+        const mainPrivateEncryptionKey = mainPersonKeys.personPrivateEncryptionKey;
+        const mainPrivateSignKey = mainPersonKeys.personPrivateSignKey;
 
         // Obtain the anon keys
-        const anonPersonKeyLink = await getAllValues(this.anonInstanceInfo.personId, true, 'Keys');
-        const anonPublicKeys = await getObjectWithType(
-            anonPersonKeyLink[anonPersonKeyLink.length - 1].toHash,
-            'Keys'
-        );
-        const anonPrivateEncryptionKey = await readPrivateKeys(
-            `${anonPersonKeyLink[anonPersonKeyLink.length - 1].toHash}.owner.encrypt`
-        );
-        const anonPrivateSignKey = await readPrivateKeys(
-            `${anonPersonKeyLink[anonPersonKeyLink.length - 1].toHash}.owner.sign`
-        );
-
+        const anonPersonKeys = await this.extractKeysForPerson(this.anonInstanceInfo.personId);
+        const anonPublicKeys = anonPersonKeys.personPublicKeys;
+        const anonPrivateEncryptionKey = anonPersonKeys.personPrivateEncryptionKey;
+        const anonPrivateSignKey = anonPersonKeys.personPrivateSignKey;
         // Check for the existence of sign keys
         if (!mainPublicKeys.publicSignKey) {
             throw new Error('Main person does not have a sign key');
@@ -1236,6 +1221,8 @@ class ConnectionsModel extends EventEmitter {
      * Overwrites the existing person keys with the received ones - this is
      * required in order for all instances to have the same person keys for the
      * same person object.
+     *
+     * IMPORTANT: this function is used also in RecoveryModel.
      *
      * @param {CommunicationInitiationProtocol.PrivatePersonInformationMessage} privatePersonInformation
      * @returns {Promise<void>}
@@ -1321,6 +1308,43 @@ class ConnectionsModel extends EventEmitter {
     }
 
     // ######## Update internal state functions #######
+
+    /**
+     * Extract public ans encrypted private keys for the person received as parameter.
+     *
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<{personPublicKeys: string, personPrivateEncryptionKey: string, personPrivateSignKey: string}>}
+     * @private
+     */
+    private async extractKeysForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<{
+        personPublicKeys: Keys;
+        personPrivateEncryptionKey: string;
+        personPrivateSignKey: string;
+    }> {
+        const readPrivateKeys = async (filename: string): Promise<string> => {
+            return await readUTF8TextFile(filename, 'private');
+        };
+
+        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        const personPublicKeys = await getObjectWithType(
+            personKeyLink[personKeyLink.length - 1].toHash,
+            'Keys'
+        );
+        const personPrivateEncryptionKey = await readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+        );
+        const personPrivateSignKey = await readPrivateKeys(
+            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+        );
+
+        return {
+            personPublicKeys: personPublicKeys,
+            personPrivateEncryptionKey: personPrivateEncryptionKey,
+            personPrivateSignKey: personPrivateSignKey
+        };
+    }
 
     /**
      * Updates all the instance info related members in the class.
