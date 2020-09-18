@@ -64,7 +64,7 @@ const WbcMeasurement: Recipe = {
         },
         {
             itemprop: 'neuCountUnsafe',
-            valueType: 'string',
+            valueType: 'boolean',
             optional: true
         },
         {
@@ -79,7 +79,7 @@ const WbcMeasurement: Recipe = {
         },
         {
             itemprop: 'lymCountUnsafe',
-            valueType: 'string',
+            valueType: 'boolean',
             optional: true
         },
         {
@@ -94,7 +94,7 @@ const WbcMeasurement: Recipe = {
         },
         {
             itemprop: 'monCountUnsafe',
-            valueType: 'string',
+            valueType: 'boolean',
             optional: true
         },
         {
@@ -109,7 +109,7 @@ const WbcMeasurement: Recipe = {
         },
         {
             itemprop: 'eosCountUnsafe',
-            valueType: 'string',
+            valueType: 'boolean',
             optional: true
         },
         {
@@ -124,7 +124,7 @@ const WbcMeasurement: Recipe = {
         },
         {
             itemprop: 'basCountUnsafe',
-            valueType: 'string',
+            valueType: 'boolean',
             optional: true
         }
     ]
