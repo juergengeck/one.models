@@ -124,6 +124,7 @@ export default class Model {
         );
         await this.contactModel.init();
         await this.contactModel.createContactChannel();
+        await this.wbcDiffs.init();
     }
     access: AccessModel;
     channelManager: ChannelManager;

@@ -12,7 +12,7 @@ export default class WbcDiffModel extends EventEmitter {
 
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'WbcMeasurements';
+        this.channelId = 'wbc';
         this.channelManager = channelManager;
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
