@@ -3,39 +3,6 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {WbcMeasurement} from '@OneCoreTypes';
 
 /**
- * This represents a Wbc Measurement.
- *
- * Q: Why would we use string for encoding the value?
- * A: - float would probably change the value if the value is not representable
- *    - number does not support decimal places
- *    - the communication / storage is string based, so why convert the value
- *      to a number / ... and then convert it back to a string with potential
- *      modifications?
- *    - This is medically relevant information, so try not to modify values,
- *      keep them as-is from start to end.
- */
-export type WbcDiffMeasurement = {
-    date: Date;
-    wbcCount: string;
-    wbcCountUnit: string;
-    neuCount?: string;
-    neuCountUnit?: string;
-    neuCountUnsafe?: boolean;
-    lymCount?: string;
-    lymCountUnit?: string;
-    lymCountUnsafe?: boolean;
-    monCount?: string;
-    monCountUnit?: string;
-    monCountUnsafe?: boolean;
-    eosCount?: string;
-    eosCountUnit?: string;
-    eosCountUnsafe?: boolean;
-    basCount?: string;
-    basCountUnit?: string;
-    basCountUnsafe?: boolean;
-};
-
-/**
  * This model implements methods related to differential blood counts of white blood cells.
  */
 export default class WbcDiffModel extends EventEmitter {
@@ -70,11 +37,22 @@ export default class WbcDiffModel extends EventEmitter {
     }
 
     /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
+    }
+
+    /**
      * Create a new response for a questionnaire.
      *
      * @param {string} wbcMeasurement - The answers for the questionnaire
      */
-    async postMeasurement(wbcMeasurement: WbcDiffMeasurement): Promise<void> {
+    async postMeasurement(wbcMeasurement: WbcMeasurement): Promise<void> {
         wbcMeasurement = Object.assign({}, wbcMeasurement); // shallow copy, because we modify it
         // Verify the consistency of optional classes
         if (
@@ -207,11 +185,8 @@ export default class WbcDiffModel extends EventEmitter {
             }
         }
 
-        // Write the data to storage
-        await this.channelManager.postToChannel(this.channelId, {
-            $type$: 'WbcMeasurement',
-            measurement: wbcMeasurement
-        });
+        // post wbc measurement to channel
+        await this.channelManager.postToChannel(this.channelId, wbcMeasurement);
         this.emit('updated');
     }
 
