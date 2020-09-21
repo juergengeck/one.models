@@ -27,12 +27,10 @@ export interface BlobCollection {
 
 /**
  * This class handles storing and retrieving of blob collections.
- *
- *
  */
 export default class BlobCollectionModel extends EventEmitter {
     channelManager: ChannelManager;
-    ownerIdHash: SHA256IdHash<Person> | undefined;
+    channelOwner: SHA256IdHash<Person> | undefined;
     channelId = 'blobCollections';
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
@@ -43,8 +41,8 @@ export default class BlobCollectionModel extends EventEmitter {
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
-    setChannelOwner(ownerIdHash: SHA256IdHash<Person>): void {
-        this.ownerIdHash = ownerIdHash;
+    setChannelOwner(channelOwner: SHA256IdHash<Person>): void {
+        this.channelOwner = channelOwner;
     }
 
     /**
@@ -84,7 +82,7 @@ export default class BlobCollectionModel extends EventEmitter {
         const collections = await this.channelManager.getObjectsWithType(
             this.channelId,
             'BlobCollection',
-            {owner: this.ownerIdHash}
+            {owner: this.channelOwner}
         );
         const collection = collections.find(
             (objectData: ObjectData<OneBlobCollection>) => objectData.data.name === name
@@ -102,7 +100,7 @@ export default class BlobCollectionModel extends EventEmitter {
             'BlobCollection',
             {
                 count: 1,
-                owner: this.ownerIdHash
+                owner: this.channelOwner
             }
         );
         if (collection && collection.length > 0) {
@@ -116,7 +114,7 @@ export default class BlobCollectionModel extends EventEmitter {
         const collections = await this.channelManager.getObjectsWithType(
             this.channelId,
             'BlobCollection',
-            {owner: this.ownerIdHash}
+            {owner: this.channelOwner}
         );
         return await Promise.all(collections.map((collection) => {
            return  this.resolveBlobCollection(collection.data)
