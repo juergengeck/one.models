@@ -68,7 +68,7 @@ export default class BlobCollectionModel extends EventEmitter {
         }
     }
 
-    async addCollection(files: File[], name: string): Promise<void> {
+    async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
         const blobCollection = await createSingleObjectThroughPurePlan(
             {module: '@module/createBlobCollection'},
             files,
