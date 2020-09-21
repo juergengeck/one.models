@@ -177,13 +177,15 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Create a new channel.
      *
+     * If the channel already exists, this call is a noop.
+     *
      * @param {string} channelId - The id of the channel. See class description for more details on how ids and channels are handled.
      */
     public async createChannel(channelId: string): Promise<void> {
         logWithId_Debug(channelId, this.defaultOwner, `createChannel`);
 
-        // Get the ChannelInfo from the database
         try {
+            // Get the ChannelInfo from the database
             const channelInfoIdHash = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: channelId,
@@ -193,8 +195,8 @@ export default class ChannelManager extends EventEmitter {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, this.defaultOwner, `createChannel: Existed`);
 
-            // Create a new one if getting it failed
         } catch (ignore) {
+            // Create a new one if getting it failed
             await createSingleObjectThroughPurePlan(
                 {module: '@module/createChannel'},
                 channelId,
@@ -223,6 +225,8 @@ export default class ChannelManager extends EventEmitter {
         if (!this.defaultOwner) {
             throw new Error('Default owner is not initialized');
         }
+
+        // If owner was not specified, use the default owner
         if (!owner) {
             owner = this.defaultOwner;
         }
@@ -297,6 +301,24 @@ export default class ChannelManager extends EventEmitter {
         for await (const obj of ChannelManager.runIterators(iterators, {...queryOptions})) {
             yield obj;
         }
+    }
+
+    /**
+     *
+     * @returns {Promise}
+     */
+    private async getLatestMergedChannelInfos(
+        channelId: string,
+        queryOptions: QueryOptions
+    ): Promise<SHA256Hash<ChannelInfo>[]> {
+        // load channel registry
+        const registry = (await ChannelManager.getOrCreateChannelRegistry()).obj;
+
+        // get matching channels
+        registry.channels
+
+        // load the latest hashes
+        return [];
     }
 
     /**

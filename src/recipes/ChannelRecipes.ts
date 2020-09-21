@@ -47,10 +47,14 @@ declare module '@OneCoreTypes' {
         head?: SHA256Hash<ChannelEntry>;
     }
 
+    export interface ChannelRegistryEntry {
+        latestMergedVersion: number;    // index of latest merged version in the version map
+    }
+
     export interface ChannelRegistry {
         $type$: 'ChannelRegistry';
         id: 'ChannelRegistry';
-        channels: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<ChannelInfo>>;
+        channels: Map<SHA256IdHash<ChannelInfo>, ChannelRegistryEntry>;
     }
 }
 
