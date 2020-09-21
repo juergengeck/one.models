@@ -25,9 +25,12 @@ export interface BlobCollection {
     blobs: BlobDescriptor[];
 }
 
+/**
+ * This class handles storing and retrieving of blob collections
+ */
 export default class BlobCollectionModel extends EventEmitter {
     channelManager: ChannelManager;
-    owner: SHA256IdHash<Person> | undefined;
+    ownerIdHash: SHA256IdHash<Person> | undefined;
     channelId = 'blobCollections';
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
@@ -38,8 +41,8 @@ export default class BlobCollectionModel extends EventEmitter {
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
-    setPersonId(id: SHA256IdHash<Person>): void {
-        this.owner = id;
+    setChannelOwner(ownerIdHash: SHA256IdHash<Person>): void {
+        this.ownerIdHash = ownerIdHash;
     }
 
     /**
@@ -79,7 +82,7 @@ export default class BlobCollectionModel extends EventEmitter {
         const collections = await this.channelManager.getObjectsWithType(
             this.channelId,
             'BlobCollection',
-            {owner: this.owner}
+            {owner: this.ownerIdHash}
         );
         const collection = collections.find(
             (objectData: ObjectData<OneBlobCollection>) => objectData.data.name === name
@@ -97,7 +100,7 @@ export default class BlobCollectionModel extends EventEmitter {
             'BlobCollection',
             {
                 count: 1,
-                owner: this.owner
+                owner: this.ownerIdHash
             }
         );
         if (collection && collection.length > 0) {
