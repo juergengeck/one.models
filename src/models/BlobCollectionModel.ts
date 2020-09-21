@@ -31,11 +31,11 @@ export interface BlobCollection {
  *
  * Multiple files:
  * Storing: call addCollections with an array of files and a name.
- * Loading: call getCollection(filename)
+ * Loading: call getCollection(name)
  *
  * Single file:
  * Storing: call addCollections with an array of files containing one element and a name.
- * Loading: call getCollection(filename)[0]
+ * Loading: call getCollection(name)[0]
  */
 export default class BlobCollectionModel extends EventEmitter {
     private channelManager: ChannelManager;
