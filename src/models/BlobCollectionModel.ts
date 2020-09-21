@@ -26,7 +26,9 @@ export interface BlobCollection {
 }
 
 /**
- * This class handles storing and retrieving of blob collections
+ * This class handles storing and retrieving of blob collections.
+ *
+ *
  */
 export default class BlobCollectionModel extends EventEmitter {
     channelManager: ChannelManager;
@@ -108,6 +110,17 @@ export default class BlobCollectionModel extends EventEmitter {
         } else {
             throw new Error(`BlobCollection ${name} not found.`);
         }
+    }
+
+    async getAllCollections(): Promise<BlobCollection[]> {
+        const collections = await this.channelManager.getObjectsWithType(
+            this.channelId,
+            'BlobCollection',
+            {owner: this.ownerIdHash}
+        );
+        return await Promise.all(collections.map((collection) => {
+           return  this.resolveBlobCollection(collection.data)
+        }))
     }
 
     /**
