@@ -112,17 +112,6 @@ export default class BlobCollectionModel extends EventEmitter {
         }
     }
 
-    async getAllCollections(): Promise<BlobCollection[]> {
-        const collections = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'BlobCollection',
-            {owner: this.channelOwner}
-        );
-        return await Promise.all(collections.map((collection) => {
-           return  this.resolveBlobCollection(collection.data)
-        }))
-    }
-
     /**
      * Shutdown module
      *
