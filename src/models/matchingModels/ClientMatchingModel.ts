@@ -468,9 +468,13 @@ export default class ClientMatchingModel extends MatchingModel {
                     name: this.matchMapName
                 })) as VersionedObjectResult<MatchMap>;
 
-                const matchArray = matchMapObj.obj.array
-                    ? matchMapObj.obj.array.push(matchResponseHash)
-                    : [matchResponseHash];
+                let existingMatches = matchMapObj.obj.array;
+
+                if (existingMatches && !existingMatches.includes(matchResponseHash)) {
+                    existingMatches.push(matchResponseHash);
+                } else {
+                    existingMatches = [matchResponseHash];
+                }
 
                 await createSingleObjectThroughPurePlan(
                     {
@@ -480,7 +484,7 @@ export default class ClientMatchingModel extends MatchingModel {
                     {
                         $type$: 'MatchMap',
                         name: this.matchMapName,
-                        array: matchArray
+                        array: existingMatches
                     }
                 );
             } catch (err) {
