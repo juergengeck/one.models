@@ -27,11 +27,20 @@ export interface BlobCollection {
 
 /**
  * This class handles storing and retrieving of blob collections.
+ * All get methods are set to only use the ownerChannel
+ *
+ * Multiple files:
+ * Storing: call addCollections with an array of files and a name.
+ * Loading: call getCollection(filename)
+ *
+ * Single file:
+ * Storing: call addCollections with an array of files containing one element and a name.
+ * Loading: call getCollection(filename)[0]
  */
 export default class BlobCollectionModel extends EventEmitter {
-    channelManager: ChannelManager;
-    channelOwner: SHA256IdHash<Person> | undefined;
-    channelId = 'blobCollections';
+    private channelManager: ChannelManager;
+    private channelOwner: SHA256IdHash<Person> | undefined;
+    private channelId = 'blobCollections';
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     constructor(channelManager: ChannelManager) {
@@ -41,6 +50,10 @@ export default class BlobCollectionModel extends EventEmitter {
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
+    /**
+     * allows to set the channel owner so that not all channels of all owners will be loaded
+     * @param {SHA256IdHash<Person>} channelOwner
+     */
     setChannelOwner(channelOwner: SHA256IdHash<Person>): void {
         this.channelOwner = channelOwner;
     }
@@ -55,17 +68,6 @@ export default class BlobCollectionModel extends EventEmitter {
                 this.emit('updated');
             }
         });
-    }
-
-    /**
-     *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
-        }
     }
 
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
@@ -122,6 +124,26 @@ export default class BlobCollectionModel extends EventEmitter {
     }
 
     /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
+    }
+
+    /**
      * Resolves the OneBlobCollection.blobs hash references to the actual ONE objects
      * @param {OneBlobCollection} blobCollection
      * @return {Promise<BlobCollection>}
@@ -153,14 +175,5 @@ export default class BlobCollectionModel extends EventEmitter {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);
 
         return {...blobDescriptor, data: blobData};
-    }
-
-    /**
-     * Shutdown module
-     *
-     * @returns {Promise<void>}
-     */
-    async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 }
