@@ -6,7 +6,7 @@ import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
 /**
- * This represents a document but not the content.
+ * This represents a document.
  */
 export type DocumentInfo = ArrayBuffer;
 
