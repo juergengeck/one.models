@@ -201,9 +201,12 @@ export default class QuestionnaireModel extends EventEmitter {
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            objects.push({...restObjectData, data: convertFromOne(data)});
+            if (data.isComplete) {
+                objects.push({...restObjectData, data: convertFromOne(data)});
+            }
         }
 
+        console.log("objects: ", objects);
         return objects;
     }
 
