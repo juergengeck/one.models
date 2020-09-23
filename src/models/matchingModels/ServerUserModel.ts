@@ -83,4 +83,53 @@ export default class ServerUserModel extends ClientMatchingModel {
             this.emit(MatchingEvents.SupplyUpdate);
         });
     }
+
+    /**
+     * This function is changing the status of a category,
+     * more exactly, if this function is called for a tag, that tag will be
+     * active or inactive for all user who ever sent this tag
+     *
+     * @param {string} supplyMatch
+     * @returns {Promise<void>}
+     */
+    async changeDemandCategoryStatus(demandMatch: string): Promise<void> {
+        // get all supplies
+        const demandArray = this.demandsMap.get(demandMatch);
+
+        // check if there is a Supply object with the given match
+        if (!demandArray) {
+            return;
+        }
+
+        await serializeWithType('Supply', async () => {
+            // change the status for all existing supplies
+            for (const demand of demandArray) {
+                // save new supply, but with 'isActive' status up to date
+                const newDemand = (await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@module/demand',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    {
+                        $type$: 'Demand',
+                        identity: this.anonInstancePersonEmail,
+                        match: demandMatch,
+                        isActive: !demand.isActive,
+                        timestamp: demand.timestamp
+                    }
+                )) as UnversionedObjectResult<Demand>;
+
+                // delete the old version of the Supply object
+                this.demandsMap.delete(demand.match);
+
+                // remember the new version of the Supply object
+                await this.addNewValueToDemandMap(newDemand.obj);
+                await this.memoriseLatestVersionOfSupplyMap();
+
+                await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+            }
+
+            this.emit(MatchingEvents.DemandUpdate);
+        });
+    }
 }
