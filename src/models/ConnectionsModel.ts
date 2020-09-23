@@ -7,6 +7,7 @@ import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
+    getObject,
     getObjectByIdHash,
     getObjectWithType,
     VERSION_UPDATES,
@@ -25,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -146,6 +147,7 @@ class ConnectionsModel extends EventEmitter {
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
+    private readonly contactModel: ContactModel;
 
     // Global settings
     private readonly config: ConnectionsModelConfiguration;
@@ -237,6 +239,7 @@ class ConnectionsModel extends EventEmitter {
 
         // Setup / init modules
         this.instancesModel = instancesModel;
+        this.contactModel = contactModel;
         this.communicationModule = new CommunicationModule(
             this.config.commServerUrl,
             contactModel,
@@ -786,6 +789,7 @@ class ConnectionsModel extends EventEmitter {
      *                                                          person we set the chum up with. If person key / id
      *                                                          exchange resulted in a different id, then an error
      *                                                          is thrown
+     * @param {boolean} keepRunning
      * @returns {Promise<void>}
      */
     private async startChumProtocol(
@@ -793,7 +797,8 @@ class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         isClient: boolean,
         contactShouldBeKnown: boolean,
-        remotePersonId?: SHA256IdHash<Person>
+        remotePersonId?: SHA256IdHash<Person>,
+        keepRunning: boolean = true
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await this.verifyAndExchangePersonId(
@@ -809,7 +814,14 @@ class ConnectionsModel extends EventEmitter {
         }
 
         // Step 2: Start the chum
-        await this.startChum(conn, localPersonId, remotePersonInfo.personId, 'chum', isClient);
+        await this.startChum(
+            conn,
+            localPersonId,
+            remotePersonInfo.personId,
+            'chum',
+            isClient,
+            keepRunning
+        );
         conn.close();
     }
 
@@ -1110,6 +1122,7 @@ class ConnectionsModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} remotePersonId
      * @param {CommunicationInitiationProtocol.Protocols} protocol
      * @param {boolean} initiatedLocally
+     * @param {boolean} keepRunning
      * @returns {Promise<void>}
      */
     private async startChum(
@@ -1117,7 +1130,8 @@ class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         protocol: CommunicationInitiationProtocol.Protocols,
-        initiatedLocally: boolean
+        initiatedLocally: boolean,
+        keepRunning: boolean = true
     ): Promise<void> {
         this.emit('chum_start', localPersonId, remotePersonId, protocol, initiatedLocally);
 
@@ -1158,7 +1172,7 @@ class ConnectionsModel extends EventEmitter {
                 localInstanceName: 'local',
                 remoteInstanceName: 'remote',
 
-                keepRunning: true,
+                keepRunning,
                 maxNotificationDelay: 20
             }
         );
@@ -1304,6 +1318,121 @@ class ConnectionsModel extends EventEmitter {
             this.password,
             this.anonInstanceInfo.personId,
             this.anonInstanceInfo.instanceId
+        );
+    }
+
+    /**
+     * IMPORTANT: this function needs to be called before the init function.
+     *
+     * Establish a short-running chum with the person received as argument.
+     *
+     * It tries to establish a connection with all endpoints founded for the
+     * person received as a parameter and if the connection is not established
+     * with at least one of the communication endpoints until the timeout expires
+     * an error will be thrown and all connections will be closed.
+     *
+     * After a connection was established a short-running chum connection is started
+     * with that instance.
+     *
+     * When all started chum connections are closed (the data was synchronised) the
+     * function will return.
+     *
+     * @param {SHA256IdHash<Person>} remotePersonId
+     * @param {number} timeout
+     * @returns {Promise<void>}
+     */
+    async connectOneTime(
+        remotePersonId: SHA256IdHash<Person>,
+        timeout: number = 10000
+    ): Promise<void> {
+        // Extract my local anonymous instance info
+        let thisAnonInstanceInfo: LocalInstanceInfo | undefined;
+        const infos = await this.instancesModel.localInstancesInfo();
+        if (infos.length !== 2) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+        await Promise.all(
+            infos.map(async instanceInfo => {
+                if (!instanceInfo.isMain) {
+                    thisAnonInstanceInfo = instanceInfo;
+                }
+            })
+        );
+
+        if (!thisAnonInstanceInfo) {
+            throw new Error('Unknown anonymous identity!');
+        }
+
+        // get all contact objects for the person received as parameter
+        const allContactObjects = await this.contactModel.getContactObjects(remotePersonId);
+        const allEndpoints: OneInstanceEndpoint[] = [];
+
+        // read al known endpoints for the person received as argument
+        await Promise.all(
+            allContactObjects.map(contact => {
+                contact.communicationEndpoints.forEach(async endpoint => {
+                    const endpointObj = await getObject(endpoint);
+                    allEndpoints.push(endpointObj);
+                });
+            })
+        );
+
+        const allEncryptedConnections: EncryptedConnection[] = [];
+
+        // specify the timout which I'm willing to wait until the connection was established
+        const timeoutHandler = setTimeout(() => {
+            throw new Error(
+                'The connection could not be established before the timeout was reached!'
+            );
+        }, timeout);
+
+        // establish a connection for each endpoint
+        Promise.all(
+            allEndpoints.map(async endpoint => {
+                if (!thisAnonInstanceInfo) {
+                    throw new Error('This case was already covered above, so should never happen!');
+                }
+
+                const instanceKeys = await getObject(endpoint.instanceKeys);
+                const conn = await this.createAnEncryptedConnectionUsingLocalInstanceInfo(
+                    toByteArray(instanceKeys.publicKey),
+                    thisAnonInstanceInfo
+                );
+
+                allEncryptedConnections.push(conn);
+            })
+        )
+            .then(() => {
+                clearTimeout(timeoutHandler);
+            })
+            .catch(err => {
+                allEncryptedConnections.forEach(conn => conn.close());
+                throw err;
+            });
+
+        await Promise.all(
+            allEncryptedConnections.map(async conn => {
+                // specify the protocol that will be used
+                await ConnectionsModel.sendMessage(conn, {
+                    command: 'start_protocol',
+                    protocol: 'chum',
+                    version: '1.0'
+                });
+
+                if (!thisAnonInstanceInfo) {
+                    throw new Error('This case was already covered above, so should never happen!');
+                }
+
+                // start a short-running chum (keepRunning = false)
+                await this.startChumProtocol(
+                    conn,
+                    thisAnonInstanceInfo.personId,
+                    true,
+                    true,
+                    remotePersonId,
+                    false
+                );
+            })
         );
     }
 
@@ -1576,6 +1705,36 @@ class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedResponse);
+    }
+
+    private async createAnEncryptedConnectionUsingLocalInstanceInfo(
+        remotePublicKey: Uint8Array,
+        thisInstanceInfo: LocalInstanceInfo
+    ): Promise<EncryptedConnection> {
+        // Connect to target
+        return await OutgoingConnectionEstablisher.connectOnce(
+            this.config.commServerUrl,
+            toByteArray(thisInstanceInfo.instanceKeys.publicKey),
+            toByteArray(thisInstanceInfo.instanceKeys.publicKey),
+            text => {
+                if (!thisInstanceInfo) {
+                    throw new Error('anonInstanceInfo not initialized.');
+                }
+                return thisInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                    remotePublicKey,
+                    text
+                );
+            },
+            cypherText => {
+                if (!thisInstanceInfo) {
+                    throw new Error('anonInstanceInfo not initialized.');
+                }
+                return thisInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                    remotePublicKey,
+                    cypherText
+                );
+            }
+        );
     }
 
     // ######## Low level io functions (should probably part of a class??? #######
