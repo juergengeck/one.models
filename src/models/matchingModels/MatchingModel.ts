@@ -252,7 +252,7 @@ export default abstract class MatchingModel extends EventEmitter {
     }
 
     /**
-     * Verify if the Supply or De3mand object received as parameter
+     * Verify if the Supply or Demand object received as parameter
      * does not exist in the objects array.
      *
      * This function is the corespondent of Array.includes but
@@ -278,6 +278,41 @@ export default abstract class MatchingModel extends EventEmitter {
                 return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * This function checks if the received object is here
+     * as an update of active status for one of existing objects
+     *
+     * The logic is next: when a new object is received with same
+     * values, but with a different active status, this means this new object
+     * was sent to replace the old one, because the 'isActive' attribute was changed
+     *
+     * @param {Supply[] | Demand[]} objectsArray
+     * @param {Supply | Demand} object
+     * @returns {boolean}
+     */
+    protected static checkIfItIsAnUpdate(
+        objectsMap: Map<string, (Demand | Supply)[]>,
+        tagObject: Supply | Demand
+    ): boolean {
+        const objectsArray = objectsMap.get(tagObject.match);
+
+        if (objectsArray) {
+            for (let i = 0; i < objectsArray.length; i++) {
+                if (
+                    objectsArray[i].$type$ === tagObject.$type$ &&
+                    objectsArray[i].identity === tagObject.identity &&
+                    objectsArray[i].match === tagObject.match &&
+                    objectsArray[i].isActive !== tagObject.isActive &&
+                    objectsArray[i].timestamp === tagObject.timestamp
+                ) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 }

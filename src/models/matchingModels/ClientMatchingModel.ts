@@ -233,8 +233,6 @@ export default class ClientMatchingModel extends MatchingModel {
         return [...new Set(allObjects)];
     }
 
-
-
     /**
      * Returns the array with all existing matches for this instance.
      *
@@ -427,11 +425,23 @@ export default class ClientMatchingModel extends MatchingModel {
             if (caughtObject.obj.$type$ === 'CreationTime') {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
+
                     if (receivedObject.$type$ === 'Supply') {
-                        this.addNewValueToSupplyMap(receivedObject);
+                        if (MatchingModel.checkIfItIsAnUpdate(this.suppliesMap, receivedObject)) {
+                            console.log('update supply');
+                        } else {
+                            this.addNewValueToSupplyMap(receivedObject);
+                        }
+
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
-                        this.addNewValueToDemandMap(receivedObject);
+                        if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
+                            // @TODO make a function to update demands map.
+                            console.log('update demand!!');
+                        } else {
+                            this.addNewValueToDemandMap(receivedObject);
+                        }
+
                         this.emit(MatchingEvents.CatalogUpdate);
                     }
                 } catch (err) {
