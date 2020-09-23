@@ -8,7 +8,6 @@ import {
     VERSION_UPDATES,
     createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
-import ConnectionsModel from './ConnectionsModel';
 //@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
@@ -17,7 +16,24 @@ import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import AccessModel, {FreedaAccessGroups} from './AccessModel';
+import AccessModel from './AccessModel';
+
+/**
+ * This is only a temporary solution, until all Freeda group stuff is moved out from this model
+ * It must match the group definition in the main project.
+ *
+ * ATTENTION: Do not dare to export this definition in order to use it in another model
+ *            I am just in the process of getting rid of it everywhere!
+ *            If you do - you will experience your personal Judgment day. I'll be back!
+ *            (If you do not know what that is - google the movie terminator)
+ *
+ * TODO: remove me when the model is cleaned up from app specific stuff
+ */
+const FreedaAccessGroups = {
+    partner: 'partners',
+    clinic: 'clinic',
+    myself: 'myself'
+};
 
 /**
  * Represents the state of authentication.
@@ -66,6 +82,21 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
  * Model that exposes functionality closely related to one.core
  */
 export default class OneInstanceModel extends EventEmitter {
+    // This signal is emitted just before the login finishes and after the instance is created
+    // so that you can initialize the models
+    public loggingIn:
+        | ((
+              currentRegistrationState: boolean,
+              anonymousEmail?: string,
+              takeOver?: boolean,
+              recoveryState?: boolean
+          ) => Promise<void>)
+        | null;
+
+    // This signal is emitted just before the logout finishes and before the instance is closed
+    // so that you can shutdown the models
+    public loggingOut: (() => Promise<void>) | null;
+
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;
     /**
@@ -89,7 +120,6 @@ export default class OneInstanceModel extends EventEmitter {
     private randomEmail: string | null;
     private randomInstanceName: string | null;
 
-    private connectionsModel: ConnectionsModel;
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
     private accessModel: AccessModel;
@@ -100,13 +130,11 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Construct a new model instance
      *
-     * @param {ConnectionsModel} connectionsModel
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
      */
     constructor(
-        connectionsModel: ConnectionsModel,
         channelManager: ChannelManager,
         consentFileModel: ConsentFileModel,
         accessModel: AccessModel
@@ -116,13 +144,15 @@ export default class OneInstanceModel extends EventEmitter {
         this.randomEmail = '';
         this.randomInstanceName = '';
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.connectionsModel = connectionsModel;
         this.currentRegistrationState = false;
         this.currentPartnerState = false;
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
+
+        this.loggingIn = null;
+        this.loggingOut = null;
 
         // listen for update events in access model and check for patient connections
         this.accessModel.on('groups_updated', () => {
@@ -167,6 +197,9 @@ export default class OneInstanceModel extends EventEmitter {
      * The previously created instance with that email as owner is deleted and a new one is created.
      * The user has to re-enter a password, which will be used for the new instance.
      *
+     * After the instance is created, the person keys are overwritten with the old ones read from
+     * the qr code, because the person is the same, just the password has to change on recovery process.
+     *
      * @param {string} email
      * @param {string} secret
      * @param {string} patientType
@@ -192,11 +225,22 @@ export default class OneInstanceModel extends EventEmitter {
                 owner: ownerIdHash
             } as Instance);
             await this.deleteInstance('data#' + instanceIdHash);
-        } catch (_) {
-            throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+        } catch (e) {
+            /**
+             * When there is no instance in the browser the recovery process
+             * should continue, no error should be thrown.
+             */
+            if (e.code !== 'O2M-CVAL1') {
+                throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+            }
         }
         this.password = secret;
-        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail);
+        /**
+         * In the recovery state the email and the anonymous email are read from the
+         * url, but the recovery state has to be passed to the models initialisation
+         * in order to overwrite the new generated person keys with the old ones.
+         */
+        await this.createNewInstanceWithReceivedEmail(email, false, anonymousEmail, true);
     }
 
     /**
@@ -206,11 +250,13 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {string} email
      * @param {boolean} takeOver
      * @param {string} anonymousEmail
+     * @param {boolean} recoveryState
      */
     async createNewInstanceWithReceivedEmail(
         email: string,
         takeOver = false,
-        anonymousEmail?: string
+        anonymousEmail?: string,
+        recoveryState?: boolean
     ): Promise<void> {
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
@@ -231,7 +277,7 @@ export default class OneInstanceModel extends EventEmitter {
 
         await importModules();
         this.unregister();
-        this.initialisingApplication(anonymousEmail, takeOver);
+        this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
     }
 
     /**
@@ -273,28 +319,27 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Helper function for initialising the modules of the application.
      */
-    initialisingApplication(anonymousEmail?: string, takeOver?: boolean): void {
-        // TODO: replace this when we have events that can handle promises as return values
-        const firstCallback = (error?: Error): void => {
-            if (error) {
-                throw error;
-            } else {
-                this.emit('authstate_changed');
-                if (this.currentPatientTypeState.includes('partner')) {
-                    this.updatePartnerState().catch(e => console.error(e));
-                }
-            }
-        };
+    async initialisingApplication(
+        anonymousEmail?: string,
+        takeOver?: boolean,
+        recoveryState?: boolean
+    ): Promise<void> {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        this.emit(
-            'authstate_changed_first',
-            this.currentRegistrationState,
-            firstCallback,
-            anonymousEmail,
-            takeOver
-        );
+        if (this.loggingIn) {
+            await this.loggingIn(
+                this.currentRegistrationState,
+                anonymousEmail,
+                takeOver,
+                recoveryState
+            );
+        }
+
+        this.emit('authstate_changed');
+        if (this.currentPatientTypeState.includes('partner')) {
+            this.updatePartnerState().catch(e => console.error(e));
+        }
     }
 
     async updatePartnerState(): Promise<void> {
@@ -365,21 +410,29 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {logout} logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
-        await this.connectionsModel.shutdown();
-        const dbInstance = getDbInstance();
+        // Signal the application that we are no longer authenticated
+        // This is done before everything else, so that the UI is updated and
+        // you won't see clitches, because of the indivdual models shutting down
+        this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
+        this.emit('authstate_changed');
 
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        if (this.loggingOut) {
+            await this.loggingOut();
+        }
+
+        // Close the one instance -> why delayed?
+        const dbInstance = getDbInstance();
         setTimeout(() => {
             dbInstance.close();
             closeInstance();
         }, 1500);
 
+        // Delete the one instance if requested
         if (logoutMode === LogoutMode.PurgeData) {
             await this.deleteInstance(dbInstance.name);
         }
-
-        this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.emit('authstate_changed_first');
-        this.emit('authstate_changed');
     }
 
     /**
@@ -502,5 +555,29 @@ export default class OneInstanceModel extends EventEmitter {
         }, 1500);
 
         await this.deleteInstance(dbInstance.name);
+    }
+
+    /**
+     *  Delete the unopened instance, this happens when the indexDb is not initialized
+     * @return {Promise<void>}
+     */
+    async deleteUnopenedInstance() {
+        const instance = localStorage.getItem('instance');
+        const email = localStorage.getItem('email');
+
+        if (!instance || !email) {
+            return;
+        }
+
+        const instanceIdHash = await calculateIdHashOfObj({
+            $type$: 'Instance',
+            name: localStorage.getItem('instance'),
+            owner: await calculateIdHashOfObj({
+                $type$: 'Person',
+                email: email
+            })
+        } as Instance);
+
+        await this.deleteInstance(`data#${instanceIdHash}`);
     }
 }

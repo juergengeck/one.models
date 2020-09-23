@@ -19,12 +19,6 @@ import {
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 
-export const FreedaAccessGroups = {
-    partner: 'partners',
-    clinic: 'clinic',
-    myself: 'myself'
-};
-
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
 };

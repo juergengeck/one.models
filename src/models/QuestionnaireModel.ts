@@ -1,8 +1,11 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {QuestionnaireResponse as OneQuestionnaireResponse} from '@OneCoreTypes';
+import {
+    Person,
+    QuestionnaireResponse as OneQuestionnaireResponse,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {Questionnaire} from './QuestionTypes';
-import {FreedaAccessGroups} from './AccessModel';
 
 /**
  * Type defines the data of a questionnaire response
@@ -73,6 +76,7 @@ export default class QuestionnaireModel extends EventEmitter {
     channelManager: ChannelManager;
     channelId: string;
     availableQuestionnaires: Questionnaire[];
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
 
     /**
      * Construct a new instance
@@ -82,31 +86,29 @@ export default class QuestionnaireModel extends EventEmitter {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'questionnaire';
+        this.channelId = 'questionnaireResponse';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
+        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
-     * Initialize this inistance
+     * Initialize this instance
      *
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.partner
-        );
-        await this.channelManager.giveAccessToChannelInfo(
-            this.channelId,
-            FreedaAccessGroups.clinic
-        );
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     // #### Questionnaire functions ####
@@ -141,8 +143,9 @@ export default class QuestionnaireModel extends EventEmitter {
      * Create a new response for the Covid2 Patient questionnaire
      *
      * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
      */
-    async postResponse(data: QuestionnaireResponse): Promise<void> {
+    async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
         // Assert that the questionnaire with questionnaireId exists
         let questionnaireExists = false;
 
@@ -163,7 +166,7 @@ export default class QuestionnaireModel extends EventEmitter {
         // Todo: Assert that the mandatory fields have been set in the answer
 
         // Post the result to the one instance
-        await this.channelManager.postToChannel(this.channelId, convertToOne(data));
+        await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
     }
 
     /**
@@ -229,5 +232,16 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     registerQuestionnaires(questionnaires: Questionnaire[]): void {
         this.availableQuestionnaires.push(...questionnaires);
+    }
+
+    /**
+     * Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+        }
     }
 }

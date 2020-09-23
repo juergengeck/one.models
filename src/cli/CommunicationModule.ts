@@ -146,7 +146,6 @@ async function main(): Promise<void> {
     await instancesModel.init('secret_' + argv.i);
     await contactModel.init();
     await channelManager.init();
-    await contactModel.createContactChannel();
     const person = await contactModel.myMainIdentity();
 
     // Find the anonymous id
