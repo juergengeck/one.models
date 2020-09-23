@@ -1381,34 +1381,30 @@ class ConnectionsModel extends EventEmitter {
 
         // specify the timout which I'm willing to wait until the connection was established
         const timeoutHandler = setTimeout(() => {
+            allEncryptedConnections.forEach(conn => conn.close());
             throw new Error(
                 'The connection could not be established before the timeout was reached!'
             );
         }, timeout);
 
         // establish a connection for each endpoint
-        Promise.all(
+        await Promise.all(
             allEndpoints.map(async endpoint => {
                 if (!thisAnonInstanceInfo) {
                     throw new Error('This case was already covered above, so should never happen!');
                 }
 
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                const conn = await this.createAnEncryptedConnectionUsingLocalInstanceInfo(
+
+                this.createAnEncryptedConnectionUsingLocalInstanceInfo(
                     toByteArray(instanceKeys.publicKey),
                     thisAnonInstanceInfo
-                );
-
-                allEncryptedConnections.push(conn);
+                ).then(conn => {
+                    clearTimeout(timeoutHandler);
+                    allEncryptedConnections.push(conn);
+                });
             })
-        )
-            .then(() => {
-                clearTimeout(timeoutHandler);
-            })
-            .catch(err => {
-                allEncryptedConnections.forEach(conn => conn.close());
-                throw err;
-            });
+        );
 
         await Promise.all(
             allEncryptedConnections.map(async conn => {
