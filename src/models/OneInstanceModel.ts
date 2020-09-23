@@ -225,8 +225,14 @@ export default class OneInstanceModel extends EventEmitter {
                 owner: ownerIdHash
             } as Instance);
             await this.deleteInstance('data#' + instanceIdHash);
-        } catch (_) {
-            throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+        } catch (e) {
+            /**
+             * When there is no instance in the browser the recovery process
+             * should continue, no error should be thrown.
+             */
+            if (e.code !== 'O2M-CVAL1') {
+                throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+            }
         }
         this.password = secret;
         /**
