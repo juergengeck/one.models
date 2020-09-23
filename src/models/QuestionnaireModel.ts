@@ -13,6 +13,7 @@ import {Questionnaire} from './QuestionTypes';
 export interface QuestionnaireResponse {
     questionnaire: string;
     item: Record<string, string>;
+    isComplete: boolean;
 }
 
 /**
