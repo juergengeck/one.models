@@ -35,6 +35,7 @@ import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
+import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -68,25 +69,53 @@ export enum Order {
 }
 
 /**
- * Type defines the query options that can be specified while retrieving data from the channel.
+ * Options used for selecting a specific channel
+ *
+ * All elements are ANDed together, so if you specify channelId and owner you get exactly one channel.
+ *
+ * If an element is missing, this means that all of them should be queried.
+ * If channelHash or channelHashes is specified, the channelId(s) and owner(s) is not allowed.
  */
-export type QueryOptions = {
-    owner?: SHA256IdHash<Person>;
-    orderBy?: Order;
-    from?: Date;
-    to?: Date;
-    count?: number;
+export type ChannelSelectionOptions = {
+    channelId?: string; // Query channels that have this id
+    channelIds?: string[]; // Query channels that have one of these ids.
+    owner?: SHA256IdHash<Person>; // Query channels that have this owner.
+    owners?: SHA256IdHash<Person>[]; // Query channels that have one of these owners.
+    channelHash?: SHA256Hash<ChannelInfo>; // iterate exactly this channel version
+    channelHashes?: SHA256Hash<ChannelInfo>[]; // iterate exactly these channel versions
 };
 
 /**
- * Type defines a questionnaire response
+ * Options used for selecting specific data from channels.
+ *
+ * All elements are ANDed together.
+ */
+export type DataSelectionOptions = {
+    orderBy?: Order; // Order of the data. Descending is default and is more memory efficient.
+    from?: Date; // Query items that happen after this date
+    to?: Date; // Query items that happen before this date
+    count?: number; // Query this number of items
+};
+
+/**
+ * Type defines the query options that can be specified while retrieving data from the channel.
+ */
+export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
+
+/**
+ * Type stores the metadata and the data for a query result.
  */
 export type ObjectData<T> = {
-    date: Date;
-    id: string;
-    author: SHA256IdHash<Person>;
-    data: T;
-    sharedWith: SHA256IdHash<Person>[];
+    channelId: string; // The channel id
+    channelOwner: SHA256IdHash<Person>; // The owner of the channel
+
+    id: string; // This id identifies the data point. It can be used to
+    // reference this data point in other methods of this class.
+    creationTime: Date; // Time when this data point was created
+    author: SHA256IdHash<Person>; // Author of this data point (currently, this is always the owner)
+    sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
+
+    data: T; // The data
 };
 
 /**
@@ -117,19 +146,39 @@ function isChannelInfoResult(
  *
  * The structure is as follows:
  * TODO: add PlantUml graph here
+ *
+ * NOTE: This class manages one global one object called ChannelRegistry
+ *       It therefore does not make sense to have multiple of such objects.
+ *       We don't use a singleton, because it makes it harder to track where
+ *       channels are used.
+ *
  */
 export default class ChannelManager extends EventEmitter {
-    private defaultOwner: SHA256IdHash<Person> | null;
+    //private channelInfoLut_byChannelId: Map<string, SHA256IdHash<ChannelInfo>[]>;
+    //private channelInfoLut_byOwner: Map<SHA256IdHash<Person>, SHA256IdHash<ChannelInfo>[]>;
+    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, {latestMergedVersion: ChannelInfo}>;
+
+    private defaultOwner: SHA256IdHash<Person> | null; // This is the person that is used as owner of the channel if
+    // nothing else was specified at certain calls.
     private accessModel: AccessModel;
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
 
+    /**
+     * Create the channel manager instance.
+     *
+     * @param {AccessModel} accessModel
+     */
     constructor(accessModel: AccessModel) {
         super();
         this.accessModel = accessModel;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
+        this.channelInfoCache = new Map<
+            SHA256IdHash<ChannelInfo>,
+            {latestMergedVersion: ChannelInfo}
+        >();
     }
 
     /**
@@ -194,7 +243,6 @@ export default class ChannelManager extends EventEmitter {
 
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, this.defaultOwner, `createChannel: Existed`);
-
         } catch (ignore) {
             // Create a new one if getting it failed
             await createSingleObjectThroughPurePlan(
@@ -274,268 +322,429 @@ export default class ChannelManager extends EventEmitter {
         });
     }
 
-    // ######## Get data from the channel ########
+    // ######## Get data from channels - ITERATORS ########
 
+    /**
+     * Iterate over all objects in the channels matching the query options.
+     *
+     * Note that the sort order is not supported. It is silently ignored.
+     * Items are always returned in descending order regarding time.
+     * It is a single linked list underneath, so no way of efficiently iterating
+     * in the other direction.
+     *
+     * @param {QueryOptions} queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
     public async *objectIterator(
-        channelId: string,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        const channels =
-            queryOptions === undefined || queryOptions.owner === undefined
-                ? await this.findChannelsForSpecificId(channelId)
-                : [
-                      await getObjectByIdObj({
-                          $type$: 'ChannelInfo',
-                          id: channelId,
-                          owner: queryOptions.owner
-                      })
-                  ];
+        const channels = await this.getMatchingChannels(queryOptions);
 
-        const iterators = channels.map((channel: VersionedObjectResult<ChannelInfo>) => {
-            return this.singleChannelIterator(channel.obj.id, {
-                ...queryOptions,
-                owner: channel.obj.owner
-            });
-        });
+        // Create a iterator for each selected channel
+        const iterators = channels.map(channel => ChannelManager.channelDataIterator(channel));
 
-        for await (const obj of ChannelManager.runIterators(iterators, {...queryOptions})) {
-            yield obj;
+        // If no query options, then we don't need to iterate. Just forward to the iterator
+        if (!queryOptions) {
+            yield* ChannelManager.mergeIteratorMostCurrent(iterators);
+        }
+
+        // If we have query options then test each element against the options
+        else {
+            let elementCounter = 0;
+
+            // Iterate over the merge iterator and filter unwanted elements
+            for await (const element of ChannelManager.mergeIteratorMostCurrent(iterators)) {
+                if (queryOptions.to !== undefined && element.creationTime > queryOptions.to) {
+                    continue;
+                }
+
+                if (queryOptions.from !== undefined && element.creationTime < queryOptions.from) {
+                    break;
+                }
+
+                if (queryOptions.count !== undefined && elementCounter >= queryOptions.count) {
+                    break;
+                }
+
+                ++elementCounter;
+                yield element;
+            }
         }
     }
 
     /**
+     * Iterate over all objects in the channels matching the query options.
      *
-     * @returns {Promise}
-     */
-    private async getLatestMergedChannelInfos(
-        channelId: string,
-        queryOptions: QueryOptions
-    ): Promise<SHA256Hash<ChannelInfo>[]> {
-        // load channel registry
-        const registry = (await ChannelManager.getOrCreateChannelRegistry()).obj;
-
-        // get matching channels
-        registry.channels
-
-        // load the latest hashes
-        return [];
-    }
-
-    /**
-     * !!! Main Iterator
-     * Create an iterator that iterates over all items in a channel from future to past.
+     * This method also returns only the objects of a certain type.
      *
-     * @param {string} channelId - The channel for which to create the iterator
-     * @param {QueryOptions} queryOptions
-     * @param {SHA256Hash<ChannelInfo>} channelHash
-     */
-    public async *singleChannelIterator(
-        channelId: string,
-        queryOptions: QueryOptions,
-        channelHash?: SHA256Hash<ChannelInfo>
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        let objectsCount = 0;
-
-        // Get the corresponding channel info object
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: channelId,
-            owner: queryOptions.owner
-        });
-        // if a channelHash is provided, get this specific channel info, otherwise get the latest by the idHash
-        // this flow is only called within the getObjectsByHash function
-        const channelInfo = channelHash
-            ? await getObject(channelHash)
-            : (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
-        let channelEntryHash = channelInfo.head;
-
-        // Iterate over the whole list and append it to the output array
-        while (channelEntryHash) {
-            // Forward channelEntryHash to next element in chain
-            // eslint-disable-next-line no-await-in-loop
-            const channelEntry = await getObject<ChannelEntry>(channelEntryHash);
-            channelEntryHash = channelEntry.previous;
-
-            // Extract the data of current element
-            // eslint-disable-next-line no-await-in-loop
-            const creationTime: CreationTime = await getObject<CreationTime>(channelEntry.data);
-            // eslint-disable-next-line no-await-in-loop
-            const channelAccessLink = await getAllValues(channelInfoIdHash, true, 'IdAccess');
-
-            if (
-                queryOptions.to !== undefined &&
-                creationTime.timestamp > queryOptions.to.getTime()
-            ) {
-                continue;
-            }
-
-            if (
-                queryOptions.from !== undefined &&
-                creationTime.timestamp < queryOptions.from.getTime()
-            ) {
-                break;
-            }
-
-            if (queryOptions.count !== undefined && objectsCount >= queryOptions.count) {
-                break;
-            }
-
-            const persons: SHA256IdHash<Person>[] = (
-                await Promise.all(
-                    channelAccessLink.map(async (value: ReverseMapEntry<IdAccess>) => {
-                        const accessObject = await getObjectWithType(value.toHash, 'IdAccess');
-                        let allSharedPersons: SHA256IdHash<Person>[] = [];
-                        if (accessObject.group.length > 0) {
-                            const groupPersons = await Promise.all(
-                                accessObject.group.map(async groupId => {
-                                    const groupObject = await getObjectByIdHash(groupId);
-                                    return groupObject.obj.person;
-                                })
-                            );
-                            allSharedPersons = allSharedPersons.concat(
-                                groupPersons.reduce(
-                                    (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) =>
-                                        acc.concat(val),
-                                    []
-                                )
-                            );
-                        }
-
-                        if (accessObject.person.length > 0) {
-                            allSharedPersons = allSharedPersons.concat(accessObject.person);
-                        }
-                        return allSharedPersons;
-                    })
-                )
-            ).reduce(
-                (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
-                []
-            );
-
-            // eslint-disable-next-line no-await-in-loop
-            const data = await getObject(creationTime.data);
-            const obj = <ObjectData<OneUnversionedObjectTypes>>{
-                date: new Date(creationTime.timestamp),
-                id: creationTime.data,
-                data: data,
-                author: this.defaultOwner,
-                sharedWith: Array.from([...new Set(persons)])
-            };
-
-            objectsCount++;
-            yield obj;
-        }
-    }
-
-    /**
-     *
-     * @param {string} channelId - The channel for which to create the iterator
      * @param {T} type - The type of the elements to iterate
+     * @param {QueryOptions} queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>>}
      */
     public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
-        type: T
+        type: T,
+        queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+        // Type check against the type
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
             return obj.data.$type$ === type;
         }
 
-        for await (const obj of this.objectIterator(channelId)) {
+        // Iterate over all objects filtering out the ones with the wrong type
+        for await (const obj of this.objectIterator(queryOptions)) {
             if (hasRequestedType(obj)) {
                 yield obj;
             }
         }
     }
 
+    // ######## Get data from channels - ITERATORS PRIVATE ########
+
     /**
-     * Get all data from a channel.
+     * This iterator just iterates the data elements of the passed channel.
      *
-     * In Ascending order! (TODO: add a switch for that)
-     * // if owner === undefined , get all the channelInfos with the channelId
-     * @param {string} channelId - The id of the channel to read from
+     * It returns the data with the metadata. So this function wraps
+     * the metadata by using the ObjectData<T> container.
+     *
+     * Note: If you want to start iterating from a specific point in the chain
+     * and not from the start, you can just construct your own ChannelInfo object
+     * and set the head to the ChannelEntry where you want to start iterating.
+     *
+     * @param {ChannelInfo} channelInfo - iterate this channel
+     * @returns {AsyncIterableIterator<ChannelEntry['data']>}
+     */
+    private static async *channelDataIterator(
+        channelInfo: ChannelInfo
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        if (!channelInfo.head) {
+            return;
+        }
+
+        // Load the persons that have access to this channel
+        const channelInfoIdHash = await calculateIdHashOfObj(channelInfo);
+        const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
+
+        // Iterate over all elements and yield each element
+        let currentEntryHash: SHA256Hash<ChannelEntry> | undefined = channelInfo.head;
+        while (currentEntryHash) {
+            const entry: ChannelEntry = await getObject(currentEntryHash);
+            const creationTimeHash = entry.data;
+            const creationTime = await getObject(creationTimeHash);
+            const dataHash = creationTime.data;
+            const data = await getObject(dataHash);
+
+            yield {
+                channelId: channelInfo.id,
+                channelOwner: channelInfo.owner,
+
+                id: ChannelManager.encodeEntryId(channelInfoIdHash, currentEntryHash),
+
+                creationTime: new Date(creationTime.timestamp),
+                author: channelInfo.owner,
+                sharedWith: sharedWithPersons,
+
+                data: data
+            };
+
+            currentEntryHash = entry.previous;
+        }
+    }
+
+    /**
+     * Iterate multiple iterators by returning always the most current element of all of them.
+     *
+     * It is assumed, that the iterators will return the elements sorted from highest to
+     * lowest value.
+     *
+     * Example:
+     *
+     * If you have multiple iterators (iter1, iter2, iter3) that would return these items:
+     * - iter1: 9, 5, 3
+     * - iter2: 8, 7, 6, 1
+     * - iter3: 4, 2
+     *
+     * Then this iterator implementation would return the items with these creation times:
+     * 9, 8, 7, 6, 5, 4, 3, 2, 1
+     *
+     * @param {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]} iterators
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    private static async *mergeIteratorMostCurrent(
+        iterators: AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        // This array holds the topmost value of each iterator
+        // The position of the element in this array matches the position in the iterators array.
+        // Those values are then compared and the one with the highest
+        // timestamp is returned and then replaced by the next one on each iteration
+        let currentValues: ObjectData<OneUnversionedObjectTypes>[] = [];
+
+        // Initial fill of the currentValues iterator with the most current elements of each iterator
+        for (const iterator of iterators) {
+            currentValues.push((await iterator.next()).value);
+        }
+
+        // Iterate over all (output) items
+        // The number of the iterations will be the sum of all items returned by all iterators.
+        // For the above example it would be 9 iterations.
+        while (true) {
+            // determine the largest element in currentValues
+            let mostCurrentItem: ObjectData<OneUnversionedObjectTypes> | undefined = undefined;
+            let mostCurrentIndex: number = 0;
+
+            for (let i = 0; i < currentValues.length; i++) {
+                // Ignore values from iterators that have reached their end (returned undefined)
+                if (currentValues[i] === undefined) {
+                    continue;
+                }
+
+                // If we found a more current element or none, yet - remember it
+                if (
+                    !mostCurrentItem ||
+                    currentValues[i].creationTime > mostCurrentItem.creationTime
+                ) {
+                    mostCurrentItem = currentValues[i];
+                    mostCurrentIndex = i;
+                }
+            }
+
+            // If no element was found, this means that all iterators reached their ends => terminate the loop
+            if (mostCurrentItem === undefined) {
+                break;
+            }
+
+            // Advance the iterator that yielded the highest creationTime
+            currentValues[mostCurrentIndex] = (await iterators[mostCurrentIndex].next()).value;
+
+            // Yield the value that has the highest creationTime
+            yield mostCurrentItem;
+        }
+    }
+
+    // ######## OTHER PRIVATE ########
+
+    /**
+     * Encodes an entry as string, so that later it can be found again.
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
+     * @param {SHA256Hash<ChannelEntry>} channelEntryHash
+     * @returns {string}
+     */
+    private static encodeEntryId(
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelEntryHash: SHA256Hash<ChannelEntry>
+    ): string {
+        return `${channelInfoIdHash}_${channelEntryHash}`;
+    }
+
+    /**
+     * Decodes the string if of an etry, so that it can be loaded.
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
+     * @param {SHA256Hash<ChannelEntry>} channelEntryHash
+     * @returns {string}
+     */
+    private static decodeEntryId(
+        id: string
+    ): {
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>;
+        channelEntryHash: SHA256Hash<ChannelEntry>;
+    } {
+        const idElems = id.split('_');
+        if (idElems.length != 2) {
+            throw new Error('Id of channel entry is not valid.');
+        }
+        return {
+            channelInfoIdHash: ensureIdHash<ChannelInfo>(idElems[0]),
+            channelEntryHash: ensureHash<ChannelEntry>(idElems[1])
+        };
+    }
+
+    /**
+     * This returns the list of matching channel infos based on ChannelSelectionOptions.
+     *
+     * It returns the channel infos of the latest merged versions, not the latest version in the version maps.
+     *
+     * @param {ChannelSelectionOptions} options
+     * @returns {Promise<ChannelInfo[]>}
+     */
+    private async getMatchingChannels(options?: ChannelSelectionOptions): Promise<ChannelInfo[]> {
+        if (options && options.channelId && options.channelIds) {
+            throw new Error(
+                'You cannot specify channelId and channelIds at the same time in query options!'
+            );
+        }
+        if (options && options.owner && options.owners) {
+            throw new Error(
+                'You cannot specify owner and owners at the same time in query options!'
+            );
+        }
+        if (options && options.channelHash && options.channelHashes) {
+            throw new Error(
+                'You cannot specify channelHash and channelHashes at the same time in query options!'
+            );
+        }
+
+        // Map options.channelId(s) to a single variable
+        let channelIds: string[] | null = null;
+        if (options && options.channelId) {
+            channelIds = [options.channelId];
+        }
+        if (options && options.channelIds) {
+            channelIds = options.channelIds;
+        }
+
+        // Map options.owner(s) to a single variable
+        let owners: SHA256IdHash<Person>[] | null = null;
+        if (options && options.owner) {
+            owners = [options.owner];
+        }
+        if (options && options.owners) {
+            owners = options.owners;
+        }
+
+        // Map options.channelHash(es) to a single variable
+        let channelHashes: SHA256Hash<ChannelInfo>[] | null = null;
+        if (options && options.channelHash) {
+            channelHashes = [options.channelHash];
+        }
+        if (options && options.channelHashes) {
+            channelHashes = options.channelHashes;
+        }
+
+        // If we get specific channel hashes in the options, then use them instead of the registry
+        let allChannelInfos: ChannelInfo[];
+        if (channelHashes) {
+            allChannelInfos = await Promise.all(
+                channelHashes.map(channelHash => getObject(channelHash))
+            );
+        } else {
+            allChannelInfos = Array.from(this.channelInfoCache.values()).map(
+                elem => elem.latestMergedVersion
+            );
+        }
+
+        // Filter channel infos based on owners / channelIds
+        return allChannelInfos.filter(channelInfo => {
+            if (channelIds && !channelIds.includes(channelInfo.id)) {
+                return false;
+            }
+            if (owners && !owners.includes(channelInfo.owner)) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    /**
+     * Get the person list with whom this channel is shared.
+     *
+     * This list also explodes the access groups and adds those persons to the returned list.
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
+     * @returns {Promise<SHA256IdHash<Person>[]>}
+     */
+    private static async sharedWithPersonsList(
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>
+    ): Promise<SHA256IdHash<Person>[]> {
+        /**
+         * Get the persons from the groups and persons of the passed access object.
+         *
+         * @param {SHA256Hash<IdAccess>} accessHash
+         * @returns {Promise<SHA256IdHash<Person>[]>}
+         */
+        async function extractPersonsFromIdAccessObject(accessHash: SHA256Hash<IdAccess>) {
+            const accessObject = await getObjectWithType(accessHash, 'IdAccess');
+            let allSharedPersons: SHA256IdHash<Person>[] = [];
+            if (accessObject.group.length > 0) {
+                const groupPersons = await Promise.all(
+                    accessObject.group.map(async groupId => {
+                        const groupObject = await getObjectByIdHash(groupId);
+                        return groupObject.obj.person;
+                    })
+                );
+                allSharedPersons = allSharedPersons.concat(
+                    groupPersons.reduce(
+                        (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) =>
+                            acc.concat(val),
+                        []
+                    )
+                );
+            }
+
+            if (accessObject.person.length > 0) {
+                allSharedPersons = allSharedPersons.concat(accessObject.person);
+            }
+            return allSharedPersons;
+        }
+
+        // Extract the access objects pointing to the channel info
+        const channelAccessObjects = await getAllValues(channelInfoIdHash, true, 'IdAccess');
+        const personNested = await Promise.all(
+            channelAccessObjects.map(async (value: ReverseMapEntry<IdAccess>) =>
+                extractPersonsFromIdAccessObject(value.toHash)
+            )
+        );
+        const personsFlat = personNested.reduce(
+            (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
+            []
+        );
+
+        // Remove duplicate persons and return the result
+        return [...new Set(personsFlat)];
+    }
+
+    // ######## Get data from channels - Array based ########
+
+    /**
+     * Get all data from one or multiple channels.
+     *
+     * Not the behaviour when using ascending ordering (default) and count.
+     * It will return the 'count' latest elements in ascending order, not the
+     * 'count' oldest elements. It is counter intuitive and should either
+     * be fixed or the iterator interface should be the mandatory (and only interface)
+     *
      * @param {QueryOptions} queryOptions
      */
     public async getObjects(
-        channelId: string,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+        // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
-                objects.push(obj);
-            }
-            return objects.reverse();
-        } else {
-            for await (const obj of this.objectIterator(channelId, {
-                ...queryOptions
-            })) {
-                objects.push(obj);
-            }
-            return objects.reverse();
-        }
-    }
-
-    /**
-     * iterate over a specific channel by hash
-     * @param {SHA256Hash<ChannelInfo>} channelHash
-     * @param {QueryOptions} queryOptions
-     * @return {Promise<ObjectData<OneUnversionedObjectTypes>[]>}
-     */
-    public async getObjectsByHash(
-        channelHash: SHA256Hash<ChannelInfo>,
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-        const channel = await getObject(channelHash);
-        for await (const obj of this.singleChannelIterator(
-            channel.id,
-            {owner: channel.owner},
-            channelHash
-        )) {
+        for await (const obj of this.objectIterator(queryOptions)) {
             objects.push(obj);
         }
-        return objects.reverse();
+
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
+        } else {
+            return objects.reverse();
+        }
     }
 
     /**
      * Get all data from a channel.
-     *
-     * In Ascending order! (TODO: add a switch for that)
      *
      * @param {string}  channelId - The id of the channel to read from
      * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
      * @param {QueryOptions} queryOptions
      */
     public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.$type$ === type;
+        // Use iterator interface to collect all objects
+        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
+            objects.push(obj);
         }
 
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
-
-        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
-                if (hasRequestedType(obj)) {
-                    objects.push(obj);
-                }
-            }
-            return objects.reverse();
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
         } else {
-            for await (const obj of this.objectIterator(channelId, {
-                ...queryOptions
-            })) {
-                if (hasRequestedType(obj)) {
-                    objects.push(obj);
-                }
-            }
             return objects.reverse();
         }
     }
@@ -543,49 +752,23 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Obtain a specific object from a channel.
      *
-     * This is a very inefficient implementation, because it iterates over the chain.
-     * In the future it would be better to just pick the object with the passed hash.
-     * But this only works when we have working reverse maps for getting the metadata.
-     * The other option would be to use the hash of the indexed metadata as id, then
-     * we don't have the reverse map problem.
-     *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {string} id - id of the object to extract, usually this is a hash of the
-     *                      object itself or a related object.
+     * @param {string} id - id of the object to extract
      * @param {QueryOptions} queryOptions
      */
-    public async getObjectById(
-        channelId: string,
-        id: string,
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+        // Collect all information necessary so that we can use the iterator
+        const {channelInfoIdHash, channelEntryHash} = ChannelManager.decodeEntryId(id);
+        const channelInfo = (await getObjectByIdHash(channelInfoIdHash)).obj;
 
-        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
-                if (obj.id === id) {
-                    objects.push(obj);
-                }
-            }
-            if (objects.length === 0) {
-                throw Error('Object not found in current chain');
-            }
-
-            return objects.reverse();
-        } else {
-            for await (const obj of this.objectIterator(channelId, {
-                ...queryOptions
-            })) {
-                if (obj.id === id) {
-                    objects.push(obj);
-                }
-            }
-            if (objects.length === 0) {
-                throw Error('Object not found in current chain');
-            }
-
-            return objects.reverse();
-        }
+        // return the object by using the iterator (it formats everything right)
+        return (
+            await ChannelManager.channelDataIterator({
+                $type$: channelInfo.$type$,
+                id: channelInfo.id,
+                owner: channelInfo.owner,
+                head: channelEntryHash
+            }).next()
+        ).value;
     }
 
     /**
@@ -610,33 +793,36 @@ export default class ChannelManager extends EventEmitter {
         id: string,
         type: T,
         queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
             return obj.data.$type$ === type;
         }
 
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        // Collect all information necessary so that we can use the iterator
+        const {channelInfoIdHash, channelEntryHash} = ChannelManager.decodeEntryId(id);
+        const channelInfo = (await getObjectByIdHash(channelInfoIdHash)).obj;
 
-        if (queryOptions !== undefined && queryOptions.owner !== undefined) {
-            for await (const obj of this.singleChannelIterator(channelId, queryOptions)) {
-                if (hasRequestedType(obj) && obj.id === id) {
-                    objects.push(obj);
-                }
-            }
-            return objects.reverse();
-        } else {
-            for await (const obj of this.objectIterator(channelId, {
-                ...queryOptions
-            })) {
-                if (hasRequestedType(obj) && obj.id === id) {
-                    objects.push(obj);
-                }
-            }
-            return objects.reverse();
+        // Get the object by using the iterator (it formats everything right)
+        const obj = (
+            await ChannelManager.channelDataIterator({
+                $type$: channelInfo.$type$,
+                id: channelInfo.id,
+                owner: channelInfo.owner,
+                head: channelEntryHash
+            }).next()
+        ).value;
+
+        // Check the type
+        if (!hasRequestedType(obj)) {
+            throw new Error(`The referenced object does not have the expected type ${type}`);
         }
+
+        return obj;
     }
+
+    // ######## Access stuff ########
 
     /**
      *
@@ -911,71 +1097,6 @@ export default class ChannelManager extends EventEmitter {
             await ChannelManager.addChannelToTheChannelRegistry(channelIdHash, latestMergedHash);
     }
 
-    /**
-     * @description Yield values from the iterators
-     * @param iterators
-     * @param queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
-     */
-    private static async *runIterators(
-        iterators: AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[],
-        queryOptions: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        let currentValues: ObjectData<OneUnversionedObjectTypes>[] = [];
-        let count = 0;
-
-        for (const iterator of iterators) {
-            currentValues.push((await iterator.next()).value);
-        }
-
-        if (currentValues.length === 1) {
-            if (currentValues[0] !== undefined) {
-                yield currentValues[0];
-            }
-            for (;;) {
-                const yieldedValue = (await iterators[0].next()).value;
-                if (yieldedValue !== undefined) {
-                    yield yieldedValue;
-                } else {
-                    break;
-                }
-            }
-            return;
-        }
-
-        for (;;) {
-            // determine the largest element in currentValues
-            let maxIndex = -1;
-            let maxValue = -1;
-
-            let selectedItem: ObjectData<OneUnversionedObjectTypes> | undefined = undefined;
-
-            for (let i = 0; i < currentValues.length; i++) {
-                // @ts-ignore
-                if (currentValues[i] !== undefined && currentValues[i].date > maxValue) {
-                    // @ts-ignore
-                    maxValue = currentValues[i].date;
-                    maxIndex = i;
-                    selectedItem = currentValues[i];
-                }
-            }
-
-            if (maxIndex === -1 || selectedItem === undefined) {
-                break;
-            }
-
-            if (queryOptions !== undefined && queryOptions.count !== undefined) {
-                if (count === queryOptions.count) {
-                    break;
-                }
-            }
-
-            currentValues[maxIndex] = (await iterators[maxIndex].next()).value;
-            ++count;
-            yield selectedItem;
-        }
-    }
-
     private async getExplodedChannelInfosFromRegistry(): Promise<
         VersionedObjectResult<ChannelInfo>[]
     > {
@@ -1058,7 +1179,6 @@ export default class ChannelManager extends EventEmitter {
     static async getOrCreateChannelRegistry(): Promise<VersionedObjectResult<ChannelRegistry>> {
         return await serializeWithType('ChannelRegistry', async () => {
             try {
-                //@ts-ignore
                 return await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'});
             } catch (e) {
                 return await createSingleObjectThroughPurePlan(
