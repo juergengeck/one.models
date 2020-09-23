@@ -55,7 +55,7 @@ export enum MatchingEvents {
 export default class ClientMatchingModel extends MatchingModel {
     private matchMapName = 'MatchMap';
 
-    private anonInstancePersonEmail: string | null;
+    protected anonInstancePersonEmail: string | null;
     private matchingServerPersonIdHash: SHA256IdHash<Person> | undefined;
 
     constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {

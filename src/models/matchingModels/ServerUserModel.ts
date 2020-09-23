@@ -1,12 +1,12 @@
-import ClientMatchingModel from "./ClientMatchingModel";
-import InstancesModel from "../InstancesModel";
-import ChannelManager from "../ChannelManager";
-import {Supply, Demand} from '@OneCoreTypes';
+import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
+import InstancesModel from '../InstancesModel';
+import ChannelManager from '../ChannelManager';
+import {Supply, Demand, UnversionedObjectResult} from '@OneCoreTypes';
+import {serializeWithType} from 'one.core/lib/util/promise';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 
 export default class ServerUserModel extends ClientMatchingModel {
-
-    constructor(instanceModel: InstancesModel, channelManager: ChannelManager
-    ) {
+    constructor(instanceModel: InstancesModel, channelManager: ChannelManager) {
         super(instanceModel, channelManager);
     }
 
@@ -22,16 +22,65 @@ export default class ServerUserModel extends ClientMatchingModel {
 
         this.demandsMap.forEach(allDemands => {
             allDemands.forEach(demand => {
-                allobjects.push(demand)
-            })
+                allobjects.push(demand);
+            });
         });
 
         this.suppliesMap.forEach(allSupplies => {
             allSupplies.forEach(supply => {
                 allobjects.push(supply);
-            })
-        })
+            });
+        });
 
         return [...new Set(allobjects)];
+    }
+
+    /**
+     * This function is changing the status of a category,
+     * more exactly, if this function is called for a tag, that tag will be
+     * active or inactive for all user who ever sent this tag
+     *
+     * @param {string} supplyMatch
+     * @returns {Promise<void>}
+     */
+    async changeSupplyCategoryStatus(supplyMatch: string): Promise<void> {
+        // get all supplies
+        const supplyArray = this.suppliesMap.get(supplyMatch);
+
+        // check if there is a Supply object with the given match
+        if (!supplyArray) {
+            return;
+        }
+
+        await serializeWithType('Supply', async () => {
+            // change the status for all existing supplies
+            for (const supply of supplyArray) {
+                // save new supply, but with 'isActive' status up to date
+                const newSupply = (await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@module/supply',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    {
+                        $type$: 'Supply',
+                        identity: this.anonInstancePersonEmail,
+                        match: supplyMatch,
+                        isActive: !supply.isActive,
+                        timestamp: supply.timestamp
+                    }
+                )) as UnversionedObjectResult<Supply>;
+
+                // delete the old version of the Supply object
+                this.suppliesMap.delete(supply.match);
+
+                // remember the new version of the Supply object
+                await this.addNewValueToSupplyMap(newSupply.obj);
+                await this.memoriseLatestVersionOfSupplyMap();
+
+                await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+            }
+
+            this.emit(MatchingEvents.SupplyUpdate);
+        });
     }
 }
