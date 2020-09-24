@@ -26,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash, OneInstanceEndpoint, SHA256Hash} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -1365,70 +1365,70 @@ class ConnectionsModel extends EventEmitter {
 
         // get all contact objects for the person received as parameter
         const allContactObjects = await this.contactModel.getContactObjects(remotePersonId);
-        const allEndpoints: OneInstanceEndpoint[] = [];
 
         // read al known endpoints for the person received as argument
-        await Promise.all(
-            allContactObjects.map(contact => {
-                contact.communicationEndpoints.forEach(async endpoint => {
-                    const endpointObj = await getObject(endpoint);
-                    allEndpoints.push(endpointObj);
-                });
+        const endpointHashes: SHA256Hash<OneInstanceEndpoint>[] = allContactObjects
+            .map(contact => {
+                return contact.communicationEndpoints;
+            })
+            .flat();
+
+        const allEndpoints: OneInstanceEndpoint[] = await Promise.all(
+            endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
+                getObject(endpointHash)
+            )
+        );
+
+        // get all instance keys from the received endpoints
+        const allInstanceKeys = await Promise.all(
+            allEndpoints.map(async endpoint => {
+                return await getObject(endpoint.instanceKeys);
             })
         );
 
-        const allEncryptedConnections: EncryptedConnection[] = [];
-
         // specify the timout which I'm willing to wait until the connection was established
         const timeoutHandler = setTimeout(() => {
-            allEncryptedConnections.forEach(conn => conn.close());
             throw new Error(
                 'The connection could not be established before the timeout was reached!'
             );
         }, timeout);
 
-        // establish a connection for each endpoint
-        await Promise.all(
-            allEndpoints.map(async endpoint => {
+        // establish a connection for one of the received endpoints
+        const encryptedConnection: EncryptedConnection = await Promise.race(
+            allInstanceKeys.map(async instanceKeys => {
                 if (!thisAnonInstanceInfo) {
                     throw new Error('This case was already covered above, so should never happen!');
                 }
 
-                const instanceKeys = await getObject(endpoint.instanceKeys);
-
-                this.createAnEncryptedConnectionUsingLocalInstanceInfo(
+                return this.createAnEncryptedConnectionUsingLocalInstanceInfo(
                     toByteArray(instanceKeys.publicKey),
                     thisAnonInstanceInfo
-                ).then(conn => {
-                    clearTimeout(timeoutHandler);
-                    allEncryptedConnections.push(conn);
-                });
+                );
             })
         );
 
-        await Promise.all(
-            allEncryptedConnections.map(async conn => {
-                // specify the protocol that will be used
-                await ConnectionsModel.sendMessage(conn, {
-                    command: 'start_protocol',
-                    protocol: 'chum',
-                    version: '1.0'
-                });
+        // if a connection could be established, then clear the timeout
+        clearTimeout(timeoutHandler);
 
-                if (!thisAnonInstanceInfo) {
-                    throw new Error('This case was already covered above, so should never happen!');
-                }
+        // specify the protocol that will be used
+        await ConnectionsModel.sendMessage(encryptedConnection, {
+            command: 'start_protocol',
+            protocol: 'chum',
+            version: '1.0'
+        });
 
-                // start a short-running chum (keepRunning = false)
-                await this.startChumProtocol(
-                    conn,
-                    thisAnonInstanceInfo.personId,
-                    true,
-                    true,
-                    remotePersonId,
-                    false
-                );
-            })
+        if (!thisAnonInstanceInfo) {
+            throw new Error('This case was already covered above, so should never happen!');
+        }
+
+        // start a short-running chum (keepRunning = false)
+        await this.startChumProtocol(
+            encryptedConnection,
+            thisAnonInstanceInfo.personId,
+            true,
+            true,
+            remotePersonId,
+            false
         );
     }
 
