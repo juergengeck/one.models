@@ -1,5 +1,5 @@
 import WbcDiffModel, {WbcDiffMeasurement} from './WbcDiffModel';
-import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
+import QuestionnaireModel, {QuestionnaireManager, QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
 import DocumentModel, {DocumentInfo} from './DocumentModel';
@@ -81,7 +81,7 @@ export default class JournalModel extends EventEmitter {
     async events(): Promise<EventListEntry[]> {
         const diaryEntries = await this.diaryModel.entries();
         const measurements = await this.wbcDiffModel.measurements();
-        const qresponses = await this.questionnaireModel.responses();
+        const qresponses = await this.questionnaireModel.responses(QuestionnaireManager.COMPLETED);
         const heartEvents = await this.heartEventModel.heartEvents();
         const documents = await this.documentModel.documents();
         const temperatures = await this.bodyTemperatureModel.getBodyTemperatures();

@@ -17,6 +17,14 @@ export interface QuestionnaireResponse {
 }
 
 /**
+ * Determines which questionnaires are retrieved from ONE.
+ */
+export enum QuestionnaireManager {
+    ALL,
+    COMPLETED
+}
+
+/**
  * Convert from model representation to one representation.
  *
  * @param {QuestionnaireResponse} modelObject - the model object
@@ -191,7 +199,7 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of responses.
      */
-    async responses(): Promise<ObjectData<QuestionnaireResponse>[]> {
+    async responses(questionnaireManager: QuestionnaireManager): Promise<ObjectData<QuestionnaireResponse>[]> {
         const objects: ObjectData<QuestionnaireResponse>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType(
             this.channelId,
@@ -201,8 +209,12 @@ export default class QuestionnaireModel extends EventEmitter {
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            if (data.isComplete) {
+            if(questionnaireManager === QuestionnaireManager.ALL) {
                 objects.push({...restObjectData, data: convertFromOne(data)});
+            } else if(questionnaireManager === QuestionnaireManager.COMPLETED) {
+                if (data.isComplete) {
+                    objects.push({...restObjectData, data: convertFromOne(data)});
+                }
             }
         }
 
