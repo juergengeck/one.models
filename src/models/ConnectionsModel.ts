@@ -26,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, OneInstanceEndpoint, SHA256Hash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -1334,16 +1334,19 @@ class ConnectionsModel extends EventEmitter {
      * After a connection was established a short-running chum connection is started
      * with that instance.
      *
-     * When all started chum connections are closed (the data was synchronised) the
-     * function will return.
+     * When the chum connection is closed (the data was synchronised) the function
+     * will return.
      *
      * @param {SHA256IdHash<Person>} remotePersonId
-     * @param {number} timeout
+     * @param {number} retryTimeout
+     * @param {number} successTimeout
+     *
      * @returns {Promise<void>}
      */
     async connectOneTime(
         remotePersonId: SHA256IdHash<Person>,
-        timeout: number = 10000
+        retryTimeout: number = 5000,
+        successTimeout: number = 10000
     ): Promise<void> {
         // Extract my local anonymous instance info
         let thisAnonInstanceInfo: LocalInstanceInfo | undefined;
@@ -1363,26 +1366,23 @@ class ConnectionsModel extends EventEmitter {
             throw new Error('Unknown anonymous identity!');
         }
 
-        // get all contact objects for the person received as parameter
+        // Get all contact objects for the person received as parameter
         const allContactObjects = await this.contactModel.getContactObjects(remotePersonId);
 
-        // read al known endpoints for the person received as argument
-        const endpointHashes: SHA256Hash<OneInstanceEndpoint>[] = allContactObjects
+        // Read al known endpoints for the person received as argument
+        const endpointHashes = allContactObjects
             .map(contact => {
                 return contact.communicationEndpoints;
             })
             .flat();
 
-        // Load the OneInstanceEndpoint objects
+        // Get all the communication endpoint objects
         const endpoints = await Promise.all(
-            endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
-                getObject(endpointHash)
-            )
+            endpointHashes.map(endpointHash => getObject(endpointHash))
         );
 
-        // Only OneInstanceEndpoints
-        // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
-        const instanceEndpoints = endpoints.filter((endpoint: OneInstanceEndpoint) => {
+        // Filter only the OneInstanceEndpoint objects
+        const instanceEndpoints = endpoints.filter(endpoint => {
             if (!thisAnonInstanceInfo) {
                 throw new Error('Unknown anonymous identity!');
             }
@@ -1392,19 +1392,14 @@ class ConnectionsModel extends EventEmitter {
             );
         });
 
-        // get all instance keys from the received endpoints
+        // Get all instance keys from the received endpoints
         const allInstanceKeys = await Promise.all(
             instanceEndpoints.map(async endpoint => {
                 return await getObject(endpoint.instanceKeys);
             })
         );
 
-        // specify the timout which I'm willing to wait until the connection was established
-        const timeoutHandler = setTimeout(() => {
-            throw new Error(
-                'The connection could not be established before the timeout was reached!'
-            );
-        }, timeout);
+        const openedOce: OutgoingConnectionEstablisher[] = [];
 
         // establish a connection for one of the received endpoints
         const encryptedConnection: EncryptedConnection = await Promise.race(
@@ -1413,28 +1408,48 @@ class ConnectionsModel extends EventEmitter {
                     throw new Error('This case was already covered above, so should never happen!');
                 }
 
-                return this.createAnEncryptedConnectionUsingLocalInstanceInfo(
-                    toByteArray(instanceKeys.publicKey),
-                    thisAnonInstanceInfo
+                const remotePublicKey = toByteArray(instanceKeys.publicKey);
+                const oce = new OutgoingConnectionEstablisher();
+                openedOce.push(oce);
+                return await oce.connectOnceSuccessfully(
+                    this.config.commServerUrl,
+                    toByteArray(thisAnonInstanceInfo.instanceKeys.publicKey),
+                    remotePublicKey,
+                    text => {
+                        if (!thisAnonInstanceInfo) {
+                            throw new Error('anonInstanceInfo not initialized.');
+                        }
+                        return thisAnonInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                            remotePublicKey,
+                            text
+                        );
+                    },
+                    cypherText => {
+                        if (!thisAnonInstanceInfo) {
+                            throw new Error('anonInstanceInfo not initialized.');
+                        }
+                        return thisAnonInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                            remotePublicKey,
+                            cypherText
+                        );
+                    },
+                    retryTimeout,
+                    successTimeout
                 );
             })
         );
 
-        // if a connection could be established, then clear the timeout
-        clearTimeout(timeoutHandler);
+        // Stop all outgoing connection establisher that were started by this function
+        openedOce.forEach(oce => oce.stop());
 
-        // specify the protocol that will be used
+        // Specify the protocol that will be used
         await ConnectionsModel.sendMessage(encryptedConnection, {
             command: 'start_protocol',
             protocol: 'chum',
             version: '1.0'
         });
 
-        if (!thisAnonInstanceInfo) {
-            throw new Error('This case was already covered above, so should never happen!');
-        }
-
-        // start a short-running chum (keepRunning = false)
+        // Start a short-running chum (keepRunning = false)
         await this.startChumProtocol(
             encryptedConnection,
             thisAnonInstanceInfo.personId,
@@ -1714,36 +1729,6 @@ class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedResponse);
-    }
-
-    private async createAnEncryptedConnectionUsingLocalInstanceInfo(
-        remotePublicKey: Uint8Array,
-        thisInstanceInfo: LocalInstanceInfo
-    ): Promise<EncryptedConnection> {
-        // Connect to target
-        return await OutgoingConnectionEstablisher.connectOnce(
-            this.config.commServerUrl,
-            toByteArray(thisInstanceInfo.instanceKeys.publicKey),
-            toByteArray(thisInstanceInfo.instanceKeys.publicKey),
-            text => {
-                if (!thisInstanceInfo) {
-                    throw new Error('anonInstanceInfo not initialized.');
-                }
-                return thisInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                    remotePublicKey,
-                    text
-                );
-            },
-            cypherText => {
-                if (!thisInstanceInfo) {
-                    throw new Error('anonInstanceInfo not initialized.');
-                }
-                return thisInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                    remotePublicKey,
-                    cypherText
-                );
-            }
-        );
     }
 
     // ######## Low level io functions (should probably part of a class??? #######
