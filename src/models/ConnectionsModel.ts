@@ -1237,6 +1237,7 @@ class ConnectionsModel extends EventEmitter {
      * same person object.
      *
      * IMPORTANT: this function is used also in RecoveryModel.
+     *            For using this function the password has to be set.
      *
      * @param {CommunicationInitiationProtocol.PrivatePersonInformationMessage} privatePersonInformation
      * @returns {Promise<void>}
@@ -1244,10 +1245,29 @@ class ConnectionsModel extends EventEmitter {
     async overwriteExistingPersonKeys(
         privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage
     ): Promise<void> {
-        if (!this.mainInstanceInfo) {
+        let thisMainInstanceInfo: LocalInstanceInfo | undefined;
+        let thisAnonInstanceInfo: LocalInstanceInfo | undefined;
+        // Extract my local instance infos to build the map
+        const infos = await this.instancesModel.localInstancesInfo();
+        if (infos.length !== 2) {
+            throw new Error('This applications needs exactly one alternate identity!');
+        }
+
+        // Setup the public key to instanceInfo map
+        await Promise.all(
+            infos.map(async instanceInfo => {
+                if (instanceInfo.isMain) {
+                    thisMainInstanceInfo = instanceInfo;
+                } else {
+                    thisAnonInstanceInfo = instanceInfo;
+                }
+            })
+        );
+
+        if (!thisMainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
-        if (!this.anonInstanceInfo) {
+        if (!thisAnonInstanceInfo) {
             throw new Error('anonInstanceInfo not initialized.');
         }
 
@@ -1259,8 +1279,8 @@ class ConnectionsModel extends EventEmitter {
         };
 
         if (
-            this.mainInstanceInfo.personId !== privatePersonInformation.personId ||
-            this.anonInstanceInfo.personId !== privatePersonInformation.anonPersonId
+            thisMainInstanceInfo.personId !== privatePersonInformation.personId ||
+            thisAnonInstanceInfo.personId !== privatePersonInformation.anonPersonId
         ) {
             throw new Error('Users not match from one instance to the other!');
         }
@@ -1311,13 +1331,13 @@ class ConnectionsModel extends EventEmitter {
 
         await overwritePersonKeys(
             this.password,
-            this.mainInstanceInfo.personId,
-            this.mainInstanceInfo.instanceId
+            thisMainInstanceInfo.personId,
+            thisMainInstanceInfo.instanceId
         );
         await overwritePersonKeys(
             this.password,
-            this.anonInstanceInfo.personId,
-            this.anonInstanceInfo.instanceId
+            thisAnonInstanceInfo.personId,
+            thisAnonInstanceInfo.instanceId
         );
     }
 
