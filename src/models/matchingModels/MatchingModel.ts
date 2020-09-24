@@ -207,6 +207,20 @@ export default abstract class MatchingModel extends EventEmitter {
         this.demandsMap.set(demand.match, availableDemands);
     }
 
+    protected updateSupplyStatusInSupplyMap(newSupply: Supply) {
+        let availableSupplies = this.suppliesMap.get(newSupply.match);
+
+        if (availableSupplies) {
+            const supplyIndex = availableSupplies.findIndex(
+                supplyElement => supplyElement.identity === newSupply.identity
+            );
+
+            availableSupplies.splice(supplyIndex, 1);
+
+            availableSupplies.push(newSupply);
+        }
+    }
+
     /**
      * This functions memorise the latest version of the SupplyMap.
      *

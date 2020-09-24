@@ -428,11 +428,12 @@ export default class ClientMatchingModel extends MatchingModel {
 
                     if (receivedObject.$type$ === 'Supply') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.suppliesMap, receivedObject)) {
-                            console.log('update supply');
+                            this.updateSupplyStatusInSupplyMap(receivedObject);
                         } else {
                             this.addNewValueToSupplyMap(receivedObject);
                         }
 
+                        this.memoriseLatestVersionOfSupplyMap();
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
