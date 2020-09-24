@@ -1373,15 +1373,28 @@ class ConnectionsModel extends EventEmitter {
             })
             .flat();
 
-        const allEndpoints: OneInstanceEndpoint[] = await Promise.all(
+        // Load the OneInstanceEndpoint objects
+        const endpoints = await Promise.all(
             endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
                 getObject(endpointHash)
             )
         );
 
+        // Only OneInstanceEndpoints
+        // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
+        const instanceEndpoints = endpoints.filter((endpoint: OneInstanceEndpoint) => {
+            if (!thisAnonInstanceInfo) {
+                throw new Error('Unknown anonymous identity!');
+            }
+            return (
+                endpoint.$type$ === 'OneInstanceEndpoint' &&
+                endpoint.personId !== thisAnonInstanceInfo.personId
+            );
+        });
+
         // get all instance keys from the received endpoints
         const allInstanceKeys = await Promise.all(
-            allEndpoints.map(async endpoint => {
+            instanceEndpoints.map(async endpoint => {
                 return await getObject(endpoint.instanceKeys);
             })
         );
