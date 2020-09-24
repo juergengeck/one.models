@@ -12,7 +12,8 @@ import {
     SHA256Hash,
     SHA256IdHash,
     VersionedObjectResult,
-    Access
+    Access,
+    ChannelRegistryEntry
 } from '@OneCoreTypes';
 import {
     createManyObjectsThroughPurePlan,
@@ -36,6 +37,8 @@ import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
+import {symlink} from 'fs';
+import Type = module;
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -56,8 +59,9 @@ function logWithId_Debug(channelId: string, owner: SHA256IdHash<Person> | null, 
 /**
  * This represents a document but not the content,
  */
-export type ChannelInformation = {
-    hash: SHA256Hash; // This is the hash of the files object
+export type Channel = {
+    id: string;
+    owner: SHA256IdHash<Person>;
 };
 
 /**
@@ -81,8 +85,16 @@ export type ChannelSelectionOptions = {
     channelIds?: string[]; // Query channels that have one of these ids.
     owner?: SHA256IdHash<Person>; // Query channels that have this owner.
     owners?: SHA256IdHash<Person>[]; // Query channels that have one of these owners.
-    channelHash?: SHA256Hash<ChannelInfo>; // iterate exactly this channel version
-    channelHashes?: SHA256Hash<ChannelInfo>[]; // iterate exactly these channel versions
+    channel?: Channel; // Query this channel
+    channels?: Channel[]; // Query these channels
+
+    // Usually you don't need these. Only certain debug features use these or it is used internally
+    id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
+    ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
+    channelHash?: SHA256Hash<ChannelInfo>; // Query exactly this channel version
+    channelHashes?: SHA256Hash<ChannelInfo>[]; // Query exactly these channel versions
+    channelIdHash?: SHA256IdHash<ChannelInfo>; // Query this channel
+    channelIdHashes?: SHA256IdHash<ChannelInfo>[]; // Query these channels
 };
 
 /**
@@ -95,6 +107,8 @@ export type DataSelectionOptions = {
     from?: Date; // Query items that happen after this date
     to?: Date; // Query items that happen before this date
     count?: number; // Query this number of items
+    id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
+    ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
 };
 
 /**
@@ -109,13 +123,25 @@ export type ObjectData<T> = {
     channelId: string; // The channel id
     channelOwner: SHA256IdHash<Person>; // The owner of the channel
 
-    id: string; // This id identifies the data point. It can be used to
-    // reference this data point in other methods of this class.
+    id: string; // This id identifies the data point. It can be used to reference this data point in other methods of this class.
     creationTime: Date; // Time when this data point was created
     author: SHA256IdHash<Person>; // Author of this data point (currently, this is always the owner)
     sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
 
     data: T; // The data
+    dataHash: SHA256Hash<OneUnversionedObjectTypes>; // The hash of the data
+};
+
+/**
+ * This type is returned by the raw channel iterator
+ */
+type RawChannelEntry = {
+    channelInfo: ChannelInfo;
+    channelInfoIdHash: SHA256IdHash<ChannelInfo>;
+    channelEntryHash: SHA256Hash<ChannelEntry>;
+    creationTimeHash: SHA256Hash<CreationTime>;
+    creationTime: number;
+    dataHash: SHA256Hash<OneUnversionedObjectTypes>;
 };
 
 /**
@@ -156,7 +182,10 @@ function isChannelInfoResult(
 export default class ChannelManager extends EventEmitter {
     //private channelInfoLut_byChannelId: Map<string, SHA256IdHash<ChannelInfo>[]>;
     //private channelInfoLut_byOwner: Map<SHA256IdHash<Person>, SHA256IdHash<ChannelInfo>[]>;
-    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, {latestMergedVersion: ChannelInfo}>;
+    private channelInfoCache: Map<
+        SHA256IdHash<ChannelInfo>,
+        {latestMergedVersion: ChannelInfo; latestMergedVersionIndex: number}
+    >;
 
     private defaultOwner: SHA256IdHash<Person> | null; // This is the person that is used as owner of the channel if
     // nothing else was specified at certain calls.
@@ -177,7 +206,7 @@ export default class ChannelManager extends EventEmitter {
         this.defaultOwner = null;
         this.channelInfoCache = new Map<
             SHA256IdHash<ChannelInfo>,
-            {latestMergedVersion: ChannelInfo}
+            {latestMergedVersion: ChannelInfo; latestMergedVersionIndex: number}
         >();
     }
 
@@ -201,8 +230,8 @@ export default class ChannelManager extends EventEmitter {
             this.defaultOwner = instanceOwner;
         }
 
-        // Create the initial registry if it doesn't exist.
-        await ChannelManager.getOrCreateChannelRegistry();
+        // Load the cache from the registry
+        await this.loadRegistryCacheFromOne();
 
         // Merge new versions of channels that haven't been merged, yet.
         await this.checkMergeVersionsOfChannels();
@@ -256,6 +285,19 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
+    /**
+     * Retrieve all channels registered at the channel registry
+     *
+     * @param {ChannelSelectionOptions} options
+     * @returns {Promise<Channel[]>}
+     */
+    public async channels(options?: ChannelSelectionOptions): Promise<Channel[]> {
+        const channelInfos = await this.getMatchingChannelInfos(options);
+        return channelInfos.map(info => {
+            return {id: info.id, owner: info.owner};
+        });
+    }
+
     // ######## Put data into the channel ########
 
     /**
@@ -306,13 +348,20 @@ export default class ChannelManager extends EventEmitter {
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
         await serializeWithType('ChannelManagerPostIfNotExist', async () => {
-            // Iterate over the channel to see whether the object exists.
+            if (!this.defaultOwner) {
+                throw new Error('Programming Error: default owner not initialized.');
+            }
+
+            // Calculate the hash of the passed object. We will compare it with existing entries
             const dataHash = await calculateHashOfObj(data);
 
-            for await (const item of this.objectIterator(channelId, {
+            // Iterate over the channel to see whether the object exists.
+            // If it exists, leave the function -> no posting
+            for await (const item of this.objectIterator({
+                channelId: channelId,
                 owner: owner ? owner : this.defaultOwner
             })) {
-                if ((await calculateHashOfObj(item.data)) === dataHash) {
+                if (item.dataHash === dataHash) {
                     return;
                 }
             }
@@ -338,14 +387,10 @@ export default class ChannelManager extends EventEmitter {
     public async *objectIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        const channels = await this.getMatchingChannels(queryOptions);
-
-        // Create a iterator for each selected channel
-        const iterators = channels.map(channel => ChannelManager.channelDataIterator(channel));
-
         // If no query options, then we don't need to iterate. Just forward to the iterator
+        // TODO: Do that if no data selectors are present
         if (!queryOptions) {
-            yield* ChannelManager.mergeIteratorMostCurrent(iterators);
+            yield* this.multiChannelObjectIterator(queryOptions);
         }
 
         // If we have query options then test each element against the options
@@ -353,7 +398,7 @@ export default class ChannelManager extends EventEmitter {
             let elementCounter = 0;
 
             // Iterate over the merge iterator and filter unwanted elements
-            for await (const element of ChannelManager.mergeIteratorMostCurrent(iterators)) {
+            for await (const element of this.multiChannelObjectIterator(queryOptions)) {
                 if (queryOptions.to !== undefined && element.creationTime > queryOptions.to) {
                     continue;
                 }
@@ -403,10 +448,60 @@ export default class ChannelManager extends EventEmitter {
     // ######## Get data from channels - ITERATORS PRIVATE ########
 
     /**
-     * This iterator just iterates the data elements of the passed channel.
+     * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
      *
-     * It returns the data with the metadata. So this function wraps
-     * the metadata by using the ObjectData<T> container.
+     * @param {ChannelSelectionOptions} channelSelectionOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    private async *multiChannelObjectIterator(
+        channelSelectionOptions?: ChannelSelectionOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        const channels = await this.getMatchingChannelInfos(channelSelectionOptions);
+
+        // Create a iterator for each selected channel
+        const iterators = channels.map(channel =>
+            ChannelManager.singleChannelObjectIterator(channel)
+        );
+
+        // Determine the access rights of each channel
+        const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
+        await Promise.all(
+            channels.map(async channel => {
+                const channelIdHash = await calculateIdHashOfObj(channel);
+                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
+                sharedWithPersonsMap.set(channelIdHash, sharedWithPersons);
+            })
+        );
+
+        // Iterate over all channels and fetch the data
+        for await (const entry of ChannelManager.mergeIteratorMostCurrent(iterators, false)) {
+            // Get the shared with status from the precompiled map
+            const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash);
+            if (!sharedWith) {
+                throw new Error(
+                    `Programming Error: Shared with map didn't have entry for channel ${entry.channelInfoIdHash}`
+                );
+            }
+
+            // Build meta data object and return it
+            yield {
+                channelId: entry.channelInfo.id,
+                channelOwner: entry.channelInfo.owner,
+
+                id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
+
+                creationTime: new Date(entry.creationTime),
+                author: entry.channelInfo.owner,
+                sharedWith: sharedWith,
+
+                data: await getObject(entry.dataHash),
+                dataHash: entry.dataHash
+            };
+        }
+    }
+
+    /**
+     * This iterator just iterates the data elements of the passed channel.
      *
      * Note: If you want to start iterating from a specific point in the chain
      * and not from the start, you can just construct your own ChannelInfo object
@@ -415,16 +510,13 @@ export default class ChannelManager extends EventEmitter {
      * @param {ChannelInfo} channelInfo - iterate this channel
      * @returns {AsyncIterableIterator<ChannelEntry['data']>}
      */
-    private static async *channelDataIterator(
+    private static async *singleChannelObjectIterator(
         channelInfo: ChannelInfo
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+    ): AsyncIterableIterator<RawChannelEntry> {
         if (!channelInfo.head) {
             return;
         }
-
-        // Load the persons that have access to this channel
         const channelInfoIdHash = await calculateIdHashOfObj(channelInfo);
-        const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
 
         // Iterate over all elements and yield each element
         let currentEntryHash: SHA256Hash<ChannelEntry> | undefined = channelInfo.head;
@@ -432,20 +524,14 @@ export default class ChannelManager extends EventEmitter {
             const entry: ChannelEntry = await getObject(currentEntryHash);
             const creationTimeHash = entry.data;
             const creationTime = await getObject(creationTimeHash);
-            const dataHash = creationTime.data;
-            const data = await getObject(dataHash);
 
             yield {
-                channelId: channelInfo.id,
-                channelOwner: channelInfo.owner,
-
-                id: ChannelManager.encodeEntryId(channelInfoIdHash, currentEntryHash),
-
-                creationTime: new Date(creationTime.timestamp),
-                author: channelInfo.owner,
-                sharedWith: sharedWithPersons,
-
-                data: data
+                channelInfo: channelInfo,
+                channelInfoIdHash: channelInfoIdHash,
+                channelEntryHash: currentEntryHash,
+                creationTimeHash: creationTimeHash,
+                creationTime: creationTime.timestamp,
+                dataHash: creationTime.data
             };
 
             currentEntryHash = entry.previous;
@@ -469,16 +555,23 @@ export default class ChannelManager extends EventEmitter {
      * 9, 8, 7, 6, 5, 4, 3, 2, 1
      *
      * @param {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]} iterators
+     * @param {boolean} terminateOnCommonHistory - If true, then stop iteration when only one iterator produces
+     *                                             any new values. The first element of the last iterator is still
+     *                                             returned, but then iteration stops. This is very useful
+     *                                             for merging algorithms, because they can use the last item as
+     *                                             common history for merging - because this iteration also removes
+     *                                             redundant iterators (that iterate over the same history)
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
     private static async *mergeIteratorMostCurrent(
-        iterators: AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        iterators: AsyncIterableIterator<RawChannelEntry>[],
+        terminateOnSingleIterator: boolean = false
+    ): AsyncIterableIterator<RawChannelEntry> {
         // This array holds the topmost value of each iterator
         // The position of the element in this array matches the position in the iterators array.
         // Those values are then compared and the one with the highest
         // timestamp is returned and then replaced by the next one on each iteration
-        let currentValues: ObjectData<OneUnversionedObjectTypes>[] = [];
+        let currentValues: (RawChannelEntry | undefined)[] = [];
 
         // Initial fill of the currentValues iterator with the most current elements of each iterator
         for (const iterator of iterators) {
@@ -490,23 +583,51 @@ export default class ChannelManager extends EventEmitter {
         // For the above example it would be 9 iterations.
         while (true) {
             // determine the largest element in currentValues
-            let mostCurrentItem: ObjectData<OneUnversionedObjectTypes> | undefined = undefined;
+            let mostCurrentItem: RawChannelEntry | undefined = undefined;
             let mostCurrentIndex: number = 0;
+            let activeIterators: number = 0;
 
             for (let i = 0; i < currentValues.length; i++) {
+                const currentValue = currentValues[i];
+
                 // Ignore values from iterators that have reached their end (returned undefined)
-                if (currentValues[i] === undefined) {
+                if (currentValue === undefined) {
                     continue;
+                } else {
+                    ++activeIterators;
                 }
 
-                // If we found a more current element or none, yet - remember it
-                if (
-                    !mostCurrentItem ||
-                    currentValues[i].creationTime > mostCurrentItem.creationTime
-                ) {
-                    mostCurrentItem = currentValues[i];
-                    mostCurrentIndex = i;
+                // This checks whether we have an element to compare to (so i is at least 1)
+                if (mostCurrentItem) {
+                    // Skip elements that are older (less current)
+                    if (currentValue.creationTime < mostCurrentItem.creationTime) {
+                        continue;
+                    }
+
+                    // Ignore totally equal elements (same channel id and same entry => history is the same)
+                    // This is mostly required if we mergeIterate multiple versions of the same channel.
+                    // The merge algorithm uses this.
+                    if (
+                        currentValue.creationTime === mostCurrentItem.creationTime &&
+                        currentValue.channelEntryHash === mostCurrentItem.channelEntryHash &&
+                        currentValue.channelInfoIdHash === mostCurrentItem.channelInfoIdHash
+                    ) {
+                        // This removes the current element from the currentValues list
+                        // Thus the corresponding iterator will never be advanced again, so
+                        // we effectively removed the duplicate history from the iteration
+                        currentValues[i] = undefined;
+                        continue;
+                    }
                 }
+
+                // If we made it to here, then we have a larger element - remember it
+                mostCurrentItem = currentValues[i];
+                mostCurrentIndex = i;
+            }
+
+            // If we have one active iterator remaining and the user requested it, we terminate
+            if (terminateOnSingleIterator && activeIterators === 1) {
+                break;
             }
 
             // If no element was found, this means that all iterators reached their ends => terminate the loop
@@ -569,22 +690,41 @@ export default class ChannelManager extends EventEmitter {
      * @param {ChannelSelectionOptions} options
      * @returns {Promise<ChannelInfo[]>}
      */
-    private async getMatchingChannels(options?: ChannelSelectionOptions): Promise<ChannelInfo[]> {
+    private async getMatchingChannelInfos(
+        options?: ChannelSelectionOptions
+    ): Promise<ChannelInfo[]> {
+        // #### Check parameters ####
+
         if (options && options.channelId && options.channelIds) {
             throw new Error(
-                'You cannot specify channelId and channelIds at the same time in query options!'
+                "You cannot specify 'channelId' and 'channelIds' at the same time in query options!"
             );
         }
         if (options && options.owner && options.owners) {
             throw new Error(
-                'You cannot specify owner and owners at the same time in query options!'
+                "You cannot specify 'owner' and 'owners' at the same time in query options!"
             );
+        }
+        if (options && options.channel && options.channels) {
+            throw new Error(
+                "You cannot specify 'channel' and 'channels' at the same time in query options!"
+            );
+        }
+        if (options && options.id && options.ids) {
+            throw new Error("You cannot specify 'id' and 'ids' at the same time in query options!");
         }
         if (options && options.channelHash && options.channelHashes) {
             throw new Error(
-                'You cannot specify channelHash and channelHashes at the same time in query options!'
+                "You cannot specify 'channelHash' and 'channelHashes' at the same time in query options!"
             );
         }
+        if (options && options.channelIdHash && options.channelIdHashes) {
+            throw new Error(
+                "You cannot specify 'channelHash' and 'channelHashes' at the same time in query options!"
+            );
+        }
+
+        // #### Map parameters ####
 
         // Map options.channelId(s) to a single variable
         let channelIds: string[] | null = null;
@@ -604,6 +744,24 @@ export default class ChannelManager extends EventEmitter {
             owners = options.owners;
         }
 
+        // Map options.channel(s) to a single variable
+        let channels: Channel[] | null = null;
+        if (options && options.channel) {
+            channels = [options.channel];
+        }
+        if (options && options.channels) {
+            channels = options.channels;
+        }
+
+        // Map options.id(s) to a single variable
+        let ids: string[] | null = null;
+        if (options && options.id) {
+            ids = [options.id];
+        }
+        if (options && options.ids) {
+            ids = options.ids;
+        }
+
         // Map options.channelHash(es) to a single variable
         let channelHashes: SHA256Hash<ChannelInfo>[] | null = null;
         if (options && options.channelHash) {
@@ -613,28 +771,86 @@ export default class ChannelManager extends EventEmitter {
             channelHashes = options.channelHashes;
         }
 
-        // If we get specific channel hashes in the options, then use them instead of the registry
-        let allChannelInfos: ChannelInfo[];
-        if (channelHashes) {
-            allChannelInfos = await Promise.all(
-                channelHashes.map(channelHash => getObject(channelHash))
+        // Map options.channelIdHash(es) to a single variable
+        let channelIdHashes: SHA256IdHash<ChannelInfo>[] | null = null;
+        if (options && options.channelIdHash) {
+            channelIdHashes = [options.channelIdHash];
+        }
+        if (options && options.channelIdHashes) {
+            channelIdHashes = options.channelIdHashes;
+        }
+
+        // #### Get channel ids / infos from parameters ####
+
+        // Variables will be filled with all channels that need to be selected
+        // At the end the id hashes will also be appended to the ChannelInfos
+        let selectedChannelInfos: ChannelInfo[] = [];
+        let selectedChannelIdHashes: SHA256IdHash<ChannelInfo>[] = [];
+
+        // Channel selection based on user / channel id
+        // It is an AND relation, so both criteria have to match in order for the channel to
+        // be selected
+        if (owners || channelIds) {
+            for (const channelInfo of this.channelInfoCache.values()) {
+                if (channelIds && !channelIds.includes(channelInfo.latestMergedVersion.id)) {
+                    continue;
+                }
+                if (owners && !owners.includes(channelInfo.latestMergedVersion.owner)) {
+                    continue;
+                }
+                selectedChannelInfos.push(channelInfo.latestMergedVersion);
+            }
+        }
+
+        // Channel selection by Channel object
+        // Calculate the id hashes of the matching channels
+        if (channels) {
+            const idHashes = await Promise.all(
+                channels.map(channel =>
+                    calculateIdHashOfObj({
+                        $type$: 'ChannelInfo',
+                        id: channel.id,
+                        owner: channel.owner
+                    })
+                )
             );
-        } else {
-            allChannelInfos = Array.from(this.channelInfoCache.values()).map(
-                elem => elem.latestMergedVersion
+            selectedChannelIdHashes.push(...idHashes);
+        }
+
+        // Channel selection by explicit versions
+        // Get the ChannelInfo objects from the instance and add them to the list.
+        if (channelHashes) {
+            selectedChannelInfos.push(
+                ...(await Promise.all(channelHashes.map(channelHash => getObject(channelHash))))
             );
         }
 
-        // Filter channel infos based on owners / channelIds
-        return allChannelInfos.filter(channelInfo => {
-            if (channelIds && !channelIds.includes(channelInfo.id)) {
-                return false;
+        // Channel selection by the id hash
+        if (channelIdHashes) {
+            selectedChannelIdHashes.push(...channelIdHashes);
+        }
+
+        // Channel selection by specific object id
+        if (ids) {
+            selectedChannelIdHashes.push(
+                ...ids.map(id => ChannelManager.decodeEntryId(id).channelInfoIdHash)
+            );
+        }
+
+        // #### Channel Id to latest merged version conversion ####
+
+        // For the selection methods that just returned channel ids we need to get the latest merged versions
+        if (selectedChannelIdHashes) {
+            for (const channelIdHash of selectedChannelIdHashes) {
+                const channelInfo = this.channelInfoCache.get(channelIdHash);
+                if (!channelInfo) {
+                    throw new Error(`Channel ${channelIdHash} does not exist!`);
+                }
+                selectedChannelInfos.push(channelInfo.latestMergedVersion);
             }
-            if (owners && !owners.includes(channelInfo.owner)) {
-                return false;
-            }
-            return true;
-        });
+        }
+
+        return selectedChannelInfos;
     }
 
     /**
@@ -756,19 +972,7 @@ export default class ChannelManager extends EventEmitter {
      * @param {QueryOptions} queryOptions
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        // Collect all information necessary so that we can use the iterator
-        const {channelInfoIdHash, channelEntryHash} = ChannelManager.decodeEntryId(id);
-        const channelInfo = (await getObjectByIdHash(channelInfoIdHash)).obj;
-
-        // return the object by using the iterator (it formats everything right)
-        return (
-            await ChannelManager.channelDataIterator({
-                $type$: channelInfo.$type$,
-                id: channelInfo.id,
-                owner: channelInfo.owner,
-                head: channelEntryHash
-            }).next()
-        ).value;
+        return (await this.objectIterator({id}).next()).value;
     }
 
     /**
@@ -800,27 +1004,101 @@ export default class ChannelManager extends EventEmitter {
             return obj.data.$type$ === type;
         }
 
-        // Collect all information necessary so that we can use the iterator
-        const {channelInfoIdHash, channelEntryHash} = ChannelManager.decodeEntryId(id);
-        const channelInfo = (await getObjectByIdHash(channelInfoIdHash)).obj;
+        const obj = (await this.objectIterator({id}).next()).value;
 
-        // Get the object by using the iterator (it formats everything right)
-        const obj = (
-            await ChannelManager.channelDataIterator({
-                $type$: channelInfo.$type$,
-                id: channelInfo.id,
-                owner: channelInfo.owner,
-                head: channelEntryHash
-            }).next()
-        ).value;
-
-        // Check the type
         if (!hasRequestedType(obj)) {
             throw new Error(`The referenced object does not have the expected type ${type}`);
         }
 
         return obj;
     }
+
+    /**
+     * If you have multiple iterators (iter1, iter2, iter3) that would return these items:
+     *
+     * - iter1: 9, 8, 3, 2, 1
+     * - iterTmp: 10, 7, 6, 2, 1
+     * - iter2: 7, 6, 2, 1
+     * - iter3: 10, 6, 2, 1
+     *
+     * entry(10, 7)
+     * entry(7, 6)
+     * entry(6, 2)
+     * entry(2, 1)
+     *
+     * Then this iterator implementation would return the items with these creation times:
+     * 10, 9, 8, 7, 6, 5, 3, 2, 1
+     */
+
+    private mergeAllUnmergedChannelVersions(): Promise<void> {
+        // Iterate over the whole cache
+        // Compare latest version index with version count in version map
+    }
+
+    private mergeVersions(
+        channelIdHash: SHA256IdHash<ChannelInfo>,
+        latestIndex: number): Promise<void> {
+
+        //channelInfos: ChannelInfo[]
+
+    //private async mergeChannelVersions(channelInfos: ChannelInfo[]): Promise<void> {
+        // Check that the channel infos have al the same id
+        const channelIdHashSet = new Set(await Promise.all(channelInfos.map(calculateIdHashOfObj)));
+        if(channelIdHashSet.size !== 1) {
+            throw new Error('The merge algorithm can only work on a single channel.');
+        }
+        const channelIdHash = channelIdHashSet.keys().next().value;
+        const channelId = channelInfos[0].id;
+        const channelOwner = channelInfos[0].owner;
+
+
+
+        const iterators = channelInfos.map(ChannelManager.singleChannelObjectIterator);
+
+        let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
+        const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+
+        // Iterate over all channel versions simultaneosly until
+        // 1) there is only a common history left
+        // 2) there is only one channel left with elements
+        for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
+            commonHistoryHead = elem.channelEntryHash;
+            unmergedElements.push(elem.creationTimeHash);
+        }
+        unmergedElements.pop(); // The last element is the common history head -> remove it
+
+        // Channels don't have elements => return
+        if(!commonHistoryHead) {
+            return;
+        }
+
+        // The old old channel head is the new one, so the current version has already everything merged => return
+        if(unmergedElements.length === 0) {
+            return;
+        }
+
+        // Rebuild the channel by adding the different elements of the channels
+        // on top of the common history
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/rebuildChannel',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                channelId: channelId,
+                channelOwner: channelOwner,
+                history: commonHistoryHead,
+                newElementsReversed: unmergedElements
+            }
+        );
+
+        // Mark the versions as merged
+        set
+    }
+
+    // ########################################################################################################
+    // ########################################################################################################
+    // ########################################################################################################
 
     // ######## Access stuff ########
 
@@ -877,42 +1155,6 @@ export default class ChannelManager extends EventEmitter {
             },
             accessObjects
         );
-    }
-
-    /**
-     * Retrieve all channels registered at the channel registry
-     *
-     * @param channelId
-     * @param {SHA256IdHash<Person>} owner
-     * @returns {Promise<ChannelInformation[]>}
-     */
-    public async channels(
-        channelId?: string,
-        owner?: SHA256IdHash<Person>
-    ): Promise<ChannelInformation[]> {
-        if (channelId === undefined) {
-            const channelRegistry = Array.from(
-                (await ChannelManager.getOrCreateChannelRegistry()).obj.channels.keys()
-            );
-            return await Promise.all(
-                channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
-                    return {hash: await getHashByIdHash(channelInfoIdHash)};
-                })
-            );
-        }
-        if (owner === undefined) {
-            return (await this.findChannelsForSpecificId(channelId)).map(
-                (channelInfo: VersionedObjectResult<ChannelInfo>) => ({
-                    hash: channelInfo.hash
-                })
-            );
-        } else {
-            return [
-                await getObjectByIdObj({$type$: 'ChannelInfo', id: channelId, owner: owner})
-            ].map((channelInfo: VersionedObjectResult<ChannelInfo>) => ({
-                hash: channelInfo.hash
-            }));
-        }
     }
 
     /**
@@ -1169,6 +1411,63 @@ export default class ChannelManager extends EventEmitter {
         );
     }
 
+    // ########################################################################################################
+    // ########################################################################################################
+    // ########################################################################################################
+
+    private async saveRegistryCacheToOne(): Promise<void> {
+        const channels: ChannelRegistryEntry[] = [];
+        for (const [idHash, cacheEntry] of this.channelInfoCache) {
+            channels.push({
+                channelId: idHash,
+                mergedVersionIndex: cacheEntry.latestMergedVersionIndex
+            });
+        }
+
+        // Write the registry version
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'ChannelRegistry',
+                id: 'ChannelRegistry',
+                channels: channels
+            }
+        );
+    }
+
+    private async loadRegistryCacheFromOne(): Promise<void> {
+        const registry = await ChannelManager.getOrCreateChannelRegistry();
+
+        // If the cache is not empty, then something is wrong.
+        // The current implementation only needs to populate it once - at init and there it should be empty.
+        if (this.channelInfoCache.size > 0) {
+            throw new Error('Populating the registry cache is only allowed if it is empty!');
+        }
+
+        // We load the latest merged version for all channels
+        // Warning: this might be very memory hungry, because we load this stuff in parallel,
+        // so potentially all version maps of all channels are in memory simultaneously.
+        // This issue should be fixed by allowing partial version loads or by changing the way that
+        // version maps work - or by not using version maps at all.
+        // Short term fix might be by serializing all the loads, but this will significantly increase
+        // load time - so let's stick with the parallel version for now.
+        await Promise.all(
+            registry.channels.map(async channel => {
+                const channelInfoHash = await getNthVersionMapHash(
+                    channel.channelId,
+                    channel.mergedVersionIndex
+                );
+                this.channelInfoCache.set(channel.channelId, {
+                    latestMergedVersion: await getObject(channelInfoHash),
+                    latestMergedVersionIndex: channel.mergedVersionIndex
+                });
+            })
+        );
+    }
+
     /**
      * Gets the channel registry.
      *
@@ -1176,22 +1475,25 @@ export default class ChannelManager extends EventEmitter {
      *
      * @returns {Promise<VersionedObjectResult<ChannelRegistry>>} The registry
      */
-    static async getOrCreateChannelRegistry(): Promise<VersionedObjectResult<ChannelRegistry>> {
+    static async getOrCreateChannelRegistry(): Promise<ChannelRegistry> {
         return await serializeWithType('ChannelRegistry', async () => {
             try {
-                return await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'});
+                return (await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'}))
+                    .obj;
             } catch (e) {
-                return await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        $type$: 'ChannelRegistry',
-                        id: 'ChannelRegistry',
-                        channels: new Map()
-                    }
-                );
+                return (
+                    await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        {
+                            $type$: 'ChannelRegistry',
+                            id: 'ChannelRegistry',
+                            channels: new Map()
+                        }
+                    )
+                ).obj;
             }
         });
     }
