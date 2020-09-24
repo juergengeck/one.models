@@ -136,8 +136,8 @@ class OutgoingConnectionEstablisher {
         return new Promise((resolve, reject) => {
             // If the connection is successful, stop the oce and return the connection
             this.onConnection = conn => {
-                this.stop();
                 this.connectOnceSuccessfullyReject = null;
+                this.stop();
                 resolve(conn);
             };
 
