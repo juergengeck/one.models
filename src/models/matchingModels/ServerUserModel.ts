@@ -63,7 +63,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                     },
                     {
                         $type$: 'Supply',
-                        identity: this.anonInstancePersonEmail,
+                        identity: supply.identity,
                         match: supplyMatch,
                         isActive: !supply.isActive,
                         timestamp: supply.timestamp
@@ -89,7 +89,7 @@ export default class ServerUserModel extends ClientMatchingModel {
      * more exactly, if this function is called for a tag, that tag will be
      * active or inactive for all user who ever sent this tag
      *
-     * @param {string} supplyMatch
+     * @param {string} demandMatch - demand value
      * @returns {Promise<void>}
      */
     async changeDemandCategoryStatus(demandMatch: string): Promise<void> {
@@ -112,7 +112,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                     },
                     {
                         $type$: 'Demand',
-                        identity: this.anonInstancePersonEmail,
+                        identity: demand.identity,
                         match: demandMatch,
                         isActive: !demand.isActive,
                         timestamp: demand.timestamp
