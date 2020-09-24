@@ -207,7 +207,13 @@ export default abstract class MatchingModel extends EventEmitter {
         this.demandsMap.set(demand.match, availableDemands);
     }
 
-    protected updateSupplyStatusInSupplyMap(newSupply: Supply) {
+    /**
+     * This function gets a supply and search for last version of it
+     * in the supply map and replace it with the new version
+     *
+     * @param {Supply} newSupply
+     */
+    protected updateSupplyInSupplyMap(newSupply: Supply) {
         let availableSupplies = this.suppliesMap.get(newSupply.match);
 
         if (availableSupplies) {
@@ -216,8 +222,26 @@ export default abstract class MatchingModel extends EventEmitter {
             );
 
             availableSupplies.splice(supplyIndex, 1);
-
             availableSupplies.push(newSupply);
+        }
+    }
+
+    /**
+     * This function gets a demand and search for last version of it
+     * in the demand map and replace it with the new version
+     *
+     * @param {Demand} newDemand
+     */
+    protected updateDemandInDemandMap(newDemand: Demand) {
+        let availableDemands = this.demandsMap.get(newDemand.match);
+
+        if (availableDemands) {
+            const demandIndex = availableDemands.findIndex(
+                demandElement => demandElement.identity === newDemand.identity
+            );
+
+            availableDemands.splice(demandIndex, 1);
+            availableDemands.push(newDemand);
         }
     }
 

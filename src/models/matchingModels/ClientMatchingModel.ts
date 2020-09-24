@@ -428,7 +428,7 @@ export default class ClientMatchingModel extends MatchingModel {
 
                     if (receivedObject.$type$ === 'Supply') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.suppliesMap, receivedObject)) {
-                            this.updateSupplyStatusInSupplyMap(receivedObject);
+                            this.updateSupplyInSupplyMap(receivedObject);
                         } else {
                             this.addNewValueToSupplyMap(receivedObject);
                         }
@@ -437,12 +437,12 @@ export default class ClientMatchingModel extends MatchingModel {
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
-                            // @TODO make a function to update demands map.
-                            console.log('update demand!!');
+                            this.updateDemandInDemandMap(receivedObject);
                         } else {
                             this.addNewValueToDemandMap(receivedObject);
                         }
 
+                        this.memoriseLatestVersionOfDemandMap();
                         this.emit(MatchingEvents.CatalogUpdate);
                     }
                 } catch (err) {
