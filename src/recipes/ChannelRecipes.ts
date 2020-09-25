@@ -1,4 +1,4 @@
-import {OneVersionedObjectTypes, Recipe} from '@OneCoreTypes';
+import {Recipe} from '@OneCoreTypes';
 import {ORDERED_BY} from "one.core/lib/recipes";
 
 declare module '@OneCoreTypes' {

@@ -19,7 +19,7 @@ import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
-    getHashByIdHash,
+    getAllVersionMapEntries,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
@@ -37,8 +37,6 @@ import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
-import {symlink} from 'fs';
-import Type = module;
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -150,7 +148,7 @@ type RawChannelEntry = {
  * This is required so that typescript stops displaying errors.
  *
  * @param {VersionedObjectResult} versionedObjectResult - the one object
- * @returns {VersionedObjectResult<ChannelInfo>} The same object, just typecasted in a safe way
+ * @returns {VersionedObjectResult<ChannelInfo>} The same object, just casted in a safe way
  */
 function isChannelInfoResult(
     versionedObjectResult: VersionedObjectResult
@@ -163,7 +161,7 @@ function isChannelInfoResult(
 /**
  * This model manages distributed lists of data in so called 'channels'.
  *
- * A channel is a list of objects stored as merkle tree indexed by time.
+ * A channel is a list of objects stored as merkle-tree indexed by time.
  * The list is sorted by creation time so that it can be distributed and merged.
  *
  * Each channel is identified by a channelId (just a string) and the owner.
@@ -174,21 +172,24 @@ function isChannelInfoResult(
  * TODO: add PlantUml graph here
  *
  * NOTE: This class manages one global one object called ChannelRegistry
- *       It therefore does not make sense to have multiple of such objects.
+ *       It therefore does not make sense to have multiple ChannelManager objects.
  *       We don't use a singleton, because it makes it harder to track where
  *       channels are used.
- *
  */
 export default class ChannelManager extends EventEmitter {
-    //private channelInfoLut_byChannelId: Map<string, SHA256IdHash<ChannelInfo>[]>;
-    //private channelInfoLut_byOwner: Map<SHA256IdHash<Person>, SHA256IdHash<ChannelInfo>[]>;
     private channelInfoCache: Map<
         SHA256IdHash<ChannelInfo>,
         {latestMergedVersion: ChannelInfo; latestMergedVersionIndex: number}
     >;
 
-    private defaultOwner: SHA256IdHash<Person> | null; // This is the person that is used as owner of the channel if
-    // nothing else was specified at certain calls.
+    // Serialize locks
+    private readonly postLockName = 'ChannelManager_postLock';
+    private readonly postNELockName = 'ChannelManager_postNELock';
+    private readonly cacheLockName = 'ChannelManager_cacheLock_';
+    private readonly registryLockName = 'ChannelManager_registryLock';
+
+    // Default owner for post calls
+    private defaultOwner: SHA256IdHash<Person> | null;
     private accessModel: AccessModel;
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
@@ -233,11 +234,11 @@ export default class ChannelManager extends EventEmitter {
         // Load the cache from the registry
         await this.loadRegistryCacheFromOne();
 
-        // Merge new versions of channels that haven't been merged, yet.
-        await this.checkMergeVersionsOfChannels();
-
         // Register event handlers
         onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+
+        // Merge new versions of channels that haven't been merged, yet.
+        await this.mergeAllUnmergedChannelVersions();
     }
 
     /**
@@ -248,6 +249,10 @@ export default class ChannelManager extends EventEmitter {
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
         this.defaultOwner = null;
+        this.channelInfoCache = new Map<
+            SHA256IdHash<ChannelInfo>,
+            {latestMergedVersion: ChannelInfo; latestMergedVersionIndex: number}
+        >();
     }
 
     // ######## Channel management ########
@@ -281,7 +286,7 @@ export default class ChannelManager extends EventEmitter {
             );
 
             logWithId(channelId, this.defaultOwner, `createChannel: Created`);
-            this.emit('updated');
+            this.emit('updated', channelId, this.defaultOwner);
         }
     }
 
@@ -322,7 +327,7 @@ export default class ChannelManager extends EventEmitter {
         }
 
         logWithId(channelId, owner, `postToChannel`);
-        await serializeWithType('ChannelManagerPost', async () => {
+        await serializeWithType(this.postLockName, async () => {
             await createSingleObjectThroughImpurePlan(
                 {module: '@module/postToChannel'},
                 channelId,
@@ -333,7 +338,7 @@ export default class ChannelManager extends EventEmitter {
     }
 
     /**
-     * Post a new object to a channel but only if it was not already postet to the channel
+     * Post a new object to a channel but only if it was not already posted to the channel
      *
      * Note: This will iterate over the whole tree if the object does not exist, so it might
      *       be slow.
@@ -347,7 +352,9 @@ export default class ChannelManager extends EventEmitter {
         data: T,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        await serializeWithType('ChannelManagerPostIfNotExist', async () => {
+        // We need to serialize here, because two posts of the same item must be serialized
+        // in order for the second one to wait until the first one was inserted.
+        await serializeWithType(this.postNELockName, async () => {
             if (!this.defaultOwner) {
                 throw new Error('Programming Error: default owner not initialized.');
             }
@@ -369,6 +376,106 @@ export default class ChannelManager extends EventEmitter {
             // Post if above for loop didn't find the item (if it did, it returned)
             await this.postToChannel(channelId, data, owner);
         });
+    }
+
+    // ######## Get data from channels - Array based ########
+
+    /**
+     * Get all data from one or multiple channels.
+     *
+     * Note the behavior when using ascending ordering (default) and count.
+     * It will return the 'count' latest elements in ascending order, not the
+     * 'count' oldest elements. It is counter intuitive and should either
+     * be fixed or the iterator interface should be the mandatory
+     *
+     * @param {QueryOptions} queryOptions
+     */
+    public async getObjects(
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+        // Use iterator interface to collect all objects
+        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+        for await (const obj of this.objectIterator(queryOptions)) {
+            objects.push(obj);
+        }
+
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
+        } else {
+            return objects.reverse();
+        }
+    }
+
+    /**
+     * Get all data from a channel.
+     *
+     * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
+     * @param {QueryOptions} queryOptions
+     */
+    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
+        type: T,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+        // Use iterator interface to collect all objects
+        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
+            objects.push(obj);
+        }
+
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
+        } else {
+            return objects.reverse();
+        }
+    }
+
+    /**
+     * Obtain a specific object from a channel.
+     *
+     * @param {string} id - id of the object to extract
+     */
+    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+        return (await this.objectIterator({id}).next()).value;
+    }
+
+    /**
+     * Obtain a specific object from a channel.
+     *
+     * This is a very inefficient implementation, because it iterates over the chain.
+     * In the future it would be better to just pick the object with the passed hash.
+     * But this only works when we have working reverse maps for getting the metadata.
+     * The other option would be to use the hash of the indexed metadata as id, then
+     * we don't have the reverse map problem.
+     *
+     * @param {string} channelId - The id of the channel to post to
+     * @param {string} id - id of the object to extract, usually this is a hash of the
+     *                      object itself or a related object.
+     * @param {T}      type - Type of objects to retrieve. If type does not match an
+     *                        error is thrown.
+     * @param {QueryOptions} queryOptions
+     *
+     */
+    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
+        channelId: string,
+        id: string,
+        type: T,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.$type$ === type;
+        }
+
+        const obj = (await this.objectIterator({id}).next()).value;
+
+        if (!hasRequestedType(obj)) {
+            throw new Error(`The referenced object does not have the expected type ${type}`);
+        }
+
+        return obj;
     }
 
     // ######## Get data from channels - ITERATORS ########
@@ -555,12 +662,14 @@ export default class ChannelManager extends EventEmitter {
      * 9, 8, 7, 6, 5, 4, 3, 2, 1
      *
      * @param {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]} iterators
-     * @param {boolean} terminateOnCommonHistory - If true, then stop iteration when only one iterator produces
-     *                                             any new values. The first element of the last iterator is still
-     *                                             returned, but then iteration stops. This is very useful
-     *                                             for merging algorithms, because they can use the last item as
-     *                                             common history for merging - because this iteration also removes
-     *                                             redundant iterators (that iterate over the same history)
+     * @param {boolean} terminateOnSingleIterator - If true, then stop iteration when all but one iterator reached
+     *                                              their end. The first element of the last iterator is still
+     *                                              returned, but then iteration stops. This is very useful
+     *                                              for merging algorithms, because they can use the last item as
+     *                                              common history for merging.
+     *                                              Because this iteration also removes redundant iterators
+     *                                              (that iterate over the same history) it will stop when multiple
+     *                                              iterators iterate the same history.
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
     private static async *mergeIteratorMostCurrent(
@@ -643,10 +752,104 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
-    // ######## OTHER PRIVATE ########
+
+    // ######## Merge algorithm methods ########
 
     /**
-     * Encodes an entry as string, so that later it can be found again.
+     * Merge unmerged channel versions.
+     *
+     * @returns {Promise<void>}
+     */
+    private async mergeAllUnmergedChannelVersions(): Promise<void> {
+        for (const hash of this.channelInfoCache.keys()) {
+            await this.mergePendingVersions(hash);
+        }
+    }
+
+    /**
+     * Merge all pending versions of passed channel.
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash - id hash of the channel for which to merge versions
+     * @returns {Promise<void>}
+     */
+    private async mergePendingVersions(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
+        const updatedEntry = await serializeWithType(
+            `${this.cacheLockName}${channelIdHash}`,
+            async () => {
+                const cacheEntry = this.channelInfoCache.get(channelIdHash);
+                if (!cacheEntry) {
+                    throw new Error('The channelIdHash does not exist in registry.');
+                }
+
+                // Find the versions to merge
+                const versionMapEntries = await getAllVersionMapEntries(channelIdHash);
+                const channelInfoHashes = versionMapEntries
+                    .slice(cacheEntry.latestMergedVersionIndex)
+                    .map(entry => entry.hash);
+                const channelInfos: ChannelInfo[] = await Promise.all(
+                    channelInfoHashes.map(getObject)
+                );
+
+                // If only one version is returned it means, that the mergeIndex is already at the last position
+                if (channelInfos.length <= 1) {
+                    return null;
+                }
+
+                // Construct the iterators from the channelInfo representing the different versions
+                const iterators = channelInfos.map(ChannelManager.singleChannelObjectIterator);
+
+                // Iterate over all channel versions simultaneously until
+                // 1) there is only a common history left
+                // 2) there is only one channel left with elements
+                let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
+                const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+                for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
+                    commonHistoryHead = elem.channelEntryHash;
+                    unmergedElements.push(elem.creationTimeHash);
+                }
+                unmergedElements.pop(); // The last element is the common history head -> remove it
+
+                // Channels don't have elements or the old channel head is the new one, so the current version has already everything merged => return
+                if (!commonHistoryHead || unmergedElements.length === 0) {
+                    return null;
+                }
+
+                // Rebuild the channel by adding the different elements of the channels
+                // on top of the common history
+                await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/rebuildChannel',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    {
+                        channelId: channelInfos[0].id,
+                        channelOwner: channelInfos[0].owner,
+                        history: commonHistoryHead,
+                        newElementsReversed: unmergedElements
+                    }
+                );
+
+                // Mark the versions as merged and write it to the instance
+                this.channelInfoCache.set(channelIdHash, {
+                    latestMergedVersionIndex: versionMapEntries.length - 1,
+                    latestMergedVersion: channelInfos[channelInfos.length - 1]
+                });
+                await this.saveRegistryCacheToOne();
+
+                return channelInfos[0];
+            }
+        );
+
+        // If a channel was updated, emit the updated event
+        if (updatedEntry) {
+            this.emit('updated', updatedEntry.id, updatedEntry.owner);
+        }
+    }
+
+    // ######## Entry id and channel selection stuff ########
+
+    /**
+     * Encodes an entry as string for referencing and loading it later.
      *
      * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
      * @param {SHA256Hash<ChannelEntry>} channelEntryHash
@@ -660,11 +863,10 @@ export default class ChannelManager extends EventEmitter {
     }
 
     /**
-     * Decodes the string if of an etry, so that it can be loaded.
+     * Decodes the string identifying an entry.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
-     * @param {SHA256Hash<ChannelEntry>} channelEntryHash
-     * @returns {string}
+     * @param {string} id
+     * @returns {{channelInfoIdHash: SHA256IdHash<ChannelInfo>; channelEntryHash: SHA256Hash<ChannelEntry>}}
      */
     private static decodeEntryId(
         id: string
@@ -672,20 +874,22 @@ export default class ChannelManager extends EventEmitter {
         channelInfoIdHash: SHA256IdHash<ChannelInfo>;
         channelEntryHash: SHA256Hash<ChannelEntry>;
     } {
-        const idElems = id.split('_');
-        if (idElems.length != 2) {
+        const idElements = id.split('_');
+        if (idElements.length != 2) {
             throw new Error('Id of channel entry is not valid.');
         }
         return {
-            channelInfoIdHash: ensureIdHash<ChannelInfo>(idElems[0]),
-            channelEntryHash: ensureHash<ChannelEntry>(idElems[1])
+            channelInfoIdHash: ensureIdHash<ChannelInfo>(idElements[0]),
+            channelEntryHash: ensureHash<ChannelEntry>(idElements[1])
         };
     }
 
     /**
      * This returns the list of matching channel infos based on ChannelSelectionOptions.
      *
-     * It returns the channel infos of the latest merged versions, not the latest version in the version maps.
+     * It usually returns the channel infos of the latest merged versions, not the latest version in the version maps.
+     * Only if the ChannelSelectionOptions reference a specific version this version is returned instead of the latest
+     * merged one.
      *
      * @param {ChannelSelectionOptions} options
      * @returns {Promise<ChannelInfo[]>}
@@ -853,6 +1057,180 @@ export default class ChannelManager extends EventEmitter {
         return selectedChannelInfos;
     }
 
+    // ######## Hook implementation for merging and adding channels ########
+
+    /**
+     * Handler function for the VersionedObj
+     * @param {VersionedObjectResult} caughtObject
+     * @return {Promise<void>}
+     */
+    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
+        try {
+            if (isChannelInfoResult(caughtObject)) {
+                await this.addChannelIfNotExist(caughtObject.idHash);
+                await this.mergePendingVersions(caughtObject.idHash);
+            }
+        } catch (e) {
+            console.error(e); // Introduce an error event later!
+        }
+    }
+
+    /**
+     * Add the passed channel to the cache & registry if it is not there, yet.
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash - the channel to add to the registry
+     * @returns {Promise<void>}
+     */
+    private async addChannelIfNotExist(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
+        await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
+            if (!this.channelInfoCache.has(channelIdHash)) {
+                this.channelInfoCache.set(channelIdHash, {
+                    latestMergedVersionIndex: 0,
+                    latestMergedVersion: await getObject(
+                        await getNthVersionMapHash(channelIdHash, 0)
+                    )
+                });
+            }
+        });
+        await this.saveRegistryCacheToOne();
+    }
+
+    // ######## One Channel registry read / write methods ########
+
+    /**
+     * Save the cache content as new version of registry in one.
+     *
+     * @returns {Promise<void>}
+     */
+    private async saveRegistryCacheToOne(): Promise<void> {
+        await serializeWithType(this.registryLockName, async () => {
+            const channels: ChannelRegistryEntry[] = [];
+            for (const [idHash, cacheEntry] of this.channelInfoCache) {
+                channels.push({
+                    channelId: idHash,
+                    mergedVersionIndex: cacheEntry.latestMergedVersionIndex
+                });
+            }
+
+            // Write the registry version
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'ChannelRegistry',
+                    id: 'ChannelRegistry',
+                    channels: channels
+                }
+            );
+        });
+    }
+
+    /**
+     * Load the latest channel registry version into the the cache.
+     *
+     * @returns {Promise<void>}
+     */
+    private async loadRegistryCacheFromOne(): Promise<void> {
+        await serializeWithType(this.registryLockName, async () => {
+            // If the cache is not empty, then something is wrong.
+            // The current implementation only needs to populate it once - at init and there it should be empty.
+            if (this.channelInfoCache.size > 0) {
+                throw new Error('Populating the registry cache is only allowed if it is empty!');
+            }
+
+            // Get the registry. If it does not exist, start with an empty cache (so just return)
+            let registry: ChannelRegistry;
+            try {
+                registry = (
+                    await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'})
+                ).obj;
+            } catch (e) {
+                return;
+            }
+
+            // We load the latest merged version for all channels
+            // Warning: this might be very memory hungry, because we load this stuff in parallel,
+            // so potentially all version maps of all channels are in memory simultaneously.
+            // This issue should be fixed by allowing partial version loads or by changing the way that
+            // version maps work - or by not using version maps at all.
+            // Short term fix might be by serializing all the loads, but this will significantly increase
+            // load time - so let's stick with the parallel version for now.
+            await Promise.all(
+                registry.channels.map(async channel => {
+                    const channelInfoHash = await getNthVersionMapHash(
+                        channel.channelId,
+                        channel.mergedVersionIndex
+                    );
+                    this.channelInfoCache.set(channel.channelId, {
+                        latestMergedVersion: await getObject(channelInfoHash),
+                        latestMergedVersionIndex: channel.mergedVersionIndex
+                    });
+                })
+            );
+        });
+    }
+
+    // ######## Access stuff ########
+
+    /**
+     * Note: This function needs to be cleaned up a little! That is why it is down here with the private methods
+     *       because atm I don't encourage anybody to use it, unless he doesn't have another choice.
+     *
+     * @param {string} channelId
+     * @param {string} to - group name
+     */
+    public async giveAccessToChannelInfo(
+        channelId: string,
+        to?: string
+    ): Promise<
+        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
+    > {
+        const channels = await this.getMatchingChannelInfos({channelId});
+
+        if (to === undefined) {
+            const accessChannels = await Promise.all(
+                channels.map(async channelInfo => {
+                    return {
+                        id: await calculateIdHashOfObj(channelInfo),
+                        person: [this.defaultOwner],
+                        group: [],
+                        mode: SET_ACCESS_MODE.REPLACE
+                    };
+                })
+            );
+            return await createManyObjectsThroughPurePlan(
+                {
+                    module: '@one/access',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                accessChannels
+            );
+        }
+
+        const group = await this.accessModel.getAccessGroupByName(to);
+
+        const accessObjects = await Promise.all(
+            channels.map(async channelInfo => {
+                return {
+                    id: await calculateIdHashOfObj(channelInfo),
+                    person: [],
+                    group: [group.idHash],
+                    mode: SET_ACCESS_MODE.REPLACE
+                };
+            })
+        );
+
+        return await createManyObjectsThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            accessObjects
+        );
+    }
+
     /**
      * Get the person list with whom this channel is shared.
      *
@@ -909,592 +1287,5 @@ export default class ChannelManager extends EventEmitter {
 
         // Remove duplicate persons and return the result
         return [...new Set(personsFlat)];
-    }
-
-    // ######## Get data from channels - Array based ########
-
-    /**
-     * Get all data from one or multiple channels.
-     *
-     * Not the behaviour when using ascending ordering (default) and count.
-     * It will return the 'count' latest elements in ascending order, not the
-     * 'count' oldest elements. It is counter intuitive and should either
-     * be fixed or the iterator interface should be the mandatory (and only interface)
-     *
-     * @param {QueryOptions} queryOptions
-     */
-    public async getObjects(
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-        // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-        for await (const obj of this.objectIterator(queryOptions)) {
-            objects.push(obj);
-        }
-
-        // Decide, whether to return it reversed, or not
-        if (queryOptions && queryOptions.orderBy === Order.Descending) {
-            return objects;
-        } else {
-            return objects.reverse();
-        }
-    }
-
-    /**
-     * Get all data from a channel.
-     *
-     * @param {string}  channelId - The id of the channel to read from
-     * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
-     * @param {QueryOptions} queryOptions
-     */
-    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
-        type: T,
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-        // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
-        for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
-            objects.push(obj);
-        }
-
-        // Decide, whether to return it reversed, or not
-        if (queryOptions && queryOptions.orderBy === Order.Descending) {
-            return objects;
-        } else {
-            return objects.reverse();
-        }
-    }
-
-    /**
-     * Obtain a specific object from a channel.
-     *
-     * @param {string} id - id of the object to extract
-     * @param {QueryOptions} queryOptions
-     */
-    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        return (await this.objectIterator({id}).next()).value;
-    }
-
-    /**
-     * Obtain a specific object from a channel.
-     *
-     * This is a very inefficient implementation, because it iterates over the chain.
-     * In the future it would be better to just pick the object with the passed hash.
-     * But this only works when we have working reverse maps for getting the metadata.
-     * The other option would be to use the hash of the indexed metadata as id, then
-     * we don't have the reverse map problem.
-     *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {string} id - id of the object to extract, usually this is a hash of the
-     *                      object itself or a related object.
-     * @param {T}      type - Type of objects to retrieve. If type does not match an
-     *                        error is thrown.
-     * @param {QueryOptions} queryOptions
-     *
-     */
-    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
-        id: string,
-        type: T,
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.$type$ === type;
-        }
-
-        const obj = (await this.objectIterator({id}).next()).value;
-
-        if (!hasRequestedType(obj)) {
-            throw new Error(`The referenced object does not have the expected type ${type}`);
-        }
-
-        return obj;
-    }
-
-    /**
-     * If you have multiple iterators (iter1, iter2, iter3) that would return these items:
-     *
-     * - iter1: 9, 8, 3, 2, 1
-     * - iterTmp: 10, 7, 6, 2, 1
-     * - iter2: 7, 6, 2, 1
-     * - iter3: 10, 6, 2, 1
-     *
-     * entry(10, 7)
-     * entry(7, 6)
-     * entry(6, 2)
-     * entry(2, 1)
-     *
-     * Then this iterator implementation would return the items with these creation times:
-     * 10, 9, 8, 7, 6, 5, 3, 2, 1
-     */
-
-    private mergeAllUnmergedChannelVersions(): Promise<void> {
-        // Iterate over the whole cache
-        // Compare latest version index with version count in version map
-    }
-
-    private mergeVersions(
-        channelIdHash: SHA256IdHash<ChannelInfo>,
-        latestIndex: number): Promise<void> {
-
-        //channelInfos: ChannelInfo[]
-
-    //private async mergeChannelVersions(channelInfos: ChannelInfo[]): Promise<void> {
-        // Check that the channel infos have al the same id
-        const channelIdHashSet = new Set(await Promise.all(channelInfos.map(calculateIdHashOfObj)));
-        if(channelIdHashSet.size !== 1) {
-            throw new Error('The merge algorithm can only work on a single channel.');
-        }
-        const channelIdHash = channelIdHashSet.keys().next().value;
-        const channelId = channelInfos[0].id;
-        const channelOwner = channelInfos[0].owner;
-
-
-
-        const iterators = channelInfos.map(ChannelManager.singleChannelObjectIterator);
-
-        let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
-        const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
-
-        // Iterate over all channel versions simultaneosly until
-        // 1) there is only a common history left
-        // 2) there is only one channel left with elements
-        for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
-            commonHistoryHead = elem.channelEntryHash;
-            unmergedElements.push(elem.creationTimeHash);
-        }
-        unmergedElements.pop(); // The last element is the common history head -> remove it
-
-        // Channels don't have elements => return
-        if(!commonHistoryHead) {
-            return;
-        }
-
-        // The old old channel head is the new one, so the current version has already everything merged => return
-        if(unmergedElements.length === 0) {
-            return;
-        }
-
-        // Rebuild the channel by adding the different elements of the channels
-        // on top of the common history
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/rebuildChannel',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                channelId: channelId,
-                channelOwner: channelOwner,
-                history: commonHistoryHead,
-                newElementsReversed: unmergedElements
-            }
-        );
-
-        // Mark the versions as merged
-        set
-    }
-
-    // ########################################################################################################
-    // ########################################################################################################
-    // ########################################################################################################
-
-    // ######## Access stuff ########
-
-    /**
-     *
-     * @param {string} channelId
-     * @param {string} to - group name
-     */
-    public async giveAccessToChannelInfo(
-        channelId: string,
-        to?: string
-    ): Promise<
-        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
-    > {
-        const channels = await this.findChannelsForSpecificId(channelId);
-
-        if (to === undefined) {
-            const accessChannels = await Promise.all(
-                channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                    return {
-                        id: channel.idHash,
-                        person: [this.defaultOwner],
-                        group: [],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createManyObjectsThroughPurePlan(
-                {
-                    module: '@one/access',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                accessChannels
-            );
-        }
-
-        const group = await this.accessModel.getAccessGroupByName(to);
-
-        const accessObjects = await Promise.all(
-            channels.map(async (channel: VersionedObjectResult<ChannelInfo>) => {
-                return {
-                    id: channel.idHash,
-                    person: [],
-                    group: [group.idHash],
-                    mode: SET_ACCESS_MODE.REPLACE
-                };
-            })
-        );
-
-        return await createManyObjectsThroughPurePlan(
-            {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            accessObjects
-        );
-    }
-
-    /**
-     * @BETA Second implementation of the merging algorithm
-     * @param {SHA256Hash<ChannelInfo>} firstChannel
-     * @param {SHA256Hash<ChannelInfo>} secondChannel
-     * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
-     */
-    private static async mergeChannels(
-        firstChannel: SHA256Hash<ChannelInfo>,
-        secondChannel: SHA256Hash<ChannelInfo>
-    ): Promise<VersionedObjectResult<ChannelInfo>> {
-        const firstChannelUnversionedObject = await getObject(firstChannel);
-        const secondChannelUnversionedObject = await getObject(secondChannel);
-
-        let sortedChannelEntries: ChannelEntry[] = [];
-
-        if (
-            firstChannelUnversionedObject.id !== secondChannelUnversionedObject.id &&
-            firstChannelUnversionedObject.owner !== secondChannelUnversionedObject.owner
-        ) {
-            throw new Error('Error: in order to merge the channels they must be the same');
-        }
-
-        if (firstChannelUnversionedObject.head === undefined) {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                secondChannelUnversionedObject
-            );
-        }
-
-        if (secondChannelUnversionedObject.head === undefined) {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                firstChannelUnversionedObject
-            );
-        }
-
-        let firstChannelHead = await getObject(firstChannelUnversionedObject.head);
-        let secondChannelHead = await getObject(secondChannelUnversionedObject.head);
-        let firstChannelHash = firstChannelUnversionedObject.head;
-        let secondChannelHash = secondChannelUnversionedObject.head;
-
-        for (;;) {
-            const firstChannelCreationTime = await getObject(firstChannelHead.data);
-            const secondChannelCreationTime = await getObject(secondChannelHead.data);
-
-            if (firstChannelHash === secondChannelHash) {
-                return await ChannelManager.reBuildChannelChain(
-                    sortedChannelEntries.reverse(),
-                    firstChannelHash,
-                    firstChannelUnversionedObject
-                );
-            }
-
-            if (firstChannelCreationTime.timestamp >= secondChannelCreationTime.timestamp) {
-                sortedChannelEntries.push(firstChannelHead);
-                if (firstChannelHead.previous === undefined) {
-                    return await ChannelManager.reBuildChannelChain(
-                        sortedChannelEntries.reverse(),
-                        secondChannelHash,
-                        firstChannelUnversionedObject
-                    );
-                }
-
-                firstChannelHash = firstChannelHead.previous;
-                firstChannelHead = await getObject(firstChannelHead.previous);
-                continue;
-            }
-
-            if (firstChannelCreationTime.timestamp < secondChannelCreationTime.timestamp) {
-                sortedChannelEntries.push(secondChannelHead);
-                if (secondChannelHead.previous === undefined) {
-                    return await ChannelManager.reBuildChannelChain(
-                        sortedChannelEntries.reverse(),
-                        firstChannelHash,
-                        firstChannelUnversionedObject
-                    );
-                }
-
-                secondChannelHash = secondChannelHead.previous;
-                secondChannelHead = await getObject(secondChannelHead.previous);
-            }
-        }
-    }
-
-    /**
-     * @description Creates a ChannelInfo from a given ChannelEntry List and a root
-     * @param {ChannelEntry[]} entriesToBeAdded
-     * @param {SHA256Hash<ChannelEntry> | undefined} startingEntry
-     * @param {ChannelInfo} mainChannelInfo
-     * @returns {Promise<VersionedObjectResult<ChannelInfo>> }
-     */
-    private static async reBuildChannelChain(
-        entriesToBeAdded: ChannelEntry[],
-        startingEntry: SHA256Hash<ChannelEntry> | undefined,
-        mainChannelInfo: ChannelInfo
-    ): Promise<VersionedObjectResult<ChannelInfo>> {
-        let lastChannelEntry;
-        for (let i = 0; i < entriesToBeAdded.length; i++) {
-            lastChannelEntry = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'ChannelEntry',
-                    data: entriesToBeAdded[i].data,
-                    previous:
-                        i === 0 ? startingEntry : await calculateHashOfObj(entriesToBeAdded[i - 1])
-                }
-            );
-        }
-
-        return await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'ChannelInfo',
-                id: mainChannelInfo.id,
-                owner: mainChannelInfo.owner,
-                head: lastChannelEntry === undefined ? startingEntry : lastChannelEntry.hash
-            }
-        );
-    }
-
-    /**
-     * @description checks for merging problems and then updates the registry
-     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
-     * @param {SHA256Hash<ChannelInfo>} channelHash
-     * @returns {Promise<void>}
-     */
-    private static async updateChannelRegistryMap(
-        channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelHash: SHA256Hash<ChannelInfo>
-    ): Promise<void> {
-        let channelFromMap: SHA256Hash<ChannelInfo> | undefined = (
-            await ChannelManager.getOrCreateChannelRegistry()
-        ).obj.channels.get(channelIdHash);
-
-        if (channelFromMap === undefined) {
-            await ChannelManager.addChannelToTheChannelRegistry(channelIdHash, channelHash);
-            channelFromMap = channelHash;
-        }
-
-        if (channelHash === channelFromMap) {
-            return;
-        }
-
-        let index = -1;
-        let previousChannelHash: SHA256Hash<ChannelInfo> = await getNthVersionMapHash(
-            channelIdHash,
-            index
-        );
-        const unMergedChannelHashes: SHA256Hash<ChannelInfo>[] = [];
-
-        while (previousChannelHash !== undefined) {
-            if (previousChannelHash === channelFromMap) {
-                break;
-            }
-            unMergedChannelHashes.push(previousChannelHash);
-            previousChannelHash = await getNthVersionMapHash(channelIdHash, --index);
-        }
-
-        let latestMergedHash: SHA256Hash<ChannelInfo> = channelHash;
-
-        for (const hash of unMergedChannelHashes) {
-            const mergedChannel = await ChannelManager.mergeChannels(hash, latestMergedHash);
-            // not do this, instead sgtore it in a local variable ( the hash )
-            latestMergedHash = mergedChannel.hash;
-        }
-
-        if (latestMergedHash !== undefined)
-            await ChannelManager.addChannelToTheChannelRegistry(channelIdHash, latestMergedHash);
-    }
-
-    private async getExplodedChannelInfosFromRegistry(): Promise<
-        VersionedObjectResult<ChannelInfo>[]
-    > {
-        const channelRegistry = Array.from(
-            (await ChannelManager.getOrCreateChannelRegistry()).obj.channels.keys()
-        );
-        return await Promise.all(
-            channelRegistry.map(async (channelInfoIdHash: SHA256IdHash<ChannelInfo>) => {
-                return await getObjectByIdHash(channelInfoIdHash);
-            })
-        );
-    }
-
-    private async findChannelsForSpecificId(
-        channelId: string
-    ): Promise<VersionedObjectResult<ChannelInfo>[]> {
-        return (await this.getExplodedChannelInfosFromRegistry()).filter(
-            (channelInfo: VersionedObjectResult<ChannelInfo>) => channelInfo.obj.id === channelId
-        );
-    }
-
-    private async checkMergeVersionsOfChannels(): Promise<void> {
-        await serializeWithType('ChannelRegistryMerging', async () => {
-            const channelRegistry = Array.from(
-                (await ChannelManager.getOrCreateChannelRegistry()).obj.channels.keys()
-            );
-            for (const channelIdHash of channelRegistry) {
-                const object = await getObjectByIdHash(channelIdHash);
-                await ChannelManager.updateChannelRegistryMap(channelIdHash, object.hash);
-            }
-        });
-    }
-
-    /**
-     * Handler function for the VersionedObj
-     * @param {VersionedObjectResult} caughtObject
-     * @return {Promise<void>}
-     */
-    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
-        if (isChannelInfoResult(caughtObject)) {
-            await serializeWithType('ChannelRegistryMerging', async () => {
-                await ChannelManager.updateChannelRegistryMap(
-                    caughtObject.idHash,
-                    caughtObject.hash
-                );
-            });
-            this.emit('updated', caughtObject.obj.id);
-        }
-    }
-
-    /**
-     *
-     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
-     * @param {SHA256Hash<ChannelInfo>} channelHash
-     * @returns {Promise<void>}
-     */
-    private static async addChannelToTheChannelRegistry(
-        channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelHash: SHA256Hash<ChannelInfo>
-    ): Promise<VersionedObjectResult<ChannelRegistry>> {
-        const channelRegistry = await ChannelManager.getOrCreateChannelRegistry();
-        channelRegistry.obj.channels.set(channelIdHash, channelHash);
-
-        return await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            channelRegistry.obj
-        );
-    }
-
-    // ########################################################################################################
-    // ########################################################################################################
-    // ########################################################################################################
-
-    private async saveRegistryCacheToOne(): Promise<void> {
-        const channels: ChannelRegistryEntry[] = [];
-        for (const [idHash, cacheEntry] of this.channelInfoCache) {
-            channels.push({
-                channelId: idHash,
-                mergedVersionIndex: cacheEntry.latestMergedVersionIndex
-            });
-        }
-
-        // Write the registry version
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'ChannelRegistry',
-                id: 'ChannelRegistry',
-                channels: channels
-            }
-        );
-    }
-
-    private async loadRegistryCacheFromOne(): Promise<void> {
-        const registry = await ChannelManager.getOrCreateChannelRegistry();
-
-        // If the cache is not empty, then something is wrong.
-        // The current implementation only needs to populate it once - at init and there it should be empty.
-        if (this.channelInfoCache.size > 0) {
-            throw new Error('Populating the registry cache is only allowed if it is empty!');
-        }
-
-        // We load the latest merged version for all channels
-        // Warning: this might be very memory hungry, because we load this stuff in parallel,
-        // so potentially all version maps of all channels are in memory simultaneously.
-        // This issue should be fixed by allowing partial version loads or by changing the way that
-        // version maps work - or by not using version maps at all.
-        // Short term fix might be by serializing all the loads, but this will significantly increase
-        // load time - so let's stick with the parallel version for now.
-        await Promise.all(
-            registry.channels.map(async channel => {
-                const channelInfoHash = await getNthVersionMapHash(
-                    channel.channelId,
-                    channel.mergedVersionIndex
-                );
-                this.channelInfoCache.set(channel.channelId, {
-                    latestMergedVersion: await getObject(channelInfoHash),
-                    latestMergedVersionIndex: channel.mergedVersionIndex
-                });
-            })
-        );
-    }
-
-    /**
-     * Gets the channel registry.
-     *
-     * If it doesn't exist, it is created.
-     *
-     * @returns {Promise<VersionedObjectResult<ChannelRegistry>>} The registry
-     */
-    static async getOrCreateChannelRegistry(): Promise<ChannelRegistry> {
-        return await serializeWithType('ChannelRegistry', async () => {
-            try {
-                return (await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'}))
-                    .obj;
-            } catch (e) {
-                return (
-                    await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        {
-                            $type$: 'ChannelRegistry',
-                            id: 'ChannelRegistry',
-                            channels: new Map()
-                        }
-                    )
-                ).obj;
-            }
-        });
     }
 }

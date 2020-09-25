@@ -1,5 +1,4 @@
 import {
-    getObject,
     getObjectByIdHash,
     VersionedObjectResult,
     WriteStorageApi
@@ -12,7 +11,7 @@ import {
     ChannelInfo,
     Person
 } from '@OneCoreTypes';
-import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**
  * Create a new questionnaire entry in the passed channel
@@ -35,31 +34,28 @@ export async function createObjects(
         id: channelId,
         owner: owner
     });
-    const channelInfoResult = await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
+    const latestChannelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
 
-    const payloadHash = await calculateHashOfObj(payload);
-    try {
-        await getObject(payloadHash);
-    } catch (e) {
-        await WriteStorage.storeUnversionedObject(payload);
-    }
+    // Write the payload. If it already exists, then ... it doesn't matter
+    const payloadResult = await WriteStorage.storeUnversionedObject(payload);
 
-    // Create payload
-    // Create creation time meta information
+    // Write creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
         $type$: 'CreationTime',
         timestamp: Date.now(),
-        data: payloadHash
+        data: payloadResult.hash
     });
 
-    // Create the channel entry
+    // Write the channel entry
     // We should iterate the linked list until the correct item is found ... later when we have time
     // assume all clocks are in sync at the moment
-    const channelEntryResult = (await WriteStorage.storeUnversionedObject({
+    // Or: we write a new channel with one element, and the merge algorithm will merge them correctly
+    // otherwise we have to replicate the merge algorithm here!
+    const channelEntryResult = await WriteStorage.storeUnversionedObject({
         $type$: 'ChannelEntry',
-        previous: channelInfoResult.obj.head,
+        previous: latestChannelInfo.head,
         data: creationTimeResult.hash
-    })) as UnversionedObjectResult<ChannelEntry>;
+    });
 
     // Update the head of the ChannelInfo entry
     return await WriteStorage.storeVersionedObject({
