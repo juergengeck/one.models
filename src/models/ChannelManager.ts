@@ -38,7 +38,7 @@ import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
 
-const MessageBus = createMessageBus('ChannelManager');
+const MessageBus = createMessageBus('ChannelManager # channel id # channel owner');
 
 /**
  * Logs a channel manager message.
@@ -47,11 +47,21 @@ const MessageBus = createMessageBus('ChannelManager');
  * @param {SHA256IdHash<Person>} owner
  * @param {string} message
  */
-function logWithId(channelId: string, owner: SHA256IdHash<Person> | null, message: string) {
-    MessageBus.send('log', `${channelId} + ${owner} # ${message}`);
+function logWithId(channelId: string | null, owner: SHA256IdHash<Person> | null, message: string) {
+    MessageBus.send('log', `${channelId} # ${owner} # ${message}`);
 }
-function logWithId_Debug(channelId: string, owner: SHA256IdHash<Person> | null, message: string) {
-    MessageBus.send('log', `${channelId} + ${owner} # ${message}`);
+
+/**
+ * Logs a channel manager message with id hash.
+ *
+ * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+ * @param {string} message
+ */
+function logWithIdHash(channelIdHash: SHA256IdHash<ChannelInfo>, message: string) {
+    getObjectByIdHash(channelIdHash).then(
+        obj => logWithId(obj.obj.id, obj.obj.owner, message),
+        () => logWithId(null, null, message)
+    );
 }
 
 /**
@@ -265,7 +275,7 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} channelId - The id of the channel. See class description for more details on how ids and channels are handled.
      */
     public async createChannel(channelId: string): Promise<void> {
-        logWithId_Debug(channelId, this.defaultOwner, `createChannel`);
+        logWithId(channelId, this.defaultOwner, `createChannel - START`);
 
         try {
             // Get the ChannelInfo from the database
@@ -276,7 +286,7 @@ export default class ChannelManager extends EventEmitter {
             });
 
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
-            logWithId(channelId, this.defaultOwner, `createChannel: Existed`);
+            logWithId(channelId, this.defaultOwner, `createChannel - END: Existed`);
         } catch (ignore) {
             // Create a new one if getting it failed
             await createSingleObjectThroughPurePlan(
@@ -285,7 +295,7 @@ export default class ChannelManager extends EventEmitter {
                 this.defaultOwner
             );
 
-            logWithId(channelId, this.defaultOwner, `createChannel: Created`);
+            logWithId(channelId, this.defaultOwner, `createChannel - END: Created`);
             this.emit('updated', channelId, this.defaultOwner);
         }
     }
@@ -317,24 +327,36 @@ export default class ChannelManager extends EventEmitter {
         data: T,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        if (!this.defaultOwner) {
-            throw new Error('Default owner is not initialized');
-        }
+        logWithId(channelId, owner ? owner : this.defaultOwner, `postToChannel - START`);
+        try {
+            if (!this.defaultOwner) {
+                throw new Error('Default owner is not initialized');
+            }
 
-        // If owner was not specified, use the default owner
-        if (!owner) {
-            owner = this.defaultOwner;
-        }
+            // If owner was not specified, use the default owner
+            if (!owner) {
+                owner = this.defaultOwner;
+            }
 
-        logWithId(channelId, owner, `postToChannel`);
-        await serializeWithType(this.postLockName, async () => {
-            await createSingleObjectThroughImpurePlan(
-                {module: '@module/postToChannel'},
+            logWithId(channelId, owner, `postToChannel: call plan`);
+            await serializeWithType(this.postLockName, async () => {
+                await createSingleObjectThroughImpurePlan(
+                    {module: '@module/postToChannel'},
+                    channelId,
+                    owner,
+                    data
+                );
+            });
+
+            logWithId(channelId, owner, `postToChannel - END`);
+        } catch (e) {
+            logWithId(
                 channelId,
-                owner,
-                data
+                owner ? owner : this.defaultOwner,
+                'postToChannel - FAIL: ' + e.toString()
             );
-        });
+            throw e;
+        }
     }
 
     /**
@@ -352,30 +374,50 @@ export default class ChannelManager extends EventEmitter {
         data: T,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        // We need to serialize here, because two posts of the same item must be serialized
-        // in order for the second one to wait until the first one was inserted.
-        await serializeWithType(this.postNELockName, async () => {
-            if (!this.defaultOwner) {
-                throw new Error('Programming Error: default owner not initialized.');
-            }
-
-            // Calculate the hash of the passed object. We will compare it with existing entries
-            const dataHash = await calculateHashOfObj(data);
-
-            // Iterate over the channel to see whether the object exists.
-            // If it exists, leave the function -> no posting
-            for await (const item of this.objectIterator({
-                channelId: channelId,
-                owner: owner ? owner : this.defaultOwner
-            })) {
-                if (item.dataHash === dataHash) {
-                    return;
+        logWithId(channelId, owner ? owner : this.defaultOwner, `postToChannelIfNotExist - START`);
+        try {
+            // We need to serialize here, because two posts of the same item must be serialized
+            // in order for the second one to wait until the first one was inserted.
+            await serializeWithType(this.postNELockName, async () => {
+                if (!this.defaultOwner) {
+                    throw new Error('Programming Error: default owner not initialized.');
                 }
-            }
 
-            // Post if above for loop didn't find the item (if it did, it returned)
-            await this.postToChannel(channelId, data, owner);
-        });
+                // Calculate the hash of the passed object. We will compare it with existing entries
+                const dataHash = await calculateHashOfObj(data);
+
+                // Iterate over the channel to see whether the object exists.
+                // If it exists, leave the function -> no posting
+                for await (const item of this.objectIterator({
+                    channelId: channelId,
+                    owner: owner ? owner : this.defaultOwner
+                })) {
+                    if (item.dataHash === dataHash) {
+                        logWithId(
+                            channelId,
+                            owner ? owner : this.defaultOwner,
+                            `postToChannelIfNotExist - END: existed`
+                        );
+                        return;
+                    }
+                }
+
+                // Post if above for loop didn't find the item (if it did, it returned)
+                await this.postToChannel(channelId, data, owner);
+                logWithId(
+                    channelId,
+                    owner ? owner : this.defaultOwner,
+                    `postToChannelIfNotExist - END: posted`
+                );
+            });
+        } catch (e) {
+            logWithId(
+                channelId,
+                owner ? owner : null,
+                'postToChannelIfNotExist - FAIL: ' + e.toString()
+            );
+            throw e;
+        }
     }
 
     // ######## Get data from channels - Array based ########
@@ -752,7 +794,6 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
-
     // ######## Merge algorithm methods ########
 
     /**
@@ -761,9 +802,11 @@ export default class ChannelManager extends EventEmitter {
      * @returns {Promise<void>}
      */
     private async mergeAllUnmergedChannelVersions(): Promise<void> {
+        logWithId(null, null, 'mergeAllUnmergedChannelVersions - START');
         for (const hash of this.channelInfoCache.keys()) {
             await this.mergePendingVersions(hash);
         }
+        logWithId(null, null, 'mergeAllUnmergedChannelVersions - END');
     }
 
     /**
@@ -773,76 +816,111 @@ export default class ChannelManager extends EventEmitter {
      * @returns {Promise<void>}
      */
     private async mergePendingVersions(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
-        const updatedEntry = await serializeWithType(
-            `${this.cacheLockName}${channelIdHash}`,
-            async () => {
-                const cacheEntry = this.channelInfoCache.get(channelIdHash);
-                if (!cacheEntry) {
-                    throw new Error('The channelIdHash does not exist in registry.');
-                }
-
-                // Find the versions to merge
-                const versionMapEntries = await getAllVersionMapEntries(channelIdHash);
-                const channelInfoHashes = versionMapEntries
-                    .slice(cacheEntry.latestMergedVersionIndex)
-                    .map(entry => entry.hash);
-                const channelInfos: ChannelInfo[] = await Promise.all(
-                    channelInfoHashes.map(getObject)
-                );
-
-                // If only one version is returned it means, that the mergeIndex is already at the last position
-                if (channelInfos.length <= 1) {
-                    return null;
-                }
-
-                // Construct the iterators from the channelInfo representing the different versions
-                const iterators = channelInfos.map(ChannelManager.singleChannelObjectIterator);
-
-                // Iterate over all channel versions simultaneously until
-                // 1) there is only a common history left
-                // 2) there is only one channel left with elements
-                let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
-                const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
-                for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
-                    commonHistoryHead = elem.channelEntryHash;
-                    unmergedElements.push(elem.creationTimeHash);
-                }
-                unmergedElements.pop(); // The last element is the common history head -> remove it
-
-                // Channels don't have elements or the old channel head is the new one, so the current version has already everything merged => return
-                if (!commonHistoryHead || unmergedElements.length === 0) {
-                    return null;
-                }
-
-                // Rebuild the channel by adding the different elements of the channels
-                // on top of the common history
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/rebuildChannel',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        channelId: channelInfos[0].id,
-                        channelOwner: channelInfos[0].owner,
-                        history: commonHistoryHead,
-                        newElementsReversed: unmergedElements
+        try {
+            logWithIdHash(channelIdHash, 'mergePendingVersions - START');
+            const updatedEntry = await serializeWithType(
+                `${this.cacheLockName}${channelIdHash}`,
+                async () => {
+                    const cacheEntry = this.channelInfoCache.get(channelIdHash);
+                    if (!cacheEntry) {
+                        throw new Error('The channelIdHash does not exist in registry.');
                     }
-                );
 
-                // Mark the versions as merged and write it to the instance
-                this.channelInfoCache.set(channelIdHash, {
-                    latestMergedVersionIndex: versionMapEntries.length - 1,
-                    latestMergedVersion: channelInfos[channelInfos.length - 1]
-                });
-                await this.saveRegistryCacheToOne();
+                    // Find the versions to merge
+                    const versionMapEntries = await getAllVersionMapEntries(channelIdHash);
+                    const channelInfoHashes = versionMapEntries
+                        .slice(cacheEntry.latestMergedVersionIndex)
+                        .map(entry => entry.hash);
+                    const channelInfos: ChannelInfo[] = await Promise.all(
+                        channelInfoHashes.map(getObject)
+                    );
 
-                return channelInfos[0];
+                    logWithIdHash(
+                        channelIdHash,
+                        `mergePendingVersions: versions ${cacheEntry.latestMergedVersion} through ${versionMapEntries.length}`
+                    );
+
+                    // If only one version is returned it means, that the mergeIndex is already at the last position
+                    if (channelInfos.length <= 1) {
+                        logWithIdHash(
+                            channelIdHash,
+                            `mergePendingVersions - END: only ${channelInfos.length} versions`
+                        );
+                        return null;
+                    }
+
+                    // Construct the iterators from the channelInfo representing the different versions
+                    const iterators = channelInfos.map(ChannelManager.singleChannelObjectIterator);
+
+                    // Iterate over all channel versions simultaneously until
+                    // 1) there is only a common history left
+                    // 2) there is only one channel left with elements
+                    let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
+                    const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+                    for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                        iterators,
+                        true
+                    )) {
+                        commonHistoryHead = elem.channelEntryHash;
+                        unmergedElements.push(elem.creationTimeHash);
+                    }
+                    unmergedElements.pop(); // The last element is the common history head -> remove it
+
+                    logWithId(
+                        channelInfos[0].id,
+                        channelInfos[0].owner,
+                        `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead}`
+                    );
+
+                    // Channels don't have elements or the old channel head is the new one, so the current version has already everything merged => return
+                    if (!commonHistoryHead || unmergedElements.length === 0) {
+                        logWithId(
+                            channelInfos[0].id,
+                            channelInfos[0].owner,
+                            'mergePendingVersions - END: merge is unnecessary'
+                        );
+                        return null;
+                    }
+
+                    // Rebuild the channel by adding the different elements of the channels
+                    // on top of the common history
+                    await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/rebuildChannel',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        {
+                            channelId: channelInfos[0].id,
+                            channelOwner: channelInfos[0].owner,
+                            history: commonHistoryHead,
+                            newElementsReversed: unmergedElements
+                        }
+                    );
+
+                    // Mark the versions as merged and write it to the instance
+                    this.channelInfoCache.set(channelIdHash, {
+                        latestMergedVersionIndex: versionMapEntries.length - 1,
+                        latestMergedVersion: channelInfos[channelInfos.length - 1]
+                    });
+                    await this.saveRegistryCacheToOne();
+
+                    logWithId(
+                        channelInfos[0].id,
+                        channelInfos[0].owner,
+                        'mergePendingVersions - END: merge successful'
+                    );
+
+                    return channelInfos[0];
+                }
+            );
+
+            // If a channel was updated, emit the updated event
+            if (updatedEntry) {
+                this.emit('updated', updatedEntry.id, updatedEntry.owner);
             }
-        );
-
-        // If a channel was updated, emit the updated event
-        if (updatedEntry) {
-            this.emit('updated', updatedEntry.id, updatedEntry.owner);
+        } catch (e) {
+            logWithId(null, null, 'mergePendingVersions - FAIL: ' + e.toString());
+            throw e;
         }
     }
 
@@ -1065,13 +1143,16 @@ export default class ChannelManager extends EventEmitter {
      * @return {Promise<void>}
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
-        try {
-            if (isChannelInfoResult(caughtObject)) {
+        if (isChannelInfoResult(caughtObject)) {
+            try {
+                logWithIdHash(caughtObject.idHash, 'handleOnVersionedObj - START');
                 await this.addChannelIfNotExist(caughtObject.idHash);
                 await this.mergePendingVersions(caughtObject.idHash);
+                logWithIdHash(caughtObject.idHash, 'handleOnVersionedObj - END');
+            } catch (e) {
+                logWithIdHash(caughtObject.idHash, 'handleOnVersionedObj - FAIL: ' + e.toString());
+                console.error(e); // Introduce an error event later!
             }
-        } catch (e) {
-            console.error(e); // Introduce an error event later!
         }
     }
 
@@ -1082,17 +1163,26 @@ export default class ChannelManager extends EventEmitter {
      * @returns {Promise<void>}
      */
     private async addChannelIfNotExist(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
-        await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
-            if (!this.channelInfoCache.has(channelIdHash)) {
-                this.channelInfoCache.set(channelIdHash, {
-                    latestMergedVersionIndex: 0,
-                    latestMergedVersion: await getObject(
-                        await getNthVersionMapHash(channelIdHash, 0)
-                    )
-                });
-            }
-        });
-        await this.saveRegistryCacheToOne();
+        try {
+            await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
+                logWithIdHash(channelIdHash, 'addChannelIfNotExist - START');
+                if (!this.channelInfoCache.has(channelIdHash)) {
+                    this.channelInfoCache.set(channelIdHash, {
+                        latestMergedVersionIndex: 0,
+                        latestMergedVersion: await getObject(
+                            await getNthVersionMapHash(channelIdHash, 0)
+                        )
+                    });
+                    logWithIdHash(channelIdHash, 'addChannelIfNotExist - END: added');
+                } else {
+                    logWithIdHash(channelIdHash, 'addChannelIfNotExist - END: already existed');
+                }
+            });
+            await this.saveRegistryCacheToOne();
+        } catch (e) {
+            logWithIdHash(channelIdHash, 'addChannelIfNotExist - FAIL: ' + e.toString());
+            throw e;
+        }
     }
 
     // ######## One Channel registry read / write methods ########
@@ -1133,6 +1223,7 @@ export default class ChannelManager extends EventEmitter {
      * @returns {Promise<void>}
      */
     private async loadRegistryCacheFromOne(): Promise<void> {
+        logWithId(null, null, 'loadRegistryCacheFromOne - START');
         await serializeWithType(this.registryLockName, async () => {
             // If the cache is not empty, then something is wrong.
             // The current implementation only needs to populate it once - at init and there it should be empty.
@@ -1170,6 +1261,7 @@ export default class ChannelManager extends EventEmitter {
                 })
             );
         });
+        logWithId(null, null, 'loadRegistryCacheFromOne - END');
     }
 
     // ######## Access stuff ########
