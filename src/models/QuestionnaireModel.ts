@@ -179,13 +179,9 @@ export default class QuestionnaireModel extends EventEmitter {
             await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
         }
         // check if the status of the questionnaire is incomplete and the questionnaire it's not empty
-        else if (!data.isComplete && Object.keys(data.item).length > 0) {
+        else if (Object.keys(data.item).length > 0) {
             // Post the result to the one instance
-            await this.channelManager.postToChannelIfNotExist(
-                this.channelId,
-                convertToOne(data),
-                owner
-            );
+            await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
         }
     }
 
