@@ -206,12 +206,15 @@ export default class QuestionnaireModel extends EventEmitter {
             const hashOfQuestionnaireResponse = await calculateHashOfObj(convertToOne(data));
 
             // getting the object with the calculated hash
-            const storedQuestionnaireResponse = await this.getQuestionnaireById(
-                hashOfQuestionnaireResponse
-            );
+            let questionnaireResponseExists = true;
+            try {
+                await this.getQuestionnaireById(hashOfQuestionnaireResponse);
+            } catch (error) {
+                questionnaireResponseExists = false;
+            }
 
             // if a questionnaire response was not found then store the incoming incomplete questionnaire in ONE
-            if (!storedQuestionnaireResponse) {
+            if (!questionnaireResponseExists) {
                 // Post the result to the one instance
                 await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
             }
