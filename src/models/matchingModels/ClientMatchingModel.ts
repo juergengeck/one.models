@@ -485,7 +485,9 @@ export default class ClientMatchingModel extends MatchingModel {
 
                 if (existingMatches && !existingMatches.includes(matchResponseHash)) {
                     existingMatches.push(matchResponseHash);
-                } else {
+                }
+
+                if (!existingMatches) {
                     existingMatches = [matchResponseHash];
                 }
 
