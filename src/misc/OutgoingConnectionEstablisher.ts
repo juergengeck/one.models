@@ -23,6 +23,15 @@ class OutgoingConnectionEstablisher {
 
     private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
     private stopped: boolean = true;
+    /**
+     * Used only when calling the connectOnceSuccessfully function.
+     *
+     * When the stop function is called will stop trying to establish a
+     * connection and will reject the promise with a specific error.
+     *
+     * @type {((err: Error) => void) | null}
+     * @private
+     */
     private connectOnceSuccessfullyReject: ((err: Error) => void) | null = null;
 
     /**
@@ -136,6 +145,9 @@ class OutgoingConnectionEstablisher {
         return new Promise((resolve, reject) => {
             // If the connection is successful, stop the oce and return the connection
             this.onConnection = conn => {
+                // We need to remove the connectOnceSuccessfullyReject value before calling
+                // the stop function, because the connection is successful and no error should
+                // be thrown
                 this.connectOnceSuccessfullyReject = null;
                 this.stop();
                 resolve(conn);
@@ -143,6 +155,9 @@ class OutgoingConnectionEstablisher {
 
             // On timeout reject the promise
             const timeoutHandle = setTimeout(() => {
+                // The connectOnceSuccessfullyReject has to be set to null because the promise
+                // is rejected with a different error and the stop function should have no effect
+                // after this rejection
                 this.connectOnceSuccessfullyReject = null;
                 reject(new Error('Timeout reached'));
             }, successTimeout);
