@@ -6,6 +6,7 @@ import {
     SHA256IdHash
 } from '@OneCoreTypes';
 import {Questionnaire} from './QuestionTypes';
+import {calculateHashOfObj} from 'one.core/lib/util/object';
 
 /**
  * Type defines the data of a questionnaire response
@@ -148,6 +149,16 @@ export default class QuestionnaireModel extends EventEmitter {
 
     // #### Questionnaire response functions ####
 
+    validatesQuestionnaireIdentifier(questionnaireIdentifier: string): boolean {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaireIdentifier === questionnaire.identifier) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Create a new response for the Covid2 Patient questionnaire
      *
@@ -156,15 +167,7 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
         // Assert that the questionnaire with questionnaireId exists
-        let questionnaireExists = false;
-
-        for (const questionnaire of this.availableQuestionnaires) {
-            if (data.questionnaire === questionnaire.identifier) {
-                questionnaireExists = true;
-            }
-        }
-
-        if (!questionnaireExists) {
+        if (!this.validatesQuestionnaireIdentifier(data.questionnaire)) {
             throw Error(
                 'Posting questionnaire response failed: Questionnaire ' +
                     data.questionnaire +
@@ -176,6 +179,43 @@ export default class QuestionnaireModel extends EventEmitter {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
+    }
+
+    /**
+     * Create a new incomplete response for the Covid2 Patient questionnaire
+     *
+     * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
+     */
+    async postIncompleteResponse(
+        data: QuestionnaireResponse,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
+        // Assert that the questionnaire with questionnaireId exists
+        if (!this.validatesQuestionnaireIdentifier(data.questionnaire)) {
+            throw Error(
+                'Posting questionnaire response failed: Questionnaire ' +
+                    data.questionnaire +
+                    ' does not exist'
+            );
+        }
+
+        // check if the status of the questionnaire is incomplete and the questionnaire it's not empty
+        if (!data.isComplete && Object.keys(data.item).length > 0) {
+            // calculating the hash of the incoming object
+            const hashOfQuestionnaireResponse = await calculateHashOfObj(convertToOne(data));
+
+            // getting the object with the calculated hash
+            const storedQuestionnaireResponse = await this.getQuestionnaireById(
+                hashOfQuestionnaireResponse
+            );
+
+            // if a questionnaire response was not found then store the incoming incomplete questionnaire in ONE
+            if (!storedQuestionnaireResponse) {
+                // Post the result to the one instance
+                await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
+            }
+        }
     }
 
     /**
@@ -199,7 +239,9 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of responses.
      */
-    async responses(questionnaireManager: QuestionnaireManager): Promise<ObjectData<QuestionnaireResponse>[]> {
+    async responses(
+        questionnaireManager: QuestionnaireManager
+    ): Promise<ObjectData<QuestionnaireResponse>[]> {
         const objects: ObjectData<QuestionnaireResponse>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType(
             this.channelId,
@@ -209,16 +251,16 @@ export default class QuestionnaireModel extends EventEmitter {
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            if(questionnaireManager === QuestionnaireManager.ALL) {
+            if (questionnaireManager === QuestionnaireManager.ALL) {
                 objects.push({...restObjectData, data: convertFromOne(data)});
-            } else if(questionnaireManager === QuestionnaireManager.COMPLETED) {
+            } else if (questionnaireManager === QuestionnaireManager.COMPLETED) {
                 if (data.isComplete) {
                     objects.push({...restObjectData, data: convertFromOne(data)});
                 }
             }
         }
 
-        console.log("objects: ", objects);
+        console.log('objects: ', objects);
         return objects;
     }
 
