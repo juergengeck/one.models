@@ -90,7 +90,7 @@ export enum Order {
  * wil get one channel. If you specify two owners and two channelIds you get up to four channels (all combinations
  * of owner / channelId - if a corresponding channel exists)
  *
- * The other stuff is additive, so if you specify one 'channel' and one 'channelHash' you will get two entries.
+ * The other stuff is additive, so if you specify one 'channel' and one 'channelInfoHash' you will get two entries.
  *
  * If an element is missing, this means that all of them should be queried.
  */
@@ -105,10 +105,10 @@ export type ChannelSelectionOptions = {
     // Usually you don't need these. Only certain debug features use these or it is used internally
     id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
-    channelHash?: SHA256Hash<ChannelInfo>; // Query exactly this channel version
-    channelHashes?: SHA256Hash<ChannelInfo>[]; // Query exactly these channel versions
-    channelIdHash?: SHA256IdHash<ChannelInfo>; // Query this channel
-    channelIdHashes?: SHA256IdHash<ChannelInfo>[]; // Query these channels
+    channelInfoHash?: SHA256Hash<ChannelInfo>; // Query exactly this channel version
+    channelInfoHashes?: SHA256Hash<ChannelInfo>[]; // Query exactly these channel versions
+    channelInfoIdHash?: SHA256IdHash<ChannelInfo>; // Query this channel
+    channelInfoIdHashes?: SHA256IdHash<ChannelInfo>[]; // Query these channels
 };
 
 /**
@@ -352,16 +352,16 @@ export default class ChannelManager extends EventEmitter {
 
         // Post the data
         try {
-            const channelIdHash = await calculateIdHashOfObj({
+            const channelInfoIdHash = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: channelId,
                 owner: owner
             });
 
             let waitForMergePromise;
-            await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
+            await serializeWithType(`${this.cacheLockName}${channelInfoIdHash}`, async () => {
                 // Setup the merge handler
-                const cacheEntry = this.channelInfoCache.get(channelIdHash);
+                const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
                 if (!cacheEntry) {
                     throw new Error('This channel does not exist, you cannot post to it.');
                 }
@@ -645,9 +645,11 @@ export default class ChannelManager extends EventEmitter {
         const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
         await Promise.all(
             channels.map(async channel => {
-                const channelIdHash = await calculateIdHashOfObj(channel);
-                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
-                sharedWithPersonsMap.set(channelIdHash, sharedWithPersons);
+                const channelInfoIdHash = await calculateIdHashOfObj(channel);
+                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(
+                    channelInfoIdHash
+                );
+                sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
             })
         );
 
@@ -871,15 +873,17 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Merge all pending versions of passed channel.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelIdHash - id hash of the channel for which to merge versions
+     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash - id hash of the channel for which to merge versions
      * @returns {Promise<void>}
      */
-    private async mergePendingVersions(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
+    private async mergePendingVersions(
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>
+    ): Promise<void> {
         // Determine the channel id and owner
         let channelId: string;
         let channelOwner: SHA256IdHash<Person>;
         {
-            const channelInfo = await getObjectByIdHash(channelIdHash);
+            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
             channelId = channelInfo.obj.id;
             channelOwner = channelInfo.obj.owner;
         }
@@ -887,11 +891,11 @@ export default class ChannelManager extends EventEmitter {
         try {
             logWithId(channelId, channelOwner, 'mergePendingVersions - START');
 
-            await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
+            await serializeWithType(`${this.cacheLockName}${channelInfoIdHash}`, async () => {
                 // Load the cache entry for the latest merged version
-                const cacheEntry = this.channelInfoCache.get(channelIdHash);
+                const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
                 if (!cacheEntry) {
-                    throw new Error('The channelIdHash does not exist in registry.');
+                    throw new Error('The channelInfoIdHash does not exist in registry.');
                 }
 
                 // Determine which versions to merge and their channelInfos
@@ -911,7 +915,7 @@ export default class ChannelManager extends EventEmitter {
                     }
 
                     // Find the last version to merge based on the version map
-                    const versionMapEntries = await getAllVersionMapEntries(channelIdHash);
+                    const versionMapEntries = await getAllVersionMapEntries(channelInfoIdHash);
                     lastVersionToMerge = versionMapEntries.length - 1;
 
                     // Get all ChannelInfo versions in the merge range
@@ -1007,7 +1011,9 @@ export default class ChannelManager extends EventEmitter {
                         // Let's calculate the position of the generated version in the version map
                         let newVersionIndex = lastVersionToMerge;
                         {
-                            const versionMapEntries = await getAllVersionMapEntries(channelIdHash);
+                            const versionMapEntries = await getAllVersionMapEntries(
+                                channelInfoIdHash
+                            );
                             for (
                                 let i = lastVersionToMerge + 1;
                                 i < versionMapEntries.length;
@@ -1167,14 +1173,14 @@ export default class ChannelManager extends EventEmitter {
         if (options && options.id && options.ids) {
             throw new Error("You cannot specify 'id' and 'ids' at the same time in query options!");
         }
-        if (options && options.channelHash && options.channelHashes) {
+        if (options && options.channelInfoHash && options.channelInfoHashes) {
             throw new Error(
-                "You cannot specify 'channelHash' and 'channelHashes' at the same time in query options!"
+                "You cannot specify 'channelInfoHash' and 'channelInfoHashes' at the same time in query options!"
             );
         }
-        if (options && options.channelIdHash && options.channelIdHashes) {
+        if (options && options.channelInfoIdHash && options.channelInfoIdHashes) {
             throw new Error(
-                "You cannot specify 'channelHash' and 'channelHashes' at the same time in query options!"
+                "You cannot specify 'channelInfoHash' and 'channelInfoHashes' at the same time in query options!"
             );
         }
 
@@ -1216,22 +1222,22 @@ export default class ChannelManager extends EventEmitter {
             ids = options.ids;
         }
 
-        // Map options.channelHash(es) to a single variable
-        let channelHashes: SHA256Hash<ChannelInfo>[] | null = null;
-        if (options && options.channelHash) {
-            channelHashes = [options.channelHash];
+        // Map options.channelInfoHash(es) to a single variable
+        let channelInfoHashes: SHA256Hash<ChannelInfo>[] | null = null;
+        if (options && options.channelInfoHash) {
+            channelInfoHashes = [options.channelInfoHash];
         }
-        if (options && options.channelHashes) {
-            channelHashes = options.channelHashes;
+        if (options && options.channelInfoHashes) {
+            channelInfoHashes = options.channelInfoHashes;
         }
 
-        // Map options.channelIdHash(es) to a single variable
-        let channelIdHashes: SHA256IdHash<ChannelInfo>[] | null = null;
-        if (options && options.channelIdHash) {
-            channelIdHashes = [options.channelIdHash];
+        // Map options.channelInfoIdHash(es) to a single variable
+        let channelInfoIdHashes: SHA256IdHash<ChannelInfo>[] | null = null;
+        if (options && options.channelInfoIdHash) {
+            channelInfoIdHashes = [options.channelInfoIdHash];
         }
-        if (options && options.channelIdHashes) {
-            channelIdHashes = options.channelIdHashes;
+        if (options && options.channelInfoIdHashes) {
+            channelInfoIdHashes = options.channelInfoIdHashes;
         }
 
         // #### Get channel ids / infos from parameters ####
@@ -1273,15 +1279,17 @@ export default class ChannelManager extends EventEmitter {
 
         // Channel selection by explicit versions
         // Get the ChannelInfo objects from the instance and add them to the list.
-        if (channelHashes) {
+        if (channelInfoHashes) {
             selectedChannelInfos.push(
-                ...(await Promise.all(channelHashes.map(channelHash => getObject(channelHash))))
+                ...(await Promise.all(
+                    channelInfoHashes.map(channelInfoHash => getObject(channelInfoHash))
+                ))
             );
         }
 
         // Channel selection by the id hash
-        if (channelIdHashes) {
-            selectedChannelIdHashes.push(...channelIdHashes);
+        if (channelInfoIdHashes) {
+            selectedChannelIdHashes.push(...channelInfoIdHashes);
         }
 
         // Channel selection by specific object id
@@ -1292,7 +1300,14 @@ export default class ChannelManager extends EventEmitter {
         }
 
         // If no selection was done, then return all of them
-        if (!channelIds && !owners && !channels && !channelHashes && !channelIdHashes && !ids) {
+        if (
+            !channelIds &&
+            !owners &&
+            !channels &&
+            !channelInfoHashes &&
+            !channelInfoIdHashes &&
+            !ids
+        ) {
             for (const channelInfo of this.channelInfoCache.values()) {
                 selectedChannelInfos.push(channelInfo.readVersion);
             }
@@ -1302,10 +1317,10 @@ export default class ChannelManager extends EventEmitter {
 
         // For the selection methods that just returned channel ids we need to get the latest merged versions
         if (selectedChannelIdHashes) {
-            for (const channelIdHash of selectedChannelIdHashes) {
-                const channelInfo = this.channelInfoCache.get(channelIdHash);
+            for (const channelInfoIdHash of selectedChannelIdHashes) {
+                const channelInfo = this.channelInfoCache.get(channelInfoIdHash);
                 if (!channelInfo) {
-                    throw new Error(`Channel ${channelIdHash} does not exist!`);
+                    throw new Error(`Channel ${channelInfoIdHash} does not exist!`);
                 }
                 selectedChannelInfos.push(channelInfo.readVersion);
             }
@@ -1365,25 +1380,29 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Add the passed channel to the cache & registry if it is not there, yet.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelIdHash - the channel to add to the registry
+     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash - the channel to add to the registry
      * @returns {Promise<void>}
      */
-    private async addChannelIfNotExist(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
+    private async addChannelIfNotExist(
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>
+    ): Promise<void> {
         // Determine the channel id and owner
         let channelId: string;
         let channelOwner: SHA256IdHash<Person>;
         {
-            const channelInfo = await getObjectByIdHash(channelIdHash);
+            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
             channelId = channelInfo.obj.id;
             channelOwner = channelInfo.obj.owner;
         }
 
         try {
-            await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
+            await serializeWithType(`${this.cacheLockName}${channelInfoIdHash}`, async () => {
                 logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
-                if (!this.channelInfoCache.has(channelIdHash)) {
-                    this.channelInfoCache.set(channelIdHash, {
-                        readVersion: await getObject(await getNthVersionMapHash(channelIdHash, 0)),
+                if (!this.channelInfoCache.has(channelInfoIdHash)) {
+                    this.channelInfoCache.set(channelInfoIdHash, {
+                        readVersion: await getObject(
+                            await getNthVersionMapHash(channelInfoIdHash, 0)
+                        ),
                         readVersionIndex: 0,
                         latestMergedVersionIndex: 0,
                         mergedHandlers: []
@@ -1416,7 +1435,7 @@ export default class ChannelManager extends EventEmitter {
             const channels: ChannelRegistryEntry[] = [];
             for (const [idHash, cacheEntry] of this.channelInfoCache) {
                 channels.push({
-                    channelId: idHash,
+                    channelInfoIdHash: idHash,
                     readVersionIndex: cacheEntry.readVersionIndex,
                     mergedVersionIndex: cacheEntry.latestMergedVersionIndex
                 });
@@ -1471,10 +1490,10 @@ export default class ChannelManager extends EventEmitter {
             await Promise.all(
                 registry.channels.map(async channel => {
                     const channelInfoHash = await getNthVersionMapHash(
-                        channel.channelId,
+                        channel.channelInfoIdHash,
                         channel.readVersionIndex
                     );
-                    this.channelInfoCache.set(channel.channelId, {
+                    this.channelInfoCache.set(channel.channelInfoIdHash, {
                         readVersion: await getObject(channelInfoHash),
                         readVersionIndex: channel.readVersionIndex,
                         latestMergedVersionIndex: channel.mergedVersionIndex,

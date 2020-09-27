@@ -30,9 +30,9 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelRegistryEntry {
-        channelId: SHA256IdHash<ChannelInfo>;   // The channel info object of the channel
-        readVersionIndex: number;               // Index of the merged version suitable for reading
-        mergedVersionIndex: number;             // Index in the version map that was merged (higher ones are unmerged)
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>;   // The channel info object of the channel
+        readVersionIndex: number;                   // Index of the merged version suitable for reading
+        mergedVersionIndex: number;                 // Index in the version map that was merged (higher ones are unmerged)
     }
 
     export interface ChannelRegistry {
@@ -94,7 +94,7 @@ export const ChannelRegistryRecipe: Recipe = {
             list: ORDERED_BY.ONE,
             rule: [
                 {
-                    itemprop: 'channelId',
+                    itemprop: 'channelInfoIdHash',
                     referenceToId: new Set(['ChannelInfo']),
                 },
                 {
