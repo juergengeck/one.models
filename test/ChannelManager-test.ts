@@ -2,30 +2,35 @@ import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
 import {dbKey, importModules} from './utils/Model';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import {AccessModel, ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {Person, SHA256IdHash, BodyTemperature} from '@OneCoreTypes';
+import {BodyTemperature} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
-import * as Logger from 'one.core/lib/logger';
-import {createMessageBus} from "one.core/lib/message-bus";
+import {createMessageBus} from 'one.core/lib/message-bus';
 
 const accessModel = new AccessModel();
 const channelManager = new ChannelManager(accessModel);
-//let owner: SHA256IdHash<Person>;
 
+// ######## SPECIALLY FORMATTED LOGGING ########
+const enableLogging = false;
 
-const MessageBus = createMessageBus('dummy');
-/*Logger.start({
-    types: ['ChannelManager:log', 'ChannelManager:debug']
-});*/
+let indentationMap = new Map<string, number>(); // Map that stores indention levels based on channels
 
-let indentationMap = new Map<string, number>();
-
+/**
+ * Formats the log message in a special way:
+ * splits the message at # and
+ * - colors the channel id (first value) yellow (log) or green(debug)
+ * - colors the channel owner (second value) blue
+ * - indents the third value based on START / END string
+ *
+ * @param {string} message
+ * @param {number} color
+ * @returns {string[]}
+ */
 function format(message: string, color: number): string[] {
     const m = message as string;
     const mArr = m.split('#');
-    if(m.length >= 3) {
+    if (m.length >= 3) {
         const mid = mArr[0];
         if (!indentationMap.has(mid)) {
             indentationMap.set(mid, 0);
@@ -51,18 +56,22 @@ function format(message: string, color: number): string[] {
     return mArr;
 }
 
-MessageBus.on('ChannelManager:log', (src: string, message: unknown) => {
-    const m = format(message as string, 33);
-    console.log(...m);
-});
-MessageBus.on('ChannelManager:debug', (src: string, message: unknown) => {
-    const m = format(message as string, 32);
-    console.log(...m);
-});
+const MessageBus = createMessageBus('dummy');
+if (enableLogging) {
+    MessageBus.on('ChannelManager:log', (src: string, message: unknown) => {
+        const m = format(message as string, 33);
+        console.log(...m);
+    });
+    MessageBus.on('ChannelManager:debug', (src: string, message: unknown) => {
+        const m = format(message as string, 32);
+        console.log(...m);
+    });
+}
+
+// ######## SPECIALLY FORMATTED LOGGING - END ########
 
 describe('Channel Iterators test', () => {
     before(async () => {
-        console.log('INIT!');
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
@@ -83,41 +92,33 @@ describe('Channel Iterators test', () => {
     it('should create channels and init channelManager', async () => {
         await channelManager.init();
         await channelManager.createChannel('first');
-        /*await channelManager.createChannel('second');
+        await channelManager.createChannel('second');
         await channelManager.createChannel('third');
-        await channelManager.createChannel('fourth');*/
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('#######################');
-    }).timeout(5000);
+        await channelManager.createChannel('fourth');
+    });
 
     it('should get zero objects by iterator', async () => {
         expect((await channelManager.objectIterator().next()).done).to.be.true;
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('#######################');
-    }).timeout(5000);
+    });
 
     it('should get zero objects by getObjects', async () => {
         expect((await channelManager.getObjects()).length).to.be.equal(0);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('#######################');
     }).timeout(5000);
 
     it('should add data to created channels', async () => {
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 1});
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('x#######################');
-/*        await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 2});
+        await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 2});
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 3});
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 4});
-        await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});*/
+        await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 6});
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('x#######################');
-    }).timeout(20000);
+        //await new Promise(resolve => setTimeout(resolve, 1000));
+    });
 
-    /*
     it('should get objects with iterator', async () => {
-        async function arrayFromAsync(iter: AsyncIterable<ObjectData<BodyTemperature>>): Promise<ObjectData<BodyTemperature>[]> {
+        async function arrayFromAsync(
+            iter: AsyncIterable<ObjectData<BodyTemperature>>
+        ): Promise<ObjectData<BodyTemperature>[]> {
             const arr = [];
             for await (const elem of iter) {
                 arr.push(elem);
@@ -126,43 +127,53 @@ describe('Channel Iterators test', () => {
         }
 
         // Check all values
-        const allValues = await arrayFromAsync(channelManager.objectIteratorWithType('BodyTemperature'));
-        expect(allValues.map(e => e.data.temperature)).to.be.equal([6, 5, 4, 3, 2, 1]);
+        const allValues = await arrayFromAsync(
+            channelManager.objectIteratorWithType('BodyTemperature')
+        );
+        expect(allValues.map(e => e.data.temperature)).to.be.eql([6, 5, 4, 3, 2, 1]);
 
         // Check first channel
-        const firstValues = await arrayFromAsync(channelManager.objectIteratorWithType('BodyTemperature', {
-            channelId: 'first'
-        }));
-        expect(firstValues.map(e => e.data.temperature)).to.be.equal([6, 1]);
+        const firstValues = await arrayFromAsync(
+            channelManager.objectIteratorWithType('BodyTemperature', {
+                channelId: 'first'
+            })
+        );
+        expect(firstValues.map(e => e.data.temperature)).to.be.eql([6, 1]);
 
         // Check second channel
-        const secondValues = await arrayFromAsync(channelManager.objectIteratorWithType('BodyTemperature', {
-            channelId: 'second'
-        }));
-        expect(secondValues.map(e => e.data.temperature)).to.be.equal([5, 2]);
+        const secondValues = await arrayFromAsync(
+            channelManager.objectIteratorWithType('BodyTemperature', {
+                channelId: 'second'
+            })
+        );
+        expect(secondValues.map(e => e.data.temperature)).to.be.eql([5, 2]);
 
         // Check third channel
-        const thirdValues = await arrayFromAsync(channelManager.objectIteratorWithType('BodyTemperature', {
-            channelId: 'third'
-        }));
-        expect(thirdValues.map(e => e.data.temperature)).to.be.equal([3, 4]);
+        const thirdValues = await arrayFromAsync(
+            channelManager.objectIteratorWithType('BodyTemperature', {
+                channelId: 'third'
+            })
+        );
+        expect(thirdValues.map(e => e.data.temperature)).to.be.eql([4, 3]);
 
         // Check fourth channel
-        const fourthValues = await arrayFromAsync(channelManager.objectIteratorWithType('BodyTemperature', {
-            channelId: 'fourth'
-        }));
-        expect(fourthValues.map(e => e.data.temperature)).to.be.equal([]);
-    });*/
+        const fourthValues = await arrayFromAsync(
+            channelManager.objectIteratorWithType('BodyTemperature', {
+                channelId: 'fourth'
+            })
+        );
+        expect(fourthValues.map(e => e.data.temperature)).to.be.eql([]);
+    });
 
     it('should get objects', async () => {
         // Check all values
         const allValuesAsc = await channelManager.getObjectsWithType('BodyTemperature');
-        /*const allValuesDes = await channelManager.getObjectsWithType('BodyTemperature', {
+        const allValuesDes = await channelManager.getObjectsWithType('BodyTemperature', {
             orderBy: Order.Descending
-        });*/
-        expect(allValuesAsc.map(e => e.data.temperature)).to.be.equal([1, 2, 3, 4, 5, 6]);
-        //expect(allValuesDes.map(e => e.data.temperature)).to.be.equal([6, 5, 4, 3, 2, 1]);
-/*
+        });
+        expect(allValuesAsc.map(e => e.data.temperature)).to.be.eql([1, 2, 3, 4, 5, 6]);
+        expect(allValuesDes.map(e => e.data.temperature)).to.be.eql([6, 5, 4, 3, 2, 1]);
+
         // Check first channel
         const firstValuesAsc = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
@@ -171,8 +182,8 @@ describe('Channel Iterators test', () => {
             channelId: 'first',
             orderBy: Order.Descending
         });
-        expect(firstValuesAsc.map(e => e.data.temperature)).to.be.equal([1, 6]);
-        expect(firstValuesDes.map(e => e.data.temperature)).to.be.equal([6, 1]);
+        expect(firstValuesAsc.map(e => e.data.temperature)).to.be.eql([1, 6]);
+        expect(firstValuesDes.map(e => e.data.temperature)).to.be.eql([6, 1]);
 
         // Check second channel
         const secondValuesAsc = await channelManager.getObjectsWithType('BodyTemperature', {
@@ -182,8 +193,8 @@ describe('Channel Iterators test', () => {
             channelId: 'second',
             orderBy: Order.Descending
         });
-        expect(secondValuesAsc.map(e => e.data.temperature)).to.be.equal([2, 5]);
-        expect(secondValuesDes.map(e => e.data.temperature)).to.be.equal([5, 2]);
+        expect(secondValuesAsc.map(e => e.data.temperature)).to.be.eql([2, 5]);
+        expect(secondValuesDes.map(e => e.data.temperature)).to.be.eql([5, 2]);
 
         // Check third channel
         const thirdValuesAsc = await channelManager.getObjectsWithType('BodyTemperature', {
@@ -193,8 +204,8 @@ describe('Channel Iterators test', () => {
             channelId: 'third',
             orderBy: Order.Descending
         });
-        expect(thirdValuesAsc.map(e => e.data.temperature)).to.be.equal([4, 3]);
-        expect(thirdValuesDes.map(e => e.data.temperature)).to.be.equal([3, 4]);
+        expect(thirdValuesAsc.map(e => e.data.temperature)).to.be.eql([3, 4]);
+        expect(thirdValuesDes.map(e => e.data.temperature)).to.be.eql([4, 3]);
 
         // Check fourth channel
         const fourthValuesAsc = await channelManager.getObjectsWithType('BodyTemperature', {
@@ -204,13 +215,12 @@ describe('Channel Iterators test', () => {
             channelId: 'fourth',
             orderBy: Order.Descending
         });
-        expect(fourthValuesAsc.map(e => e.data.temperature)).to.be.equal([]);
-        expect(fourthValuesDes.map(e => e.data.temperature)).to.be.equal([]);*/
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('#######################');
-    }).timeout(5000);
+        expect(fourthValuesAsc.map(e => e.data.temperature)).to.be.eql([]);
+        expect(fourthValuesDes.map(e => e.data.temperature)).to.be.eql([]);
+    });
 
     after(async () => {
+        // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));
         closeInstance();
         await StorageTestInit.deleteTestDB();

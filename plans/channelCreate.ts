@@ -36,6 +36,7 @@ export async function createObjects(
     channelId: string,
     channelOwner: SHA256IdHash<Person>
 ): Promise<VersionedObjectResult<ChannelInfo>> {
+
     // Update the head of the ChannelInfo entry
     const channelInfoResult = await WriteStorage.storeVersionedObject({
         $type$: 'ChannelInfo',
