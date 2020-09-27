@@ -1,10 +1,10 @@
-import WbcDiffModel, {WbcDiffMeasurement} from './WbcDiffModel';
+import WbcDiffModel from './WbcDiffModel';
 import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
-import HeartEventModel, {HeartEvent} from './HeartEventModel';
-import DocumentModel, {DocumentInfo} from './DocumentModel';
+import HeartEventModel from './HeartEventModel';
+import DocumentModel from './DocumentModel';
 import DiaryModel, {DiaryEntry} from './DiaryModel';
-import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
+import BodyTemperatureModel from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import ConsentFileModel, {ConsentFile} from './ConsentFileModel';
 
@@ -21,12 +21,12 @@ export enum EventType {
 export type EventListEntry = {
     type: EventType;
     data:
-        | WbcDiffMeasurement
+        //| WbcDiffMeasurement
         | ObjectData<QuestionnaireResponse>
-        | HeartEvent
-        | DocumentInfo
+        //| HeartEvent
+        //| DocumentInfo
         | ObjectData<DiaryEntry>
-        | BodyTemperature
+        //| BodyTemperature
         | ObjectData<ConsentFile>;
 };
 
@@ -41,12 +41,12 @@ export default class JournalModel extends EventEmitter {
         consentFileModel: ConsentFileModel
     ) {
         super();
-        this.wbcDiffModel = wbcDiffModel;
+        //this.wbcDiffModel = wbcDiffModel;
         this.questionnaireModel = questionnaireModel;
-        this.heartEventModel = heartEventModel;
-        this.documentModel = documentModel;
+        //this.heartEventModel = heartEventModel;
+        //this.documentModel = documentModel;
         this.diaryModel = diaryModel;
-        this.bodyTemperatureModel = bodyTemperatureModel;
+        //this.bodyTemperatureModel = bodyTemperatureModel;
         this.consentFileModel = consentFileModel;
 
         // Connect events
@@ -80,43 +80,43 @@ export default class JournalModel extends EventEmitter {
      */
     async events(): Promise<EventListEntry[]> {
         const diaryEntries = await this.diaryModel.entries();
-        const measurements = await this.wbcDiffModel.measurements();
+//        const measurements = await this.wbcDiffModel.measurements();
         const qresponses = await this.questionnaireModel.responses();
-        const heartEvents = await this.heartEventModel.heartEvents();
-        const documents = await this.documentModel.documents();
-        const temperatures = await this.bodyTemperatureModel.getBodyTemperatures();
+//        const heartEvents = await this.heartEventModel.heartEvents();
+//        const documents = await this.documentModel.documents();
+//        const temperatures = await this.bodyTemperatureModel.getBodyTemperatures();
         const consentFiles = await this.consentFileModel.entries();
         const eventList: EventListEntry[] = [];
 
-        let measurementsIndex = 0;
+        //let measurementsIndex = 0;
         let qresponsesIndex = 0;
-        let heartEventsIndex = 0;
-        let documentsIndex = 0;
+        //let heartEventsIndex = 0;
+        //let documentsIndex = 0;
         let diaryEntriesIndex = 0;
-        let temperatureIndex = 0;
+        //let temperatureIndex = 0;
         let consentFileIndex = 0;
 
         for (
             let i = 0;
             i <
-            measurements.length +
+//            measurements.length +
                 qresponses.length +
-                heartEvents.length +
-                documents.length +
+//                heartEvents.length +
+//                documents.length +
                 diaryEntries.length +
-                temperatures.length +
+//                temperatures.length +
                 consentFiles.length;
             ++i
         ) {
             const compareElements = [];
 
             // Load the remaining latest elements from all lists
-            if (measurementsIndex < measurements.length) {
+            /*if (measurementsIndex < measurements.length) {
                 compareElements.push({
                     type: EventType.WbcDiffMeasurement,
                     data: measurements[measurementsIndex]
                 });
-            }
+            }*/
 
             if (qresponsesIndex < qresponses.length) {
                 compareElements.push({
@@ -125,19 +125,19 @@ export default class JournalModel extends EventEmitter {
                 });
             }
 
-            if (heartEventsIndex < heartEvents.length) {
+            /*if (heartEventsIndex < heartEvents.length) {
                 compareElements.push({
                     type: EventType.HeartEvent,
                     data: heartEvents[heartEventsIndex]
                 });
-            }
+            }*/
 
-            if (documentsIndex < documents.length) {
+            /*if (documentsIndex < documents.length) {
                 compareElements.push({
                     type: EventType.DocumentInfo,
                     data: documents[documentsIndex]
                 });
-            }
+            }*/
 
             if (diaryEntriesIndex < diaryEntries.length) {
                 compareElements.push({
@@ -146,12 +146,12 @@ export default class JournalModel extends EventEmitter {
                 });
             }
 
-            if (temperatureIndex < temperatures.length) {
+            /*if (temperatureIndex < temperatures.length) {
                 compareElements.push({
                     type: EventType.BodyTemperature,
                     data: temperatures[temperatureIndex]
                 });
-            }
+            }*/
 
             if (consentFileIndex < consentFiles.length) {
                 compareElements.push({
@@ -184,19 +184,19 @@ export default class JournalModel extends EventEmitter {
                     ++diaryEntriesIndex;
                     break;
                 case EventType.WbcDiffMeasurement:
-                    ++measurementsIndex;
+                    //++measurementsIndex;
                     break;
                 case EventType.QuestionnaireResponse:
                     ++qresponsesIndex;
                     break;
                 case EventType.HeartEvent:
-                    ++heartEventsIndex;
+                    //++heartEventsIndex;
                     break;
                 case EventType.DocumentInfo:
-                    ++documentsIndex;
+                    //++documentsIndex;
                     break;
                 case EventType.BodyTemperature:
-                    ++temperatureIndex;
+                    //++temperatureIndex;
                     break;
                 case EventType.ConsentFileEvent:
                     ++consentFileIndex;
@@ -212,11 +212,11 @@ export default class JournalModel extends EventEmitter {
         return eventList;
     }
 
-    wbcDiffModel: WbcDiffModel;
+    //wbcDiffModel: WbcDiffModel;
     questionnaireModel: QuestionnaireModel;
-    heartEventModel: HeartEventModel;
-    documentModel: DocumentModel;
+    //heartEventModel: HeartEventModel;
+    //documentModel: DocumentModel;
     diaryModel: DiaryModel;
-    bodyTemperatureModel: BodyTemperatureModel;
+    //bodyTemperatureModel: BodyTemperatureModel;
     consentFileModel: ConsentFileModel;
 }
