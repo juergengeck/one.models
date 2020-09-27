@@ -73,7 +73,9 @@ export default class SliderModel extends EventEmitter {
     async sliders(): Promise<SliderInterfaceUI[]> {
         const sliders: SliderInterfaceUI[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(this.channelId, 'Slider');
+        const oneObjects = await this.channelManager.getObjectsWithType('Slider', {
+            channelId: this.channelId
+        });
 
         const lastSlider = oneObjects[oneObjects.length - 1];
 

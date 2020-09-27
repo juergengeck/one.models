@@ -294,7 +294,6 @@ export default class ChannelManager extends EventEmitter {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, this.defaultOwner, `createChannel - END: Existed`);
         } catch (ignore) {
-
             // Create a new one if getting it failed
             await createSingleObjectThroughPurePlan(
                 {module: '@module/channelCreate'},
@@ -353,7 +352,6 @@ export default class ChannelManager extends EventEmitter {
 
         // Post the data
         try {
-
             const channelIdHash = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: channelId,
@@ -362,7 +360,6 @@ export default class ChannelManager extends EventEmitter {
 
             let waitForMergePromise;
             await serializeWithType(`${this.cacheLockName}${channelIdHash}`, async () => {
-
                 // Setup the merge handler
                 const cacheEntry = this.channelInfoCache.get(channelIdHash);
                 if (!cacheEntry) {
@@ -390,7 +387,7 @@ export default class ChannelManager extends EventEmitter {
             });
 
             // Wait until the merge has completed before we resolve the promise
-            if(waitForMergePromise) {
+            if (waitForMergePromise) {
                 await waitForMergePromise;
             }
         } catch (e) {
@@ -528,19 +525,14 @@ export default class ChannelManager extends EventEmitter {
      * The other option would be to use the hash of the indexed metadata as id, then
      * we don't have the reverse map problem.
      *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {string} id - id of the object to extract, usually this is a hash of the
-     *                      object itself or a related object.
-     * @param {T}      type - Type of objects to retrieve. If type does not match an
+     * @param {string} id - id of the object to extract
+     * @param {T} type - Type of objects to retrieve. If type does not match an
      *                        error is thrown.
-     * @param {QueryOptions} queryOptions
-     *
+     * @returns {Promise<ObjectData<OneUnversionedObjectInterfaces[T]>>}
      */
     public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
-        channelId: string,
         id: string,
-        type: T,
-        queryOptions?: QueryOptions
+        type: T
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
@@ -1032,9 +1024,9 @@ export default class ChannelManager extends EventEmitter {
                         // the newly generated version
                         if (newVersionIndex == lastVersionToMerge + 1) {
                             // We have no intermediate version, so set the merge and read pointer to this version
-                            cacheEntry.readVersion =  newVersion.obj;
-                            cacheEntry.readVersionIndex =  newVersionIndex;
-                            cacheEntry.latestMergedVersionIndex =  newVersionIndex;
+                            cacheEntry.readVersion = newVersion.obj;
+                            cacheEntry.readVersionIndex = newVersionIndex;
+                            cacheEntry.latestMergedVersionIndex = newVersionIndex;
 
                             logWithId(
                                 channelId,
@@ -1043,9 +1035,9 @@ export default class ChannelManager extends EventEmitter {
                             );
                         } else {
                             // We have an intermediate version, so set the read pointer ahead of the merge pointer
-                            cacheEntry.readVersion =  newVersion.obj;
-                            cacheEntry.readVersionIndex =  newVersionIndex;
-                            cacheEntry.latestMergedVersionIndex =  lastVersionToMerge;
+                            cacheEntry.readVersion = newVersion.obj;
+                            cacheEntry.readVersionIndex = newVersionIndex;
+                            cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
 
                             logWithId(
                                 channelId,
@@ -1056,9 +1048,10 @@ export default class ChannelManager extends EventEmitter {
                     } else {
                         // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
                         // state that the merge algorithm wants to create.
-                        cacheEntry.readVersion =  channelInfosToMerge[channelInfosToMerge.length - 1];
-                        cacheEntry.readVersionIndex =  lastVersionToMerge;
-                        cacheEntry.latestMergedVersionIndex =  lastVersionToMerge;
+                        cacheEntry.readVersion =
+                            channelInfosToMerge[channelInfosToMerge.length - 1];
+                        cacheEntry.readVersionIndex = lastVersionToMerge;
+                        cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
 
                         logWithId(
                             channelId,
@@ -1070,9 +1063,9 @@ export default class ChannelManager extends EventEmitter {
                     // We have no entries in any of the channels, this  means that all versions
                     // are empty and the merge result is also empty, so setting the merge and read
                     // pointer to lastVersionToMerge is ok
-                    cacheEntry.readVersion =  channelInfosToMerge[channelInfosToMerge.length - 1];
-                    cacheEntry.readVersionIndex =  lastVersionToMerge;
-                    cacheEntry.latestMergedVersionIndex =  lastVersionToMerge;
+                    cacheEntry.readVersion = channelInfosToMerge[channelInfosToMerge.length - 1];
+                    cacheEntry.readVersionIndex = lastVersionToMerge;
+                    cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
 
                     logWithId(
                         channelId,
@@ -1084,7 +1077,7 @@ export default class ChannelManager extends EventEmitter {
                 await this.saveRegistryCacheToOne();
 
                 // notify the post calls, that their version was merged
-                for(const handler of cacheEntry.mergedHandlers) {
+                for (const handler of cacheEntry.mergedHandlers) {
                     handler();
                 }
                 cacheEntry.mergedHandlers = [];
@@ -1322,7 +1315,11 @@ export default class ChannelManager extends EventEmitter {
         // the unification works based on the addresses of the ChannelInfo instance in the cache.
         const uniqueSelection = Array.from(new Set(selectedChannelInfos));
 
-        logWithId(null, null, `getMatchingChannelInfos - End: selected ${uniqueSelection.length} channels/versions`);
+        logWithId(
+            null,
+            null,
+            `getMatchingChannelInfos - End: selected ${uniqueSelection.length} channels/versions`
+        );
         return uniqueSelection;
     }
 

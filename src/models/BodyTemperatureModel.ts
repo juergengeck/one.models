@@ -52,13 +52,12 @@ export default class BodyTemperatureModel extends EventEmitter {
 
     async getBodyTemperatures(): Promise<BodyTemperature[]> {
         const objects: BodyTemperature[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'BodyTemperature'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('BodyTemperature', {
+            channelId: this.channelId
+        });
 
         for (const obj of oneObjects) {
-            objects.push({temperature: obj.data.temperature, date: new Date(obj.date)});
+            objects.push({temperature: obj.data.temperature, date: new Date(obj.creationTime)});
         }
 
         return objects;
