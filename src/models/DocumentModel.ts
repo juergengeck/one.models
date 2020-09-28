@@ -5,7 +5,7 @@ import {SHA256Hash} from '@OneCoreTypes';
  * This represents a document but not the content,
  */
 export type DocumentInfo = {
-    date: Date;
+    creationTime: Date;
     hash: SHA256Hash; // This is the hash of the files object
 };
 
@@ -35,7 +35,7 @@ export default class DocumentModel extends EventEmitter {
     /** Get a list of responses. */
     async documents(): Promise<DocumentInfo[]> {
         return [...this.documentList].sort((a, b) => {
-            return b.date.getTime() - a.date.getTime();
+            return b.creationTime.getTime() - a.creationTime.getTime();
         });
     }
 

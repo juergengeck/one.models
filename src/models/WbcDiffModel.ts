@@ -13,7 +13,7 @@ import EventEmitter from 'events';
  *      keep them as-is from start to end.
  */
 export type WbcDiffMeasurement = {
-    date: Date;
+    creationTime: Date;
     wbcCount: string;
     wbcCountUnit: string;
     neuCount?: string;
@@ -163,7 +163,7 @@ export default class WbcDiffModel extends EventEmitter {
     /** Get a list of responses. */
     async measurements(): Promise<WbcDiffMeasurement[]> {
         return [...this.measurementList].sort((a, b) => {
-            return b.date.getTime() - a.date.getTime();
+            return b.creationTime.getTime() - a.creationTime.getTime();
         });
     }
 
