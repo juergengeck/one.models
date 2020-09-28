@@ -314,7 +314,7 @@ export default class OneInstanceModel extends EventEmitter {
 
             await importModules();
         }
-        this.initialisingApplication();
+        await this.initialisingApplication();
     }
 
     /**
