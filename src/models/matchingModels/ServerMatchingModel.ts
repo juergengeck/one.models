@@ -188,15 +188,16 @@ export default class ServerMatchingModel extends MatchingModel {
 
         const allDestinationClients = destinationMap.get(object.match);
         const allSourceClients = sourceMap.get(object.match);
+
         if (allDestinationClients && allSourceClients) {
-            allSourceClients.forEach((sourceObj: Supply | Demand) => {
-                allDestinationClients.forEach(async (destinationObj: Supply | Demand) => {
-                    if (sourceObj.isActive && destinationObj.isActive) {
-                        await this.sendMatchResponse(sourceObj, destinationObj);
-                        await this.sendMatchResponse(destinationObj, sourceObj);
-                    }
-                });
-            });
+            const latestSourceTimestamp = allSourceClients[allSourceClients.length - 1];
+            const latestDestinationTimestamp =
+                allDestinationClients[allDestinationClients.length - 1];
+
+            if (latestSourceTimestamp.isActive && latestDestinationTimestamp.isActive) {
+                await this.sendMatchResponse(latestSourceTimestamp, latestDestinationTimestamp);
+                await this.sendMatchResponse(latestDestinationTimestamp, latestSourceTimestamp);
+            }
         }
     }
 
