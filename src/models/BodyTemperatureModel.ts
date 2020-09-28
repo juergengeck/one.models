@@ -7,7 +7,7 @@ import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
  * This represents the model of a body temperature measurement
  */
 export type BodyTemperature = {
-    date: Date;
+    creationTime: Date;
     temperature: number;
 };
 
@@ -57,7 +57,7 @@ export default class BodyTemperatureModel extends EventEmitter {
         });
 
         for (const obj of oneObjects) {
-            objects.push({temperature: obj.data.temperature, date: new Date(obj.creationTime)});
+            objects.push({temperature: obj.data.temperature, creationTime: obj.creationTime});
         }
 
         return objects;
