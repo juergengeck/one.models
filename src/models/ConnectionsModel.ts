@@ -896,7 +896,7 @@ class ConnectionsModel extends EventEmitter {
         this.oneTimeAuthenticationTokens.delete(authToken.token);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit('one_time_auth_success', authToken.token);
+        this.emit('one_time_auth_success', authToken.token, true, localPersonId, remotePersonInfo.personId);
 
         // Step 4: Start the chum
         await this.startChum(
@@ -952,6 +952,9 @@ class ConnectionsModel extends EventEmitter {
             command: 'person_object',
             obj: localPersonObj
         });
+
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authenticationToken, false, localPersonId, personInfo.personId);
 
         // Step 4: Start the chum
         await this.startChum(
@@ -1040,7 +1043,7 @@ class ConnectionsModel extends EventEmitter {
         this.pkOneTimeAuthenticationTokens.delete(authToken.token);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit('one_time_auth_success', authToken.token);
+        this.emit('one_time_auth_success', authToken.token, true, localPersonId, remotePersonInfo.personId);
 
         // Step 5: Start the chum
         await this.startChum(
@@ -1108,6 +1111,9 @@ class ConnectionsModel extends EventEmitter {
             'private_person_information'
         );
         await this.overwriteExistingPersonKeys(privatePersonInfo);
+
+        // emit the one_time_auth_success event with the corresponding authentication token
+        this.emit('one_time_auth_success', authenticationToken, false, localPersonId, personInfo.personId);
 
         // Step 5: Start the chum with the new id
         await this.startChum(
