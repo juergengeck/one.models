@@ -57,10 +57,7 @@ export default class RecoveryModel {
      * The password needs to be memorised for encrypting and decrypting private person keys.
      *
      * This will be deleted after the recovery file is created or if the model was
-     * initialised for the recovery process, then the password will be deleted after
-     * the recovery process is finalised.
-     *
-     * For generating a second recovery file the password has to be re-memorised.
+     * initialised for the recovery process.
      *
      * TODO: remove me and ask the user instead. Long term storage is a bad idea!
      *
@@ -76,8 +73,6 @@ export default class RecoveryModel {
      *
      * The person private keys are decrypted before creating the
      * person information object.
-     *
-     * This function also removes the password value from memory.
      *
      * @returns {Promise<string>}
      */
@@ -105,10 +100,6 @@ export default class RecoveryModel {
         // extract all information for main person and anonymous
         // person that will be encrypted and added in the url
         const objectToEncrypt = await this.extractPersonInformation();
-
-        // delete the password from memory after the recovery information were extracted
-        // for a new recovery file the model should be re-initialised
-        this.password = '';
 
         // encrypt the persons information with the recovery nonce and recovery key
         const encryptedPersonInformation = fromByteArray(
@@ -180,7 +171,6 @@ export default class RecoveryModel {
      * we first need to encrypt the received private keys with the new password.
      *
      * The password must be set before this function is called.
-     * After this step the password is deleted from the memory.
      *
      * @returns {Promise<void>}
      */
@@ -225,8 +215,6 @@ export default class RecoveryModel {
 
         // remove from memory the decrypted person information because it's not important anymore
         this.decryptedObject = undefined;
-        //remove the password from the memory
-        this.password = '';
     }
 
     // ######## Private API ########
