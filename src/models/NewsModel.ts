@@ -80,7 +80,9 @@ export default class NewsModel extends EventEmitter {
     async entries(channelId: string): Promise<ObjectData<News>[]> {
         const objects: ObjectData<News>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(channelId, 'News');
+        const oneObjects = await this.channelManager.getObjectsWithType('News', {
+            channelId: channelId
+        });
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;

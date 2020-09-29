@@ -193,13 +193,10 @@ export default class QuestionnaireModel extends EventEmitter {
     async getQuestionnaireResponseById(
         questionnaireResponseId: string
     ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(
-                this.channelId,
-                questionnaireResponseId,
-                'QuestionnaireResponse'
-            )
-        )[0];
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            questionnaireResponseId,
+            'QuestionnaireResponse'
+        );
         return {...restObjectData, data: convertFromOne(data)};
     }
 
@@ -210,10 +207,9 @@ export default class QuestionnaireModel extends EventEmitter {
         questionnaireManager: QuestionnaireManager
     ): Promise<ObjectData<QuestionnaireResponse>[]> {
         const objects: ObjectData<QuestionnaireResponse>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'QuestionnaireResponse'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+            channelId: this.channelId
+        });
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
@@ -235,10 +231,9 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {string} questionnaireResponseId - questionnaire response identifier
      */
     async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'QuestionnaireResponse'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+            channelId: this.channelId
+        });
         let numberOfSpecificQuestionnaires = 0;
 
         for (const oneObject of oneObjects) {

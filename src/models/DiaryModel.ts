@@ -83,10 +83,9 @@ export default class DiaryModel extends EventEmitter {
 
     async entries(): Promise<ObjectData<DiaryEntry>[]> {
         const objects: ObjectData<DiaryEntry>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'DiaryEntry'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('DiaryEntry', {
+            channelId: this.channelId
+        });
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
@@ -98,9 +97,10 @@ export default class DiaryModel extends EventEmitter {
     }
 
     async getEntryById(id: string): Promise<ObjectData<DiaryEntry>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DiaryEntry')
-        )[0];
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            id,
+            'DiaryEntry'
+        );
         return {...restObjectData, data: convertFromOne(data)};
     }
 

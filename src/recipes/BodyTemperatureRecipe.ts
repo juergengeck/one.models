@@ -17,7 +17,7 @@ export const BodyTemperatureRecipe: Recipe = {
     rule: [
         {
             itemprop: 'temperature',
-            valueType: 'string'
+            valueType: 'number'
         }
     ]
 };
