@@ -70,6 +70,15 @@ export default class BlobCollectionModel extends EventEmitter {
         });
     }
 
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    async shutdown(): Promise<void> {
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+    }
+
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
         const blobCollection = await createSingleObjectThroughPurePlan(
             {module: '@module/createBlobCollection'},
@@ -112,14 +121,6 @@ export default class BlobCollectionModel extends EventEmitter {
         }
     }
 
-    /**
-     * Shutdown module
-     *
-     * @returns {Promise<void>}
-     */
-    async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
-    }
 
     /**
      *  Handler function for the 'updated' event
