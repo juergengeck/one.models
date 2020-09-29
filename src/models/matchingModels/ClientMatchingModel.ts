@@ -336,7 +336,7 @@ export default class ClientMatchingModel extends MatchingModel {
                     identity: this.anonInstancePersonEmail,
                     match: supplyMatch,
                     isActive: !availableSupply.isActive,
-                    timestamp: Date.now()
+                    timestamp: availableSupply.timestamp
                 }
             )) as UnversionedObjectResult<Supply>;
 
@@ -395,7 +395,7 @@ export default class ClientMatchingModel extends MatchingModel {
                     identity: this.anonInstancePersonEmail,
                     match: value,
                     isActive: !availableDemand.isActive,
-                    timestamp: Date.now()
+                    timestamp: availableDemand.timestamp
                 }
             )) as UnversionedObjectResult<Demand>;
 
