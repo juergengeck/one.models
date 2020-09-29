@@ -112,10 +112,9 @@ export default class ConsentFileModel extends EventEmmiter {
     async entries(): Promise<ObjectData<ConsentFile>[]> {
         const objects: ObjectData<ConsentFile>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'ConsentFile'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
@@ -139,10 +138,9 @@ export default class ConsentFileModel extends EventEmmiter {
 
     async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
         const objects: ObjectData<ConsentFile>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'ConsentFile'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
@@ -161,10 +159,9 @@ export default class ConsentFileModel extends EventEmmiter {
     async getOwnerDropoutFile(): Promise<ObjectData<ConsentFile>> {
         const objects: ObjectData<ConsentFile>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'ConsentFile'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
 
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
@@ -181,9 +178,10 @@ export default class ConsentFileModel extends EventEmmiter {
     }
 
     async getEntryById(id: string): Promise<ObjectData<ConsentFile>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'ConsentFile')
-        )[0];
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            id,
+            'ConsentFile'
+        );
         return {...restObjectData, data: convertFromOne(data)};
     }
 
