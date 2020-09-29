@@ -90,7 +90,7 @@ describe('Channel Iterators test', () => {
     it('should create second tier of channels but for another user and add data to them', async () => {
         for (const channelId of channelsIdentifiers) {
             await createSingleObjectThroughPurePlan(
-                {module: '@module/createChannel'},
+                {module: '@module/channelCreate'},
                 channelId,
                 owner
             );
