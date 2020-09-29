@@ -8,7 +8,7 @@ export enum HeartEventType {
  * This represents a HeartEvent
  */
 export type HeartEvent = {
-    date: Date;
+    creationTime: Date;
     heartEventType: HeartEventType;
 };
 
@@ -39,7 +39,7 @@ export default class HeartEventModel extends EventEmitter {
      */
     async heartEvents(): Promise<HeartEvent[]> {
         return [...this.heartEventList].sort((a, b) => {
-            return b.date.getTime() - a.date.getTime();
+            return b.creationTime.getTime() - a.creationTime.getTime();
         });
     }
 

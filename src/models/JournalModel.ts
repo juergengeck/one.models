@@ -172,7 +172,7 @@ export default class JournalModel extends EventEmitter {
             let oldestElement: EventListEntry = compareElements[0];
 
             for (const compareElement of compareElements) {
-                if (compareElement.data.date < oldestElement.data.date) {
+                if (compareElement.data.creationTime < oldestElement.data.creationTime) {
                     oldestElement = compareElement;
                 }
             }
