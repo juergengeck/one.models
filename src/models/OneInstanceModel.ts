@@ -11,12 +11,13 @@ import {
 //@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
-import ChannelManager, {ChannelInformation} from './ChannelManager';
+import ChannelManager from './ChannelManager';
 import i18nModelsInstance from '../i18n';
 import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
+import {getNthVersionMapHash} from "one.core/lib/version-map-query";
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -225,8 +226,14 @@ export default class OneInstanceModel extends EventEmitter {
                 owner: ownerIdHash
             } as Instance);
             await this.deleteInstance('data#' + instanceIdHash);
-        } catch (_) {
-            throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+        } catch (e) {
+            /**
+             * When there is no instance in the browser the recovery process
+             * should continue, no error should be thrown.
+             */
+            if (e.code !== 'O2M-CVAL1') {
+                throw Error(i18nModelsInstance.t('errors:login.userNotFound'));
+            }
         }
         this.password = secret;
         /**
@@ -306,7 +313,7 @@ export default class OneInstanceModel extends EventEmitter {
             });
             await importModules();
         }
-        this.initialisingApplication();
+        await this.initialisingApplication();
     }
 
     /**
@@ -458,14 +465,27 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Create a backup of the whole instance.
      *
+     * TODO: fix the bug that not the latest merged version, but the latest version is saved
+     *
      * @returns {Promise<Blob>} The exported content
      */
     async backupInstance(): Promise<Blob> {
         const hashesToImplode: SHA256Hash[] = [];
         const channelsInfo = await this.channelManager.channels();
         await Promise.all(
-            channelsInfo.map(async (channelInfo: ChannelInformation) => {
-                return hashesToImplode.push(channelInfo.hash);
+            channelsInfo.map(async channelInfo => {
+                // Warning: this is broken, because it doesn't load the latest merged
+                // version, it just loads the latest version
+                // This bug existed before redesigning, so I won't fix it now (time reasons)
+                // If we want to do this right we need to add additional functionality to
+                // the model - but not now
+                const channelIdHash = await calculateIdHashOfObj({
+                    $type$: 'ChannelInfo',
+                    id: channelInfo.id,
+                    owner: channelInfo.owner
+                });
+                const channelHash = await getNthVersionMapHash(channelIdHash);
+                return hashesToImplode.push(channelHash);
             })
         );
 

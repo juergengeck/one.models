@@ -23,6 +23,16 @@ class OutgoingConnectionEstablisher {
 
     private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
     private stopped: boolean = true;
+    /**
+     * Used only when calling the connectOnceSuccessfully function.
+     *
+     * When the stop function is called will stop trying to establish a
+     * connection and will reject the promise with a specific error.
+     *
+     * @type {((err: Error) => void) | null}
+     * @private
+     */
+    private connectOnceSuccessfullyReject: ((err: Error) => void) | null = null;
 
     /**
      * Creates new instance.
@@ -103,6 +113,64 @@ class OutgoingConnectionEstablisher {
         if (this.retryTimeoutHandle) {
             clearTimeout(this.retryTimeoutHandle);
         }
+        if (this.connectOnceSuccessfullyReject) {
+            this.connectOnceSuccessfullyReject(new Error('Stopper by the user.'));
+        }
+    }
+
+    /**
+     * Establish a connection.
+     *
+     * Note: you cannot use the onConnection callback if you use this method!
+     *
+     * @param {string} url
+     * @param {Uint8Array} myPublicKey
+     * @param {Uint8Array} targetPublicKey
+     * @param {(text: Uint8Array) => Uint8Array} encrypt
+     * @param {(cypher: Uint8Array) => Uint8Array} decrypt
+     * @param {number} retryTimeout
+     * @param {number} successTimeout
+     *
+     * @returns {Promise<void>}
+     */
+    public connectOnceSuccessfully(
+        url: string,
+        myPublicKey: Uint8Array,
+        targetPublicKey: Uint8Array,
+        encrypt: (text: Uint8Array) => Uint8Array,
+        decrypt: (cypher: Uint8Array) => Uint8Array,
+        retryTimeout = 1000,
+        successTimeout = 5000
+    ): Promise<EncryptedConnection> {
+        return new Promise((resolve, reject) => {
+            // If the connection is successful, stop the oce and return the connection
+            this.onConnection = conn => {
+                // We need to remove the connectOnceSuccessfullyReject value before calling
+                // the stop function, because the connection is successful and no error should
+                // be thrown
+                this.connectOnceSuccessfullyReject = null;
+                this.stop();
+                resolve(conn);
+            };
+
+            // On timeout reject the promise
+            const timeoutHandle = setTimeout(() => {
+                // The connectOnceSuccessfullyReject has to be set to null because the promise
+                // is rejected with a different error and the stop function should have no effect
+                // after this rejection
+                this.connectOnceSuccessfullyReject = null;
+                reject(new Error('Timeout reached'));
+            }, successTimeout);
+
+            // If stop is called while waiting for an outgoing connection, then we reject the promise
+            this.connectOnceSuccessfullyReject = err => {
+                this.connectOnceSuccessfullyReject = null;
+                clearTimeout(timeoutHandle);
+                reject(err);
+            };
+
+            this.start(url, myPublicKey, targetPublicKey, encrypt, decrypt, retryTimeout);
+        });
     }
 
     /**
