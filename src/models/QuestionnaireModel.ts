@@ -227,7 +227,6 @@ export default class QuestionnaireModel extends EventEmitter {
             }
         }
 
-        console.log('objects: ', objects);
         return objects;
     }
 
