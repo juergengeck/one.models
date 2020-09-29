@@ -55,7 +55,7 @@ export enum MatchingEvents {
 export default class ClientMatchingModel extends MatchingModel {
     private matchMapName = 'MatchMap';
 
-    private anonInstancePersonEmail: string | null;
+    protected anonInstancePersonEmail: string | null;
     private matchingServerPersonIdHash: SHA256IdHash<Person> | undefined;
 
     constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
@@ -425,11 +425,24 @@ export default class ClientMatchingModel extends MatchingModel {
             if (caughtObject.obj.$type$ === 'CreationTime') {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
+
                     if (receivedObject.$type$ === 'Supply') {
-                        this.addNewValueToSupplyMap(receivedObject);
+                        if (MatchingModel.checkIfItIsAnUpdate(this.suppliesMap, receivedObject)) {
+                            this.updateSupplyInSupplyMap(receivedObject);
+                        } else {
+                            this.addNewValueToSupplyMap(receivedObject);
+                        }
+
+                        this.memoriseLatestVersionOfSupplyMap();
                         this.emit(MatchingEvents.CatalogUpdate);
                     } else if (receivedObject.$type$ === 'Demand') {
-                        this.addNewValueToDemandMap(receivedObject);
+                        if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
+                            this.updateDemandInDemandMap(receivedObject);
+                        } else {
+                            this.addNewValueToDemandMap(receivedObject);
+                        }
+
+                        this.memoriseLatestVersionOfDemandMap();
                         this.emit(MatchingEvents.CatalogUpdate);
                     }
                 } catch (err) {
@@ -472,7 +485,9 @@ export default class ClientMatchingModel extends MatchingModel {
 
                 if (existingMatches && !existingMatches.includes(matchResponseHash)) {
                     existingMatches.push(matchResponseHash);
-                } else {
+                }
+
+                if (!existingMatches) {
                     existingMatches = [matchResponseHash];
                 }
 

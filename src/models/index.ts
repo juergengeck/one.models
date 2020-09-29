@@ -18,6 +18,7 @@ import SliderModel from './SliderModel';
 import RecoveryModel from './RecoveryModel';
 import ClientMatchingModel from './matchingModels/ClientMatchingModel';
 import ServerMatchingModel from './matchingModels/ServerMatchingModel';
+import ServerUserModel from "./matchingModels/ServerUserModel";
 
 /** for one line imports **/
 export {
@@ -42,5 +43,6 @@ export {
     MatchingModel,
     RecoveryModel,
     ClientMatchingModel,
-    ServerMatchingModel
+    ServerMatchingModel,
+    ServerUserModel
 };
