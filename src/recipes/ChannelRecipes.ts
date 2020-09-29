@@ -1,14 +1,44 @@
 import {Recipe} from '@OneCoreTypes';
+import {ORDERED_BY} from "one.core/lib/recipes";
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         ChannelEntry: ChannelEntry;
     }
 
+    export interface OneIdObjectInterfaces {
+        ChannelInfo: Pick<ChannelInfo, 'id' | '$type$'>;
+        ChannelRegistry: Pick<ChannelRegistry, 'id' | '$type$'>;
+    }
+
+    export interface OneVersionedObjectInterfaces {
+        ChannelInfo: ChannelInfo;
+        ChannelRegistry: ChannelRegistry;
+    }
+
     export interface ChannelEntry {
         $type$: 'ChannelEntry';
         data: SHA256Hash<CreationTime>;
         previous?: SHA256Hash<ChannelEntry>;
+    }
+
+    export interface ChannelInfo {
+        $type$: 'ChannelInfo';
+        id: string;
+        owner: SHA256IdHash<Person>;
+        head?: SHA256Hash<ChannelEntry>;
+    }
+
+    export interface ChannelRegistryEntry {
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>;   // The channel info object of the channel
+        readVersionIndex: number;                   // Index of the merged version suitable for reading
+        mergedVersionIndex: number;                 // Index in the version map that was merged (higher ones are unmerged)
+    }
+
+    export interface ChannelRegistry {
+        $type$: 'ChannelRegistry';
+        id: 'ChannelRegistry';
+        channels: ChannelRegistryEntry[];
     }
 }
 
@@ -24,51 +54,6 @@ export const ChannelEntryRecipie: Recipe = {
             itemprop: 'previous',
             optional: true,
             referenceToObj: new Set(['ChannelEntry'])
-        }
-    ]
-};
-
-// Channel Info
-
-declare module '@OneCoreTypes' {
-    export interface OneIdObjectInterfaces {
-        ChannelInfo: Pick<ChannelInfo, 'id' | '$type$'>;
-    }
-
-    export interface OneVersionedObjectInterfaces {
-        ChannelInfo: ChannelInfo;
-        ChannelRegistry: ChannelRegistry;
-    }
-
-    export interface ChannelInfo {
-        $type$: 'ChannelInfo';
-        id: string;
-        owner: SHA256IdHash<Person>;
-        head?: SHA256Hash<ChannelEntry>;
-    }
-
-    export interface ChannelRegistry {
-        $type$: 'ChannelRegistry';
-        id: 'ChannelRegistry';
-        channels: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<ChannelInfo>>;
-    }
-}
-
-// for each channel you have to store the latest versions which was merged
-// step form the lastest version map to the version from the map
-// Map<idHash, hash>
-export const ChannelRegistryRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'ChannelRegistry',
-    rule: [
-        {
-            itemprop: 'id',
-            regexp: /^ChannelRegistry$/,
-            isId: true
-        },
-        {
-            itemprop: 'channels',
-            valueType: 'Map'
         }
     ]
 };
@@ -91,6 +76,36 @@ export const ChannelInfoRecipe: Recipe = {
             itemprop: 'head',
             optional: true,
             referenceToObj: new Set(['ChannelEntry'])
+        }
+    ]
+};
+
+export const ChannelRegistryRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'ChannelRegistry',
+    rule: [
+        {
+            itemprop: 'id',
+            regexp: /^ChannelRegistry$/,
+            isId: true
+        },
+        {
+            itemprop: 'channels',
+            list: ORDERED_BY.ONE,
+            rule: [
+                {
+                    itemprop: 'channelInfoIdHash',
+                    referenceToId: new Set(['ChannelInfo']),
+                },
+                {
+                    itemprop: 'readVersionIndex',
+                    valueType: 'number'
+                },
+                {
+                    itemprop: 'mergedVersionIndex',
+                    valueType: 'number'
+                }
+            ]
         }
     ]
 };

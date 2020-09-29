@@ -7,7 +7,7 @@ import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
  * This represents the model of a body temperature measurement
  */
 export type BodyTemperature = {
-    date: Date;
+    creationTime: Date;
     temperature: number;
 };
 
@@ -52,13 +52,12 @@ export default class BodyTemperatureModel extends EventEmitter {
 
     async getBodyTemperatures(): Promise<BodyTemperature[]> {
         const objects: BodyTemperature[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'BodyTemperature'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('BodyTemperature', {
+            channelId: this.channelId
+        });
 
         for (const obj of oneObjects) {
-            objects.push({temperature: obj.data.temperature, date: new Date(obj.date)});
+            objects.push({temperature: obj.data.temperature, creationTime: obj.creationTime});
         }
 
         return objects;
