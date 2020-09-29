@@ -90,11 +90,10 @@ export default class BlobCollectionModel extends EventEmitter {
     }
 
     async getCollection(name: OneBlobCollection['name']): Promise<BlobCollection> {
-        const collections = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'BlobCollection',
-            {owner: this.channelOwner}
-        );
+        const collections = await this.channelManager.getObjectsWithType('BlobCollection', {
+            owner: this.channelOwner,
+            channelId: this.channelId
+        });
         const collection = collections.find(
             (objectData: ObjectData<OneBlobCollection>) => objectData.data.name === name
         );
@@ -107,9 +106,9 @@ export default class BlobCollectionModel extends EventEmitter {
 
     async getLatestCollection(): Promise<BlobCollection> {
         const collection = await this.channelManager.getObjectsWithType(
-            this.channelId,
             'BlobCollection',
             {
+                channelId: this.channelId,
                 count: 1,
                 owner: this.channelOwner
             }
@@ -120,7 +119,6 @@ export default class BlobCollectionModel extends EventEmitter {
             throw new Error(`BlobCollection ${name} not found.`);
         }
     }
-
 
     /**
      *  Handler function for the 'updated' event
