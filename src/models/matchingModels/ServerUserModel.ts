@@ -58,7 +58,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 // save new supply, but with 'isActive' status up to date
                 const newSupply = (await createSingleObjectThroughPurePlan(
                     {
-                        module: '@module/supply',
+                        module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     {
@@ -107,7 +107,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 // save new supply, but with 'isActive' status up to date
                 const newDemand = (await createSingleObjectThroughPurePlan(
                     {
-                        module: '@module/demand',
+                        module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     {

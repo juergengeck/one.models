@@ -255,7 +255,7 @@ export default abstract class MatchingModel extends EventEmitter {
         await serializeWithType('SupplyMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/supplyMap',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {
@@ -277,7 +277,7 @@ export default abstract class MatchingModel extends EventEmitter {
         await serializeWithType('DemandMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/demandMap',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {

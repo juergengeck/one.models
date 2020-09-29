@@ -96,8 +96,6 @@ export default class ServerMatchingModel extends MatchingModel {
      * When Supply and Demands objects are retrieved the server
      * has to remember them, post them in it's own channel and
      * check for a matching.
-     *
-     * @private
      */
     private async registerHooks(): Promise<void> {
         onUnversionedObj.addListener(async res => {
@@ -146,7 +144,7 @@ export default class ServerMatchingModel extends MatchingModel {
             if (err.name === 'FileNotFoundError') {
                 this.notifiedUsersObj = (await createSingleObjectThroughPurePlan(
                     {
-                        module: '@module/notifiedUsers',
+                        module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     {
@@ -216,7 +214,7 @@ export default class ServerMatchingModel extends MatchingModel {
         const matchResponse = (await serializeWithType('MatchResponse', async () => {
             return await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/matchResponse',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {

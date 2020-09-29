@@ -120,7 +120,7 @@ export default class ClientMatchingModel extends MatchingModel {
         await serializeWithType('Supply', async () => {
             const supply = (await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/supply',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {
@@ -152,7 +152,7 @@ export default class ClientMatchingModel extends MatchingModel {
         await serializeWithType('Demand', async () => {
             const demand = (await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/demand',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {
@@ -328,7 +328,7 @@ export default class ClientMatchingModel extends MatchingModel {
             // create the new version of the Supply object
             const newSupply = (await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/supply',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {
@@ -387,7 +387,7 @@ export default class ClientMatchingModel extends MatchingModel {
             // create the new version of the Demand object
             const newDemand = (await createSingleObjectThroughPurePlan(
                 {
-                    module: '@module/demand',
+                    module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                 },
                 {
@@ -493,7 +493,7 @@ export default class ClientMatchingModel extends MatchingModel {
 
                 await createSingleObjectThroughPurePlan(
                     {
-                        module: '@module/matchMap',
+                        module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     {
@@ -505,7 +505,7 @@ export default class ClientMatchingModel extends MatchingModel {
             } catch (err) {
                 await createSingleObjectThroughPurePlan(
                     {
-                        module: '@module/matchMap',
+                        module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     {
