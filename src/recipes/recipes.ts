@@ -9,8 +9,8 @@ import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import SliderRecipes from './SliderRecipes';
-import InstancesRecipes from './InstancesRecipes';
-import MatchingRecipes from "./MatchingRecipes";
+import InstancesRecipes from './InstancesRecipies';
+import MatchingRecipes from './MatchingRecipes';
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
