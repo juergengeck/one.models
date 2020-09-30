@@ -6,7 +6,8 @@ export enum QuestionType {
     Date = 4,
     Integer = 5,
     OpenChoice = 6,
-    OpenChoiceGroup = 7
+    OpenChoiceGroup = 7,
+    Slider = 8
 }
 
 export type Questionnaire = {

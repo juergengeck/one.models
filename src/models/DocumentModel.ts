@@ -121,10 +121,9 @@ export default class DocumentModel extends EventEmitter {
     async documents(): Promise<ObjectData<DocumentInfo>[]> {
         const documents: ObjectData<DocumentInfo>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
-            'DocumentInfo'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('DocumentInfo', {
+            channelId: this.channelId
+        });
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
@@ -143,9 +142,10 @@ export default class DocumentModel extends EventEmitter {
      * @returns {Promise<ObjectData<DocumentInfo>>} the document.
      */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'DocumentInfo')
-        )[0];
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            id,
+            'DocumentInfo'
+        );
         const document = await convertFromOne(data);
         return {...restObjectData, data: document};
     }
