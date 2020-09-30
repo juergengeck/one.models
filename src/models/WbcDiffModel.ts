@@ -196,7 +196,6 @@ export default class WbcDiffModel extends EventEmitter {
     async measurements(): Promise<ObjectData<WbcMeasurement>[]> {
         const objects: ObjectData<WbcMeasurement>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType(
-            this.channelId,
             'WbcMeasurement'
         );
 
@@ -213,9 +212,10 @@ export default class WbcDiffModel extends EventEmitter {
      * returns the wbc measurement with that specific id provided by the ObjectData type
      */
     async getEntryById(id: string): Promise<ObjectData<WbcMeasurement>> {
-        const {data, ...restObjectData} = (
-            await this.channelManager.getObjectWithTypeById(this.channelId, id, 'WbcMeasurement')
-        )[0];
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            id,
+            'WbcMeasurement'
+        );
         return {...restObjectData, data: data};
     }
 }
