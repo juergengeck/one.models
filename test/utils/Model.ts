@@ -18,6 +18,7 @@ import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/s
 import oneModules from '../../lib/generated/oneModules';
 import {AccessModel} from '../../lib/models';
 import InstancesModel from '../../lib/models/InstancesModel';
+import {MatchingModel} from "../../lib/models";
 
 export const TestAccessGroups = {
     partner: 'partners',
@@ -64,18 +65,20 @@ export default class Model {
         this.access = new AccessModel();
         this.channelManager = new ChannelManager(this.access);
         this.questionnaires = new QuestionnaireModel(this.channelManager);
-        this.wbcDiffs = new WbcDiffModel();
+        this.wbcDiffs = new WbcDiffModel(this.channelManager);
         this.heartEvents = new HeartEventModel();
         this.documents = new DocumentModel();
         this.diary = new DiaryModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
         this.connections = new ConnectionsModel();
+        this.match = new MatchingModel();
         this.news = new NewsModel(this.channelManager);
 
         this.consentFile = new ConsentFileModel(this.channelManager);
         this.oneInstance = new OneInstanceModel(
             this.connections,
             this.channelManager,
+            this.match,
             this.consentFile
         );
 
@@ -108,6 +111,7 @@ export default class Model {
         await this.questionnaires.init();
         await this.connections.init();
         await this.access.init();
+        await this.match.init();
         await this.diary.init();
         await this.bodyTemperature.init();
         await this.consentFile.init();
@@ -117,9 +121,14 @@ export default class Model {
         await this.access.createAccessGroup(TestAccessGroups.partner);
         await this.access.createAccessGroup(TestAccessGroups.clinic);
         await this.access.createAccessGroup(TestAccessGroups.myself);
-        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.channelManager);
+        this.contactModel = new ContactModel(
+            this.instanceModel,
+            'localhost:8000',
+            this.channelManager
+        );
         await this.contactModel.init();
         await this.contactModel.createContactChannel();
+        await this.wbcDiffs.init();
     }
     access: AccessModel;
     channelManager: ChannelManager;
@@ -131,6 +140,7 @@ export default class Model {
     instanceModel: InstancesModel;
     documents: DocumentModel;
     news: NewsModel;
+    match: MatchingModel;
     oneInstance: OneInstanceModel;
     connections: ConnectionsModel;
     diary: DiaryModel;

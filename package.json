@@ -1,6 +1,6 @@
 {
   "name": "one.smiler.models",
-  "version": "2.1.0-next",
+  "version": "3.0.0-next",
   "repository": "https://github.com/refinio/one.filer",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -19,6 +19,7 @@
   "dependencies": {
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
+    "node": "^14.8.0",
     "one.core": "refinio/one.core#feature/20200720_communication_og",
     "ts-loader": "^8.0.2",
     "yargs": "^15.4.0"

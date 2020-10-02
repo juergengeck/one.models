@@ -1,4 +1,5 @@
-import WbcDiffModel, {WbcDiffMeasurement} from './WbcDiffModel';
+import WbcDiffModel from './WbcDiffModel';
+import {WbcMeasurement} from '@OneCoreTypes';
 import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
@@ -21,10 +22,10 @@ export enum EventType {
 export type EventListEntry = {
     type: EventType;
     data:
-        | WbcDiffMeasurement
+        | ObjectData<WbcMeasurement>
         | ObjectData<QuestionnaireResponse>
         | HeartEvent
-        | DocumentInfo
+        | ObjectData<DocumentInfo>
         | ObjectData<DiaryEntry>
         | BodyTemperature
         | ObjectData<ConsentFile>;

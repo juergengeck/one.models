@@ -10,6 +10,9 @@ import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import InstancesRecipes from './InstancesRecipies';
 import BlobRecipes from './BlobRecipes';
+import MatchingRecipes from './MatchingRecipes';
+import WbcRecipes from './WbcDiffRecipes';
+import DocumentRecipes from "./DocumentRecipes";
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -22,7 +25,11 @@ const Recipes: Recipe[] = [
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...InstancesRecipes,
-    ...BlobRecipes
+    ...BlobRecipes,
+    ...InstancesRecipes,
+    ...MatchingRecipes,
+    ...WbcRecipes,
+    ...DocumentRecipes
 ];
 
 export default Recipes;

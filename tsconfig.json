@@ -22,7 +22,8 @@
         "removeComments": true,
         "preserveConstEnums": true,
         "forceConsistentCasingInFileNames": true,
-        "noImplicitReturns": true
+        "noImplicitReturns": true,
+        "resolveJsonModule": true
     },
     "include": [
         "node_modules/one.core/test/@OneCoreTypes.d.ts",

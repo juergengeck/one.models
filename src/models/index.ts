@@ -14,7 +14,11 @@ import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
+import MatchingModel from './matchingModels/MatchingModel';
 import RecoveryModel from './RecoveryModel';
+import ClientMatchingModel from './matchingModels/ClientMatchingModel';
+import ServerMatchingModel from './matchingModels/ServerMatchingModel';
+import ServerUserModel from "./matchingModels/ServerUserModel";
 
 /** for one line imports **/
 export {
@@ -36,5 +40,9 @@ export {
     PropertyTree,
     AccessModel,
     BlobCollectionModel,
-    RecoveryModel
+    MatchingModel,
+    RecoveryModel,
+    ClientMatchingModel,
+    ServerMatchingModel,
+    ServerUserModel
 };
