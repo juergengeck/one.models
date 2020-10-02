@@ -565,26 +565,12 @@ export default class ChannelManager extends EventEmitter {
     public async *objectIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        // If no query options, then we don't need to iterate. Just forward to the iterator
-        // TODO: Do that if no data selectors are present
-        if (!queryOptions) {
-            yield* this.multiChannelObjectIterator(queryOptions);
-        }
-
-        // If we have query options then test each element against the options
-        else {
+        // The count needs to be dealt with at the top level, because it involves all returned items
+        if (queryOptions && queryOptions.count) {
             let elementCounter = 0;
 
             // Iterate over the merge iterator and filter unwanted elements
             for await (const element of this.multiChannelObjectIterator(queryOptions)) {
-                if (queryOptions.to !== undefined && element.creationTime > queryOptions.to) {
-                    continue;
-                }
-
-                if (queryOptions.from !== undefined && element.creationTime < queryOptions.from) {
-                    break;
-                }
-
                 if (queryOptions.count !== undefined && elementCounter >= queryOptions.count) {
                     break;
                 }
@@ -592,6 +578,8 @@ export default class ChannelManager extends EventEmitter {
                 ++elementCounter;
                 yield element;
             }
+        } else {
+            yield* this.multiChannelObjectIterator(queryOptions);
         }
     }
 
@@ -628,17 +616,32 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
      *
-     * @param {ChannelSelectionOptions} channelSelectionOptions
+     * @param {QueryOptions} queryOptions
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
     private async *multiChannelObjectIterator(
-        channelSelectionOptions?: ChannelSelectionOptions
+        queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        const channels = await this.getMatchingChannelInfos(channelSelectionOptions);
+        const channels = await this.getMatchingChannelInfos(queryOptions);
+
+        // prepare the options for the single channel iterator
+        let from: Date | undefined;
+        let to: Date | undefined;
+        let ids: string[] | undefined;
+        if (queryOptions) {
+            from = queryOptions.from;
+            to = queryOptions.to;
+            if (queryOptions.id) {
+                ids = [queryOptions.id];
+            }
+            if (queryOptions.ids) {
+                ids = queryOptions.ids;
+            }
+        }
 
         // Create a iterator for each selected channel
         const iterators = channels.map(channel =>
-            ChannelManager.singleChannelObjectIterator(channel)
+            ChannelManager.singleChannelObjectIterator(channel, from, to, ids)
         );
 
         // Determine the access rights of each channel
@@ -688,18 +691,53 @@ export default class ChannelManager extends EventEmitter {
      * and set the head to the ChannelEntry where you want to start iterating.
      *
      * @param {ChannelInfo} channelInfo - iterate this channel
-     * @returns {AsyncIterableIterator<ChannelEntry['data']>}
+     * @param {Date} from
+     * @param {Date} to
+     * @param {string[]} ids
+     * @returns {AsyncIterableIterator<RawChannelEntry>}
      */
     private static async *singleChannelObjectIterator(
-        channelInfo: ChannelInfo
+        channelInfo: ChannelInfo,
+        from?: Date,
+        to?: Date,
+        ids?: string[]
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'singleChannelObjectIterator - ENTER');
+
+        // Select the item or entry iterator based on whether ids were passed
+        if (ids) {
+            yield* this.itemIterator(channelInfo, ids, from, to);
+        } else {
+            yield* this.entryIterator(channelInfo, from, to);
+        }
+
+        logWithId(
+            channelInfo.id,
+            channelInfo.owner,
+            'singleChannelObjectIterator - LEAVE: exhausted entries'
+        );
+    }
+
+    /**
+     * This iterator just iterates the data elements of the passed channel.
+     *
+     * Note: If you want to start iterating from a specific point in the chain
+     * and not from the start, you can just construct your own ChannelInfo object
+     * and set the head to the ChannelEntry where you want to start iterating.
+     *
+     * @param {ChannelInfo} channelInfo - iterate this channel
+     * @param {Date} from
+     * @param {Date} to
+     * @returns {AsyncIterableIterator<RawChannelEntry>}
+     */
+    private static async *entryIterator(
+        channelInfo: ChannelInfo,
+        from?: Date,
+        to?: Date
+    ): AsyncIterableIterator<RawChannelEntry> {
+        logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - ENTER');
         if (!channelInfo.head) {
-            logWithId(
-                channelInfo.id,
-                channelInfo.owner,
-                'singleChannelObjectIterator - LEAVE: no entries'
-            );
+            logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - LEAVE: no entries');
             return;
         }
         const channelInfoIdHash = await calculateIdHashOfObj(channelInfo);
@@ -710,12 +748,20 @@ export default class ChannelManager extends EventEmitter {
             logWithId_Debug(
                 channelInfo.id,
                 channelInfo.owner,
-                `singleChannelObjectIterator: iterate ${currentEntryHash}`
+                `entryIterator: iterate ${currentEntryHash}`
             );
 
             const entry: ChannelEntry = await getObject(currentEntryHash);
             const creationTimeHash = entry.data;
             const creationTime = await getObject(creationTimeHash);
+
+            // Filter elements based on from / to
+            if (from && creationTime.timestamp < from.getTime()) {
+                break;
+            }
+            if (to && creationTime.timestamp > to.getTime()) {
+                continue;
+            }
 
             yield {
                 channelInfo: channelInfo,
@@ -729,11 +775,66 @@ export default class ChannelManager extends EventEmitter {
             currentEntryHash = entry.previous;
         }
 
-        logWithId(
-            channelInfo.id,
-            channelInfo.owner,
-            'singleChannelObjectIterator - LEAVE: exhausted entries'
-        );
+        logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - LEAVE: exhausted entries');
+    }
+
+    /**
+     * This iterator just iterates over the elements with the passed ids.
+     *
+     * @param {ChannelInfo} channelInfo
+     * @param {string[]} ids
+     * @param {Date} from
+     * @param {Date} to
+     * @returns {AsyncIterableIterator<RawChannelEntry>}
+     */
+    private static async *itemIterator(
+        channelInfo: ChannelInfo,
+        ids: string[],
+        from?: Date,
+        to?: Date
+    ): AsyncIterableIterator<RawChannelEntry> {
+        logWithId(channelInfo.id, channelInfo.owner, 'itemIterator - ENTER');
+
+        // Calculate the id hash
+        const channelInfoIdHash = await calculateIdHashOfObj(channelInfo);
+
+        // Extract the items for which we have the id
+        const entries = [];
+        for (const id of ids) {
+            const entryData = ChannelManager.decodeEntryId(id);
+            if (entryData.channelInfoIdHash !== channelInfoIdHash) {
+                continue;
+            }
+
+            const entry: ChannelEntry = await getObject(entryData.channelEntryHash);
+            const creationTimeHash = entry.data;
+            const creationTime = await getObject(creationTimeHash);
+
+            if (to && creationTime.timestamp > to.getTime()) {
+                continue;
+            }
+
+            if (from && creationTime.timestamp < from.getTime()) {
+                continue;
+            }
+
+            entries.push({
+                channelInfo: channelInfo,
+                channelInfoIdHash: channelInfoIdHash,
+                channelEntryHash: entryData.channelEntryHash,
+                creationTimeHash: creationTimeHash,
+                creationTime: creationTime.timestamp,
+                dataHash: creationTime.data
+            });
+        }
+
+        // Sort the items
+        entries.sort((a, b) => b.creationTime - a.creationTime);
+
+        // yield the items
+        yield* entries;
+
+        logWithId(channelInfo.id, channelInfo.owner, 'itemIterator - LEAVE: exhausted entries');
     }
 
     /**
@@ -954,8 +1055,8 @@ export default class ChannelManager extends EventEmitter {
                 );
 
                 // Construct the iterators from the channelInfo representing the different versions
-                const iterators = channelInfosToMerge.map(
-                    ChannelManager.singleChannelObjectIterator
+                const iterators = channelInfosToMerge.map(item =>
+                    ChannelManager.singleChannelObjectIterator(item)
                 );
 
                 // Iterate over all channel versions simultaneously until
