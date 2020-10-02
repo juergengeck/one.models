@@ -219,6 +219,22 @@ describe('Channel Iterators test', () => {
         expect(fourthValuesDes.map(e => e.data.temperature)).to.be.eql([]);
     });
 
+    it('should get objects by id', async () => {
+        // Check all values
+        const allValuesAsc = await channelManager.getObjectsWithType('BodyTemperature');
+        const allValuesDes = await channelManager.getObjectsWithType('BodyTemperature', {
+            orderBy: Order.Descending
+        });
+
+        // Get all values by id
+        const allValuesAscById = await Promise.all(allValuesAsc.map(item => channelManager.getObjectById(item.id)));
+        const allValuesDesById = await Promise.all(allValuesDes.map(item => channelManager.getObjectById(item.id)));
+
+        // Check the results
+        expect(allValuesAscById.map(e => e.data.temperature)).to.be.eql([1, 2, 3, 4, 5, 6]);
+        expect(allValuesDesById.map(e => e.data.temperature)).to.be.eql([6, 5, 4, 3, 2, 1]);
+    });
+
     after(async () => {
         // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));

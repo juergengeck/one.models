@@ -65,7 +65,7 @@ export default class Model {
         this.access = new AccessModel();
         this.channelManager = new ChannelManager(this.access);
         this.questionnaires = new QuestionnaireModel(this.channelManager);
-        this.wbcDiffs = new WbcDiffModel();
+        this.wbcDiffs = new WbcDiffModel(this.channelManager);
         this.heartEvents = new HeartEventModel();
         this.documents = new DocumentModel();
         this.diary = new DiaryModel(this.channelManager);
@@ -121,9 +121,14 @@ export default class Model {
         await this.access.createAccessGroup(TestAccessGroups.partner);
         await this.access.createAccessGroup(TestAccessGroups.clinic);
         await this.access.createAccessGroup(TestAccessGroups.myself);
-        this.contactModel = new ContactModel(this.instanceModel, 'localhost:8000', this.channelManager);
+        this.contactModel = new ContactModel(
+            this.instanceModel,
+            'localhost:8000',
+            this.channelManager
+        );
         await this.contactModel.init();
         await this.contactModel.createContactChannel();
+        await this.wbcDiffs.init();
     }
     access: AccessModel;
     channelManager: ChannelManager;
