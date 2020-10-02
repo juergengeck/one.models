@@ -278,7 +278,8 @@ export default class OneInstanceModel extends EventEmitter {
 
         await importModules();
         this.unregister();
-        this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
+        await this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
+        this.emit('authstate_changed');
     }
 
     /**
@@ -337,7 +338,6 @@ export default class OneInstanceModel extends EventEmitter {
             );
         }
 
-        this.emit('authstate_changed');
         if (this.currentPatientTypeState.includes('partner')) {
             this.updatePartnerState().catch(e => console.error(e));
         }
@@ -402,6 +402,7 @@ export default class OneInstanceModel extends EventEmitter {
             } else {
                 this.currentRegistrationState = false;
             }
+            this.emit('authstate_changed');
         }
     }
 
@@ -447,6 +448,7 @@ export default class OneInstanceModel extends EventEmitter {
             this.currentPatientTypeState = patientType;
             await this.initialiseInstance(secret);
             this.emit('registration_state_changed');
+            this.emit('authstate_changed');
             return;
         }
 
