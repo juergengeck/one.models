@@ -13,8 +13,8 @@ import ContactModel from './ContactModel';
 import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
+import BlobCollectionModel from './BlobCollectionModel';
 import MatchingModel from './matchingModels/MatchingModel';
-import SliderModel from './SliderModel';
 import RecoveryModel from './RecoveryModel';
 import ClientMatchingModel from './matchingModels/ClientMatchingModel';
 import ServerMatchingModel from './matchingModels/ServerMatchingModel';
@@ -39,7 +39,7 @@ export {
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
-    SliderModel,
+    BlobCollectionModel,
     MatchingModel,
     RecoveryModel,
     ClientMatchingModel,

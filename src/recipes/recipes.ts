@@ -8,8 +8,8 @@ import QuestionnaireRecipes from './QuestionnaireRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
-import SliderRecipes from './SliderRecipes';
 import InstancesRecipes from './InstancesRecipies';
+import BlobRecipes from './BlobRecipes';
 import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import DocumentRecipes from "./DocumentRecipes";
@@ -24,7 +24,8 @@ const Recipes: Recipe[] = [
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
-    ...SliderRecipes,
+    ...InstancesRecipes,
+    ...BlobRecipes,
     ...InstancesRecipes,
     ...MatchingRecipes,
     ...WbcRecipes,
