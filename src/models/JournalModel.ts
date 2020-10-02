@@ -24,7 +24,7 @@ export type EventListEntry = {
         | WbcDiffMeasurement
         | ObjectData<QuestionnaireResponse>
         | HeartEvent
-        | DocumentInfo
+        | ObjectData<DocumentInfo>
         | ObjectData<DiaryEntry>
         | BodyTemperature
         | ObjectData<ConsentFile>;
