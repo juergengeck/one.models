@@ -13,8 +13,12 @@ import ContactModel from './ContactModel';
 import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
-import SliderModel from './SliderModel';
+import BlobCollectionModel from './BlobCollectionModel';
+import MatchingModel from './matchingModels/MatchingModel';
 import RecoveryModel from './RecoveryModel';
+import ClientMatchingModel from './matchingModels/ClientMatchingModel';
+import ServerMatchingModel from './matchingModels/ServerMatchingModel';
+import ServerUserModel from "./matchingModels/ServerUserModel";
 
 /** for one line imports **/
 export {
@@ -35,6 +39,10 @@ export {
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
-    SliderModel,
-    RecoveryModel
+    BlobCollectionModel,
+    MatchingModel,
+    RecoveryModel,
+    ClientMatchingModel,
+    ServerMatchingModel,
+    ServerUserModel
 };
