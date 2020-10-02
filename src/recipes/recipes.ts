@@ -11,6 +11,7 @@ import NewsRecipes from './NewsRecipes';
 import SliderRecipes from './SliderRecipes';
 import InstancesRecipes from './InstancesRecipies';
 import WbcRecipes from './WbcDiffRecipes';
+import DocumentRecipes from "./DocumentRecipes";
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -24,7 +25,8 @@ const Recipes: Recipe[] = [
     ...SettingsRecipe,
     ...SliderRecipes,
     ...InstancesRecipes,
-    ...WbcRecipes
+    ...WbcRecipes,
+    ...DocumentRecipes
 ];
 
 export default Recipes;
