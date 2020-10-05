@@ -291,8 +291,10 @@ export default class QuestionnaireModel extends EventEmitter {
     async hasIncompleteResponse(
         questionnaireId?: string,
         since?: Date
-    ): Promise<ObjectData<QuestionnaireResponse>[]> {
-        const objects: ObjectData<QuestionnaireResponse>[] = [];
+    ): Promise<ObjectData<QuestionnaireResponse>> {
+        let incompleteResponse: ObjectData<QuestionnaireResponse> = {} as ObjectData<
+            QuestionnaireResponse
+        >;
 
         const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
             channelId: this.incompleteResponsesChannelId,
@@ -301,21 +303,19 @@ export default class QuestionnaireModel extends EventEmitter {
 
         if (questionnaireId) {
             // Convert the data member from one to model representation
-            for (const oneObject of oneObjects) {
-                const {data, ...restObjectData} = oneObject;
-                if (oneObject.data.questionnaire === questionnaireId) {
-                    objects.push({...restObjectData, data: convertFromOne(data)});
+            for (let i = oneObjects.length; i > 0; i--) {
+                if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
+                    const {data, ...restObjectData} = oneObjects[i];
+                    incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+                    break;
                 }
             }
         } else {
-            // Convert the data member from one to model representation
-            for (const oneObject of oneObjects) {
-                const {data, ...restObjectData} = oneObject;
-                objects.push({...restObjectData, data: convertFromOne(data)});
-            }
+            const {data, ...restObjectData} = oneObjects[oneObjects.length];
+            incompleteResponse = {...restObjectData, data: convertFromOne(data)};
         }
 
-        return objects;
+        return incompleteResponse;
     }
 
     /**
