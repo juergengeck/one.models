@@ -24,7 +24,6 @@ const Recipes: Recipe[] = [
     ...QuestionnaireRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
-    ...InstancesRecipes,
     ...BlobRecipes,
     ...InstancesRecipes,
     ...MatchingRecipes,
