@@ -101,6 +101,7 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.channelManager.on('updated', this.boundOnUpdatedHandler);
     }
 
@@ -238,9 +239,12 @@ export default class QuestionnaireModel extends EventEmitter {
      * @return {Promise<void>}
      */
     private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
+        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
         }
+        // else if( id === this.incompleteResponsesChannelId) {
+        //     this.emit('updated');
+        // }
     }
 
     // ######### Incomplete Response Methods ########
