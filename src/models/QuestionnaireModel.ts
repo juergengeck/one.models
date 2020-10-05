@@ -279,6 +279,42 @@ export default class QuestionnaireModel extends EventEmitter {
     }
 
     /**
+     * Getting the incomplete questionnaires.
+     * @param {string} questionnaireId - question identifier.
+     * @param {Date} since - not older than this date.
+     * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
+     */
+    async hasIncompleteResponse(
+        questionnaireId?: string,
+        since?: Date
+    ): Promise<ObjectData<QuestionnaireResponse>[]> {
+        const objects: ObjectData<QuestionnaireResponse>[] = [];
+
+        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+            channelId: this.incompleteResponsesChannelId,
+            from: since
+        });
+
+        if (questionnaireId) {
+            // Convert the data member from one to model representation
+            for (const oneObject of oneObjects) {
+                const {data, ...restObjectData} = oneObject;
+                if (oneObject.data.questionnaire === questionnaireId) {
+                    objects.push({...restObjectData, data: convertFromOne(data)});
+                }
+            }
+        } else {
+            // Convert the data member from one to model representation
+            for (const oneObject of oneObjects) {
+                const {data, ...restObjectData} = oneObject;
+                objects.push({...restObjectData, data: convertFromOne(data)});
+            }
+        }
+
+        return objects;
+    }
+
+    /**
      * Getting an incomplete questionnaire response by its id.
      * @param {string} questionnaireId - the id of the questionnaire.
      * @returns {Promise<ObjectData<QuestionnaireResponse>>} - the incomplete questionnaire.
