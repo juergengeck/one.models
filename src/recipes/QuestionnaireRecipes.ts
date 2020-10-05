@@ -13,7 +13,6 @@ declare module '@OneCoreTypes' {
             linkId: string;
             answer: string;
         }[];
-        isComplete: boolean;
     }
 }
 
@@ -38,10 +37,6 @@ const QuestionnaireResponseRecipe: Recipe = {
                     valueType: 'string'
                 }
             ]
-        },
-        {
-            itemprop: 'isComplete',
-            valueType: 'boolean'
         }
     ]
 };

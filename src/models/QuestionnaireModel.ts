@@ -13,15 +13,6 @@ import {Questionnaire} from './QuestionTypes';
 export interface QuestionnaireResponse {
     questionnaire: string;
     item: Record<string, string>;
-    isComplete: boolean;
-}
-
-/**
- * Determines which questionnaires are retrieved from ONE.
- */
-export enum QuestionnaireManager {
-    ALL,
-    COMPLETED
 }
 
 /**
@@ -86,6 +77,7 @@ export default class QuestionnaireModel extends EventEmitter {
     channelId: string;
     availableQuestionnaires: Questionnaire[];
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    incompleteResponsesChannelId: string;
 
     /**
      * Construct a new instance
@@ -99,6 +91,7 @@ export default class QuestionnaireModel extends EventEmitter {
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
+        this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
     }
 
     /**
@@ -172,17 +165,10 @@ export default class QuestionnaireModel extends EventEmitter {
             );
         }
 
-        if (data.isComplete) {
-            // Todo: Assert that the mandatory fields have been set in the answer
+        // Todo: Assert that the mandatory fields have been set in the answer
 
-            // Post the result to the one instance
-            await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
-        }
-        // check if the status of the questionnaire is incomplete and the questionnaire it's not empty
-        else if (Object.keys(data.item).length > 0) {
-            // Post the result to the one instance
-            await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
-        }
+        // Post the result to the one instance
+        await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
     }
 
     /**
@@ -203,9 +189,7 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of responses.
      */
-    async responses(
-        questionnaireManager: QuestionnaireManager
-    ): Promise<ObjectData<QuestionnaireResponse>[]> {
+    async responses(): Promise<ObjectData<QuestionnaireResponse>[]> {
         const objects: ObjectData<QuestionnaireResponse>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
             channelId: this.channelId
@@ -214,13 +198,8 @@ export default class QuestionnaireModel extends EventEmitter {
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
-            if (questionnaireManager === QuestionnaireManager.ALL) {
-                objects.push({...restObjectData, data: convertFromOne(data)});
-            } else if (questionnaireManager === QuestionnaireManager.COMPLETED) {
-                if (data.isComplete) {
-                    objects.push({...restObjectData, data: convertFromOne(data)});
-                }
-            }
+
+            objects.push({...restObjectData, data: convertFromOne(data)});
         }
 
         return objects;
@@ -262,5 +241,90 @@ export default class QuestionnaireModel extends EventEmitter {
         if (id === this.channelId) {
             this.emit('updated');
         }
+    }
+
+    // ######### Incomplete Response Methods ########
+
+    /**
+     * Saving incomplete questionnaires.
+     *
+     * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     */
+    async postIncompleteResponse(data: QuestionnaireResponse): Promise<void> {
+        // Assert that the questionnaire with questionnaireId exists
+        let questionnaireExists = false;
+
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (data.questionnaire === questionnaire.identifier) {
+                questionnaireExists = true;
+            }
+        }
+
+        if (!questionnaireExists) {
+            throw Error(
+                'Posting questionnaire response failed: Questionnaire ' +
+                    data.questionnaire +
+                    ' does not exist'
+            );
+        }
+
+        // if the questionnaire response is not empty
+        if (Object.keys(data.item).length > 0) {
+            // Post the result to the one instance
+            await this.channelManager.postToChannel(
+                this.incompleteResponsesChannelId,
+                convertToOne(data)
+            );
+        }
+    }
+
+    /**
+     * Getting an incomplete questionnaire response by its id.
+     * @param {string} questionnaireId - the id of the questionnaire.
+     * @returns {Promise<ObjectData<QuestionnaireResponse>>} - the incomplete questionnaire.
+     */
+    async getIncompleteResponse(
+        questionnaireId: string
+    ): Promise<ObjectData<QuestionnaireResponse>> {
+        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+            questionnaireId,
+            'QuestionnaireResponse'
+        );
+        return {...restObjectData, data: convertFromOne(data)};
+    }
+
+    /**
+     * Posting an empty questionnaire.
+     * @param {string} questionnaireId - the id of the questionnaire.
+     * @returns {Promise<void>}
+     */
+    async markIncompleteResponseAsComplete(questionnaireId: string): Promise<void> {
+        // Assert that the questionnaire with questionnaireId exists
+        let questionnaireExists = false;
+
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaireId === questionnaire.identifier) {
+                questionnaireExists = true;
+            }
+        }
+
+        if (!questionnaireExists) {
+            throw Error(
+                'Posting questionnaire response failed: Questionnaire ' +
+                    questionnaireId +
+                    ' does not exist'
+            );
+        }
+
+        const emptyQuestionnaire: QuestionnaireResponse = {
+            questionnaire: questionnaireId,
+            item: {}
+        };
+
+        // Post the result to the one instance
+        await this.channelManager.postToChannel(
+            this.incompleteResponsesChannelId,
+            convertToOne(emptyQuestionnaire)
+        );
     }
 }
