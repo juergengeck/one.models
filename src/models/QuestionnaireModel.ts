@@ -73,11 +73,11 @@ function convertFromOne(oneObject: OneQuestionnaireResponse): QuestionnaireRespo
  * In the future this will most probably also manage questionnaires.
  */
 export default class QuestionnaireModel extends EventEmitter {
-    channelManager: ChannelManager;
-    channelId: string;
-    availableQuestionnaires: Questionnaire[];
+    private channelManager: ChannelManager;
+    private readonly channelId: string;
+    private readonly availableQuestionnaires: Questionnaire[];
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
-    incompleteResponsesChannelId: string;
+    private readonly incompleteResponsesChannelId: string;
 
     /**
      * Construct a new instance
@@ -269,14 +269,11 @@ export default class QuestionnaireModel extends EventEmitter {
             );
         }
 
-        // if the questionnaire response is not empty
-        if (Object.keys(data.item).length > 0) {
-            // Post the result to the one instance
-            await this.channelManager.postToChannel(
-                this.incompleteResponsesChannelId,
-                convertToOne(data)
-            );
-        }
+        // Post the result to the one instance
+        await this.channelManager.postToChannel(
+            this.incompleteResponsesChannelId,
+            convertToOne(data)
+        );
     }
 
     /**
@@ -285,33 +282,40 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {Date} since - not older than this date.
      * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
      */
-    async hasIncompleteResponse(
-        questionnaireId?: string,
-        since?: Date
-    ): Promise<ObjectData<QuestionnaireResponse>> {
+    async hasIncompleteResponse(since?: Date): Promise<ObjectData<QuestionnaireResponse>> {
         let incompleteResponse: ObjectData<QuestionnaireResponse> = {} as ObjectData<
             QuestionnaireResponse
         >;
 
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+        for await (const item of this.channelManager.objectIterator({
             channelId: this.incompleteResponsesChannelId,
             from: since
-        });
-
-        if (questionnaireId) {
-            // getting the latest incomplete questionnaire which have the identifier equal to questionnaireId
-            for (let i = oneObjects.length - 1; i >= 0; i--) {
-                if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
-                    const {data, ...restObjectData} = oneObjects[i];
-                    // Convert the data member from one to model representation
-                    incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-                    break;
-                }
-            }
-        } else {
-            const {data, ...restObjectData} = oneObjects[oneObjects.length - 1];
-            incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+        })) {
+            console.log("item is: ", item);
+            // const {data, ...restObjectData} = item as QuestionnaireResponse;
+            // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+            // break;
         }
+
+        // const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+        //     channelId: this.incompleteResponsesChannelId,
+        //     from: since
+        // });
+        //
+        // if (questionnaireId) {
+        //     // getting the latest incomplete questionnaire which have the identifier equal to questionnaireId
+        //     for (let i = oneObjects.length - 1; i >= 0; i--) {
+        //         if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
+        //             const {data, ...restObjectData} = oneObjects[i];
+        //             // Convert the data member from one to model representation
+        //             incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+        //             break;
+        //         }
+        //     }
+        // } else {
+        //     const {data, ...restObjectData} = oneObjects[oneObjects.length - 1];
+        //     incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+        // }
 
         return incompleteResponse;
     }
