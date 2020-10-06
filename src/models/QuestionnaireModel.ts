@@ -299,6 +299,7 @@ export default class QuestionnaireModel extends EventEmitter {
         });
 
         if (questionnaireId) {
+            // getting the latest incomplete questionnaire which have the identifier equal to questionnaireId
             for (let i = oneObjects.length - 1; i >= 0; i--) {
                 if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
                     const {data, ...restObjectData} = oneObjects[i];
