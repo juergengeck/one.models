@@ -277,8 +277,7 @@ export default class QuestionnaireModel extends EventEmitter {
     }
 
     /**
-     * Getting the incomplete questionnaires.
-     * @param {string} questionnaireId - question identifier.
+     * Getting the latest incomplete questionnaire.
      * @param {Date} since - not older than this date.
      * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
      */
@@ -287,13 +286,14 @@ export default class QuestionnaireModel extends EventEmitter {
             QuestionnaireResponse
         >;
 
+        // every time the latest incomplete questionnaire will be the one that it's needed
         const lastIncompleteQuestionnaire = (
             await this.channelManager
                 .objectIterator({channelId: this.incompleteResponsesChannelId, from: since})
                 .next()
         ).value;
 
-        console.log('lastIncompleteQuestionnaire ', lastIncompleteQuestionnaire);
+        // if an incomplete questionnaire was found then convert the data member from one to model representation
         if (lastIncompleteQuestionnaire !== undefined) {
             const {data, ...restObjectData} = lastIncompleteQuestionnaire;
             incompleteResponse = {
@@ -301,45 +301,6 @@ export default class QuestionnaireModel extends EventEmitter {
                 data: convertFromOne(data as OneQuestionnaireResponse)
             };
         }
-
-        console.log('incompleteResponse ', incompleteResponse);
-
-        const item = this.channelManager.objectIterator({
-            channelId: this.incompleteResponsesChannelId,
-            from: since
-        });
-
-        console.log('item is: ', item);
-
-        // for await (const item of this.channelManager.objectIterator({
-        //     channelId: this.incompleteResponsesChannelId,
-        //     from: since
-        // })) {
-        //     console.log('item is: ', item);
-        //     // const {data, ...restObjectData} = item as QuestionnaireResponse;
-        //     // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-        //     // break;
-        // }
-
-        // const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
-        //     channelId: this.incompleteResponsesChannelId,
-        //     from: since
-        // });
-        //
-        // if (questionnaireId) {
-        //     // getting the latest incomplete questionnaire which have the identifier equal to questionnaireId
-        //     for (let i = oneObjects.length - 1; i >= 0; i--) {
-        //         if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
-        //             const {data, ...restObjectData} = oneObjects[i];
-        //             // Convert the data member from one to model representation
-        //             incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-        //             break;
-        //         }
-        //     }
-        // } else {
-        //     const {data, ...restObjectData} = oneObjects[oneObjects.length - 1];
-        //     incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-        // }
 
         return incompleteResponse;
     }
