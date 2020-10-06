@@ -287,15 +287,25 @@ export default class QuestionnaireModel extends EventEmitter {
             QuestionnaireResponse
         >;
 
-        for await (const item of this.channelManager.objectIterator({
-            channelId: this.incompleteResponsesChannelId,
-            from: since
-        })) {
-            console.log("item is: ", item);
-            // const {data, ...restObjectData} = item as QuestionnaireResponse;
-            // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-            // break;
-        }
+        const lastIncompleteQuestionnaire = (await this.channelManager.objectIterator({channelId: this.incompleteResponsesChannelId,
+            from: since}).next()).value;
+
+        console.log("lastIncompleteQuestionnaire ", lastIncompleteQuestionnaire);
+
+        const {data, ...restObjectData} = lastIncompleteQuestionnaire;
+        incompleteResponse = {...restObjectData, data: convertFromOne(data as OneQuestionnaireResponse)};
+
+        console.log("incompleteResponse ", incompleteResponse);
+
+        // for await (const item of this.channelManager.objectIterator({
+        //     channelId: this.incompleteResponsesChannelId,
+        //     from: since
+        // })) {
+        //     console.log('item is: ', item);
+        //     // const {data, ...restObjectData} = item as QuestionnaireResponse;
+        //     // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+        //     // break;
+        // }
 
         // const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
         //     channelId: this.incompleteResponsesChannelId,
