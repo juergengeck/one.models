@@ -242,9 +242,6 @@ export default class QuestionnaireModel extends EventEmitter {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
         }
-        // else if( id === this.incompleteResponsesChannelId) {
-        //     this.emit('updated');
-        // }
     }
 
     // ######### Incomplete Response Methods ########
@@ -302,35 +299,20 @@ export default class QuestionnaireModel extends EventEmitter {
         });
 
         if (questionnaireId) {
-            // Convert the data member from one to model representation
-            for (let i = oneObjects.length; i > 0; i--) {
+            for (let i = oneObjects.length - 1; i >= 0; i--) {
                 if (oneObjects[i].data.questionnaire.includes(questionnaireId)) {
                     const {data, ...restObjectData} = oneObjects[i];
+                    // Convert the data member from one to model representation
                     incompleteResponse = {...restObjectData, data: convertFromOne(data)};
                     break;
                 }
             }
         } else {
-            const {data, ...restObjectData} = oneObjects[oneObjects.length];
+            const {data, ...restObjectData} = oneObjects[oneObjects.length - 1];
             incompleteResponse = {...restObjectData, data: convertFromOne(data)};
         }
 
         return incompleteResponse;
-    }
-
-    /**
-     * Getting an incomplete questionnaire response by its id.
-     * @param {string} questionnaireId - the id of the questionnaire.
-     * @returns {Promise<ObjectData<QuestionnaireResponse>>} - the incomplete questionnaire.
-     */
-    async getIncompleteResponse(
-        questionnaireId: string
-    ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
-            questionnaireId,
-            'QuestionnaireResponse'
-        );
-        return {...restObjectData, data: convertFromOne(data)};
     }
 
     /**
