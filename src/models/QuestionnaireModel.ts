@@ -294,33 +294,19 @@ export default class QuestionnaireModel extends EventEmitter {
             channelId: this.incompleteResponsesChannelId,
             from: since
         })) {
-            console.log('item is: ', item);
+            const oneQuestionnaireResponse = item.data as OneQuestionnaireResponse;
+            if (questionnaireId && oneQuestionnaireResponse.questionnaire !== questionnaireId) {
+                continue;
+            }
 
-            // if (questionnaireId && item.data.questionnaire !== questionnaireId) {
-            //     continue;
-            // }
-            //
-            // const {data, ...restObjectData} = item;
-            // // Convert the data member from one to model representation
-            // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
-            // break;
+            const {data, ...restObjectData} = item;
+            // Convert the data member from one to model representation
+            incompleteResponse = {
+                ...restObjectData,
+                data: convertFromOne(data as OneQuestionnaireResponse)
+            };
+            break;
         }
-
-        // // every time the latest incomplete questionnaire will be the one that it's needed
-        // const lastIncompleteQuestionnaire = (
-        //     await this.channelManager
-        //         .objectIterator({channelId: this.incompleteResponsesChannelId, from: since})
-        //         .next()
-        // ).value;
-        //
-        // // if an incomplete questionnaire was found then convert the data member from one to model representation
-        // if (lastIncompleteQuestionnaire !== undefined) {
-        //     const {data, ...restObjectData} = lastIncompleteQuestionnaire;
-        //     incompleteResponse = {
-        //         ...restObjectData,
-        //         data: convertFromOne(data as OneQuestionnaireResponse)
-        //     };
-        // }
 
         return incompleteResponse;
     }
