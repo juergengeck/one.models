@@ -279,28 +279,48 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Getting the latest incomplete questionnaire.
      * @param {Date} since - not older than this date.
+     * @param {string} questionnaireId - questionnaire identifier.
      * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
      */
-    async hasIncompleteResponse(since?: Date): Promise<ObjectData<QuestionnaireResponse>> {
+    async hasIncompleteResponse(
+        questionnaireId?: string,
+        since?: Date
+    ): Promise<ObjectData<QuestionnaireResponse>> {
         let incompleteResponse: ObjectData<QuestionnaireResponse> = {} as ObjectData<
             QuestionnaireResponse
         >;
 
-        // every time the latest incomplete questionnaire will be the one that it's needed
-        const lastIncompleteQuestionnaire = (
-            await this.channelManager
-                .objectIterator({channelId: this.incompleteResponsesChannelId, from: since})
-                .next()
-        ).value;
+        for await (const item of this.channelManager.objectIterator({
+            channelId: this.incompleteResponsesChannelId,
+            from: since
+        })) {
+            console.log('item is: ', item);
 
-        // if an incomplete questionnaire was found then convert the data member from one to model representation
-        if (lastIncompleteQuestionnaire !== undefined) {
-            const {data, ...restObjectData} = lastIncompleteQuestionnaire;
-            incompleteResponse = {
-                ...restObjectData,
-                data: convertFromOne(data as OneQuestionnaireResponse)
-            };
+            // if (questionnaireId && item.data.questionnaire !== questionnaireId) {
+            //     continue;
+            // }
+            //
+            // const {data, ...restObjectData} = item;
+            // // Convert the data member from one to model representation
+            // incompleteResponse = {...restObjectData, data: convertFromOne(data)};
+            // break;
         }
+
+        // // every time the latest incomplete questionnaire will be the one that it's needed
+        // const lastIncompleteQuestionnaire = (
+        //     await this.channelManager
+        //         .objectIterator({channelId: this.incompleteResponsesChannelId, from: since})
+        //         .next()
+        // ).value;
+        //
+        // // if an incomplete questionnaire was found then convert the data member from one to model representation
+        // if (lastIncompleteQuestionnaire !== undefined) {
+        //     const {data, ...restObjectData} = lastIncompleteQuestionnaire;
+        //     incompleteResponse = {
+        //         ...restObjectData,
+        //         data: convertFromOne(data as OneQuestionnaireResponse)
+        //     };
+        // }
 
         return incompleteResponse;
     }
