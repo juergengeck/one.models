@@ -282,7 +282,7 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {string} questionnaireId - questionnaire identifier.
      * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
      */
-    async hasIncompleteResponse(
+    async incompleteResponse(
         questionnaireId?: string,
         since?: Date
     ): Promise<ObjectData<QuestionnaireResponse>> {
@@ -309,6 +309,28 @@ export default class QuestionnaireModel extends EventEmitter {
         }
 
         return incompleteResponse;
+    }
+
+    /**
+     * Check if incomplete questionnaires exists.
+     * @param {Date} since - not older than this date.
+     * @param {string} questionnaireId - questionnaire identifier.
+     * @returns {Promise<boolean>}
+     */
+    async hasIncompleteResponse(questionnaireId?: string, since?: Date): Promise<boolean> {
+        for await (const item of this.channelManager.objectIterator({
+            channelId: this.incompleteResponsesChannelId,
+            from: since
+        })) {
+            const oneQuestionnaireResponse = item.data as OneQuestionnaireResponse;
+            if (questionnaireId && oneQuestionnaireResponse.questionnaire !== questionnaireId) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
