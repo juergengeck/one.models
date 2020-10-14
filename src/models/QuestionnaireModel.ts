@@ -249,6 +249,9 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Saving incomplete questionnaires.
      *
+     * ## Note: if an empty questionnaire response it's passed as the argument,
+     * then the function will work as markIncompleteResponseAsComplete(questionnaireId: string) function.
+     *
      * @param {QuestionnaireResponse} data - The answers for the questionnaire.
      */
     async postIncompleteResponse(data: QuestionnaireResponse): Promise<void> {
@@ -285,17 +288,17 @@ export default class QuestionnaireModel extends EventEmitter {
     async incompleteResponse(
         questionnaireId?: string,
         since?: Date
-    ): Promise<ObjectData<QuestionnaireResponse>> {
-        let incompleteResponse: ObjectData<QuestionnaireResponse> = {} as ObjectData<
-            QuestionnaireResponse
-        >;
+    ): Promise<ObjectData<QuestionnaireResponse> | null> {
+        let incompleteResponse: ObjectData<QuestionnaireResponse> | null = null;
 
-        for await (const item of this.channelManager.objectIterator({
-            channelId: this.incompleteResponsesChannelId,
-            from: since
-        })) {
-            const oneQuestionnaireResponse = item.data as OneQuestionnaireResponse;
-            if (questionnaireId && oneQuestionnaireResponse.questionnaire !== questionnaireId) {
+        for await (const item of this.channelManager.objectIteratorWithType(
+            'QuestionnaireResponse',
+            {
+                channelId: this.incompleteResponsesChannelId,
+                from: since
+            }
+        )) {
+            if (questionnaireId && item.data.questionnaire !== questionnaireId) {
                 continue;
             }
 
@@ -303,7 +306,7 @@ export default class QuestionnaireModel extends EventEmitter {
             // Convert the data member from one to model representation
             incompleteResponse = {
                 ...restObjectData,
-                data: convertFromOne(data as OneQuestionnaireResponse)
+                data: convertFromOne(data)
             };
             break;
         }
@@ -318,16 +321,19 @@ export default class QuestionnaireModel extends EventEmitter {
      * @returns {Promise<boolean>}
      */
     async hasIncompleteResponse(questionnaireId?: string, since?: Date): Promise<boolean> {
-        for await (const item of this.channelManager.objectIterator({
-            channelId: this.incompleteResponsesChannelId,
-            from: since
-        })) {
-            const oneQuestionnaireResponse = item.data as OneQuestionnaireResponse;
-            if (questionnaireId && oneQuestionnaireResponse.questionnaire !== questionnaireId) {
+        for await (const item of this.channelManager.objectIteratorWithType(
+            'QuestionnaireResponse',
+            {
+                channelId: this.incompleteResponsesChannelId,
+                from: since
+            }
+        )) {
+            if (questionnaireId && item.data.questionnaire !== questionnaireId) {
                 continue;
             }
 
-            return true;
+            // if the questionnaire it's empty then no incomplete questionnaire exists
+            return item.data.item.length > 0;
         }
 
         return false;
@@ -335,6 +341,11 @@ export default class QuestionnaireModel extends EventEmitter {
 
     /**
      * Posting an empty questionnaire.
+     *
+     * ## Note: this function is used to mark when a complete questionnaire was posted,
+     * so every time when a complete questionnaire it's added to the "questionnaireResponse" channel,
+     * an empty questionnaire response it's added to the "incompleteQuestionnaireResponse" channel.
+     *
      * @param {string} questionnaireId - the id of the questionnaire.
      * @returns {Promise<void>}
      */
