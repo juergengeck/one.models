@@ -63,7 +63,7 @@ declare module '@OneCoreTypes' {
 
     export interface ProfileImage extends ContactDescription {
         $type$: 'ProfileImage';
-        image: Blob;
+        image: SHA256Hash<BLOB>;
     }
 
     // #### Contact / Profile / Someone #####

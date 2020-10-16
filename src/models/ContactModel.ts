@@ -16,7 +16,7 @@ import {
     UnversionedObjectResult,
     CommunicationEndpointTypes,
     OneInstanceEndpoint,
-    Keys
+    Keys, BLOB, ProfileImage
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -29,7 +29,7 @@ import {
     SET_ACCESS_MODE,
     onVersionedObj,
     getObjectWithType,
-    createSingleObjectThroughImpurePlan
+    createSingleObjectThroughImpurePlan, WriteStorageApi
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -40,6 +40,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {createFileWriteStream} from "one.core/lib/system/storage-streams";
 
 /**
  * This represents a ContactEvent
@@ -55,8 +56,44 @@ export enum ContactEvent {
 
 export type ContactDescription = {
     personName?: string;
-    image?: Blob;
+    image?: ArrayBuffer;
 };
+
+
+/**
+ * Convert from model representation to one representation.
+ *
+ * @param {DocumentInfo} modelObject - the model object
+ * @returns {Promise<OneDocumentInfo>} The corresponding one object
+ */
+async function convertToOne (modelObject: ArrayBuffer): Promise<ProfileImage> {
+    // Create the resulting object
+    const profileImageReference = await saveProfileImageAsBLOB(modelObject);
+
+    return {
+        $type$: 'ProfileImage',
+        image: profileImageReference
+    };
+}
+
+/**
+ * Saving the profile image in ONE as a BLOB and returning the reference for it.
+ *
+ * @param {ArrayBuffer} profileImage - the image that is saved in ONE as a BLOB.
+ * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
+ */
+async function saveProfileImageAsBLOB(profileImage: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
+    const minimalWriteStorageApiObj = {
+        createFileWriteStream: createFileWriteStream
+    } as WriteStorageApi;
+
+    const stream = minimalWriteStorageApiObj.createFileWriteStream();
+    stream.write(profileImage);
+
+    const blob = await stream.end();
+
+    return blob.hash;
+}
 
 
 /**
@@ -453,9 +490,11 @@ export default class ContactModel extends EventEmitter {
 
         // creates the profileImage object
         if (contactDescription.image) {
+
+            const oneProfileImage = await convertToOne(contactDescription.image);
             profileImage = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
-                {$type$: 'ProfileImage', image: contactDescription.image}
+                oneProfileImage
             );
         }
 
