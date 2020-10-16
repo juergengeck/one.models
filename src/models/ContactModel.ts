@@ -16,7 +16,7 @@ import {
     UnversionedObjectResult,
     CommunicationEndpointTypes,
     OneInstanceEndpoint,
-    Keys
+    Keys, BLOB
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -52,6 +52,12 @@ export enum ContactEvent {
     NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED',
     UpdatedContactApp = 'UPDATED_CONTACT_APP'
 }
+
+export type ContactDescription = {
+    personName?: string;
+    image?: BLOB;
+};
+
 
 /**
  *
@@ -331,6 +337,11 @@ export default class ContactModel extends EventEmitter {
      * e.g for descriptions -> [{type: 'Name', personName: 'name'}, {type: 'Image', personImage: 'someBLOB'}]
      * will be converted into {personName: 'Name', personImage: 'someBLOB'}
      * @param {SHA256IdHash<Person>} personId
+     *
+     * { description: DescriptionEndpointType ; metadata: {
+     *     source: SHA256IdHash<Person>[];
+     *     fromMainContactObject: boolean;
+     * }}[]
      * @returns {Promise<{endpoints: {}; descriptions: {}; meta: {}}>}
      */
     public async getMergedContactObjects(
@@ -399,6 +410,162 @@ export default class ContactModel extends EventEmitter {
             throw new Error('The profile does not exists');
         }
     }
+
+    // public async getMergedContactObjects(personId: SHA256IdHash<Person>): Promise<{type: string; info: {value: string; meta: {}}[]}[]> {
+    //     [
+    //         { type: "name"
+    //             info:[{
+    //                 value: "Raluca"
+    //                 meta:{
+    //                     isFromMainContact: true}
+    //             }]
+    //         },
+    //         { type: "phoneNumber",
+    //             info:[
+    //                 {
+    //                     value: "123456"
+    //                     meta:{
+    //                         profile: "friends"}
+    //                 },
+    //                 {
+    //                     value:'67890'
+    //                     meta:{
+    //                         profile: "work"}
+    //                 }
+    //             ]
+    //         }]
+    // }
+
+    public async updateMainContact(
+        personId: SHA256IdHash<Person>,
+        contactDescription: ContactDescription
+    ): Promise<void> {
+        let personName: UnversionedObjectResult<ContactDescriptionTypes> | null = null;
+        let profileImage: UnversionedObjectResult<ContactDescriptionTypes> | null = null;
+
+        // creates the personName object
+        if (contactDescription.personName) {
+            personName = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {$type$: 'PersonName', name: contactDescription.personName}
+            );
+        }
+
+        // creates the profileImage object
+        if (contactDescription.image) {
+            profileImage = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {$type$: 'ProfileImage', image: contactDescription.image}
+            );
+        }
+
+        try {
+            /** see if the profile does exist **/
+            const profile = await serializeWithType('Contacts', async () => {
+                return await getObjectByIdObj({$type$: 'Profile', personId: personId});
+            });
+
+            // getting the main contact
+            const mainContact = await getObject(profile.obj.mainContact);
+
+            const mainContactDescriptions: ContactDescriptionTypes[] = [];
+            const mainContactDescriptionHashes = mainContact.contactDescriptions;
+
+            // getting the current contact descriptions
+            for (const description of mainContact.contactDescriptions) {
+                mainContactDescriptions.push(await getObject(description));
+            }
+
+            let contactObject: UnversionedObjectResult<Contact> | null = null;
+
+            for (let i = mainContactDescriptionHashes.length - 1; i >= 0; i--) {
+                if (personName && personName.obj.$type$ === mainContactDescriptions[i].$type$) {
+                    mainContactDescriptionHashes.splice(i, 1);
+                }
+
+                if (profileImage && profileImage.obj.$type$ === mainContactDescriptions[i].$type$) {
+                    mainContactDescriptionHashes.splice(i, 1);
+                }
+            }
+
+            if (personName && profileImage) {
+                // creates the contact object
+                contactObject = await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {
+                        $type$: 'Contact',
+                        personId: personId,
+                        communicationEndpoints: [],
+                        contactDescriptions: [personName.hash, profileImage.hash].concat(
+                            mainContactDescriptionHashes
+                        )
+                    }
+                );
+            } else if (personName) {
+                // creates the contact object
+                contactObject = await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {
+                        $type$: 'Contact',
+                        personId: personId,
+                        communicationEndpoints: [],
+                        contactDescriptions: [personName.hash].concat(mainContactDescriptionHashes)
+                    }
+                );
+            } else if (profileImage) {
+                // creates the contact object
+                contactObject = await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {
+                        $type$: 'Contact',
+                        personId: personId,
+                        communicationEndpoints: [],
+                        contactDescriptions: [profileImage.hash].concat(
+                            mainContactDescriptionHashes
+                        )
+                    }
+                );
+            }
+
+            if (contactObject !== null) {
+                const existingContact = profile.obj.contactObjects.find(
+                    (contactHash: SHA256Hash<Contact>) => contactHash === contactObject!.hash
+                );
+                if (existingContact === undefined) {
+                    profile.obj.contactObjects.push(contactObject.hash);
+                }
+
+                profile.obj.mainContact = contactObject.hash;
+
+                /** update the profile **/
+                await serializeWithType('Contacts', async () => {
+                    return await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        profile.obj
+                    );
+                });
+
+                this.emit(ContactEvent.UpdatedContact, profile);
+                if (existingContact === undefined) {
+                    this.emit(
+                        ContactEvent.NewCommunicationEndpointArrived,
+                        contactObject.obj.communicationEndpoints
+                    );
+                }
+            }
+        } catch (e) {
+            throw new Error('The profile does not exists');
+        }
+    }
+
+    // async setProfileImage(person: SHA256IdHash<Person>, image: BLOB): Promise<void> {}
+    //
+    // async setTelephoneNumber(person: SHA256IdHash<Person>, number: string): Promise<void> {}
+    //
+    // async addTelephoneNumber(person: SHA256IdHash<Person>, number: string): Promise<void> {}
 
     /**
      * HOOK function
