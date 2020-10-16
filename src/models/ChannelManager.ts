@@ -875,6 +875,7 @@ export default class ChannelManager extends EventEmitter {
         // Those values are then compared and the one with the highest
         // timestamp is returned and then replaced by the next one on each iteration
         let currentValues: (RawChannelEntry | undefined)[] = [];
+        let previousItem: RawChannelEntry | undefined = undefined;
 
         // Initial fill of the currentValues iterator with the most current elements of each iterator
         for (const iterator of iterators) {
@@ -907,7 +908,15 @@ export default class ChannelManager extends EventEmitter {
                         continue;
                     }
 
-                    // Ignore totally equal elements (same channel id and same entry => history is the same)
+                    // If the timestamp is equal, then sort by time hash to have a predictable order
+                    if (
+                        currentValue.creationTime === mostCurrentItem.creationTime &&
+                        currentValue.creationTimeHash < mostCurrentItem.creationTimeHash
+                    ) {
+                            continue;
+                    }
+
+                    // Ignore elements with the same history (same channel id and same entry => history is the same)
                     // This is mostly required if we mergeIterate multiple versions of the same channel.
                     // The merge algorithm uses this.
                     if (
@@ -936,14 +945,29 @@ export default class ChannelManager extends EventEmitter {
             // Advance the iterator that yielded the highest creationTime
             currentValues[mostCurrentIndex] = (await iterators[mostCurrentIndex].next()).value;
 
-            logWithId_Debug(
-                null,
-                null,
-                `mergeIteratorMostCurrent: picked value from iterator ${mostCurrentIndex}`
-            );
+            // Filter for duplicates
+            if (
+                previousItem &&
+                previousItem.creationTime === mostCurrentItem.creationTime &&
+                previousItem.creationTimeHash === mostCurrentItem.creationTimeHash &&
+                previousItem.channelInfoIdHash === mostCurrentItem.channelInfoIdHash
+            ) {
+                logWithId_Debug(
+                    null,
+                    null,
+                    `mergeIteratorMostCurrent: skipped value from iterator ${mostCurrentIndex}: duplicate with previous`
+                );
+            }
+            else {
+                logWithId_Debug(
+                    null,
+                    null,
+                    `mergeIteratorMostCurrent: picked value from iterator ${mostCurrentIndex}`
+                );
 
-            // Yield the value that has the highest creationTime
-            yield mostCurrentItem;
+                // Yield the value that has the highest creationTime
+                yield mostCurrentItem;
+            }
 
             // If we have one active iterator remaining and the user requested it, we terminate
             // This is done after the yield, because we want the first element of the remaining
@@ -951,6 +975,8 @@ export default class ChannelManager extends EventEmitter {
             if (terminateOnSingleIterator && activeIterators === 1) {
                 break;
             }
+
+            previousItem = mostCurrentItem;
         }
 
         logWithId(null, null, 'mergeIteratorMostCurrent - LEAVE');
