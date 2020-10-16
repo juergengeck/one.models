@@ -1,7 +1,6 @@
 import {
-    createSingleObjectThroughPurePlan,
     getObject,
-    getObjectByIdHash, VERSION_UPDATES,
+    getObjectByIdHash,
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
@@ -45,7 +44,7 @@ export async function createObjects(
     if (latestChannelInfo.head) {
         const channelEntry = await getObject(latestChannelInfo.head);
         const creationTimeObj = await getObject(channelEntry.data);
-        previousCreationTime = creationTimeObj.date;
+        previousCreationTime = creationTimeObj.timestamp;
     }
 
     // Write the payload.
@@ -67,7 +66,7 @@ export async function createObjects(
     // The merge algorithm does exactly that, so we just post a new version with exactly one element
     // (=> undefined previous element) and let the merge algorithm take care of the iteration.
     let previousPointer;
-    if (creationTimeResult.obj.timestamp >= previousCreationTime) {
+    if (creationTimeResult.obj.timestamp > previousCreationTime) {
         previousPointer = latestChannelInfo.head;
     } else {
         previousPointer = undefined;
