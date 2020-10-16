@@ -16,7 +16,7 @@ import {
     UnversionedObjectResult,
     CommunicationEndpointTypes,
     OneInstanceEndpoint,
-    Keys, BLOB
+    Keys
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -55,7 +55,7 @@ export enum ContactEvent {
 
 export type ContactDescription = {
     personName?: string;
-    image?: BLOB;
+    image?: Blob;
 };
 
 
