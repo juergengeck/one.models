@@ -44,6 +44,7 @@ import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import * as Storage from 'one.core/lib/storage.js';
 
 /**
  * This represents a ContactEvent
@@ -64,6 +65,23 @@ export type ContactDescription = {
     personName?: string;
     image?: ArrayBuffer;
 };
+
+// {type: string; info: {value: string; meta: {}}[]
+
+export type Meta = {};
+export type Info = {
+    value: string | ArrayBuffer;
+    meta: Meta;
+};
+export type MergedContact = {
+    type: string;
+    info: Info[];
+};
+
+export enum DescriptionTypes {
+    PERSON_NAME = 'PersonName',
+    PROFILE_IMAGE = 'ProfileImage'
+}
 
 /**
  * Convert from model representation to one representation.
@@ -98,6 +116,23 @@ async function saveProfileImageAsBLOB(profileImage: ArrayBuffer): Promise<SHA256
     const blob = await stream.end();
 
     return blob.hash;
+}
+
+/**
+ * Convert from one representation to model representation.
+ *
+ * @param {ProfileImage} oneObject - the one object
+ * @returns {ArrayBuffer | undefined} The corresponding model object
+ */
+async function convertFromOne(oneObject: ProfileImage): Promise<ArrayBuffer | null> {
+    let profileImage: ArrayBuffer | null = null;
+    const stream = Storage.createFileReadStream(oneObject.image);
+    stream.onData.addListener(data => {
+        profileImage = data;
+    });
+    await stream.promise;
+
+    return profileImage;
 }
 
 /**
@@ -371,6 +406,52 @@ export default class ContactModel extends EventEmitter {
     ): Promise<SHA256Hash<Contact>[]> {
         const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
         return personProfile.obj.contactObjects;
+    }
+
+    /**
+     *
+     * @param {SHA256IdHash<Person>} personId
+     * @returns {Promise<MergedContact[]>}
+     */
+    public async getMergedContactObjectsNew(
+        personId: SHA256IdHash<Person>
+    ): Promise<MergedContact[]> {
+        const contacts = await this.getContactObjects(personId);
+        const result: MergedContact[] = [];
+        const personNameInfos: Info[] = [];
+        const profileImageInfos: Info[] = [];
+
+        for (const contact of contacts) {
+            for (const contactDescription of contact.contactDescriptions) {
+                const contactDescriptionObject = await getObject(contactDescription);
+
+                if (contactDescriptionObject.$type$ === DescriptionTypes.PERSON_NAME) {
+                    personNameInfos.push({value: contactDescriptionObject.name, meta: {}});
+                }
+
+                if (contactDescriptionObject.$type$ === DescriptionTypes.PROFILE_IMAGE) {
+                    const image = await convertFromOne({
+                        $type$: DescriptionTypes.PROFILE_IMAGE,
+                        image: contactDescriptionObject.image
+                    });
+                    if (image !== null) {
+                        profileImageInfos.push({value: image, meta: {}});
+                    }
+                }
+            }
+        }
+
+        result.push({
+            type: DescriptionTypes.PERSON_NAME,
+            info: personNameInfos
+        });
+
+        result.push({
+            type: DescriptionTypes.PROFILE_IMAGE,
+            info: profileImageInfos
+        });
+
+        return result;
     }
 
     /**
