@@ -1,5 +1,5 @@
 import WbcDiffModel from './WbcDiffModel';
-import {WbcMeasurement} from '@OneCoreTypes';
+import {WbcObservation} from '@OneCoreTypes';
 import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
@@ -22,7 +22,7 @@ export enum EventType {
 export type EventListEntry = {
     type: EventType;
     data:
-        | ObjectData<WbcMeasurement>
+        | ObjectData<WbcObservation>
         | ObjectData<QuestionnaireResponse>
         | HeartEvent
         | ObjectData<DocumentInfo>
@@ -81,7 +81,7 @@ export default class JournalModel extends EventEmitter {
      */
     async events(): Promise<EventListEntry[]> {
         const diaryEntries = await this.diaryModel.entries();
-        const measurements = await this.wbcDiffModel.measurements();
+        const measurements = await this.wbcDiffModel.getAll();
         const qresponses = await this.questionnaireModel.responses();
         const heartEvents = await this.heartEventModel.heartEvents();
         const documents = await this.documentModel.documents();
