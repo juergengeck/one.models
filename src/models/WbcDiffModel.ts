@@ -55,7 +55,7 @@ export default class WbcDiffModel extends EventEmitter {
      * @param {string} wbcObservation - The answers for the questionnaire
      */
     async postMeasurement(wbcObservation: WbcObservation): Promise<void> {
-        MessageBus.send('log', `postMeasurement(${wbcObservation})`);
+        MessageBus.send('log', `postMeasurement(${JSON.stringify(wbcObservation)})`);
         wbcObservation = Object.assign({}, wbcObservation); // shallow copy, because we modify it
 
         // Verify number format of *Count fields
