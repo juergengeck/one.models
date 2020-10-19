@@ -1,8 +1,8 @@
-import {Recipe} from '@OneCoreTypes';
+import {Recipe, RecipeRule} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
-        WbcMeasurement: WbcMeasurement;
+        WbcObservation: WbcObservation;
     }
 
     /**
@@ -20,118 +20,76 @@ declare module '@OneCoreTypes' {
 
     export interface WbcMeasurement {
         $type$: 'WbcMeasurement';
-        wbcCount: string;
-        wbcCountUnit: string;
-        neuCount?: string;
-        neuCountUnit?: string;
-        neuCountUnsafe?: boolean;
-        lymCount?: string;
-        lymCountUnit?: string;
-        lymCountUnsafe?: boolean;
-        monCount?: string;
-        monCountUnit?: string;
-        monCountUnsafe?: boolean;
-        eosCount?: string;
-        eosCountUnit?: string;
-        eosCountUnsafe?: boolean;
-        basCount?: string;
-        basCountUnit?: string;
-        basCountUnsafe?: boolean;
+        value: string;
+        unit: string;
+        unsafe?: boolean;
+    }
+
+    export interface WbcObservation {
+        $type$: 'WbcObservation';
+        dttm: string; // date time string e.g. '2020-09-04T12:10:01+01:00';
+        Neutrophils: WbcMeasurement;
+        Lymphocytes: WbcMeasurement;
+        Monocytes: WbcMeasurement;
+        Eosinophils: WbcMeasurement;
+        Basophils: WbcMeasurement;
+        Leukocytes: WbcMeasurement;
     }
 }
 
-const WbcMeasurement: Recipe = {
+const WbcMeasurementRules: RecipeRule[] = [
+    {
+        itemprop: 'value',
+        valueType: 'string'
+    },
+    {
+        itemprop: 'unit',
+        valueType: 'string'
+    },
+    {
+        itemprop: 'unsafe',
+        valueType: 'boolean',
+        optional: true
+    }
+];
+
+const WbcObservation: Recipe = {
     $type$: 'Recipe',
-    name: 'WbcMeasurement',
+    name: 'WbcObservation',
     rule: [
         {
-            itemprop: 'wbcCount',
+            itemprop: 'dttm',
             valueType: 'string'
         },
         {
-            itemprop: 'wbcCountUnit',
-            valueType: 'string'
+            itemprop: 'Neutrophils',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'neuCount',
-            valueType: 'string',
-            optional: true
+            itemprop: 'Lymphocytes',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'neuCountUnit',
-            valueType: 'string',
-            optional: true
+            itemprop: 'Monocytes',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'neuCountUnsafe',
-            valueType: 'boolean',
-            optional: true
+            itemprop: 'Eosinophils',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'lymCount',
-            valueType: 'string',
-            optional: true
+            itemprop: 'Basophils',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'lymCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'lymCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'monCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'monCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'monCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'eosCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'eosCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'eosCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'basCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'basCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'basCountUnsafe',
-            valueType: 'boolean',
-            optional: true
+            itemprop: 'Leukocytes',
+            rule: WbcMeasurementRules
         }
     ]
 };
 
 // Export recipes
 
-const WbcRecipes: Recipe[] = [WbcMeasurement];
+const WbcRecipes: Recipe[] = [WbcObservation];
 
 export default WbcRecipes;
