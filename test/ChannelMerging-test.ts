@@ -5,7 +5,7 @@ import {expect} from 'chai';
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
-import Model, {dbKey, importModules} from './utils/Model';
+import TestModel, {dbKey, importModules} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {
     createSingleObjectThroughPurePlan,
@@ -14,7 +14,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 
-let channelManager: ChannelManager;
+let channelManager: typeof ChannelManager;
 const channelsIdentifiers = ['first'];
 const howMany = 10;
 
@@ -23,7 +23,9 @@ describe('Channel Merging test', () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
-        channelManager = new Model().channelManager;
+        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        await model.init(undefined);
+        channelManager = model.channelManager;
     });
 
     it('should create data for a channel', async () => {

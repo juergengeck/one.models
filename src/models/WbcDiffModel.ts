@@ -195,9 +195,7 @@ export default class WbcDiffModel extends EventEmitter {
      */
     async measurements(): Promise<ObjectData<WbcMeasurement>[]> {
         const objects: ObjectData<WbcMeasurement>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            'WbcMeasurement'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('WbcMeasurement');
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {

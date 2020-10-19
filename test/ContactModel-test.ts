@@ -21,10 +21,10 @@ import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes'
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {dbKey, importModules, TestAccessGroups} from './utils/Model';
+import TestModel, {dbKey, importModules, TestAccessGroups} from './utils/TestModel';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
-import {AccessModel, ChannelManager} from "../lib/models";
+import {AccessModel, ChannelManager} from '../lib/models';
 let contactModel: ContactModel;
 
 describe('Contact model test', () => {
@@ -32,20 +32,10 @@ describe('Contact model test', () => {
         await StorageTestInit.init({dbKey: dbKey, secret: '1234'});
         await registerRecipes(Recipes);
         await importModules();
-        const accessModel = new AccessModel();
-        await accessModel.init();
-        const channelManager = new ChannelManager(accessModel);
-        const instanceModel = new InstancesModel();
-        contactModel = new ContactModel(instanceModel, 'localhost:8000',channelManager);
-        await channelManager.init();
-        await accessModel.createAccessGroup(TestAccessGroups.partner);
-        await accessModel.createAccessGroup(TestAccessGroups.clinic);
-        await accessModel.createAccessGroup(TestAccessGroups.myself);
-        await instanceModel.init('1234');
 
-
-        await contactModel.init();
-        await contactModel.createContactChannel();
+        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        await model.init(undefined);
+        contactModel = model.contactModel;
     });
 
     it('should test init() function on a fresh instance', async () => {
