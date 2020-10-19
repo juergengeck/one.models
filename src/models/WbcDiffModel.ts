@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {WbcMeasurement} from '@OneCoreTypes';
+import {WbcObservation} from '@OneCoreTypes';
 
 /**
  * This model implements methods related to differential blood counts of white blood cells.
@@ -52,63 +52,8 @@ export default class WbcDiffModel extends EventEmitter {
      *
      * @param {string} wbcMeasurement - The answers for the questionnaire
      */
-    async postMeasurement(wbcMeasurement: WbcMeasurement): Promise<void> {
+    async postMeasurement(wbcMeasurement: WbcObservation): Promise<void> {
         wbcMeasurement = Object.assign({}, wbcMeasurement); // shallow copy, because we modify it
-        // Verify the consistency of optional classes
-        if (
-            !(
-                ('neuCount' in wbcMeasurement === 'neuCountUnit' in wbcMeasurement) ===
-                'neuCountUnsafe' in wbcMeasurement
-            )
-        ) {
-            throw Error(
-                'If one of the fields neuCount, neuCountUnit or neuCountUnsafe is specified, all need to be specified.'
-            );
-        }
-
-        if (
-            !(
-                ('lymCount' in wbcMeasurement === 'lymCountUnit' in wbcMeasurement) ===
-                'lymCountUnsafe' in wbcMeasurement
-            )
-        ) {
-            throw Error(
-                'If one of the fields lymCount, lymCountUnit or lymCountUnsafe is specified, all need to be specified.'
-            );
-        }
-
-        if (
-            !(
-                ('monCount' in wbcMeasurement === 'monCountUnit' in wbcMeasurement) ===
-                'monCountUnsafe' in wbcMeasurement
-            )
-        ) {
-            throw Error(
-                'If one of the fields monCount, monCountUnit or monCountUnsafe is specified, all need to be specified.'
-            );
-        }
-
-        if (
-            !(
-                ('eosCount' in wbcMeasurement === 'eosCountUnit' in wbcMeasurement) ===
-                'eosCountUnsafe' in wbcMeasurement
-            )
-        ) {
-            throw Error(
-                'If one of the fields eosCount, eosCountUnit or eosCountUnsafe is specified, all need to be specified.'
-            );
-        }
-
-        if (
-            !(
-                ('basCount' in wbcMeasurement === 'basCountUnit' in wbcMeasurement) ===
-                'basCountUnsafe' in wbcMeasurement
-            )
-        ) {
-            throw Error(
-                'If one of the fields basCount, basCountUnit or basCountUnsafe is specified, all need to be specified.'
-            );
-        }
 
         // Verify number format of *Count fields
         const numberRegex = /^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$/;
@@ -195,9 +140,7 @@ export default class WbcDiffModel extends EventEmitter {
      */
     async measurements(): Promise<ObjectData<WbcMeasurement>[]> {
         const objects: ObjectData<WbcMeasurement>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType(
-            'WbcMeasurement'
-        );
+        const oneObjects = await this.channelManager.getObjectsWithType('WbcMeasurement');
 
         // Convert the data member from one to model representation
         for (const oneObject of oneObjects) {
