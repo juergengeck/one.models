@@ -16,7 +16,9 @@ import {
     UnversionedObjectResult,
     CommunicationEndpointTypes,
     OneInstanceEndpoint,
-    Keys, BLOB, ProfileImage
+    Keys,
+    BLOB,
+    ProfileImage
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -29,7 +31,8 @@ import {
     SET_ACCESS_MODE,
     onVersionedObj,
     getObjectWithType,
-    createSingleObjectThroughImpurePlan, WriteStorageApi
+    createSingleObjectThroughImpurePlan,
+    WriteStorageApi
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -40,7 +43,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {createFileWriteStream} from "one.core/lib/system/storage-streams";
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 
 /**
  * This represents a ContactEvent
@@ -54,11 +57,13 @@ export enum ContactEvent {
     UpdatedContactApp = 'UPDATED_CONTACT_APP'
 }
 
+/**
+ * This represents the current contact description fields that can be provided by the user.
+ */
 export type ContactDescription = {
     personName?: string;
     image?: ArrayBuffer;
 };
-
 
 /**
  * Convert from model representation to one representation.
@@ -66,7 +71,7 @@ export type ContactDescription = {
  * @param {DocumentInfo} modelObject - the model object
  * @returns {Promise<OneDocumentInfo>} The corresponding one object
  */
-async function convertToOne (modelObject: ArrayBuffer): Promise<ProfileImage> {
+async function convertToOne(modelObject: ArrayBuffer): Promise<ProfileImage> {
     // Create the resulting object
     const profileImageReference = await saveProfileImageAsBLOB(modelObject);
 
@@ -94,7 +99,6 @@ async function saveProfileImageAsBLOB(profileImage: ArrayBuffer): Promise<SHA256
 
     return blob.hash;
 }
-
 
 /**
  *
@@ -398,82 +402,17 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * HOOK function
-     * @description Serialized since it's part of an object listener
-     * If the profile does not exist, it will be created assuming it's for another person
-     * @param {Contact} contact
-     * @param {boolean} useAsMainContact
+     * This function updates the main contact of a person based on the contactDescription object.
+     * (e.g. if the current main contact contains just an avatar an the incoming contactDescription contains a person name
+     * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
+     *
+     * @TODO - update the function to support also the communication endpoints.
+     *
+     * @param {SHA256IdHash<Person>} personId - the id of the person whose main contact will be updated.
+     * @param {ContactDescription} contactDescription - the new values of the main contact object.
      * @returns {Promise<void>}
      */
-    public async addNewContactObjectAsMain(
-        contact: UnversionedObjectResult<Contact>
-    ): Promise<void> {
-        /** first, we need to get the personId from the contact **/
-        const personId = contact.obj.personId;
-
-        /** see if the profile does exist **/
-        try {
-            const profile = await serializeWithType('Contacts', async () => {
-                return await getObjectByIdObj({$type$: 'Profile', personId: personId});
-            });
-            const existingContact = profile.obj.contactObjects.find(
-                (contactHash: SHA256Hash<Contact>) => contactHash === contact.hash
-            );
-            if (existingContact === undefined) {
-                profile.obj.contactObjects.push(contact.hash);
-            }
-
-            profile.obj.mainContact = contact.hash;
-
-            /** update the profile **/
-            await serializeWithType('Contacts', async () => {
-                return await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    profile.obj
-                );
-            });
-
-            this.emit(ContactEvent.UpdatedContact, profile);
-            if (existingContact === undefined) {
-                this.emit(
-                    ContactEvent.NewCommunicationEndpointArrived,
-                    contact.obj.communicationEndpoints
-                );
-            }
-        } catch (e) {
-            throw new Error('The profile does not exists');
-        }
-    }
-
-    // public async getMergedContactObjects(personId: SHA256IdHash<Person>): Promise<{type: string; info: {value: string; meta: {}}[]}[]> {
-    //     [
-    //         { type: "name"
-    //             info:[{
-    //                 value: "Raluca"
-    //                 meta:{
-    //                     isFromMainContact: true}
-    //             }]
-    //         },
-    //         { type: "phoneNumber",
-    //             info:[
-    //                 {
-    //                     value: "123456"
-    //                     meta:{
-    //                         profile: "friends"}
-    //                 },
-    //                 {
-    //                     value:'67890'
-    //                     meta:{
-    //                         profile: "work"}
-    //                 }
-    //             ]
-    //         }]
-    // }
-
-    public async updateMainContact(
+    public async saveMainContact(
         personId: SHA256IdHash<Person>,
         contactDescription: ContactDescription
     ): Promise<void> {
@@ -490,7 +429,6 @@ export default class ContactModel extends EventEmitter {
 
         // creates the profileImage object
         if (contactDescription.image) {
-
             const oneProfileImage = await convertToOne(contactDescription.image);
             profileImage = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
@@ -517,6 +455,7 @@ export default class ContactModel extends EventEmitter {
 
             let contactObject: UnversionedObjectResult<Contact> | null = null;
 
+            // removing the hash of the updated contact description from the list
             for (let i = mainContactDescriptionHashes.length - 1; i >= 0; i--) {
                 if (personName && personName.obj.$type$ === mainContactDescriptions[i].$type$) {
                     mainContactDescriptionHashes.splice(i, 1);
@@ -599,12 +538,6 @@ export default class ContactModel extends EventEmitter {
             throw new Error('The profile does not exists');
         }
     }
-
-    // async setProfileImage(person: SHA256IdHash<Person>, image: BLOB): Promise<void> {}
-    //
-    // async setTelephoneNumber(person: SHA256IdHash<Person>, number: string): Promise<void> {}
-    //
-    // async addTelephoneNumber(person: SHA256IdHash<Person>, number: string): Promise<void> {}
 
     /**
      * HOOK function
