@@ -60,7 +60,7 @@ export default class WbcDiffModel extends EventEmitter {
 
         let property: keyof WbcObservation;
         for (property in wbcObservation) {
-            if (property !== 'acquisitonTime' && property !== '$type$') {
+            if (property !== 'acquisitionTime' && property !== '$type$') {
                 const stringNumber = wbcObservation[property].value;
                 if (!numberRegex.test(stringNumber)) {
                     throw new Error(`${stringNumber} of ${property} is not a valid Number format`);
@@ -76,7 +76,7 @@ export default class WbcDiffModel extends EventEmitter {
     /**
      * returns all the wbc measurements from the channel
      */
-    async measurements(): Promise<ObjectData<WbcObservation>[]> {
+    async getAll(): Promise<ObjectData<WbcObservation>[]> {
         return await this.channelManager.getObjectsWithType('WbcObservation');
     }
 

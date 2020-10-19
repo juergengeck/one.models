@@ -27,7 +27,7 @@ declare module '@OneCoreTypes' {
 
     export interface WbcObservation {
         $type$: 'WbcObservation';
-        acquisitonTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
+        acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
         Neutrophils: WbcMeasurement;
         Lymphocytes: WbcMeasurement;
         Monocytes: WbcMeasurement;
@@ -58,7 +58,7 @@ const WbcObservation: Recipe = {
     name: 'WbcObservation',
     rule: [
         {
-            itemprop: 'acquisitonTime',
+            itemprop: 'acquisitionTime',
             valueType: 'string'
         },
         {
