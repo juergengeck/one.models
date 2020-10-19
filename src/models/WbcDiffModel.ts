@@ -1,6 +1,8 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {WbcObservation} from '@OneCoreTypes';
+import {createMessageBus} from 'one.core/lib/message-bus';
+const MessageBus = createMessageBus('WbcDiffModel');
 
 /**
  * This model implements methods related to differential blood counts of white blood cells.
@@ -53,6 +55,7 @@ export default class WbcDiffModel extends EventEmitter {
      * @param {string} wbcObservation - The answers for the questionnaire
      */
     async postMeasurement(wbcObservation: WbcObservation): Promise<void> {
+        MessageBus.send('log', `postMeasurement(${wbcObservation})`);
         wbcObservation = Object.assign({}, wbcObservation); // shallow copy, because we modify it
 
         // Verify number format of *Count fields
