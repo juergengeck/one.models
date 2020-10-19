@@ -1,28 +1,27 @@
 import {Recipe, RecipeRule} from '@OneCoreTypes';
 
+/**
+ * This represents a Wbc Measurement.
+ *
+ * Q: Why would we use string for encoding the value?
+ * A: - float would probably change the value if the value is not representable
+ *    - number does not support decimal places
+ *    - the communication / storage is string based, so why convert the value
+ *      to a number / ... and then convert it back to a string with potential
+ *      modifications?
+ *    - This is medically relevant information, so try not to modify values,
+ *      keep them as-is from start to end.
+ */
+
+export interface WbcMeasurement {
+    value: string;
+    unit: string;
+    unsafe?: boolean;
+}
+
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         WbcObservation: WbcObservation;
-    }
-
-    /**
-     * This represents a Wbc Measurement.
-     *
-     * Q: Why would we use string for encoding the value?
-     * A: - float would probably change the value if the value is not representable
-     *    - number does not support decimal places
-     *    - the communication / storage is string based, so why convert the value
-     *      to a number / ... and then convert it back to a string with potential
-     *      modifications?
-     *    - This is medically relevant information, so try not to modify values,
-     *      keep them as-is from start to end.
-     */
-
-    export interface WbcMeasurement {
-        $type$: 'WbcMeasurement';
-        value: string;
-        unit: string;
-        unsafe?: boolean;
     }
 
     export interface WbcObservation {
