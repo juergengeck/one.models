@@ -66,18 +66,30 @@ export type ContactDescription = {
     image?: ArrayBuffer;
 };
 
-// {type: string; info: {value: string; meta: {}}[]
-
+/**
+ * The metadata of a property of the profile.
+ */
 export type Meta = {};
+
+/**
+ * The information from a contact object.
+ */
 export type Info = {
     value: string | ArrayBuffer;
     meta: Meta;
 };
+
+/**
+ * The merged information from all contact objects of a profile.
+ */
 export type MergedContact = {
     type: string;
     info: Info[];
 };
 
+/**
+ * Represents the object types of the contact description.
+ */
 export enum DescriptionTypes {
     PERSON_NAME = 'PersonName',
     PROFILE_IMAGE = 'ProfileImage'
@@ -409,49 +421,81 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
+     * The merging algorithm for the contacts object of a profile.
+     * For now it will return always the latest person name, an array of profile images and the communication endpoints (not implemented yet!).
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<MergedContact[]>}
+     * @TODO - when the communication endpoints are supported, the function should be updated to merge and return only the needed information!!
+     *
+     * @param {SHA256IdHash<Person>} personId - the idHash of the person.
+     * @returns {Promise<MergedContact[]>} - merged contact objects.
      */
     public async getMergedContactObjectsNew(
         personId: SHA256IdHash<Person>
     ): Promise<MergedContact[]> {
         const contacts = await this.getContactObjects(personId);
-        const result: MergedContact[] = [];
-        const personNameInfos: Info[] = [];
+        const mergedContacts: MergedContact[] = [];
+        let latestPersonNameInfos: Info | undefined;
         const profileImageInfos: Info[] = [];
+        const communicationEndpointInfos: Info[] = [];
 
+        // iterating over all contact objects
         for (const contact of contacts) {
+            // iterating over all contact descriptions
             for (const contactDescription of contact.contactDescriptions) {
+                // getting the contact description object
                 const contactDescriptionObject = await getObject(contactDescription);
 
-                if (contactDescriptionObject.$type$ === DescriptionTypes.PERSON_NAME) {
-                    personNameInfos.push({value: contactDescriptionObject.name, meta: {}});
-                }
-
-                if (contactDescriptionObject.$type$ === DescriptionTypes.PROFILE_IMAGE) {
-                    const image = await convertFromOne({
-                        $type$: DescriptionTypes.PROFILE_IMAGE,
-                        image: contactDescriptionObject.image
-                    });
-                    if (image !== null) {
-                        profileImageInfos.push({value: image, meta: {}});
+                switch (contactDescriptionObject.$type$) {
+                    case DescriptionTypes.PERSON_NAME: {
+                        latestPersonNameInfos = {value: contactDescriptionObject.name, meta: {}};
+                        break;
                     }
+                    case DescriptionTypes.PROFILE_IMAGE: {
+                        // getting the image object
+                        const image = await convertFromOne({
+                            $type$: DescriptionTypes.PROFILE_IMAGE,
+                            image: contactDescriptionObject.image
+                        });
+
+                        if (image !== null) {
+                            profileImageInfos.push({value: image, meta: {}});
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // adding the communication endpoints to the info array
+            // @TODO update the implementation when the communication endpoints are implemented
+            for (const communicationEndpoint of contact.communicationEndpoints) {
+                const communicationEndpointObject = await getObject(communicationEndpoint);
+                for (const item in communicationEndpointObject) {
+                    communicationEndpointInfos.push({value: item, meta: {}});
                 }
             }
         }
 
-        result.push({
-            type: DescriptionTypes.PERSON_NAME,
-            info: personNameInfos
-        });
+        // adding the latest name from the contact objects
+        if (latestPersonNameInfos) {
+            mergedContacts.push({
+                type: DescriptionTypes.PERSON_NAME,
+                info: [latestPersonNameInfos]
+            });
+        }
 
-        result.push({
+        // adding the merged profile images objects
+        mergedContacts.push({
             type: DescriptionTypes.PROFILE_IMAGE,
             info: profileImageInfos
         });
 
-        return result;
+        // adding the merged communication endpoints
+        mergedContacts.push({
+            type: 'CommunicationEndpoints',
+            info: communicationEndpointInfos
+        });
+
+        return mergedContacts;
     }
 
     /**
