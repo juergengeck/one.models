@@ -433,10 +433,21 @@ export default class ContactModel extends EventEmitter {
         personId: SHA256IdHash<Person>
     ): Promise<MergedContact[]> {
         const contacts = await this.getContactObjects(personId);
+        const mainContact = await this.getMainContactObject(personId);
+
         const mergedContacts: MergedContact[] = [];
-        let latestPersonNameInfos: Info | undefined;
+        let latestPersonNameInfo: Info | undefined;
         const profileImageInfos: Info[] = [];
         const communicationEndpointInfos: Info[] = [];
+
+        // since we need the latest set person name, we can get it from the main contact
+        for (const contactDescription of mainContact.contactDescriptions) {
+            // getting the contact description object
+            const contactDescriptionObject = await getObject(contactDescription);
+            if (contactDescriptionObject.$type$ === DescriptionTypes.PERSON_NAME) {
+                latestPersonNameInfo = {value: contactDescriptionObject.name, meta: {}};
+            }
+        }
 
         // iterating over all contact objects
         for (const contact of contacts) {
@@ -444,23 +455,22 @@ export default class ContactModel extends EventEmitter {
             for (const contactDescription of contact.contactDescriptions) {
                 // getting the contact description object
                 const contactDescriptionObject = await getObject(contactDescription);
+                if (contactDescriptionObject.$type$ === DescriptionTypes.PROFILE_IMAGE) {
+                    // getting the image object
+                    const image = await convertFromOne({
+                        $type$: DescriptionTypes.PROFILE_IMAGE,
+                        image: contactDescriptionObject.image
+                    });
 
-                switch (contactDescriptionObject.$type$) {
-                    case DescriptionTypes.PERSON_NAME: {
-                        latestPersonNameInfos = {value: contactDescriptionObject.name, meta: {}};
-                        break;
-                    }
-                    case DescriptionTypes.PROFILE_IMAGE: {
-                        // getting the image object
-                        const image = await convertFromOne({
-                            $type$: DescriptionTypes.PROFILE_IMAGE,
-                            image: contactDescriptionObject.image
-                        });
-
-                        if (image !== null) {
+                    if (image !== null) {
+                        // before adding the image into the array,
+                        // we make sure that the image was not added previously
+                        const imageExist = profileImageInfos.find(
+                            (img: Info) => img.value === image
+                        );
+                        if (!imageExist) {
                             profileImageInfos.push({value: image, meta: {}});
                         }
-                        break;
                     }
                 }
             }
@@ -475,11 +485,11 @@ export default class ContactModel extends EventEmitter {
             }
         }
 
-        // adding the latest name from the contact objects
-        if (latestPersonNameInfos) {
+        // adding the latest name from the main contact object
+        if (latestPersonNameInfo) {
             mergedContacts.push({
                 type: DescriptionTypes.PERSON_NAME,
-                info: [latestPersonNameInfos]
+                info: [latestPersonNameInfo]
             });
         }
 
