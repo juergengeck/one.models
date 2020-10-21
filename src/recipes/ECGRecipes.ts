@@ -11,7 +11,6 @@ declare module '@OneCoreTypes' {
 
     export interface Electrocardiogram {
         $type$: 'Electrocardiogram';
-        HKSampleType: string;
         typeDescription?: string;
         voltageMeasurements: number;
         startTimestamp?: number;
@@ -28,10 +27,6 @@ const ECGRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Electrocardiogram',
     rule: [
-        {
-            itemprop: 'HKSampleType',
-            valueType: 'string'
-        },
         {
             itemprop: 'typeDescription',
             valueType: 'string',
@@ -58,7 +53,7 @@ const ECGRecipe: Recipe = {
         },
         {
             itemprop: 'classification',
-            valueType: 'number',
+            valueType: 'string',
             optional: true
         },
         {
@@ -68,7 +63,7 @@ const ECGRecipe: Recipe = {
         },
         {
             itemprop: 'symptoms',
-            valueType: 'number',
+            valueType: 'string',
             optional: true
         },
         {

@@ -27,7 +27,6 @@ describe('ECG Model test', () => {
         }
         const ECG: Electrocardiogram = {
             $type$: 'Electrocardiogram',
-            HKSampleType: '',
             voltageMeasurements: 0,
             readings: readings
         };
