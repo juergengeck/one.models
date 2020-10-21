@@ -4,21 +4,14 @@
 
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {getObject, onUnversionedObj} from 'one.core/lib/storage';
-import {
-    Electrocardiogram,
-    OneUnversionedObjectTypes,
-    SHA256Hash,
-    UnversionedObjectResult
-} from '@OneCoreTypes';
+import {getObject} from 'one.core/lib/storage';
+import {Electrocardiogram, OneUnversionedObjectTypes, SHA256Hash} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 
 export default class ECGModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
     private readonly channelId: string;
-    private readonly boundOnUnVersionedObjHandler: (
-        caughtObject: UnversionedObjectResult
-    ) => Promise<void>;
+    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
     /**
      * Construct a new instance
      *
@@ -28,7 +21,7 @@ export default class ECGModel extends EventEmitter {
         super();
         this.channelId = 'Electrocardiogram';
         this.channelManager = channelManager;
-        this.boundOnUnVersionedObjHandler = this.handleOnUnVersionedObj.bind(this);
+        this.boundOnUpdatedHandler = this.handleChannelUpdate.bind(this);
     }
 
     /**
@@ -36,6 +29,7 @@ export default class ECGModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
+        this.channelManager.on('updated', this.boundOnUpdatedHandler);
     }
 
     /**
@@ -45,7 +39,6 @@ export default class ECGModel extends EventEmitter {
      */
     async postECG(ECGObject: Electrocardiogram): Promise<void> {
         await this.channelManager.postToChannel(this.channelId, ECGObject);
-        this.emit('updated');
     }
 
     /**
@@ -54,6 +47,17 @@ export default class ECGModel extends EventEmitter {
      */
     async retrieveAll(): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
         return await this.channelManager.getObjects({channelId: this.channelId});
+    }
+
+    /**
+     * Retrieve all the readings from an ECG
+     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
+     * @returns {Promise<ElectrocardiogramReadings[]>}
+     */
+    async retrieveAllECGReadings(
+        electrocardiogramHash: SHA256Hash<Electrocardiogram>
+    ): Promise<ElectrocardiogramReadings[]> {
+        return (await getObject(electrocardiogramHash)).readings;
     }
 
     /**
@@ -93,7 +97,7 @@ export default class ECGModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
-        onUnversionedObj.removeListener(this.boundOnUnVersionedObjHandler);
+        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
     /**
@@ -125,30 +129,13 @@ export default class ECGModel extends EventEmitter {
     }
 
     /**
-     * Handler function for the UnVersionedObj event
-     * @param {UnversionedObjectResult} caughtObject
+     *  Handler function for the 'updated' event
+     *  @param {string} id
      * @return {Promise<void>}
      */
-    private async handleOnUnVersionedObj(caughtObject: UnversionedObjectResult): Promise<void> {
-        if (
-            this.isElectrocardiogramUnVersionedObjectResult(caughtObject) &&
-            caughtObject.status === 'new'
-        ) {
+    private async handleChannelUpdate(id: string): Promise<void> {
+        if (id === this.channelId) {
             this.emit('updated');
         }
-    }
-
-    /**
-     * @description type check
-     * @param {UnversionedObjectResult} caughtObject
-     * @returns {UnversionedObjectResult<Contact>}
-     */
-    private isElectrocardiogramUnVersionedObjectResult(
-        caughtObject: UnversionedObjectResult
-    ): caughtObject is UnversionedObjectResult<Electrocardiogram> {
-        return (
-            (caughtObject as UnversionedObjectResult<Electrocardiogram>).obj.$type$ ===
-            'Electrocardiogram'
-        );
     }
 }
