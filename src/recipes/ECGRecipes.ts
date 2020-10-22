@@ -1,6 +1,6 @@
 import {Recipe} from '@OneCoreTypes';
 export interface ElectrocardiogramReadings {
-    timeSinceSimpleStart: number;
+    timeSinceSampleStart: number;
     leadVoltage: number;
 }
 

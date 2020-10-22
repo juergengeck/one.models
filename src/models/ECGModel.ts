@@ -115,13 +115,13 @@ export default class ECGModel extends EventEmitter {
         let endIndex = readings.length - 1;
         while (startIndex <= endIndex) {
             let middleIndex = Math.floor((startIndex + endIndex) / 2);
-            if (target === readings[middleIndex].timeSinceSimpleStart) {
+            if (target === readings[middleIndex].timeSinceSampleStart) {
                 return middleIndex;
             }
-            if (target > readings[middleIndex].timeSinceSimpleStart) {
+            if (target > readings[middleIndex].timeSinceSampleStart) {
                 startIndex = middleIndex + 1;
             }
-            if (target < readings[middleIndex].timeSinceSimpleStart) {
+            if (target < readings[middleIndex].timeSinceSampleStart) {
                 endIndex = middleIndex - 1;
             }
         }
