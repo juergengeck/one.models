@@ -50,6 +50,15 @@ export default class ECGModel extends EventEmitter {
     }
 
     /**
+     *
+     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
+     * @returns {Promise<ObjectData<Electrocardiogram>>}
+     */
+    async retrieveElectrocardiogramByHash(electrocardiogramHash: SHA256Hash<Electrocardiogram>): Promise<Electrocardiogram> {
+        return await getObject(electrocardiogramHash);
+    }
+
+    /**
      * Retrieve all the readings from an ECG
      * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
      * @returns {Promise<ElectrocardiogramReadings[]>}
