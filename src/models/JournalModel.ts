@@ -216,6 +216,9 @@ export default class JournalModel extends EventEmitter {
                 case EventType.ConsentFileEvent:
                     ++consentFileIndex;
                     break;
+                case EventType.ECGEvent:
+                    ++ecgIndex;
+                    break;
                 default:
                     break;
             }
