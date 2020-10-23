@@ -42,10 +42,10 @@ type ConnectionContainer = {
     targetPersonId: SHA256IdHash<Person>;
     cryptoApi: ReturnType<typeof createCrypto>;
     isInternetOfMe: boolean;
-    dropDuplicates: boolean;    // If this is true, duplicate connections will be dropped,
-                                // otherwise they will override the current connection
-                                // This flag will change automatically from true to false
-                                // after two seconds of an connection to be established.
+    dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,
+    // otherwise they will override the current connection
+    // This flag will change automatically from true to false
+    // after two seconds of an connection to be established.
     closeHandler?: () => void;
 };
 

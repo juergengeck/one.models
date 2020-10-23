@@ -1,5 +1,5 @@
 import WbcDiffModel from './WbcDiffModel';
-import {WbcMeasurement} from '@OneCoreTypes';
+import {WbcMeasurement, Electrocardiogram} from '@OneCoreTypes';
 import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
@@ -8,6 +8,7 @@ import DiaryModel, {DiaryEntry} from './DiaryModel';
 import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import ConsentFileModel, {ConsentFile} from './ConsentFileModel';
+import {ECGModel} from './index';
 
 export enum EventType {
     QuestionnaireResponse,
@@ -16,7 +17,8 @@ export enum EventType {
     DocumentInfo,
     DiaryEntry,
     BodyTemperature,
-    ConsentFileEvent
+    ConsentFileEvent,
+    ECGEvent
 }
 
 export type EventListEntry = {
@@ -28,7 +30,8 @@ export type EventListEntry = {
         | ObjectData<DocumentInfo>
         | ObjectData<DiaryEntry>
         | BodyTemperature
-        | ObjectData<ConsentFile>;
+        | ObjectData<ConsentFile>
+        | ObjectData<Electrocardiogram>;
 };
 
 export default class JournalModel extends EventEmitter {
@@ -39,7 +42,8 @@ export default class JournalModel extends EventEmitter {
         documentModel: DocumentModel,
         diaryModel: DiaryModel,
         bodyTemperatureModel: BodyTemperatureModel,
-        consentFileModel: ConsentFileModel
+        consentFileModel: ConsentFileModel,
+        ecgModel: ECGModel
     ) {
         super();
         this.wbcDiffModel = wbcDiffModel;
@@ -49,7 +53,7 @@ export default class JournalModel extends EventEmitter {
         this.diaryModel = diaryModel;
         this.bodyTemperatureModel = bodyTemperatureModel;
         this.consentFileModel = consentFileModel;
-
+        this.ecgModel = ecgModel;
         // Connect events
         wbcDiffModel.on('updated', () => {
             this.emit('updated');
@@ -72,6 +76,9 @@ export default class JournalModel extends EventEmitter {
         consentFileModel.on('updated', () => {
             this.emit('updated');
         });
+        ecgModel.on('updated', () => {
+            this.emit('updated');
+        });
     }
 
     /**
@@ -87,6 +94,7 @@ export default class JournalModel extends EventEmitter {
         const documents = await this.documentModel.documents();
         const temperatures = await this.bodyTemperatureModel.getBodyTemperatures();
         const consentFiles = await this.consentFileModel.entries();
+        const ecgs = await this.ecgModel.retrieveAll();
         const eventList: EventListEntry[] = [];
 
         let measurementsIndex = 0;
@@ -96,7 +104,7 @@ export default class JournalModel extends EventEmitter {
         let diaryEntriesIndex = 0;
         let temperatureIndex = 0;
         let consentFileIndex = 0;
-
+        let ecgIndex = 0;
         for (
             let i = 0;
             i <
@@ -106,7 +114,8 @@ export default class JournalModel extends EventEmitter {
                 documents.length +
                 diaryEntries.length +
                 temperatures.length +
-                consentFiles.length;
+                consentFiles.length +
+                ecgs.length;
             ++i
         ) {
             const compareElements = [];
@@ -160,7 +169,12 @@ export default class JournalModel extends EventEmitter {
                     data: consentFiles[consentFileIndex]
                 });
             }
-
+            if (ecgIndex < ecgs.length) {
+                compareElements.push({
+                    type: EventType.ECGEvent,
+                    data: ecgs[ecgIndex]
+                });
+            }
             // This checks if the number of loop iterations is ok. It should always be ok unless there is
             // a programming error in this algorithm
             if (compareElements.length === 0) {
@@ -202,6 +216,9 @@ export default class JournalModel extends EventEmitter {
                 case EventType.ConsentFileEvent:
                     ++consentFileIndex;
                     break;
+                case EventType.ECGEvent:
+                    ++ecgIndex;
+                    break;
                 default:
                     break;
             }
@@ -220,4 +237,5 @@ export default class JournalModel extends EventEmitter {
     diaryModel: DiaryModel;
     bodyTemperatureModel: BodyTemperatureModel;
     consentFileModel: ConsentFileModel;
+    ecgModel: ECGModel;
 }

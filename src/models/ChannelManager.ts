@@ -913,7 +913,7 @@ export default class ChannelManager extends EventEmitter {
                         currentValue.creationTime === mostCurrentItem.creationTime &&
                         currentValue.creationTimeHash < mostCurrentItem.creationTimeHash
                     ) {
-                            continue;
+                        continue;
                     }
 
                     // Ignore elements with the same history (same channel id and same entry => history is the same)
@@ -957,8 +957,7 @@ export default class ChannelManager extends EventEmitter {
                     null,
                     `mergeIteratorMostCurrent: skipped value from iterator ${mostCurrentIndex}: duplicate with previous`
                 );
-            }
-            else {
+            } else {
                 logWithId_Debug(
                     null,
                     null,

@@ -105,14 +105,11 @@ export default class BlobCollectionModel extends EventEmitter {
     }
 
     async getLatestCollection(): Promise<BlobCollection> {
-        const collection = await this.channelManager.getObjectsWithType(
-            'BlobCollection',
-            {
-                channelId: this.channelId,
-                count: 1,
-                owner: this.channelOwner
-            }
-        );
+        const collection = await this.channelManager.getObjectsWithType('BlobCollection', {
+            channelId: this.channelId,
+            count: 1,
+            owner: this.channelOwner
+        });
         if (collection && collection.length > 0) {
             return this.resolveBlobCollection(collection[0].data);
         } else {

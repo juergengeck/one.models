@@ -1,15 +1,14 @@
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
-import {dbKey, importModules} from './utils/Model';
+import TestModel, {dbKey, importModules} from './utils/TestModel';
 import {AccessModel, ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import {BodyTemperature} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 
-const accessModel = new AccessModel();
-const channelManager = new ChannelManager(accessModel);
+let channelManager: typeof ChannelManager;
 
 // ######## SPECIALLY FORMATTED LOGGING ########
 const enableLogging = false;
@@ -87,6 +86,9 @@ describe('Channel Iterators test', () => {
                 }
             )
         ).idHash;*/
+        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        await model.init(undefined);
+        channelManager = model.channelManager;
     });
 
     it('should create channels and init channelManager', async () => {
@@ -227,8 +229,12 @@ describe('Channel Iterators test', () => {
         });
 
         // Get all values by id
-        const allValuesAscById = await Promise.all(allValuesAsc.map(item => channelManager.getObjectById(item.id)));
-        const allValuesDesById = await Promise.all(allValuesDes.map(item => channelManager.getObjectById(item.id)));
+        const allValuesAscById = await Promise.all(
+            allValuesAsc.map(item => channelManager.getObjectById(item.id))
+        );
+        const allValuesDesById = await Promise.all(
+            allValuesDes.map(item => channelManager.getObjectById(item.id))
+        );
 
         // Check the results
         expect(allValuesAscById.map(e => e.data.temperature)).to.be.eql([1, 2, 3, 4, 5, 6]);
