@@ -8,7 +8,7 @@ import DiaryModel, {DiaryEntry} from './DiaryModel';
 import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import ConsentFileModel, {ConsentFile} from './ConsentFileModel';
-import {ECGModel} from "./index";
+import {ECGModel} from './index';
 
 export enum EventType {
     QuestionnaireResponse,
@@ -43,7 +43,7 @@ export default class JournalModel extends EventEmitter {
         diaryModel: DiaryModel,
         bodyTemperatureModel: BodyTemperatureModel,
         consentFileModel: ConsentFileModel,
-        ecgModel: ECGModel,
+        ecgModel: ECGModel
     ) {
         super();
         this.wbcDiffModel = wbcDiffModel;
@@ -77,8 +77,8 @@ export default class JournalModel extends EventEmitter {
             this.emit('updated');
         });
         ecgModel.on('updated', () => {
-            this.emit('updated')
-        })
+            this.emit('updated');
+        });
     }
 
     /**

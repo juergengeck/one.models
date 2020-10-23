@@ -14,8 +14,7 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased
-    extends EventEmitter
+export default class WebSocketPromiseBased extends EventEmitter
     implements WebSocketPromiseBasedInterface {
     // @ts-ignore
     public webSocket: WebSocket | null;

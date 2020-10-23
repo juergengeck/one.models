@@ -54,7 +54,9 @@ export default class ECGModel extends EventEmitter {
      * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
      * @returns {Promise<ObjectData<Electrocardiogram>>}
      */
-    async retrieveElectrocardiogramByHash(electrocardiogramHash: SHA256Hash<Electrocardiogram>): Promise<Electrocardiogram> {
+    async retrieveElectrocardiogramByHash(
+        electrocardiogramHash: SHA256Hash<Electrocardiogram>
+    ): Promise<Electrocardiogram> {
         return await getObject(electrocardiogramHash);
     }
 
@@ -82,7 +84,9 @@ export default class ECGModel extends EventEmitter {
         from = -1,
         pageSize = 100
     ): Promise<{readings: ElectrocardiogramReadings[]; nextFrom?: number}> {
-        const ecgReadings: ElectrocardiogramReadings[] = await this.retrieveAllECGReadings(electrocardiogramHash);
+        const ecgReadings: ElectrocardiogramReadings[] = await this.retrieveAllECGReadings(
+            electrocardiogramHash
+        );
 
         if (from !== -1) {
             const endIndex = this.findReadingIndex(ecgReadings, from);
