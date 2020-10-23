@@ -34,7 +34,7 @@ export default class WebSocketPromiseBased
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
-    constructor(webSocket: WebSocket, maxDataQueueSize = 1) {
+    constructor(webSocket: WebSocket, maxDataQueueSize = 10) {
         super();
         this.webSocket = webSocket;
         this.dataQueue = [];
