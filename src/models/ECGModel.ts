@@ -19,7 +19,7 @@ export default class ECGModel extends EventEmitter {
      */
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'Electrocardiogram';
+        this.channelId = 'electrocardiogram';
         this.channelManager = channelManager;
         this.boundOnUpdatedHandler = this.handleChannelUpdate.bind(this);
     }
@@ -66,7 +66,8 @@ export default class ECGModel extends EventEmitter {
     async retrieveAllECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
     ): Promise<ElectrocardiogramReadings[]> {
-        return (await getObject(electrocardiogramHash)).readings;
+        const {readings} = await getObject(electrocardiogramHash);
+        return readings ? readings : [];
     }
 
     /**
@@ -81,8 +82,7 @@ export default class ECGModel extends EventEmitter {
         from = -1,
         pageSize = 100
     ): Promise<{readings: ElectrocardiogramReadings[]; nextFrom?: number}> {
-        const ecgReadings: ElectrocardiogramReadings[] = (await getObject(electrocardiogramHash))
-            .readings;
+        const ecgReadings: ElectrocardiogramReadings[] = await this.retrieveAllECGReadings(electrocardiogramHash);
 
         if (from !== -1) {
             const endIndex = this.findReadingIndex(ecgReadings, from);
