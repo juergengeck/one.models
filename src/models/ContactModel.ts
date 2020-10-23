@@ -307,6 +307,45 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
+     * Returns the persons id and the contact name of every contact main profile.
+     * @returns {Promise<{idHash: SHA256IdHash; name: string}[]>}
+     */
+    public async getContactsList(): Promise<{idHash: SHA256IdHash; name: string}[]> {
+        const contactApp = await ContactModel.getContactAppObject();
+        const contactsSomeone = await Promise.all(
+            contactApp.obj.contacts.map(async (contactHash: SHA256Hash<Someone>) => {
+                return await getObject(contactHash);
+            })
+        );
+        const contactsProfiles = await Promise.all(
+            contactsSomeone.map(async (someone: Someone) => {
+                return await getObjectByIdHash(someone.mainProfile);
+            })
+        );
+
+        let contacts: {idHash: SHA256IdHash; name: string}[] = [];
+
+        for (const profile of contactsProfiles) {
+            const mainContact = await this.getMainContactObject(profile.obj.personId);
+            const contactIdHash = profile.obj.personId;
+            let contactName = '';
+
+            // getting the person name from the main contact of the person
+            for (const contactDescription of mainContact.contactDescriptions) {
+                // getting the contact description object
+                const contactDescriptionObject = await getObject(contactDescription);
+                if (contactDescriptionObject.$type$ === DescriptionTypes.PERSON_NAME) {
+                    contactName = contactDescriptionObject.name;
+                    break;
+                }
+            }
+            contacts.push({idHash: contactIdHash, name: contactName});
+        }
+
+        return contacts;
+    }
+
+    /**
      * @description Retrieve the Someone object for a given personId
      * @param {SHA256IdHash<Person>} personId
      * @returns {Promise<Someone | undefined>}
