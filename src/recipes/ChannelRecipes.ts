@@ -1,5 +1,5 @@
 import {Recipe} from '@OneCoreTypes';
-import {ORDERED_BY} from "one.core/lib/recipes";
+import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -30,9 +30,9 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ChannelRegistryEntry {
-        channelInfoIdHash: SHA256IdHash<ChannelInfo>;   // The channel info object of the channel
-        readVersionIndex: number;                   // Index of the merged version suitable for reading
-        mergedVersionIndex: number;                 // Index in the version map that was merged (higher ones are unmerged)
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>; // The channel info object of the channel
+        readVersionIndex: number; // Index of the merged version suitable for reading
+        mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
     }
 
     export interface ChannelRegistry {
@@ -95,7 +95,7 @@ export const ChannelRegistryRecipe: Recipe = {
             rule: [
                 {
                     itemprop: 'channelInfoIdHash',
-                    referenceToId: new Set(['ChannelInfo']),
+                    referenceToId: new Set(['ChannelInfo'])
                 },
                 {
                     itemprop: 'readVersionIndex',

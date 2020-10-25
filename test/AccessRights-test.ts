@@ -10,15 +10,19 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import Recipes from '../lib/recipes/recipes';
-import Model, {dbKey, importModules} from './utils/Model';
+import TestModel, {dbKey, importModules} from './utils/TestModel';
+import AccessModel from '../lib/models/AccessModel';
 
-const accessModel = new Model().access;
+let accessModel: typeof AccessModel;
 
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
+        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        await model.init(undefined);
+        accessModel = model.accessModel;
     });
 
     it('should see if the access groups were created on init', async () => {

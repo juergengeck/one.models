@@ -18,8 +18,9 @@ import MatchingModel from './matchingModels/MatchingModel';
 import RecoveryModel from './RecoveryModel';
 import ClientMatchingModel from './matchingModels/ClientMatchingModel';
 import ServerMatchingModel from './matchingModels/ServerMatchingModel';
-import ServerUserModel from "./matchingModels/ServerUserModel";
-
+import ServerUserModel from './matchingModels/ServerUserModel';
+import ECGModel from './ECGModel';
+import InstancesModel from './InstancesModel';
 /** for one line imports **/
 export {
     JournalModel,
@@ -44,5 +45,7 @@ export {
     RecoveryModel,
     ClientMatchingModel,
     ServerMatchingModel,
-    ServerUserModel
+    ServerUserModel,
+    InstancesModel,
+    ECGModel
 };
