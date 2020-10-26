@@ -308,7 +308,7 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * Returns the persons id and the contact name of every contact main profile.
-     * @returns {Promise<{idHash: SHA256IdHash; name: string}[]>}
+     * @returns {Promise<{idHash: SHA256IdHash<Person>; name: string}[]>}
      */
     public async getContactsList(): Promise<{idHash: SHA256IdHash<Person>; name: string}[]> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -542,6 +542,14 @@ export default class ContactModel extends EventEmitter {
         mergedContacts.push({
             type: 'CommunicationEndpoints',
             info: communicationEndpointInfos
+        });
+
+        const person = await getObjectByIdHash(personId);
+        
+        // adding the email of the person
+        mergedContacts.push({
+            type: 'email',
+            info: [{value: person.obj.email, meta: {}}]
         });
 
         return mergedContacts;
