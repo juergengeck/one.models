@@ -310,7 +310,7 @@ export default class ContactModel extends EventEmitter {
      * Returns the persons id and the contact name of every contact main profile.
      * @returns {Promise<{idHash: SHA256IdHash; name: string}[]>}
      */
-    public async getContactsList(): Promise<{idHash: SHA256IdHash; name: string}[]> {
+    public async getContactsList(): Promise<{idHash: SHA256IdHash<Person>; name: string}[]> {
         const contactApp = await ContactModel.getContactAppObject();
         const contactsSomeone = await Promise.all(
             contactApp.obj.contacts.map(async (contactHash: SHA256Hash<Someone>) => {
@@ -323,7 +323,7 @@ export default class ContactModel extends EventEmitter {
             })
         );
 
-        let contacts: {idHash: SHA256IdHash; name: string}[] = [];
+        let contacts: {idHash: SHA256IdHash<Person>; name: string}[] = [];
 
         for (const profile of contactsProfiles) {
             const mainContact = await this.getMainContactObject(profile.obj.personId);
