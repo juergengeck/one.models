@@ -3,6 +3,7 @@
 #########
 # Generated code
 *.contact
+docs/
 data/
 public.key
 src/generated
