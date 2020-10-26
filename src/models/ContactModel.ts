@@ -307,7 +307,7 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Returns the persons id and the contact name of every contact main profile.
+     * Returns the persons id, the person email and the contact name of every contact main profile.
      * @returns {Promise<{idHash: SHA256IdHash<Person>; name: string}[]>}
      */
     public async getContactsList(): Promise<{idHash: SHA256IdHash<Person>; name: string}[]> {
@@ -327,7 +327,6 @@ export default class ContactModel extends EventEmitter {
 
         for (const profile of contactsProfiles) {
             const mainContact = await this.getMainContactObject(profile.obj.personId);
-            const contactIdHash = profile.obj.personId;
             let contactName = '';
 
             // getting the person name from the main contact of the person
@@ -339,7 +338,7 @@ export default class ContactModel extends EventEmitter {
                     break;
                 }
             }
-            contacts.push({idHash: contactIdHash, name: contactName});
+            contacts.push({idHash: profile.obj.personId, name: contactName});
         }
 
         return contacts;
@@ -468,9 +467,7 @@ export default class ContactModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId - the idHash of the person.
      * @returns {Promise<MergedContact[]>} - merged contact objects.
      */
-    public async getMergedContactObjectsNew(
-        personId: SHA256IdHash<Person>
-    ): Promise<MergedContact[]> {
+    public async getMergedContactObjects(personId: SHA256IdHash<Person>): Promise<MergedContact[]> {
         const contacts = await this.getContactObjects(personId);
         const mainContact = await this.getMainContactObject(personId);
 
@@ -545,7 +542,7 @@ export default class ContactModel extends EventEmitter {
         });
 
         const person = await getObjectByIdHash(personId);
-        
+
         // adding the email of the person
         mergedContacts.push({
             type: 'email',
@@ -553,34 +550,6 @@ export default class ContactModel extends EventEmitter {
         });
 
         return mergedContacts;
-    }
-
-    /**
-     * @description Merges contact objects
-     * e.g for descriptions -> [{type: 'Name', personName: 'name'}, {type: 'Image', personImage: 'someBLOB'}]
-     * will be converted into {personName: 'Name', personImage: 'someBLOB'}
-     * @param {SHA256IdHash<Person>} personId
-     *
-     * { description: DescriptionEndpointType ; metadata: {
-     *     source: SHA256IdHash<Person>[];
-     *     fromMainContactObject: boolean;
-     * }}[]
-     * @returns {Promise<{endpoints: {}; descriptions: {}; meta: {}}>}
-     */
-    public async getMergedContactObjects(
-        personId: SHA256IdHash<Person>
-    ): Promise<{endpoints: {}; descriptions: {}; meta: {}}> {
-        const contacts = await this.getContactObjects(personId);
-        const {
-            endpoints,
-            descriptions
-        } = await this.getFlattenedEndpointsAndDescriptionsFromContacts(contacts);
-
-        const mergedDescriptions = Object.assign({}, ...descriptions);
-        const mergedEndpoints = Object.assign({}, ...endpoints);
-        delete mergedDescriptions.type;
-        delete mergedEndpoints.type;
-        return {endpoints: mergedEndpoints, descriptions: mergedDescriptions, meta: {}};
     }
 
     /**
@@ -1169,42 +1138,5 @@ export default class ContactModel extends EventEmitter {
             person: [personIdHash]
         };
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
-    }
-
-    /**
-     * @description Returns the flattened & exploded descriptions/endpoints
-     * @param {Contact[]} contacts
-     * @returns {Promise<{endpoints: CommunicationEndpoint[]; descriptions: ContactDescription[]}>}
-     */
-    private async getFlattenedEndpointsAndDescriptionsFromContacts(
-        contacts: Contact[]
-    ): Promise<{endpoints: CommunicationEndpointTypes[]; descriptions: ContactDescriptionTypes[]}> {
-        const endpoints = (
-            await Promise.all(
-                contacts.map(
-                    async (contact: Contact) =>
-                        await Promise.all(
-                            contact.communicationEndpoints.map(
-                                async (communicationHash: SHA256Hash<CommunicationEndpointTypes>) =>
-                                    await getObject(communicationHash)
-                            )
-                        )
-                )
-            )
-        ).reduce((acc, val) => acc.concat(val), []);
-        const descriptions = (
-            await Promise.all(
-                contacts.map(
-                    async (contact: Contact) =>
-                        await Promise.all(
-                            contact.contactDescriptions.map(
-                                async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) =>
-                                    await getObject(descriptionHash)
-                            )
-                        )
-                )
-            )
-        ).reduce((acc, val) => acc.concat(val), []);
-        return {endpoints, descriptions};
     }
 }
