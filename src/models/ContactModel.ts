@@ -17,8 +17,7 @@ import {
     CommunicationEndpointTypes,
     OneInstanceEndpoint,
     Keys,
-    BLOB,
-    ProfileImage
+    BLOB
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -64,22 +63,6 @@ export type ContactDescription = {
     personName?: string;
     image?: ArrayBuffer;
 };
-
-/**
- * Convert from model representation to one representation.
- *
- * @param {DocumentInfo} modelObject - the model object
- * @returns {Promise<OneDocumentInfo>} The corresponding one object
- */
-async function convertToOne(modelObject: ArrayBuffer): Promise<ProfileImage> {
-    // Create the resulting object
-    const profileImageReference = await saveProfileImageAsBLOB(modelObject);
-
-    return {
-        $type$: 'ProfileImage',
-        image: profileImageReference
-    };
-}
 
 /**
  * Saving the profile image in ONE as a BLOB and returning the reference for it.
@@ -403,7 +386,7 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * This function updates the main contact of a person based on the contactDescription object.
-     * (e.g. if the current main contact contains just an avatar an the incoming contactDescription contains a person name
+     * (e.g. if the current main contact contains just an avatar and the incoming contactDescription contains a person name
      * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
      *
      * @TODO - update the function to support also the communication endpoints.
@@ -412,7 +395,7 @@ export default class ContactModel extends EventEmitter {
      * @param {ContactDescription} contactDescription - the new values of the main contact object.
      * @returns {Promise<void>}
      */
-    public async saveMainContact(
+    public async updateDescription(
         personId: SHA256IdHash<Person>,
         contactDescription: ContactDescription
     ): Promise<void> {
@@ -429,7 +412,14 @@ export default class ContactModel extends EventEmitter {
 
         // creates the profileImage object
         if (contactDescription.image) {
-            const oneProfileImage = await convertToOne(contactDescription.image);
+            // Create the reference to the profile image
+            const profileImageReference = await saveProfileImageAsBLOB(contactDescription.image);
+
+            const oneProfileImage = {
+                $type$: 'ProfileImage',
+                image: profileImageReference
+            };
+
             profileImage = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
                 oneProfileImage
@@ -466,44 +456,24 @@ export default class ContactModel extends EventEmitter {
                 }
             }
 
-            if (personName && profileImage) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [personName.hash, profileImage.hash].concat(
-                            mainContactDescriptionHashes
-                        )
-                    }
-                );
-            } else if (personName) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [personName.hash].concat(mainContactDescriptionHashes)
-                    }
-                );
-            } else if (profileImage) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [profileImage.hash].concat(
-                            mainContactDescriptionHashes
-                        )
-                    }
-                );
+            if (personName) {
+                mainContactDescriptionHashes.push(personName.hash);
             }
+
+            if (profileImage) {
+                mainContactDescriptionHashes.push(profileImage.hash);
+            }
+
+            // creates the contact object
+            contactObject = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {
+                    $type$: 'Contact',
+                    personId: personId,
+                    communicationEndpoints: [],
+                    contactDescriptions: mainContactDescriptionHashes
+                }
+            );
 
             if (contactObject !== null) {
                 const existingContact = profile.obj.contactObjects.find(
