@@ -43,7 +43,7 @@ export default class ECGModel extends EventEmitter {
 
     /**
      *
-     * @returns {Promise<ObjectData<OneUnversionedObjectTypes>[]>}
+     * @returns {Promise<ObjectData<Electrocardiogram>[]>}
      */
     async retrieveAll(): Promise<ObjectData<Electrocardiogram>[]> {
         const electrocardiograms = await this.channelManager.getObjectsWithType(
