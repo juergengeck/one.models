@@ -118,7 +118,7 @@ export default class JournalModel extends EventEmitter {
                 ecgs.length;
             ++i
         ) {
-            const compareElements = [];
+            const compareElements: EventListEntry[] = [];
 
             // Load the remaining latest elements from all lists
             if (measurementsIndex < measurements.length) {
