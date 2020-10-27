@@ -30,13 +30,13 @@ export type EventListEntry = {
     type: EventType;
     data:
         | ObjectData<
-              | WbcMeasurement
-              | QuestionnaireResponse
-              | DocumentInfo
-              | DiaryEntry
-              | ConsentFile
-              | Electrocardiogram
-          >
+        | WbcMeasurement
+        | QuestionnaireResponse
+        | DocumentInfo
+        | DiaryEntry
+        | ConsentFile
+        | Electrocardiogram
+        >
         | HeartEvent
         | BodyTemperature;
 };
@@ -48,6 +48,7 @@ type JournalInput = {
 
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
+    private eventListeners: Map<EventType, () => void> = new Map();
     constructor(modelsInput: JournalInput[]) {
         super();
         this.modelsDictionary = modelsInput;
@@ -57,11 +58,17 @@ export default class JournalModel extends EventEmitter {
      * maps an handler on every provided model
      * @returns {Promise<void>}
      */
-    async init() {
+    init() {
         this.modelsDictionary
             .map((journalInput: JournalInput) => journalInput.model)
             .forEach((model: EventEmitter) => {
-                model.on('updated', this.listenOnUpdatesHandler);
+                const event = model.constructor.name as EventType
+                const handler = () => {
+                    this.emit('updated')
+                }
+                model.on('updated', handler);
+                /** persist the function reference in a map **/
+                this.eventListeners.set(event, handler)
             });
     }
 
@@ -69,11 +76,16 @@ export default class JournalModel extends EventEmitter {
      * removes the handler for every provided model
      */
     shutdown() {
-        this.modelsDictionary
-            .map((journalInput: JournalInput) => journalInput.model)
-            .forEach((model: EventEmitter) => {
-                model.removeListener('updated', this.listenOnUpdatesHandler);
-            });
+           this.modelsDictionary
+               .map((journalInput: JournalInput) => journalInput.model)
+               .forEach((model: EventEmitter) => {
+                   const event = model.constructor.name as EventType
+                   /** retrieve the function reference in order to delete it **/
+                   const handler = this.eventListeners.get(event)
+                   if(handler) {
+                       model.removeListener('updated', handler);
+                   }
+               });
     }
 
     /**
@@ -82,7 +94,7 @@ export default class JournalModel extends EventEmitter {
      */
     async events(): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
-        if (Object.keys(this.modelsDictionary).length === 0) {
+        if ((this.modelsDictionary).length === 0) {
             return [];
         }
         /** data structure as a dictionary **/
@@ -93,8 +105,9 @@ export default class JournalModel extends EventEmitter {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.model.constructor.name as EventType;
+                const data = await journalInput.retrieveFn();
                 dataDictionary[event] = {
-                    values: await journalInput.retrieveFn(),
+                    values: data,
                     index: 0
                 };
             })
@@ -145,9 +158,5 @@ export default class JournalModel extends EventEmitter {
 
         /** Now all elements should be sorted in the list => return it **/
         return eventList;
-    }
-
-    private listenOnUpdatesHandler() {
-        this.emit('updated');
     }
 }
