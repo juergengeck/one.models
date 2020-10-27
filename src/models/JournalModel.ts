@@ -8,7 +8,6 @@ import {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import {ConsentFile} from './ConsentFileModel';
 
-
 /**
  * !!! Please use the exact class name
  */
@@ -30,13 +29,13 @@ export type EventListEntry = {
     type: EventType;
     data:
         | ObjectData<
-        | WbcMeasurement
-        | QuestionnaireResponse
-        | DocumentInfo
-        | DiaryEntry
-        | ConsentFile
-        | Electrocardiogram
-        >
+              | WbcMeasurement
+              | QuestionnaireResponse
+              | DocumentInfo
+              | DiaryEntry
+              | ConsentFile
+              | Electrocardiogram
+          >
         | HeartEvent
         | BodyTemperature;
 };
@@ -62,13 +61,13 @@ export default class JournalModel extends EventEmitter {
         this.modelsDictionary
             .map((journalInput: JournalInput) => journalInput.model)
             .forEach((model: EventEmitter) => {
-                const event = model.constructor.name as EventType
+                const event = model.constructor.name as EventType;
                 const handler = () => {
-                    this.emit('updated')
-                }
+                    this.emit('updated');
+                };
                 model.on('updated', handler);
                 /** persist the function reference in a map **/
-                this.eventListeners.set(event, handler)
+                this.eventListeners.set(event, handler);
             });
     }
 
@@ -76,16 +75,16 @@ export default class JournalModel extends EventEmitter {
      * removes the handler for every provided model
      */
     shutdown() {
-           this.modelsDictionary
-               .map((journalInput: JournalInput) => journalInput.model)
-               .forEach((model: EventEmitter) => {
-                   const event = model.constructor.name as EventType
-                   /** retrieve the function reference in order to delete it **/
-                   const handler = this.eventListeners.get(event)
-                   if(handler) {
-                       model.removeListener('updated', handler);
-                   }
-               });
+        this.modelsDictionary
+            .map((journalInput: JournalInput) => journalInput.model)
+            .forEach((model: EventEmitter) => {
+                const event = model.constructor.name as EventType;
+                /** retrieve the function reference in order to delete it **/
+                const handler = this.eventListeners.get(event);
+                if (handler) {
+                    model.removeListener('updated', handler);
+                }
+            });
     }
 
     /**
@@ -94,7 +93,7 @@ export default class JournalModel extends EventEmitter {
      */
     async events(): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
-        if ((this.modelsDictionary).length === 0) {
+        if (this.modelsDictionary.length === 0) {
             return [];
         }
         /** data structure as a dictionary **/
