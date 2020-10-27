@@ -14,10 +14,8 @@ import {
     VersionedObjectResult,
     ContactDescriptionTypes,
     UnversionedObjectResult,
-    CommunicationEndpointTypes,
     OneInstanceEndpoint,
     Keys,
-    BLOB,
     ProfileImage
 } from '@OneCoreTypes';
 import {
@@ -31,8 +29,7 @@ import {
     SET_ACCESS_MODE,
     onVersionedObj,
     getObjectWithType,
-    createSingleObjectThroughImpurePlan,
-    WriteStorageApi
+    createSingleObjectThroughImpurePlan
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -43,7 +40,6 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import * as Storage from 'one.core/lib/storage.js';
 
 /**
@@ -93,41 +89,6 @@ export type MergedContact = {
 export enum DescriptionTypes {
     PERSON_NAME = 'PersonName',
     PROFILE_IMAGE = 'ProfileImage'
-}
-
-/**
- * Convert from model representation to one representation.
- *
- * @param {DocumentInfo} modelObject - the model object
- * @returns {Promise<OneDocumentInfo>} The corresponding one object
- */
-async function convertToOne(modelObject: ArrayBuffer): Promise<ProfileImage> {
-    // Create the resulting object
-    const profileImageReference = await saveProfileImageAsBLOB(modelObject);
-
-    return {
-        $type$: 'ProfileImage',
-        image: profileImageReference
-    };
-}
-
-/**
- * Saving the profile image in ONE as a BLOB and returning the reference for it.
- *
- * @param {ArrayBuffer} profileImage - the image that is saved in ONE as a BLOB.
- * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
- */
-async function saveProfileImageAsBLOB(profileImage: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
-    const minimalWriteStorageApiObj = {
-        createFileWriteStream: createFileWriteStream
-    } as WriteStorageApi;
-
-    const stream = minimalWriteStorageApiObj.createFileWriteStream();
-    stream.write(profileImage);
-
-    const blob = await stream.end();
-
-    return blob.hash;
 }
 
 /**
@@ -554,7 +515,7 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * This function updates the main contact of a person based on the contactDescription object.
-     * (e.g. if the current main contact contains just an avatar an the incoming contactDescription contains a person name
+     * (e.g. if the current main contact contains just an avatar and the incoming contactDescription contains a person name
      * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
      *
      * @TODO - update the function to support also the communication endpoints.
@@ -563,7 +524,7 @@ export default class ContactModel extends EventEmitter {
      * @param {ContactDescription} contactDescription - the new values of the main contact object.
      * @returns {Promise<void>}
      */
-    public async saveMainContact(
+    public async updateDescription(
         personId: SHA256IdHash<Person>,
         contactDescription: ContactDescription
     ): Promise<void> {
@@ -580,10 +541,10 @@ export default class ContactModel extends EventEmitter {
 
         // creates the profileImage object
         if (contactDescription.image) {
-            const oneProfileImage = await convertToOne(contactDescription.image);
+            // Create the reference to the profile image
             profileImage = await createSingleObjectThroughPurePlan(
-                {module: '@one/identity'},
-                oneProfileImage
+                {module: '@module/createProfilePicture'},
+                contactDescription.image
             );
         }
 
@@ -617,44 +578,24 @@ export default class ContactModel extends EventEmitter {
                 }
             }
 
-            if (personName && profileImage) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [personName.hash, profileImage.hash].concat(
-                            mainContactDescriptionHashes
-                        )
-                    }
-                );
-            } else if (personName) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [personName.hash].concat(mainContactDescriptionHashes)
-                    }
-                );
-            } else if (profileImage) {
-                // creates the contact object
-                contactObject = await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: 'Contact',
-                        personId: personId,
-                        communicationEndpoints: [],
-                        contactDescriptions: [profileImage.hash].concat(
-                            mainContactDescriptionHashes
-                        )
-                    }
-                );
+            if (personName) {
+                mainContactDescriptionHashes.push(personName.hash);
             }
+
+            if (profileImage) {
+                mainContactDescriptionHashes.push(profileImage.hash);
+            }
+
+            // creates the contact object
+            contactObject = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {
+                    $type$: 'Contact',
+                    personId: personId,
+                    communicationEndpoints: [],
+                    contactDescriptions: mainContactDescriptionHashes
+                }
+            );
 
             if (contactObject !== null) {
                 const existingContact = profile.obj.contactObjects.find(

@@ -20,6 +20,13 @@ declare module '@OneCoreTypes' {
         ProfileImage: ProfileImage;
     }
 
+    export interface PlanResultTypes {
+        '@module/createProfilePicture': {
+            args: any;
+            result: UnversionedObjectResult<ProfileImage>
+        }
+    }
+
     // #### Communication endpoints #####
 
     /**
