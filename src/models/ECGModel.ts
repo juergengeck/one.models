@@ -45,7 +45,7 @@ export default class ECGModel extends EventEmitter {
      *
      * @returns {Promise<ObjectData<OneUnversionedObjectTypes>[]>}
      */
-    async retrieveAll(): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+    async retrieveAll(): Promise<ObjectData<Electrocardiogram>[]> {
         return await this.channelManager.getObjects({channelId: this.channelId});
     }
 
