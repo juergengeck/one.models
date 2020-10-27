@@ -8,7 +8,7 @@
     "install": "node ./install.js",
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
-    "doc": "npx typedoc",
+    "doc": "npx typedoc && npx api-extractor run --local",
     "start": "node lib/model/index.js",
     "test": "nyc mocha test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@microsoft/api-extractor": "^7.10.4",
     "@types/chai": "*",
     "@types/lodash": "^4.14.138",
     "@types/mocha": "*",

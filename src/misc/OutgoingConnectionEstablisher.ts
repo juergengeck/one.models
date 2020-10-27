@@ -88,6 +88,7 @@ class OutgoingConnectionEstablisher {
                         break;
                     }
 
+                    // TODO: If the timeout is canceled, this promise will not resolve!!!
                     await new Promise(resolve => {
                         this.retryTimeoutHandle = setTimeout(resolve, retryTimeout);
                     });
