@@ -15,8 +15,7 @@ import {
     ContactDescriptionTypes,
     UnversionedObjectResult,
     OneInstanceEndpoint,
-    Keys,
-    ProfileImage
+    Keys
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -29,7 +28,8 @@ import {
     SET_ACCESS_MODE,
     onVersionedObj,
     getObjectWithType,
-    createSingleObjectThroughImpurePlan
+    createSingleObjectThroughImpurePlan,
+    readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -40,7 +40,6 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import * as Storage from 'one.core/lib/storage.js';
 
 /**
  * This represents a ContactEvent
@@ -89,23 +88,6 @@ export type MergedContact = {
 export enum DescriptionTypes {
     PERSON_NAME = 'PersonName',
     PROFILE_IMAGE = 'ProfileImage'
-}
-
-/**
- * Convert from one representation to model representation.
- *
- * @param {ProfileImage} oneObject - the one object
- * @returns {ArrayBuffer | undefined} The corresponding model object
- */
-async function convertFromOne(oneObject: ProfileImage): Promise<ArrayBuffer | null> {
-    let profileImage: ArrayBuffer | null = null;
-    const stream = Storage.createFileReadStream(oneObject.image);
-    stream.onData.addListener(data => {
-        profileImage = data;
-    });
-    await stream.promise;
-
-    return profileImage;
 }
 
 /**
@@ -454,19 +436,18 @@ export default class ContactModel extends EventEmitter {
                 const contactDescriptionObject = await getObject(contactDescription);
                 if (contactDescriptionObject.$type$ === DescriptionTypes.PROFILE_IMAGE) {
                     // getting the image object
-                    const image = await convertFromOne({
-                        $type$: DescriptionTypes.PROFILE_IMAGE,
-                        image: contactDescriptionObject.image
-                    });
+                    const profileImage = await readBlobAsArrayBuffer(
+                        contactDescriptionObject.image
+                    );
 
-                    if (image !== null) {
+                    if (profileImage !== null) {
                         // before adding the image into the array,
                         // we make sure that the image was not added previously
                         const imageExist = profileImageInfos.find(
-                            (img: Info) => img.value === image
+                            (img: Info) => img.value === profileImage
                         );
                         if (!imageExist) {
-                            profileImageInfos.push({value: image, meta: {}});
+                            profileImageInfos.push({value: profileImage, meta: {}});
                         }
                     }
                 }
