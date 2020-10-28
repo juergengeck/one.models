@@ -8,6 +8,7 @@
     "install": "node ./install.js",
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
+    "doc": "npx typedoc && npx api-extractor run --local",
     "start": "node lib/model/index.js",
     "test": "nyc mocha test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@microsoft/api-extractor": "^7.10.4",
     "@types/chai": "*",
     "@types/lodash": "^4.14.138",
     "@types/mocha": "*",
@@ -53,6 +55,8 @@
     "prettier": "*",
     "sinon": "*",
     "ts-node": "^8.10.1",
+    "typedoc": "^0.19.2",
+    "typedoc-plugin-external-module-name": "^4.0.3",
     "webpack": "*",
     "webpack-cli": "*"
   }
