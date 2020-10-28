@@ -44,7 +44,7 @@ describe('Contact model test', () => {
 
         const mySomeone = await getObject(contactApp.obj.me);
         expect(mySomeone && mySomeone.mainProfile).to.not.be.undefined;
-        expect(mySomeone.profiles).to.have.length(1);
+        expect(mySomeone.profiles).to.have.length(2);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
         expect(myProfile).to.not.be.undefined;

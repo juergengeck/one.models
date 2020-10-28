@@ -109,13 +109,13 @@ export default class JournalModel extends EventEmitter {
             let i = 0;
             i <
             measurements.length +
-                qresponses.length +
-                heartEvents.length +
-                documents.length +
-                diaryEntries.length +
-                temperatures.length +
-                consentFiles.length +
-                ecgs.length;
+            qresponses.length +
+            heartEvents.length +
+            documents.length +
+            diaryEntries.length +
+            temperatures.length +
+            consentFiles.length +
+            ecgs.length;
             ++i
         ) {
             const compareElements: EventListEntry[] = [];

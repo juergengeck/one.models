@@ -23,7 +23,7 @@ describe('ECG Model test', () => {
     it('Should create an ECG with 15000 readings', async () => {
         const readings = [];
         for (let i = 0; i < 15000; i++) {
-            readings.push({timeSinceSimpleStart: i, leadVoltage: Math.random()});
+            readings.push({timeSinceSampleStart: i, leadVoltage: Math.random()});
         }
         const ECG: Electrocardiogram = {
             $type$: 'Electrocardiogram',
