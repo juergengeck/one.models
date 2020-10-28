@@ -9,7 +9,7 @@ import {ObjectData} from './ChannelManager';
 import {ConsentFile} from './ConsentFileModel';
 
 /**
- * !!! Please use the exact class name
+ * !!! Add the corresponding model class name here
  */
 export enum EventType {
     QuestionnaireResponse = 'QuestionnaireModel',
