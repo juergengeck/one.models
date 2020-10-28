@@ -63,8 +63,9 @@ export default class WbcDiffModel extends EventEmitter {
         let property: keyof WbcObservation;
         for (property in wbcObservation) {
             if (property !== 'acquisitionTime' && property !== '$type$') {
-                if (wbcObservation.hasOwnProperty(property)) {
-                    const stringNumber = wbcObservation[property].value;
+                const wbcMeasurement = wbcObservation[property];
+                if (wbcMeasurement !== undefined) {
+                    const stringNumber = wbcMeasurement.value;
                     if (!numberRegex.test(stringNumber)) {
                         throw new Error(
                             `${stringNumber} of ${property} is not a valid Number format`
