@@ -5,7 +5,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {Electrocardiogram, OneUnversionedObjectTypes, SHA256Hash} from '@OneCoreTypes';
+import {Electrocardiogram, SHA256Hash} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 
 export default class ECGModel extends EventEmitter {
@@ -43,10 +43,17 @@ export default class ECGModel extends EventEmitter {
 
     /**
      *
-     * @returns {Promise<ObjectData<OneUnversionedObjectTypes>[]>}
+     * @returns {Promise<ObjectData<Electrocardiogram>[]>}
      */
     async retrieveAll(): Promise<ObjectData<Electrocardiogram>[]> {
-        return await this.channelManager.getObjects({channelId: this.channelId});
+        const electrocardiograms = await this.channelManager.getObjectsWithType(
+            'Electrocardiogram',
+            {
+                channelId: this.channelId
+            }
+        );
+
+        return electrocardiograms;
     }
 
     /**

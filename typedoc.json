@@ -1,0 +1,10 @@
+{
+  "ignoreCompilerErrors": true,
+  "excludeNotExported": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "out": "docs",
+  "inputFiles": ["./src"],
+  "mode": "modules"
+}
