@@ -54,7 +54,7 @@ export default class WbcDiffModel extends EventEmitter {
      *
      * @param {string} wbcObservation - The answers for the questionnaire
      */
-    async postMeasurement(wbcObservation: WbcObservation): Promise<void> {
+    async postObservation(wbcObservation: WbcObservation): Promise<void> {
         MessageBus.send('log', `postMeasurement()`);
 
         // Verify number format of *Count fields
@@ -81,16 +81,16 @@ export default class WbcDiffModel extends EventEmitter {
     }
 
     /**
-     * returns all the wbc measurements from the channel
+     * returns all WbcObservations from the channel
      */
-    async getAll(): Promise<ObjectData<WbcObservation>[]> {
+    async getAllObservations(): Promise<ObjectData<WbcObservation>[]> {
         return await this.channelManager.getObjectsWithType('WbcObservation');
     }
 
     /**
-     * returns the wbc measurement with that specific id provided by the ObjectData type
+     * returns the WbcObservation with that specific id provided by the ObjectData type
      */
-    async getEntryById(id: string): Promise<ObjectData<WbcObservation>> {
+    async getObservationById(id: string): Promise<ObjectData<WbcObservation>> {
         return await this.channelManager.getObjectWithTypeById(id, 'WbcObservation');
     }
 }

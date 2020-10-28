@@ -88,7 +88,7 @@ export default class JournalModel extends EventEmitter {
      */
     async events(): Promise<EventListEntry[]> {
         const diaryEntries = await this.diaryModel.entries();
-        const measurements = await this.wbcDiffModel.getAll();
+        const measurements = await this.wbcDiffModel.getAllObservations();
         const qresponses = await this.questionnaireModel.responses();
         const heartEvents = await this.heartEventModel.heartEvents();
         const documents = await this.documentModel.documents();
