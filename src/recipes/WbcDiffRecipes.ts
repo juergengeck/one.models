@@ -27,12 +27,12 @@ declare module '@OneCoreTypes' {
     export interface WbcObservation {
         $type$: 'WbcObservation';
         acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
-        Neutrophils: WbcMeasurement;
-        Lymphocytes: WbcMeasurement;
-        Monocytes: WbcMeasurement;
-        Eosinophils: WbcMeasurement;
-        Basophils: WbcMeasurement;
         Leukocytes: WbcMeasurement;
+        Neutrophils?: WbcMeasurement;
+        Lymphocytes?: WbcMeasurement;
+        Monocytes?: WbcMeasurement;
+        Eosinophils?: WbcMeasurement;
+        Basophils?: WbcMeasurement;
     }
 }
 
@@ -61,28 +61,33 @@ const WbcObservation: Recipe = {
             valueType: 'string'
         },
         {
-            itemprop: 'Neutrophils',
+            itemprop: 'Leukocytes',
             rule: WbcMeasurementRules
+        },
+        {
+            itemprop: 'Neutrophils',
+            rule: WbcMeasurementRules,
+            optional: true
         },
         {
             itemprop: 'Lymphocytes',
-            rule: WbcMeasurementRules
+            rule: WbcMeasurementRules,
+            optional: true
         },
         {
             itemprop: 'Monocytes',
-            rule: WbcMeasurementRules
+            rule: WbcMeasurementRules,
+            optional: true
         },
         {
             itemprop: 'Eosinophils',
-            rule: WbcMeasurementRules
+            rule: WbcMeasurementRules,
+            optional: true
         },
         {
             itemprop: 'Basophils',
-            rule: WbcMeasurementRules
-        },
-        {
-            itemprop: 'Leukocytes',
-            rule: WbcMeasurementRules
+            rule: WbcMeasurementRules,
+            optional: true
         }
     ]
 };

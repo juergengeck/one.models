@@ -56,7 +56,6 @@ export default class WbcDiffModel extends EventEmitter {
      */
     async postMeasurement(wbcObservation: WbcObservation): Promise<void> {
         MessageBus.send('log', `postMeasurement()`);
-        wbcObservation = Object.assign({}, wbcObservation); // shallow copy, because we modify it
 
         // Verify number format of *Count fields
         const numberRegex = /^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$/;
@@ -64,9 +63,13 @@ export default class WbcDiffModel extends EventEmitter {
         let property: keyof WbcObservation;
         for (property in wbcObservation) {
             if (property !== 'acquisitionTime' && property !== '$type$') {
-                const stringNumber = wbcObservation[property].value;
-                if (!numberRegex.test(stringNumber)) {
-                    throw new Error(`${stringNumber} of ${property} is not a valid Number format`);
+                if (wbcObservation.hasOwnProperty(property)) {
+                    const stringNumber = wbcObservation[property].value;
+                    if (!numberRegex.test(stringNumber)) {
+                        throw new Error(
+                            `${stringNumber} of ${property} is not a valid Number format`
+                        );
+                    }
                 }
             }
         }
