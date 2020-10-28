@@ -9,7 +9,9 @@ import {
     Person,
     SHA256Hash,
     SHA256IdHash,
-    VersionedObjectResult
+    VersionedObjectResult,
+    Access,
+    IdAccess
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -119,7 +121,7 @@ export default class AccessModel extends EventEmitter {
         });
     }
 
-    async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>) {
+    async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>): Promise<VersionedObjectResult<Access | IdAccess>> {
         const group = await this.getAccessGroupByName(groupName);
         return await createSingleObjectThroughPurePlan(
             {

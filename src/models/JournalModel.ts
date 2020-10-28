@@ -1,135 +1,189 @@
+import WbcDiffModel from './WbcDiffModel';
 import {WbcMeasurement, Electrocardiogram} from '@OneCoreTypes';
-import {QuestionnaireResponse} from './QuestionnaireModel';
+import QuestionnaireModel, {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
-import {HeartEvent} from './HeartEventModel';
-import {DocumentInfo} from './DocumentModel';
-import {DiaryEntry} from './DiaryModel';
-import {BodyTemperature} from './BodyTemperatureModel';
+import HeartEventModel, {HeartEvent} from './HeartEventModel';
+import DocumentModel, {DocumentInfo} from './DocumentModel';
+import DiaryModel, {DiaryEntry} from './DiaryModel';
+import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
-import {ConsentFile} from './ConsentFileModel';
+import ConsentFileModel, {ConsentFile} from './ConsentFileModel';
+import {ECGModel} from './index';
 
-
-/**
- * !!! Please use the exact class name
- */
 export enum EventType {
-    QuestionnaireResponse = 'QuestionnaireModel',
-    WbcDiffMeasurement = 'WbcDiffModel',
-    HeartEvent = 'HeartEventModel',
-    DocumentInfo = 'DocumentModel',
-    DiaryEntry = 'DiaryModel',
-    BodyTemperature = 'BodyTemperatureModel',
-    ConsentFileEvent = 'ConsentFileModel',
-    ECGEvent = 'ECGModel'
+    QuestionnaireResponse,
+    WbcDiffMeasurement,
+    HeartEvent,
+    DocumentInfo,
+    DiaryEntry,
+    BodyTemperature,
+    ConsentFileEvent,
+    ECGEvent
 }
 
-/**
- * Add the corresponding type here
- */
 export type EventListEntry = {
     type: EventType;
     data:
-        | ObjectData<
-              | WbcMeasurement
-              | QuestionnaireResponse
-              | DocumentInfo
-              | DiaryEntry
-              | ConsentFile
-              | Electrocardiogram
-          >
+        | ObjectData<WbcMeasurement>
+        | ObjectData<QuestionnaireResponse>
         | HeartEvent
-        | BodyTemperature;
-};
-
-type JournalInput = {
-    model: EventEmitter;
-    retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
+        | ObjectData<DocumentInfo>
+        | ObjectData<DiaryEntry>
+        | BodyTemperature
+        | ObjectData<ConsentFile>
+        | ObjectData<Electrocardiogram>;
 };
 
 export default class JournalModel extends EventEmitter {
-    private modelsDictionary: JournalInput[] = [];
-    constructor(modelsInput: JournalInput[]) {
+    constructor(
+        wbcDiffModel: WbcDiffModel,
+        questionnaireModel: QuestionnaireModel,
+        heartEventModel: HeartEventModel,
+        documentModel: DocumentModel,
+        diaryModel: DiaryModel,
+        bodyTemperatureModel: BodyTemperatureModel,
+        consentFileModel: ConsentFileModel,
+        ecgModel: ECGModel
+    ) {
         super();
-        this.modelsDictionary = modelsInput;
+        this.wbcDiffModel = wbcDiffModel;
+        this.questionnaireModel = questionnaireModel;
+        this.heartEventModel = heartEventModel;
+        this.documentModel = documentModel;
+        this.diaryModel = diaryModel;
+        this.bodyTemperatureModel = bodyTemperatureModel;
+        this.consentFileModel = consentFileModel;
+        this.ecgModel = ecgModel;
+        // Connect events
+        wbcDiffModel.on('updated', () => {
+            this.emit('updated');
+        });
+        questionnaireModel.on('updated', () => {
+            this.emit('updated');
+        });
+        heartEventModel.on('updated', () => {
+            this.emit('updated');
+        });
+        documentModel.on('updated', () => {
+            this.emit('updated');
+        });
+        diaryModel.on('updated', () => {
+            this.emit('updated');
+        });
+        bodyTemperatureModel.on('updated', () => {
+            this.emit('updated');
+        });
+        consentFileModel.on('updated', () => {
+            this.emit('updated');
+        });
+        ecgModel.on('updated', () => {
+            this.emit('updated');
+        });
     }
 
     /**
-     * maps an handler on every provided model
-     * @returns {Promise<void>}
-     */
-    async init() {
-        this.modelsDictionary
-            .map((journalInput: JournalInput) => journalInput.model)
-            .forEach((model: EventEmitter) => {
-                model.on('updated', this.listenOnUpdatesHandler);
-            });
-    }
-
-    /**
-     * removes the handler for every provided model
-     */
-    shutdown() {
-        this.modelsDictionary
-            .map((journalInput: JournalInput) => journalInput.model)
-            .forEach((model: EventEmitter) => {
-                model.removeListener('updated', this.listenOnUpdatesHandler);
-            });
-    }
-
-    /**
-     * Get the stored events sorted by date. In Ascending order
-     * @returns {Promise<EventListEntry[]>}
+     * Get the stored events sorted by date.
+     *
+     * In Ascending order! (TODO: add a switch for that)
      */
     async events(): Promise<EventListEntry[]> {
-        /** if there are no provided models, return empty list **/
-        if (Object.keys(this.modelsDictionary).length === 0) {
-            return [];
-        }
-        /** data structure as a dictionary **/
-        const dataDictionary: {
-            [event: string]: {values: EventListEntry['data'][]; index: number};
-        } = {};
-        /** map every provided model to the data dictionary and get their values **/
-        await Promise.all(
-            this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                const event = journalInput.model.constructor.name as EventType;
-                dataDictionary[event] = {
-                    values: await journalInput.retrieveFn(),
-                    index: 0
-                };
-            })
-        );
-        /** get the total length of data values **/
-        const totalLen: number = Object.keys(dataDictionary)
-            .map((event: string) => dataDictionary[event].values.length)
-            .reduce((acc: number, cur: number) => acc + cur);
-
+        const diaryEntries = await this.diaryModel.entries();
+        const measurements = await this.wbcDiffModel.measurements();
+        const qresponses = await this.questionnaireModel.responses();
+        const heartEvents = await this.heartEventModel.heartEvents();
+        const documents = await this.documentModel.documents();
+        const temperatures = await this.bodyTemperatureModel.getBodyTemperatures();
+        const consentFiles = await this.consentFileModel.entries();
+        const ecgs = await this.ecgModel.retrieveAll();
         const eventList: EventListEntry[] = [];
 
-        for (let i = 0; i < totalLen; ++i) {
+        let measurementsIndex = 0;
+        let qresponsesIndex = 0;
+        let heartEventsIndex = 0;
+        let documentsIndex = 0;
+        let diaryEntriesIndex = 0;
+        let temperatureIndex = 0;
+        let consentFileIndex = 0;
+        let ecgIndex = 0;
+        for (
+            let i = 0;
+            i <
+            measurements.length +
+            qresponses.length +
+            heartEvents.length +
+            documents.length +
+            diaryEntries.length +
+            temperatures.length +
+            consentFiles.length +
+            ecgs.length;
+            ++i
+        ) {
             const compareElements: EventListEntry[] = [];
-            /** for every key of the data dictionary **/
-            for (const event of Object.keys(dataDictionary)) {
-                /** get the actual object **/
-                const eventData = dataDictionary[event];
-                /** check the index if it has values left **/
-                if (eventData.index < eventData.values.length) {
-                    compareElements.push({
-                        /** put the data key as the event type, also = model class name **/
-                        type: event as EventType,
-                        data: eventData.values[eventData.index]
-                    });
-                }
+
+            // Load the remaining latest elements from all lists
+            if (measurementsIndex < measurements.length) {
+                compareElements.push({
+                    type: EventType.WbcDiffMeasurement,
+                    data: measurements[measurementsIndex]
+                });
             }
-            /** This checks if the number of loop iterations are all right. It should always be ok unless there is
-             * a programming error in this algorithm
-             **/
+
+            if (qresponsesIndex < qresponses.length) {
+                compareElements.push({
+                    type: EventType.QuestionnaireResponse,
+                    data: qresponses[qresponsesIndex]
+                });
+            }
+
+            if (heartEventsIndex < heartEvents.length) {
+                compareElements.push({
+                    type: EventType.HeartEvent,
+                    data: heartEvents[heartEventsIndex]
+                });
+            }
+
+            if (documentsIndex < documents.length) {
+                compareElements.push({
+                    type: EventType.DocumentInfo,
+                    data: documents[documentsIndex]
+                });
+            }
+
+            if (diaryEntriesIndex < diaryEntries.length) {
+                compareElements.push({
+                    type: EventType.DiaryEntry,
+                    data: diaryEntries[diaryEntriesIndex]
+                });
+            }
+
+            if (temperatureIndex < temperatures.length) {
+                compareElements.push({
+                    type: EventType.BodyTemperature,
+                    data: temperatures[temperatureIndex]
+                });
+            }
+
+            if (consentFileIndex < consentFiles.length) {
+                compareElements.push({
+                    type: EventType.ConsentFileEvent,
+                    data: consentFiles[consentFileIndex]
+                });
+            }
+            if (ecgIndex < ecgs.length) {
+                compareElements.push({
+                    type: EventType.ECGEvent,
+                    data: ecgs[ecgIndex]
+                });
+            }
+            // This checks if the number of loop iterations is ok. It should always be ok unless there is
+            // a programming error in this algorithm
             if (compareElements.length === 0) {
                 throw new Error(
                     'Programming error: Not enough compare elements in input lists. This should never happen!'
                 );
             }
-            /** Lets find the element with the newest date **/
+
+            // Lets find the element with the newest date
             let oldestElement: EventListEntry = compareElements[0];
 
             for (const compareElement of compareElements) {
@@ -138,16 +192,50 @@ export default class JournalModel extends EventEmitter {
                 }
             }
 
-            /** increment the added item. OldestElement.type is the actual key of the object **/
-            dataDictionary[oldestElement.type].index++;
+            // Now that we have the newest element let's just append it and advance the
+            // correct index and append the chosen element to the output array
+            switch (oldestElement.type) {
+                case EventType.DiaryEntry:
+                    ++diaryEntriesIndex;
+                    break;
+                case EventType.WbcDiffMeasurement:
+                    ++measurementsIndex;
+                    break;
+                case EventType.QuestionnaireResponse:
+                    ++qresponsesIndex;
+                    break;
+                case EventType.HeartEvent:
+                    ++heartEventsIndex;
+                    break;
+                case EventType.DocumentInfo:
+                    ++documentsIndex;
+                    break;
+                case EventType.BodyTemperature:
+                    ++temperatureIndex;
+                    break;
+                case EventType.ConsentFileEvent:
+                    ++consentFileIndex;
+                    break;
+                case EventType.ECGEvent:
+                    ++ecgIndex;
+                    break;
+                default:
+                    break;
+            }
+
             eventList.push(oldestElement);
         }
 
-        /** Now all elements should be sorted in the list => return it **/
+        // Now all elements should be sorted in the list => return it.
         return eventList;
     }
 
-    private listenOnUpdatesHandler() {
-        this.emit('updated');
-    }
+    wbcDiffModel: WbcDiffModel;
+    questionnaireModel: QuestionnaireModel;
+    heartEventModel: HeartEventModel;
+    documentModel: DocumentModel;
+    diaryModel: DiaryModel;
+    bodyTemperatureModel: BodyTemperatureModel;
+    consentFileModel: ConsentFileModel;
+    ecgModel: ECGModel;
 }
