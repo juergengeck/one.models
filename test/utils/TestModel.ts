@@ -19,7 +19,6 @@ import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes
 import * as fs from 'fs';
 import oneModules from '../../lib/generated/oneModules';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
-import {NewJournalModel} from "../../src/models/JournalModel";
 export const dbKey = './testDb';
 
 /**
@@ -131,8 +130,6 @@ export default class TestModel {
         await this.ecgModel.init();
         await this.consentFile.init();
         await this.bodyTemperature.init();
-
-        new NewJournalModel([this.bodyTemperature, this.bodyTemperature])
     }
 
     /**

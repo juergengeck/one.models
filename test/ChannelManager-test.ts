@@ -74,25 +74,12 @@ describe('Channel Iterators test', () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
-        /*owner = (
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'Person',
-                    email: 'foo@refinio.net'
-                }
-            )
-        ).idHash;*/
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
         channelManager = model.channelManager;
     });
 
     it('should create channels and init channelManager', async () => {
-        await channelManager.init();
         await channelManager.createChannel('first');
         await channelManager.createChannel('second');
         await channelManager.createChannel('third');
