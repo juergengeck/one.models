@@ -161,7 +161,7 @@ export default class TestModel {
             console.error(e);
         }
         closeInstance();
-        fs.rmdirSync(this.directoryPath, {recursive: true});
+        //fs.rmdirSync(this.directoryPath, {recursive: true});
     }
     ecgModel: ECGModel;
     consentFile: ConsentFileModel;
