@@ -432,6 +432,6 @@ describe('Channel Iterators test', () => {
     after(async () => {
         await testModel.shutdown();
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+       // await StorageTestInit.deleteTestDB();
     });
 });

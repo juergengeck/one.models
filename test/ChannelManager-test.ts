@@ -235,6 +235,6 @@ describe('Channel Iterators test', () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         await testModel.shutdown();
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+        //await StorageTestInit.deleteTestDB();
     });
 });
