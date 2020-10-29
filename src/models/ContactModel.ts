@@ -61,6 +61,10 @@ export type ContactDescription = {
     image?: ArrayBuffer;
 };
 
+export type CommunicationEndpoint = {
+    email?: string;
+};
+
 /**
  * The metadata of a property of the profile.
  */
@@ -250,6 +254,86 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
+     * Get the name of the someone from the main profile.
+     * @param {SHA256IdHash<Person>} personId - the person id for whom the name search is performed.
+     * @returns {Promise<string>} - the name.
+     */
+    public async getName(personId: SHA256IdHash<Person>): Promise<string> {
+        const contactApp = await ContactModel.getContactAppObject();
+        const contactsSomeone = await Promise.all(
+            contactApp.obj.contacts.map(async (contactHash: SHA256Hash<Someone>) => {
+                return await getObject(contactHash);
+            })
+        );
+        const contactsProfiles = await Promise.all(
+            contactsSomeone.map(async (someone: Someone) => {
+                return await getObjectByIdHash(someone.mainProfile);
+            })
+        );
+
+        const mainProfile = contactsProfiles.find(
+            (profile: VersionedObjectResult<Profile>) => profile.obj.personId === personId
+        );
+
+        let someoneName = '';
+
+        if (mainProfile) {
+            // get main contact of the main profile
+            const mainContact = await getObject(mainProfile.obj.mainContact);
+            // get the descriptions of the main contact
+            const contactDescriptions = await Promise.all(
+                mainContact.contactDescriptions.map(
+                    async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                        return await getObject(contactDescriptionHash);
+                    }
+                )
+            );
+
+            // search for the name description
+            for (const description of contactDescriptions) {
+                if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                    someoneName = description.name;
+                    break;
+                }
+            }
+
+            // if the main contact doesn't contains a name then iterate over the list of contact objects of the profile
+            if (someoneName === '') {
+                // get the contact objects
+                const contactObjects = await Promise.all(
+                    mainProfile.obj.contactObjects.map(
+                        async (contactObjectHash: SHA256Hash<Contact>) => {
+                            return await getObject(contactObjectHash);
+                        }
+                    )
+                );
+
+                // iterate over the contact objects
+                for (const contact of contactObjects) {
+                    // get the descriptions of each contact object
+                    const contactDescriptions = await Promise.all(
+                        contact.contactDescriptions.map(
+                            async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                                return await getObject(contactDescriptionHash);
+                            }
+                        )
+                    );
+
+                    // iterate over the contact descriptions and search for name
+                    for (const description of contactDescriptions) {
+                        if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                            someoneName = description.name;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return someoneName;
+    }
+
+    /**
      * Returns the persons id, the person email and the contact name of every contact main profile.
      * @returns {Promise<{idHash: SHA256IdHash<Person>; name: string}[]>}
      */
@@ -410,7 +494,10 @@ export default class ContactModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId - the idHash of the person.
      * @returns {Promise<MergedContact[]>} - merged contact objects.
      */
-    public async getMergedContactObjects(personId: SHA256IdHash<Person>): Promise<MergedContact[]> {
+    public async getMergedContactObjects(
+        personId: SHA256IdHash<Person>,
+        isMainContactRequested: boolean
+    ): Promise<MergedContact[]> {
         const contacts = await this.getContactObjects(personId);
         const mainContact = await this.getMainContactObject(personId);
 
@@ -612,6 +699,10 @@ export default class ContactModel extends EventEmitter {
         }
     }
 
+    // public async updateCommunicationEndpoint(
+    //     communicationEndpoint: CommunicationEndpoint
+    // ): Promise<void> {}
+
     /**
      * HOOK function
      * @description Serialized since it's part of an object listener or not
@@ -755,11 +846,15 @@ export default class ContactModel extends EventEmitter {
             []
         );
         const allEndpoints = await Promise.all(allEndpointHashes.map(hash => getObject(hash)));
+        const oneInstanceEndpoints: OneInstanceEndpoint[] = [];
 
         // Get all OneInstanceEndpoints
-        const oneInstanceEndpoints = allEndpoints.filter(
-            endp => endp.$type$ === 'OneInstanceEndpoint'
-        );
+        for (const oneInstance of allEndpoints) {
+            if (oneInstance.$type$ === 'OneInstanceEndpoint') {
+                oneInstanceEndpoints.push(oneInstance);
+            }
+        }
+
         return oneInstanceEndpoints;
     }
 

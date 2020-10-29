@@ -18,6 +18,7 @@ declare module '@OneCoreTypes' {
         OneInstanceEndpoint: OneInstanceEndpoint;
         PersonName: PersonName;
         ProfileImage: ProfileImage;
+        Email: Email;
     }
 
     export interface PlanResultTypes {
@@ -38,7 +39,7 @@ declare module '@OneCoreTypes' {
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     // @ts-ignore
-    export type CommunicationEndpointTypes = OneInstanceEndpoint;
+    export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
     export interface CommunicationEndpoint {}
 
     export interface OneInstanceEndpoint extends CommunicationEndpoint {
@@ -48,6 +49,11 @@ declare module '@OneCoreTypes' {
         personKeys: SHA256Hash<Keys> | undefined;
         instanceKeys: SHA256Hash<Keys>;
         url: string;
+    }
+
+    export interface Email extends CommunicationEndpoint {
+        $type$: 'Email';
+        email: string;
     }
 
     // #### Contact Descriptions #####
@@ -173,7 +179,7 @@ export const ContactRecipe: Recipe = {
         },
         {
             itemprop: 'communicationEndpoints',
-            referenceToObj: new Set(['OneInstanceEndpoint']),
+            referenceToObj: new Set(['OneInstanceEndpoint', 'Email']),
             list: ORDERED_BY.ONE
         },
         {
@@ -283,6 +289,18 @@ export const ProfileImageRecipe: Recipe = {
     ]
 };
 
+
+export const EmailRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Email',
+    rule: [
+        {
+            itemprop: 'email',
+            valueType: 'string'
+        }
+    ]
+};
+
 // ######## Export recipes ########
 
 const ContactRecipes: Recipe[] = [
@@ -292,7 +310,8 @@ const ContactRecipes: Recipe[] = [
     SomeoneRecipe,
     ContactAppRecipe,
     ContactRecipe,
-    ProfileRecipe
+    ProfileRecipe,
+    EmailRecipe
 ];
 
 export default ContactRecipes;
