@@ -44,6 +44,7 @@ jobs:
     - run: node build
     # - run: yarn test
     - run: yarn doc
+
     # Archive build
     - name: Archive code coverage results
       uses: actions/upload-artifact@v2
