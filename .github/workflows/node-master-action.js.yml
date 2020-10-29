@@ -16,7 +16,7 @@ jobs:
     # select all the node versions you want to test
     strategy:
       matrix:
-        node-version: [10.x, 12.x, 14.x]
+        node-version: [14.x]
 
     steps:
       # create node_modules cache
