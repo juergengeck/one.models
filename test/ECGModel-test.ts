@@ -9,6 +9,7 @@ import {Electrocardiogram} from '@OneCoreTypes';
 import TestModel, {dbKey, importModules} from './utils/TestModel';
 import ECGModel from '../lib/models/ECGModel';
 let ecgModel: ECGModel;
+let testModel;
 
 describe('ECG Model test', () => {
     before(async () => {
@@ -17,6 +18,7 @@ describe('ECG Model test', () => {
         await importModules();
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
+        testModel = model;
         ecgModel = model.ecgModel;
     });
 
@@ -45,6 +47,7 @@ describe('ECG Model test', () => {
     }).timeout(4000);
 
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
         await StorageTestInit.deleteTestDB();
     });

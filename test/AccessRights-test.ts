@@ -14,7 +14,7 @@ import TestModel, {dbKey, importModules} from './utils/TestModel';
 import AccessModel from '../lib/models/AccessModel';
 
 let accessModel: typeof AccessModel;
-
+let testModel;
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey});
@@ -22,6 +22,7 @@ describe('AccessRights model test', () => {
         await importModules();
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
+        testModel = model;
         accessModel = model.accessModel;
     });
 
@@ -121,6 +122,7 @@ describe('AccessRights model test', () => {
     });
 
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
         await StorageTestInit.deleteTestDB();
     });

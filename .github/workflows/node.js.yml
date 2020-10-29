@@ -45,8 +45,8 @@ jobs:
     # - run: yarn test
     - run: yarn doc
 
-    # Archive build
-    - name: Archive code coverage results
+    # Archive docs
+    - name: Zipping the documentantion
       uses: actions/upload-artifact@v2
       with:
         name: Documentation

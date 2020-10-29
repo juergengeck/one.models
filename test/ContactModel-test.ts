@@ -26,6 +26,7 @@ import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from '../lib/models';
 let contactModel: ContactModel;
+let testModel;
 
 describe('Contact model test', () => {
     before(async () => {
@@ -35,6 +36,7 @@ describe('Contact model test', () => {
 
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
+        testModel = model;
         contactModel = model.contactModel;
     });
 
@@ -403,6 +405,7 @@ describe('Contact model test', () => {
     });
 
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
         await StorageTestInit.deleteTestDB();
     });

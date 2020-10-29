@@ -16,6 +16,7 @@ import {Person, SHA256Hash, ChannelRegistry, SHA256IdHash, BodyTemperature} from
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 let channelManager: typeof ChannelManager;
+let testModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
@@ -49,6 +50,8 @@ describe('Channel Iterators test', () => {
         ).idHash;
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
+        testModel = model;
+
         channelManager = model.channelManager;
     });
 
@@ -427,6 +430,7 @@ describe('Channel Iterators test', () => {
         }
     });
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
         await StorageTestInit.deleteTestDB();
     });

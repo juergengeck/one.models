@@ -9,6 +9,7 @@ import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 
 let channelManager: typeof ChannelManager;
+let testModel;
 
 // ######## SPECIALLY FORMATTED LOGGING ########
 const enableLogging = false;
@@ -76,6 +77,7 @@ describe('Channel Iterators test', () => {
         await importModules();
         const model = new TestModel('ws://localhost:8000', './test/testDB');
         await model.init(undefined);
+        testModel = model;
         channelManager = model.channelManager;
     });
 
@@ -231,6 +233,7 @@ describe('Channel Iterators test', () => {
     after(async () => {
         // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));
+        await testModel.shutdown();
         closeInstance();
         await StorageTestInit.deleteTestDB();
     });
