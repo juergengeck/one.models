@@ -5,11 +5,11 @@
 name: Generate & deploy documentation
 
 on:
-  pull_request:
+  push:
     branches: [ master ]
 
 jobs:
-  build:
+  documentation:
 
     runs-on: ubuntu-latest
 
