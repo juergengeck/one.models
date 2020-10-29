@@ -75,7 +75,7 @@ describe('Channel Iterators test', () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes(Recipes);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
         testModel = model;
         channelManager = model.channelManager;
