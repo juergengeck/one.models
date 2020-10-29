@@ -21,16 +21,17 @@ import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes'
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import TestModel, {dbKey, importModules, TestAccessGroups} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir, TestAccessGroups} from './utils/TestModel';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from '../lib/models';
+import rimraf from "rimraf";
 let contactModel: ContactModel;
 let testModel;
 
 describe('Contact model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, secret: '1234'});
+        await StorageTestInit.init({dbKey: dbKey, deleteDb: false, secret: '1234'});
         await registerRecipes(Recipes);
         await importModules();
 
@@ -407,6 +408,7 @@ describe('Contact model test', () => {
     after(async () => {
         await testModel.shutdown();
         closeInstance();
+        await removeDir(`./test/${dbKey}`);
         // await StorageTestInit.deleteTestDB();
     });
 });

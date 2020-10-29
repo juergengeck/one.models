@@ -16,11 +16,39 @@ import {
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
-import * as fs from 'fs';
 import oneModules from '../../lib/generated/oneModules';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
-export const dbKey = './testDb';
+export const dbKey = 'testDb';
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
 
+const readdir = util.promisify(fs.readdir);
+const lstat = util.promisify(fs.lstat);
+const unlink = util.promisify(fs.unlink);
+const rmdir = util.promisify(fs.rmdir);
+
+export async function removeDir(dir: string) {
+    try {
+        const files = await readdir(dir);
+        await Promise.all(files.map(async (file: string) => {
+            try {
+                const p = path.join(dir, file);
+                const stat = await lstat(p);
+                if (stat.isDirectory()) {
+                    await removeDir(p);
+                } else {
+                    await unlink(p);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }))
+        await rmdir(dir);
+    } catch (err) {
+        console.error(err);
+    }
+}
 /**
  * Import all plan modules
  */

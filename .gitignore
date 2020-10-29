@@ -15,7 +15,7 @@ test/testDb
 # ONE Database
 OneDB
 dist/
-
+./test/testDb
 #########
 # Node.js
 #########
