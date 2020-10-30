@@ -260,21 +260,7 @@ export default class ContactModel extends EventEmitter {
      * @returns {Promise<string>} - the name.
      */
     public async getName(personId: SHA256IdHash<Person>): Promise<string> {
-        const contactApp = await ContactModel.getContactAppObject();
-        const contactsSomeone = await Promise.all(
-            contactApp.obj.contacts.map(async (contactHash: SHA256Hash<Someone>) => {
-                return await getObject(contactHash);
-            })
-        );
-        const contactsProfiles = await Promise.all(
-            contactsSomeone.map(async (someone: Someone) => {
-                return await getObjectByIdHash(someone.mainProfile);
-            })
-        );
-
-        const mainProfile = contactsProfiles.find(
-            (profile: VersionedObjectResult<Profile>) => profile.obj.personId === personId
-        );
+        const mainProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
 
         let someoneName = '';
 
@@ -451,74 +437,75 @@ export default class ContactModel extends EventEmitter {
     /**
      * The merging algorithm for the contacts object of a profile.
      * For now it will return always the latest person name, an array of profile images and the communication endpoints (not implemented yet!).
-     *
-     * @TODO - when the communication endpoints are supported, the function should be updated to merge and return only the needed information!!
-     *
      * @param {SHA256IdHash<Person>} personId - the idHash of the person.
+     * @param isMainProfileRequested - a flag for switching between merging logic.
      * @returns {Promise<MergedContact[]>} - merged contact objects.
      */
     public async getMergedContactObjects(
         personId: SHA256IdHash<Person>,
-        isMainContactRequested: boolean
+        isMainProfileRequested: boolean
     ): Promise<MergedContact[]> {
-        const contacts = await this.getContactObjects(personId);
-        const mainContact = await this.getMainContactObject(personId);
-
         const mergedContacts: MergedContact[] = [];
-        let latestPersonNameInfo: Info | undefined;
         const profileImageInfos: Info[] = [];
-        const communicationEndpointInfos: Info[] = [];
+        const personNameInfo: Info[] = [];
+        const emailInfos: Info[] = [];
 
-        // since we need the latest set person name, we can get it from the main contact
-        for (const contactDescription of mainContact.contactDescriptions) {
-            // getting the contact description object
-            const contactDescriptionObject = await getObject(contactDescription);
-            if (contactDescriptionObject.$type$ === DescriptionTypes.PERSON_NAME) {
-                latestPersonNameInfo = {value: contactDescriptionObject.name, meta: {}};
-            }
-        }
+        if (isMainProfileRequested) {
+            // getting the list of contacts of the main profile
+            const contactObjects = await this.getContactObjects(personId);
 
-        // iterating over all contact objects
-        for (const contact of contacts) {
-            // iterating over all contact descriptions
-            for (const contactDescription of contact.contactDescriptions) {
-                // getting the contact description object
-                const contactDescriptionObject = await getObject(contactDescription);
-                if (contactDescriptionObject.$type$ === DescriptionTypes.PROFILE_IMAGE) {
-                    // getting the image object
-                    const profileImage = await readBlobAsArrayBuffer(
-                        contactDescriptionObject.image
-                    );
+            // iterating over the contact objects list
+            for (const contact of contactObjects) {
+                // getting the description of the contact
+                const contactDescriptions = await Promise.all(
+                    contact.contactDescriptions.map(
+                        async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                            return await getObject(descriptionHash);
+                        }
+                    )
+                );
 
-                    if (profileImage !== null) {
-                        // before adding the image into the array,
-                        // we make sure that the image was not added previously
-                        const imageExist = profileImageInfos.find(
-                            (img: Info) => img.value === profileImage
-                        );
-                        if (!imageExist) {
-                            profileImageInfos.push({value: profileImage, meta: {}});
+                // getting the contact description and adding them into the returned array
+                for (const description of contactDescriptions) {
+                    if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                        const personName = {value: description.name, meta: {}};
+                        if (!this.elementExists(personNameInfo, personName)) {
+                            personNameInfo.push(personName);
+                        }
+                    }
+
+                    if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
+                        const image = await readBlobAsArrayBuffer(description.image);
+                        const profileImage = {value: image, meta: {}};
+                        if (!this.elementExists(personNameInfo, profileImage)) {
+                            profileImageInfos.push(profileImage);
+                        }
+                    }
+                }
+
+                // getting the communication endpoints of the contact
+                const communicationEndpoints = await Promise.all(
+                    contact.communicationEndpoints.map(
+                        async (
+                            communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>
+                        ) => {
+                            return await getObject(communicationEndpointHash);
+                        }
+                    )
+                );
+
+                // getting the contact communication endpoints and adding them into the returned array
+                for (const communicationEndpoint of communicationEndpoints) {
+                    if (communicationEndpoint.$type$ === 'Email') {
+                        const email = {value: communicationEndpoint.email, meta: {}};
+                        if (!this.elementExists(personNameInfo, email)) {
+                            emailInfos.push(email);
                         }
                     }
                 }
             }
-
-            // adding the communication endpoints to the info array
-            // @TODO update the implementation when the communication endpoints are implemented
-            for (const communicationEndpoint of contact.communicationEndpoints) {
-                const communicationEndpointObject = await getObject(communicationEndpoint);
-                for (const item in communicationEndpointObject) {
-                    communicationEndpointInfos.push({value: item, meta: {}});
-                }
-            }
-        }
-
-        // adding the latest name from the main contact object
-        if (latestPersonNameInfo) {
-            mergedContacts.push({
-                type: DescriptionTypes.PERSON_NAME,
-                info: [latestPersonNameInfo]
-            });
+        } else {
+            //@TODO - implement the merge of the profiles of someone
         }
 
         // adding the merged profile images objects
@@ -527,18 +514,16 @@ export default class ContactModel extends EventEmitter {
             info: profileImageInfos
         });
 
-        // adding the merged communication endpoints
+        // adding the merged person names objects
         mergedContacts.push({
-            type: 'CommunicationEndpoints',
-            info: communicationEndpointInfos
+            type: DescriptionTypes.PERSON_NAME,
+            info: personNameInfo
         });
 
-        const person = await getObjectByIdHash(personId);
-
-        // adding the email of the person
+        // adding the merged emails objects
         mergedContacts.push({
-            type: 'email',
-            info: [{value: person.obj.email, meta: {}}]
+            type: 'Email',
+            info: emailInfos
         });
 
         return mergedContacts;
@@ -548,9 +533,6 @@ export default class ContactModel extends EventEmitter {
      * This function updates the main contact of a person based on the contactDescription object.
      * (e.g. if the current main contact contains just an avatar and the incoming contactDescription contains a person name
      * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
-     *
-     * @TODO - update the function to support also the communication endpoints.
-     *
      * @param {SHA256IdHash<Person>} personId - the id of the person whose main contact will be updated.
      * @param {ContactDescription} contactDescription - the new values of the main contact object.
      * @returns {Promise<void>}
@@ -1187,5 +1169,19 @@ export default class ContactModel extends EventEmitter {
                 contactObject.obj.communicationEndpoints
             );
         }
+    }
+
+    /**
+     * Helper function for verifying if a contact description or
+     * a communication endpoint was already added into the returned information
+     * while merging the contact objects.
+     * @param {Info[]} contactInfos
+     * @param {Info} elementToBeChecked
+     * @returns {boolean}
+     */
+    private elementExists(contactInfos: Info[], elementToBeChecked: Info): boolean {
+        const info = contactInfos.find((info: Info) => info === elementToBeChecked);
+
+        return info !== undefined;
     }
 }
