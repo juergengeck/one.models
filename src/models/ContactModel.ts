@@ -465,7 +465,7 @@ export default class ContactModel extends EventEmitter {
                     )
                 );
 
-                // getting the contact description and adding them into the returned array
+                // getting the contact description and adding it into the returned array
                 for (const description of contactDescriptions) {
                     if (description.$type$ === DescriptionTypes.PERSON_NAME) {
                         const personName = {value: description.name, meta: {}};
@@ -1176,11 +1176,11 @@ export default class ContactModel extends EventEmitter {
      * a communication endpoint was already added into the returned information
      * while merging the contact objects.
      * @param {Info[]} contactInfos
-     * @param {Info} elementToBeChecked
+     * @param {Info} searchedInformation
      * @returns {boolean}
      */
-    private elementExists(contactInfos: Info[], elementToBeChecked: Info): boolean {
-        const info = contactInfos.find((info: Info) => info === elementToBeChecked);
+    private elementExists(contactInfos: Info[], searchedInformation: Info): boolean {
+        const info = contactInfos.find((info: Info) => info === searchedInformation);
 
         return info !== undefined;
     }
