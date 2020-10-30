@@ -477,7 +477,7 @@ export default class ContactModel extends EventEmitter {
                     if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
                         const image = await readBlobAsArrayBuffer(description.image);
                         const profileImage = {value: image, meta: {}};
-                        if (!this.elementExists(personNameInfo, profileImage)) {
+                        if (!this.elementExists(profileImageInfos, profileImage)) {
                             profileImageInfos.push(profileImage);
                         }
                     }
@@ -498,7 +498,7 @@ export default class ContactModel extends EventEmitter {
                 for (const communicationEndpoint of communicationEndpoints) {
                     if (communicationEndpoint.$type$ === 'Email') {
                         const email = {value: communicationEndpoint.email, meta: {}};
-                        if (!this.elementExists(personNameInfo, email)) {
+                        if (!this.elementExists(emailInfos, email)) {
                             emailInfos.push(email);
                         }
                     }
