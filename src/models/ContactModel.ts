@@ -279,7 +279,8 @@ export default class ContactModel extends EventEmitter {
 
             someoneName = await this.getNameDescription(mainContact);
 
-            // if the main contact doesn't contains a name then iterate over the list of contact objects of the profile
+            // if the main contact doesn't contains a name then iterate over
+            // the list of contact objects of the profile and grab first name
             if (someoneName === '') {
                 const contactObjects = await this.getContactObjects(personId);
 
@@ -444,18 +445,15 @@ export default class ContactModel extends EventEmitter {
                 // getting the contact description and adding it into the returned array
                 for (const description of contactDescriptions) {
                     if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                        const personName = {value: description.name, meta: {}};
-                        if (!this.elementExists(personNameInfo, personName)) {
-                            personNameInfo.push(personName);
-                        }
+                        this.addInformationIfNotExist(personNameInfo, {
+                            value: description.name,
+                            meta: {}
+                        });
                     }
 
                     if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
                         const image = await readBlobAsArrayBuffer(description.image);
-                        const profileImage = {value: image, meta: {}};
-                        if (!this.elementExists(profileImageInfos, profileImage)) {
-                            profileImageInfos.push(profileImage);
-                        }
+                        this.addInformationIfNotExist(profileImageInfos, {value: image, meta: {}});
                     }
                 }
 
@@ -473,10 +471,10 @@ export default class ContactModel extends EventEmitter {
                 // getting the contact communication endpoints and adding them into the returned array
                 for (const communicationEndpoint of communicationEndpoints) {
                     if (communicationEndpoint.$type$ === CommunicationEndpointsTypes.EMAIL) {
-                        const email = {value: communicationEndpoint.email, meta: {}};
-                        if (!this.elementExists(emailInfos, email)) {
-                            emailInfos.push(email);
-                        }
+                        this.addInformationIfNotExist(emailInfos, {
+                            value: communicationEndpoint.email,
+                            meta: {}
+                        });
                     }
                 }
             }
@@ -1185,5 +1183,14 @@ export default class ContactModel extends EventEmitter {
         }
 
         return '';
+    }
+
+    private addInformationIfNotExist(
+        existingInformation: Info[],
+        informationToBeAdded: Info
+    ): void {
+        if (!this.elementExists(existingInformation, informationToBeAdded)) {
+            existingInformation.push(informationToBeAdded);
+        }
     }
 }
