@@ -1,14 +1,16 @@
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
-import TestModel, {dbKey, importModules} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {AccessModel, ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import {BodyTemperature} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
+import rimraf from "rimraf";
 
 let channelManager: typeof ChannelManager;
+let testModel;
 
 // ######## SPECIALLY FORMATTED LOGGING ########
 const enableLogging = false;
@@ -71,11 +73,12 @@ if (enableLogging) {
 
 describe('Channel Iterators test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
+        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes(Recipes);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
+        testModel = model;
         channelManager = model.channelManager;
     });
 
@@ -231,7 +234,9 @@ describe('Channel Iterators test', () => {
     after(async () => {
         // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));
+        await testModel.shutdown();
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+        await removeDir(`./test/${dbKey}`);
+        //await StorageTestInit.deleteTestDB();
     });
 });
