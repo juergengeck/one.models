@@ -267,51 +267,18 @@ export default class ContactModel extends EventEmitter {
         if (mainProfile) {
             // get main contact of the main profile
             const mainContact = await getObject(mainProfile.obj.mainContact);
-            // get the descriptions of the main contact
-            const contactDescriptions = await Promise.all(
-                mainContact.contactDescriptions.map(
-                    async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
-                        return await getObject(contactDescriptionHash);
-                    }
-                )
-            );
 
-            // search for the name description
-            for (const description of contactDescriptions) {
-                if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                    someoneName = description.name;
-                    break;
-                }
-            }
+            someoneName = await this.getNameDescription(mainContact);
 
             // if the main contact doesn't contains a name then iterate over the list of contact objects of the profile
             if (someoneName === '') {
-                // get the contact objects
-                const contactObjects = await Promise.all(
-                    mainProfile.obj.contactObjects.map(
-                        async (contactObjectHash: SHA256Hash<Contact>) => {
-                            return await getObject(contactObjectHash);
-                        }
-                    )
-                );
+                const contactObjects = await this.getContactObjects(personId);
 
                 // iterate over the contact objects
                 for (const contact of contactObjects) {
-                    // get the descriptions of each contact object
-                    const contactDescriptions = await Promise.all(
-                        contact.contactDescriptions.map(
-                            async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
-                                return await getObject(contactDescriptionHash);
-                            }
-                        )
-                    );
-
-                    // iterate over the contact descriptions and search for name
-                    for (const description of contactDescriptions) {
-                        if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                            someoneName = description.name;
-                            break;
-                        }
+                    someoneName = await this.getNameDescription(contact);
+                    if (someoneName !== '') {
+                        return someoneName;
                     }
                 }
             }
@@ -1184,5 +1151,30 @@ export default class ContactModel extends EventEmitter {
         const info = contactInfos.find((info: Info) => info.value === searchedInformation.value);
 
         return info !== undefined;
+    }
+
+    /**
+     * Extracting the person name description from a contact object.
+     * @param {Contact} contact - the contact object.
+     * @returns {Promise<string>} - the name that was found or empty string.
+     */
+    private async getNameDescription(contact: Contact): Promise<string> {
+        // get the descriptions of each contact object
+        const contactDescriptions = await Promise.all(
+            contact.contactDescriptions.map(
+                async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                    return await getObject(contactDescriptionHash);
+                }
+            )
+        );
+
+        // iterate over the contact descriptions and search for name
+        for (const description of contactDescriptions) {
+            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                return description.name;
+            }
+        }
+
+        return '';
     }
 }
