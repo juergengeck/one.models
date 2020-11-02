@@ -6,24 +6,27 @@ import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers.js';
 import Recipes from '../lib/recipes/recipes';
 import {Electrocardiogram} from '@OneCoreTypes';
-import TestModel, {dbKey, importModules} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import ECGModel from '../lib/models/ECGModel';
+import rimraf from "rimraf";
 let ecgModel: ECGModel;
+let testModel;
 
 describe('ECG Model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
+        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes(Recipes);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
+        testModel = model;
         ecgModel = model.ecgModel;
     });
 
     it('Should create an ECG with 15000 readings', async () => {
         const readings = [];
         for (let i = 0; i < 15000; i++) {
-            readings.push({timeSinceSimpleStart: i, leadVoltage: Math.random()});
+            readings.push({timeSinceSampleStart: i, leadVoltage: Math.random()});
         }
         const ECG: Electrocardiogram = {
             $type$: 'Electrocardiogram',
@@ -45,7 +48,8 @@ describe('ECG Model test', () => {
     }).timeout(4000);
 
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+        await removeDir(`./test/${dbKey}`);
     });
 });
