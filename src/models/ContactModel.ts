@@ -96,6 +96,13 @@ export enum DescriptionTypes {
 }
 
 /**
+ * Represents the object types of the communication endpoints.
+ */
+export enum CommunicationEndpointsTypes {
+    EMAIL = 'Email'
+}
+
+/**
  *
  * @description Contact Model class
  * @augments EventEmitter
@@ -234,8 +241,8 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * @description returns the persons id of every contact main profile
-     * @returns {Promise<SHA256IdHash<Person>[]>}
+     * @description Getting the person id of each main profile of someone.
+     * @returns {Promise<SHA256IdHash<Person>[]>} - person id list.
      */
     public async contacts(): Promise<SHA256IdHash<Person>[]> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -256,8 +263,10 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * Get the name of the someone from the main profile.
+     * At the beginning the name is searched in the main contact object of the profile,
+     * if there is no name description then the search is proceed over the contact object list.
      * @param {SHA256IdHash<Person>} personId - the person id for whom the name search is performed.
-     * @returns {Promise<string>} - the name.
+     * @returns {Promise<string>} - the name or an empty string if the name description wasn't found.
      */
     public async getName(personId: SHA256IdHash<Person>): Promise<string> {
         const mainProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
@@ -463,7 +472,7 @@ export default class ContactModel extends EventEmitter {
 
                 // getting the contact communication endpoints and adding them into the returned array
                 for (const communicationEndpoint of communicationEndpoints) {
-                    if (communicationEndpoint.$type$ === 'Email') {
+                    if (communicationEndpoint.$type$ === CommunicationEndpointsTypes.EMAIL) {
                         const email = {value: communicationEndpoint.email, meta: {}};
                         if (!this.elementExists(emailInfos, email)) {
                             emailInfos.push(email);
@@ -489,7 +498,7 @@ export default class ContactModel extends EventEmitter {
 
         // adding the merged emails objects
         mergedContacts.push({
-            type: 'Email',
+            type: CommunicationEndpointsTypes.EMAIL,
             info: emailInfos
         });
 
@@ -515,7 +524,7 @@ export default class ContactModel extends EventEmitter {
         if (contactDescription.personName) {
             personName = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
-                {$type$: 'PersonName', name: contactDescription.personName}
+                {$type$: DescriptionTypes.PERSON_NAME, name: contactDescription.personName}
             );
         }
 
@@ -597,7 +606,7 @@ export default class ContactModel extends EventEmitter {
         if (communicationEndpoint.email) {
             email = await createSingleObjectThroughPurePlan(
                 {module: '@one/identity'},
-                {$type$: 'Email', email: communicationEndpoint.email}
+                {$type$: CommunicationEndpointsTypes.EMAIL, email: communicationEndpoint.email}
             );
         }
 
