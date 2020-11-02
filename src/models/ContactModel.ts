@@ -436,7 +436,7 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * The merging algorithm for the contacts object of a profile.
-     * For now it will return always the latest person name, an array of profile images and the communication endpoints (not implemented yet!).
+     * For now it will return always the person names, the profile images and the emails.
      * @param {SHA256IdHash<Person>} personId - the idHash of the person.
      * @param isMainProfileRequested - a flag for switching between merging logic.
      * @returns {Promise<MergedContact[]>} - merged contact objects.
