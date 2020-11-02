@@ -1180,7 +1180,8 @@ export default class ContactModel extends EventEmitter {
      * @returns {boolean}
      */
     private elementExists(contactInfos: Info[], searchedInformation: Info): boolean {
-        const info = contactInfos.find((info: Info) => info === searchedInformation);
+        // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
+        const info = contactInfos.find((info: Info) => info.value === searchedInformation.value);
 
         return info !== undefined;
     }
