@@ -4,13 +4,13 @@
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
-import Model, {createRandomBodyTemperature, dbKey, importModules} from './utils/Model';
+import TestModel, {createRandomBodyTemperature, dbKey, importModules} from './utils/TestModel';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import {Person, SHA256Hash, SHA256IdHash, BodyTemperature} from '@OneCoreTypes';
 
-const channelManager = new Model().channelManager;
+let channelManager: typeof ChannelManager;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
@@ -33,6 +33,9 @@ describe('Channel Iterators test', () => {
                 }
             )
         ).idHash;
+        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        await model.init(undefined);
+        channelManager = model.channelManager;
     });
 
     it('should create channels and init channelManager', async () => {

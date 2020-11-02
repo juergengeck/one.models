@@ -1,4 +1,6 @@
-import CommunicationServerListener, {CommunicationServerListenerState} from './CommunicationServerListener';
+import CommunicationServerListener, {
+    CommunicationServerListenerState
+} from './CommunicationServerListener';
 import WebSocketListener from './WebSocketListener';
 import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
@@ -47,9 +49,9 @@ class IncomingConnectionManager {
      * @returns {boolean}
      */
     get onlineState(): boolean {
-        for(const listeners of this.commServerListener.values()) {
-            for(const listener of listeners) {
-                if(listener.state !== CommunicationServerListenerState.Listening) {
+        for (const listeners of this.commServerListener.values()) {
+            for (const listener of listeners) {
+                if (listener.state !== CommunicationServerListenerState.Listening) {
                     return false;
                 }
             }

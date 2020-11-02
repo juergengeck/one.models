@@ -1,130 +1,92 @@
-import {Recipe} from '@OneCoreTypes';
+import {Recipe, RecipeRule} from '@OneCoreTypes';
+
+/**
+ * This represents a Wbc Measurement.
+ *
+ * Q: Why would we use string for encoding the value?
+ * A: - float would probably change the value if the value is not representable
+ *    - number does not support decimal places
+ *    - the communication / storage is string based, so why convert the value
+ *      to a number / ... and then convert it back to a string with potential
+ *      modifications?
+ *    - This is medically relevant information, so try not to modify values,
+ *      keep them as-is from start to end.
+ */
+
+export interface WbcMeasurement {
+    value: string;
+    unit: string;
+    unsafe?: boolean;
+}
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
-        WbcMeasurement: WbcMeasurement;
+        WbcObservation: WbcObservation;
     }
 
-    /**
-     * This represents a Wbc Measurement.
-     *
-     * Q: Why would we use string for encoding the value?
-     * A: - float would probably change the value if the value is not representable
-     *    - number does not support decimal places
-     *    - the communication / storage is string based, so why convert the value
-     *      to a number / ... and then convert it back to a string with potential
-     *      modifications?
-     *    - This is medically relevant information, so try not to modify values,
-     *      keep them as-is from start to end.
-     */
-
-    export interface WbcMeasurement {
-        $type$: 'WbcMeasurement';
-        wbcCount: string;
-        wbcCountUnit: string;
-        neuCount?: string;
-        neuCountUnit?: string;
-        neuCountUnsafe?: boolean;
-        lymCount?: string;
-        lymCountUnit?: string;
-        lymCountUnsafe?: boolean;
-        monCount?: string;
-        monCountUnit?: string;
-        monCountUnsafe?: boolean;
-        eosCount?: string;
-        eosCountUnit?: string;
-        eosCountUnsafe?: boolean;
-        basCount?: string;
-        basCountUnit?: string;
-        basCountUnsafe?: boolean;
+    export interface WbcObservation {
+        $type$: 'WbcObservation';
+        acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
+        Leukocytes: WbcMeasurement;
+        Neutrophils?: WbcMeasurement;
+        Lymphocytes?: WbcMeasurement;
+        Monocytes?: WbcMeasurement;
+        Eosinophils?: WbcMeasurement;
+        Basophils?: WbcMeasurement;
     }
 }
 
-const WbcMeasurement: Recipe = {
+const WbcMeasurementRules: RecipeRule[] = [
+    {
+        itemprop: 'value',
+        valueType: 'string'
+    },
+    {
+        itemprop: 'unit',
+        valueType: 'string'
+    },
+    {
+        itemprop: 'unsafe',
+        valueType: 'boolean',
+        optional: true
+    }
+];
+
+const WbcObservation: Recipe = {
     $type$: 'Recipe',
-    name: 'WbcMeasurement',
+    name: 'WbcObservation',
     rule: [
         {
-            itemprop: 'wbcCount',
+            itemprop: 'acquisitionTime',
             valueType: 'string'
         },
         {
-            itemprop: 'wbcCountUnit',
-            valueType: 'string'
+            itemprop: 'Leukocytes',
+            rule: WbcMeasurementRules
         },
         {
-            itemprop: 'neuCount',
-            valueType: 'string',
+            itemprop: 'Neutrophils',
+            rule: WbcMeasurementRules,
             optional: true
         },
         {
-            itemprop: 'neuCountUnit',
-            valueType: 'string',
+            itemprop: 'Lymphocytes',
+            rule: WbcMeasurementRules,
             optional: true
         },
         {
-            itemprop: 'neuCountUnsafe',
-            valueType: 'boolean',
+            itemprop: 'Monocytes',
+            rule: WbcMeasurementRules,
             optional: true
         },
         {
-            itemprop: 'lymCount',
-            valueType: 'string',
+            itemprop: 'Eosinophils',
+            rule: WbcMeasurementRules,
             optional: true
         },
         {
-            itemprop: 'lymCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'lymCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'monCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'monCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'monCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'eosCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'eosCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'eosCountUnsafe',
-            valueType: 'boolean',
-            optional: true
-        },
-        {
-            itemprop: 'basCount',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'basCountUnit',
-            valueType: 'string',
-            optional: true
-        },
-        {
-            itemprop: 'basCountUnsafe',
-            valueType: 'boolean',
+            itemprop: 'Basophils',
+            rule: WbcMeasurementRules,
             optional: true
         }
     ]
@@ -132,6 +94,6 @@ const WbcMeasurement: Recipe = {
 
 // Export recipes
 
-const WbcRecipes: Recipe[] = [WbcMeasurement];
+const WbcRecipes: Recipe[] = [WbcObservation];
 
 export default WbcRecipes;

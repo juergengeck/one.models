@@ -17,7 +17,7 @@ import ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
-import {getNthVersionMapHash} from "one.core/lib/version-map-query";
+import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
