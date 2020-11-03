@@ -526,6 +526,7 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
+        console.log("Received image: ", contactDescription.image);
         // creates the profileImage object
         if (contactDescription.image) {
             // Create the reference to the profile image
@@ -533,6 +534,7 @@ export default class ContactModel extends EventEmitter {
                 {module: '@module/createProfilePicture'},
                 contactDescription.image
             );
+            console.log("Saved image: ", profileImage);
         }
 
         try {
