@@ -526,15 +526,18 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
-        console.log("Received image: ", contactDescription.image);
+        console.log('Received image: ', contactDescription.image);
         // creates the profileImage object
         if (contactDescription.image) {
             // Create the reference to the profile image
             profileImage = await createSingleObjectThroughPurePlan(
-                {module: '@module/createProfilePicture'},
+                {
+                    module: '@module/createProfilePicture',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
                 contactDescription.image
             );
-            console.log("Saved image: ", profileImage);
+            console.log('Saved image: ', profileImage);
         }
 
         try {
