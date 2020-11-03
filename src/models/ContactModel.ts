@@ -376,8 +376,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * @description Get the main
-     * @param {SHA256IdHash<Person>} personId
+     * @description Get the main contact object
+     * from a profile associated with the given personId.
+     * @param {SHA256IdHash<Person>} personId - the given person id.
      * @returns {Promise<Contact>}
      */
     public async getMainContactObject(personId: SHA256IdHash<Person>): Promise<Contact> {
@@ -386,8 +387,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * @description Get a list of Contact Objects by a given personId
-     * @param {SHA256IdHash<Person>} personId
+     * @description Get a list of Contact Objects
+     * from a profile associated with the given personId.
+     * @param {SHA256IdHash<Person>} personId - the given person id.
      * @returns {Promise<Contact[]>}
      */
     public async getContactObjects(personId: SHA256IdHash<Person>): Promise<Contact[]> {
@@ -400,8 +402,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * @description Get a list of Contact Objects by a given personId
-     * @param {SHA256IdHash<Person>} personId
+     * @description Get a list of hashes of Contact Objects from
+     * a profile associated with the given personId.
+     * @param {SHA256IdHash<Person>} personId - the given person id.
      * @returns {Promise<Contact[]>}
      */
     public async getContactIdObjects(
@@ -413,7 +416,8 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * The merging algorithm for the contacts object of a profile.
-     * For now it will return always the person names, the profile images and the emails.
+     * For now it will return always the person names, the profile images and the emails
+     * for the main profile of someone.
      * @param {SHA256IdHash<Person>} personId - the idHash of the person.
      * @param isMainProfileRequested - a flag for switching between merging logic.
      * @returns {Promise<MergedContact[]>} - merged contact objects.
@@ -434,13 +438,7 @@ export default class ContactModel extends EventEmitter {
             // iterating over the contact objects list
             for (const contact of contactObjects) {
                 // getting the description of the contact
-                const contactDescriptions = await Promise.all(
-                    contact.contactDescriptions.map(
-                        async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
-                            return await getObject(descriptionHash);
-                        }
-                    )
-                );
+                const contactDescriptions = await this.getContactDescriptions(contact);
 
                 // getting the contact description and adding it into the returned array
                 for (const description of contactDescriptions) {
@@ -458,15 +456,7 @@ export default class ContactModel extends EventEmitter {
                 }
 
                 // getting the communication endpoints of the contact
-                const communicationEndpoints = await Promise.all(
-                    contact.communicationEndpoints.map(
-                        async (
-                            communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>
-                        ) => {
-                            return await getObject(communicationEndpointHash);
-                        }
-                    )
-                );
+                const communicationEndpoints = await this.getContactCommunicationEndpoints(contact);
 
                 // getting the contact communication endpoints and adding them into the returned array
                 for (const communicationEndpoint of communicationEndpoints) {
@@ -547,13 +537,10 @@ export default class ContactModel extends EventEmitter {
             // getting the main contact
             const mainContact = await getObject(profile.obj.mainContact);
 
-            const mainContactDescriptions: ContactDescriptionTypes[] = [];
+            const mainContactDescriptions: ContactDescriptionTypes[] = await this.getContactDescriptions(
+                mainContact
+            );
             const mainContactDescriptionHashes = mainContact.contactDescriptions;
-
-            // getting the current contact descriptions
-            for (const description of mainContact.contactDescriptions) {
-                mainContactDescriptions.push(await getObject(description));
-            }
 
             // removing the hash of the updated contact description from the list
             for (let i = mainContactDescriptionHashes.length - 1; i >= 0; i--) {
@@ -592,9 +579,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Update the email of a contact.
-     * @param {SHA256IdHash<Person>} personId
-     * @param {CommunicationEndpoint} communicationEndpoint
+     * This function updates the main contact of a person based on the communication endpoint object.
+     * For now it update only the email of the main contact.
+     * @param {SHA256IdHash<Person>} personId - given person id.
+     * @param {CommunicationEndpoint} communicationEndpoint - given email.
      * @returns {Promise<void>}
      */
     public async updateCommunicationEndpoint(
@@ -620,13 +608,10 @@ export default class ContactModel extends EventEmitter {
             // getting the main contact
             const mainContact = await getObject(profile.obj.mainContact);
 
-            const mainContactCommunicationEndpoints: CommunicationEndpointTypes[] = [];
+            const mainContactCommunicationEndpoints: CommunicationEndpointTypes[] = await this.getContactCommunicationEndpoints(
+                mainContact
+            );
             const mainContactCommunicationEndpointsHashes = mainContact.communicationEndpoints;
-
-            // getting the current communication endpoints
-            for (const communicationEndpoint of mainContact.communicationEndpoints) {
-                mainContactCommunicationEndpoints.push(await getObject(communicationEndpoint));
-            }
 
             // removing the hash of the updated contact communication endpoint from the list
             for (let i = 0; i < mainContactCommunicationEndpointsHashes.length; i++) {
@@ -1226,5 +1211,37 @@ export default class ContactModel extends EventEmitter {
             if (dataView1[i] != dataView2[i]) return false;
         }
         return true;
+    }
+
+    /**
+     * Returns the contact descriptions linked to the given contact object.
+     * @param {Contact} contact - given contact object.
+     * @returns {Promise<ContactDescriptionTypes[]>}
+     */
+    private async getContactDescriptions(contact: Contact): Promise<ContactDescriptionTypes[]> {
+        return await Promise.all(
+            contact.contactDescriptions.map(
+                async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                    return await getObject(descriptionHash);
+                }
+            )
+        );
+    }
+
+    /**
+     * Returns the contact communication endpoints linked to the given contact object.
+     * @param {Contact} contact - given contact object.
+     * @returns {Promise<CommunicationEndpointTypes[]>}
+     */
+    private async getContactCommunicationEndpoints(
+        contact: Contact
+    ): Promise<CommunicationEndpointTypes[]> {
+        return await Promise.all(
+            contact.communicationEndpoints.map(
+                async (communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>) => {
+                    return await getObject(communicationEndpointHash);
+                }
+            )
+        );
     }
 }
