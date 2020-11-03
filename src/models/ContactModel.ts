@@ -552,18 +552,18 @@ export default class ContactModel extends EventEmitter {
         // creates the profileImage object
         if (contactDescription.image) {
             // Create the reference to the profile image
-            const profileImageReference = await saveProfileImageAsBLOB(contactDescription.image);
-            profileImage = await createSingleObjectThroughPurePlan(
-                {module: '@one/identity'},
-                {$type$: 'ProfileImage', image: profileImageReference}
-            );
+            // const profileImageReference = await saveProfileImageAsBLOB(contactDescription.image);
             // profileImage = await createSingleObjectThroughPurePlan(
-            //     {
-            //         module: '@module/createProfilePicture',
-            //         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            //     },
-            //     contactDescription.image
+            //     {module: '@one/identity'},
+            //     {$type$: 'ProfileImage', image: profileImageReference}
             // );
+            profileImage = await createSingleObjectThroughImpurePlan(
+                {
+                    module: '@module/createProfilePicture',
+                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                },
+                contactDescription.image
+            );
             console.log('Saved image: ', profileImage);
         }
 
