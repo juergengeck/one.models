@@ -582,7 +582,7 @@ export default class ContactModel extends EventEmitter {
                 {
                     $type$: 'Contact',
                     personId: personId,
-                    communicationEndpoints: [],
+                    communicationEndpoints: mainContact.communicationEndpoints,
                     contactDescriptions: mainContactDescriptionHashes
                 }
             );
@@ -647,8 +647,8 @@ export default class ContactModel extends EventEmitter {
                 {
                     $type$: 'Contact',
                     personId: personId,
-                    communicationEndpoints: [],
-                    contactDescriptions: mainContactCommunicationEndpointsHashes
+                    communicationEndpoints: mainContactCommunicationEndpointsHashes,
+                    contactDescriptions: mainContact.contactDescriptions
                 }
             );
             await this.updateProfile(profile, contactObject);
