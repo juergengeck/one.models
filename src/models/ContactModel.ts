@@ -1187,8 +1187,14 @@ export default class ContactModel extends EventEmitter {
      */
     private elementExists(contactInfos: Info[], searchedInformation: Info): boolean {
         // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
-        const info = contactInfos.find((info: Info) => info.value === searchedInformation.value);
 
+        const info = contactInfos.find(
+            (info: Info) =>
+                info.value === searchedInformation.value ||
+                (info.value instanceof ArrayBuffer &&
+                    searchedInformation.value instanceof ArrayBuffer &&
+                    ContactModel.areArrayBuffersEquals(info.value, searchedInformation.value))
+        );
         return info !== undefined;
     }
 
@@ -1217,6 +1223,11 @@ export default class ContactModel extends EventEmitter {
         return '';
     }
 
+    /**
+     * Used to construct the merged object that contains all the information from the contact objects.
+     * @param {Info[]} existingInformation - the array that contains the information.
+     * @param {Info} informationToBeAdded - new element that should be added into the array.
+     */
     private addInformationIfNotExist(
         existingInformation: Info[],
         informationToBeAdded: Info
@@ -1224,5 +1235,25 @@ export default class ContactModel extends EventEmitter {
         if (!this.elementExists(existingInformation, informationToBeAdded)) {
             existingInformation.push(informationToBeAdded);
         }
+    }
+
+    /**
+     * Helper function for profile picture comparision.
+     * NOTE: maybe it will be nice if we will have some file for utils functions like this one.
+     * @param {ArrayBuffer} arrayBuffer1 - first array buffer.
+     * @param {ArrayBuffer} arrayBuffer2 - second array buffer.
+     * @returns {boolean}
+     */
+    private static areArrayBuffersEquals(
+        arrayBuffer1: ArrayBuffer,
+        arrayBuffer2: ArrayBuffer
+    ): boolean {
+        if (arrayBuffer1.byteLength != arrayBuffer2.byteLength) return false;
+        const dataView1 = new Int8Array(arrayBuffer1);
+        const dataView2 = new Int8Array(arrayBuffer2);
+        for (let i = 0; i != arrayBuffer1.byteLength; i++) {
+            if (dataView1[i] != dataView2[i]) return false;
+        }
+        return true;
     }
 }
