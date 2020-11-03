@@ -16,7 +16,8 @@ import {
     UnversionedObjectResult,
     OneInstanceEndpoint,
     Keys,
-    CommunicationEndpointTypes
+    CommunicationEndpointTypes,
+    BLOB
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -30,7 +31,8 @@ import {
     onVersionedObj,
     getObjectWithType,
     createSingleObjectThroughImpurePlan,
-    readBlobAsArrayBuffer
+    readBlobAsArrayBuffer,
+    WriteStorageApi
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -41,6 +43,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 
 /**
  * This represents a ContactEvent
@@ -100,6 +103,25 @@ export enum DescriptionTypes {
  */
 export enum CommunicationEndpointsTypes {
     EMAIL = 'Email'
+}
+
+/**
+ * Saving the profile image in ONE as a BLOB and returning the reference for it.
+ *
+ * @param {ArrayBuffer} profileImage - the image that is saved in ONE as a BLOB.
+ * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
+ */
+async function saveProfileImageAsBLOB(profileImage: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
+    const minimalWriteStorageApiObj = {
+        createFileWriteStream: createFileWriteStream
+    } as WriteStorageApi;
+
+    const stream = minimalWriteStorageApiObj.createFileWriteStream();
+    stream.write(profileImage);
+
+    const blob = await stream.end();
+
+    return blob.hash;
 }
 
 /**
@@ -530,13 +552,18 @@ export default class ContactModel extends EventEmitter {
         // creates the profileImage object
         if (contactDescription.image) {
             // Create the reference to the profile image
+            const profileImageReference = await saveProfileImageAsBLOB(contactDescription.image);
             profileImage = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@module/createProfilePicture',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                contactDescription.image
+                {module: '@one/identity'},
+                {$type$: 'ProfileImage', image: profileImageReference}
             );
+            // profileImage = await createSingleObjectThroughPurePlan(
+            //     {
+            //         module: '@module/createProfilePicture',
+            //         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            //     },
+            //     contactDescription.image
+            // );
             console.log('Saved image: ', profileImage);
         }
 
