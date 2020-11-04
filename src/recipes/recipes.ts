@@ -14,6 +14,7 @@ import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import DocumentRecipes from './DocumentRecipes';
 import ECGRecipes from './ECGRecipes';
+import FilerRecipes from './FilerRecipes'
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -30,7 +31,8 @@ const Recipes: Recipe[] = [
     ...MatchingRecipes,
     ...WbcRecipes,
     ...DocumentRecipes,
-    ...ECGRecipes
+    ...ECGRecipes,
+    ...FilerRecipes
 ];
 
 export default Recipes;
