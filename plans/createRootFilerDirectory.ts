@@ -18,6 +18,6 @@ export async function createObjects(
         $type$: 'FilerDirectory',
         path: '/',
         files: [],
-        directories: []
+        children: []
     });
 }

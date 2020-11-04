@@ -27,7 +27,7 @@ import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import * as storage from 'one.core/lib/storage';
 
-export class FilerModel extends EventEmitter {
+export default class FilerModel extends EventEmitter {
     private channelManager: ChannelManager;
     private readonly channelId: string;
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
@@ -71,7 +71,7 @@ export class FilerModel extends EventEmitter {
                 (file: FileRule) => file.name === fileName
             );
             /** if the file exists **/
-            if (fileIndex) {
+            if (fileIndex !== -1) {
                 /** replace it **/
                 targetDirectory.files[fileIndex] = {
                     BLOB: fileHash,
@@ -122,7 +122,6 @@ export class FilerModel extends EventEmitter {
 
         if (targetDirectory && pathExists === undefined) {
             /** calculate the hash of the outdated directory **/
-            const oldTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -130,23 +129,11 @@ export class FilerModel extends EventEmitter {
                 },
                 newDirectoryObj
             );
-            targetDirectory.children.push(await calculateHashOfObj(newDirectory));
-            /** update the directory **/
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                targetDirectory
-            );
-            /** get the updated directory hash **/
-            const updatedTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
-            /** update the nodes above **/
-            await this.updateParentDirectoryRecursive(
-                oldTargetDirectoryHash,
-                updatedTargetDirectoryHash
-            );
-            return await getObject(updatedTargetDirectoryHash);
+            const newDirectoryHash = await calculateHashOfObj(newDirectory.obj);
+
+            /** Intentionally the same hash because this directory was created now **/
+            await this.updateParentDirectoryRecursive(newDirectoryHash, newDirectoryHash);
+            return newDirectory.obj;
         }
 
         throw new Error('Directory could not be found');
@@ -320,6 +307,7 @@ export class FilerModel extends EventEmitter {
     ): Promise<void> {
         /** get the current directory **/
         const currentDirectory = await getObject(updatedCurrentDirectoryHash);
+
         /** get his parent path **/
         const parentPath = this.getParentDirectoryFullPath(currentDirectory.path);
         /** get his parent directory **/
@@ -327,30 +315,35 @@ export class FilerModel extends EventEmitter {
 
         /** check if the parent directory exists**/
         if (currentDirectoryParent) {
-            /** check if it is the root or not **/
-            if (currentDirectoryParent.path !== '/') {
-                /** first, calculate the outdated parent hash **/
-                const oldParentDirectoryHash = await calculateHashOfObj(currentDirectoryParent);
-                /** locate the outdated current directory hash in the parent's children **/
-                const indexOfOutdatedParentDirectory = currentDirectoryParent.children.findIndex(
-                    (childDirectoryHash: SHA256Hash<FilerDirectory>) =>
-                        childDirectoryHash === outdatedCurrentDirectoryHash
-                );
+            /** first, calculate the outdated parent hash **/
+            const oldParentDirectoryHash = await calculateHashOfObj(currentDirectoryParent);
+            /** locate the outdated current directory hash in the parent's children **/
+            const indexOfOutdatedParentDirectory = currentDirectoryParent.children.findIndex(
+                (childDirectoryHash: SHA256Hash<FilerDirectory>) =>
+                    childDirectoryHash === outdatedCurrentDirectoryHash
+            );
+            if (indexOfOutdatedParentDirectory !== -1) {
                 /** replace it with the updated current directory **/
                 currentDirectoryParent.children[
                     indexOfOutdatedParentDirectory
                 ] = updatedCurrentDirectoryHash;
-                /** save the parent **/
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    currentDirectoryParent
-                );
-                /** get the updated parent hash **/
-                const updatedParentDirectoryHash = await calculateHashOfObj(currentDirectoryParent);
-                /** update the nodes above **/
+            } else {
+                /** otherwise just push it **/
+                currentDirectoryParent.children.push(updatedCurrentDirectoryHash);
+            }
+            /** save the parent **/
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                currentDirectoryParent
+            );
+            /** get the updated parent hash **/
+            const updatedParentDirectoryHash = await calculateHashOfObj(currentDirectoryParent);
+            /** update the nodes above **/
+
+            if (currentDirectoryParent.path !== '/') {
                 await this.updateParentDirectoryRecursive(
                     oldParentDirectoryHash,
                     updatedParentDirectoryHash
