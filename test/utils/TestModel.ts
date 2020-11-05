@@ -90,7 +90,6 @@ export default class TestModel {
             this.channelManager
         );
         this.ecgModel = new ECGModel(this.channelManager);
-        this.filerModel = new FilerModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }
 
@@ -160,7 +159,6 @@ export default class TestModel {
         await this.ecgModel.init();
         await this.consentFile.init();
         await this.bodyTemperature.init();
-        await this.filerModel.init();
     }
 
     /**
@@ -201,5 +199,4 @@ export default class TestModel {
     contactModel: ContactModel;
     connections: ConnectionsModel;
     accessModel: AccessModel;
-    filerModel: FilerModel;
 }

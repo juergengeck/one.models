@@ -8,6 +8,7 @@ import {expect} from 'chai';
 import Recipes from '../lib/recipes/recipes';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import {FilerModel} from "../lib/models";
 
 let fileSystem;
 let testModel;
@@ -19,7 +20,10 @@ describe('FilerModel model test', () => {
         const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
         testModel = model;
-        fileSystem = await model.filerModel.fs;
+
+        const filerModel: FilerModel = new FilerModel(model.channelManager);
+        await filerModel.init();
+        fileSystem = filerModel.fs;
     });
 
     it('should see if the root was created', async () => {
