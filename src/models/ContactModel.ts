@@ -505,26 +505,29 @@ export default class ContactModel extends EventEmitter {
         personId: SHA256IdHash<Person>,
         contactDescription: ContactDescription
     ): Promise<void> {
-        let personName: UnversionedObjectResult<ContactDescriptionTypes> | null = null;
-        let profileImage: UnversionedObjectResult<ContactDescriptionTypes> | null = null;
+        let newContactDescriptions: UnversionedObjectResult<ContactDescriptionTypes>[] = [];
 
         // creates the personName object
         if (contactDescription.personName) {
-            personName = await createSingleObjectThroughPurePlan(
-                {module: '@one/identity'},
-                {$type$: DescriptionTypes.PERSON_NAME, name: contactDescription.personName}
+            newContactDescriptions.push(
+                await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {$type$: DescriptionTypes.PERSON_NAME, name: contactDescription.personName}
+                )
             );
         }
 
         // creates the profileImage object
         if (contactDescription.image) {
             // Create the reference to the profile image
-            profileImage = await createSingleObjectThroughImpurePlan(
-                {
-                    module: '@module/createProfilePicture',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                contactDescription.image
+            newContactDescriptions.push(
+                await createSingleObjectThroughImpurePlan(
+                    {
+                        module: '@module/createProfilePicture',
+                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+                    },
+                    contactDescription.image
+                )
             );
         }
 
@@ -544,21 +547,15 @@ export default class ContactModel extends EventEmitter {
 
             // removing the hash of the updated contact description from the list
             for (let i = mainContactDescriptionHashes.length - 1; i >= 0; i--) {
-                if (personName && personName.obj.$type$ === mainContactDescriptions[i].$type$) {
-                    mainContactDescriptionHashes.splice(i, 1);
-                }
-
-                if (profileImage && profileImage.obj.$type$ === mainContactDescriptions[i].$type$) {
-                    mainContactDescriptionHashes.splice(i, 1);
+                for (const newDescription of newContactDescriptions) {
+                    if (newDescription.obj.$type$ === mainContactDescriptions[i].$type$) {
+                        mainContactDescriptionHashes.splice(i, 1);
+                    }
                 }
             }
 
-            if (personName) {
-                mainContactDescriptionHashes.push(personName.hash);
-            }
-
-            if (profileImage) {
-                mainContactDescriptionHashes.push(profileImage.hash);
+            for (const newDescription of newContactDescriptions) {
+                mainContactDescriptionHashes.push(newDescription.hash);
             }
 
             // creates the contact object
@@ -589,13 +586,15 @@ export default class ContactModel extends EventEmitter {
         personId: SHA256IdHash<Person>,
         communicationEndpoint: CommunicationEndpoint
     ): Promise<void> {
-        let email: UnversionedObjectResult<CommunicationEndpointTypes> | null = null;
+        let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
 
         // creates the email object
         if (communicationEndpoint.email) {
-            email = await createSingleObjectThroughPurePlan(
-                {module: '@one/identity'},
-                {$type$: CommunicationEndpointsTypes.EMAIL, email: communicationEndpoint.email}
+            newCommunicationEndpoints.push(
+                await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {$type$: CommunicationEndpointsTypes.EMAIL, email: communicationEndpoint.email}
+                )
             );
         }
 
@@ -615,13 +614,18 @@ export default class ContactModel extends EventEmitter {
 
             // removing the hash of the updated contact communication endpoint from the list
             for (let i = 0; i < mainContactCommunicationEndpointsHashes.length; i++) {
-                if (email && email.obj.$type$ === mainContactCommunicationEndpoints[i].$type$) {
-                    mainContactCommunicationEndpointsHashes.splice(i, 1);
+                for (const newCommunicationEndpoint of newCommunicationEndpoints) {
+                    if (
+                        newCommunicationEndpoint.obj.$type$ ===
+                        mainContactCommunicationEndpoints[i].$type$
+                    ) {
+                        mainContactCommunicationEndpointsHashes.splice(i, 1);
+                    }
                 }
             }
 
-            if (email) {
-                mainContactCommunicationEndpointsHashes.push(email.hash);
+            for (const newCommunicationEndpoint of newCommunicationEndpoints) {
+                mainContactCommunicationEndpointsHashes.push(newCommunicationEndpoint.hash);
             }
 
             // creates the contact object
@@ -1134,40 +1138,13 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Helper function for verifying if a contact description or
-     * a communication endpoint was already added into the returned information
-     * while merging the contact objects.
-     * @param {Info[]} contactInfos
-     * @param {Info} searchedInformation
-     * @returns {boolean}
-     */
-    private elementExists(contactInfos: Info[], searchedInformation: Info): boolean {
-        // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
-
-        const info = contactInfos.find(
-            (info: Info) =>
-                info.value === searchedInformation.value ||
-                (info.value instanceof ArrayBuffer &&
-                    searchedInformation.value instanceof ArrayBuffer &&
-                    ContactModel.areArrayBuffersEquals(info.value, searchedInformation.value))
-        );
-        return info !== undefined;
-    }
-
-    /**
      * Extracting the person name description from a contact object.
      * @param {Contact} contact - the contact object.
      * @returns {Promise<string>} - the name that was found or empty string.
      */
     private async getNameDescription(contact: Contact): Promise<string> {
         // get the descriptions of each contact object
-        const contactDescriptions = await Promise.all(
-            contact.contactDescriptions.map(
-                async (contactDescriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
-                    return await getObject(contactDescriptionHash);
-                }
-            )
-        );
+        const contactDescriptions = await this.getContactDescriptions(contact);
 
         // iterate over the contact descriptions and search for name
         for (const description of contactDescriptions) {
@@ -1188,7 +1165,17 @@ export default class ContactModel extends EventEmitter {
         existingInformation: Info[],
         informationToBeAdded: Info
     ): void {
-        if (!this.elementExists(existingInformation, informationToBeAdded)) {
+        // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
+
+        const info = existingInformation.find(
+            (info: Info) =>
+                info.value === informationToBeAdded.value ||
+                (info.value instanceof ArrayBuffer &&
+                    informationToBeAdded.value instanceof ArrayBuffer &&
+                    ContactModel.areArrayBuffersEquals(info.value, informationToBeAdded.value))
+        );
+
+        if (info === undefined) {
             existingInformation.push(informationToBeAdded);
         }
     }
