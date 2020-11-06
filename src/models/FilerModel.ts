@@ -101,7 +101,7 @@ export default class FilerModel extends EventEmitter {
             await this.channelManager.postToChannel(this.fileSystemChannelId, root.obj);
             return root.hash;
         }
-        return rootDirectory[0].dataHash as SHA256Hash<FilerDirectory>;
+        return rootDirectory[rootDirectory.length - 1].dataHash as SHA256Hash<FilerDirectory>;
     }
 
     /**
