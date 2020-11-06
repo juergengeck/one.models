@@ -71,7 +71,7 @@ describe('communication server tests', () => {
 
     it('should establish a connection to communication server using connector', function (done) {
         if (clients) {
-            clients.kill('SIGUSR1');
+            clients.kill('SIGTERM');
         }
 
         startConnectorClients().then(async () => {
@@ -88,11 +88,11 @@ describe('communication server tests', () => {
 
     after(async () => {
         if (clients) {
-            clients.kill('SIGUSR1');
+            clients.kill('SIGTERM');
         }
 
         if (server) {
-            server.kill('SIGUSR1');
+            server.kill('SIGTERM');
         }
     });
 });

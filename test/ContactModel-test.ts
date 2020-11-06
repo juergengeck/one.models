@@ -21,20 +21,24 @@ import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes'
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import TestModel, {dbKey, importModules, TestAccessGroups} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir, TestAccessGroups} from './utils/TestModel';
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from '../lib/models';
+import rimraf from "rimraf";
+import {MergedContact} from "../lib/src/models/ContactModel";
 let contactModel: ContactModel;
+let testModel;
 
 describe('Contact model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, secret: '1234'});
+        await StorageTestInit.init({dbKey: dbKey, deleteDb: false, secret: '1234'});
         await registerRecipes(Recipes);
         await importModules();
 
-        const model = new TestModel('ws://localhost:8000', './test/testDB');
+        const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
+        testModel = model;
         contactModel = model.contactModel;
     });
 
@@ -44,7 +48,7 @@ describe('Contact model test', () => {
 
         const mySomeone = await getObject(contactApp.obj.me);
         expect(mySomeone && mySomeone.mainProfile).to.not.be.undefined;
-        expect(mySomeone.profiles).to.have.length(1);
+        expect(mySomeone.profiles).to.have.length(2);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
         expect(myProfile).to.not.be.undefined;
@@ -209,49 +213,25 @@ describe('Contact model test', () => {
 
         expect(myProfile.obj.mainContact).to.be.equal(contactObject.hash);
     });*/
-    it('should add a new contact object not as a main contact', async () => {
+    it('should add new contact objects in contact object list', async () => {
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-        const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
-
-        const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
-
-        const instanceEndpoint = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'OneInstanceEndpoint',
-                personId: personIdHash,
-                url: 'localhost:8000',
-                instanceId: getInstanceIdHash(),
-                personKeys: personPubEncryptionKeysHash,
-                instanceKeys: personPubEncryptionKeysHash
-            }
-        );
-        const contactObject = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'Contact',
-                personId: personIdHash,
-                communicationEndpoints: [instanceEndpoint.hash],
-                contactDescriptions: []
-            }
-        );
-
-        // @ts-ignore
-        await contactModel.addNewContactObjectAsMain(contactObject, false);
+        await contactModel.updateDescription(personIdHash, {name: 'Test'});
+        await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'foo@test.one'});
+        await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'test@test.one'});
 
         const contactApp = await ContactModel.getContactAppObject();
 
         const mySomeone = await getObject(contactApp.obj.me);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
+
         expect(myProfile).to.not.be.equal(undefined);
-        expect(myProfile.obj.contactObjects.length).to.be.equal(2);
+        expect(myProfile.obj.contactObjects.length).to.be.equal(3);
     });
 
     it('should add new contact for a non existing profile', async () => {
@@ -324,17 +304,7 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const contactObject = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'Contact',
-                personId: person.idHash,
-                communicationEndpoints: [],
-                contactDescriptions: []
-            }
-        );
-        // @ts-ignore
-        await contactModel.addNewContactObjectAsMain(contactObject, true);
+        await contactModel.updateDescription(person.idHash, {name: 'test'});
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 
@@ -374,10 +344,14 @@ describe('Contact model test', () => {
     });
 
     it('should merge contacts', async () => {
+        const personIdHash = getInstanceOwnerIdHash();
         const mergedContacts = await contactModel.getMergedContactObjects(
-            getInstanceOwnerIdHash() as SHA256IdHash<Person>
+            personIdHash, true
         );
-        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(6);
+        const endpoints = mergedContacts.find((mergedContact: MergedContact) => mergedContact.type === 'Email');
+
+        expect(endpoints.info.length).to.be.equal(2);
+
     });
 
     it('should declare same person between foo and bar', async () => {
@@ -403,7 +377,9 @@ describe('Contact model test', () => {
     });
 
     after(async () => {
+        await testModel.shutdown();
         closeInstance();
-        await StorageTestInit.deleteTestDB();
+        await removeDir(`./test/${dbKey}`);
+        // await StorageTestInit.deleteTestDB();
     });
 });
