@@ -25,6 +25,7 @@ import TestModel, {dbKey, importModules, TestAccessGroups} from './utils/TestMod
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from '../lib/models';
+import {MergedContact} from "../lib/src/models/ContactModel";
 let contactModel: ContactModel;
 
 describe('Contact model test', () => {
@@ -209,49 +210,25 @@ describe('Contact model test', () => {
 
         expect(myProfile.obj.mainContact).to.be.equal(contactObject.hash);
     });*/
-    it('should add a new contact object not as a main contact', async () => {
+    it('should add new contact objects in contact object list', async () => {
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const personKeyLink = await getAllValues(personIdHash, true, 'Keys');
-        const personPubEncryptionKeys = await getObjectWithType(personKeyLink[0].toHash, 'Keys');
-
-        const personPubEncryptionKeysHash = await calculateHashOfObj(personPubEncryptionKeys);
-
-        const instanceEndpoint = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'OneInstanceEndpoint',
-                personId: personIdHash,
-                url: 'localhost:8000',
-                instanceId: getInstanceIdHash(),
-                personKeys: personPubEncryptionKeysHash,
-                instanceKeys: personPubEncryptionKeysHash
-            }
-        );
-        const contactObject = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'Contact',
-                personId: personIdHash,
-                communicationEndpoints: [instanceEndpoint.hash],
-                contactDescriptions: []
-            }
-        );
-
-        // @ts-ignore
-        await contactModel.addNewContactObjectAsMain(contactObject, false);
+        await contactModel.updateDescription(personIdHash, {name: 'Test'});
+        await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'foo@test.one'});
+        await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'test@test.one'});
 
         const contactApp = await ContactModel.getContactAppObject();
 
         const mySomeone = await getObject(contactApp.obj.me);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
+
         expect(myProfile).to.not.be.equal(undefined);
-        expect(myProfile.obj.contactObjects.length).to.be.equal(2);
+        expect(myProfile.obj.contactObjects.length).to.be.equal(3);
     });
 
     it('should add new contact for a non existing profile', async () => {
@@ -324,17 +301,7 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        const contactObject = await createSingleObjectThroughPurePlan(
-            {module: '@one/identity'},
-            {
-                $type$: 'Contact',
-                personId: person.idHash,
-                communicationEndpoints: [],
-                contactDescriptions: []
-            }
-        );
-        // @ts-ignore
-        await contactModel.addNewContactObjectAsMain(contactObject, true);
+        await contactModel.updateDescription(person.idHash, {name: 'test'});
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 
@@ -374,10 +341,14 @@ describe('Contact model test', () => {
     });
 
     it('should merge contacts', async () => {
+        const personIdHash = getInstanceOwnerIdHash();
         const mergedContacts = await contactModel.getMergedContactObjects(
-            getInstanceOwnerIdHash() as SHA256IdHash<Person>
+            personIdHash, true
         );
-        expect(Object.keys(mergedContacts.endpoints).length).to.be.equal(6);
+        const endpoints = mergedContacts.find((mergedContact: MergedContact) => mergedContact.type === 'Email');
+
+        expect(endpoints.info.length).to.be.equal(2);
+
     });
 
     it('should declare same person between foo and bar', async () => {
