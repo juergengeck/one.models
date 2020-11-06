@@ -26,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -1438,17 +1438,18 @@ class ConnectionsModel extends EventEmitter {
         const endpoints = await Promise.all(
             endpointHashes.map(endpointHash => getObject(endpointHash))
         );
+        const instanceEndpoints: OneInstanceEndpoint[] = [];
 
         // Filter only the OneInstanceEndpoint objects
-        const instanceEndpoints = endpoints.filter(endpoint => {
+        for(const endpoint of endpoints) {
             if (!thisAnonInstanceInfo) {
                 throw new Error('Unknown anonymous identity!');
             }
-            return (
-                endpoint.$type$ === 'OneInstanceEndpoint' &&
-                endpoint.personId !== thisAnonInstanceInfo.personId
-            );
-        });
+            if(endpoint.$type$ === 'OneInstanceEndpoint' &&
+                endpoint.personId !== thisAnonInstanceInfo.personId) {
+                instanceEndpoints.push(endpoint);
+            }
+        }
 
         // Get all instance keys from the received endpoints
         const allInstanceKeys = await Promise.all(

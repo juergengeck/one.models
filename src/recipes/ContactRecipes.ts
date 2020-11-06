@@ -18,6 +18,14 @@ declare module '@OneCoreTypes' {
         OneInstanceEndpoint: OneInstanceEndpoint;
         PersonName: PersonName;
         ProfileImage: ProfileImage;
+        Email: Email;
+    }
+
+    export interface PlanResultTypes {
+        '@module/createProfilePicture': {
+            args: any;
+            result: UnversionedObjectResult<ProfileImage>
+        }
     }
 
     // #### Communication endpoints #####
@@ -31,7 +39,7 @@ declare module '@OneCoreTypes' {
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     // @ts-ignore
-    export type CommunicationEndpointTypes = OneInstanceEndpoint;
+    export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
     export interface CommunicationEndpoint {}
 
     export interface OneInstanceEndpoint extends CommunicationEndpoint {
@@ -41,6 +49,11 @@ declare module '@OneCoreTypes' {
         personKeys: SHA256Hash<Keys> | undefined;
         instanceKeys: SHA256Hash<Keys>;
         url: string;
+    }
+
+    export interface Email extends CommunicationEndpoint {
+        $type$: 'Email';
+        email: string;
     }
 
     // #### Contact Descriptions #####
@@ -63,7 +76,7 @@ declare module '@OneCoreTypes' {
 
     export interface ProfileImage extends ContactDescription {
         $type$: 'ProfileImage';
-        image: BLOB;
+        image: SHA256Hash<BLOB>;
     }
 
     // #### Contact / Profile / Someone #####
@@ -166,7 +179,7 @@ export const ContactRecipe: Recipe = {
         },
         {
             itemprop: 'communicationEndpoints',
-            referenceToObj: new Set(['OneInstanceEndpoint']),
+            referenceToObj: new Set(['OneInstanceEndpoint', 'Email']),
             list: ORDERED_BY.ONE
         },
         {
@@ -276,6 +289,18 @@ export const ProfileImageRecipe: Recipe = {
     ]
 };
 
+
+export const EmailRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Email',
+    rule: [
+        {
+            itemprop: 'email',
+            valueType: 'string'
+        }
+    ]
+};
+
 // ######## Export recipes ########
 
 const ContactRecipes: Recipe[] = [
@@ -285,7 +310,8 @@ const ContactRecipes: Recipe[] = [
     SomeoneRecipe,
     ContactAppRecipe,
     ContactRecipe,
-    ProfileRecipe
+    ProfileRecipe,
+    EmailRecipe
 ];
 
 export default ContactRecipes;
