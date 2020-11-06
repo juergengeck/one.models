@@ -65,14 +65,22 @@ export default class FileSystem {
                     },
                     targetDirectory
                 );
-                /** get the updated directory hash **/
+                /** if the file is added on root, don't go recursive on the tree **/
                 const updatedTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
-                /** update the nodes above **/
-                await this.updateParentDirectoryRecursive(
-                    oldTargetDirectoryHash,
-                    updatedTargetDirectoryHash
-                );
-                return await getObject(updatedTargetDirectoryHash);
+                if(targetDirectory.path === '/'){
+                    /** update the channel with the updated root directory **/
+                    if (this.onRootUpdate) {
+                        await this.onRootUpdate(updatedTargetDirectoryHash);
+                        return targetDirectory;
+                    }
+                } else {
+                    /** update the nodes above **/
+                    await this.updateParentDirectoryRecursive(
+                        oldTargetDirectoryHash,
+                        updatedTargetDirectoryHash
+                    );
+                    return await getObject(updatedTargetDirectoryHash);
+                }
             }
 
             throw new Error('Directory could not be found');
