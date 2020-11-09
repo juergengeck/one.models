@@ -1178,12 +1178,11 @@ export default class ContactModel extends EventEmitter {
 
         const info = existingInformation.find(
             (info: Info) =>
-                (info.value === informationToBeAdded.value &&
-                    info.meta.isMain === informationToBeAdded.meta.isMain) ||
-                (info.value instanceof ArrayBuffer &&
-                    informationToBeAdded.value instanceof ArrayBuffer &&
-                    ContactModel.areArrayBuffersEquals(info.value, informationToBeAdded.value) &&
-                    info.meta.isMain === informationToBeAdded.meta.isMain)
+                info.meta.isMain === informationToBeAdded.meta.isMain &&
+                (info.value === informationToBeAdded.value ||
+                    (info.value instanceof ArrayBuffer &&
+                        informationToBeAdded.value instanceof ArrayBuffer &&
+                        ContactModel.areArrayBuffersEquals(info.value, informationToBeAdded.value)))
         );
 
         if (info === undefined) {
