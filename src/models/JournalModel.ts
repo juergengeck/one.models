@@ -1,4 +1,4 @@
-import {WbcMeasurement, Electrocardiogram} from '@OneCoreTypes';
+import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
 import {QuestionnaireResponse} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
@@ -29,7 +29,7 @@ export type EventListEntry = {
     type: EventType;
     data:
         | ObjectData<
-              | WbcMeasurement
+              | WbcObservation
               | QuestionnaireResponse
               | DocumentInfo
               | DiaryEntry

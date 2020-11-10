@@ -69,7 +69,9 @@ export type CommunicationEndpoint = {
 /**
  * The metadata of a property of the profile.
  */
-export type Meta = {};
+export type Meta = {
+    isMain: boolean;
+};
 
 /**
  * The information from a contact object.
@@ -431,12 +433,16 @@ export default class ContactModel extends EventEmitter {
         const personNameInfo: Info[] = [];
         const emailInfos: Info[] = [];
 
-        if (isMainProfileRequested) {
-            // getting the list of contacts of the main profile
-            const contactObjects = await this.getContactObjects(personId);
+        const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
+        const mainContactHash = personProfile.obj.mainContact;
+        // getting the list of contacts of the main profile
+        const contactHashes = await this.getContactIdObjects(personId);
 
+        if (isMainProfileRequested) {
             // iterating over the contact objects list
-            for (const contact of contactObjects) {
+            for (const contactHash of contactHashes) {
+                const isMain = contactHash === mainContactHash;
+                const contact = await getObject(contactHash);
                 // getting the description of the contact
                 const contactDescriptions = await this.getContactDescriptions(contact);
 
@@ -445,13 +451,16 @@ export default class ContactModel extends EventEmitter {
                     if (description.$type$ === DescriptionTypes.PERSON_NAME) {
                         this.addInformationIfNotExist(personNameInfo, {
                             value: description.name,
-                            meta: {}
+                            meta: {isMain: isMain}
                         });
                     }
 
                     if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
                         const image = await readBlobAsArrayBuffer(description.image);
-                        this.addInformationIfNotExist(profileImageInfos, {value: image, meta: {}});
+                        this.addInformationIfNotExist(profileImageInfos, {
+                            value: image,
+                            meta: {isMain: isMain}
+                        });
                     }
                 }
 
@@ -463,7 +472,7 @@ export default class ContactModel extends EventEmitter {
                     if (communicationEndpoint.$type$ === CommunicationEndpointsTypes.EMAIL) {
                         this.addInformationIfNotExist(emailInfos, {
                             value: communicationEndpoint.email,
-                            meta: {}
+                            meta: {isMain: isMain}
                         });
                     }
                 }
