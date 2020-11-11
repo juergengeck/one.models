@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import { FilerDirectory } from '@OneCoreTypes';
+import { FilerDirectory, FilerFile, SHA256Hash } from '@OneCoreTypes';
 import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 
 /**
@@ -16,8 +16,7 @@ export async function createObjects(
 ): Promise<UnversionedObjectResult<FilerDirectory>> {
     return await WriteStorage.storeUnversionedObject({
         $type$: 'FilerDirectory',
-        path: '/',
-        files: [],
-        children: []
+        meta: {path: '/', name: '/', mode: 0o0100777},
+        children: new Map<string, SHA256Hash<FilerDirectory | FilerFile>>()
     });
 }

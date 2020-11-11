@@ -1,22 +1,27 @@
 import {Recipe, RecipeRule} from '@OneCoreTypes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         FilerDirectory: FilerDirectory;
+        FilerFile: FilerFile;
     }
 
-    export interface FileRule {
-        BLOB: SHA256Hash<BLOB>;
-        mode: number;
-        name: string;
+    export interface FilerMetaProps {
+        path: string,
+        mode: number,
+        name: string
+    }
+
+    export interface FilerFile {
+        $type$: 'FilerFile';
+        meta: FilerMetaProps;
+        content: SHA256Hash<BLOB>;
     }
 
     export interface FilerDirectory {
         $type$: 'FilerDirectory';
-        path: string;
-        files: FileRule[];
-        children: SHA256Hash<FilerDirectory>[];
+        meta: FilerMetaProps
+        children: Map<string, SHA256Hash<FilerDirectory | FilerFile>>;
     }
 
     export interface PlanResultTypes {
@@ -27,10 +32,10 @@ declare module '@OneCoreTypes' {
     }
 }
 
-export const FileRule: RecipeRule[] = [
+export const FilerMetaPropsRule: RecipeRule[] = [
     {
-        itemprop: 'BLOB',
-        referenceToBlob: true
+      itemprop: 'path',
+      valueType: 'string'
     },
     {
         itemprop: 'mode',
@@ -42,29 +47,39 @@ export const FileRule: RecipeRule[] = [
     }
 ];
 
+export const FilerFileRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'FilerFile',
+    rule: [
+        {
+            itemprop: 'meta',
+            rule: FilerMetaPropsRule
+        },
+        {
+            itemprop: 'content',
+            referenceToBlob: true
+        }
+    ]
+}
+
 export const FilerDirectoryRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'FilerDirectory',
     rule: [
         {
-            itemprop: 'path',
-            valueType: 'string'
-        },
-        {
-            itemprop: 'files',
-            list: ORDERED_BY.ONE,
-            rule: FileRule
+            itemprop: 'meta',
+            rule: FilerMetaPropsRule
         },
         {
             itemprop: 'children',
-            referenceToObj: new Set(['FilerDirectory']),
-            list: ORDERED_BY.ONE
+            valueType: 'Map'
         }
     ]
 }
 
 const FilerRecipes: Recipe[] = [
-    FilerDirectoryRecipe
+    FilerDirectoryRecipe,
+    FilerFileRecipe,
 ]
 
 export default FilerRecipes;

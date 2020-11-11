@@ -8,7 +8,7 @@ import {expect} from 'chai';
 import Recipes from '../lib/recipes/recipes';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {FilerModel} from "../lib/models";
+import {FilerModel} from '../lib/models';
 
 let fileSystem;
 let testModel;
@@ -31,24 +31,12 @@ describe('FilerModel model test', () => {
         expect(result).to.not.be.equal(undefined);
     });
     it('should see if directories can be created and retrieved', async () => {
-        const firstResult = await fileSystem.createDir('/', {
-            $type$: 'FilerDirectory',
-            path: '/dir1',
-            files: [],
-            children: []
-        });
-        const secondResult = await fileSystem.createDir(firstResult.path, {
-            $type$: 'FilerDirectory',
-            path: '/dir1/dir2',
-            files: [],
-            children: []
-        });
-        const thirdResult = await fileSystem.createDir('/dir1/dir2', {
-            $type$: 'FilerDirectory',
-            path: '/dir1/dir2/dir3',
-            files: [],
-            children: []
-        });
+        const firstResult = await fileSystem.createDir('/', 'dir1');
+        const secondResult = await fileSystem.createDir(firstResult.meta.path, 'dir2');
+        console.log(secondResult);
+
+        const thirdResult = await fileSystem.createDir(secondResult.meta.path, 'dir3');
+        console.log(thirdResult);
         expect(firstResult).to.not.be.equal(undefined);
         expect(secondResult).to.not.be.equal(undefined);
         expect(thirdResult).to.not.be.equal(undefined);
@@ -56,49 +44,39 @@ describe('FilerModel model test', () => {
         const firstRetrieveResult = await fileSystem.openDir('/dir1/dir2/dir3');
         const secondRetrieveResult = await fileSystem.openDir('/dir1/dir2');
         const thirdRetrieveResult = await fileSystem.openDir('/dir1');
-        expect(firstRetrieveResult.path).to.be.equal('/dir1/dir2/dir3');
-        expect(firstRetrieveResult.children.length).to.be.equal(0);
+        expect(firstRetrieveResult.meta.path).to.be.equal('/dir1/dir2/dir3');
+        expect(Array.from(firstRetrieveResult.children.keys()).length).to.be.equal(0);
 
-        expect(secondRetrieveResult.path).to.be.equal('/dir1/dir2');
-        expect(secondRetrieveResult.children.length).to.be.equal(1);
+        expect(secondRetrieveResult.meta.path).to.be.equal('/dir1/dir2');
+        expect(Array.from(secondRetrieveResult.children.keys()).length).to.be.equal(1);
 
-        expect(thirdRetrieveResult.path).to.be.equal('/dir1');
-        expect(thirdRetrieveResult.children.length).to.be.equal(1);
+        expect(thirdRetrieveResult.meta.path).to.be.equal('/dir1');
+        expect(Array.from(thirdRetrieveResult.children.keys()).length).to.be.equal(1);
 
         const dirs = [];
         for (let i = 0; i < 100; i++) {
-            dirs.push(`/con${i}`);
+            dirs.push(`con${i}`);
         }
         await Promise.all(
             dirs.map(async (dirName: string) => {
-                const res = await fileSystem.createDir('/', {
-                    $type$: 'FilerDirectory',
-                    path: dirName,
-                    files: [],
-                    children: []
-                });
+                const res = await fileSystem.createDir('/', dirName);
                 expect(res).to.not.be.equal(undefined);
             })
         );
         const rootRetrieveResult = await fileSystem.openDir('/');
-        expect(rootRetrieveResult.path).to.be.equal('/');
-        expect(rootRetrieveResult.children.length).to.be.equal(101);
+        expect(rootRetrieveResult.meta.path).to.be.equal('/');
+        expect(Array.from(rootRetrieveResult.children.keys()).length).to.be.equal(101);
     }).timeout(10000);
     it('should see if files can be created and retrieved', async () => {
-        const firstResult = await fileSystem.createDir('/', {
-            $type$: 'FilerDirectory',
-            path: '/files',
-            files: [],
-            children: []
-        });
+        const firstResult = await fileSystem.createDir('/', 'files');
         expect(firstResult).to.not.be.equal(undefined);
         const stream = createFileWriteStream();
         stream.write(new ArrayBuffer(64));
         const blob = await stream.end();
         const fileResult = await fileSystem.createFile('/files', blob.hash, 'newFile.txt');
-        expect(fileResult.files.length).to.be.equal(1);
+        expect(Array.from(fileResult.children.keys()).length).to.be.equal(1);
 
-        const retrievedFileResult = await fileSystem.openFile('/files', 'newFile.txt');
+        const retrievedFileResult = await fileSystem.openFile('/files/newFile.txt');
         expect(retrievedFileResult).to.not.be.equal(undefined);
     });
 
