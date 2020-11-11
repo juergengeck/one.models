@@ -139,7 +139,7 @@ export default class WebSocketPromiseBased extends EventEmitter
     }
 
     /**
-     * Terminats the connection immediately wihtout wating for the Tcp FIN handshake.
+     * Terminates the connection immediately without waiting for the Tcp FIN handshake.
      *
      * This function terminates the readers immediately instead of waiting for the
      * other side to also close the websocket by sending the Tcp FIN package. This
@@ -174,8 +174,9 @@ export default class WebSocketPromiseBased extends EventEmitter
                 this.socketOpenFn(new Error('Connection was closed: ' + reason));
             }
 
-            // Release the websocket, so that nobody can accidently use it while it waits for the FIN
-            this.releaseWebSocket();
+            //  for now closing releasing websocket becomes null and throws and error no websocket assigned to connection
+            // // Release the websocket, so that nobody can accidently use it while it waits for the FIN
+            // this.releaseWebSocket();
         }
     }
 
