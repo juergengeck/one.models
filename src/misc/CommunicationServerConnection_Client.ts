@@ -40,7 +40,7 @@ class CommunicationServerConnection_Client {
     }
 
     /**
-     * Terminates the web socket.
+     * Closes the websocket
      *
      * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
@@ -50,7 +50,7 @@ class CommunicationServerConnection_Client {
 
 
     /**
-     * Te the web socket.
+     * Terminates the web socket.
      *
      * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
