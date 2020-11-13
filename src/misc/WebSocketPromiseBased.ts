@@ -174,8 +174,8 @@ export default class WebSocketPromiseBased extends EventEmitter
                 this.socketOpenFn(new Error('Connection was closed: ' + reason));
             }
 
-            //  for now closing releasing websocket becomes null and throws and error no websocket assigned to connection
-            // // Release the websocket, so that nobody can accidently use it while it waits for the FIN
+            // for now releasing websocket becomes null and throws and error no websocket assigned to connection
+            // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
             // this.releaseWebSocket();
         }
     }
