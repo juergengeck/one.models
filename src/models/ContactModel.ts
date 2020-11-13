@@ -50,6 +50,7 @@ import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 export enum ContactEvent {
     UpdatedContactList = 'UPDATED_CONTACT_LIST',
     UpdatedContact = 'UPDATED_CONTACT',
+    UpdatedProfile = 'UPDATE_PROFILE',
     NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED',
     UpdatedContactApp = 'UPDATED_CONTACT_APP'
 }
@@ -1137,7 +1138,7 @@ export default class ContactModel extends EventEmitter {
             );
         });
 
-        this.emit(ContactEvent.UpdatedContact, profile);
+        this.emit(ContactEvent.UpdatedProfile, profile);
         if (existingContact === undefined) {
             this.emit(
                 ContactEvent.NewCommunicationEndpointArrived,
