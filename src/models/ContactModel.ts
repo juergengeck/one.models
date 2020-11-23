@@ -1184,7 +1184,7 @@ export default class ContactModel extends EventEmitter {
     ): void {
         // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
 
-        const info = existingInformation.find(
+        const info = existingInformation.findIndex(
             (info: Info) =>
                 info.value === informationToBeAdded.value ||
                 (info.value instanceof ArrayBuffer &&
@@ -1192,8 +1192,13 @@ export default class ContactModel extends EventEmitter {
                     ContactModel.areArrayBuffersEquals(info.value, informationToBeAdded.value))
         );
 
-        if (info === undefined) {
+        if (info === -1) {
             existingInformation.push(informationToBeAdded);
+        } else {
+            // but if a specific contact is set as a main contact
+            if(existingInformation[info].meta.isMain !== informationToBeAdded.meta.isMain){
+                existingInformation[info] = informationToBeAdded;
+            }
         }
     }
 
