@@ -176,7 +176,7 @@ export default class ContactModel extends EventEmitter {
         // Listen for new contact objects
         onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
 
-        await this.shareContactAppWithYourInstances();
+        await ContactModel.shareContactAppWithYourInstances();
     }
 
     /**
@@ -193,6 +193,7 @@ export default class ContactModel extends EventEmitter {
      * @description Create a new personId and an associated profile.
      * @param {boolean} myself
      * @param {SHA256IdHash<Person>} email
+     * @param {boolean} takeOver
      * @returns {Promise<SHA256IdHash<Person>>}
      */
     public async createProfile(
@@ -540,49 +541,7 @@ export default class ContactModel extends EventEmitter {
                 )
             );
         }
-
-        try {
-            /** see if the profile does exist **/
-            const profile = await serializeWithType('Contacts', async () => {
-                return await getObjectByIdObj({$type$: 'Profile', personId: personId});
-            });
-
-            // getting the main contact
-            const mainContact = await getObject(profile.obj.mainContact);
-
-            const mainContactDescriptions: ContactDescriptionTypes[] = await this.getContactDescriptions(
-                mainContact
-            );
-            const mainContactDescriptionHashes = mainContact.contactDescriptions;
-
-            // removing the hash of the updated contact description from the list
-            for (let i = mainContactDescriptionHashes.length - 1; i >= 0; i--) {
-                for (const newDescription of newContactDescriptions) {
-                    if (newDescription.obj.$type$ === mainContactDescriptions[i].$type$) {
-                        mainContactDescriptionHashes.splice(i, 1);
-                    }
-                }
-            }
-
-            for (const newDescription of newContactDescriptions) {
-                mainContactDescriptionHashes.push(newDescription.hash);
-            }
-
-            // creates the contact object
-            const contactObject = await createSingleObjectThroughPurePlan(
-                {module: '@one/identity'},
-                {
-                    $type$: 'Contact',
-                    personId: personId,
-                    communicationEndpoints: mainContact.communicationEndpoints,
-                    contactDescriptions: mainContactDescriptionHashes
-                }
-            );
-
-            await this.updateProfile(profile, contactObject);
-        } catch (e) {
-            throw new Error('The profile does not exists');
-        }
+        await this.updateContactContent(personId, true, newContactDescriptions);
     }
 
     /**
@@ -607,7 +566,16 @@ export default class ContactModel extends EventEmitter {
                 )
             );
         }
+        await this.updateContactContent(personId, false, newCommunicationEndpoints);
+    }
 
+    private async updateContactContent(
+        personId: SHA256IdHash<Person>,
+        isContactDescription: boolean,
+        newContactContent:
+            | UnversionedObjectResult<ContactDescriptionTypes>[]
+            | UnversionedObjectResult<CommunicationEndpointTypes>[]
+    ): Promise<void> {
         try {
             /** see if the profile does exist **/
             const profile = await serializeWithType('Contacts', async () => {
@@ -616,26 +584,42 @@ export default class ContactModel extends EventEmitter {
 
             // getting the main contact
             const mainContact = await getObject(profile.obj.mainContact);
+            let mainContactContentHashes;
+            let mainContactContent: ContactDescriptionTypes[] | CommunicationEndpointTypes[];
+            if (isContactDescription) {
+                mainContactContent = await Promise.all(
+                    mainContact.contactDescriptions.map(
+                        async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
+                            return await getObject(descriptionHash);
+                        }
+                    )
+                );
+                mainContactContentHashes = mainContact.contactDescriptions;
+            } else {
+                mainContactContent = await Promise.all(
+                    mainContact.communicationEndpoints.map(
+                        async (
+                            communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>
+                        ) => {
+                            return await getObject(communicationEndpointHash);
+                        }
+                    )
+                );
+                mainContactContentHashes = mainContact.communicationEndpoints;
+            }
 
-            const mainContactCommunicationEndpoints: CommunicationEndpointTypes[] = await this.getContactCommunicationEndpoints(
-                mainContact
-            );
-            const mainContactCommunicationEndpointsHashes = mainContact.communicationEndpoints;
-
-            // removing the hash of the updated contact communication endpoint from the list
-            for (let i = 0; i < mainContactCommunicationEndpointsHashes.length; i++) {
-                for (const newCommunicationEndpoint of newCommunicationEndpoints) {
-                    if (
-                        newCommunicationEndpoint.obj.$type$ ===
-                        mainContactCommunicationEndpoints[i].$type$
-                    ) {
-                        mainContactCommunicationEndpointsHashes.splice(i, 1);
+            // removing the hash of the updated contact description from the list
+            for (let i = mainContactContentHashes.length - 1; i >= 0; i--) {
+                for (const newContent of newContactContent) {
+                    if (newContent.obj.$type$ === mainContactContent[i].$type$) {
+                        mainContactContentHashes.splice(i, 1);
                     }
                 }
             }
 
-            for (const newCommunicationEndpoint of newCommunicationEndpoints) {
-                mainContactCommunicationEndpointsHashes.push(newCommunicationEndpoint.hash);
+            for (const newContent of newContactContent) {
+                // @ts-ignore
+                mainContactContentHashes.push(newContent.hash);
             }
 
             // creates the contact object
@@ -644,16 +628,16 @@ export default class ContactModel extends EventEmitter {
                 {
                     $type$: 'Contact',
                     personId: personId,
-                    communicationEndpoints: mainContactCommunicationEndpointsHashes,
-                    contactDescriptions: mainContact.contactDescriptions
+                    communicationEndpoints: mainContact.communicationEndpoints,
+                    contactDescriptions: mainContactContentHashes
                 }
             );
+
             await this.updateProfile(profile, contactObject);
         } catch (e) {
             throw new Error('The profile does not exists');
         }
     }
-
     /**
      * HOOK function
      * @description Serialized since it's part of an object listener or not
@@ -826,6 +810,7 @@ export default class ContactModel extends EventEmitter {
      * @description Serialized profile creation wrapper
      * @param {string} personEmail
      * @param {boolean} forMyself
+     * @param {boolean} takeOver
      */
     private async serializeProfileCreatingByPersonEmail(
         personEmail: string,
@@ -900,7 +885,7 @@ export default class ContactModel extends EventEmitter {
      * @return {Promise<void>}
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
-        if (this.isContactAppVersionedObjectResult(caughtObject)) {
+        if (ContactModel.isContactAppVersionedObjectResult(caughtObject)) {
             // Get the profiles of myself
             const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
             const profiles = await Promise.all(
@@ -943,7 +928,7 @@ export default class ContactModel extends EventEmitter {
 
             this.emit(ContactEvent.UpdatedContactApp);
         }
-        if (this.isProfileVersionedObjectResult(caughtObject)) {
+        if (ContactModel.isProfileVersionedObjectResult(caughtObject)) {
             await serializeWithType('Contacts', async () => {
                 try {
                     const firstPreviousProfileObjectHash = await getNthVersionMapHash(
@@ -969,7 +954,7 @@ export default class ContactModel extends EventEmitter {
      * @return {Promise<void>}
      */
     private async handleOnUnVersionedObj(caughtObject: UnversionedObjectResult): Promise<void> {
-        if (this.isContactUnVersionedObjectResult(caughtObject)) {
+        if (ContactModel.isContactUnVersionedObjectResult(caughtObject)) {
             await serializeWithType('Contacts', async () => {
                 const personId = caughtObject.obj.personId;
                 const personEmail = (await getObjectByIdHash(personId)).obj.email;
@@ -1026,7 +1011,7 @@ export default class ContactModel extends EventEmitter {
      * @param {VersionedObjectResult} caughtObject
      * @returns {VersionedObjectResult<ContactApp>}
      */
-    private isContactAppVersionedObjectResult(
+    private static isContactAppVersionedObjectResult(
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<ContactApp> {
         return (caughtObject as VersionedObjectResult<ContactApp>).obj.$type$ === 'ContactApp';
@@ -1037,7 +1022,7 @@ export default class ContactModel extends EventEmitter {
      * @param {VersionedObjectResult} caughtObject
      * @returns {VersionedObjectResult<Profile>}
      */
-    private isProfileVersionedObjectResult(
+    private static isProfileVersionedObjectResult(
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<Profile> {
         return (caughtObject as VersionedObjectResult<Profile>).obj.$type$ === 'Profile';
@@ -1048,7 +1033,7 @@ export default class ContactModel extends EventEmitter {
      * @param {UnversionedObjectResult} caughtObject
      * @returns {UnversionedObjectResult<Contact>}
      */
-    private isContactUnVersionedObjectResult(
+    private static isContactUnVersionedObjectResult(
         caughtObject: UnversionedObjectResult
     ): caughtObject is UnversionedObjectResult<Contact> {
         return (caughtObject as UnversionedObjectResult<Contact>).obj.$type$ === 'Contact';
@@ -1091,7 +1076,7 @@ export default class ContactModel extends EventEmitter {
         }
     }
 
-    private async shareContactAppWithYourInstances() {
+    private static async shareContactAppWithYourInstances() {
         const contactAppVersionedObjectResult = await ContactModel.getContactAppObject();
         const personIdHash = getInstanceOwnerIdHash();
 
