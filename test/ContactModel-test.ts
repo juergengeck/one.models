@@ -25,8 +25,8 @@ import TestModel, {dbKey, importModules, removeDir, TestAccessGroups} from './ut
 import InstancesModel from '../lib/models/InstancesModel';
 import Recipes from '../lib/recipes/recipes';
 import {AccessModel, ChannelManager} from '../lib/models';
-import rimraf from "rimraf";
-import {MergedContact} from "../lib/src/models/ContactModel";
+import rimraf from 'rimraf';
+import {MergedContact} from '../lib/src/models/ContactModel';
 let contactModel: ContactModel;
 let testModel;
 
@@ -77,7 +77,7 @@ describe('Contact model test', () => {
     });
 
     it('should create another profile for another person', async () => {
-        const personIdHash = await contactModel.createProfile(false, 'foo@refinio.net');
+        const personIdHash = await contactModel.createNewIdentity(false, 'foo@refinio.net');
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
             personId: personIdHash
@@ -100,7 +100,7 @@ describe('Contact model test', () => {
     });
 
     it('should create another profile for an anonymous person', async () => {
-        const personIdHash = await contactModel.createProfile(false);
+        const personIdHash = await contactModel.createNewIdentity(false);
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
             personId: personIdHash
@@ -124,7 +124,7 @@ describe('Contact model test', () => {
     });
 
     it('should create profile for my person', async () => {
-        const personIdHash = await contactModel.createProfile(true, 'thirdProfile@refinio.net');
+        const personIdHash = await contactModel.createNewIdentity(true, 'thirdProfile@refinio.net');
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
             personId: personIdHash
@@ -144,7 +144,7 @@ describe('Contact model test', () => {
     });
 
     it('should create anon profile for my person', async () => {
-        const personIdHash = await contactModel.createProfile(true);
+        const personIdHash = await contactModel.createNewIdentity(true);
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
             personId: personIdHash
@@ -345,13 +345,12 @@ describe('Contact model test', () => {
 
     it('should merge contacts', async () => {
         const personIdHash = getInstanceOwnerIdHash();
-        const mergedContacts = await contactModel.getMergedContactObjects(
-            personIdHash, true
+        const mergedContacts = await contactModel.getMergedContactObjects(personIdHash, true);
+        const endpoints = mergedContacts.find(
+            (mergedContact: MergedContact) => mergedContact.type === 'Email'
         );
-        const endpoints = mergedContacts.find((mergedContact: MergedContact) => mergedContact.type === 'Email');
 
         expect(endpoints.info.length).to.be.equal(2);
-
     });
 
     it('should declare same person between foo and bar', async () => {
@@ -359,7 +358,7 @@ describe('Contact model test', () => {
             .idHash;
         const someoneA = await contactModel.getSomeoneObject(personA);
 
-        const personB = await contactModel.createProfile(false, 'bar@refinio.net');
+        const personB = await contactModel.createNewIdentity(false, 'bar@refinio.net');
         await contactModel.declareSamePerson(personA, personB);
 
         const updatedSomeone = await contactModel.getSomeoneObject(personA);
