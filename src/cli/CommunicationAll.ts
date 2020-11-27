@@ -135,8 +135,8 @@ async function main(): Promise<void> {
     );
 
     // Get the contact objects for the main and anon id
-    const mainContactObjects = await contactModel.getContactIdHashes(person);
-    const anonContactObjects = await contactModel.getContactIdHashes(personAnon);
+    const mainContactObjects = await contactModel.getContactObjectHashes(person);
+    const anonContactObjects = await contactModel.getContactObjectHashes(personAnon);
     if (mainContactObjects.length !== 1) {
         throw new Error('There is more than one contact object for main user.');
     }

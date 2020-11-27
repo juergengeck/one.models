@@ -407,7 +407,7 @@ export default class ContactModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} personId - the given person id.
      * @returns {Promise<SHA256Hash<Contact>[]>}
      */
-    public async getContactIdHashes(
+    public async getContactObjectHashes(
         personId: SHA256IdHash<Person>
     ): Promise<SHA256Hash<Contact>[]> {
         const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
@@ -473,7 +473,7 @@ export default class ContactModel extends EventEmitter {
         const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
         const mainContactHash = personProfile.obj.mainContact;
         // getting the list of contacts of the main profile
-        const contactHashes = await this.getContactIdHashes(personId);
+        const contactHashes = await this.getContactObjectHashes(personId);
 
         if (isMainProfileRequested) {
             // iterating over the contact objects list
