@@ -2,59 +2,63 @@ import {Recipe, RecipeRule} from '@OneCoreTypes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
-        FilerDirectory: FilerDirectory;
-        FilerFile: FilerFile;
+        FileSystemDirectory: FileSystemDirectory;
+        FileSystemFile: FileSystemFile;
+        FileSystemRoot: FileSystemRoot
     }
 
-    export interface FilerMetaProps {
-        path: string,
+    export interface FileSystemRoot {
+        $type$: 'FileSystemRoot'
+        content: FileSystemRootEntry
+    }
+
+    export interface FileSystemDirectoryEntry {
         mode: number,
-        name: string
+        content: SHA256Hash<FileSystemDirectory | FileSystemFile>
     }
 
-    export interface FilerFile {
-        $type$: 'FilerFile';
-        meta: FilerMetaProps;
+    export interface FileSystemRootEntry {
+        mode: number,
+        root: SHA256Hash<FileSystemDirectory>
+    }
+
+    export interface FileSystemFile {
+        $type$: 'FileSystemFile';
         content: SHA256Hash<BLOB>;
     }
 
-    export interface FilerDirectory {
-        $type$: 'FilerDirectory';
-        meta: FilerMetaProps
-        children: Map<string, SHA256Hash<FilerDirectory | FilerFile>>;
+    export interface FileSystemDirectory {
+        $type$: 'FileSystemDirectory';
+        children: Map<string, FileSystemDirectoryEntry>;
     }
 
     export interface PlanResultTypes {
-        '@module/createRootFilerDirectory': {
+        '@module/createRootFileSystemDirectory': {
             args: any;
-            result: UnversionedObjectResult<FilerDirectory>;
+            result: UnversionedObjectResult<FileSystemRoot>;
+        },
+        '@module/updateRootFileSystemDirectory': {
+            args: any;
+            result: UnversionedObjectResult<FileSystemRoot>;
         };
     }
 }
 
-export const FilerMetaPropsRule: RecipeRule[] = [
-    {
-      itemprop: 'path',
-      valueType: 'string'
-    },
+export const FileSystemRootEntryRule: RecipeRule[] = [
     {
         itemprop: 'mode',
         valueType: 'string'
     },
     {
-        itemprop: 'name',
-        valueType: 'string'
+        itemprop: 'root',
+        referenceToObj: new Set(['FileSystemDirectory'])
     }
 ];
 
 export const FilerFileRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'FilerFile',
+    name: 'FileSystemFile',
     rule: [
-        {
-            itemprop: 'meta',
-            rule: FilerMetaPropsRule
-        },
         {
             itemprop: 'content',
             referenceToBlob: true
@@ -64,12 +68,8 @@ export const FilerFileRecipe: Recipe = {
 
 export const FilerDirectoryRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'FilerDirectory',
+    name: 'FileSystemDirectory',
     rule: [
-        {
-            itemprop: 'meta',
-            rule: FilerMetaPropsRule
-        },
         {
             itemprop: 'children',
             valueType: 'Map'
@@ -77,9 +77,21 @@ export const FilerDirectoryRecipe: Recipe = {
     ]
 }
 
+export const FileSystemRootRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'FileSystemRoot',
+    rule: [
+        {
+            itemprop: 'content',
+            rule: FileSystemRootEntryRule
+        }
+    ]
+}
+
 const FilerRecipes: Recipe[] = [
     FilerDirectoryRecipe,
     FilerFileRecipe,
+    FileSystemRootRecipe
 ]
 
 export default FilerRecipes;
