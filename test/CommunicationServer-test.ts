@@ -1,98 +1,118 @@
+import CommunicationServer from '../lib/misc/CommunicationServer';
+import CommunicationServerListener from '../lib/misc/CommunicationServerListener';
+import {CommunicationServerListenerState} from '../lib/misc/CommunicationServerListener';
+import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
+import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import tweetnacl from 'tweetnacl';
+import WebSocket from 'isomorphic-ws';
 import {expect} from 'chai';
-import {ChildProcess, fork} from 'child_process';
-import {join} from 'path';
+import {fromByteArray} from 'base64-js';
 
-let clients: ChildProcess;
-let server: ChildProcess;
+//import * as Logger from 'one.core/lib/logger';
+//Logger.start();
 
-function processPromise(process: ChildProcess): Promise<string> {
-    return new Promise((resolve, reject) => {
-        process.on('message', (msg: string) => {
-            if (msg !== 'received the MatchResponse') {
-                reject(new Error('wrong msg'));
-            }
-            resolve(msg);
-        });
-    });
-}
-
-function startClients(): Promise<string> {
-    return new Promise((resolve, reject) => {
-        server.on('message', (msg: string) => {
-            if (msg === 'server started') {
-                clients = fork(
-                    join(__dirname, '../lib/misc/usage/CommunicationServerClientsStarter.js')
-                );
-                resolve(msg);
-            } else {
-                reject(new Error('wrong msg'));
-            }
-        });
-    });
-}
-
-function startConnectorClients(): Promise<string> {
-    return new Promise((resolve, reject) => {
-        server.on('message', (msg: string) => {
-            if (msg === 'server started') {
-                clients = fork(
-                    join(
-                        __dirname,
-                        '../lib/misc/usage/CommunicationServerConnectorClientsStarter.js'
-                    )
-                );
-                resolve(msg);
-            } else {
-                reject(new Error('wrong msg'));
-            }
-        });
-    });
-}
-
+/**
+ * Test for testing the communication server.
+ *
+ * TODO: As you can see it is quite an effort to setup a simple connection for talking to the comm server.
+ *       The reason seems to be, that the protocol for speaking with the server is not isolated good enough in a
+ *       separate class. This can be seen  for the 'communication_request' message. There are two functions that
+ *       format it right: EncryptedConnection_Client and CommunicationServerConnection_Server have a
+ *       sendCommunicationRequestMessage, but they don't really fit for this task, so you have to do it manually
+ *       bypassing the type checks for this command.
+ *       This should be cleaned up so that it is easier to understand the code of the low level tests!
+ */
 describe('communication server tests', () => {
-    let clientsResult: string;
+    let commServer: CommunicationServer | null = null;
 
-    before('initialise processes', () => {
-        server = fork(join(__dirname, '../lib/misc/usage/CommunicationServerStarter.js'));
-    });
-
-    it('should establish a connection directly to communication server', function (done) {
-        startClients().then(async () => {
-            // these results can not be computed in the it part, because
-            // they are asynchronous calculated and the it function does
-            // not behave correctly when maid asynchronous
-            clientsResult = await processPromise(clients);
-        });
-
-        done();
-
-        expect(clientsResult).to.be.equal('message received');
-    });
-
-    it('should establish a connection to communication server using connector', function (done) {
-        if (clients) {
-            clients.kill('SIGTERM');
-        }
-
-        startConnectorClients().then(async () => {
-            // these results can not be computed in the it part, because
-            // they are asynchronous calculated and the it function does
-            // not behave correctly when maid asynchronous
-            clientsResult = await processPromise(clients);
-        });
-
-        done();
-
-        expect(clientsResult).to.be.equal('message received');
+    before('Start comm server', async () => {
+        commServer = new CommunicationServer();
+        await commServer.start('localhost', 10000);
     });
 
     after(async () => {
-        if (clients) {
-            clients.kill('SIGTERM');
-        }
-
-        if (server) {
-            server.kill('SIGTERM');
+        if (commServer) {
+            commServer.stop();
         }
     });
+
+    it('Register client open connection to commserver and exchange messages', async function () {
+        // Setup the listening connection - it mirrors the messages back
+        let listenerFailure: any | null = null;
+        const listenerKeyPair = tweetnacl.box.keyPair();
+        let commServerListener = new CommunicationServerListener(1, 1000);
+        commServerListener.onChallenge = (
+            challenge: Uint8Array,
+            publicKey: Uint8Array
+        ): Uint8Array => {
+            const decryptedChallenge = decryptWithPublicKey(
+                publicKey,
+                challenge,
+                listenerKeyPair.secretKey
+            );
+            return encryptWithPublicKey(publicKey, decryptedChallenge, listenerKeyPair.secretKey);
+        };
+        commServerListener.onConnection = async (ws: WebSocketPromiseBased) => {
+            try {
+                while (ws.webSocket.readyState === WebSocket.OPEN) {
+                    ws.send(await ws.waitForMessage(1000));
+                }
+            } catch (e) {
+                // This will also fail on a closing connection, but this is okay, because the listenerFailure
+                // will only be evaluated before the closing of connections happens.
+                listenerFailure = e;
+            }
+        };
+        commServerListener.start('ws://localhost:10000', listenerKeyPair.publicKey);
+
+        try {
+            // Wait until the state changes to listening.
+            let retryCount = 0;
+            while (commServerListener.state != CommunicationServerListenerState.Listening) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                ++retryCount;
+                if (++retryCount >= 5) {
+                    throw new Error('Registering at comm server timed out.');
+                }
+            }
+
+            // Setup outgoing connection and send something
+            const clientKeyPair = tweetnacl.box.keyPair();
+            let clientConn = new WebSocketPromiseBased(new WebSocket('ws://localhost:10000'));
+
+            try {
+                await clientConn.waitForOpen(1000);
+
+                // MESSAGE1 SEND: Send the communication request message that will tell the comm server where to forward the connection to
+                clientConn.send(
+                    JSON.stringify({
+                        command: 'communication_request',
+                        sourcePublicKey: fromByteArray(clientKeyPair.publicKey),
+                        targetPublicKey: fromByteArray(listenerKeyPair.publicKey)
+                    })
+                );
+
+                // MESSAGE1 RECEIVE: Wait for the mirrored communication request message
+                const msg1 = await clientConn.waitForJSONMessage(1000);
+                expect(msg1.command).to.be.equal('communication_request');
+                expect(msg1.sourcePublicKey).to.be.equal(fromByteArray(clientKeyPair.publicKey));
+                expect(msg1.targetPublicKey).to.be.equal(fromByteArray(listenerKeyPair.publicKey));
+
+                // MESSAGE2 SEND:
+                clientConn.send('Hello Friend!');
+
+                // MESSAGE2 RECEIVE:
+                const msg2 = await clientConn.waitForMessage();
+                expect(msg2).to.be.equal('Hello Friend!');
+
+                // Check if the listener had any errors
+                expect(listenerFailure).to.be.null;
+            } finally {
+                // Cleanup of everything
+                clientConn.close();
+            }
+        } finally {
+            await commServerListener.stop();
+        }
+    }).timeout(10000);
 });

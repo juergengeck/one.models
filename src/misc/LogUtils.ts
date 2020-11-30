@@ -10,8 +10,8 @@ import WebSocket from 'isomorphic-ws';
  * @returns {string}
  */
 export function wslogId(ws: WebSocket | null): string {
-    // TODO: We should use pseudonyms based on an hashing algorithm or somthing, because we don't want to
-    //  have ip adresses in the logs.
+    // TODO: We should use pseudonyms based on an hashing algorithm or something, because we don't want to
+    //  have ip addresses in the logs.
 
     try {
         // @ts-ignore

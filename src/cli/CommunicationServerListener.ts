@@ -11,6 +11,7 @@ import readline from 'readline';
 import EncryptedConnetion_Server from '../misc/EncryptedConnection_Server';
 import {wslogId} from '../misc/LogUtils';
 import EncryptedConnection from '../misc/EncryptedConnection';
+import WebSocketPromiseBased from '../misc/WebSocketPromiseBased';
 
 /**
  * Main function. This exists to be able to use await here.
@@ -65,14 +66,14 @@ async function main(): Promise<void> {
         const decryptedChallenge = decryptWithPublicKey(pubkey, challenge, keyPair.secretKey);
         return encryptWithPublicKey(pubkey, decryptedChallenge, keyPair.secretKey);
     };
-    listener.onConnection = async (ws: WebSocket): Promise<void> => {
+    listener.onConnection = async (ws: WebSocketPromiseBased): Promise<void> => {
         try {
-            console.log(`${wslogId(ws)}: Accepted connection.`);
+            console.log(`${wslogId(ws.webSocket)}: Accepted connection.`);
             const conn = new EncryptedConnetion_Server(ws);
             const request = await conn.waitForUnencryptedMessage('communication_request');
             if (tweetnacl.verify(request.targetPublicKey, keyPair.publicKey)) {
                 // Sending to the client that we accept his connection
-                console.log(`${wslogId(ws)}: Send communication_accept message.`);
+                console.log(`${wslogId(ws.webSocket)}: Send communication_accept message.`);
                 await conn.sendCommunicationReadyMessage();
 
                 // Release old connection
@@ -81,7 +82,7 @@ async function main(): Promise<void> {
                 }
 
                 // Setup encryption
-                console.log(`${wslogId(ws)}: Setup encryption.`);
+                console.log(`${wslogId(ws.webSocket)}: Setup encryption.`);
                 await conn.exchangeKeys(
                     (text): Uint8Array => {
                         return encryptWithPublicKey(
@@ -101,7 +102,9 @@ async function main(): Promise<void> {
 
                 // Connect the websocket to the console
                 console.log(
-                    `${wslogId(ws)}: Connect websocket to console. You can now type stuff.`
+                    `${wslogId(
+                        ws.webSocket
+                    )}: Connect websocket to console. You can now type stuff.`
                 );
                 consoleWs = conn;
                 consoleWs.webSocket.addEventListener('error', e => {
@@ -111,7 +114,7 @@ async function main(): Promise<void> {
                     if (e.reason !== 'New client connected') {
                         consoleWs = null;
                     }
-                    console.log(`${wslogId(ws)}: Connection closed: ${e.reason}`);
+                    console.log(`${wslogId(ws.webSocket)}: Connection closed: ${e.reason}`);
                 });
 
                 // Wait for messages
@@ -123,7 +126,7 @@ async function main(): Promise<void> {
                 throw new Error('Request public key does not match this public key.');
             }
         } catch (e) {
-            console.log(`${wslogId(ws)}: ${e}`);
+            console.log(`${wslogId(ws.webSocket)}: ${e}`);
         }
     };
     listener.onStateChange = (
