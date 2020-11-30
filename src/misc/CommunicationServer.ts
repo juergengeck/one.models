@@ -134,6 +134,12 @@ class CommunicationServer {
                     encryptedChallenge
                 );
 
+                // Negate all bits in the challenge, so that an attacker can't just send back the
+                // challenge unencrypted (symmetric keys!)
+                for (let i = 0; i < challenge.length; ++i) {
+                    challenge[i] = ~challenge[i];
+                }
+
                 // Step 2: Wait for authentication_response, decrypt and verify
                 MessageBus.send(
                     'log',

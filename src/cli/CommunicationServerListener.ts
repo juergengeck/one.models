@@ -64,6 +64,9 @@ async function main(): Promise<void> {
     const listener = new CommunicationServerListener(argv.s, argv.t);
     listener.onChallenge = (challenge: Uint8Array, pubkey: Uint8Array): Uint8Array => {
         const decryptedChallenge = decryptWithPublicKey(pubkey, challenge, keyPair.secretKey);
+        for (let i = 0; i < decryptedChallenge.length; ++i) {
+            decryptedChallenge[i] = ~decryptedChallenge[i];
+        }
         return encryptWithPublicKey(pubkey, decryptedChallenge, keyPair.secretKey);
     };
     listener.onConnection = async (ws: WebSocketPromiseBased): Promise<void> => {
