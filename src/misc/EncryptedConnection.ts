@@ -27,12 +27,12 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * by a derived class through some kind of key negotiation procedure before the encryption
      * actually works.
      *
-     * @param {WebSocket} ws - The websocket that is used to exchange encrypted messages.
+     * @param {WebSocketPromiseBased} ws - The websocket that is used to exchange encrypted messages.
      * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
      */
-    constructor(ws: WebSocket, evenLocalNonceCounter: boolean) {
+    constructor(ws: WebSocketPromiseBased, evenLocalNonceCounter: boolean) {
         super();
-        this.webSocketPB = new WebSocketPromiseBased(ws);
+        this.webSocketPB = ws;
 
         // For simplicity we will count with the number type and it has a width of 32 bit
         // when doing logic operations (when converting to Uint8Array). So we need to be
@@ -90,6 +90,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
 
     /**
      * Releases the underlying websocket, so that it can be used by another class.
+     *
+     * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
         return this.webSocketPB.releaseWebSocket();
@@ -183,6 +185,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      *
      * @param {string} type    - The type field of the message should have this type.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @param {string} typekey - The name of the member that holds the type that is checked for equality
+     *                           with the type param.
      * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
      *                                                 - The value will be the JSON.parse'd object
      *                                                 The promise will reject when
@@ -216,23 +220,17 @@ class EncryptedConnection extends EncryptedConnectionInterface {
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param {string} type    - The type field of the message should have this type.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
-     *                                                 - The value will be the JSON.parse'd object
-     *                                                 The promise will reject when
-     *                                                 1) the timeout expired
-     *                                                 2) the connection was closed
-     *                                                 3) the type of the received message doe not match parameter
-     *                                                    'type'
+     * @return Promise<any> The promise will resolve when a value was received.
+     *                      The value will be the JSON.parse'd object
+     *                      The promise will reject when
+     *                      1) the timeout expired
+     *                      2) the connection was closed
+     *                      3) the type of the received message doe not match parameter
+     *                         'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
-
-        // Assert that we received a string based message
-        if (typeof message !== 'string') {
-            throw new Error('Received message that is not a string.');
-        }
 
         // Convert from JSON to Object
         let messageObj;
@@ -261,8 +259,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * @returns {Promise<string>} The received message
      */
     public async waitForBinaryMessage(timeout: number = -1): Promise<Uint8Array> {
-        const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
-        return decrypted;
+        return this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
     }
 
     // ######## Private API - nonce management ########

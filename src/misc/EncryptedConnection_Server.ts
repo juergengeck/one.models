@@ -1,8 +1,8 @@
-import WebSocket from 'isomorphic-ws';
 import CommunicationInitiationProtocol, {isClientMessage} from './CommunicationInitiationProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 /**
  * This class implements the 'server' side of an encrypted communication.
@@ -18,9 +18,9 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      *
      * Server side - This is the side that accepted the connection.
      *
-     * @param {WebSocket} ws - The websocket used for communication.
+     * @param {WebSocketPromiseBased} ws - The websocket used for communication.
      */
-    constructor(ws: WebSocket) {
+    constructor(ws: WebSocketPromiseBased) {
         super(ws, true);
     }
 
@@ -86,7 +86,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     public async waitForUnencryptedMessage<
         T extends keyof CommunicationInitiationProtocol.ClientMessages
     >(command: T): Promise<CommunicationInitiationProtocol.ClientMessages[T]> {
-        const message = this.unpackBinaryFields(
+        const message = EncryptedConnetion_Server.unpackBinaryFields(
             await this.webSocketPB.waitForJSONMessageWithType(command, 'command')
         );
         if (isClientMessage(message, command)) {
@@ -124,7 +124,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      * @param {any} message - The message to convert
      * @returns {any} - The converted message
      */
-    private unpackBinaryFields(message: any): any {
+    private static unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {
             throw Error(`Parsing message failed!`);
         }
