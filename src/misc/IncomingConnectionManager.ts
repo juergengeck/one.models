@@ -99,6 +99,9 @@ class IncomingConnectionManager {
         const listener = new CommunicationServerListener(2, 10000);
         listener.onChallenge = (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
             const decryptedChallenge = decrypt(publicKey, challenge);
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
+            }
             return encrypt(publicKey, decryptedChallenge);
         };
         listener.onConnection = (ws: WebSocketPromiseBased) => {

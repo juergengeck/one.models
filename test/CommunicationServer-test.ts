@@ -50,6 +50,9 @@ describe('communication server tests', () => {
                 challenge,
                 listenerKeyPair.secretKey
             );
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
+            }
             return encryptWithPublicKey(publicKey, decryptedChallenge, listenerKeyPair.secretKey);
         };
         commServerListener.onConnection = async (ws: WebSocketPromiseBased) => {
