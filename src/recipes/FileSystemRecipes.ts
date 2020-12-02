@@ -33,11 +33,11 @@ declare module '@OneCoreTypes' {
     }
 
     export interface PlanResultTypes {
-        '@module/createRootFileSystemDirectory': {
+        '@module/fileSystemCreateRoot': {
             args: any;
             result: UnversionedObjectResult<FileSystemRoot>;
         };
-        '@module/updateRootFileSystemDirectory': {
+        '@module/fileSystemUpdateRoot': {
             args: any;
             result: UnversionedObjectResult<FileSystemRoot>;
         };

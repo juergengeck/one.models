@@ -61,7 +61,7 @@ export default class FilerModel extends EventEmitter {
                 if ('root' in rootDir && rootDir.root.entry !== rootHash) {
                     const updatedRoot = await createSingleObjectThroughPurePlan(
                         {
-                            module: '@module/updateRootFileSystemDirectory',
+                            module: '@module/fileSystemUpdateRoot',
                             versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                         },
                         rootDir,
@@ -106,7 +106,7 @@ export default class FilerModel extends EventEmitter {
         });
         if (rootDirectory.length === 0) {
             const root = await createSingleObjectThroughPurePlan({
-                module: '@module/createRootFileSystemDirectory',
+                module: '@module/fileSystemCreateRoot',
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             });
             await this.channelManager.postToChannel(this.fileSystemChannelId, root.obj);
