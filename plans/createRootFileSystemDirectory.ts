@@ -21,9 +21,9 @@ export async function createObjects(
 
     return await WriteStorage.storeUnversionedObject({
         $type$: 'FileSystemRoot',
-        content: {
+        root: {
             mode: 0o0100777,
-            root: root.hash
+            entry: root.hash
         }
     })
 }

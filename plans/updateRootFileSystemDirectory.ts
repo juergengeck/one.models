@@ -18,6 +18,6 @@ export async function createObjects(
     outdatedRoot: FileSystemRoot,
     updatedRootDirectoryHash: SHA256Hash<FileSystemDirectory>
 ): Promise<UnversionedObjectResult<FileSystemRoot>> {
-    outdatedRoot.content.root = updatedRootDirectoryHash;
+    outdatedRoot.root.entry = updatedRootDirectoryHash;
     return await WriteStorage.storeUnversionedObject(outdatedRoot)
 }

@@ -20,25 +20,20 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
 
 /**
- * @type {RegExp}
- */
-const isNameAllowed = new RegExp('^[^\\\\]+$');
-
-/**
  * This represents a FileSystem Structure that can create/open directories or files and persisting them in one.
  * This class is using FileSystemRoot, FileSystemDirectory & FileSystemFile recipes in order
  * to accomplish this FileSystem structure.
  */
 export default class FileSystem {
     /** the root of the file system **/
-    private rootDirectoryContent: FileSystemRoot['content'];
+    private rootDirectoryContent: FileSystemRoot['root'];
 
     /**
      *
      * @param {SHA256Hash<FileSystemDirectory>} rootDirectory
      */
     public constructor(rootDirectory: FileSystemRoot) {
-        this.rootDirectoryContent = rootDirectory.content;
+        this.rootDirectoryContent = rootDirectory.root;
     }
 
     /**
@@ -61,61 +56,60 @@ export default class FileSystem {
         fileName: string,
         fileMode = 0o0100777
     ): Promise<FileSystemDirectory> {
-        /** check if it contains '\\' characters (win32) **/
-        FileSystem.checkIfNameIsAllowed(fileName);
-
-        return await serializeWithType('actionLock', async () => {
+        return await serializeWithType('FileSystemCreateLock', async () => {
             /** the directory where you want to save the file **/
             const targetDirectory = await this.openDir(directoryPath);
             const doesFileExists = await this.openDir(FileSystem.pathJoin(directoryPath, fileName));
-            /** check if the target directory exists and file does not **/
-            if (targetDirectory && doesFileExists === undefined) {
-                const savedFile = await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        $type$: 'FileSystemFile',
-                        content: fileHash
-                    }
-                );
-                /** set the new file **/
-                targetDirectory.children.set(
-                    `/${fileName}`,
-                    this.buildFileSystemDirectoryEntry(savedFile.hash)
-                );
 
-                /** update the directory **/
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    targetDirectory
-                );
-                const updatedTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
-                /** if the file is added on root, don't go recursive on the tree **/
-                if (directoryPath === '/') {
-                    /** update the channel with the updated root directory **/
-                    if (this.onRootUpdate) {
-                        await this.onRootUpdate(updatedTargetDirectoryHash);
-                        return targetDirectory;
-                    }
-                } else {
-                    /** update the nodes above **/
-                    await this.updateFileSystemTree(
-                        updatedTargetDirectoryHash,
-                        FileSystem.getParentDirectoryFullPath(directoryPath),
-                        FileSystem.pathJoin('/', FileSystem.getLastItem(directoryPath))
-                    );
-                    return await getObject(updatedTargetDirectoryHash);
-                }
-            }
             if (doesFileExists) {
                 throw new Error('Error: a directory with the same path already exists.');
             }
-            throw new Error('Error: the given directory path could not be found.');
+
+            if (!targetDirectory) {
+                throw new Error('Error: the given directory path could not be found.');
+            }
+
+            const savedFile = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'FileSystemFile',
+                    content: fileHash
+                }
+            );
+            /** set the new file **/
+            targetDirectory.children.set(
+                `/${fileName}`,
+                this.buildFileSystemDirectoryEntry(savedFile.hash)
+            );
+
+            /** update the directory **/
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                targetDirectory
+            );
+            const updatedTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
+            /** if the file is added on root, don't go recursive on the tree **/
+            if (directoryPath === '/') {
+                /** update the channel with the updated root directory **/
+                if (this.onRootUpdate) {
+                    await this.onRootUpdate(updatedTargetDirectoryHash);
+                }
+                return targetDirectory;
+            } else {
+                /** update the nodes above **/
+                await this.updateFileSystemTree(
+                    updatedTargetDirectoryHash,
+                    FileSystem.getParentDirectoryFullPath(directoryPath),
+                    FileSystem.pathJoin('/', FileSystem.getLastItem(directoryPath))
+                );
+                return await getObject(updatedTargetDirectoryHash);
+            }
         });
     }
 
@@ -145,35 +139,36 @@ export default class FileSystem {
         dirName: string,
         dirMode = 0o0100777
     ): Promise<FileSystemDirectory> {
-        FileSystem.checkIfNameIsAllowed(dirName);
-        return await serializeWithType('actionLock', async () => {
+        return await serializeWithType('FileSystemCreateLock', async () => {
             const pathExists = await this.openDir(FileSystem.pathJoin(directoryPath, dirName));
             const targetDirectory = await this.openDir(directoryPath);
-            if (targetDirectory && pathExists === undefined) {
-                const newDirectory = await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        $type$: 'FileSystemDirectory',
-                        children: new Map()
-                    }
-                );
-                const newDirectoryHash = await calculateHashOfObj(newDirectory.obj);
-                /** Intentionally the same hash because this directory was created now **/
-                await this.updateFileSystemTree(
-                    newDirectoryHash,
-                    directoryPath,
-                    FileSystem.pathJoin('/', dirName)
-                );
-                return newDirectory.obj;
-            }
 
             if (pathExists) {
                 throw new Error('Error: the path already exists.');
             }
-            throw new Error('Error: the given directory path could not be found.');
+
+            if (!targetDirectory) {
+                throw new Error('Error: the given directory path could not be found.');
+            }
+
+            const newDirectory = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'FileSystemDirectory',
+                    children: new Map()
+                }
+            );
+            const newDirectoryHash = await calculateHashOfObj(newDirectory.obj);
+            /** Intentionally the same hash because this directory was created now **/
+            await this.updateFileSystemTree(
+                newDirectoryHash,
+                directoryPath,
+                FileSystem.pathJoin('/', dirName)
+            );
+            return newDirectory.obj;
         });
     }
 
@@ -199,7 +194,7 @@ export default class FileSystem {
      * @param rootDirectory
      */
     public set updateRoot(rootDirectory: FileSystemRoot) {
-        this.rootDirectoryContent = rootDirectory.content;
+        this.rootDirectoryContent = rootDirectory.root;
     }
 
     // ---------------------------------------- Private ----------------------------------------
@@ -265,7 +260,6 @@ export default class FileSystem {
     }
 
     /**
-     * @todo make this public
      * @param {string} givenPath - this gets consumed from the start
      * @param {SHA256Hash<FileSystemDirectory | FileSystemFile>} parentDirectoryHash
      * @returns {Promise<FileSystemDirectory | FileSystemFile | undefined>}
@@ -274,7 +268,7 @@ export default class FileSystem {
     private async search(
         givenPath: string,
         parentDirectoryHash: SHA256Hash<FileSystemDirectory | FileSystemFile> = this
-            .rootDirectoryContent.root
+            .rootDirectoryContent.entry
     ): Promise<FileSystemDirectory | FileSystemFile | undefined> {
         /** get the top level directory **/
         const parentDirectory = await getObject(parentDirectoryHash);
@@ -339,17 +333,6 @@ export default class FileSystem {
     }
 
     /**
-     * Usually for win32 restriction e.g \\ chars
-     * @param {string} value
-     * @private
-     */
-    private static checkIfNameIsAllowed(value: string): void {
-        if (!isNameAllowed.test(value)) {
-            throw new Error(`Error: "${value}" as a folder or a file name is not allowed`);
-        }
-    }
-
-    /**
      * Checks if the path is a final path, e.g /dir1 will return true
      * @param {string} path
      * @returns {boolean}
@@ -361,22 +344,22 @@ export default class FileSystem {
 
     /**
      *
-     * @param {OneObjectTypes} caughtObject
+     * @param {OneObjectTypes} oneObject
      * @returns {caughtObject is FileSystemDirectory}
      * @private
      */
-    private static isDir(caughtObject: OneObjectTypes): caughtObject is FileSystemDirectory {
-        return (caughtObject as FileSystemDirectory).$type$ === 'FileSystemDirectory';
+    private static isDir(oneObject: OneObjectTypes): oneObject is FileSystemDirectory {
+        return oneObject.$type$ === 'FileSystemDirectory';
     }
 
     /**
      *
-     * @param {OneObjectTypes} caughtObject
+     * @param {OneObjectTypes} oneObject
      * @returns {caughtObject is FileSystemFile}
      * @private
      */
-    private static isFile(caughtObject: OneObjectTypes): caughtObject is FileSystemFile {
-        return (caughtObject as FileSystemFile).$type$ === 'FileSystemFile';
+    private static isFile(oneObject: OneObjectTypes): oneObject is FileSystemFile {
+        return oneObject.$type$ === 'FileSystemFile';
     }
 
     /**

@@ -8,7 +8,7 @@
 import {EventEmitter} from 'events';
 
 import {ChannelManager} from './index';
-import FileSystem from '../misc/FileSystem';
+import FileSystem from '../fileSystems/FileSystem';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
 import {FileSystemDirectory, FileSystemRoot, SHA256Hash} from '@OneCoreTypes';
@@ -58,7 +58,7 @@ export default class FilerModel extends EventEmitter {
 
             if (rootDirectory[0]) {
                 const rootDir = await getObject(rootDirectory[0].dataHash);
-                if ('content' in rootDir && rootDir.content.root !== rootHash) {
+                if ('root' in rootDir && rootDir.root.entry !== rootHash) {
                     const updatedRoot = await createSingleObjectThroughPurePlan(
                         {
                             module: '@module/updateRootFileSystemDirectory',
