@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {FileSystemDirectoryEntry, FileSystemRoot } from '@OneCoreTypes';
+import {PersistentFileSystemDirectoryEntry, PersistentFileSystemRoot } from '@OneCoreTypes';
 import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 
 /**
@@ -13,14 +13,14 @@ import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi
-): Promise<UnversionedObjectResult<FileSystemRoot>> {
+): Promise<UnversionedObjectResult<PersistentFileSystemRoot>> {
     const root = await WriteStorage.storeUnversionedObject({
-        $type$: 'FileSystemDirectory',
-        children: new Map<string, FileSystemDirectoryEntry>()
+        $type$: 'PersistentFileSystemDirectory',
+        children: new Map<string, PersistentFileSystemDirectoryEntry>()
     });
 
     return await WriteStorage.storeUnversionedObject({
-        $type$: 'FileSystemRoot',
+        $type$: 'PersistentFileSystemRoot',
         root: {
             mode: 0o0100777,
             entry: root.hash

@@ -14,7 +14,7 @@ import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import DocumentRecipes from './DocumentRecipes';
 import ECGRecipes from './ECGRecipes';
-import FileSystemRecipes from './FileSystemRecipes'
+import PersistentFileSystemRecipes from './PersistentFileSystemRecipes'
 
 const Recipes: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -32,7 +32,7 @@ const Recipes: Recipe[] = [
     ...WbcRecipes,
     ...DocumentRecipes,
     ...ECGRecipes,
-    ...FileSystemRecipes
+    ...PersistentFileSystemRecipes
 ];
 
 export default Recipes;

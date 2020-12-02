@@ -8,16 +8,16 @@
 import {EventEmitter} from 'events';
 
 import {ChannelManager} from './index';
-import FileSystem from '../fileSystems/FileSystem';
+import PersistentFileSystem from '../fileSystems/PersistentFileSystem';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
-import {FileSystemDirectory, FileSystemRoot, SHA256Hash} from '@OneCoreTypes';
+import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
 import {serializeWithType} from 'one.core/lib/util/promise';
 
 export default class FilerModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
     private readonly fileSystemChannelId: string;
-    private fileSystem: FileSystem | null = null;
+    private fileSystem: PersistentFileSystem | null = null;
     private readonly boundOnChannelUpdateHandler: (id: string) => Promise<void>;
 
     /**
@@ -37,22 +37,22 @@ export default class FilerModel extends EventEmitter {
      */
     public async init() {
         const root = await this.createRootDirectoryIfNotExists();
-        this.fileSystem = new FileSystem(root);
+        this.fileSystem = new PersistentFileSystem(root);
         this.fileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
     }
 
     /**
      *
-     * @param {SHA256Hash<FileSystemDirectory>} rootHash
+     * @param {SHA256Hash<PersistentFileSystemDirectory>} rootHash
      * @returns {Promise<void>}
      * @private
      */
     private async boundOnFileSystemUpdateHandler(
-        rootHash: SHA256Hash<FileSystemDirectory>
+        rootHash: SHA256Hash<PersistentFileSystemDirectory>
     ): Promise<void> {
         await serializeWithType('FileSystemLock', async () => {
-            const rootDirectory = await this.channelManager.getObjectsWithType('FileSystemRoot', {
+            const rootDirectory = await this.channelManager.getObjectsWithType('PersistentFileSystemRoot', {
                 channelId: this.fileSystemChannelId
             });
 
@@ -61,7 +61,7 @@ export default class FilerModel extends EventEmitter {
                 if ('root' in rootDir && rootDir.root.entry !== rootHash) {
                     const updatedRoot = await createSingleObjectThroughPurePlan(
                         {
-                            module: '@module/fileSystemUpdateRoot',
+                            module: '@module/persistentFileSystemUpdateRoot',
                             versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                         },
                         rootDir,
@@ -84,9 +84,9 @@ export default class FilerModel extends EventEmitter {
 
     /**
      *
-     * @returns {FileSystem}
+     * @returns {PersistentFileSystem}
      */
-    public get fs(): FileSystem {
+    public get fs(): PersistentFileSystem {
         if (!this.fileSystem) {
             throw new Error('Module was not instantiated');
         }
@@ -98,22 +98,22 @@ export default class FilerModel extends EventEmitter {
      * @returns {Promise<void>}
      * @private
      */
-    private async createRootDirectoryIfNotExists(): Promise<FileSystemRoot> {
+    private async createRootDirectoryIfNotExists(): Promise<PersistentFileSystemRoot> {
         await this.channelManager.createChannel(this.fileSystemChannelId);
 
-        const rootDirectory = await this.channelManager.getObjectsWithType('FileSystemDirectory', {
+        const rootDirectory = await this.channelManager.getObjectsWithType('PersistentFileSystemRoot', {
             channelId: this.fileSystemChannelId
         });
         if (rootDirectory.length === 0) {
             const root = await createSingleObjectThroughPurePlan({
-                module: '@module/fileSystemCreateRoot',
+                module: '@module/persistentFileSystemCreateRoot',
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
             });
             await this.channelManager.postToChannel(this.fileSystemChannelId, root.obj);
             return root.obj;
         }
         const rootHash = rootDirectory[rootDirectory.length - 1].dataHash;
-        return (await getObject(rootHash)) as FileSystemRoot;
+        return (await getObject(rootHash)) as PersistentFileSystemRoot;
     }
 
     /**
@@ -125,7 +125,7 @@ export default class FilerModel extends EventEmitter {
         await serializeWithType('FileSystemLock', async () => {
             if (id === this.fileSystemChannelId) {
                 const rootDirectory = await this.channelManager.getObjectsWithType(
-                    'FileSystemRoot',
+                    'PersistentFileSystemRoot',
                     {
                         channelId: this.fileSystemChannelId
                     }
@@ -137,7 +137,7 @@ export default class FilerModel extends EventEmitter {
                     }
                     this.fileSystem.updateRoot = (await getObject(
                         rootDirectory[0].dataHash
-                    )) as FileSystemRoot;
+                    )) as PersistentFileSystemRoot;
                 } else {
                     throw new Error('Module was not instantiated');
                 }

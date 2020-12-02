@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {FileSystemDirectory, FileSystemRoot, SHA256Hash} from '@OneCoreTypes';
+import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
 import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 
 /**
@@ -15,9 +15,9 @@ import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
-    outdatedRoot: FileSystemRoot,
-    updatedRootDirectoryHash: SHA256Hash<FileSystemDirectory>
-): Promise<UnversionedObjectResult<FileSystemRoot>> {
+    outdatedRoot: PersistentFileSystemRoot,
+    updatedRootDirectoryHash: SHA256Hash<PersistentFileSystemDirectory>
+): Promise<UnversionedObjectResult<PersistentFileSystemRoot>> {
     outdatedRoot.root.entry = updatedRootDirectoryHash;
     return await WriteStorage.storeUnversionedObject(outdatedRoot)
 }

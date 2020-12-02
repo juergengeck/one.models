@@ -7,40 +7,48 @@
 
 import {
     BLOB,
-    FileSystemDirectory,
-    FileSystemFile,
-    FileSystemDirectoryEntry,
+    PersistentFileSystemDirectory,
+    PersistentFileSystemFile,
+    PersistentFileSystemDirectoryEntry,
     OneObjectTypes,
     SHA256Hash,
-    FileSystemRoot
+    PersistentFileSystemRoot
 } from '@OneCoreTypes';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {
+    FileSystemDirectory,
+    FileSystemDirectoryEntry,
+    FileSystemFile,
+    IFileSystem
+} from './IFileSystem';
 
 /**
  * This represents a FileSystem Structure that can create/open directories or files and persisting them in one.
  * This class is using FileSystemRoot, FileSystemDirectory & FileSystemFile recipes in order
  * to accomplish this FileSystem structure.
  */
-export default class FileSystem {
+export default class PersistentFileSystem implements IFileSystem {
     /** the root of the file system **/
-    private rootDirectoryContent: FileSystemRoot['root'];
+    private rootDirectoryContent: PersistentFileSystemRoot['root'];
 
     /**
      *
-     * @param {SHA256Hash<FileSystemDirectory>} rootDirectory
+     * @param {SHA256Hash<PersistentFileSystemDirectory>} rootDirectory
      */
-    public constructor(rootDirectory: FileSystemRoot) {
+    public constructor(rootDirectory: PersistentFileSystemRoot) {
         this.rootDirectoryContent = rootDirectory.root;
     }
 
     /**
      *
-     * @type {((rootHash: SHA256Hash<FileSystemDirectory>) => void) | null}
+     * @type {((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null}
      */
-    public onRootUpdate: ((rootHash: SHA256Hash<FileSystemDirectory>) => void) | null = null;
+    public onRootUpdate:
+        | ((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void)
+        | null = null;
 
     /**
      * Overwrites a file if the file already exist in the folder, otherwise, adds the file
@@ -48,18 +56,20 @@ export default class FileSystem {
      * @param {SHA256Hash<BLOB>} fileHash
      * @param {string} fileName
      * @param {number} fileMode
-     * @returns {Promise<FileSystemDirectory>}
+     * @returns {Promise<PersistentFileSystemDirectory>}
      */
     public async createFile(
         directoryPath: string,
         fileHash: SHA256Hash<BLOB>,
         fileName: string,
         fileMode = 0o0100777
-    ): Promise<FileSystemDirectory> {
-        return await serializeWithType('FileSystemCreateLock', async () => {
+    ): Promise<FileSystemFile> {
+        await serializeWithType('FileSystemCreateLock', async () => {
             /** the directory where you want to save the file **/
-            const targetDirectory = await this.openDir(directoryPath);
-            const doesFileExists = await this.openDir(FileSystem.pathJoin(directoryPath, fileName));
+            const targetDirectory = await this.openPersistedDir(directoryPath);
+            const doesFileExists = await this.openPersistedDir(
+                PersistentFileSystem.pathJoin(directoryPath, fileName)
+            );
 
             if (doesFileExists) {
                 throw new Error('Error: a directory with the same path already exists.');
@@ -75,7 +85,7 @@ export default class FileSystem {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    $type$: 'FileSystemFile',
+                    $type$: 'PersistentFileSystemFile',
                     content: fileHash
                 }
             );
@@ -100,17 +110,23 @@ export default class FileSystem {
                 if (this.onRootUpdate) {
                     await this.onRootUpdate(updatedTargetDirectoryHash);
                 }
-                return targetDirectory;
             } else {
                 /** update the nodes above **/
                 await this.updateFileSystemTree(
                     updatedTargetDirectoryHash,
-                    FileSystem.getParentDirectoryFullPath(directoryPath),
-                    FileSystem.pathJoin('/', FileSystem.getLastItem(directoryPath))
+                    PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(directoryPath)
+                    )
                 );
-                return await getObject(updatedTargetDirectoryHash);
             }
         });
+
+        return {
+            mode: fileMode,
+            content: fileHash
+        };
     }
 
     /**
@@ -118,15 +134,19 @@ export default class FileSystem {
      * @param filePath
      */
     public async openFile(filePath: string): Promise<FileSystemFile | undefined> {
-        const foundDir = await this.search(filePath);
-        if (!foundDir) {
+        const foundDirectoryEntry = await this.search(filePath);
+        if (!foundDirectoryEntry) {
             return undefined;
         }
-        if (!FileSystem.isFile(foundDir)) {
-            return undefined;
-        }
+        const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
 
-        return foundDir;
+        if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
+            return undefined;
+        }
+        return {
+            mode: foundDirectoryEntry.mode,
+            content: foundDirectoryEntryValue.content
+        };
     }
 
     /**
@@ -139,9 +159,11 @@ export default class FileSystem {
         dirName: string,
         dirMode = 0o0100777
     ): Promise<FileSystemDirectory> {
-        return await serializeWithType('FileSystemCreateLock', async () => {
-            const pathExists = await this.openDir(FileSystem.pathJoin(directoryPath, dirName));
-            const targetDirectory = await this.openDir(directoryPath);
+        const persistedResult = await serializeWithType('FileSystemCreateLock', async () => {
+            const pathExists = await this.openPersistedDir(
+                PersistentFileSystem.pathJoin(directoryPath, dirName)
+            );
+            const targetDirectory = await this.openPersistedDir(directoryPath);
 
             if (pathExists) {
                 throw new Error('Error: the path already exists.');
@@ -157,7 +179,7 @@ export default class FileSystem {
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 {
-                    $type$: 'FileSystemDirectory',
+                    $type$: 'PersistentFileSystemDirectory',
                     children: new Map()
                 }
             );
@@ -166,43 +188,93 @@ export default class FileSystem {
             await this.updateFileSystemTree(
                 newDirectoryHash,
                 directoryPath,
-                FileSystem.pathJoin('/', dirName)
+                PersistentFileSystem.pathJoin('/', dirName)
             );
             return newDirectory.obj;
         });
+        return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
+            persistedResult
+        );
     }
 
     /**
      *
      * @param {string} path
-     * @returns {Promise<FileSystemDirectory | undefined>}
+     * @returns {Promise<PersistentFileSystemDirectory | undefined>}
      */
     public async openDir(path: string): Promise<FileSystemDirectory | undefined> {
-        const foundDir = await this.search(path);
-        if (!foundDir) {
+        const foundDirectoryEntry = await this.search(path);
+        if (!foundDirectoryEntry) {
             return undefined;
         }
-        if (!FileSystem.isDir(foundDir)) {
+        const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
+
+        if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
             return undefined;
         }
 
-        return foundDir;
+        return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
+            foundDirectoryEntryValue
+        );
     }
 
     /**
      *
      * @param rootDirectory
      */
-    public set updateRoot(rootDirectory: FileSystemRoot) {
+    public set updateRoot(rootDirectory: PersistentFileSystemRoot) {
         this.rootDirectoryContent = rootDirectory.root;
     }
 
     // ---------------------------------------- Private ----------------------------------------
 
+    /**
+     *
+     * @param {PersistentFileSystemDirectory} dir
+     * @returns {Promise<FileSystemDirectory>}
+     * @private
+     */
+    private static async transformPersistedDirectoryToFileSystemDirectory(
+        dir: PersistentFileSystemDirectory
+    ): Promise<FileSystemDirectory> {
+        const simplifiedMap = new Map<string, FileSystemDirectoryEntry>();
+        for (let [key, value] of dir.children) {
+            const object = await getObject(value.content);
+            if (PersistentFileSystem.isDir(object)) {
+                simplifiedMap.set(key, {mode: value.mode});
+            } else if (PersistentFileSystem.isFile(object)) {
+                simplifiedMap.set(key, {mode: value.mode, content: object.content});
+            }
+        }
+        return {children: simplifiedMap};
+    }
+
+    /**
+     *
+     * @param {string} path
+     * @returns {Promise<PersistentFileSystemDirectory | undefined>}
+     * @private
+     */
+    private async openPersistedDir(
+        path: string
+    ): Promise<PersistentFileSystemDirectory | undefined> {
+        const foundDirectoryEntry = await this.search(path);
+        if (!foundDirectoryEntry) {
+            return undefined;
+        }
+        const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
+
+        if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
+            return undefined;
+        }
+
+        return foundDirectoryEntryValue;
+    }
+
     private buildFileSystemDirectoryEntry(
-        content: SHA256Hash<FileSystemDirectory | FileSystemFile>,
+        content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>,
         mode = 0o0100777
-    ): FileSystemDirectoryEntry {
+    ): PersistentFileSystemDirectoryEntry {
         return {
             content,
             mode
@@ -211,19 +283,19 @@ export default class FileSystem {
 
     /**
      * This will update the directory chain recursively starting from the directory you just updated.
-     * @param {SHA256Hash<FileSystemDirectory>} updatedCurrentDirectoryHash
+     * @param {SHA256Hash<PersistentFileSystemDirectory>} updatedCurrentDirectoryHash
      * @param {string} updateToPath - this gets consumed with every recursive call
      * @param {string} directorySimplePath - NOT the full path, e.g /dir1
      * @returns {Promise<void>}
      * @private
      */
     private async updateFileSystemTree(
-        updatedCurrentDirectoryHash: SHA256Hash<FileSystemDirectory>,
+        updatedCurrentDirectoryHash: SHA256Hash<PersistentFileSystemDirectory>,
         updateToPath: string,
         directorySimplePath: string
     ): Promise<void> {
         /** get his parent directory **/
-        const currentDirectoryParent = await this.openDir(updateToPath);
+        const currentDirectoryParent = await this.openPersistedDir(updateToPath);
         /** check if the parent directory exists**/
         if (currentDirectoryParent) {
             /** locate the outdated current directory hash in the parent's children **/
@@ -241,14 +313,19 @@ export default class FileSystem {
             );
             /** get the updated parent hash **/
             const updatedCurrentDirectoryParent = await calculateHashOfObj(currentDirectoryParent);
-            const parentDirectoryPath = FileSystem.getParentDirectoryFullPath(updateToPath);
+            const parentDirectoryPath = PersistentFileSystem.getParentDirectoryFullPath(
+                updateToPath
+            );
 
             /** if its not root **/
             if (updateToPath !== '/') {
                 await this.updateFileSystemTree(
                     updatedCurrentDirectoryParent,
                     parentDirectoryPath,
-                    FileSystem.pathJoin('/', FileSystem.getLastItem(updateToPath))
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(updateToPath)
+                    )
                 );
             } else {
                 /** update the channel with the updated root directory **/
@@ -261,37 +338,38 @@ export default class FileSystem {
 
     /**
      * @param {string} givenPath - this gets consumed from the start
-     * @param {SHA256Hash<FileSystemDirectory | FileSystemFile>} parentDirectoryHash
-     * @returns {Promise<FileSystemDirectory | FileSystemFile | undefined>}
+     * @param {SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>} parentDirectoryHash
+     * @returns {Promise<PersistentFileSystemDirectory | PersistentFileSystemFile | undefined>}
      * @private
      */
     private async search(
         givenPath: string,
-        parentDirectoryHash: SHA256Hash<FileSystemDirectory | FileSystemFile> = this
-            .rootDirectoryContent.entry
-    ): Promise<FileSystemDirectory | FileSystemFile | undefined> {
+        parentDirectoryHash: SHA256Hash<
+            PersistentFileSystemDirectory | PersistentFileSystemFile
+        > = this.rootDirectoryContent.entry
+    ): Promise<PersistentFileSystemDirectoryEntry | undefined> {
         /** get the top level directory **/
         const parentDirectory = await getObject(parentDirectoryHash);
 
         if (givenPath === '/') {
-            return parentDirectory;
+            return {mode: this.rootDirectoryContent.mode, content: this.rootDirectoryContent.entry};
         }
 
         /** if the given path it's not the root but it's a final path, e.g '/dir1' **/
-        if (givenPath !== '/' && FileSystem.hasFoldersAboveExceptRoot(givenPath)) {
-            if (FileSystem.isDir(parentDirectory)) {
+        if (givenPath !== '/' && PersistentFileSystem.hasFoldersAboveExceptRoot(givenPath)) {
+            if (PersistentFileSystem.isDir(parentDirectory)) {
                 const child = parentDirectory.children.get(givenPath);
                 if (child) {
-                    return await getObject(child.content);
+                    return child;
                 }
             }
         }
 
         /** if it's not a final path to search for, get the first folder in path **/
-        const desiredPathInRoot = FileSystem.getFirstFolderAfterFirstSlash(givenPath);
+        const desiredPathInRoot = PersistentFileSystem.getFirstFolderAfterFirstSlash(givenPath);
 
         /** if the top level entity is a directory. Note that if it's a file and it's not the final path, it's an error **/
-        if (FileSystem.isDir(parentDirectory)) {
+        if (PersistentFileSystem.isDir(parentDirectory)) {
             /** get his child **/
             const foundDirectory = parentDirectory.children.get(`/${desiredPathInRoot}`);
             if (foundDirectory) {
@@ -348,8 +426,8 @@ export default class FileSystem {
      * @returns {caughtObject is FileSystemDirectory}
      * @private
      */
-    private static isDir(oneObject: OneObjectTypes): oneObject is FileSystemDirectory {
-        return oneObject.$type$ === 'FileSystemDirectory';
+    private static isDir(oneObject: OneObjectTypes): oneObject is PersistentFileSystemDirectory {
+        return oneObject.$type$ === 'PersistentFileSystemDirectory';
     }
 
     /**
@@ -358,8 +436,8 @@ export default class FileSystem {
      * @returns {caughtObject is FileSystemFile}
      * @private
      */
-    private static isFile(oneObject: OneObjectTypes): oneObject is FileSystemFile {
-        return oneObject.$type$ === 'FileSystemFile';
+    private static isFile(oneObject: OneObjectTypes): oneObject is PersistentFileSystemFile {
+        return oneObject.$type$ === 'PersistentFileSystemFile';
     }
 
     /**

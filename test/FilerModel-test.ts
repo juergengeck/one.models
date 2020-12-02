@@ -70,7 +70,7 @@ describe('FilerModel model test', () => {
         stream.write(new ArrayBuffer(64));
         const blob = await stream.end();
         const fileResult = await fileSystem.createFile('/files', blob.hash, 'newFile.txt');
-        expect(Array.from(fileResult.children.keys()).length).to.be.equal(1);
+        expect(fileResult.content).to.not.be.equal(undefined);
 
         const retrievedFileResult = await fileSystem.openFile('/files/newFile.txt');
         expect(retrievedFileResult).to.not.be.equal(undefined);
