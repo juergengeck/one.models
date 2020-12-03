@@ -7,23 +7,31 @@ declare module '@OneCoreTypes' {
     }
 
     enum NewQuestionTypes {
-        group,
-        display,
-        question,
-        boolean,
-        decimal,
-        integer,
-        date,
-        dateTime,
-        time,
-        string,
-        text,
-        url,
-        choice,
-        'open-choice',
-        attachment,
-        reference,
-        quantity
+        group='group',
+        display = 'display',
+        question = 'question',
+        boolean = 'boolean',
+        decimal = 'decimal',
+        integer = 'integer',
+        date = 'date',
+        dateTime = 'dateTime',
+        time = 'time',
+        string = 'string',
+        text = 'text',
+        url = 'url',
+        choice = 'choice',
+        'open-choice' = 'open-choice',
+        attachment = 'attachment',
+        reference = 'reference',
+        quantity = 'quantity'
+    }
+
+    type Coding = {
+        system?: string;
+        version?: string;
+        code?: string; // maybe number
+        display?: string;
+        userSelected?: boolean;
     }
 
     type NewQuestion = {
@@ -34,20 +42,14 @@ declare module '@OneCoreTypes' {
         enableWhen?: {
             question: string;
             operator: string; // must be one of them: exists|=|!=|>|<|>=|<=
-            answerBoolean?: string; // should be true or false
+            answerBoolean?: 'true' | 'false'; // should be true or false
             answerDecimal?: string;
             answerInteger?: string;
             answerDate?: string;
             answerDateTime?: string;
             answerTime?: string;
             answerString?: string;
-            answerCoding?: {
-                system?: string;
-                version?: string;
-                code?: string; // maybe number
-                display?: string;
-                userSelected?: boolean;
-            };
+            answerCoding?: Coding;
         }[];
         enableBehavior?: string; // must be all or any (&&, ||)
         required?: boolean;
@@ -60,16 +62,15 @@ declare module '@OneCoreTypes' {
             valueDate?: string;
             valueTime?: string;
             valueString?: string;
-            valueCoding?: {
-                system?: string;
-                version?: string;
-                code?: string; // maybe number
-                display?: string;
-                userSelected?: boolean;
-            };
+            valueCoding?: Coding;
             initialSelected?: boolean;
         }[];
         initial?: {
+            valueInteger?: string;
+            valueDate?: string;
+            valueTime?: string;
+            valueString?: string;
+            valueCoding?: Coding;
             valueBoolean?: string;
             valueDecimal?: string;
             valueDateTime?: string;
