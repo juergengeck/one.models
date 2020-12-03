@@ -1,4 +1,4 @@
-import {NewQuestionTypes, Recipe, RecipeRule} from '@OneCoreTypes';
+import {Recipe, RecipeRule} from '@OneCoreTypes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
@@ -6,43 +6,40 @@ declare module '@OneCoreTypes' {
         Questionnaire: Questionnaire;
     }
 
-    enum NewQuestionTypes {
-        group='group',
-        display = 'display',
-        question = 'question',
-        boolean = 'boolean',
-        decimal = 'decimal',
-        integer = 'integer',
-        date = 'date',
-        dateTime = 'dateTime',
-        time = 'time',
-        string = 'string',
-        text = 'text',
-        url = 'url',
-        choice = 'choice',
-        'open-choice' = 'open-choice',
-        attachment = 'attachment',
-        reference = 'reference',
-        quantity = 'quantity'
-    }
-
     type Coding = {
         system?: string;
         version?: string;
-        code?: string; // maybe number
+        code?: string;
         display?: string;
         userSelected?: boolean;
-    }
+    };
 
-    type NewQuestion = {
+    type Question = {
         linkId: string;
         prefix?: string;
         text?: string;
-        type: NewQuestionTypes;
+        type:
+            | 'group'
+            | 'display'
+            | 'question'
+            | 'boolean'
+            | 'decimal'
+            | 'integer'
+            | 'date'
+            | 'dateTime'
+            | 'time'
+            | 'string'
+            | 'text'
+            | 'url'
+            | 'choice'
+            | 'open-choice'
+            | 'attachment'
+            | 'reference'
+            | 'quantity';
         enableWhen?: {
             question: string;
-            operator: string; // must be one of them: exists|=|!=|>|<|>=|<=
-            answerBoolean?: 'true' | 'false'; // should be true or false
+            operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
+            answerBoolean?: boolean;
             answerDecimal?: string;
             answerInteger?: string;
             answerDate?: string;
@@ -51,7 +48,7 @@ declare module '@OneCoreTypes' {
             answerString?: string;
             answerCoding?: Coding;
         }[];
-        enableBehavior?: string; // must be all or any (&&, ||)
+        enableBehavior?: 'all' | 'any';
         required?: boolean;
         repeats?: boolean;
         readOnly?: boolean;
@@ -71,13 +68,13 @@ declare module '@OneCoreTypes' {
             valueTime?: string;
             valueString?: string;
             valueCoding?: Coding;
-            valueBoolean?: string;
+            valueBoolean?: boolean;
             valueDecimal?: string;
             valueDateTime?: string;
             valueUri?: string;
             valueAttachment?: string;
         }[];
-        item: NewQuestion[];
+        item: Question[];
     };
 
     export interface Questionnaire {
@@ -87,8 +84,8 @@ declare module '@OneCoreTypes' {
         url?: string;
         name?: string;
         title?: string;
-        status: 'active';
-        item: NewQuestion[];
+        status: 'draft' | 'active' | 'retired' | 'unknown';
+        item: Question[];
     }
 }
 
@@ -125,6 +122,7 @@ const AnswerRules: RecipeRule[] = [
     // FHIR Type: boolean
     {
         itemprop: 'answerBoolean',
+        valueType: 'boolean',
         regexp: /true|false/,
         optional: true
     },
@@ -250,6 +248,7 @@ export const ValueRules: RecipeRule[] = [
     // FHIR Type: boolean
     {
         itemprop: 'valueBoolean',
+        valueType: 'boolean',
         regexp: /true|false/,
         optional: true
     },
@@ -331,7 +330,7 @@ const QuestionnaireRules: RecipeRule[] = [
     // FHIR(Questionnaire): draft | active | retired | unknown - PublicationStatus (Required)
     {
         itemprop: 'status',
-        regexp: /darft|active|retired|unknown/
+        regexp: /draft|active|retired|unknown/
     },
 
     // FHIR(Questionnaire): Questions and sections within the Questionnaire
@@ -348,7 +347,7 @@ const QuestionnaireRules: RecipeRule[] = [
     // + Rule: Can only have multiple initial values for repeating items
     {
         itemprop: 'item',
-        list: ORDERED_BY.ONE,
+        list: ORDERED_BY.APP,
         rule: [
             // FHIR(Questionnaire): Unique id for item in questionnaire
             // Note: This is used for the questionnaire responses to link to the correct answer.
@@ -380,7 +379,7 @@ const QuestionnaireRules: RecipeRule[] = [
             // + Rule: If the operator is 'exists', the value must be a boolean
             {
                 itemprop: 'enableWhen',
-                list: ORDERED_BY.ONE,
+                list: ORDERED_BY.APP,
                 rule: [
                     // FHIR(Questionnaire): Question that determines whether item is enabled
                     {
@@ -444,7 +443,7 @@ const QuestionnaireRules: RecipeRule[] = [
             // FHIR(Questionnaire): Initial value(s) when item is first rendered
             {
                 itemprop: 'answerOption',
-                list: ORDERED_BY.ONE,
+                list: ORDERED_BY.APP,
                 rule: [
                     ...OptionValueRules,
                     {
