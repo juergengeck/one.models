@@ -143,9 +143,9 @@ export default class QuestionnaireModel extends EventEmitter {
     // #### Questionnaire response functions ####
 
     /**
-     * Create a new response for the Covid2 Patient questionnaire
+     * Create a new response to a questionnaire
      *
-     * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     * @param {QuestionnaireResponse} data - The answers of the questionnaire.
      * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
      */
     async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
@@ -170,6 +170,20 @@ export default class QuestionnaireModel extends EventEmitter {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
+    }
+
+    /**
+     * Post multiple responses as a single collection.
+     *
+     * This means that later when querying the questionnaires, this collection will appear as simple entry.
+     * This is useful if you dynamically compose a big questionnaires from several partial questionnaires.
+     *
+     * @param {QuestionnaireResponse[]} data - The list of questionnaire responses to post
+     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
+     * @returns {Promise<void>}
+     */
+    async postResponseCollection(data: QuestionnaireResponse[], owner?: SHA256IdHash<Person>): Promise<void> {
+
     }
 
     /**
