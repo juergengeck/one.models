@@ -1,4 +1,4 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
+import {NewQuestionTypes, Recipe, RecipeRule} from '@OneCoreTypes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
@@ -6,12 +6,88 @@ declare module '@OneCoreTypes' {
         Questionnaire: Questionnaire;
     }
 
-    export interface Questionnaire {
-        $type$: 'Questionnaire',
-        resourceType: 'Questionnaire',
-        item: {
+    enum NewQuestionTypes {
+        group,
+        display,
+        question,
+        boolean,
+        decimal,
+        integer,
+        date,
+        dateTime,
+        time,
+        string,
+        text,
+        url,
+        choice,
+        'open-choice',
+        attachment,
+        reference,
+        quantity
+    }
 
+    type NewQuestion = {
+        linkId: string;
+        prefix?: string;
+        text?: string;
+        type: NewQuestionTypes;
+        enableWhen?: {
+            question: string;
+            operator: string; // must be one of them: exists|=|!=|>|<|>=|<=
+            answerBoolean?: string; // should be true or false
+            answerDecimal?: string;
+            answerInteger?: string;
+            answerDate?: string;
+            answerDateTime?: string;
+            answerTime?: string;
+            answerString?: string;
+            answerCoding?: {
+                system?: string;
+                version?: string;
+                code?: string; // maybe number
+                display?: string;
+                userSelected?: boolean;
+            };
         }[];
+        enableBehavior?: string; // must be all or any (&&, ||)
+        required?: boolean;
+        repeats?: boolean;
+        readOnly?: boolean;
+        minLength?: number;
+        maxLength?: number;
+        answerOption?: {
+            valueInteger?: string;
+            valueDate?: string;
+            valueTime?: string;
+            valueString?: string;
+            valueCoding?: {
+                system?: string;
+                version?: string;
+                code?: string; // maybe number
+                display?: string;
+                userSelected?: boolean;
+            };
+            initialSelected?: boolean;
+        }[];
+        initial?: {
+            valueBoolean?: string;
+            valueDecimal?: string;
+            valueDateTime?: string;
+            valueUri?: string;
+            valueAttachment?: string;
+        }[];
+        item: NewQuestion[];
+    };
+
+    export interface Questionnaire {
+        $type$: 'Questionnaire';
+        resourceType: 'Questionnaire';
+        language?: string;
+        url?: string;
+        name?: string;
+        title?: string;
+        status: 'active';
+        item: NewQuestion[];
     }
 }
 
@@ -98,7 +174,7 @@ const AnswerRules: RecipeRule[] = [
         itemprop: 'answerCoding',
         rule: Coding,
         optional: true
-    },
+    }
 
     // FHIR Type: Quantity
     // TODO: implement me correctly
@@ -153,7 +229,7 @@ const OptionValueRules: RecipeRule[] = [
         itemprop: 'valueCoding',
         rule: Coding,
         optional: true
-    },
+    }
 
     // FHIR Type: Reference(Any)
     // TODO: implement me correctly
@@ -168,7 +244,8 @@ const OptionValueRules: RecipeRule[] = [
  *
  * FHIR(Questionnaire): Actual value for initializing the question - Questionnaire Answer Codes (Example)
  */
-export const ValueRules: RecipeRule[] = [ ...OptionValueRules,
+export const ValueRules: RecipeRule[] = [
+    ...OptionValueRules,
     // FHIR Type: boolean
     {
         itemprop: 'valueBoolean',
@@ -201,7 +278,7 @@ export const ValueRules: RecipeRule[] = [ ...OptionValueRules,
     {
         itemprop: 'valueAttachment',
         optional: true
-    },
+    }
 
     // FHIR Type: Quantity
     // TODO: implement me correctly
@@ -209,7 +286,7 @@ export const ValueRules: RecipeRule[] = [ ...OptionValueRules,
         itemprop: 'valueQuantity',
         optional: true
     }*/
-]
+];
 
 /**
  * The rules to build a questionnaire based on FHIR
@@ -272,7 +349,6 @@ const QuestionnaireRules: RecipeRule[] = [
         itemprop: 'item',
         list: ORDERED_BY.ONE,
         rule: [
-
             // FHIR(Questionnaire): Unique id for item in questionnaire
             // Note: This is used for the questionnaire responses to link to the correct answer.
             {
@@ -305,7 +381,6 @@ const QuestionnaireRules: RecipeRule[] = [
                 itemprop: 'enableWhen',
                 list: ORDERED_BY.ONE,
                 rule: [
-
                     // FHIR(Questionnaire): Question that determines whether item is enabled
                     {
                         itemprop: 'question'
@@ -373,7 +448,8 @@ const QuestionnaireRules: RecipeRule[] = [
                     ...OptionValueRules,
                     {
                         itemprop: 'initialSelected',
-                        valueType: 'boolean'
+                        valueType: 'boolean',
+                        optional: true
                     }
                 ],
                 optional: true
@@ -386,8 +462,6 @@ const QuestionnaireRules: RecipeRule[] = [
                 rule: ValueRules,
                 optional: true
             },
-
-
             {
                 itemprop: 'item',
                 inheritFrom: 'Questionnaire.item'
@@ -395,7 +469,6 @@ const QuestionnaireRules: RecipeRule[] = [
         ]
     }
 ];
-
 
 /**
  * Recipe for questionnaires based upon FHIR standard.
@@ -406,7 +479,7 @@ const QuestionnaireRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Questionnaire',
     rule: QuestionnaireRules
-}
+};
 
 const QuestionnaireRecipes: Recipe[] = [QuestionnaireRecipe];
 
