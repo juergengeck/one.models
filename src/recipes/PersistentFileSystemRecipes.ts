@@ -68,7 +68,7 @@ declare module '@OneCoreTypes' {
 export const PersistentFileSystemRootEntryRule: RecipeRule[] = [
     {
         itemprop: 'mode',
-        valueType: 'string'
+        valueType: 'number'
     },
     {
         itemprop: 'entry',

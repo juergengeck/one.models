@@ -5,6 +5,11 @@ import {
     IFileSystem
 } from './IFileSystem';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
+
+// file - 0040_xxx
+// dir - 0100_xxx
+// symlink - 0120_xxx
+
 // @todo wip
 export default class ObjectsFileSystem implements IFileSystem {
     private readonly rootDirectory: FileSystemRootDirectory;

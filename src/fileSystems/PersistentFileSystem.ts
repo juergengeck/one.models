@@ -24,6 +24,7 @@ import {
     FileSystemFile,
     IFileSystem
 } from './IFileSystem';
+import {retrieveFileMode} from './fileSystemModes';
 
 /**
  * This represents a FileSystem Structure that can create/open directories or files and persisting them in one.
@@ -51,7 +52,7 @@ export default class PersistentFileSystem implements IFileSystem {
         | null = null;
 
     /**
-     * Overwrites a file if the file already exist in the folder, otherwise, adds the file
+     * Overwrites a file if the file already exist in the folder, otherwise, adds the file.
      * @param {string} directoryPath
      * @param {SHA256Hash<BLOB>} fileHash
      * @param {string} fileName
@@ -62,11 +63,21 @@ export default class PersistentFileSystem implements IFileSystem {
         directoryPath: string,
         fileHash: SHA256Hash<BLOB>,
         fileName: string,
-        fileMode = 0o0100777
+        fileMode = 0o0040666
     ): Promise<FileSystemFile> {
+        const mode = retrieveFileMode(fileMode);
+        if (mode.type !== 'file') {
+            throw new Error('Error: the mode is not corresponding to a file.');
+        }
         await serializeWithType('FileSystemCreateLock', async () => {
             /** the directory where you want to save the file **/
             const targetDirectory = await this.openPersistedDir(directoryPath);
+            const directoryMode = await this.getDirectoryMode(
+                PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
+                PersistentFileSystem.getLastItem(directoryPath)
+            );
+            const directoryParsedMode = retrieveFileMode(directoryMode);
+
             const doesFileExists = await this.openPersistedDir(
                 PersistentFileSystem.pathJoin(directoryPath, fileName)
             );
@@ -77,6 +88,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
             if (!targetDirectory) {
                 throw new Error('Error: the given directory path could not be found.');
+            }
+
+            if (!directoryParsedMode.permissions.owner.write) {
+                throw new Error('Error: write permission required.');
             }
 
             const savedFile = await createSingleObjectThroughPurePlan(
@@ -92,7 +107,7 @@ export default class PersistentFileSystem implements IFileSystem {
             /** set the new file **/
             targetDirectory.children.set(
                 `/${fileName}`,
-                this.buildFileSystemDirectoryEntry(savedFile.hash)
+                this.buildFileSystemDirectoryEntry(savedFile.hash, fileMode)
             );
 
             /** update the directory **/
@@ -115,6 +130,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 await this.updateFileSystemTree(
                     updatedTargetDirectoryHash,
                     PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
+                    directoryMode,
                     PersistentFileSystem.pathJoin(
                         '/',
                         PersistentFileSystem.getLastItem(directoryPath)
@@ -130,10 +146,16 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Checks if a file exists or not
+     * Checks if a file exists or not.
      * @param filePath
      */
     public async openFile(filePath: string): Promise<FileSystemFile | undefined> {
+        const directoryMode = retrieveFileMode(
+            await this.getDirectoryMode(
+                PersistentFileSystem.getParentDirectoryFullPath(filePath),
+                PersistentFileSystem.getLastItem(filePath)
+            )
+        );
         const foundDirectoryEntry = await this.search(filePath);
         if (!foundDirectoryEntry) {
             return undefined;
@@ -143,6 +165,11 @@ export default class PersistentFileSystem implements IFileSystem {
         if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
             return undefined;
         }
+
+        if (!directoryMode.permissions.owner.read) {
+            throw new Error('Error: read permission required.');
+        }
+
         return {
             mode: foundDirectoryEntry.mode,
             content: foundDirectoryEntryValue.content
@@ -157,14 +184,23 @@ export default class PersistentFileSystem implements IFileSystem {
     public async createDir(
         directoryPath: string,
         dirName: string,
-        dirMode = 0o0100777
+        dirMode = 0o0100666
     ): Promise<FileSystemDirectory> {
+        const mode = retrieveFileMode(dirMode);
+        if (mode.type !== 'dir') {
+            throw new Error('Error: the mode is not corresponding to a directory.');
+        }
         const persistedResult = await serializeWithType('FileSystemCreateLock', async () => {
             const pathExists = await this.openPersistedDir(
                 PersistentFileSystem.pathJoin(directoryPath, dirName)
             );
             const targetDirectory = await this.openPersistedDir(directoryPath);
-
+            const directoryMode = retrieveFileMode(
+                await this.getDirectoryMode(
+                    PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
+                    PersistentFileSystem.getLastItem(directoryPath)
+                )
+            );
             if (pathExists) {
                 throw new Error('Error: the path already exists.');
             }
@@ -172,7 +208,9 @@ export default class PersistentFileSystem implements IFileSystem {
             if (!targetDirectory) {
                 throw new Error('Error: the given directory path could not be found.');
             }
-
+            if (!directoryMode.permissions.owner.write) {
+                throw new Error('Error: write permission required.');
+            }
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -188,6 +226,7 @@ export default class PersistentFileSystem implements IFileSystem {
             await this.updateFileSystemTree(
                 newDirectoryHash,
                 directoryPath,
+                dirMode,
                 PersistentFileSystem.pathJoin('/', dirName)
             );
             return newDirectory.obj;
@@ -204,6 +243,12 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     public async openDir(path: string): Promise<FileSystemDirectory | undefined> {
         const foundDirectoryEntry = await this.search(path);
+        const directoryMode = retrieveFileMode(
+            await this.getDirectoryMode(
+                PersistentFileSystem.getParentDirectoryFullPath(path),
+                PersistentFileSystem.getLastItem(path)
+            )
+        );
         if (!foundDirectoryEntry) {
             return undefined;
         }
@@ -212,7 +257,9 @@ export default class PersistentFileSystem implements IFileSystem {
         if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
             return undefined;
         }
-
+        if (!directoryMode.permissions.owner.read) {
+            throw new Error('Error: read permission required.');
+        }
         return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
             foundDirectoryEntryValue
         );
@@ -271,9 +318,16 @@ export default class PersistentFileSystem implements IFileSystem {
         return foundDirectoryEntryValue;
     }
 
+    /**
+     *
+     * @param {SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>} content
+     * @param {number} mode
+     * @returns {PersistentFileSystemDirectoryEntry}
+     * @private
+     */
     private buildFileSystemDirectoryEntry(
         content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>,
-        mode = 0o0100777
+        mode: number
     ): PersistentFileSystemDirectoryEntry {
         return {
             content,
@@ -282,9 +336,39 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * Retrieves the directory mode.
+     * @param {string} parentDirectoryPath
+     * @param {string} directoryName
+     * @returns {Promise<number>}
+     * @private
+     */
+    private async getDirectoryMode(
+        parentDirectoryPath: string,
+        directoryName: string
+    ): Promise<number> {
+        if (parentDirectoryPath === '/') {
+            return this.rootDirectoryContent.mode;
+        }
+        const parentDirectory = await this.openPersistedDir(parentDirectoryPath);
+        if (!parentDirectory) {
+            throw new Error('Error: parent directory could not be retrieved.');
+        }
+        const child = parentDirectory.children.get(
+            PersistentFileSystem.pathJoin('/', directoryName)
+        );
+        if (!child) {
+            throw new Error(
+                'Error: child directory could not be found within the parent directory.'
+            );
+        }
+        return child.mode;
+    }
+
+    /**
      * This will update the directory chain recursively starting from the directory you just updated.
      * @param {SHA256Hash<PersistentFileSystemDirectory>} updatedCurrentDirectoryHash
      * @param {string} updateToPath - this gets consumed with every recursive call
+     * @param dirMode
      * @param {string} directorySimplePath - NOT the full path, e.g /dir1
      * @returns {Promise<void>}
      * @private
@@ -292,6 +376,7 @@ export default class PersistentFileSystem implements IFileSystem {
     private async updateFileSystemTree(
         updatedCurrentDirectoryHash: SHA256Hash<PersistentFileSystemDirectory>,
         updateToPath: string,
+        dirMode: number,
         directorySimplePath: string
     ): Promise<void> {
         /** get his parent directory **/
@@ -301,7 +386,7 @@ export default class PersistentFileSystem implements IFileSystem {
             /** locate the outdated current directory hash in the parent's children **/
             currentDirectoryParent.children.set(
                 directorySimplePath,
-                this.buildFileSystemDirectoryEntry(updatedCurrentDirectoryHash)
+                this.buildFileSystemDirectoryEntry(updatedCurrentDirectoryHash, dirMode)
             );
             /** save the parent **/
             await createSingleObjectThroughPurePlan(
@@ -319,9 +404,14 @@ export default class PersistentFileSystem implements IFileSystem {
 
             /** if its not root **/
             if (updateToPath !== '/') {
+                const directoryMode = await this.getDirectoryMode(
+                    parentDirectoryPath,
+                    PersistentFileSystem.getLastItem(updateToPath)
+                );
                 await this.updateFileSystemTree(
                     updatedCurrentDirectoryParent,
                     parentDirectoryPath,
+                    directoryMode,
                     PersistentFileSystem.pathJoin(
                         '/',
                         PersistentFileSystem.getLastItem(updateToPath)
@@ -337,7 +427,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * @param {string} givenPath - this gets consumed from the start
+     * @param {string} givenPath - this gets consumed from the start.
      * @param {SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>} parentDirectoryHash
      * @returns {Promise<PersistentFileSystemDirectory | PersistentFileSystemFile | undefined>}
      * @private
@@ -385,7 +475,7 @@ export default class PersistentFileSystem implements IFileSystem {
 
     /**
      * Get full path of the last directory's parent
-     * E.g /dir1/dir2/dir3. Call this function will result in /dir1/dir2
+     * E.g /dir1/dir2/dir3. Call this function will result in /dir1/dir2.
      * @param {string} givenPath
      * @returns {string}
      * @private
@@ -400,7 +490,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Append paths
+     * Append paths.
      * @param {string} pathToJoin
      * @param {string} path
      * @returns {string}
@@ -411,7 +501,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Checks if the path is a final path, e.g /dir1 will return true
+     * Checks if the path is a final path, e.g /dir1 will return true.
      * @param {string} path
      * @returns {boolean}
      * @private
@@ -441,7 +531,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Retrieves the last item of path
+     * Retrieves the last item of path.
      * @param {string} path
      * @private
      */
@@ -450,7 +540,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Retrieves the very first entry after the first '/' (root) -> e.g '/dir1/dir2/dir3' will return dir1
+     * Retrieves the very first entry after the first '/' (root) -> e.g '/dir1/dir2/dir3' will return dir1.
      * @param {string} path
      * @returns {string}
      * @private
