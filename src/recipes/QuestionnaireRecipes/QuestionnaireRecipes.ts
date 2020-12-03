@@ -3,21 +3,14 @@ import {ORDERED_BY} from 'one.core/lib/recipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
-        QuestionnaireResponse: QuestionnaireResponse;
-        QuestionnaireResponses: QuestionnaireResponses;
+        Questionnaire: Questionnaire;
     }
 
-    export interface QuestionnaireResponses {
-        $type$: 'QuestionnaireResponses',
-        responses: QuestionnaireResponse[];
-    }
+    export interface Questionnaire {
+        $type$: 'Questionnaire',
+        resourceType: 'Questionnaire',
+        item: {
 
-    export interface QuestionnaireResponse {
-        questionnaireId: string;
-        answers: {
-            linkId: string;
-            answer_text: string;
-            answer_code: string;
         }[];
     }
 }
@@ -330,6 +323,13 @@ const QuestionnaireRules: RecipeRule[] = [
                 optional: true
             },
 
+            // FHIR(Questionnaire): all | any - EnableWhenBehavior (Required)
+            {
+                itemprop: 'enableBehavior',
+                regexp: /all|any/,
+                optional: true
+            },
+
             // FHIR(Questionnaire): Whether the item must be included in data results
             {
                 itemprop: 'required',
@@ -385,6 +385,12 @@ const QuestionnaireRules: RecipeRule[] = [
                 list: ORDERED_BY.ONE,
                 rule: ValueRules,
                 optional: true
+            },
+
+
+            {
+                itemprop: 'item',
+                inheritFrom: 'Questionnaire.item'
             }
         ]
     }
