@@ -34,7 +34,7 @@ const QuestionnaireResponseRules: RecipeRule[] = [
     },
 
     // FHIR(QuestionnaireResponse): Form being answered
-    // Note: This is the 'url' fielt of the questionnaire beign answered
+    // Note: This is the 'url' field of the questionnaire being answered
     {
         itemprop: 'questionnaire',
         optional: true

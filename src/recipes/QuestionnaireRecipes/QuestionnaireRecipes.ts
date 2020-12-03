@@ -326,7 +326,8 @@ const QuestionnaireRules: RecipeRule[] = [
 
                     // FHIR(Questionnaire): Value for question comparison based on operator - Questionnaire Answer Codes (Example)
                     ...AnswerRules
-                ]
+                ],
+                optional: true
             },
 
             // FHIR(Questionnaire): Whether the item must be included in data results
@@ -339,26 +340,51 @@ const QuestionnaireRules: RecipeRule[] = [
             // FHIR(Questionnaire): Whether the item may repeat
             {
                 itemprop: 'repeats',
-                valueType: 'boolean'
+                valueType: 'boolean',
+                optional: true
             },
 
             // FHIR(Questionnaire): Don't allow human editing
             {
                 itemprop: 'readOnly',
-                valueType: 'boolean'
+                valueType: 'boolean',
+                optional: true
+            },
+
+            // Extension: At least more than this many characters
+            {
+                itemprop: 'minLength',
+                valueType: 'number',
+                optional: true
             },
 
             // FHIR(Questionnaire): No more than this many characters
             {
                 itemprop: 'maxLength',
-                valueType: 'number'
+                valueType: 'number',
+                optional: true
+            },
+
+            // FHIR(Questionnaire): Initial value(s) when item is first rendered
+            {
+                itemprop: 'answerOption',
+                list: ORDERED_BY.ONE,
+                rule: [
+                    ...OptionValueRules,
+                    {
+                        itemprop: 'initialSelected',
+                        valueType: 'boolean'
+                    }
+                ],
+                optional: true
             },
 
             // FHIR(Questionnaire): Initial value(s) when item is first rendered
             {
                 itemprop: 'initial',
                 list: ORDERED_BY.ONE,
-                rule: ValueRules
+                rule: ValueRules,
+                optional: true
             }
         ]
     }
@@ -372,7 +398,7 @@ const QuestionnaireRules: RecipeRule[] = [
  */
 const QuestionnaireRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'QuestionnaireResponses',
+    name: 'Questionnaire',
     rule: QuestionnaireRules
 }
 
