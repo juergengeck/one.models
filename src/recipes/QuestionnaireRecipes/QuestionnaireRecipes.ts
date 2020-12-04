@@ -35,7 +35,8 @@ declare module '@OneCoreTypes' {
             | 'open-choice'
             | 'attachment'
             | 'reference'
-            | 'quantity';
+            | 'quantity'
+            | 'slider';
         enableWhen?: {
             question: string;
             operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
@@ -372,7 +373,7 @@ const QuestionnaireRules: RecipeRule[] = [
             // FHIR(Questionnaire): group | display | boolean | decimal | integer | date | dateTime + - QuestionnaireItemType (Required)
             {
                 itemprop: 'type',
-                regexp: /group|display|question|boolean|decimal|integer|date|dateTime|time|string|text|url|choice|open-choice|attachment|reference|quantity/
+                regexp: /group|display|question|boolean|decimal|integer|date|dateTime|time|string|text|url|choice|open-choice|attachment|reference|quantity|slider/
             },
 
             // FHIR(Questionnaire): Only allow data when
