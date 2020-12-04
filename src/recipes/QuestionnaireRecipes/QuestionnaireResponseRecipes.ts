@@ -1,24 +1,35 @@
 import {Recipe, RecipeRule} from '@OneCoreTypes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
-import {ValueRules} from "./QuestionnaireRecipes";
+import {ValueRules} from './QuestionnaireRecipes';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
-        QuestionnaireResponse: QuestionnaireResponse;
         QuestionnaireResponses: QuestionnaireResponses;
     }
 
     export interface QuestionnaireResponses {
-        $type$: 'QuestionnaireResponses',
+        $type$: 'QuestionnaireResponses';
         responses: QuestionnaireResponse[];
     }
 
     export interface QuestionnaireResponse {
-        questionnaireId: string;
+        resourceType: 'QuestionnaireResponse';
+        questionnaire: string;
+        status: 'completed';
         answers: {
             linkId: string;
-            answer_text: string;
-            answer_code: string;
+            answer: [
+                {
+                    answerBoolean?: boolean;
+                    answerDecimal?: string;
+                    answerInteger?: string;
+                    answerDate?: string;
+                    answerDateTime?: string;
+                    answerTime?: string;
+                    answerString?: string;
+                    answerCoding?: Coding;
+                }
+            ];
         }[];
     }
 }
@@ -52,7 +63,6 @@ const QuestionnaireResponseRules: RecipeRule[] = [
         itemprop: 'item',
         list: ORDERED_BY.ONE,
         rule: [
-
             // FHIR(QuestionnaireResponse): Pointer to specific item from Questionnaire
             // Note: This links to the linkId of the specified questionnaire.
             {
@@ -73,13 +83,30 @@ const QuestionnaireResponsesRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'QuestionnaireResponses',
     rule: [
+        // Here you can give the collection of responses a name
+        // Some applications might use this for users to specify a name so they can
+        // more easily find it again.
         {
-            itemprop: 'responses',
-            list: ORDERED_BY.ONE,
+            itemprop: 'name',
+            optional: true
+        },
+
+        // Give this collection a type.
+        // This is used by applications to e.g. give certain collections a special type
+        // For one project, the type is something like 'initial questions', 'follow up' ...
+        {
+            itemprop: 'type',
+            optional: true
+        },
+
+        // The responses
+        {
+            itemprop: 'response',
+            list: ORDERED_BY.APP,
             rule: QuestionnaireResponseRules
         }
     ]
-}
+};
 
 const QuestionnaireResponsesRecipes: Recipe[] = [QuestionnaireResponsesRecipe];
 

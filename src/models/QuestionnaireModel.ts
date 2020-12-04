@@ -2,69 +2,19 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {
     Person,
-    QuestionnaireResponse as OneQuestionnaireResponse,
+    Questionnaire,
+    QuestionnaireResponse,
+    QuestionnaireResponses,
     SHA256IdHash
 } from '@OneCoreTypes';
-import {Questionnaire} from './QuestionTypes';
 
 /**
  * Type defines the data of a questionnaire response
  */
-export interface QuestionnaireResponse {
+/*export interface QuestionnaireResponse {
     questionnaire: string;
     item: Record<string, string>;
-}
-
-/**
- * Convert from model representation to one representation.
- *
- * @param {QuestionnaireResponse} modelObject - the model object
- * @returns {OneQuestionnaireResponse} The corresponding one object
- */
-function convertToOne(modelObject: QuestionnaireResponse): OneQuestionnaireResponse {
-    const {item, ...rest} = modelObject;
-    const oneItems = [];
-
-    // Transform the items from object to array
-    for (const itemId in item) {
-        oneItems.push({
-            linkId: itemId,
-            answer: item[itemId]
-        });
-    }
-
-    // Create the resulting object
-    return {
-        $type$: 'QuestionnaireResponse',
-        ...rest,
-        item: oneItems
-    };
-}
-
-/**
- * Convert from one representation to model representation.
- *
- * @param {OneQuestionnaireResponse} oneObject - the one object
- * @returns {QuestionnaireResponse} The corresponding model object
- */
-function convertFromOne(oneObject: OneQuestionnaireResponse): QuestionnaireResponse {
-    const {item, ...restOneQuestionnaireResponse} = oneObject;
-
-    // transform the items from array to object
-    const newItems: Record<string, string> = {};
-
-    for (const i of item) {
-        newItems[i.linkId] = i.answer;
-    }
-
-    // Create the new ObjectData item
-    return {
-        ...restOneQuestionnaireResponse, // This is "questionnaire" and others that
-        // might be later added to Questionnaire
-        // Response
-        item: newItems
-    };
-}
+}*/
 
 /**
  * This model represents everything related to Questionnaires.
@@ -130,14 +80,28 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {string} questionnaireId - the identifier of the questionnaire
      */
     // eslint-disable-next-line @typescript-eslint/require-await
-    async getQuestionnaireById(questionnaireId: string): Promise<Questionnaire> {
+    async getQuestionnaireByUrl(url: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaireId === questionnaire.identifier) {
+            if (questionnaire.url === url) {
                 return questionnaire;
             }
         }
+        throw Error('Questionnaire with url ' + url + ' does not exist');
+    }
 
-        throw Error('Questionnaire with id ' + questionnaireId + ' does not exist');
+    /**
+     * Get a specific questionnaire
+     *
+     * @param {string} questionnaireId - the identifier of the questionnaire
+     */
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async getQuestionnaireByName(name: string): Promise<Questionnaire> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.name === name) {
+                return questionnaire;
+            }
+        }
+        throw Error('Questionnaire with name ' + name + ' does not exist');
     }
 
     // #### Questionnaire response functions ####
@@ -148,12 +112,15 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {QuestionnaireResponse} data - The answers of the questionnaire.
      * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
      */
-    async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
+    async postResponse(
+        response: QuestionnaireResponse,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
         // Assert that the questionnaire with questionnaireId exists
         let questionnaireExists = false;
 
         for (const questionnaire of this.availableQuestionnaires) {
-            if (data.questionnaire === questionnaire.identifier) {
+            if (response.questionnaire === questionnaire.url) {
                 questionnaireExists = true;
             }
         }
@@ -161,7 +128,7 @@ export default class QuestionnaireModel extends EventEmitter {
         if (!questionnaireExists) {
             throw Error(
                 'Posting questionnaire response failed: Questionnaire ' +
-                    data.questionnaire +
+                    response.questionnaire +
                     ' does not exist'
             );
         }
@@ -169,7 +136,14 @@ export default class QuestionnaireModel extends EventEmitter {
         // Todo: Assert that the mandatory fields have been set in the answer
 
         // Post the result to the one instance
-        await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
+        await this.channelManager.postToChannel(
+            this.channelId,
+            {
+                $type$: 'QuestionnaireResponses',
+                responses: [response]
+            },
+            owner
+        );
     }
 
     /**
@@ -182,9 +156,10 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
      * @returns {Promise<void>}
      */
-    async postResponseCollection(data: QuestionnaireResponse[], owner?: SHA256IdHash<Person>): Promise<void> {
-
-    }
+    async postResponseCollection(
+        data: QuestionnaireResponse[],
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {}
 
     /**
      * Get a specific questionnaire response
@@ -193,39 +168,30 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     async getQuestionnaireResponseById(
         questionnaireResponseId: string
-    ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+    ): Promise<ObjectData<QuestionnaireResponses>> {
+        return await this.channelManager.getObjectWithTypeById(
             questionnaireResponseId,
-            'QuestionnaireResponse'
+            'QuestionnaireResponses'
         );
-        return {...restObjectData, data: convertFromOne(data)};
     }
 
     /**
      * Get a list of responses.
      */
-    async responses(): Promise<ObjectData<QuestionnaireResponse>[]> {
-        const objects: ObjectData<QuestionnaireResponse>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+    async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
+        return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: this.channelId
         });
-
-        // Convert the data member from one to model representation
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-
-            objects.push({...restObjectData, data: convertFromOne(data)});
-        }
-
-        return objects;
     }
 
     /**
      *  Getting the number of completed questionnaire by questionnaire type.
      * @param {string} questionnaireResponseId - questionnaire response identifier
+     * TODO: Why do we need this?
      */
     async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+        return 1;
+        /*const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: this.channelId
         });
         let numberOfSpecificQuestionnaires = 0;
@@ -236,7 +202,7 @@ export default class QuestionnaireModel extends EventEmitter {
             }
         }
 
-        return numberOfSpecificQuestionnaires;
+        return numberOfSpecificQuestionnaires;*/
     }
 
     /**
@@ -273,7 +239,7 @@ export default class QuestionnaireModel extends EventEmitter {
         let questionnaireExists = false;
 
         for (const questionnaire of this.availableQuestionnaires) {
-            if (data.questionnaire === questionnaire.identifier) {
+            if (data.questionnaire === questionnaire.url) {
                 questionnaireExists = true;
             }
         }
@@ -287,10 +253,10 @@ export default class QuestionnaireModel extends EventEmitter {
         }
 
         // Post the result to the one instance
-        await this.channelManager.postToChannel(
-            this.incompleteResponsesChannelId,
-            convertToOne(data)
-        );
+        await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
+            $type$: 'QuestionnaireResponses',
+            responses: [data]
+        });
     }
 
     /**
@@ -298,21 +264,23 @@ export default class QuestionnaireModel extends EventEmitter {
      * @param {Date} since - not older than this date.
      * @param {string} questionnaireId - questionnaire identifier.
      * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
+     * TODO: we need to id it probably by type, not by questionnaire id anymore
      */
     async incompleteResponse(
         questionnaireId?: string,
         since?: Date
     ): Promise<ObjectData<QuestionnaireResponse> | null> {
+        /**
         let incompleteResponse: ObjectData<QuestionnaireResponse> | null = null;
 
         for await (const item of this.channelManager.objectIteratorWithType(
-            'QuestionnaireResponse',
+            'QuestionnaireResponses',
             {
                 channelId: this.incompleteResponsesChannelId,
                 from: since
             }
         )) {
-            if (questionnaireId && item.data.questionnaire !== questionnaireId) {
+            if (questionnaireId && item.data.url !== questionnaireId) {
                 continue;
             }
 
@@ -325,7 +293,8 @@ export default class QuestionnaireModel extends EventEmitter {
             break;
         }
 
-        return incompleteResponse;
+        return incompleteResponse;**/
+        return null;
     }
 
     /**
@@ -335,6 +304,7 @@ export default class QuestionnaireModel extends EventEmitter {
      * @returns {Promise<boolean>}
      */
     async hasIncompleteResponse(questionnaireId?: string, since?: Date): Promise<boolean> {
+        /**
         for await (const item of this.channelManager.objectIteratorWithType(
             'QuestionnaireResponse',
             {
@@ -349,7 +319,7 @@ export default class QuestionnaireModel extends EventEmitter {
             // if the questionnaire it's empty then no incomplete questionnaire exists
             return item.data.item.length > 0;
         }
-
+        */
         return false;
     }
 
@@ -364,11 +334,12 @@ export default class QuestionnaireModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async markIncompleteResponseAsComplete(questionnaireId: string): Promise<void> {
+        /*
         // Assert that the questionnaire with questionnaireId exists
         let questionnaireExists = false;
 
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaireId === questionnaire.identifier) {
+            if (questionnaireId === questionnaire.url) {
                 questionnaireExists = true;
             }
         }
@@ -391,5 +362,6 @@ export default class QuestionnaireModel extends EventEmitter {
             this.incompleteResponsesChannelId,
             convertToOne(emptyQuestionnaire)
         );
+        */
     }
 }
