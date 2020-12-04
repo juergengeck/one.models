@@ -3,6 +3,7 @@ import CommunicationInitiationProtocol, {isServerMessage} from './CommunicationI
 import {fromByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 /**
  * This class implements the 'client' side of an encrypted communication.
@@ -21,7 +22,7 @@ class EncryptedConnection_Client extends EncryptedConnection {
      * @param {string} url - The url to which to open the connection.
      */
     constructor(url: string) {
-        super(new WebSocket(url), false);
+        super(new WebSocketPromiseBased(new WebSocket(url)), false);
     }
 
     // ######## Sending messages for encryption setup ########

@@ -2,6 +2,7 @@ import CommunicationServerConnection_Client from './CommunicationServerConnectio
 import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -24,7 +25,7 @@ class CommunicationServerListener {
     /**
      * Handler used after a connection between two instances has been established.
      */
-    public onConnection: ((webSocket: WebSocket) => void) | null;
+    public onConnection: ((webSocket: WebSocketPromiseBased) => void) | null;
 
     /**
      * Handler for proving that the instance that has asked to register on the
@@ -193,7 +194,7 @@ class CommunicationServerListener {
             else {
                 this.scheduleSpareConnection(server, publicKey, false);
                 if (this.onConnection) {
-                    this.onConnection(connection.releaseWebSocket());
+                    this.onConnection(connection.webSocketPB);
                 }
             }
         };
