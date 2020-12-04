@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     Person,
     Questionnaire,
@@ -49,7 +49,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * This must be done after the one instance was initialized.
      */
-    async init(): Promise<void> {
+    public async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.channelManager.on('updated', this.boundOnUpdatedHandler);
@@ -60,7 +60,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @returns {Promise<void>}
      */
-    async shutdown(): Promise<void> {
+    public async shutdown(): Promise<void> {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
@@ -69,7 +69,7 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of available questionnaires
      */
-    async questionnaires(): Promise<Questionnaire[]> {
+    public async questionnaires(): Promise<Questionnaire[]> {
         return this.availableQuestionnaires;
     }
 
@@ -82,7 +82,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @param {string} url - The url of the questionnaire
      */
-    async getQuestionnaireByUrl(url: string): Promise<Questionnaire> {
+    public async questionnaireByUrl(url: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.url === url) {
                 return questionnaire;
@@ -96,7 +96,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @param {string} name - The name of the questionnaire
      */
-    async getQuestionnaireByName(name: string): Promise<Questionnaire> {
+    public async questionnaireByName(name: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.name === name) {
                 return questionnaire;
@@ -110,7 +110,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @param url - Url of the questionnaire
      */
-    async hasQuestionnaireWithUrl(url: string): Promise<boolean> {
+    public async hasQuestionnaireWithUrl(url: string): Promise<boolean> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.url === url) {
                 return true;
@@ -124,13 +124,21 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @param name - Name of the questionnaire
      */
-    async hasQuestionnaireWithName(name: string): Promise<boolean> {
+    public async hasQuestionnaireWithName(name: string): Promise<boolean> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.name === name) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Adding questionnaires to the available questionnaires list.
+     * @param questionnaires - Questionnaire[] - the list of the questionnaires that will be added to the available questionnaires list
+     */
+    public registerQuestionnaires(questionnaires: Questionnaire[]): void {
+        this.availableQuestionnaires.push(...questionnaires);
     }
 
     // #### Questionnaire response functions ####
@@ -149,35 +157,7 @@ export default class QuestionnaireModel extends EventEmitter {
         type?: string,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        // Assert that the questionnaire with questionnaireId exists
-        let questionnaireExists = false;
-
-        for (const questionnaire of this.availableQuestionnaires) {
-            if (response.questionnaire === questionnaire.url) {
-                questionnaireExists = true;
-            }
-        }
-
-        if (!questionnaireExists) {
-            throw Error(
-                'Posting questionnaire response failed: Questionnaire ' +
-                    response.questionnaire +
-                    ' does not exist'
-            );
-        }
-
-        // Todo: Assert that the mandatory fields have been set in the answer
-
-        // Post the result to the one instance
-        await this.channelManager.postToChannel(
-            this.channelId,
-            {
-                $type$: 'QuestionnaireResponses',
-                responses: [response]
-            },
-            owner
-        );
-        await postResponseCollection.postResponseCollection([response]);
+        await this.postResponseCollection([response], name, type, owner);
     }
 
     /**
@@ -197,6 +177,24 @@ export default class QuestionnaireModel extends EventEmitter {
         type?: string,
         owner?: SHA256IdHash<Person>,
     ): Promise<void> {
+        // TODO: Assert that the questionnaire with questionnaireId exists
+        /*
+        let questionnaireExists = false;
+
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (response.questionnaire === questionnaire.url) {
+                questionnaireExists = true;
+            }
+        }
+
+        if (!questionnaireExists) {
+            throw Error(
+                'Posting questionnaire response failed: Questionnaire ' +
+                response.questionnaire +
+                ' does not exist'
+            );
+        }*/
+
         // Todo: Assert that the mandatory fields have been set in the answer
 
         // Post the result to the one instance
@@ -204,6 +202,8 @@ export default class QuestionnaireModel extends EventEmitter {
             this.channelId,
             {
                 $type$: 'QuestionnaireResponses',
+                name,
+                type,
                 responses: responses
             },
             owner
@@ -211,26 +211,26 @@ export default class QuestionnaireModel extends EventEmitter {
     }
 
     /**
-     * Get a specific questionnaire response
-     *
-     * @param {string} questionnaireResponseId - the id of the questionnaire response
-     */
-    async getQuestionnaireResponseById(
-        questionnaireResponseId: string
-    ): Promise<ObjectData<QuestionnaireResponses>> {
-        return await this.channelManager.getObjectWithTypeById(
-            questionnaireResponseId,
-            'QuestionnaireResponses'
-        );
-    }
-
-    /**
      * Get a list of responses.
      */
-    async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
+    async responses(queryOptions?: QueryOptions): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: this.channelId
         });
+    }
+
+    /**
+     * Get a specific questionnaire response
+     *
+     * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
+     */
+    async responsesById(
+        id: string
+    ): Promise<ObjectData<QuestionnaireResponses>> {
+        return await this.channelManager.getObjectWithTypeById(
+            id,
+            'QuestionnaireResponses'
+        );
     }
 
     /**
@@ -252,25 +252,6 @@ export default class QuestionnaireModel extends EventEmitter {
         }
 
         return numberOfSpecificQuestionnaires;*/
-    }
-
-    /**
-     * Adding questionnaires to the available questionnaires list.
-     * @param questionnaires - Questionnaire[] - the list of the questionnaires that will be added to the available questionnaires list
-     */
-    registerQuestionnaires(questionnaires: Questionnaire[]): void {
-        this.availableQuestionnaires.push(...questionnaires);
-    }
-
-    /**
-     * Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
-            this.emit('updated');
-        }
     }
 
     // ######### Incomplete Response Methods ########
@@ -413,4 +394,16 @@ export default class QuestionnaireModel extends EventEmitter {
         );
         */
     }
+
+    /**
+     * Handler function for the 'updated' event
+     * @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleOnUpdated(id: string): Promise<void> {
+        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
+            this.emit('updated');
+        }
+    }
+
 }

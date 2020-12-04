@@ -9,6 +9,8 @@ declare module '@OneCoreTypes' {
 
     export interface QuestionnaireResponses {
         $type$: 'QuestionnaireResponses';
+        name?: string;
+        type?: string;
         responses: QuestionnaireResponse[];
     }
 
