@@ -69,7 +69,6 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of available questionnaires
      */
-    // eslint-disable-next-line @typescript-eslint/require-await
     async questionnaires(): Promise<Questionnaire[]> {
         return this.availableQuestionnaires;
     }
@@ -77,9 +76,12 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a specific questionnaire
      *
-     * @param {string} questionnaireId - the identifier of the questionnaire
+     * Note that this does not connect to the server behind the url. The url is
+     * simply the id used by questionnaires. FHIR uses urls for identifying resources
+     * such as questionnaires.
+     *
+     * @param {string} url - The url of the questionnaire
      */
-    // eslint-disable-next-line @typescript-eslint/require-await
     async getQuestionnaireByUrl(url: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.url === url) {
@@ -92,9 +94,8 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a specific questionnaire
      *
-     * @param {string} questionnaireId - the identifier of the questionnaire
+     * @param {string} name - The name of the questionnaire
      */
-    // eslint-disable-next-line @typescript-eslint/require-await
     async getQuestionnaireByName(name: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.name === name) {
@@ -104,16 +105,48 @@ export default class QuestionnaireModel extends EventEmitter {
         throw Error('Questionnaire with name ' + name + ' does not exist');
     }
 
+    /**
+     * Checks whether an url exists.
+     *
+     * @param url - Url of the questionnaire
+     */
+    async hasQuestionnaireWithUrl(url: string): Promise<boolean> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.url === url) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether an url exists.
+     *
+     * @param name - Name of the questionnaire
+     */
+    async hasQuestionnaireWithName(name: string): Promise<boolean> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.name === name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // #### Questionnaire response functions ####
 
     /**
      * Create a new response to a questionnaire
      *
-     * @param {QuestionnaireResponse} data - The answers of the questionnaire.
-     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
+     * @param response - The questionnaire response to post
+     * @param name - The name for this collection. This could be something the user specifies in order to be identified easily.
+     * @param type - An application specific type. It is up to the application what to do with it.
+     * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     async postResponse(
         response: QuestionnaireResponse,
+        name?: string,
+        type?: string,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
         // Assert that the questionnaire with questionnaireId exists
@@ -144,6 +177,7 @@ export default class QuestionnaireModel extends EventEmitter {
             },
             owner
         );
+        await postResponseCollection.postResponseCollection([response]);
     }
 
     /**
@@ -152,14 +186,29 @@ export default class QuestionnaireModel extends EventEmitter {
      * This means that later when querying the questionnaires, this collection will appear as simple entry.
      * This is useful if you dynamically compose a big questionnaires from several partial questionnaires.
      *
-     * @param {QuestionnaireResponse[]} data - The list of questionnaire responses to post
-     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
-     * @returns {Promise<void>}
+     * @param responses - The list of questionnaire responses to post
+     * @param name - The name for this collection. This could be something the user specifies in order to be identified easily.
+     * @param type - An application specific type. It is up to the application what to do with it.
+     * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     async postResponseCollection(
-        data: QuestionnaireResponse[],
-        owner?: SHA256IdHash<Person>
-    ): Promise<void> {}
+        responses: QuestionnaireResponse[],
+        name?: string,
+        type?: string,
+        owner?: SHA256IdHash<Person>,
+    ): Promise<void> {
+        // Todo: Assert that the mandatory fields have been set in the answer
+
+        // Post the result to the one instance
+        await this.channelManager.postToChannel(
+            this.channelId,
+            {
+                $type$: 'QuestionnaireResponses',
+                responses: responses
+            },
+            owner
+        );
+    }
 
     /**
      * Get a specific questionnaire response
