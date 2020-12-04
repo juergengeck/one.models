@@ -6,6 +6,7 @@ import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import WebSocketListener from './WebSocketListener';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 const MessageBus = createMessageBus('CommunicationServer');
 
@@ -99,8 +100,11 @@ class CommunicationServer {
      * @param {WebSocket} ws - The accepted websocket
      * @returns {Promise<void>}
      */
-    private async acceptConnection(ws: WebSocket): Promise<void> {
-        MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket - Waiting for message`);
+    private async acceptConnection(ws: WebSocketPromiseBased): Promise<void> {
+        MessageBus.send(
+            'log',
+            `${wslogId(ws.webSocket)}: Accepted WebSocket - Waiting for message`
+        );
         try {
             const conn = new CommunicationServerConnection_Server(ws);
             const message = await conn.waitForAnyMessage();
@@ -109,13 +113,16 @@ class CommunicationServer {
             if (isClientMessage(message, 'register')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws)}: Registering connection for ${Buffer.from(
+                    `${wslogId(ws.webSocket)}: Registering connection for ${Buffer.from(
                         message.publicKey
                     ).toString('hex')}`
                 );
 
                 // Step 1: Create, encrypt and send the challenge
-                MessageBus.send('log', `${wslogId(ws)}: Register Step 1: Sending auth request`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(ws.webSocket)}: Register Step 1: Sending auth request`
+                );
                 const challenge = tweetnacl.randomBytes(64);
                 const encryptedChallenge = encryptWithPublicKey(
                     message.publicKey,
@@ -127,10 +134,16 @@ class CommunicationServer {
                     encryptedChallenge
                 );
 
+                // Negate all bits in the challenge, so that an attacker can't just send back the
+                // challenge unencrypted (symmetric keys!)
+                for (let i = 0; i < challenge.length; ++i) {
+                    challenge[i] = ~challenge[i];
+                }
+
                 // Step 2: Wait for authentication_response, decrypt and verify
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws)}: Register Step 2: Waiting for auth response`
+                    `${wslogId(ws.webSocket)}: Register Step 2: Waiting for auth response`
                 );
                 const authResponseMessage = await conn.waitForMessage('authentication_response');
                 const decryptedChallenge = decryptWithPublicKey(
@@ -143,7 +156,7 @@ class CommunicationServer {
                 }
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws)}: Register Step 2: Authentication successful`
+                    `${wslogId(ws.webSocket)}: Register Step 2: Authentication successful`
                 );
 
                 // Step 3: Add to spare map and return success message
@@ -151,7 +164,10 @@ class CommunicationServer {
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
 
                 // Step 4: Start PingPong
-                MessageBus.send('log', `${wslogId(ws)}: Register Step 3: Starting Ping Pong`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(ws.webSocket)}: Register Step 3: Starting Ping Pong`
+                );
                 conn.startPingPong(this.pingInterval, this.pongTimeout);
             }
 
@@ -159,7 +175,7 @@ class CommunicationServer {
             else if (isClientMessage(message, 'communication_request')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws)}: Requesting Relay to ${Buffer.from(
+                    `${wslogId(ws.webSocket)}: Requesting Relay to ${Buffer.from(
                         message.targetPublicKey
                     ).toString('hex')}`
                 );
@@ -167,42 +183,57 @@ class CommunicationServer {
                 const connOther = this.popListeningConnection(message.targetPublicKey);
 
                 // Step 1: Stop the ping ponging
-                MessageBus.send('log', `${wslogId(ws)}: Relay Step 1: Stop ping pong`);
+                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Stop ping pong`);
                 await connOther.stopPingPong();
 
                 // Step 2: Send the handover message
-                MessageBus.send('log', `${wslogId(ws)}: Relay Step 2: Send Handover`);
+                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 2: Send Handover`);
                 await connOther.sendConnectionHandoverMessage();
 
                 // Step 3: Forward the communication request
-                MessageBus.send('log', `${wslogId(ws)}: Relay Step 3: Forward connection request`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(ws.webSocket)}: Relay Step 3: Forward connection request`
+                );
                 await connOther.sendCommunicationRequestMessage(
                     message.sourcePublicKey,
                     message.targetPublicKey
                 );
 
                 // Step 4: Forward everything
-                MessageBus.send('log', `${wslogId(ws)}: Relay Step 4: Connect both sides`);
+                // TODO: Because we send the communicationRequestMessage on Step3 (with an await) it is theoretically
+                // possible, that the answer is received before the web socket send call returns.
+                // So it might be possible that the old websocket 'message' handler is scheduled before the new
+                // message handler is registered because the 'message' call is scheduled before the await is scheduled
+                // (by resolve call after websocket.send())
+                // This would only happen if the CPU is so slow, that the websocket send returns after the answer was
+                // processed by the kernel. This is so unlikely it seems impossible.
+                // A fix would be to call the send after the events have been rewired. But then we cannot use the
+                // connection class with the current architecture. So we will do that probably later when we see problems
+                MessageBus.send(
+                    'log',
+                    `${wslogId(ws.webSocket)}: Relay Step 4: Connect both sides`
+                );
                 let wsThis = conn.releaseWebSocket();
                 let wsOther = connOther.releaseWebSocket();
-                wsThis.addEventListener('message', e => {
-                    wsOther.send(e.data);
+                wsThis.addEventListener('message', (msg: any) => {
+                    wsOther.send(msg.data);
                 });
-                wsOther.addEventListener('message', e => {
-                    wsThis.send(e.data);
+                wsOther.addEventListener('message', (msg: any) => {
+                    wsThis.send(msg.data);
                 });
-                wsThis.addEventListener('error', e => {
+                wsThis.addEventListener('error', (e: any) => {
                     MessageBus.send('log', `${wslogId(wsThis)}: Error - ${e}`);
                 });
-                wsOther.addEventListener('error', e => {
+                wsOther.addEventListener('error', (e: any) => {
                     MessageBus.send('log', `${wslogId(wsOther)}: Error - ${e}`);
                 });
-                wsThis.addEventListener('close', e => {
+                wsThis.addEventListener('close', (e: any) => {
                     this.openedConnections.delete(wsThis);
                     MessageBus.send('log', `${wslogId(wsThis)}: Relay closed - ${e.reason}`);
                     wsOther.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
                 });
-                wsOther.addEventListener('close', e => {
+                wsOther.addEventListener('close', (e: any) => {
                     this.openedConnections.delete(wsOther);
                     MessageBus.send('log', `${wslogId(wsOther)}: Relay closed - ${e.reason}`);
                     wsThis.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
@@ -217,7 +248,7 @@ class CommunicationServer {
                 throw new Error('Received unexpected or malformed message from client.');
             }
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws)}: ${e}`);
+            MessageBus.send('log', `${wslogId(ws.webSocket)}: ${e}`);
             // TODO: Perhaps we should send the client the reason. Perhaps not, because this would
             // expose whether he is communicating via a commserver or directly. But would it be that bad?
             ws.close();

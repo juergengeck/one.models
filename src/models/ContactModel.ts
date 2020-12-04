@@ -50,8 +50,10 @@ import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 export enum ContactEvent {
     UpdatedContactList = 'UPDATED_CONTACT_LIST',
     UpdatedContact = 'UPDATED_CONTACT',
+    UpdatedProfile = 'UPDATE_PROFILE',
     NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED',
-    UpdatedContactApp = 'UPDATED_CONTACT_APP'
+    UpdatedContactApp = 'UPDATED_CONTACT_APP',
+    NewContact = 'NEW_CONTACT'
 }
 
 /**
@@ -923,22 +925,22 @@ export default class ContactModel extends EventEmitter {
                 })
             );
 
-            /*await serializeWithType('ContactApp', async () => {
-                    try {
-                        const firstPreviousContactObjectHash = await getNthVersionMapHash(
-                            caughtObject.idHash,
-                            -1
+            await serializeWithType('ContactApp', async () => {
+                try {
+                    const firstPreviousContactObjectHash = await getNthVersionMapHash(
+                        caughtObject.idHash,
+                        -1
+                    );
+                    if (firstPreviousContactObjectHash !== caughtObject.hash) {
+                        await createSingleObjectThroughImpurePlan(
+                            {module: '@module/mergeContactApp'},
+                            caughtObject.idHash
                         );
-                        if (firstPreviousContactObjectHash !== caughtObject.hash) {
-                            await createSingleObjectThroughImpurePlan(
-                                {module: '@module/mergeContactApp'},
-                                caughtObject.idHash
-                            );
-                        }
-                    } catch (_) {
-                        return;
                     }
-                });*/
+                } catch (_) {
+                    return;
+                }
+            });
 
             this.emit(ContactEvent.UpdatedContactApp);
         }
@@ -1000,6 +1002,11 @@ export default class ContactModel extends EventEmitter {
                     ContactEvent.NewCommunicationEndpointArrived,
                     caughtObject.obj.communicationEndpoints
                 );
+                this.emit(ContactEvent.NewContact, caughtObject)
+                // if the profile was just created, use the latest contact that arrived as a main contact and don't let an empty contact
+                if(profile.status === "new"){
+                    profile.obj.mainContact = caughtObject.hash
+                }
 
                 // Do not write a new profile version if this contact object is already part of it
                 // This also might happen when a new profile object ist synchronized with a new contact
@@ -1137,7 +1144,8 @@ export default class ContactModel extends EventEmitter {
             );
         });
 
-        this.emit(ContactEvent.UpdatedContact, profile);
+        this.emit(ContactEvent.UpdatedProfile, profile);
+        this.emit(ContactEvent.NewContact, contactObject)
         if (existingContact === undefined) {
             this.emit(
                 ContactEvent.NewCommunicationEndpointArrived,
@@ -1176,7 +1184,7 @@ export default class ContactModel extends EventEmitter {
     ): void {
         // @TODO - consider also the meta object while comparing the objects!!! - ignored atm because it's empty
 
-        const info = existingInformation.find(
+        const info = existingInformation.findIndex(
             (info: Info) =>
                 info.value === informationToBeAdded.value ||
                 (info.value instanceof ArrayBuffer &&
@@ -1184,8 +1192,13 @@ export default class ContactModel extends EventEmitter {
                     ContactModel.areArrayBuffersEquals(info.value, informationToBeAdded.value))
         );
 
-        if (info === undefined) {
+        if (info === -1) {
             existingInformation.push(informationToBeAdded);
+        } else {
+            // but if a specific contact is set as a main contact
+            if(existingInformation[info].meta.isMain !== informationToBeAdded.meta.isMain){
+                existingInformation[info] = informationToBeAdded;
+            }
         }
     }
 

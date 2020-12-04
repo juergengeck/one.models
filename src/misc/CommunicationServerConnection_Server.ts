@@ -20,10 +20,10 @@ class CommunicationServerConnection_Server {
     /**
      * Creates a server connection based on a WebSocket object
      *
-     * @param {WebSocket} ws - The websocket used for communication
+     * @param {WebSocketPromiseBased} ws - The websocket used for communication
      */
-    constructor(ws: WebSocket) {
-        this.webSocketPB = new WebSocketPromiseBased(ws);
+    constructor(ws: WebSocketPromiseBased) {
+        this.webSocketPB = ws;
     }
 
     // ######## Socket Management & Settings ########
@@ -42,6 +42,8 @@ class CommunicationServerConnection_Server {
 
     /**
      * Releases the underlying websocket, so that it can be used by another class.
+     *
+     * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
         return this.webSocketPB.releaseWebSocket();

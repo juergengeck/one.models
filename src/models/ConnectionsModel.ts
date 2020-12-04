@@ -1441,12 +1441,14 @@ class ConnectionsModel extends EventEmitter {
         const instanceEndpoints: OneInstanceEndpoint[] = [];
 
         // Filter only the OneInstanceEndpoint objects
-        for(const endpoint of endpoints) {
+        for (const endpoint of endpoints) {
             if (!thisAnonInstanceInfo) {
                 throw new Error('Unknown anonymous identity!');
             }
-            if(endpoint.$type$ === 'OneInstanceEndpoint' &&
-                endpoint.personId !== thisAnonInstanceInfo.personId) {
+            if (
+                endpoint.$type$ === 'OneInstanceEndpoint' &&
+                endpoint.personId !== thisAnonInstanceInfo.personId
+            ) {
                 instanceEndpoints.push(endpoint);
             }
         }
@@ -1745,8 +1747,8 @@ class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedChallenge);
-        for (let elem of challenge) {
-            elem = ~elem;
+        for (let i = 0; i < challenge.length; ++i) {
+            challenge[i] = ~challenge[i];
         }
 
         // Wait for response
@@ -1780,8 +1782,8 @@ class ConnectionsModel extends EventEmitter {
             remotePersonPublicKey,
             encryptedChallenge
         );
-        for (let elem of challenge) {
-            elem = ~elem;
+        for (let i = 0; i < challenge.length; ++i) {
+            challenge[i] = ~challenge[i];
         }
         const encryptedResponse = crypto.encryptWithPersonPublicKey(
             remotePersonPublicKey,
