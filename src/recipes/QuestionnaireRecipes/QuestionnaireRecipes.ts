@@ -75,7 +75,7 @@ declare module '@OneCoreTypes' {
             valueUri?: string;
             valueAttachment?: string;
         }[];
-        item: Question[];
+        item?: Question[];
     };
 
     export interface Questionnaire {
@@ -465,7 +465,8 @@ const QuestionnaireRules: RecipeRule[] = [
             },
             {
                 itemprop: 'item',
-                inheritFrom: 'Questionnaire.item'
+                inheritFrom: 'Questionnaire.item',
+                optional: true
             }
         ]
     }
