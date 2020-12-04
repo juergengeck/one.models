@@ -1,5 +1,4 @@
 /**
- * represents the current file options that we support
  * @type {{permissions: {rwx: number, rNN: number, NwN: number, rwN: number, NNx: number, rNx: number, Nwx: number}, fileType: {file: string, symlink: string, dir: string}}}
  */
 const fileOptions: FileOptions = {
@@ -7,11 +6,17 @@ const fileOptions: FileOptions = {
     permissions: {NNN: 0, NNx: 1, NwN: 2, Nwx: 3, rNN: 4, rNx: 5, rwN: 6, rwx: 7}
 };
 
+/**
+ * This type represents the current file options that we're supporting.
+ */
 type FileOptions = {
     fileType: {[K in 'file' | 'dir' | 'symlink']: string};
     permissions: {[key: string]: number};
 };
 
+/**
+ * This type represents the return value structure for {@link retrieveFileMode()}.
+ */
 type FileMode = {
     type: 'file' | 'dir' | 'symlink';
     permissions: {
@@ -19,10 +24,13 @@ type FileMode = {
     };
 };
 
+/**
+ * This type represents the user types.
+ */
 type AccessEntity = 'owner' | 'group' | 'public';
 
 /**
- * It will parse the given octals (mode) and return the file modes in json format.
+ * This function will parse the given octal (mode) and return the file modes in json format.
  * @param {number} mode
  * @returns {FileMode}
  */
@@ -54,8 +62,8 @@ export function retrieveFileMode(mode: number): FileMode {
 }
 
 /**
- * Converts the octals into an array of numbers. If the length its not 7, unshift with 0.
- * This may happen when zeros are in the front of the octal number
+ * This function converts the octal into an array of numbers. If the length its not 7, unshift with 0.
+ * This may happen when zeros are in the front of the octal number.
  * @param {number} mode
  * @returns {number[]}
  */
@@ -71,7 +79,7 @@ function numberToArrayOfNumbers(mode: number): number[] {
 }
 
 /**
- * Retrieve the file type by comparing the values of fileOptions.fileType with the given type.
+ * This function retrieves the file type by comparing the values of fileOptions.fileType with the given type.
  * @param {string} type
  * @returns {"file" | "dir" | "symlink" | undefined}
  */
@@ -86,8 +94,7 @@ function getFileType(type: string): FileMode['type'] | undefined {
 }
 
 /**
- * Retrieves the files perms by checking each values are 'N'.
- * 'N' - not set.
+ * This function retrieves the files perms by checking each value if it is equal to 'N' ('N' - not set).
  * @param {number[]} perms
  * @returns {{owner: {write: boolean, read: boolean, exe: boolean}, group: {write: boolean, read: boolean, exe: boolean}, public: {write: boolean, read: boolean, exe: boolean}} | undefined}
  */

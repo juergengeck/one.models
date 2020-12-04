@@ -8,6 +8,7 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * @global
      * Starting point in the persisted file system. Points to a root entry.
      */
     export interface PersistentFileSystemRoot {
@@ -16,6 +17,7 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * @global
      * Directory entry structure for the Persisted File System Directory (What the directory contains)
      */
     export interface PersistentFileSystemDirectoryEntry {
@@ -24,6 +26,7 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * @global
      * Part of the PersistentFileSystemRoot that preservers the root's mode and his reference
      */
     export interface PersistentFileSystemRootEntry {
@@ -32,6 +35,7 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * @global
      * Persisted file system file structure
      */
     export interface PersistentFileSystemFile {
@@ -40,6 +44,7 @@ declare module '@OneCoreTypes' {
     }
 
     /**
+     * @global
      * Persisted file system directory structure
      */
     export interface PersistentFileSystemDirectory {

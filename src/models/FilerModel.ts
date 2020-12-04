@@ -14,6 +14,11 @@ import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
 import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
 import {serializeWithType} from 'one.core/lib/util/promise';
 
+/**
+ * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
+ * Because the file systems should be independent of our data types, this model takes care of the channel's implementation
+ * and can hook different events on specific file systems(e.g update event).
+ */
 export default class FilerModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
     private readonly fileSystemChannelId: string;

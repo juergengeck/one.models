@@ -1,0 +1,35 @@
+import ObjectsFileSystem from './ObjectsFileSystem';
+import PersistentFileSystem from './PersistentFileSystem';
+
+/**
+ * @class
+ *
+ * Hooked by the FilerModel (see {@link FilerModel})
+ *
+ * See {@link ObjectsFileSystem}
+ *
+ * This represents a file system structure for one objects that can open directories / files on the fly.
+ * This class is using {@link FileSystemDirectory} & {@link FileSystemFile} types from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure.
+ *
+ * This file system is **READ-ONLY** and it's simulated. It's not persisted in one and you can't create files/directories
+ * at that moment. It keeps the root directory in state (see {@link rootDirectory}) and preserve the READ-ONLY mode there.
+ *
+ */
+export {ObjectsFileSystem};
+
+/**
+ * @class
+ *
+ * Hooked by the FilerModel (see {@link FilerModel})
+ *
+ * See {@link PersistentFileSystem}
+ *
+ * This represents a file system structure that can create and open directories/files and persist them in one.
+ * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
+ * {@link FileSystemDirectory} and {@link FileSystemFile} types from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure. This keeps the reference to the root in his state (see {@link rootDirectoryContent}) and
+ * uses a callback to notify the {@link FilerModel} about the updates (see {@link onRootUpdate}).
+ *
+ */
+export {PersistentFileSystem};

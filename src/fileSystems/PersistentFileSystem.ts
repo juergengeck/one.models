@@ -27,12 +27,17 @@ import {
 import {retrieveFileMode} from './fileSystemModes';
 
 /**
- * This represents a FileSystem Structure that can create/open directories or files and persisting them in one.
- * This class is using FileSystemRoot, FileSystemDirectory & FileSystemFile recipes in order
+ * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
+ * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
+ * {@link FileSystemDirectory} and {@link FileSystemFile} types from {@link IFileSystem} interface in order
  * to accomplish this FileSystem structure.
  */
 export default class PersistentFileSystem implements IFileSystem {
-    /** the root of the file system **/
+    /**
+     * @global the root of the file system
+     * @type {PersistentFileSystemRoot["root"]}
+     * @private
+     */
     private rootDirectoryContent: PersistentFileSystemRoot['root'];
 
     /**
@@ -44,7 +49,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     *
+     * @global
      * @type {((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null}
      */
     public onRootUpdate:
@@ -107,7 +112,7 @@ export default class PersistentFileSystem implements IFileSystem {
             /** set the new file **/
             targetDirectory.children.set(
                 `/${fileName}`,
-                this.buildFileSystemDirectoryEntry(savedFile.hash, fileMode)
+                PersistentFileSystem.buildFileSystemDirectoryEntry(savedFile.hash, fileMode)
             );
 
             /** update the directory **/
@@ -325,7 +330,7 @@ export default class PersistentFileSystem implements IFileSystem {
      * @returns {PersistentFileSystemDirectoryEntry}
      * @private
      */
-    private buildFileSystemDirectoryEntry(
+    private static buildFileSystemDirectoryEntry(
         content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>,
         mode: number
     ): PersistentFileSystemDirectoryEntry {
@@ -386,7 +391,10 @@ export default class PersistentFileSystem implements IFileSystem {
             /** locate the outdated current directory hash in the parent's children **/
             currentDirectoryParent.children.set(
                 directorySimplePath,
-                this.buildFileSystemDirectoryEntry(updatedCurrentDirectoryHash, dirMode)
+                PersistentFileSystem.buildFileSystemDirectoryEntry(
+                    updatedCurrentDirectoryHash,
+                    dirMode
+                )
             );
             /** save the parent **/
             await createSingleObjectThroughPurePlan(
@@ -474,6 +482,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * @static
      * Get full path of the last directory's parent
      * E.g /dir1/dir2/dir3. Call this function will result in /dir1/dir2.
      * @param {string} givenPath
@@ -490,6 +499,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * @static
      * Append paths.
      * @param {string} pathToJoin
      * @param {string} path
@@ -501,6 +511,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * @static
      * Checks if the path is a final path, e.g /dir1 will return true.
      * @param {string} path
      * @returns {boolean}
@@ -511,7 +522,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     *
+     * @static
      * @param {OneObjectTypes} oneObject
      * @returns {caughtObject is FileSystemDirectory}
      * @private
@@ -521,7 +532,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     *
+     * @static
      * @param {OneObjectTypes} oneObject
      * @returns {caughtObject is FileSystemFile}
      * @private
@@ -531,6 +542,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * @static
      * Retrieves the last item of path.
      * @param {string} path
      * @private
@@ -540,6 +552,7 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
+     * @static
      * Retrieves the very first entry after the first '/' (root) -> e.g '/dir1/dir2/dir3' will return dir1.
      * @param {string} path
      * @returns {string}
