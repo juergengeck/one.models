@@ -67,7 +67,7 @@ const QuestionnaireResponseRules: RecipeRule[] = [
     // + Rule: Nested item can't be beneath both item and answer
     {
         itemprop: 'item',
-        list: ORDERED_BY.ONE,
+        list: ORDERED_BY.APP,
         rule: [
             // FHIR(QuestionnaireResponse): Pointer to specific item from Questionnaire
             // Note: This links to the linkId of the specified questionnaire.
@@ -78,14 +78,15 @@ const QuestionnaireResponseRules: RecipeRule[] = [
             // FHIR(QuestionnaireResponse): The response(s) to the question
             {
                 itemprop: 'answer',
-                list: ORDERED_BY.ONE,
+                list: ORDERED_BY.APP,
                 rule: ValueRules
             },
 
             // FHIR(QuestionnaireResponse): Nested questionnaire response items
             {
                 itemprop: 'item',
-                inheritFrom: 'QuestionnaireResponse.item'
+                inheritFrom: 'QuestionnaireResponse.item',
+                optional: true
             }
         ]
     }
