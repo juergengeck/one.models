@@ -21,7 +21,7 @@ declare module '@OneCoreTypes' {
                 valueCoding?: Coding;
             }
         ];
-        item: QuestionnaireResponseItem[]
+        item?: QuestionnaireResponseItem[]
     }
 
     export type QuestionnaireResponse = {
