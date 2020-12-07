@@ -155,7 +155,22 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     async stat(path: string): Promise<FileDescription> {
         const parsedPath = this.parsePath(path);
-        return {mode: parsedPath.isRoot || parsedPath.hash ? 0o0100444 : 0o0040444};
+        if(parsedPath.isRoot || parsedPath.suffix === '/' || parsedPath.suffix === ''){
+            return {mode: 0o0040555, size: 0}
+        }
+        if (parsedPath.suffix === '/raw' ||
+            parsedPath.suffix === '/pretty' ||
+            parsedPath.suffix === '/json' ||
+            parsedPath.suffix === '/type') {
+            const content = await this.readFile(path);
+            if(content) {
+                return {mode: 0o0100644, size: content.content.byteLength}
+            }
+        }
+        if (parsedPath.suffix === '/moduleHash') {
+            return {mode: 0o0120000, size: 0}
+        }
+        throw new Error('Not found')
     }
 
     /**
@@ -201,7 +216,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForBLOBS(): Promise<FileSystemDirectory> {
         return {
-            children: ['/raw', '/type']
+            children: ['raw', 'type']
         };
     }
 
@@ -212,7 +227,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForPlans(): Promise<FileSystemDirectory> {
         return {
-            children: ['/raw', '/pretty', '/json', '/type', '/moduleHash']
+            children: ['raw', 'pretty', 'json', 'type', 'moduleHash']
         };
     }
 
@@ -223,7 +238,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForRegularObject(): Promise<FileSystemDirectory> {
         return {
-            children: ['/raw', '/pretty', '/json', '/type']
+            children: ['raw', 'pretty', 'json', 'type']
         };
     }
 

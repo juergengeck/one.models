@@ -14,7 +14,7 @@ import {
     SHA256Hash,
     PersistentFileSystemRoot
 } from '@OneCoreTypes';
-import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
+import {createSingleObjectThroughPurePlan, getObject, readBlobAsArrayBuffer} from 'one.core/lib/storage';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
@@ -164,9 +164,9 @@ export default class PersistentFileSystem implements IFileSystem {
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
         }
-
+        const blobAsArrayBuffer = await readBlobAsArrayBuffer(foundDirectoryEntryValue.content)
         return {
-            content: foundDirectoryEntryValue.content
+            content: blobAsArrayBuffer
         };
     }
 
@@ -265,8 +265,12 @@ export default class PersistentFileSystem implements IFileSystem {
         if (!foundFile) {
             throw new Error('Error: the given path could not be found.');
         }
-
-        return {mode: foundFile.mode};
+        const resolvedDirectoryEntry = await getObject(foundFile.content);
+        if(PersistentFileSystem.isFile(resolvedDirectoryEntry)){
+            const blobAsArrayBuffer = await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)
+            return {mode: foundFile.mode, size: blobAsArrayBuffer.byteLength}
+        }
+        return {mode: foundFile.mode, size: 0};
     }
 
     /**

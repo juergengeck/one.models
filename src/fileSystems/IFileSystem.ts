@@ -7,7 +7,7 @@ export interface FileSystemFile {
     /**
      * The file's content can be either ArrayBuffer or a reference to a BLOB
      */
-    content: ArrayBuffer | SHA256Hash<BLOB>;
+    content: ArrayBuffer;
 }
 
 /**
@@ -18,6 +18,10 @@ export interface FileDescription {
      * The file mode {@link FileOptions}
      */
     mode: number;
+    /**
+     * The size of the file
+     */
+    size: number;
 }
 
 /**
