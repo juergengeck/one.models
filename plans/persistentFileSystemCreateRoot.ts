@@ -22,7 +22,7 @@ export async function createObjects(
     return await WriteStorage.storeUnversionedObject({
         $type$: 'PersistentFileSystemRoot',
         root: {
-            mode: 0o0100777,
+            mode: 0o0040555,
             entry: root.hash
         }
     })
