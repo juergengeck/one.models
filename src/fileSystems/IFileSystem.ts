@@ -66,18 +66,18 @@ export interface IFileSystem {
     ): Promise<void>;
 
     /**
-     * Opens a directory otherwise returns undefined if the directory could not be found.
+     * Opens a directory otherwise throws error if the directory could not be found.
      * @param {string} dirPath
      * @returns {Promise<FileSystemDirectory | undefined>}
      */
-    readDir(dirPath: string): Promise<FileSystemDirectory | undefined>;
+    readDir(dirPath: string): Promise<FileSystemDirectory>;
 
     /**
-     * Opens a file otherwise returns undefined if the file could not be found.
+     * Opens a file otherwise throws error if the file could not be found.
      * @param {string} filePath
      * @returns {Promise<FileSystemFile | undefined>}
      */
-    readFile(filePath: string): Promise<FileSystemFile | undefined>;
+    readFile(filePath: string): Promise<FileSystemFile>;
 
     /**
      * Returns the mode (in the future it may return the last access/change/modify timestamp

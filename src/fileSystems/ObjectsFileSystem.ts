@@ -1,9 +1,4 @@
-import {
-    FileDescription,
-    FileSystemDirectory,
-    FileSystemFile,
-    IFileSystem
-} from './IFileSystem';
+import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {BLOB, HashTypes, SHA256Hash} from '@OneCoreTypes';
 import {retrieveFileMode} from './fileSystemModes';
 import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
@@ -78,7 +73,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} dirPath
      * @returns {Promise<FileSystemDirectory | undefined>}
      */
-    async readDir(dirPath: string): Promise<FileSystemDirectory | undefined> {
+    async readDir(dirPath: string): Promise<FileSystemDirectory> {
         const parsedPath = this.parsePath(dirPath);
         const hashMap = await this.retrieveHashesWithType();
 
@@ -89,7 +84,7 @@ export default class ObjectsFileSystem implements IFileSystem {
 
         /** Handle malformed path / not a valid one hash **/
         if (!parsedPath.hash) {
-            return undefined;
+            throw new Error('Error: directory could not be found.')
         }
 
         if (parsedPath.suffix === '/' || parsedPath.suffix === '') {
@@ -105,7 +100,7 @@ export default class ObjectsFileSystem implements IFileSystem {
                 return await ObjectsFileSystem.returnDirectoryContentForRegularObject();
             }
         }
-        return undefined;
+        throw new Error('Error: directory could not be found.')
     }
 
     /**
@@ -113,13 +108,13 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} filePath
      * @returns {Promise<FileSystemFile | undefined>}
      */
-    async readFile(filePath: string): Promise<FileSystemFile | undefined> {
+    async readFile(filePath: string): Promise<FileSystemFile> {
         const content = await this.retrieveContentAboutHash(filePath);
         if (!content) {
-            return undefined;
+            throw new Error('Error: file could not be found.')
         }
-            const contentAsArrayBuffer = await this.stringToArrayBuffer(content);
-            return {content: contentAsArrayBuffer};
+        const contentAsArrayBuffer = await this.stringToArrayBuffer(content);
+        return {content: contentAsArrayBuffer};
     }
 
     /**
@@ -151,22 +146,24 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     async stat(path: string): Promise<FileDescription> {
         const parsedPath = this.parsePath(path);
-        if(parsedPath.isRoot || parsedPath.suffix === '/' || parsedPath.suffix === ''){
-            return {mode: 0o0040555, size: 0}
+        if (parsedPath.isRoot || parsedPath.suffix === '/' || parsedPath.suffix === '') {
+            return {mode: 0o0040555, size: 0};
         }
-        if (parsedPath.suffix === '/raw' ||
+        if (
+            parsedPath.suffix === '/raw' ||
             parsedPath.suffix === '/pretty' ||
             parsedPath.suffix === '/json' ||
-            parsedPath.suffix === '/type') {
+            parsedPath.suffix === '/type'
+        ) {
             const content = await this.readFile(path);
-            if(content) {
-                return {mode: 0o0100644, size: content.content.byteLength}
+            if (content) {
+                return {mode: 0o0100644, size: content.content.byteLength};
             }
         }
         if (parsedPath.suffix === '/moduleHash') {
-            return {mode: 0o0120000, size: 0}
+            return {mode: 0o0120000, size: 0};
         }
-        throw new Error('Not found')
+        throw new Error('Not found');
     }
 
     /**
@@ -245,9 +242,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @private
      */
     private stringToArrayBuffer(str: string): ArrayBuffer {
-        const buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+        const buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
         const bufView = new Uint16Array(buf);
-        for (let i=0, strLen=str.length; i < strLen; i++) {
+        for (let i = 0, strLen = str.length; i < strLen; i++) {
             bufView[i] = str.charCodeAt(i);
         }
         return buf;

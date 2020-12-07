@@ -14,7 +14,11 @@ import {
     SHA256Hash,
     PersistentFileSystemRoot
 } from '@OneCoreTypes';
-import {createSingleObjectThroughPurePlan, getObject, readBlobAsArrayBuffer} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    getObject,
+    readBlobAsArrayBuffer
+} from 'one.core/lib/storage';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
@@ -144,7 +148,7 @@ export default class PersistentFileSystem implements IFileSystem {
      * Checks if a file exists or not.
      * @param filePath
      */
-    public async readFile(filePath: string): Promise<FileSystemFile | undefined> {
+    public async readFile(filePath: string): Promise<FileSystemFile> {
         const directoryMode = retrieveFileMode(
             await this.getDirectoryMode(
                 PersistentFileSystem.getParentDirectoryFullPath(filePath),
@@ -153,18 +157,18 @@ export default class PersistentFileSystem implements IFileSystem {
         );
         const foundDirectoryEntry = await this.search(filePath);
         if (!foundDirectoryEntry) {
-            return undefined;
+            throw new Error('Error: file could not be found.')
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
 
         if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
-            return undefined;
+            throw new Error('Error: file could not be found.')
         }
 
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
         }
-        const blobAsArrayBuffer = await readBlobAsArrayBuffer(foundDirectoryEntryValue.content)
+        const blobAsArrayBuffer = await readBlobAsArrayBuffer(foundDirectoryEntryValue.content);
         return {
             content: blobAsArrayBuffer
         };
@@ -231,7 +235,7 @@ export default class PersistentFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<PersistentFileSystemDirectory | undefined>}
      */
-    public async readDir(path: string): Promise<FileSystemDirectory | undefined> {
+    public async readDir(path: string): Promise<FileSystemDirectory> {
         const foundDirectoryEntry = await this.search(path);
         const directoryMode = retrieveFileMode(
             await this.getDirectoryMode(
@@ -240,12 +244,12 @@ export default class PersistentFileSystem implements IFileSystem {
             )
         );
         if (!foundDirectoryEntry) {
-            return undefined;
+            throw new Error('Error: directory could not be found.')
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
 
         if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
-            return undefined;
+            throw new Error('Error: directory could not be found.')
         }
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
@@ -266,9 +270,9 @@ export default class PersistentFileSystem implements IFileSystem {
             throw new Error('Error: the given path could not be found.');
         }
         const resolvedDirectoryEntry = await getObject(foundFile.content);
-        if(PersistentFileSystem.isFile(resolvedDirectoryEntry)){
-            const blobAsArrayBuffer = await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)
-            return {mode: foundFile.mode, size: blobAsArrayBuffer.byteLength}
+        if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
+            const blobAsArrayBuffer = await readBlobAsArrayBuffer(resolvedDirectoryEntry.content);
+            return {mode: foundFile.mode, size: blobAsArrayBuffer.byteLength};
         }
         return {mode: foundFile.mode, size: 0};
     }
@@ -305,9 +309,7 @@ export default class PersistentFileSystem implements IFileSystem {
         dir: PersistentFileSystemDirectory
     ): Promise<FileSystemDirectory> {
         return {
-            children: (Array.from(dir.children.keys())).map((name: string) =>
-                name.replace('/', '')
-            )
+            children: Array.from(dir.children.keys()).map((name: string) => name.replace('/', ''))
         };
     }
 
