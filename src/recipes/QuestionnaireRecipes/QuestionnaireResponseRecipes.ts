@@ -11,14 +11,14 @@ declare module '@OneCoreTypes' {
         linkId: string;
         answer: [
             {
-                answerBoolean?: boolean;
-                answerDecimal?: string;
-                answerInteger?: string;
-                answerDate?: string;
-                answerDateTime?: string;
-                answerTime?: string;
-                answerString?: string;
-                answerCoding?: Coding;
+                valueBoolean?: boolean;
+                valueDecimal?: string;
+                valueInteger?: string;
+                valueDate?: string;
+                valueDateTime?: string;
+                valueTime?: string;
+                valueString?: string;
+                valueCoding?: Coding;
             }
         ];
         item: QuestionnaireResponseItem[]
@@ -27,7 +27,7 @@ declare module '@OneCoreTypes' {
     export type QuestionnaireResponse = {
         resourceType: 'QuestionnaireResponse';
         questionnaire: string;
-        status: 'completed';
+        status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
         item: QuestionnaireResponseItem[];
     }
 
