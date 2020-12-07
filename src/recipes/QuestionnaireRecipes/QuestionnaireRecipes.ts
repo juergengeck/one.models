@@ -124,7 +124,6 @@ const AnswerRules: RecipeRule[] = [
     {
         itemprop: 'answerBoolean',
         valueType: 'boolean',
-        regexp: /true|false/,
         optional: true
     },
 
@@ -250,7 +249,6 @@ export const ValueRules: RecipeRule[] = [
     {
         itemprop: 'valueBoolean',
         valueType: 'boolean',
-        regexp: /true|false/,
         optional: true
     },
 

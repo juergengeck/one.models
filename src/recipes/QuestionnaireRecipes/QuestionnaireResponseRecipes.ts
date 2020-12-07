@@ -7,6 +7,30 @@ declare module '@OneCoreTypes' {
         QuestionnaireResponses: QuestionnaireResponses;
     }
 
+    export type QuestionnaireResponseItem = {
+        linkId: string;
+        answer: [
+            {
+                answerBoolean?: boolean;
+                answerDecimal?: string;
+                answerInteger?: string;
+                answerDate?: string;
+                answerDateTime?: string;
+                answerTime?: string;
+                answerString?: string;
+                answerCoding?: Coding;
+            }
+        ];
+        item: QuestionnaireResponseItem[]
+    }
+
+    export type QuestionnaireResponse = {
+        resourceType: 'QuestionnaireResponse';
+        questionnaire: string;
+        status: 'completed';
+        item: QuestionnaireResponseItem[];
+    }
+
     export interface QuestionnaireResponses {
         $type$: 'QuestionnaireResponses';
         name?: string;
@@ -14,26 +38,6 @@ declare module '@OneCoreTypes' {
         responses: QuestionnaireResponse[];
     }
 
-    export interface QuestionnaireResponse {
-        resourceType: 'QuestionnaireResponse';
-        questionnaire: string;
-        status: 'completed';
-        answers: {
-            linkId: string;
-            answer: [
-                {
-                    answerBoolean?: boolean;
-                    answerDecimal?: string;
-                    answerInteger?: string;
-                    answerDate?: string;
-                    answerDateTime?: string;
-                    answerTime?: string;
-                    answerString?: string;
-                    answerCoding?: Coding;
-                }
-            ];
-        }[];
-    }
 }
 
 /**
@@ -76,6 +80,12 @@ const QuestionnaireResponseRules: RecipeRule[] = [
                 itemprop: 'answer',
                 list: ORDERED_BY.ONE,
                 rule: ValueRules
+            },
+
+            // FHIR(QuestionnaireResponse): Nested questionnaire response items
+            {
+                itemprop: 'item',
+                inheritFrom: 'QuestionnaireResponse.item'
             }
         ]
     }
