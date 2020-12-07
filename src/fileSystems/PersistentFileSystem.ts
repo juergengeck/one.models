@@ -274,7 +274,7 @@ export default class PersistentFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    public async open(path: string): Promise<void> {
+    public async exists(path: string): Promise<void> {
         const foundFile = await this.search(path);
         if (!foundFile) {
             throw new Error('Error: the given path could not be found.');

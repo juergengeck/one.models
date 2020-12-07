@@ -131,7 +131,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    public async open(path: string): Promise<void> {
+    public async exists(path: string): Promise<void> {
         const parsedPath = this.parsePath(path);
         if (parsedPath.hash) {
             /** check if the hash exists **/

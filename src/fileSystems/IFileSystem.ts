@@ -87,5 +87,5 @@ export interface IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    open(path: string): Promise<void>;
+    exists(path: string): Promise<void>;
 }
