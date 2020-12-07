@@ -35,7 +35,7 @@ declare module '@OneCoreTypes' {
         $type$: 'QuestionnaireResponses';
         name?: string;
         type?: string;
-        responses: QuestionnaireResponse[];
+        response: QuestionnaireResponse[];
     }
 
 }
@@ -85,7 +85,7 @@ const QuestionnaireResponseRules: RecipeRule[] = [
             // FHIR(QuestionnaireResponse): Nested questionnaire response items
             {
                 itemprop: 'item',
-                inheritFrom: 'QuestionnaireResponse.item',
+                inheritFrom: 'QuestionnaireResponses.response.item',
                 optional: true
             }
         ]

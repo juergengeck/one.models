@@ -195,7 +195,7 @@ export default class QuestionnaireModel extends EventEmitter {
                 $type$: 'QuestionnaireResponses',
                 name,
                 type,
-                responses: responses
+                response: responses
             },
             owner
         );
@@ -288,7 +288,7 @@ export default class QuestionnaireModel extends EventEmitter {
                 $type$: 'QuestionnaireResponses',
                 name,
                 type,
-                responses: responses
+                response: responses
             }
         );
     }
@@ -320,7 +320,7 @@ export default class QuestionnaireModel extends EventEmitter {
             }
 
             // Check if an empty element is found => no incomplete entry
-            if (responses.data.responses.length === 0) {
+            if (responses.data.response.length === 0) {
                 return null;
             }
 
@@ -354,7 +354,7 @@ export default class QuestionnaireModel extends EventEmitter {
             {
                 $type$: 'QuestionnaireResponses',
                 type: type,
-                responses: []
+                response: []
             }
         );
     }
