@@ -27,22 +27,25 @@ describe('FilerModel model test', () => {
     });
 
     it('should see if the root was created', async () => {
-        const result = await fileSystem.openDir('/');
+        const result = await fileSystem.readDir('/');
         expect(result).to.not.be.equal(undefined);
     });
     it('should see if directories can be created and retrieved', async () => {
-        const firstResult = await fileSystem.createDir('/', 'dir1');
+        await fileSystem.createDir('/', 'dir1');
 
-        const secondResult = await fileSystem.createDir('/dir1', 'dir2');
+         await fileSystem.createDir('/dir1', 'dir2');
 
-        const thirdResult = await fileSystem.createDir('/dir1/dir2', 'dir3');
-        expect(firstResult).to.not.be.equal(undefined);
+        await fileSystem.createDir('/dir1/dir2', 'dir3');
+        const firstResult =  await fileSystem.readDir('/')
+        const secondResult =await fileSystem.readDir('/dir1')
+        const thirdResult =await fileSystem.readDir('/dir1/dir2')
+            expect(firstResult).to.not.be.equal(undefined);
         expect(secondResult).to.not.be.equal(undefined);
         expect(thirdResult).to.not.be.equal(undefined);
 
-        const firstRetrieveResult = await fileSystem.openDir('/dir1/dir2/dir3');
-        const secondRetrieveResult = await fileSystem.openDir('/dir1/dir2');
-        const thirdRetrieveResult = await fileSystem.openDir('/dir1');
+        const firstRetrieveResult = await fileSystem.readDir('/dir1/dir2/dir3');
+        const secondRetrieveResult = await fileSystem.readDir('/dir1/dir2');
+        const thirdRetrieveResult = await fileSystem.readDir('/dir1');
         expect(Array.from(firstRetrieveResult.children.keys()).length).to.be.equal(0);
 
         expect(Array.from(secondRetrieveResult.children.keys()).length).to.be.equal(1);
@@ -56,23 +59,20 @@ describe('FilerModel model test', () => {
         await Promise.all(
             dirs.map(async (dirName: string) => {
                 const res = await fileSystem.createDir('/', dirName);
-                expect(res).to.not.be.equal(undefined);
             })
         );
-        const rootRetrieveResult = await fileSystem.openDir('/');
+        const rootRetrieveResult = await fileSystem.readDir('/');
         expect(Array.from(rootRetrieveResult.children.keys()).length).to.be.equal(101);
     }).timeout(10000);
     it('should see if files can be created and retrieved', async () => {
-        const firstResult = await fileSystem.createDir('/', 'files');
-
-        expect(firstResult).to.not.be.equal(undefined);
+        await fileSystem.createDir('/', 'files');
+        const firstResult = fileSystem.readDir('/');
+            expect(firstResult).to.not.be.equal(undefined);
         const stream = createFileWriteStream();
         stream.write(new ArrayBuffer(64));
         const blob = await stream.end();
-        const fileResult = await fileSystem.createFile('/files', blob.hash, 'newFile.txt');
-        expect(fileResult.content).to.not.be.equal(undefined);
-
-        const retrievedFileResult = await fileSystem.openFile('/files/newFile.txt');
+        await fileSystem.createFile('/files', blob.hash, 'newFile.txt');
+        const retrievedFileResult = await fileSystem.readFile('/files/newFile.txt');
         expect(retrievedFileResult).to.not.be.equal(undefined);
     });
 

@@ -18,12 +18,7 @@ import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {
-    FileSystemDirectory,
-    FileSystemDirectoryEntry,
-    FileSystemFile,
-    IFileSystem
-} from './IFileSystem';
+import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {retrieveFileMode} from './fileSystemModes';
 
 /**
@@ -69,7 +64,7 @@ export default class PersistentFileSystem implements IFileSystem {
         fileHash: SHA256Hash<BLOB>,
         fileName: string,
         fileMode = 0o0040666
-    ): Promise<FileSystemFile> {
+    ): Promise<void> {
         const mode = retrieveFileMode(fileMode);
         if (mode.type !== 'file') {
             throw new Error('Error: the mode is not corresponding to a file.');
@@ -143,18 +138,13 @@ export default class PersistentFileSystem implements IFileSystem {
                 );
             }
         });
-
-        return {
-            mode: fileMode,
-            content: fileHash
-        };
     }
 
     /**
      * Checks if a file exists or not.
      * @param filePath
      */
-    public async openFile(filePath: string): Promise<FileSystemFile | undefined> {
+    public async readFile(filePath: string): Promise<FileSystemFile | undefined> {
         const directoryMode = retrieveFileMode(
             await this.getDirectoryMode(
                 PersistentFileSystem.getParentDirectoryFullPath(filePath),
@@ -176,7 +166,6 @@ export default class PersistentFileSystem implements IFileSystem {
         }
 
         return {
-            mode: foundDirectoryEntry.mode,
             content: foundDirectoryEntryValue.content
         };
     }
@@ -190,12 +179,12 @@ export default class PersistentFileSystem implements IFileSystem {
         directoryPath: string,
         dirName: string,
         dirMode = 0o0100666
-    ): Promise<FileSystemDirectory> {
+    ): Promise<void> {
         const mode = retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
             throw new Error('Error: the mode is not corresponding to a directory.');
         }
-        const persistedResult = await serializeWithType('FileSystemCreateLock', async () => {
+        await serializeWithType('FileSystemCreateLock', async () => {
             const pathExists = await this.openPersistedDir(
                 PersistentFileSystem.pathJoin(directoryPath, dirName)
             );
@@ -234,11 +223,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 dirMode,
                 PersistentFileSystem.pathJoin('/', dirName)
             );
-            return newDirectory.obj;
         });
-        return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
-            persistedResult
-        );
     }
 
     /**
@@ -246,7 +231,7 @@ export default class PersistentFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<PersistentFileSystemDirectory | undefined>}
      */
-    public async openDir(path: string): Promise<FileSystemDirectory | undefined> {
+    public async readDir(path: string): Promise<FileSystemDirectory | undefined> {
         const foundDirectoryEntry = await this.search(path);
         const directoryMode = retrieveFileMode(
             await this.getDirectoryMode(
@@ -272,6 +257,32 @@ export default class PersistentFileSystem implements IFileSystem {
 
     /**
      *
+     * @param {string} path
+     * @returns {Promise<FileDescription>}
+     */
+    public async stat(path: string): Promise<FileDescription> {
+        const foundFile = await this.search(path);
+        if (!foundFile) {
+            throw new Error('Error: the given path could not be found.');
+        }
+
+        return {mode: foundFile.mode};
+    }
+
+    /**
+     *
+     * @param {string} path
+     * @returns {Promise<void>}
+     */
+    public async open(path: string): Promise<void> {
+        const foundFile = await this.search(path);
+        if (!foundFile) {
+            throw new Error('Error: the given path could not be found.');
+        }
+    }
+
+    /**
+     *
      * @param rootDirectory
      */
     public set updateRoot(rootDirectory: PersistentFileSystemRoot) {
@@ -289,16 +300,11 @@ export default class PersistentFileSystem implements IFileSystem {
     private static async transformPersistedDirectoryToFileSystemDirectory(
         dir: PersistentFileSystemDirectory
     ): Promise<FileSystemDirectory> {
-        const simplifiedMap = new Map<string, FileSystemDirectoryEntry>();
-        for (let [key, value] of dir.children) {
-            const object = await getObject(value.content);
-            if (PersistentFileSystem.isDir(object)) {
-                simplifiedMap.set(key, {mode: value.mode});
-            } else if (PersistentFileSystem.isFile(object)) {
-                simplifiedMap.set(key, {mode: value.mode, content: object.content});
-            }
-        }
-        return {children: simplifiedMap};
+        return {
+            children: (Array.from(dir.children.keys())).map((name: string) =>
+                name.replace('/', '')
+            )
+        };
     }
 
     /**

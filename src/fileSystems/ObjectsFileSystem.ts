@@ -1,8 +1,7 @@
 import {
+    FileDescription,
     FileSystemDirectory,
-    FileSystemDirectoryEntry,
     FileSystemFile,
-    FileSystemRootDirectory,
     IFileSystem
 } from './IFileSystem';
 import {BLOB, HashTypes, SHA256Hash} from '@OneCoreTypes';
@@ -26,14 +25,13 @@ type ParsedObjectsPath = {
 export default class ObjectsFileSystem implements IFileSystem {
     /**
      * @global the root of the file system
-     * @type {FileSystemRootDirectory}
+     * @type {FileSystemDirectory}
      * @private
      */
-    private readonly rootDirectory: FileSystemRootDirectory;
-
-    constructor(
-        rootDirectory: FileSystemRootDirectory = {mode: 0o0100444, root: {children: new Map()}}
-    ) {
+    //@ts-ignore
+    private readonly rootDirectory: FileSystemDirectory;
+    private readonly rootMode: number = 0o0100444;
+    constructor(rootDirectory: FileSystemDirectory = {children: []}) {
         this.rootDirectory = rootDirectory;
     }
 
@@ -44,12 +42,8 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {number} dirMode
      * @returns {Promise<FileSystemDirectory>}
      */
-    createDir(
-        directoryPath: string,
-        dirName: string,
-        dirMode: number
-    ): Promise<FileSystemDirectory> {
-        const rootMode = retrieveFileMode(this.rootDirectory.mode);
+    createDir(directoryPath: string, dirName: string, dirMode: number): Promise<void> {
+        const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw new Error('Error: write permission required.');
         } else {
@@ -70,8 +64,8 @@ export default class ObjectsFileSystem implements IFileSystem {
         fileHash: SHA256Hash<BLOB>,
         fileName: string,
         fileMode: number
-    ): Promise<FileSystemFile> {
-        const rootMode = retrieveFileMode(this.rootDirectory.mode);
+    ): Promise<void> {
+        const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw new Error('Error: write permission required.');
         } else {
@@ -84,17 +78,13 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} dirPath
      * @returns {Promise<FileSystemDirectory | undefined>}
      */
-    async openDir(dirPath: string): Promise<FileSystemDirectory | undefined> {
+    async readDir(dirPath: string): Promise<FileSystemDirectory | undefined> {
         const parsedPath = this.parsePath(dirPath);
         const hashMap = await this.retrieveHashesWithType();
 
         /** if it is the root path **/
         if (parsedPath.isRoot) {
-            const directoriesMap = new Map<string, FileSystemDirectoryEntry>();
-            Array.from(hashMap.keys()).forEach((hash: SHA256Hash<HashTypes>) => {
-                directoriesMap.set(`/${hash}`, {mode: 0o0100444});
-            });
-            return {children: directoriesMap};
+            return {children: Array.from(hashMap.keys())};
         }
 
         /** Handle malformed path / not a valid one hash **/
@@ -108,11 +98,11 @@ export default class ObjectsFileSystem implements IFileSystem {
                 hashMap.get(parsedPath.hash) === 'BLOB' ||
                 hashMap.get(parsedPath.hash) === 'CBLOB'
             ) {
-                return await this.returnDirectoryContentForBLOBS();
+                return await ObjectsFileSystem.returnDirectoryContentForBLOBS();
             } else if (hashMap.get(parsedPath.hash) === 'Plan') {
-                return await this.returnDirectoryContentForPlans();
+                return await ObjectsFileSystem.returnDirectoryContentForPlans();
             } else {
-                return await this.returnDirectoryContentForRegularObject();
+                return await ObjectsFileSystem.returnDirectoryContentForRegularObject();
             }
         }
         return undefined;
@@ -123,17 +113,49 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} filePath
      * @returns {Promise<FileSystemFile | undefined>}
      */
-    async openFile(filePath: string): Promise<FileSystemFile | undefined> {
+    async readFile(filePath: string): Promise<FileSystemFile | undefined> {
         const content = await this.retrieveContentAboutHash(filePath);
         if (!content) {
             return undefined;
         }
         try {
             const contentAsArrayBuffer = await this.stringToArrayBuffer(content, 'UTF-8');
-            return {mode: 0o0040444, content: contentAsArrayBuffer};
+            return {content: contentAsArrayBuffer};
         } catch (e) {
             throw new Error('Error: file could not be opened.');
         }
+    }
+
+    /**
+     *
+     * @param {string} path
+     * @returns {Promise<void>}
+     */
+    public async open(path: string): Promise<void> {
+        const parsedPath = this.parsePath(path);
+        if (parsedPath.hash) {
+            /** check if the hash exists **/
+            await getObject(parsedPath.hash as SHA256Hash).catch(ignored => {
+                throw new Error('Error: the path could not be found.');
+            });
+        }
+        /** check if its one of those hardcoded file's name **/
+        if (
+            parsedPath.suffix &&
+            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix)
+        ) {
+            throw new Error('Error: the path could not be found.');
+        }
+    }
+
+    /**
+     *
+     * @param {string} path
+     * @returns {Promise<FileDescription>}
+     */
+    async stat(path: string): Promise<FileDescription> {
+        const parsedPath = this.parsePath(path);
+        return {mode: parsedPath.isRoot || parsedPath.hash ? 0o0100444 : 0o0040444};
     }
 
     /**
@@ -177,12 +199,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemDirectory>}
      * @private
      */
-    private async returnDirectoryContentForBLOBS(): Promise<FileSystemDirectory> {
+    private static async returnDirectoryContentForBLOBS(): Promise<FileSystemDirectory> {
         return {
-            children: new Map([
-                ['/raw', {mode: 0o0100444, content: (await this.openFile('/raw'))?.content}],
-                ['/type', {mode: 0o0100444, content: (await this.openFile('/type'))?.content}]
-            ])
+            children: ['/raw', '/type']
         };
     }
 
@@ -191,18 +210,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemDirectory>}
      * @private
      */
-    private async returnDirectoryContentForPlans(): Promise<FileSystemDirectory> {
+    private static async returnDirectoryContentForPlans(): Promise<FileSystemDirectory> {
         return {
-            children: new Map([
-                ['/raw', {mode: 0o0100444, content: (await this.openFile('/raw'))?.content}],
-                ['/pretty', {mode: 0o0100444, content: (await this.openFile('/pretty'))?.content}],
-                ['/json', {mode: 0o0100444, content: (await this.openFile('/json'))?.content}],
-                ['/type', {mode: 0o0100444, content: (await this.openFile('/type'))?.content}],
-                [
-                    '/moduleHash',
-                    {mode: 0o0100444, content: (await this.openFile('/moduleHash'))?.content}
-                ]
-            ])
+            children: ['/raw', '/pretty', '/json', '/type', '/moduleHash']
         };
     }
 
@@ -211,14 +221,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemDirectory>}
      * @private
      */
-    private async returnDirectoryContentForRegularObject(): Promise<FileSystemDirectory> {
+    private static async returnDirectoryContentForRegularObject(): Promise<FileSystemDirectory> {
         return {
-            children: new Map([
-                ['/raw', {mode: 0o0100444, content: (await this.openFile('/raw'))?.content}],
-                ['/pretty', {mode: 0o0100444, content: (await this.openFile('/pretty'))?.content}],
-                ['/json', {mode: 0o0100444, content: (await this.openFile('/json'))?.content}],
-                ['/type', {mode: 0o0100444, content: (await this.openFile('/type'))?.content}]
-            ])
+            children: ['/raw', '/pretty', '/json', '/type']
         };
     }
 
