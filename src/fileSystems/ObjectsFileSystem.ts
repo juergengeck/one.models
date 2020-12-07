@@ -118,12 +118,8 @@ export default class ObjectsFileSystem implements IFileSystem {
         if (!content) {
             return undefined;
         }
-        try {
-            const contentAsArrayBuffer = await this.stringToArrayBuffer(content, 'UTF-8');
+            const contentAsArrayBuffer = await this.stringToArrayBuffer(content);
             return {content: contentAsArrayBuffer};
-        } catch (e) {
-            throw new Error('Error: file could not be opened.');
-        }
     }
 
     /**
@@ -244,33 +240,18 @@ export default class ObjectsFileSystem implements IFileSystem {
 
     /**
      * Converts string to an Array Buffer.
-     * @param {string} text
-     * @param {string} encoding
+     * @param {string} str
+     * @returns {ArrayBuffer}
      * @private
      */
-    private async stringToArrayBuffer(
-        text: string,
-        encoding: string = 'UTF-8'
-    ): Promise<ArrayBuffer> {
-        const blob = new Blob([text], {type: 'text/plain;charset=' + encoding});
-        const reader = new FileReader();
-        const promiseOnLoad: Promise<ArrayBuffer> = new Promise((resolve, rejected) => {
-            reader.onload = function (evt: ProgressEvent<FileReader>) {
-                if (
-                    evt.target === null ||
-                    evt.target.result === null ||
-                    !(evt.target.result instanceof ArrayBuffer)
-                ) {
-                    rejected();
-                    return;
-                }
-                resolve(evt.target.result);
-            };
-        });
-        reader.readAsArrayBuffer(blob);
-        return promiseOnLoad;
+    private stringToArrayBuffer(str: string): ArrayBuffer {
+        const buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+        const bufView = new Uint16Array(buf);
+        for (let i=0, strLen=str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+        return buf;
     }
-
     /**
      * Maps hash on the specific file type.
      * @returns {Promise<Map<SHA256Hash<HashTypes>, string>>}
