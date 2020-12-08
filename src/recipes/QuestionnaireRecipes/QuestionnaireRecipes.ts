@@ -21,18 +21,16 @@ declare module '@OneCoreTypes' {
      * Type for the enable when compare value of questionnaires.
      */
     type QuestionnaireEnableWhenAnswer = {
-        valueBoolean?: boolean;
-        valueDecimal?: string;
-        valueInteger?: string;
-        valueDate?: string;
-        valueDateTime?: string;
-        valueTime?: string;
-        valueString?: string;
-        valueUri?: string;
-        //valueAttachment?: string;
-        valueCoding?: Coding;
-        //valueQuantity?: Coding;
-        //valueReference?: string;
+        answerBoolean?: boolean;
+        answerDecimal?: string;
+        answerInteger?: string;
+        answerDate?: string;
+        answerDateTime?: string;
+        answerTime?: string;
+        answerString?: string;
+        answerCoding?: Coding;
+        //answerQuantity?: Coding;
+        //answerReference?: string;
     };
 
     /**
