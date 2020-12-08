@@ -6,6 +6,9 @@ declare module '@OneCoreTypes' {
         Questionnaire: Questionnaire;
     }
 
+    /**
+     * FHIR Coding type for encoding coded values.
+     */
     type Coding = {
         system?: string;
         version?: string;
@@ -14,6 +17,57 @@ declare module '@OneCoreTypes' {
         userSelected?: boolean;
     };
 
+    /**
+     * Type for the enable when compare value of questionnaires.
+     */
+    type QuestionnaireEnableWhenAnswer = {
+        valueBoolean?: boolean;
+        valueDecimal?: string;
+        valueInteger?: string;
+        valueDate?: string;
+        valueDateTime?: string;
+        valueTime?: string;
+        valueString?: string;
+        valueUri?: string;
+        //valueAttachment?: string;
+        valueCoding?: Coding;
+        //valueQuantity?: Coding;
+        //valueReference?: string;
+    };
+
+    /**
+     * Type for answer option values of questionnaires.
+     */
+    type QuestionnaireAnswerOptionValue = {
+        valueInteger?: string;
+        valueDate?: string;
+        valueTime?: string;
+        valueString?: string;
+        valueCoding?: Coding;
+        //valueReference?: string;
+    };
+
+    /**
+     * Type of questionnaire answers and initial values.
+     */
+    type QuestionnaireValue = {
+        valueBoolean?: boolean;
+        valueDecimal?: string;
+        valueInteger?: string;
+        valueDate?: string;
+        valueDateTime?: string;
+        valueTime?: string;
+        valueString?: string;
+        valueUri?: string;
+        //valueAttachment?: string;
+        valueCoding?: Coding;
+        //valueQuantity?: Coding;
+        //valueReference?: string;
+    };
+
+    /**
+     * Question of a questionnaire.
+     */
     type Question = {
         linkId: string;
         prefix?: string;
@@ -37,47 +91,27 @@ declare module '@OneCoreTypes' {
             | 'reference'
             | 'quantity'
             | 'slider';
-        enableWhen?: {
-            question: string;
-            operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
-            answerBoolean?: boolean;
-            answerDecimal?: string;
-            answerInteger?: string;
-            answerDate?: string;
-            answerDateTime?: string;
-            answerTime?: string;
-            answerString?: string;
-            answerCoding?: Coding;
-        }[];
+        enableWhen?: (
+            | QuestionnaireEnableWhenAnswer
+            | {
+                  question: string;
+                  operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
+              }
+        )[];
         enableBehavior?: 'all' | 'any';
         required?: boolean;
         repeats?: boolean;
         readOnly?: boolean;
         minLength?: number;
         maxLength?: number;
-        answerOption?: {
-            valueInteger?: string;
-            valueDate?: string;
-            valueTime?: string;
-            valueString?: string;
-            valueCoding?: Coding;
-            initialSelected?: boolean;
-        }[];
-        initial?: {
-            valueInteger?: string;
-            valueDate?: string;
-            valueTime?: string;
-            valueString?: string;
-            valueCoding?: Coding;
-            valueBoolean?: boolean;
-            valueDecimal?: string;
-            valueDateTime?: string;
-            valueUri?: string;
-            valueAttachment?: string;
-        }[];
+        answerOption?: QuestionnaireAnswerOptionValue[];
+        initial?: QuestionnaireValue[];
         item?: Question[];
     };
 
+    /**
+     * FHIR Questionnaire type
+     */
     export interface Questionnaire {
         $type$: 'Questionnaire';
         resourceType: 'Questionnaire';
@@ -270,14 +304,14 @@ export const ValueRules: RecipeRule[] = [
     {
         itemprop: 'valueUri',
         optional: true
-    },
+    }
 
     // FHIR Type: Attachment
     // TODO: implement me correctly
-    {
+    /*{
         itemprop: 'valueAttachment',
         optional: true
-    }
+    }*/
 
     // FHIR Type: Quantity
     // TODO: implement me correctly

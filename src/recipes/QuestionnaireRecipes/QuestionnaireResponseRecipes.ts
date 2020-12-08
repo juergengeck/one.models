@@ -7,37 +7,34 @@ declare module '@OneCoreTypes' {
         QuestionnaireResponses: QuestionnaireResponses;
     }
 
-    export type QuestionnaireResponseItem = {
+    /**
+     * An answer item in the questionnaire response
+     */
+    type QuestionnaireResponseItem = {
         linkId: string;
-        answer: [
-            {
-                valueBoolean?: boolean;
-                valueDecimal?: string;
-                valueInteger?: string;
-                valueDate?: string;
-                valueDateTime?: string;
-                valueTime?: string;
-                valueString?: string;
-                valueCoding?: Coding;
-            }
-        ];
-        item?: QuestionnaireResponseItem[]
-    }
+        answer: QuestionnaireValue[];
+        item?: QuestionnaireResponseItem[];
+    };
 
-    export type QuestionnaireResponse = {
+    /**
+     * A single FHIR Questionnaire Response
+     */
+    type QuestionnaireResponse = {
         resourceType: 'QuestionnaireResponse';
         questionnaire: string;
         status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
         item: QuestionnaireResponseItem[];
-    }
+    };
 
+    /**
+     * Collection of Questionnaire Responses
+     */
     export interface QuestionnaireResponses {
         $type$: 'QuestionnaireResponses';
         name?: string;
         type?: string;
         response: QuestionnaireResponse[];
     }
-
 }
 
 /**
