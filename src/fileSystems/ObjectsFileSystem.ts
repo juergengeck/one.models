@@ -106,6 +106,8 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * Opens the file on-the-fly.
      * @param {string} filePath
+     * @param start
+     * @param end
      * @returns {Promise<FileSystemFile | undefined>}
      */
     async readFile(filePath: string): Promise<FileSystemFile> {
@@ -113,8 +115,9 @@ export default class ObjectsFileSystem implements IFileSystem {
         if (!content) {
             throw new Error('Error: file could not be found.')
         }
-        const contentAsArrayBuffer = await this.stringToArrayBuffer(content);
-        return {content: contentAsArrayBuffer};
+        return {
+            entry: {type: 'RAW', content: content}
+        }
     }
 
     /**
@@ -154,7 +157,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         ) {
             const content = await this.readFile(path);
             if (content) {
-                return {mode: 0o0100644, size: content.content.byteLength};
+                return {mode: 0o0100644, size: content.entry.byteLength};
             }
         }
         if (parsedPath.suffix === '/moduleHash') {

@@ -147,6 +147,8 @@ export default class PersistentFileSystem implements IFileSystem {
     /**
      * Checks if a file exists or not.
      * @param filePath
+     * @param start
+     * @param end
      */
     public async readFile(filePath: string): Promise<FileSystemFile> {
         const directoryMode = retrieveFileMode(
@@ -168,9 +170,9 @@ export default class PersistentFileSystem implements IFileSystem {
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
         }
-        const blobAsArrayBuffer = await readBlobAsArrayBuffer(foundDirectoryEntryValue.content);
+
         return {
-            content: blobAsArrayBuffer
+            entry: {type: 'BLOB', content: foundDirectoryEntryValue.content}
         };
     }
 
