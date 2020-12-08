@@ -67,7 +67,7 @@ export default class PersistentFileSystem implements IFileSystem {
         directoryPath: string,
         fileHash: SHA256Hash<BLOB>,
         fileName: string,
-        fileMode = 0o0040666
+        fileMode = 0o0100666
     ): Promise<void> {
         const mode = retrieveFileMode(fileMode);
         if (mode.type !== 'file') {
@@ -182,7 +182,7 @@ export default class PersistentFileSystem implements IFileSystem {
     public async createDir(
         directoryPath: string,
         dirName: string,
-        dirMode = 0o0100666
+        dirMode = 0o0040777
     ): Promise<void> {
         const mode = retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
