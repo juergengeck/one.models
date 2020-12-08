@@ -2,7 +2,7 @@
  * @type {{permissions: {rwx: number, rNN: number, NwN: number, rwN: number, NNx: number, rNx: number, Nwx: number}, fileType: {file: string, symlink: string, dir: string}}}
  */
 const fileOptions: FileOptions = {
-    fileType: {file: '0040', dir: '0100', symlink: '0120'},
+    fileType: {file: '0100', dir: '0040', symlink: '0120'},
     permissions: {NNN: 0, NNx: 1, NwN: 2, Nwx: 3, rNN: 4, rNx: 5, rwN: 6, rwx: 7}
 };
 
