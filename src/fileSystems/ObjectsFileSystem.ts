@@ -122,21 +122,18 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    public async exists(path: string): Promise<void> {
+    public async exists(path: string): Promise<boolean> {
         const parsedPath = this.parsePath(path);
         if (parsedPath.hash) {
             /** check if the hash exists **/
             await getObject(parsedPath.hash as SHA256Hash).catch(ignored => {
-                throw new Error('Error: the path could not be found.');
+                return false
             });
+            return true;
         }
         /** check if its one of those hardcoded file's name **/
-        if (
-            parsedPath.suffix &&
-            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix)
-        ) {
-            throw new Error('Error: the path could not be found.');
-        }
+        return !(parsedPath.suffix &&
+            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix));
     }
 
     /**

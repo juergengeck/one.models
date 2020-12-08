@@ -243,6 +243,9 @@ export default class PersistentFileSystem implements IFileSystem {
                 PersistentFileSystem.getLastItem(path)
             )
         );
+        console.log( PersistentFileSystem.getParentDirectoryFullPath(path),
+            PersistentFileSystem.getLastItem(path), directoryMode)
+
         if (!foundDirectoryEntry) {
             throw new Error('Error: directory could not be found.')
         }
@@ -282,11 +285,9 @@ export default class PersistentFileSystem implements IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    public async exists(path: string): Promise<void> {
+    public async exists(path: string): Promise<boolean> {
         const foundFile = await this.search(path);
-        if (!foundFile) {
-            throw new Error('Error: the given path could not be found.');
-        }
+        return !foundFile;
     }
 
     /**
@@ -364,6 +365,7 @@ export default class PersistentFileSystem implements IFileSystem {
         directoryName: string
     ): Promise<number> {
         if (parentDirectoryPath === '/') {
+            console.log(this.rootDirectoryContent.mode)
             return this.rootDirectoryContent.mode;
         }
         const parentDirectory = await this.openPersistedDir(parentDirectoryPath);
