@@ -243,8 +243,6 @@ export default class PersistentFileSystem implements IFileSystem {
                 PersistentFileSystem.getLastItem(path)
             )
         );
-        console.log( PersistentFileSystem.getParentDirectoryFullPath(path),
-            PersistentFileSystem.getLastItem(path), directoryMode)
 
         if (!foundDirectoryEntry) {
             throw new Error('Error: directory could not be found.')
@@ -365,7 +363,6 @@ export default class PersistentFileSystem implements IFileSystem {
         directoryName: string
     ): Promise<number> {
         if (parentDirectoryPath === '/') {
-            console.log(this.rootDirectoryContent.mode)
             return this.rootDirectoryContent.mode;
         }
         const parentDirectory = await this.openPersistedDir(parentDirectoryPath);
