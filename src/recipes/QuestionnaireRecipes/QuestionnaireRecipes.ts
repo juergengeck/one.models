@@ -91,13 +91,10 @@ declare module '@OneCoreTypes' {
             | 'reference'
             | 'quantity'
             | 'slider';
-        enableWhen?: (
-            | QuestionnaireEnableWhenAnswer
-            | {
-                  question: string;
-                  operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
-              }
-        )[];
+        enableWhen?: (QuestionnaireEnableWhenAnswer & {
+            question: string;
+            operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
+        })[];
         enableBehavior?: 'all' | 'any';
         required?: boolean;
         repeats?: boolean;
