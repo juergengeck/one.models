@@ -47,6 +47,43 @@ export default class ObjectsFileSystem implements IFileSystem {
     }
 
     /**
+     *
+     * @param {string} filePath
+     * @param {number} length
+     * @param {number} position
+     * @returns {Promise<FileSystemFile>}
+     */
+    async readFileInChunks(
+        filePath: string,
+        length: number,
+        position: number
+    ): Promise<FileSystemFile> {
+        if (!this.supportsChunkedReading()) {
+            throw new Error('Error: reading file in chunks is not supported.');
+        }
+
+        const content = await this.retrieveContentAboutHash(filePath);
+        if (!content) {
+            throw new Error('Error: file could not be found.');
+        }
+        return {
+            content: ObjectsFileSystem.stringToArrayBuffer(content).slice(
+                position,
+                position + length
+            )
+        };
+    }
+
+    /**
+     *
+     * @param {string} path
+     * @returns {boolean}
+     */
+    supportsChunkedReading(path?: string): boolean {
+        return typeof global !== 'undefined' && {}.toString.call(global) === '[object global]';
+    }
+
+    /**
      * The current Object File System is not supporting the creation of files.
      * @param {string} directoryPath
      * @param {SHA256Hash<BLOB>} fileHash
@@ -84,7 +121,7 @@ export default class ObjectsFileSystem implements IFileSystem {
 
         /** Handle malformed path / not a valid one hash **/
         if (!parsedPath.hash) {
-            throw new Error('Error: directory could not be found.')
+            throw new Error('Error: directory could not be found.');
         }
 
         if (parsedPath.suffix === '/' || parsedPath.suffix === '') {
@@ -100,24 +137,22 @@ export default class ObjectsFileSystem implements IFileSystem {
                 return await ObjectsFileSystem.returnDirectoryContentForRegularObject();
             }
         }
-        throw new Error('Error: directory could not be found.')
+        throw new Error('Error: directory could not be found.');
     }
 
     /**
      * Opens the file on-the-fly.
      * @param {string} filePath
-     * @param start
-     * @param end
      * @returns {Promise<FileSystemFile | undefined>}
      */
     async readFile(filePath: string): Promise<FileSystemFile> {
         const content = await this.retrieveContentAboutHash(filePath);
         if (!content) {
-            throw new Error('Error: file could not be found.')
+            throw new Error('Error: file could not be found.');
         }
         return {
-            entry: {type: 'RAW', content: content}
-        }
+            content: ObjectsFileSystem.stringToArrayBuffer(content)
+        };
     }
 
     /**
@@ -130,13 +165,15 @@ export default class ObjectsFileSystem implements IFileSystem {
         if (parsedPath.hash) {
             /** check if the hash exists **/
             await getObject(parsedPath.hash as SHA256Hash).catch(ignored => {
-                return false
+                return false;
             });
             return true;
         }
         /** check if its one of those hardcoded file's name **/
-        return !(parsedPath.suffix &&
-            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix));
+        return !(
+            parsedPath.suffix &&
+            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix)
+        );
     }
 
     /**
@@ -155,9 +192,9 @@ export default class ObjectsFileSystem implements IFileSystem {
             parsedPath.suffix === '/json' ||
             parsedPath.suffix === '/type'
         ) {
-            const content = await this.readFile(path);
-            if (content) {
-                return {mode: 0o0100644, size: content.entry.byteLength};
+            const file = await this.readFile(path);
+            if (file) {
+                return {mode: 0o0100644, size: file.content.byteLength};
             }
         }
         if (parsedPath.suffix === '/moduleHash') {
@@ -241,7 +278,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {ArrayBuffer}
      * @private
      */
-    private stringToArrayBuffer(str: string): ArrayBuffer {
+    private static stringToArrayBuffer(str: string): ArrayBuffer {
         const buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
         const bufView = new Uint16Array(buf);
         for (let i = 0, strLen = str.length; i < strLen; i++) {

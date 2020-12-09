@@ -1,10 +1,5 @@
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 
-export interface FileContent {
-    type: 'BLOB' | 'RAW'
-    content: string;
-}
-
 /**
  * This interface the main structure for files
  */
@@ -12,7 +7,7 @@ export interface FileSystemFile {
     /**
      * The file's content can be either ArrayBuffer or a reference to a BLOB
      */
-    entry: FileContent;
+    content: ArrayBuffer;
 }
 
 /**
@@ -82,8 +77,23 @@ export interface IFileSystem {
      * @param {string} filePath
      * @returns {Promise<FileSystemFile | undefined>}
      */
-    readFile(filePath: string, start?: number, end?: number): Promise<FileSystemFile>;
+    readFile(filePath: string): Promise<FileSystemFile>;
 
+    /**
+     * Reads file in chunks.
+     * @param {string} filePath
+     * @param length
+     * @param position
+     * @returns {Promise<FileSystemFile>}
+     */
+    readFileInChunks(filePath: string, length: number, position: number): Promise<FileSystemFile>;
+
+    /**
+     * If file reading in chunks is supported on the current platform.
+     * @param {string} path
+     * @returns {boolean}
+     */
+    supportsChunkedReading(path?: string): boolean;
     /**
      * Returns the mode (in the future it may return the last access/change/modify timestamp
      * @param {string} path

@@ -24,6 +24,9 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {retrieveFileMode} from './fileSystemModes';
+import * as fs from 'fs';
+import path from 'path';
+import {getInstanceIdHash} from 'one.core/lib/instance';
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -147,32 +150,59 @@ export default class PersistentFileSystem implements IFileSystem {
     /**
      * Checks if a file exists or not.
      * @param filePath
-     * @param start
-     * @param end
      */
     public async readFile(filePath: string): Promise<FileSystemFile> {
-        const directoryMode = retrieveFileMode(
-            await this.getDirectoryMode(
-                PersistentFileSystem.getParentDirectoryFullPath(filePath),
-                PersistentFileSystem.getLastItem(filePath)
-            )
-        );
-        const foundDirectoryEntry = await this.search(filePath);
-        if (!foundDirectoryEntry) {
-            throw new Error('Error: file could not be found.')
-        }
-        const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
+        const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
 
-        if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
-            throw new Error('Error: file could not be found.')
-        }
-
-        if (!directoryMode.permissions.owner.read) {
-            throw new Error('Error: read permission required.');
-        }
+        const fileContent = await readBlobAsArrayBuffer(blobHash);
 
         return {
-            entry: {type: 'BLOB', content: foundDirectoryEntryValue.content}
+            content: fileContent
+        };
+    }
+
+    public supportsChunkedReading(path?: string): boolean {
+        return typeof global !== 'undefined' && {}.toString.call(global) === '[object global]';
+    }
+
+    /**
+     *
+     * @param {string} filePath
+     * @param {number} length
+     * @param {number} position
+     * @returns {Promise<FileSystemFile>}
+     */
+    public async readFileInChunks(
+        filePath: string,
+        length: number,
+        position: number
+    ): Promise<FileSystemFile> {
+        if (!this.supportsChunkedReading()) {
+            throw new Error('Error: reading file in chunks is not supported.');
+        }
+
+        const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
+
+        const objFilePath =
+            path.resolve(process.cwd(), path.join('data')) +
+            path.sep +
+            getInstanceIdHash() +
+            path.sep +
+            'objects' +
+            path.sep +
+            blobHash;
+
+        const fd = fs.openSync(objFilePath, 'r');
+        const content = await new Promise((resolve: (buffer: Buffer) => void, rejected) => {
+            fs.read(fd, Buffer.alloc(length), 0, length, position, (err, bytesRead, buffer) => {
+                if (err) {
+                    rejected('Error: could not read from file.');
+                }
+                resolve(buffer);
+            });
+        });
+        return {
+            content: content
         };
     }
 
@@ -247,12 +277,12 @@ export default class PersistentFileSystem implements IFileSystem {
         );
 
         if (!foundDirectoryEntry) {
-            throw new Error('Error: directory could not be found.')
+            throw new Error('Error: directory could not be found.');
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
 
         if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
-            throw new Error('Error: directory could not be found.')
+            throw new Error('Error: directory could not be found.');
         }
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
@@ -299,6 +329,35 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     // ---------------------------------------- Private ----------------------------------------
+
+    /**
+     * Find the persisted file in the fs
+     * @param {string} filePath
+     * @returns {Promise<PersistentFileSystemFile>}
+     * @private
+     */
+    private async findFile(filePath: string): Promise<PersistentFileSystemFile> {
+        const directoryMode = retrieveFileMode(
+            await this.getDirectoryMode(
+                PersistentFileSystem.getParentDirectoryFullPath(filePath),
+                PersistentFileSystem.getLastItem(filePath)
+            )
+        );
+        const foundDirectoryEntry = await this.search(filePath);
+        if (!foundDirectoryEntry) {
+            throw new Error('Error: file could not be found.');
+        }
+        const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
+
+        if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
+            throw new Error('Error: file could not be found.');
+        }
+
+        if (!directoryMode.permissions.owner.read) {
+            throw new Error('Error: read permission required.');
+        }
+        return foundDirectoryEntryValue;
+    }
 
     /**
      *
