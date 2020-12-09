@@ -23,7 +23,7 @@ describe('FilerModel model test', () => {
 
         const filerModel: FilerModel = new FilerModel(model.channelManager);
         await filerModel.init();
-        fileSystem = filerModel.fs;
+        fileSystem = filerModel.persistedFS;
     });
 
     it('should see if the root was created', async () => {

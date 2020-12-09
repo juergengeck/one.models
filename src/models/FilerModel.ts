@@ -13,6 +13,7 @@ import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
 import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {ObjectsFileSystem} from "../fileSystems";
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
@@ -22,7 +23,9 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 export default class FilerModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
     private readonly fileSystemChannelId: string;
-    private fileSystem: PersistentFileSystem | null = null;
+    private persistedFileSystem: PersistentFileSystem | null = null;
+    private objectsFileSystem: ObjectsFileSystem | null = null;
+
     private readonly boundOnChannelUpdateHandler: (id: string) => Promise<void>;
 
     /**
@@ -42,10 +45,31 @@ export default class FilerModel extends EventEmitter {
      */
     public async init() {
         const root = await this.createRootDirectoryIfNotExists();
-        this.fileSystem = new PersistentFileSystem(root);
-        this.fileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
+        this.objectsFileSystem = new ObjectsFileSystem();
+        this.persistedFileSystem = new PersistentFileSystem(root);
+        this.persistedFileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
     }
+
+    /**
+     *
+     * @returns {PersistentFileSystem}
+     */
+    public get persistedFS(): PersistentFileSystem {
+        if (!this.persistedFileSystem) {
+            throw new Error('Module was not instantiated');
+        }
+        return this.persistedFileSystem;
+    }
+
+    public get objectsFS(): ObjectsFileSystem {
+        if (!this.objectsFileSystem) {
+            throw new Error('Module was not instantiated');
+        }
+        return this.objectsFileSystem;
+    }
+
+    /** ########################################## Private ########################################## **/
 
     /**
      *
@@ -76,26 +100,15 @@ export default class FilerModel extends EventEmitter {
                         this.fileSystemChannelId,
                         updatedRoot.obj
                     );
-                    if (!this.fileSystem) {
+                    if (!this.persistedFileSystem) {
                         throw new Error('Module was not instantiated');
                     }
-                    this.fileSystem.updateRoot = updatedRoot.obj;
+                    this.persistedFileSystem.updateRoot = updatedRoot.obj;
                 }
             } else {
                 throw new Error('Module was not instantiated');
             }
         });
-    }
-
-    /**
-     *
-     * @returns {PersistentFileSystem}
-     */
-    public get fs(): PersistentFileSystem {
-        if (!this.fileSystem) {
-            throw new Error('Module was not instantiated');
-        }
-        return this.fileSystem;
     }
 
     /**
@@ -137,10 +150,10 @@ export default class FilerModel extends EventEmitter {
                 );
 
                 if (rootDirectory[0]) {
-                    if (!this.fileSystem) {
+                    if (!this.persistedFileSystem) {
                         throw new Error('Module was not instantiated');
                     }
-                    this.fileSystem.updateRoot = (await getObject(
+                    this.persistedFileSystem.updateRoot = (await getObject(
                         rootDirectory[0].dataHash
                     )) as PersistentFileSystemRoot;
                 } else {
