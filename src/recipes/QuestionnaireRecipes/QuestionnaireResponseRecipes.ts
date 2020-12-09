@@ -21,7 +21,7 @@ declare module '@OneCoreTypes' {
      */
     type QuestionnaireResponse = {
         resourceType: 'QuestionnaireResponse';
-        questionnaire: string;
+        questionnaire?: string;
         status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
         item: QuestionnaireResponseItem[];
     };
