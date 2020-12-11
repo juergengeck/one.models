@@ -217,7 +217,8 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     public async responses(queryOptions?: QueryOptions): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId
+            channelId: this.channelId,
+            ...queryOptions
         });
     }
 
