@@ -93,14 +93,30 @@ export default class QuestionnaireModel extends EventEmitter {
      * Get a specific questionnaire
      *
      * @param name - The name of the questionnaire
+     * @param language - Language of questionnaire. If empty, just return the first in any language.
      */
-    public async questionnaireByName(name: string): Promise<Questionnaire> {
+    public async questionnaireByName(name: string, language?: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaire.name === name) {
+            if (questionnaire.name === name && (!language || questionnaire.language === language)) {
                 return questionnaire;
             }
         }
-        throw Error('Questionnaire with name ' + name + ' does not exist');
+        throw Error('Questionnaire with name ' + name + ' and language ' + language + ' does not exist');
+    }
+
+    /**
+     * Get a questionnaire url by name and language.
+     *
+     * @param name
+     * @param language
+     */
+    public async questionnaireUrlByName(name: string, language?: string): Promise<string> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.name === name && (!language || questionnaire.language === language) && questionnaire.url) {
+                return questionnaire.url;
+            }
+        }
+        throw Error('Questionnaire with name ' + name + ' and language ' + language + ' does not exist');
     }
 
     /**
@@ -121,10 +137,11 @@ export default class QuestionnaireModel extends EventEmitter {
      * Checks whether a questionnaire exists.
      *
      * @param name - Name of the questionnaire
+     * @param language - Language of questionnaire. If empty, just check in any language.
      */
-    public async hasQuestionnaireWithName(name: string): Promise<boolean> {
+    public async hasQuestionnaireWithName(name: string, language?: string): Promise<boolean> {
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaire.name === name) {
+            if (questionnaire.name === name && (!language || questionnaire.language === language)) {
                 return true;
             }
         }
@@ -179,14 +196,8 @@ export default class QuestionnaireModel extends EventEmitter {
         type?: string,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
-        // Assert that all questionnaires exist
-        for (const response of responses) {
-            if (!this.hasQuestionnaireWithUrl(response.questionnaire)) {
-                throw new Error(`Posting questionnaire response failed: Questionnaire ${response.questionnaire} does not exist`);
-            }
-        }
-
-        // Todo: Assert that the mandatory fields have been set in the answer
+        // We decided not to do any validation here, because it is done by the questionnaire builder.
+        // If you post something wrong, then shame on you :-)
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(
@@ -274,13 +285,6 @@ export default class QuestionnaireModel extends EventEmitter {
         type: string,
         name?: string
     ): Promise<void> {
-        // Check that the used questionnaires are known
-        for (const response of responses) {
-            if (!this.hasQuestionnaireWithUrl(response.questionnaire)) {
-                throw new Error(`Posting questionnaire response failed: Questionnaire ${response.questionnaire} does not exist`);
-            }
-        }
-
         // Post the result to the one instance
         await this.channelManager.postToChannel(
             this.incompleteResponsesChannelId,
