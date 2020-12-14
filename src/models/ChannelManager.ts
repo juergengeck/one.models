@@ -86,8 +86,8 @@ export enum Order {
 /**
  * Options used for selecting a specific channel
  *
- * Owners and channelIds must match in irder to be returned. So if you specify one owner and one channelId you
- * wil get one channel. If you specify two owners and two channelIds you get up to four channels (all combinations
+ * Owners and channelIds must match in order to be returned. So if you specify one owner and one channelId you
+ * will get one channel. If you specify two owners and two channelIds you get up to four channels (all combinations
  * of owner / channelId - if a corresponding channel exists)
  *
  * The other stuff is additive, so if you specify one 'channel' and one 'channelInfoHash' you will get two entries.
