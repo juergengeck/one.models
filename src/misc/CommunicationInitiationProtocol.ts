@@ -236,6 +236,20 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
     if (command === 'person_object') {
         return arg.obj && arg.obj.$type$ === 'Person';
     }
+    if (command === 'access_group_members') {
+        if (arg && arg.persons && Array.isArray(arg.persons)) {
+            for (const person of arg.persons) {
+                if (typeof person !== 'string') {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    if (command === 'success') {
+        return true;
+    }
     return false;
 }
 
