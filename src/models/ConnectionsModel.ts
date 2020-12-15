@@ -1313,7 +1313,9 @@ class ConnectionsModel extends EventEmitter {
             command: 'success'
         });
 
-        conn.close();
+        // Terminate the connection delayed, because the other side needs time to process
+        // the incoming message
+        setTimeout(() => { conn.close() }, 1000);
     }
 
     /**
