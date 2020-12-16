@@ -172,7 +172,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         /** check if its one of those hardcoded file's name **/
         return !(
             parsedPath.suffix &&
-            !['raw', 'type', 'pretty', 'json', 'moduleHash'].includes(parsedPath.suffix)
+            !['raw.txt', 'type.txt', 'pretty.txt', 'json.txt', 'moduleHash.txt'].includes(parsedPath.suffix)
         );
     }
 
@@ -187,10 +187,10 @@ export default class ObjectsFileSystem implements IFileSystem {
             return {mode: 0o0040555, size: 0};
         }
         if (
-            parsedPath.suffix === '/raw' ||
-            parsedPath.suffix === '/pretty' ||
-            parsedPath.suffix === '/json' ||
-            parsedPath.suffix === '/type'
+            parsedPath.suffix === '/raw.txt' ||
+            parsedPath.suffix === '/pretty.txt' ||
+            parsedPath.suffix === '/json.txt' ||
+            parsedPath.suffix === '/type.txt'
         ) {
             const file = await this.readFile(path);
             if (file) {
@@ -257,7 +257,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForPlans(): Promise<FileSystemDirectory> {
         return {
-            children: ['raw', 'pretty', 'json', 'type', 'moduleHash']
+            children: ['raw.txt', 'pretty.txt', 'json.txt', 'type.txt', 'moduleHash.txt']
         };
     }
 
@@ -268,7 +268,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForRegularObject(): Promise<FileSystemDirectory> {
         return {
-            children: ['raw', 'pretty', 'json', 'type']
+            children: ['raw.txt', 'pretty.txt', 'json.txt', 'type.txt']
         };
     }
 
@@ -309,19 +309,19 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private async retrieveContentAboutHash(path: string): Promise<string | undefined> {
         const parsedPath = this.parsePath(path);
-        if (parsedPath.suffix === '/raw') {
+        if (parsedPath.suffix === '/raw.txt') {
             return await getTextFile(parsedPath.hash as SHA256Hash);
         }
 
-        if (parsedPath.suffix === '/pretty') {
+        if (parsedPath.suffix === '/pretty.txt') {
             return ObjectsFileSystem.stringifyXML(await getTextFile(parsedPath.hash as SHA256Hash));
         }
 
-        if (parsedPath.suffix === '/json') {
+        if (parsedPath.suffix === '/json.txt') {
             return JSON.stringify(await getObject(parsedPath.hash as SHA256Hash), null, '  ');
         }
 
-        if (parsedPath.suffix === '/type') {
+        if (parsedPath.suffix === '/type.txt') {
             const fileType = await getFileType(parsedPath.hash as SHA256Hash);
             if (fileType === 'BLOB' || fileType === 'CBLOB') {
                 return fileType;
