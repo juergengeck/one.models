@@ -687,6 +687,7 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
+                MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -768,6 +769,7 @@ class ConnectionsModel extends EventEmitter {
                 }
             }
         } catch (e) {
+            MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -806,6 +808,7 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
+                MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -886,6 +889,7 @@ class ConnectionsModel extends EventEmitter {
                 }
             }
         } catch (e) {
+            MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -1268,54 +1272,58 @@ class ConnectionsModel extends EventEmitter {
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
-        if (!this.anonInstanceInfo) {
-            throw new Error('Identities were not initialized correctly.');
-        }
-
-        // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
-
-        // Step 2: Wait for the authentication token and verify it against the token list
-        const accessGroupMembers = await ConnectionsModel.waitForMessage(
-            conn,
-            'access_group_members'
-        );
-
-        // Store the new group members and send success
-        const personObjs = await Promise.all(
-            accessGroupMembers.persons.map(person =>
-                createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    {
-                        $type$: 'Person',
-                        email: person
-                    }
-                )
-            )
-        );
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Group',
-                name: 'person_' + remotePersonInfo.personId,
-                person: personObjs
+        try {
+            if (!this.anonInstanceInfo) {
+                throw new Error('Identities were not initialized correctly.');
             }
-        );
 
-        // Step 3: Send success message
-        await ConnectionsModel.sendMessage(conn, {
-            command: 'success'
-        });
+            // Step 1: Exchange / authenticate person keys & person Id
+            const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
 
-        // Terminate the connection delayed, because the other side needs time to process
-        // the incoming message
-        setTimeout(() => { conn.close() }, 1000);
+            // Step 2: Wait for the authentication token and verify it against the token list
+            const accessGroupMembers = await ConnectionsModel.waitForMessage(
+                conn,
+                'access_group_members'
+            );
+
+            // Store the new group members and send success
+            const personObjs = await Promise.all(
+                accessGroupMembers.persons.map(person =>
+                    createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        {
+                            $type$: 'Person',
+                            email: person
+                        }
+                    )
+                )
+            );
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'Group',
+                    name: 'person_' + remotePersonInfo.personId,
+                    person: personObjs.map(personObj => personObj.idHash)
+                }
+            );
+
+            // Step 3: Send success message
+            await ConnectionsModel.sendMessage(conn, {
+                command: 'success'
+            });
+
+            // Wait for the other side to process the close message.
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        finally {
+            conn.close();
+        }
     }
 
     /**
@@ -1330,6 +1338,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * @param conn - Connection to the peer.
      * @param localPersonId - The local person id used to setup the chum
+     * @param remotePersonId
      * @param accessGroupMembers
      */
     private async startSetAccessGroup_Client(
@@ -1338,23 +1347,26 @@ class ConnectionsModel extends EventEmitter {
         remotePersonId: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
     ): Promise<void> {
-        // Step 1: Exchange / authenticate person keys & person Id
-        await this.verifyAndExchangePersonId(conn, localPersonId, true, remotePersonId);
+        try {
+            // Step 1: Exchange / authenticate person keys & person Id
+            await this.verifyAndExchangePersonId(conn, localPersonId, true, remotePersonId);
 
-        // Step 2: Send the group members
-        const personObjs = await Promise.all(
-            accessGroupMembers.map(person => getObjectByIdHash(person))
-        );
-        const personEmails = personObjs.map(personObj => personObj.obj.email);
-        await ConnectionsModel.sendMessage(conn, {
-            command: 'access_group_members',
-            persons: personEmails
-        });
+            // Step 2: Send the group members
+            const personObjs = await Promise.all(
+                accessGroupMembers.map(person => getObjectByIdHash(person))
+            );
+            const personEmails = personObjs.map(personObj => personObj.obj.email);
+            await ConnectionsModel.sendMessage(conn, {
+                command: 'access_group_members',
+                persons: personEmails
+            });
 
-        // Step 3: Wait for success message from the other side.
-        await ConnectionsModel.waitForMessage(conn, 'success');
-
-        conn.close();
+            // Step 3: Wait for success message from the other side.
+            await ConnectionsModel.waitForMessage(conn, 'success');
+        }
+        finally {
+            conn.close();
+        }
     }
 
     // ################ Others ################
