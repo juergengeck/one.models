@@ -373,6 +373,9 @@ export default class QuestionnaireModel extends EventEmitter {
     private handleOnUpdated(id: string): void {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
+            if (id === this.incompleteResponsesChannelId) {
+                this.emit('updatedIncomplete');
+            }
         }
     }
 }
