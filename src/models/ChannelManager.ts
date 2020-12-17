@@ -624,7 +624,7 @@ export default class ChannelManager extends EventEmitter {
         currentChannel: SHA256Hash<ChannelInfo>
     ): AsyncIterableIterator<RawChannelEntry> {
         const channelInfoNext = await getObject(nextChannel);
-        const channelInfoCurrent = await getObject(nextChannel);
+        const channelInfoCurrent = await getObject(currentChannel);
         const itNext = ChannelManager.singleChannelObjectIterator(channelInfoNext);
         const itCurrent = ChannelManager.singleChannelObjectIterator(channelInfoCurrent);
 
@@ -958,6 +958,7 @@ export default class ChannelManager extends EventEmitter {
                         // Thus the corresponding iterator will never be advanced again, so
                         // we effectively removed the duplicate history from the iteration
                         currentValues[i] = undefined;
+                        --activeIterators;
                         continue;
                     }
                 }
@@ -999,7 +1000,7 @@ export default class ChannelManager extends EventEmitter {
                 }
 
                 // If we advanced more than one iterator, then it is not a difference
-                if (sameIndices.length !== iterators.length) {
+                if (sameIndices.length === iterators.length) {
                     continue;
                 }
             } else {
