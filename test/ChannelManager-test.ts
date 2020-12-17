@@ -10,7 +10,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import rimraf from 'rimraf';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {getObject} from 'one.core/lib/storage';
+import {createSingleObjectThroughImpurePlan, getObject} from 'one.core/lib/storage';
 
 let channelManager: typeof ChannelManager;
 let testModel;
@@ -241,6 +241,27 @@ describe('Channel Iterators test', () => {
             owner: channels[0].owner,
             id: 'first'
         });
+        const firstValuesAsc = await channelManager.getObjectsWithType('BodyTemperature', {
+            channelId: 'first'
+        });
+        //console.log(firstValuesAsc);
+
+        // Post other elements
+        await createSingleObjectThroughImpurePlan(
+            {module: '@module/channelPost'},
+            'first',
+            channels[0].owner,
+            {$type$: 'BodyTemperature', temperature: 9},
+            firstValuesAsc[1].creationTime.getTime() - 1
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        /*const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
+            channelId: 'first'
+        });
+        console.log(firstValuesAsc2);*/
+
         const versionMap = await getAllVersionMapEntries(hash);
         /*for (const versionMapEntry of versionMap) {
             const objects = await channelManager.getObjects({
@@ -250,15 +271,24 @@ describe('Channel Iterators test', () => {
             console.log('Channel Content', filtered);
         }*/
 
-        let elements = [];
+        let elements1 = [];
         for await (const entry of ChannelManager.differencesIteratorMostCurrent(
             versionMap[1].hash,
             versionMap[versionMap.length - 1].hash
         )) {
-            elements.push(((await getObject(entry.dataHash)) as BodyTemperature).temperature);
+            elements1.push(((await getObject(entry.dataHash)) as BodyTemperature).temperature);
         }
 
-        expect(elements).to.be.eql([6, 1]);
+        let elements2 = [];
+        for await (const entry of ChannelManager.differencesIteratorMostCurrent(
+            versionMap[2].hash,
+            versionMap[versionMap.length - 1].hash
+        )) {
+            elements2.push(((await getObject(entry.dataHash)) as BodyTemperature).temperature);
+        }
+
+        expect(elements1).to.be.eql([6, 9]);
+        expect(elements2).to.be.eql([9]);
     });
 
     after(async () => {
