@@ -611,6 +611,32 @@ export default class ChannelManager extends EventEmitter {
         }
     }
 
+    /**
+     * Find the differences in the chain starting from the common history
+     *
+     * Note: this only works when both channel infos are from the same channel.
+     *
+     * @param nextChannel
+     * @param currentChannel
+     */
+    public static async *differencesIteratorMostCurrent(
+        nextChannel: SHA256Hash<ChannelInfo>,
+        currentChannel: SHA256Hash<ChannelInfo>
+    ): AsyncIterableIterator<RawChannelEntry> {
+        const channelInfoNext = await getObject(nextChannel);
+        const channelInfoCurrent = await getObject(nextChannel);
+        const itNext = ChannelManager.singleChannelObjectIterator(channelInfoNext);
+        const itCurrent = ChannelManager.singleChannelObjectIterator(channelInfoCurrent);
+
+        if (!channelInfoNext.head) {
+            yield* itCurrent;
+        } else if (!channelInfoCurrent.head) {
+            yield* itNext;
+        } else {
+            yield* ChannelManager.mergeIteratorMostCurrent([itNext, itCurrent], true, false, true);
+        }
+    }
+
     // ######## Get data from channels - ITERATORS PRIVATE ########
 
     /**
@@ -862,11 +888,15 @@ export default class ChannelManager extends EventEmitter {
      *                                              Because this iteration also removes redundant iterators
      *                                              (that iterate over the same history) it will stop when multiple
      *                                              iterators iterate the same history.
+     * @param yieldCommonHistoryElement           - If true (default) the common history element will be yielded as last element
+     * @param onlyDifferentElements               - If true (default false) only elements that are only in a single channel are yielded.
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
     private static async *mergeIteratorMostCurrent(
         iterators: AsyncIterableIterator<RawChannelEntry>[],
-        terminateOnSingleIterator: boolean = false
+        terminateOnSingleIterator: boolean = false,
+        yieldCommonHistoryElement: boolean = true,
+        onlyDifferentElements: boolean = false
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(null, null, `mergeIteratorMostCurrent - ENTER: ${iterators.length} iterators`);
 
@@ -942,8 +972,47 @@ export default class ChannelManager extends EventEmitter {
                 break;
             }
 
-            // Advance the iterator that yielded the highest creationTime
-            currentValues[mostCurrentIndex] = (await iterators[mostCurrentIndex].next()).value;
+            // For only different elements option we call next for all equal elements and if we have the same
+            // elements multiple times we don't yield.
+            if (onlyDifferentElements) {
+                // Same get the indices of the currentValues that are qual to the most current element
+                const sameIndices: number[] = [];
+                for (let i = 0; i < currentValues.length; i++) {
+                    const currentValue = currentValues[i];
+
+                    // Ignore values from iterators that have reached their end (returned undefined)
+                    if (currentValue === undefined) {
+                        continue;
+                    }
+
+                    if (
+                        currentValue.creationTimeHash === mostCurrentItem.creationTimeHash &&
+                        currentValue.channelInfoIdHash === mostCurrentItem.channelInfoIdHash
+                    ) {
+                        sameIndices.push(i);
+                    }
+                }
+
+                // Advance all equal element iterators
+                for (const index of sameIndices) {
+                    currentValues[index] = (await iterators[index].next()).value;
+                }
+
+                // If we advanced more than one iterator, then it is not a difference
+                if (sameIndices.length !== iterators.length) {
+                    continue;
+                }
+            } else {
+                // Advance the iterator that yielded the highest creationTime
+                currentValues[mostCurrentIndex] = (await iterators[mostCurrentIndex].next()).value;
+            }
+
+            // If we have one active iterator remaining and the user requested it, we terminate
+            // This is done after the yield, because we want the first element of the remaining
+            // iterator not to be returned.
+            if (terminateOnSingleIterator && !yieldCommonHistoryElement && activeIterators === 1) {
+                break;
+            }
 
             // Filter for duplicates
             if (
@@ -971,7 +1040,7 @@ export default class ChannelManager extends EventEmitter {
             // If we have one active iterator remaining and the user requested it, we terminate
             // This is done after the yield, because we want the first element of the remaining
             // iterator to be returned.
-            if (terminateOnSingleIterator && activeIterators === 1) {
+            if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
                 break;
             }
 
