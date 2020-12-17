@@ -26,7 +26,8 @@ export async function createObjects(
     WriteStorage: WriteStorageApi,
     channelId: string,
     channelOwner: SHA256IdHash<Person>,
-    payload: OneUnversionedObjectTypes
+    payload: OneUnversionedObjectTypes,
+    timestamp?: number
 ): Promise<VersionedObjectResult<ChannelInfo>> {
     // Get the latest ChannelInfo from the database
     let latestChannelInfo;
@@ -54,7 +55,7 @@ export async function createObjects(
     // Write creation time meta information
     const creationTimeResult = await WriteStorage.storeUnversionedObject({
         $type$: 'CreationTime',
-        timestamp: Date.now(),
+        timestamp: timestamp ? timestamp : Date.now(),
         data: payloadResult.hash
     });
 
