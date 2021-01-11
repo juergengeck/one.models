@@ -280,25 +280,29 @@ export default class ChannelManager extends EventEmitter {
      * If the channel already exists, this call is a noop.
      *
      * @param {string} channelId - The id of the channel. See class description for more details on how ids and channels are handled.
+     * @param {SHA256IdHash<Person> | null} owner - The id hash of the person that should be the owner of this channel.
      */
-    public async createChannel(channelId: string): Promise<void> {
+    public async createChannel(channelId: string, owner: SHA256IdHash<Person> | null = null): Promise<void> {
+        if(!owner){
+            owner = this.defaultOwner
+        }
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: channelId,
-            owner: this.defaultOwner
+            owner: owner
         });
 
-        logWithId(channelId, this.defaultOwner, `createChannel - START`);
+        logWithId(channelId, owner, `createChannel - START`);
 
         try {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
-            logWithId(channelId, this.defaultOwner, `createChannel - END: Existed`);
+            logWithId(channelId, owner, `createChannel - END: Existed`);
         } catch (ignore) {
             // Create a new one if getting it failed
             await createSingleObjectThroughPurePlan(
                 {module: '@module/channelCreate'},
                 channelId,
-                this.defaultOwner
+                owner
             );
 
             // Create the cache entry.
@@ -307,7 +311,7 @@ export default class ChannelManager extends EventEmitter {
             // the registry
             await this.addChannelIfNotExist(channelInfoIdHash);
 
-            logWithId(channelId, this.defaultOwner, `createChannel - END: Created`);
+            logWithId(channelId, owner, `createChannel - END: Created`);
         }
     }
 
