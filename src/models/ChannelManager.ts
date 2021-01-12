@@ -280,12 +280,9 @@ export default class ChannelManager extends EventEmitter {
      * If the channel already exists, this call is a noop.
      *
      * @param {string} channelId - The id of the channel. See class description for more details on how ids and channels are handled.
-     * @param {SHA256IdHash<Person> | null} owner - The id hash of the person that should be the owner of this channel.
+     * @param {SHA256IdHash<Person>} owner - The id hash of the person that should be the owner of this channel.
      */
-    public async createChannel(
-        channelId: string,
-        owner?: SHA256IdHash<Person> | null
-    ): Promise<void> {
+    public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
         if (!this.defaultOwner) {
             throw Error('Not initialized');
         }
