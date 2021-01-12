@@ -282,9 +282,12 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} channelId - The id of the channel. See class description for more details on how ids and channels are handled.
      * @param {SHA256IdHash<Person> | null} owner - The id hash of the person that should be the owner of this channel.
      */
-    public async createChannel(channelId: string, owner: SHA256IdHash<Person> | null = null): Promise<void> {
-        if(!owner){
-            owner = this.defaultOwner
+    public async createChannel(
+        channelId: string,
+        owner: SHA256IdHash<Person> | null = null
+    ): Promise<void> {
+        if (!owner) {
+            owner = this.defaultOwner;
         }
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
