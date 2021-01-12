@@ -150,8 +150,7 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * Initialize the structure. This has to be called after the one instance is initialized.
-     *
-     * @returns {Promise<void>}
+     * @param takeOver - flag that specifies whether the initialization is created after a connection: IoM(if true) and IoP(if false)
      */
     public async init(takeOver?: boolean): Promise<void> {
         /** if the contactApp exists, the structure must not be initialised, otherwise will be overwritten **/
@@ -183,8 +182,6 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
@@ -194,12 +191,12 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Identity management ###################### **/
 
     /**
-     * This function creates a new personId and an associated profile.
+     * Create a new personId and an associated profile.
      *
-     * @param {boolean} myself
-     * @param {SHA256IdHash<Person>} email
-     * @param {boolean} takeOver
-     * @returns {Promise<SHA256IdHash<Person>>}
+     * @param myself - flag that specifies whether the identity should be for me(if true) or another person(if false)
+     * @param email - the email address
+     * @param takeOver - flag that specifies whether the identity should be created after a connection: IoM(if true) and IoP(if false)
+     * @returns the SHA256IdHash of the new created profile
      */
     public async createNewIdentity(
         myself: boolean,
@@ -217,9 +214,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns my main identity.
+     * Return my main identity.
      *
-     * @returns {Promise<SHA256IdHash<Person>>}
+     * @returns the SHA256IdHash of my main profile
      */
     public async myMainIdentity(): Promise<SHA256IdHash<Person>> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -228,10 +225,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Get own profile identities.
-     * This function returns the person id hashes for all profiles gathered in my own Someone object.
+     * Get own profile identities. It returns the person id hashes for all profiles gathered in my own Someone object.
      *
-     * @returns {Promise<SHA256IdHash<Person>[]>}
+     * @returns the list of SHA256IdHashes for my profiles
      */
     public async myIdentities(): Promise<SHA256IdHash<Person>[]> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -250,13 +246,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Get profile identities of others
-     * This function returns the person id hashes for all profiles gathered in the Someone object for the personId,
-     * given by parameter.
+     * Get profile identities of others. It returns the person id hashes for all profiles gathered in the Someone object
+     * for the personId, given by parameter.
      *
-     * @param {SHA256IdHash<Person>} personId - The person id for which to search for alternate ids.
-     * @param {boolean} excludeMain - Its default value is false
-     * @returns {Promise<SHA256IdHash<Person>[]>}
+     * @param personId - the person id for which to search for alternate ids
+     * @param excludeMain - if true then it will exclude the main profile, if false then it will include it. Its default value is false
+     * @returns the list of SHA256IdHashes for other profiles
      */
     public async listAlternateIdentities(
         personId: SHA256IdHash<Person>,
@@ -292,12 +287,11 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * @todo pure plan next weeks
-     * This function merges two Someone objects into one single someone object.
+     * Merge two Someone objects into one single someone object.
      * The merge is refused if one of the person ids belongs to a secondary profile
      *
-     * @param {SHA256IdHash<Person>} personA - This profile will always become the main profile
-     * @param {SHA256IdHash<Person>} personB - This profile will always become a secondary profile
-     * @returns {Promise<void>}
+     * @param personA - this profile will always become the main profile
+     * @param personB - this profile will always become a secondary profile
      */
     public async declareSamePerson(
         personA: SHA256IdHash<Person>,
@@ -352,9 +346,9 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Managing contacts ###################### **/
 
     /**
-     * This function returns the person id of each main profile of Someone object.
+     * Return the person id of each main profile of Someone object.
      *
-     * @returns {Promise<SHA256IdHash<Person>[]>} - person id list.
+     * @returns person id list
      */
     public async contacts(): Promise<SHA256IdHash<Person>[]> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -376,10 +370,10 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Contact object management ###################### **/
 
     /**
-     * This function returns the main contact object from a profile associated with the given personId.
+     * Return the main contact object from a profile associated with the given personId.
      *
-     * @param {SHA256IdHash<Person>} personId - the given person id.
-     * @returns {Promise<Contact>}
+     * @param personId - the given person id
+     * @returns the contact
      */
     public async getMainContactObject(personId: SHA256IdHash<Person>): Promise<Contact> {
         const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
@@ -387,10 +381,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns a list of Contact objects from a profile associated with the given personId.
+     * Return a list of Contact objects from a profile associated with the given personId.
      *
-     * @param {SHA256IdHash<Person>} personId - the given person id.
-     * @returns {Promise<Contact[]>}
+     * @param personId - the given person id
+     * @returns the contacts list
      */
     public async getContactObjects(personId: SHA256IdHash<Person>): Promise<Contact[]> {
         const personProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
@@ -402,10 +396,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns a list of hashes of Contact Objects from a profile associated with the given personId.
+     * Return a list of hashes of Contact Objects from a profile associated with the given personId.
      *
-     * @param {SHA256IdHash<Person>} personId - the given person id.
-     * @returns {Promise<SHA256Hash<Contact>[]>}
+     * @param personId - the given person id
+     * @returns the contact ids list
      */
     public async getContactObjectHashes(
         personId: SHA256IdHash<Person>
@@ -415,12 +409,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns the name of the Someone object from the main profile.
+     * Return the name of the Someone object from the main profile.
      * At the beginning the name is searched in the main contact object of the profile,
      * if there is no name description then the search is proceed over the contact object list.
      *
-     * @param {SHA256IdHash<Person>} personId - the person id for whom the name search is performed.
-     * @returns {Promise<string>} - the name or an empty string if the name description wasn't found.
+     * @param personId - the person id for whom the name search is performed
+     * @returns the name or an empty string if the name description wasn't found
      */
     public async getName(personId: SHA256IdHash<Person>): Promise<string> {
         const mainProfile = await getObjectByIdObj({$type$: 'Profile', personId: personId});
@@ -456,10 +450,10 @@ export default class ContactModel extends EventEmitter {
      * For now it will return always the person names, the profile images and the emails
      * for the main profile of someone.
      *
-     * @param {SHA256IdHash<Person>} personId - the idHash of the person.
+     * @param personId - the idHash of the person
      * @param isMainProfileRequested - a flag for switching between merging logic. Its default value is true,
-     * which means that it will return the information only from the main profile.
-     * @returns {Promise<MergedContact[]>} - merged contact objects.
+     * which means that it will return the information only from the main profile
+     * @returns merged contact objects.
      */
     public async getMergedContactObjects(
         personId: SHA256IdHash<Person>,
@@ -540,13 +534,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function updates the main contact of a person based on the contactDescription object.
+     * Update the main contact of a person based on the contactDescription object.
      * (e.g. if the current main contact contains just an avatar and the incoming contactDescription contains a person name
      * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
      *
-     * @param {SHA256IdHash<Person>} personId - the id of the person whose main contact will be updated.
-     * @param {ContactDescription} contactDescription - the new values of the main contact object.
-     * @returns {Promise<void>}
+     * @param personId - the id of the person whose main contact will be updated
+     * @param contactDescription - the new values of the main contact object
      */
     public async updateDescription(
         personId: SHA256IdHash<Person>,
@@ -579,12 +572,11 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function updates the main contact of a person based on the communication endpoint object.
+     * Update the main contact of a person based on the communication endpoint object.
      * For now it update only the email of the main contact.
      *
-     * @param {SHA256IdHash<Person>} personId - given person id.
-     * @param {CommunicationEndpoint} communicationEndpoint - given email.
-     * @returns {Promise<void>}
+     * @param personId - the given person id
+     * @param communicationEndpoint - the new communication endpoints information
      */
     public async updateCommunicationEndpoint(
         personId: SHA256IdHash<Person>,
@@ -606,11 +598,11 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function finds instance endpoints objects for contacts / or for me.
+     * Find instance endpoints objects for contacts / or for me.
      *
-     * @param {boolean} forMe - If true then all endpoints for myself, if false then all endpoints of contacts.
-     * @param {boolean} onlyMain - If forMe is true then this selects between all my ids, or just my main id.
-     * @returns {Promise<OneInstanceEndpoint[]>}
+     * @param forMe - if true then all endpoints for myself, if false then all endpoints of contacts
+     * @param onlyMain - if forMe is true then this selects between all my ids, or just my main id
+     * @returns the list of OneInstanceEndpoints
      */
     public async findAllOneInstanceEndpoints(
         forMe: boolean = false,
@@ -664,10 +656,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns the person keys for a specific person.
+     * Return the person keys for a specific person.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<Keys>}
+     * @param personId - the given person id
+     * @returns the list of keys
      */
     public async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
         const personKeyLink = await getAllValues(personId, true, 'Keys');
@@ -678,9 +670,9 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * !!! Any action on the contactApp object must be serialized
-     * This function returns the VersionedObjectResult of the ContactApp.
+     *  Return the VersionedObjectResult of the ContactApp.
      *
-     * @returns {Promise<VersionedObjectResult<ContactApp>>}
+     * @returns the VersionedObjectResult of the ContactApp
      */
     private static async getContactAppObject(): Promise<VersionedObjectResult<ContactApp>> {
         return await serializeWithType('ContactApp', async () => {
@@ -689,10 +681,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function retrieves the Someone object for a given personId.
+     * Retrieve the Someone object for a given personId.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<Someone | undefined>}
+     * @param personId - the given person id
+     * @returns the Someone object if it exists, otherwise undefined
      */
     private async getSomeoneObject(personId: SHA256IdHash<Person>): Promise<Someone | undefined> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -729,11 +721,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * HOOK function
-     * Serialized since it's part of an object listener or not
+     * HOOK function: Serialized since it's part of an object listener or not
      *
-     * @param {VersionedObjectResult<Profile>} profile
-     * @returns {Promise<void>}
+     * @param profile - the given profile
      */
     private async registerNewSelfProfile(profile: VersionedObjectResult<Profile>): Promise<void> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -770,12 +760,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function serializes the profile creation wrapper
+     * Serialize the profile creation wrapper
      *
-     * @param {string} personEmail
-     * @param {boolean} forMyself
-     * @param {boolean} takeOver
-     * @returns {Promise<VersionedObjectResult<Profile>>}
+     * @param personEmail - the email address
+     * @param forMyself - flag that specifies whether the profile should be for me(if true) or another person(if false)
+     * @param takeOver - flag that specifies whether the profile should be created after a connection: IoM(if true) and IoP(if false)
+     * @returns the VersionedObjectResult of the profile
      */
     private async serializeProfileCreatingByPersonEmail(
         personEmail: string,
@@ -832,9 +822,9 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function checks if the contactApp was created for this particular instance
+     * Check if the contactApp was created for this particular instance
      *
-     * @returns {Promise<boolean>}
+     * @returns true, if there is ContactApp, otherwise false
      */
     private static async doesContactAppObjectExist(): Promise<boolean> {
         try {
@@ -848,8 +838,7 @@ export default class ContactModel extends EventEmitter {
     /**
      * Handler function for the VersionedObj event
      *
-     * @param {VersionedObjectResult} caughtObject
-     * @return {Promise<void>}
+     * @param caughtObject - the caught object
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
         if (ContactModel.isContactAppVersionedObjectResult(caughtObject)) {
@@ -918,8 +907,7 @@ export default class ContactModel extends EventEmitter {
     /**
      * Handler function for the UnVersionedObj event
      *
-     * @param {UnversionedObjectResult} caughtObject
-     * @return {Promise<void>}
+     * @param caughtObject - the caught object
      */
     private async handleOnUnVersionedObj(caughtObject: UnversionedObjectResult): Promise<void> {
         if (ContactModel.isContactUnVersionedObjectResult(caughtObject)) {
@@ -980,10 +968,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function checks if the VersionedObjectResult object given as a parameter is a ContactApp object.
+     * Check if the VersionedObjectResult object given as a parameter is a ContactApp object.
      *
-     * @param {VersionedObjectResult} caughtObject
-     * @returns {boolean}
+     * @param caughtObject - the caught object
+     * @returns true, if the caught object is a ContactApp object, otherwise false
      */
     private static isContactAppVersionedObjectResult(
         caughtObject: VersionedObjectResult
@@ -992,10 +980,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function checks if the VersionedObjectResult object given as a parameter is a Profile object.
+     * Check if the VersionedObjectResult object given as a parameter is a Profile object.
      *
-     * @param {VersionedObjectResult} caughtObject
-     * @returns {boolean}
+     * @param caughtObject - the caught object
+     * @returns true, if the caught object is a Profile object, otherwise false
      */
     private static isProfileVersionedObjectResult(
         caughtObject: VersionedObjectResult
@@ -1004,10 +992,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function checks if the UnversionedObjectResult object given as a parameter is a Contact object.
+     * Check if the UnversionedObjectResult object given as a parameter is a Contact object.
      *
-     * @param {UnversionedObjectResult} caughtObject
-     * @returns {boolean}
+     * @param caughtObject - the caught object
+     * @returns true, if the caught object is a Contact object, otherwise false
      */
     private static isContactUnVersionedObjectResult(
         caughtObject: UnversionedObjectResult
@@ -1018,8 +1006,7 @@ export default class ContactModel extends EventEmitter {
     /**
      * Private utility function which is used to register another person profile.
      *
-     * @param {Profile} profile
-     * @returns {Promise<void>}
+     * @param profile - the given profile
      */
     private async registerProfile(profile: VersionedObjectResult<Profile>): Promise<void> {
         const contactApp = await ContactModel.getContactAppObject();
@@ -1055,9 +1042,7 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function shares the ContactApp object with your instance
-     *
-     * @return {Promise<void>}
+     * Share the ContactApp object with your instance
      */
     private static async shareContactAppWithYourInstances(): Promise<void> {
         const contactAppVersionedObjectResult = await ContactModel.getContactAppObject();
@@ -1077,11 +1062,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function updates the Profile object with a new Contact object.
+     * Update the Profile object with a new Contact object.
      *
-     * @param {VersionedObjectResult<Profile>} profile
-     * @param {UnversionedObjectResult<Contact>} contactObject
-     * @returns {Promise<void>}
+     * @param  profile - the given profile object
+     * @param contactObject - the given contact object
      */
     private async updateProfile(
         profile: VersionedObjectResult<Profile>,
@@ -1118,11 +1102,11 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns the person name description from a contact object.
+     * Return the person name description from a contact object.
      * If there is no name in the given Contact object as a parameter, it will return an empty string.
      *
-     * @param {Contact} contact - the contact object.
-     * @returns {Promise<string>} - the name that was found or empty string.
+     * @param contact - the given contact object
+     * @returns the name that was found or empty string
      */
     private async getNameDescription(contact: Contact): Promise<string> {
         // get the descriptions of each contact object
@@ -1139,10 +1123,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function is used to construct the merged object that contains all the information from the contact objects.
+     * Build the merged object that contains all the information from the contact objects.
      *
-     * @param {Info[]} existingInformation - the array that contains the information.
-     * @param {Info} informationToBeAdded - new element that should be added into the array.
+     * @param existingInformation - the array that contains the information.
+     * @param informationToBeAdded - new element that should be added into the array.
      */
     private static addInformationIfNotExist(
         existingInformation: Info[],
@@ -1169,12 +1153,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function compares two images to see if they are equal.
+     * Compare two images to see if they are equal.
      * NOTE: maybe it will be nice if we will have some file for utils functions like this one.
      *
-     * @param {ArrayBuffer} arrayBuffer1 - first array buffer.
-     * @param {ArrayBuffer} arrayBuffer2 - second array buffer.
-     * @returns {boolean}
+     * @param arrayBuffer1 - first array buffer.
+     * @param arrayBuffer2 - second array buffer.
+     * @returns true, if images are equal, otherwise false
      */
     private static areArrayBuffersEquals(
         arrayBuffer1: ArrayBuffer,
@@ -1190,10 +1174,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns the contact descriptions linked to the given contact object.
+     * Return the contact descriptions linked to the given contact object.
      *
-     * @param {Contact} contact - given contact object.
-     * @returns {Promise<ContactDescriptionTypes[]>}
+     * @param contact - the given contact object.
+     * @returns the contact description
      */
     private async getContactDescriptions(contact: Contact): Promise<ContactDescriptionTypes[]> {
         return await Promise.all(
@@ -1206,10 +1190,10 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function returns the contact communication endpoints linked to the given contact object.
+     * Return the contact communication endpoints linked to the given contact object.
      *
-     * @param {Contact} contact - given contact object.
-     * @returns {Promise<CommunicationEndpointTypes[]>}
+     * @param contact - the given contact object.
+     * @returns the contact communication endpoints
      */
     private async getContactCommunicationEndpoints(
         contact: Contact
@@ -1224,12 +1208,11 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * This function updates the content of the Contact object.
+     * Update the content of the Contact object.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @param {boolean} isContactDescription
-     * @param {UnversionedObjectResult<ContactDescriptionTypes>[] | UnversionedObjectResult<CommunicationEndpointTypes>[]} newContactContent
-     * @return {Promise<void>}
+     * @param personId - the given person Id
+     * @param isContactDescription - flag that specifies whether the contact description needs to be updated (if true) or the contact communication points (if false)
+     * @param newContactContent - the new content of the contact
      */
     private async updateContactContent(
         personId: SHA256IdHash<Person>,
