@@ -150,7 +150,10 @@ export default class ContactModel extends EventEmitter {
 
     /**
      * Initialize the structure. This has to be called after the one instance is initialized.
-     * @param takeOver - flag that specifies whether the initialization is created after a connection: IoM(if true) and IoP(if false)
+     *
+     * @param takeOver - Set to true if a takeover (IoM Pairing) took place. In this case an instance endpoint
+     * without the person key is generated. This is a workaround so that the temporary person keys generated
+     * before the takeover don't show up in any contact objects.
      */
     public async init(takeOver?: boolean): Promise<void> {
         /** if the contactApp exists, the structure must not be initialised, otherwise will be overwritten **/
@@ -195,7 +198,9 @@ export default class ContactModel extends EventEmitter {
      *
      * @param myself - flag that specifies whether the identity should be for me(if true) or another person(if false)
      * @param email - the email address
-     * @param takeOver - flag that specifies whether the identity should be created after a connection: IoM(if true) and IoP(if false)
+     * @param takeOver - Set to true if a takeover (IoM Pairing) took place. In this case an instance endpoint
+     * without the person key is generated. This is a workaround so that the temporary person keys generated
+     * before the takeover don't show up in any contact objects.
      * @returns the SHA256IdHash of the new created profile
      */
     public async createNewIdentity(
@@ -764,7 +769,9 @@ export default class ContactModel extends EventEmitter {
      *
      * @param personEmail - the email address
      * @param forMyself - flag that specifies whether the profile should be for me(if true) or another person(if false)
-     * @param takeOver - flag that specifies whether the profile should be created after a connection: IoM(if true) and IoP(if false)
+     * @param takeOver - Set to true if a takeover (IoM Pairing) took place. In this case an instance endpoint
+     * without the person key is generated. This is a workaround so that the temporary person keys generated
+     * before the takeover don't show up in any contact objects.
      * @returns the VersionedObjectResult of the profile
      */
     private async serializeProfileCreatingByPersonEmail(
