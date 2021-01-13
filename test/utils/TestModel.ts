@@ -31,19 +31,21 @@ const rmdir = util.promisify(fs.rmdir);
 export async function removeDir(dir: string) {
     try {
         const files = await readdir(dir);
-        await Promise.all(files.map(async (file: string) => {
-            try {
-                const p = path.join(dir, file);
-                const stat = await lstat(p);
-                if (stat.isDirectory()) {
-                    await removeDir(p);
-                } else {
-                    await unlink(p);
+        await Promise.all(
+            files.map(async (file: string) => {
+                try {
+                    const p = path.join(dir, file);
+                    const stat = await lstat(p);
+                    if (stat.isDirectory()) {
+                        await removeDir(p);
+                    } else {
+                        await unlink(p);
+                    }
+                } catch (err) {
+                    console.error(err);
                 }
-            } catch (err) {
-                console.error(err);
-            }
-        }))
+            })
+        );
         await rmdir(dir);
     } catch (err) {
         console.error(err);
@@ -106,9 +108,9 @@ export default class TestModel {
         if (myIdentities.length === 2) {
             anonymousId = myIdentities[0] === mainId ? myIdentities[1] : myIdentities[0];
         } else if (anonymousEmail) {
-            anonymousId = await this.contactModel.createProfile(true, anonymousEmail, takeOver);
+            anonymousId = await this.contactModel.createNewIdentity(true, anonymousEmail, takeOver);
         } else {
-            anonymousId = await this.contactModel.createProfile(true);
+            anonymousId = await this.contactModel.createNewIdentity(true);
         }
 
         return {

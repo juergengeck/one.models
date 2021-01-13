@@ -1,5 +1,4 @@
-import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
-import {QuestionnaireResponse} from './QuestionnaireModel';
+import {WbcObservation, Electrocardiogram, QuestionnaireResponses} from '@OneCoreTypes';
 import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
 import {DocumentInfo} from './DocumentModel';
@@ -30,7 +29,7 @@ export type EventListEntry = {
     data:
         | ObjectData<
               | WbcObservation
-              | QuestionnaireResponse
+              | QuestionnaireResponses
               | DocumentInfo
               | DiaryEntry
               | ConsentFile
@@ -43,6 +42,7 @@ export type EventListEntry = {
 type JournalInput = {
     model: EventEmitter;
     retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
+    eventType: EventType;
 };
 
 export default class JournalModel extends EventEmitter {
@@ -58,33 +58,29 @@ export default class JournalModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     init() {
-        this.modelsDictionary
-            .map((journalInput: JournalInput) => journalInput.model)
-            .forEach((model: EventEmitter) => {
-                const event = model.constructor.name as EventType;
-                const handler = () => {
-                    this.emit('updated');
-                };
-                model.on('updated', handler);
-                /** persist the function reference in a map **/
-                this.eventListeners.set(event, handler);
-            });
+        this.modelsDictionary.forEach((journalInput: JournalInput) => {
+            const event = journalInput.eventType;
+            const handler = () => {
+                this.emit('updated');
+            };
+            journalInput.model.on('updated', handler);
+            /** persist the function reference in a map **/
+            this.eventListeners.set(event, handler);
+        });
     }
 
     /**
      * removes the handler for every provided model
      */
     shutdown() {
-        this.modelsDictionary
-            .map((journalInput: JournalInput) => journalInput.model)
-            .forEach((model: EventEmitter) => {
-                const event = model.constructor.name as EventType;
-                /** retrieve the function reference in order to delete it **/
-                const handler = this.eventListeners.get(event);
-                if (handler) {
-                    model.removeListener('updated', handler);
-                }
-            });
+        this.modelsDictionary.forEach((journalInput: JournalInput) => {
+            const event = journalInput.eventType as EventType;
+            /** retrieve the function reference in order to delete it **/
+            const handler = this.eventListeners.get(event);
+            if (handler) {
+                journalInput.model.removeListener('updated', handler);
+            }
+        });
     }
 
     /**
@@ -103,7 +99,7 @@ export default class JournalModel extends EventEmitter {
         /** map every provided model to the data dictionary and get their values **/
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                const event = journalInput.model.constructor.name as EventType;
+                const event = journalInput.eventType;
                 const data = await journalInput.retrieveFn();
                 dataDictionary[event] = {
                     values: data,

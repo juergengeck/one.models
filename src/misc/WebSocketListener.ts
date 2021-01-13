@@ -1,6 +1,7 @@
 import WebSocket from 'isomorphic-ws';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -20,7 +21,7 @@ class WebSocketListener {
     /**
      * Handler is called on incoming connections.
      */
-    public onConnection: ((webSocket: WebSocket) => void) | null = null;
+    public onConnection: ((webSocket: WebSocketPromiseBased) => void) | null = null;
 
     /**
      * Handler for state change.
@@ -134,7 +135,7 @@ class WebSocketListener {
         MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
         try {
             if (this.onConnection) {
-                this.onConnection(ws);
+                this.onConnection(new WebSocketPromiseBased(ws));
             }
         } catch (e) {
             MessageBus.send('log', `${wslogId(ws)}: ${e}`);

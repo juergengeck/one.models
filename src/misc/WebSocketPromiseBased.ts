@@ -101,6 +101,11 @@ export default class WebSocketPromiseBased extends EventEmitter
      * Releases the websocket from this class.
      *
      * All handlers are deregistered, the rest is left as-is.
+     *
+     * Attention: If messages arrive in the meantime they might get lost.
+     *            Usually it is better to pass around the WebSocketPromiseBased
+     *            instance, because it buffers messages that arrive in the time
+     *            until new handlers are registered.
      */
     public releaseWebSocket(): WebSocket {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: releaseWebSocket()`);
@@ -279,6 +284,8 @@ export default class WebSocketPromiseBased extends EventEmitter
      * Wait for an incoming message with a specific type for a specified period of time.
      *
      * @param {string} type    - The type field of the message should have this type.
+     * @param {string} typekey - The name of the member that holds the type that is checked for equality
+     *                           with the type param.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
      * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
      *                                                 - The value will be the JSON.parse'd object
@@ -313,15 +320,14 @@ export default class WebSocketPromiseBased extends EventEmitter
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param {string} type    - The type field of the message should have this type.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
-     *                                                 - The value will be the JSON.parse'd object
-     *                                                 The promise will reject when
-     *                                                 1) the timeout expired
-     *                                                 2) the connection was closed
-     *                                                 3) the type of the received message doe not match parameter
-     *                                                    'type'
+     * @return Promise<any> The promise will resolve when a value was received.
+     *                      The value will be the JSON.parse'd object
+     *                      The promise will reject when
+     *                      1) the timeout expired
+     *                      2) the connection was closed
+     *                      3) the type of the received message doe not match parameter
+     *                         'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
@@ -459,7 +465,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * It notifies any waiting reader.
      *
-     * @param messageEvent
+     * @param openEvent
      */
     private handleOpen(openEvent: WebSocket.OpenEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleOpen()`);
@@ -511,7 +517,6 @@ export default class WebSocketPromiseBased extends EventEmitter
     private assertOpen(): void {
         if (!this.webSocket) {
             throw new Error('No websocket is bound to this instance.');
-            return;
         }
 
         if (this.webSocket.readyState !== WebSocket.OPEN) {
@@ -552,7 +557,7 @@ export default class WebSocketPromiseBased extends EventEmitter
      *
      * It notifies any waiting reader.
      *
-     * @param closeEvent
+     * @param errorEvent
      */
     private handleError(errorEvent: WebSocket.ErrorEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);

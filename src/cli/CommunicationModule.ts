@@ -155,7 +155,7 @@ async function main(): Promise<void> {
     if (alternateIds.length > 1) {
         throw new Error('Application expects exactly one alternate identity.');
     } else if (alternateIds.length < 1) {
-        personAnon = await contactModel.createProfile(true);
+        personAnon = await contactModel.createNewIdentity(true);
     } else {
         personAnon = alternateIds[0];
     }
@@ -172,8 +172,8 @@ async function main(): Promise<void> {
     );
 
     // Get the contact objects for the main and anon id
-    const mainContactObjects = await contactModel.getContactIdObjects(person);
-    const anonContactObjects = await contactModel.getContactIdObjects(personAnon);
+    const mainContactObjects = await contactModel.getContactObjectHashes(person);
+    const anonContactObjects = await contactModel.getContactObjectHashes(personAnon);
     if (mainContactObjects.length !== 1) {
         throw new Error('There is more than one contact object for main user.');
     }

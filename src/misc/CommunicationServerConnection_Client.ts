@@ -34,6 +34,8 @@ class CommunicationServerConnection_Client {
 
     /**
      * Releases the underlying websocket, so that it can be used by another class.
+     *
+     * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
         return this.webSocketPB.releaseWebSocket();

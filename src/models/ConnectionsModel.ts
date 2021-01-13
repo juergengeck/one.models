@@ -98,6 +98,9 @@ export type ConnectionsModelConfiguration = {
     // Default: 60000 (1 minute)
     authTokenExpirationDuration: number;
 
+    // If true, then the allowSerAuthGroup call is enabled
+    allowSetAuthGroup: boolean;
+
     // #### Outgoing connection configuration ####
     // If true automatically establish outgoing connections
     // Default: true
@@ -227,6 +230,8 @@ class ConnectionsModel extends EventEmitter {
                 config.authTokenExpirationDuration !== undefined
                     ? config.authTokenExpirationDuration
                     : 60000,
+            allowSetAuthGroup:
+                config.allowSetAuthGroup !== undefined ? config.allowSetAuthGroup : false,
             establishOutgoingConnections:
                 config.establishOutgoingConnections !== undefined
                     ? config.establishOutgoingConnections
@@ -399,6 +404,81 @@ class ConnectionsModel extends EventEmitter {
                 takeOver: false
             };
         }
+    }
+
+    /**
+     * Cpnect to the target and transmmit the setAccessGroup command
+     *
+     * @param remotePerson
+     * @param accessGroupMembers
+     */
+    public async connectSettingAccessGroups(
+        remotePerson: SHA256IdHash<Person>,
+        accessGroupMembers: SHA256IdHash<Person>[]
+    ): Promise<void> {
+
+        const endpoints = await this.contactModel.findAllOneInstanceEndpoints();
+        const remoteEndpoint = endpoints.find(endpoint => (endpoint.personId === remotePerson && endpoint.personKeys));
+        if (!remoteEndpoint) {
+            throw new Error('Could not find pairing information.');
+        }
+        if (!this.anonInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized.');
+        }
+        if (!remoteEndpoint.personKeys) {
+            throw new Error('Endpoint does not have a person key.');
+        }
+
+        const anonInstanceInfo = this.anonInstanceInfo;
+        const remoteInstanceKey = toByteArray((await getObject(remoteEndpoint.instanceKeys)).publicKey);
+
+        // Connect to target
+        const conn = await OutgoingConnectionEstablisher.connectOnce(
+            remoteEndpoint.url,
+            toByteArray(this.anonInstanceInfo.instanceKeys.publicKey),
+            remoteInstanceKey,
+            text => {
+                return anonInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                    remoteInstanceKey,
+                    text
+                );
+            },
+            cypherText => {
+                return anonInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                    remoteInstanceKey,
+                    cypherText
+                );
+            }
+        );
+
+        // Add this connection to the communication module, so that it becomes the known connection
+        this.communicationModule.addNewUnknownConnection(
+            toByteArray(anonInstanceInfo.instanceKeys.publicKey),
+            remoteInstanceKey,
+            conn
+        );
+
+        // Start the takeover protocol
+        try {
+            // Send the other side the protocol we'd like to use
+            await ConnectionsModel.sendMessage(conn, {
+                command: 'start_protocol',
+                protocol: 'accessGroup_set',
+                version: '1.0'
+            });
+
+            // Start the selected protocol
+            await this.startSetAccessGroup_Client(
+                conn,
+                anonInstanceInfo.personId,
+                remotePerson,
+                accessGroupMembers
+            );
+        } catch (e) {
+            conn.close(e.message);
+            throw e;
+        }
+
     }
 
     /**
@@ -607,6 +687,7 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
+                MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -665,6 +746,22 @@ class ConnectionsModel extends EventEmitter {
                     await this.startChumPkExchangeProtocol_Server(conn, localPersonId);
                 }
 
+                // Set the access groups on the remote machine
+                else if (protocolMsg.protocol === 'accessGroup_set') {
+                    if (!this.config.allowSetAuthGroup) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'accessGroup_set protocol is disabled through configuration.'
+                        );
+                    }
+                    if (protocolMsg.version !== '1.0') {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error('Unsupported accessGroup_set protocol version.');
+                    }
+
+                    await this.startSetAccessGroup_Server(conn, localPersonId);
+                }
+
                 // All other protocols
                 else {
                     // noinspection ExceptionCaughtLocallyJS
@@ -672,6 +769,7 @@ class ConnectionsModel extends EventEmitter {
                 }
             }
         } catch (e) {
+            MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -710,6 +808,7 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
+                MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -767,6 +866,22 @@ class ConnectionsModel extends EventEmitter {
                     await this.startChumPkExchangeProtocol_Server(conn, localPersonId);
                 }
 
+                // Set the access groups on the remote machine
+                else if (protocolMsg.protocol === 'accessGroup_set') {
+                    if (!this.config.allowSetAuthGroup) {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error(
+                            'accessGroup_set protocol is disabled through configuration.'
+                        );
+                    }
+                    if (protocolMsg.version !== '1.0') {
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error('Unsupported accessGroup_set protocol version.');
+                    }
+
+                    await this.startSetAccessGroup_Server(conn, localPersonId);
+                }
+
                 // All other protocols
                 else {
                     // noinspection ExceptionCaughtLocallyJS
@@ -774,6 +889,7 @@ class ConnectionsModel extends EventEmitter {
                 }
             }
         } catch (e) {
+            MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -1150,6 +1266,109 @@ class ConnectionsModel extends EventEmitter {
         conn.close();
     }
 
+    // ################ SET AUTH GROUP ################
+
+    private async startSetAccessGroup_Server(
+        conn: EncryptedConnection,
+        localPersonId: SHA256IdHash<Person>
+    ): Promise<void> {
+        try {
+            if (!this.anonInstanceInfo) {
+                throw new Error('Identities were not initialized correctly.');
+            }
+
+            // Step 1: Exchange / authenticate person keys & person Id
+            const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
+
+            // Step 2: Wait for the authentication token and verify it against the token list
+            const accessGroupMembers = await ConnectionsModel.waitForMessage(
+                conn,
+                'access_group_members'
+            );
+
+            // Store the new group members and send success
+            const personObjs = await Promise.all(
+                accessGroupMembers.persons.map(person =>
+                    createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        {
+                            $type$: 'Person',
+                            email: person
+                        }
+                    )
+                )
+            );
+            await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                {
+                    $type$: 'Group',
+                    name: 'person_' + remotePersonInfo.personId,
+                    person: personObjs.map(personObj => personObj.idHash)
+                }
+            );
+
+            // Step 3: Send success message
+            await ConnectionsModel.sendMessage(conn, {
+                command: 'success'
+            });
+
+            // Wait for the other side to process the close message.
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        finally {
+            conn.close();
+        }
+    }
+
+    /**
+     * Starts a chum by authenticating with a one time authentication token at the peer.
+     *
+     * This is used for the initial connection when you have received an authentication token through a secure channel
+     *
+     * Step 1: Verify / exchange the remote person id (and check the keys against the ones stored in the database)
+     * Step 2: Send authentication token
+     * Step 3: Exchange person objects (needed for setting up access rights) -> TODO: shouldn't be part of this workflow ...
+     * Step 4: Setup the chum
+     *
+     * @param conn - Connection to the peer.
+     * @param localPersonId - The local person id used to setup the chum
+     * @param remotePersonId
+     * @param accessGroupMembers
+     */
+    private async startSetAccessGroup_Client(
+        conn: EncryptedConnection,
+        localPersonId: SHA256IdHash<Person>,
+        remotePersonId: SHA256IdHash<Person>,
+        accessGroupMembers: SHA256IdHash<Person>[]
+    ): Promise<void> {
+        try {
+            // Step 1: Exchange / authenticate person keys & person Id
+            await this.verifyAndExchangePersonId(conn, localPersonId, true, remotePersonId);
+
+            // Step 2: Send the group members
+            const personObjs = await Promise.all(
+                accessGroupMembers.map(person => getObjectByIdHash(person))
+            );
+            const personEmails = personObjs.map(personObj => personObj.obj.email);
+            await ConnectionsModel.sendMessage(conn, {
+                command: 'access_group_members',
+                persons: personEmails
+            });
+
+            // Step 3: Wait for success message from the other side.
+            await ConnectionsModel.waitForMessage(conn, 'success');
+        }
+        finally {
+            conn.close();
+        }
+    }
+
     // ################ Others ################
 
     /**
@@ -1441,12 +1660,14 @@ class ConnectionsModel extends EventEmitter {
         const instanceEndpoints: OneInstanceEndpoint[] = [];
 
         // Filter only the OneInstanceEndpoint objects
-        for(const endpoint of endpoints) {
+        for (const endpoint of endpoints) {
             if (!thisAnonInstanceInfo) {
                 throw new Error('Unknown anonymous identity!');
             }
-            if(endpoint.$type$ === 'OneInstanceEndpoint' &&
-                endpoint.personId !== thisAnonInstanceInfo.personId) {
+            if (
+                endpoint.$type$ === 'OneInstanceEndpoint' &&
+                endpoint.personId !== thisAnonInstanceInfo.personId
+            ) {
                 instanceEndpoints.push(endpoint);
             }
         }
@@ -1745,8 +1966,8 @@ class ConnectionsModel extends EventEmitter {
             challenge
         );
         await conn.sendBinaryMessage(encryptedChallenge);
-        for (let elem of challenge) {
-            elem = ~elem;
+        for (let i = 0; i < challenge.length; ++i) {
+            challenge[i] = ~challenge[i];
         }
 
         // Wait for response
@@ -1780,8 +2001,8 @@ class ConnectionsModel extends EventEmitter {
             remotePersonPublicKey,
             encryptedChallenge
         );
-        for (let elem of challenge) {
-            elem = ~elem;
+        for (let i = 0; i < challenge.length; ++i) {
+            challenge[i] = ~challenge[i];
         }
         const encryptedResponse = crypto.encryptWithPersonPublicKey(
             remotePersonPublicKey,

@@ -2,12 +2,12 @@ import CommunicationServerListener, {
     CommunicationServerListenerState
 } from './CommunicationServerListener';
 import WebSocketListener from './WebSocketListener';
-import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import EncryptedConnetion_Server from './EncryptedConnection_Server';
 import EncryptedConnection from './EncryptedConnection';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -99,9 +99,12 @@ class IncomingConnectionManager {
         const listener = new CommunicationServerListener(2, 10000);
         listener.onChallenge = (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
             const decryptedChallenge = decrypt(publicKey, challenge);
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
+            }
             return encrypt(publicKey, decryptedChallenge);
         };
-        listener.onConnection = (ws: WebSocket) => {
+        listener.onConnection = (ws: WebSocketPromiseBased) => {
             this.acceptConnection(ws, [publicKey], encrypt, decrypt);
         };
 
@@ -156,7 +159,7 @@ class IncomingConnectionManager {
 
             // Create web socket listener & connect signals
             const listener = new WebSocketListener();
-            listener.onConnection = (ws: WebSocket) => {
+            listener.onConnection = (ws: WebSocketPromiseBased) => {
                 this.acceptConnection(ws, registeredPublicKeys, encrypt, decrypt);
             };
 
@@ -202,12 +205,12 @@ class IncomingConnectionManager {
     // What do we actually need here?
     // A list of acceptable public keys for this connection.
     private async acceptConnection(
-        ws: WebSocket,
+        ws: WebSocketPromiseBased,
         allowedPublicKeys: Uint8Array[],
         encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
         decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array
     ): Promise<void> {
-        MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
+        MessageBus.send('log', `${wslogId(ws.webSocket)}: Accepted WebSocket`);
         try {
             const conn = new EncryptedConnetion_Server(ws);
 
@@ -255,7 +258,7 @@ class IncomingConnectionManager {
                 this.onConnection(conn, request.targetPublicKey, request.sourcePublicKey);
             }
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws)}: ${e}`);
+            MessageBus.send('log', `${wslogId(ws.webSocket)}: ${e}`);
             ws.close();
             throw e;
         }
