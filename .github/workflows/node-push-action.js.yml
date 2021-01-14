@@ -42,8 +42,8 @@ jobs:
             - name: Push docs to one.devops
               uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
-                  SOURCE_DIRECTORY: docs
-                  DESTINATION_GITHUB_USERNAME: refinio
-                  DESTINATION_REPOSITORY_NAME: one.devops
-                  USER_EMAIL: wisgicklma@refinio.net
-                  TARGET_REPO_DIRECTORY: docs/one.models/
+                  source-directory: docs
+                  destination-github-username: refinio
+                  destination-repository-name: one.devops
+                  user-email: wisgicklma@refinio.net
+                  target-repo-directory: docs/one.models/
