@@ -43,7 +43,8 @@ jobs:
               uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
                   source-directory: docs
-                  destination-github-username: refinio
-                  destination-repository-name: one.devops
+                  destination-github-repository-username: refinio
+                  destination-github-repository-name: one.devops
+                  destination-repository-folder: docs/one.models/
                   user-email: wisgicklma@refinio.net
-                  target-repo-directory: docs/one.models/
+                  user-name: devops
