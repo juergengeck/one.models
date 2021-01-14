@@ -35,13 +35,8 @@ jobs:
             - uses: webfactory/ssh-agent@v0.4.1
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v1
-              with:
-                  node-version: ${{ matrix.node-version }}
-            - run: yarn install
-            - run: node build
-            - run: yarn doc
+            - name: Dummy
+              run: echo "test" > test.txt
 
             # Archive docs
             - name: Push docs to one.devops
