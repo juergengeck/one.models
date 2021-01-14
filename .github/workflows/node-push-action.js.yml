@@ -44,7 +44,7 @@ jobs:
             - run: yarn doc
 
             # Archive docs
-            - name: Zipping the documentantion
+            - name: Push docs to one.devops
               uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
                   source-directory: docs
