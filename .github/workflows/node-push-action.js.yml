@@ -45,7 +45,10 @@ jobs:
 
             # Archive docs
             - name: Zipping the documentantion
-              uses: actions/upload-artifact@v2
+              uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
-                  name: Documentation
-                  path: docs
+                  source-directory: docs
+                  destination-directory: docs/one.models/
+                  destination-github-username: refinio
+                  destination-repository-name: one.devops
+                  user-email: wisgicklma@refinio.net
