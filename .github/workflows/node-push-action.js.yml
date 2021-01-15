@@ -51,5 +51,5 @@ jobs:
                 destination-github-repository-username: refinio
                 destination-github-repository-name: one.devops
                 destination-repository-folder: docs/one.models/
-                user-email: wisgicklma@refinio.net
+                user-email: devops@refinio.net
                 user-name: devops
