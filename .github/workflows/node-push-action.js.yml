@@ -5,7 +5,7 @@ name: Generate & deploy documentation
 
 on:
     push:
-        branches: [test]
+        branches: [docs-deploy]
 
 jobs:
     documentation:
