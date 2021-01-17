@@ -4,7 +4,7 @@
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import Recipes from '../lib/recipes/recipes';
-import TestModel, {createRandomBodyTemperature, dbKey, importModules, removeDir} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
@@ -12,16 +12,15 @@ import {
 } from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {Person, SHA256Hash, ChannelRegistry, SHA256IdHash, BodyTemperature} from '@OneCoreTypes';
+import {Person, ChannelRegistry, SHA256IdHash, BodyTemperature} from '@OneCoreTypes';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import rimraf from "rimraf";
+import rimraf from 'rimraf';
 
 let channelManager: typeof ChannelManager;
 let testModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
-let specificObjectHash: SHA256Hash<BodyTemperature>;
 
 async function getChannelRegistry() {
     const registryIdHash: SHA256IdHash<ChannelRegistry> = await calculateIdHashOfObj({
