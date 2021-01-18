@@ -5,11 +5,11 @@ name: Generate & deploy documentation
 
 on:
     push:
-        branches: [docs-deploy]
+        branches: [master]
 
 jobs:
     documentation:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-20.04
 
         # select all the node versions you want to test
         strategy:
