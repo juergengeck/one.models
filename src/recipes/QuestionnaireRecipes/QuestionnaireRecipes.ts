@@ -102,6 +102,10 @@ declare module '@OneCoreTypes' {
         answerOption?: QuestionnaireAnswerOptionValue[];
         initial?: QuestionnaireValue[];
         item?: Question[];
+        allowFutureDate?: boolean;  // used for the date questions
+        firstAnswer?: number;       // used to specify the beginning of the answers interval of integer questions
+        lastAnswer?: number;        // used to specify the end of the answers interval of integer questions
+
     };
 
     /**
@@ -494,7 +498,22 @@ const QuestionnaireRules: RecipeRule[] = [
                 itemprop: 'item',
                 inheritFrom: 'Questionnaire.item',
                 optional: true
-            }
+            },
+            {
+                itemprop: 'allowFutureDates',
+                valueType: 'boolean',
+                optional: true
+            },
+            {
+                itemprop: 'firstAnswer',
+                valueType: 'number',
+                optional: true
+            },
+            {
+                itemprop: 'lastAnswer',
+                valueType: 'number',
+                optional: true
+            },
         ]
     }
 ];
