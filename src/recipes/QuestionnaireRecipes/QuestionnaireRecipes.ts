@@ -97,15 +97,10 @@ declare module '@OneCoreTypes' {
         required?: boolean;
         repeats?: boolean;
         readOnly?: boolean;
-        minLength?: number;
-        maxLength?: number;
         answerOption?: QuestionnaireAnswerOptionValue[];
         initial?: QuestionnaireValue[];
         item?: Question[];
-        allowFutureDate?: boolean;  // used for the date questions
-        firstAnswer?: number;       // used to specify the beginning of the answers interval of integer questions
-        lastAnswer?: number;        // used to specify the end of the answers interval of integer questions
-
+        answerRestriction?: AnswerRestriction[];
     };
 
     /**
@@ -121,6 +116,17 @@ declare module '@OneCoreTypes' {
         status: 'draft' | 'active' | 'retired' | 'unknown';
         item: Question[];
     }
+
+    /**
+     * All kind of restrictions for an answer.
+     */
+    type AnswerRestriction = {
+        minLength?: number; // minimum number of characters that the answer can contain
+        maxLength?: number; // maximum number of characters that the answer can contain
+        allowFutureDate?: boolean; // used for the date questions
+        firstAnswer?: number; // used to specify the beginning of the answers interval of integer questions
+        lastAnswer?: number; // used to specify the end of the answers interval of integer questions
+    };
 }
 
 const Coding: RecipeRule[] = [
@@ -321,6 +327,37 @@ export const ValueRules: RecipeRule[] = [
 ];
 
 /**
+ * The rules that specifies the restrictions that can be applied to an answer.
+ */
+const AnswerRestrictionRules: RecipeRule[] = [
+    {
+        itemprop: 'minLength',
+        valueType: 'number',
+        optional: true
+    },
+    {
+        itemprop: 'maxLength',
+        valueType: 'number',
+        optional: true
+    },
+    {
+        itemprop: 'allowFutureDate',
+        valueType: 'boolean',
+        optional: true
+    },
+    {
+        itemprop: 'firstAnswer',
+        valueType: 'number',
+        optional: true
+    },
+    {
+        itemprop: 'lastAnswer',
+        valueType: 'number',
+        optional: true
+    }
+];
+
+/**
  * The rules to build a questionnaire based on FHIR
  */
 const QuestionnaireRules: RecipeRule[] = [
@@ -458,20 +495,6 @@ const QuestionnaireRules: RecipeRule[] = [
                 optional: true
             },
 
-            // Extension: At least more than this many characters
-            {
-                itemprop: 'minLength',
-                valueType: 'number',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): No more than this many characters
-            {
-                itemprop: 'maxLength',
-                valueType: 'number',
-                optional: true
-            },
-
             // FHIR(Questionnaire): Initial value(s) when item is first rendered
             {
                 itemprop: 'answerOption',
@@ -500,20 +523,11 @@ const QuestionnaireRules: RecipeRule[] = [
                 optional: true
             },
             {
-                itemprop: 'allowFutureDates',
-                valueType: 'boolean',
+                itemprop: 'answerRestriction',
+                list: ORDERED_BY.ONE,
+                rule: AnswerRestrictionRules,
                 optional: true
-            },
-            {
-                itemprop: 'firstAnswer',
-                valueType: 'number',
-                optional: true
-            },
-            {
-                itemprop: 'lastAnswer',
-                valueType: 'number',
-                optional: true
-            },
+            }
         ]
     }
 ];
