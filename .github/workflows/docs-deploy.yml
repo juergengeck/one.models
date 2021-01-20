@@ -50,3 +50,12 @@ jobs:
                 destination-repository-folder: docs/one.models/
                 user-email: devops@refinio.net
                 user-name: devops
+
+            # Trigger the deployment in one.devops
+            - name: Repository Dispatch
+              uses: peter-evans/repository-dispatch@v1
+              with:
+                    token: ${{ secrets.REPOSITORY_DISPATCH }}
+                    repository: refinio/one.devops
+                    event-type: one-models-docs-update
+                    client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
