@@ -97,10 +97,12 @@ declare module '@OneCoreTypes' {
         required?: boolean;
         repeats?: boolean;
         readOnly?: boolean;
+        minLength?: number;
+        maxLength?: number;
         answerOption?: QuestionnaireAnswerOptionValue[];
         initial?: QuestionnaireValue[];
         item?: Question[];
-        answerRestriction?: AnswerRestriction[];
+        answerRestriction?: AnswerRestriction;
     };
 
     /**
@@ -118,14 +120,24 @@ declare module '@OneCoreTypes' {
     }
 
     /**
-     * All kind of restrictions for an answer.
+     * Used to specify min and max value for an answer.
+     */
+    type QuestionnaireAnswerMinMaxValue = {
+        valueInteger?: string;
+        valueDate?: string;         // can also be 'now'
+        valueTime?: string;
+        valueString?: string;
+        valueCoding?: Coding;
+    };
+
+    /**
+     * Represents the restriction that will be applied to an answer.
      */
     type AnswerRestriction = {
-        minLength?: number; // minimum number of characters that the answer can contain
-        maxLength?: number; // maximum number of characters that the answer can contain
-        allowFutureDate?: boolean; // used for the date questions
-        firstAnswer?: number; // used to specify the beginning of the answers interval of integer questions
-        lastAnswer?: number; // used to specify the end of the answers interval of integer questions
+        minValue?: QuestionnaireAnswerMinMaxValue;
+        minInclusive?: boolean;         // default = true
+        maxValue?: QuestionnaireAnswerMinMaxValue;
+        maxInclusive?: boolean;         // default = true
     };
 }
 
@@ -326,33 +338,49 @@ export const ValueRules: RecipeRule[] = [
     }*/
 ];
 
-/**
- * The rules that specifies the restrictions that can be applied to an answer.
- */
-const AnswerRestrictionRules: RecipeRule[] = [
+const QuestionnaireAnswerMinMaxValueRule: RecipeRule[] = [
     {
-        itemprop: 'minLength',
-        valueType: 'number',
+        itemprop: 'valueInteger',
         optional: true
     },
     {
-        itemprop: 'maxLength',
-        valueType: 'number',
+        itemprop: 'valueDate',
         optional: true
     },
     {
-        itemprop: 'allowFutureDate',
+        itemprop: 'valueTime',
+        optional: true
+    },
+    {
+        itemprop: 'valueString',
+        optional: true
+    },
+    {
+        itemprop: 'valueCoding',
+        rule: Coding,
+        optional: true
+    }
+];
+
+const AnswerRestrictionRule: RecipeRule[] = [
+    {
+        itemprop: 'minValue',
+        rule: QuestionnaireAnswerMinMaxValueRule,
+        optional: true
+    },
+    {
+        itemprop: 'minInclusive',
         valueType: 'boolean',
         optional: true
     },
     {
-        itemprop: 'firstAnswer',
-        valueType: 'number',
+        itemprop: 'maxValue',
+        rule: QuestionnaireAnswerMinMaxValueRule,
         optional: true
     },
     {
-        itemprop: 'lastAnswer',
-        valueType: 'number',
+        itemprop: 'maxInclusive',
+        valueType: 'boolean',
         optional: true
     }
 ];
@@ -495,6 +523,20 @@ const QuestionnaireRules: RecipeRule[] = [
                 optional: true
             },
 
+            // Extension: At least more than this many characters
+            {
+                itemprop: 'minLength',
+                valueType: 'number',
+                optional: true
+            },
+
+            // FHIR(Questionnaire): No more than this many characters
+            {
+                itemprop: 'maxLength',
+                valueType: 'number',
+                optional: true
+            },
+
             // FHIR(Questionnaire): Initial value(s) when item is first rendered
             {
                 itemprop: 'answerOption',
@@ -524,8 +566,7 @@ const QuestionnaireRules: RecipeRule[] = [
             },
             {
                 itemprop: 'answerRestriction',
-                list: ORDERED_BY.ONE,
-                rule: AnswerRestrictionRules,
+                rule: AnswerRestrictionRule,
                 optional: true
             }
         ]
