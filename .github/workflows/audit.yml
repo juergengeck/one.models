@@ -2,8 +2,7 @@ name: Audit
 
 on:
     schedule:
-        # every monday at 6 am
-        - cron: '0 6 * * 0'
+        - cron: '0 6 * * 3'
     push:
         branches: [do-audit]
 
