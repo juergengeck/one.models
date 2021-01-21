@@ -47,9 +47,9 @@ jobs:
               with:
                   server_address: smtp.mailbox.org
                   server_port: 465
-                  username: devops@refinio.net
-                  password: ${{secrets.DEVOPS_MAIL_PASSWORD}}
-                  subject: Github Audit for ${{github.repository}}
+                  username: ${{secrets.REPORT_MAIL_USERNAME}}
+                  password: ${{secrets.REPORT_MAIL_PASSWORD}}
+                  subject: Audit-Report for ${{github.repository}}
                   # Read file contents as body:
                   body: file://yarn-audit.txt
                   to: devops@refinio.net,erik@refinio.net,winpuc@refinio.net,milena@refinio.net
