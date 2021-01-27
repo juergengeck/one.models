@@ -49,19 +49,22 @@ export default class ConsentFileModel extends EventEmmiter {
     channelId: string;
     private personId: SHA256IdHash<Person> | undefined;
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private readonly consentDocumentVersion: number;
 
     /**
      * Construct a new instance
      *
      * @param {ChannelManager} channelManager - The channel manager instance
+     * @param consentDocumentVersion - the current version of the consent document
      */
-    constructor(channelManager: ChannelManager) {
+    constructor(channelManager: ChannelManager, consentDocumentVersion: number) {
         super();
 
         this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
         this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
+        this.consentDocumentVersion = consentDocumentVersion;
     }
 
     setPersonId(id: SHA256IdHash<Person>): void {
@@ -104,6 +107,11 @@ export default class ConsentFileModel extends EventEmmiter {
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
         if (!consentFile) {
             throw new Error('empty file');
+        }
+
+        // if it's consent file then add the version of it
+        if (consentFile.fileType === FileType.Consent) {
+            consentFile.fileData += " " + this.consentDocumentVersion;
         }
 
         await this.channelManager.postToChannel(this.channelId, convertToOne(consentFile));
