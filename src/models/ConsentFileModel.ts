@@ -49,7 +49,7 @@ export default class ConsentFileModel extends EventEmmiter {
     channelId: string;
     private personId: SHA256IdHash<Person> | undefined;
     private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
-    private readonly consentDocumentVersion: number;
+    private readonly consentDocumentVersion: string;
 
     /**
      * Construct a new instance
@@ -57,7 +57,7 @@ export default class ConsentFileModel extends EventEmmiter {
      * @param {ChannelManager} channelManager - The channel manager instance
      * @param consentDocumentVersion - the current version of the consent document
      */
-    constructor(channelManager: ChannelManager, consentDocumentVersion: number) {
+    constructor(channelManager: ChannelManager, consentDocumentVersion: string) {
         super();
 
         this.channelId = 'consentFile';
