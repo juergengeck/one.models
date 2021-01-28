@@ -111,7 +111,7 @@ export default class ConsentFileModel extends EventEmmiter {
 
         // if it's consent file then add the version of it
         if (consentFile.fileType === FileType.Consent) {
-            consentFile.fileData += " " + this.consentDocumentVersion;
+            consentFile.fileData += ' ' + this.consentDocumentVersion;
         }
 
         await this.channelManager.postToChannel(this.channelId, convertToOne(consentFile));
@@ -127,10 +127,14 @@ export default class ConsentFileModel extends EventEmmiter {
         for (const oneObject of oneObjects) {
             const {data, ...restObjectData} = oneObject;
 
+            // get the person id hash and the version of the consent document from the fileData
+            const objectFileData = data.fileData.split(' ');
+
             // For consent and dropout files check if the owner is the same as the current
             // instance owner. Consent files will be shared with partner just for backup
             // purpose so in partner journal page should not be visible.
-            if (data.fileType === 'consent' && data.fileData === this.personId) {
+
+            if (data.fileType === 'consent' && objectFileData[0] === this.personId) {
                 objects.push({...restObjectData, data: convertFromOne(data)});
             } else if (data.fileType === 'dropout') {
                 const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
