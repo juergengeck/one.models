@@ -2,7 +2,7 @@ name: Generate & deploy documentation
 
 on:
     push:
-        branches: [docs-deploy]
+        branches: [doc-deploy]
 
 jobs:
     documentation:
@@ -14,48 +14,41 @@ jobs:
                 node-version: [14.x]
 
         steps:
-            # create node_modules cache
             - name: Get yarn cache directory path
-              # set cache dir path as a var
               id: yarn-cache-dir-path
               run: echo "::set-output name=dir::$(yarn cache dir)"
-              # setup cache
-            - uses: actions/cache@v2
+
+            - name: Populate yarn cache
+              uses: actions/cache@v2
               id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
               with:
                   path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
                   key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
                   restore-keys: |
                       ${{ runner.os }}-yarn-
-            # setup tests for node versions
+
+            # Setup env
             - uses: actions/checkout@v2
             - uses: webfactory/ssh-agent@v0.4.1
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v1
+            - uses: actions/setup-node@v1
               with:
                   node-version: ${{ matrix.node-version }}
-            - run: yarn install
-            - run: node build
-            - run: yarn doc
+
+            - name: Build doc
+              run: |
+                  yarn install
+                  node build
+                  yarn doc
 
             # push to deployment repo
             - name: Push docs to one.devops
               uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
-                source-directory: docs
-                destination-github-repository-username: refinio
-                destination-github-repository-name: one.devops
-                destination-repository-folder: projects/one.models/latest/docs
-                user-email: devops@refinio.net
-                user-name: devops
-
-            # Trigger the deployment in one.devops
-            - name: Repository Dispatch
-              uses: peter-evans/repository-dispatch@v1
-              with:
-                    token: ${{ secrets.REPOSITORY_DISPATCH }}
-                    repository: refinio/one.devops
-                    event-type: one-models-docs-update
-                    client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+                  source-directory: doc
+                  destination-github-repository-username: refinio
+                  destination-github-repository-name: one.devops
+                  destination-repository-folder: projects/one.models/latest/doc
+                  user-email: devops@refinio.net
+                  user-name: devops
