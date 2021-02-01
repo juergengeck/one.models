@@ -46,7 +46,7 @@ jobs:
             - name: Push docs to one.devops
               uses: Tonacatecuhtli/github-action-push-to-another-repository@master
               with:
-                  source-directory: doc
+                  source-directory: docs
                   destination-github-repository-username: refinio
                   destination-github-repository-name: one.devops
                   destination-repository-folder: projects/one.models/latest/doc
