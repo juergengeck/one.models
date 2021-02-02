@@ -52,6 +52,10 @@ export function addRule(rules: RecipeRule[], path: string, rule: RecipeRule): vo
  */
 export function overwriteRule(rules: RecipeRule[], path: string, rule: RecipeRule): void {
     const completePath = [path, rule.itemprop].join('.');
+    console.log("let's see completePath: ", completePath);
+    console.log("let's see path: ", path);
+    console.log("let's see rule: ", rule);
+
     if (!hasRule(rules, completePath)) {
         throw new Error(`overwriteRule: A rule ${completePath} does not exist.`);
     }
