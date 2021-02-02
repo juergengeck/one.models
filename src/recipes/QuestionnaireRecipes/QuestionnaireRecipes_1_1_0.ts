@@ -19,14 +19,18 @@ declare module '@OneCoreTypes' {
     }
 
     module Questionnaire_1_1_0 {
-        /**
-         * Question of a questionnaire.
-         */
-        type Question =
-            | Questionnaire.Question
-            | {
-                  answerRestriction?: AnswerRestriction;
-              };
+        // /**
+        //  * Question of a questionnaire.
+        //  */
+        // type Question =
+        //     | Questionnaire.Question
+        //     | {
+        //           answerRestriction?: AnswerRestriction;
+        //       };
+
+        type Question = Questionnaire.Question & {
+            answerRestriction?: AnswerRestriction;
+        };
 
         /**
          * Used to specify min and max value for an answer.
