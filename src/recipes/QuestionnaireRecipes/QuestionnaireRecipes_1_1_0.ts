@@ -146,6 +146,12 @@ addRule(QuestionnaireRules, 'item', {
     optional: true
 });
 
+overwriteRule(QuestionnaireRules, 'item.question', {
+    itemprop: 'item',
+    inheritFrom: 'Questionnaire_1_1_0.item',
+    optional: true
+});
+
 /**
  * Recipe for questionnaires based upon FHIR standard.
  *
