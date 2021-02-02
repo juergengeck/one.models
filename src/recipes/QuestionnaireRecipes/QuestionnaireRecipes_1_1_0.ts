@@ -146,7 +146,7 @@ addRule(QuestionnaireRules, 'item', {
     optional: true
 });
 
-overwriteRule(QuestionnaireRules, 'item.question', {
+overwriteRule(QuestionnaireRules, 'item.question.item', {
     itemprop: 'item',
     inheritFrom: 'Questionnaire_1_1_0.item',
     optional: true
