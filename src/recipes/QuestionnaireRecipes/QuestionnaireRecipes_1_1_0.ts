@@ -146,14 +146,6 @@ addRule(QuestionnaireRules, 'item', {
     optional: true
 });
 
-overwriteRule(QuestionnaireRules, 'item.question.item', {
-    itemprop: 'item',
-    inheritFrom: 'Questionnaire_1_1_0.item.question',
-    optional: true
-});
-
-console.log("Questionnaire Rules: ", QuestionnaireRules);
-
 /**
  * Recipe for questionnaires based upon FHIR standard.
  *
