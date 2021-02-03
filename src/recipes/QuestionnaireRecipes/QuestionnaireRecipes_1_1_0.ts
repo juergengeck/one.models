@@ -131,17 +131,24 @@ export const AnswerRestrictionRule: RecipeRule[] = [
     }
 ];
 
+console.log("Questionnaires rules before cloning: ", QuestionnaireRules_1_0_0)
 /**
  * The rules to build a questionnaire based on FHIR
  */
 export const QuestionnaireRules: RecipeRule[] = cloneRule(QuestionnaireRules_1_0_0);
 console.log("Questionnaire rules before: ", QuestionnaireRules);
-overwriteRule(QuestionnaireRules, 'item', {
-    itemprop: 'item',
-    inheritFrom: 'Questionnaire_1_1_0.item',
+// overwriteRule(QuestionnaireRules, 'item', {
+//     itemprop: 'item',
+//     inheritFrom: 'Questionnaire_1_1_0.item',
+//     optional: true
+// });
+addRule(QuestionnaireRules, 'item', {
+    itemprop: 'answerRestriction',
+    rule: AnswerRestrictionRule,
     optional: true
 });
-addRule(QuestionnaireRules, 'item', {
+
+addRule(QuestionnaireRules, 'item.item', {
     itemprop: 'answerRestriction',
     rule: AnswerRestrictionRule,
     optional: true
