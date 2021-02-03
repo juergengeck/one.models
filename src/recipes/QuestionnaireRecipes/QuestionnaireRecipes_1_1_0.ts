@@ -23,8 +23,9 @@ declare module '@OneCoreTypes' {
         /**
          * Question of a questionnaire.
          */
-        type Question = Questionnaire.Question & {
+        type Question = Omit<Questionnaire.Question, 'item'> & {
             answerRestriction?: AnswerRestriction;
+            item?: Question[];
         };
 
         /**
