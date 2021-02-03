@@ -112,25 +112,22 @@ export default class ConsentFileModel extends EventEmmiter {
             channelId: this.channelId
         });
 
-        const consentFiles: ObjectData<ConsentFile>[] = [];
-
         for (const consentFile of oneConsentFiles) {
             const {data, ...restObjectData} = consentFile;
-            if (consentFile.data.fileType === FileType.Consent) {
-                const consentInfos = consentFile.data.fileData.split(' ');
-                consentFiles.push({
+            if (data.fileType === FileType.Consent) {
+                const consentInfos = data.fileData.split(' ');
+                return {
                     ...restObjectData,
                     data: {
                         personId: consentInfos[0] as SHA256IdHash<Person>,
                         version: consentInfos[1]
                     }
-                });
+                };
             }
         }
 
-        // any user is supposed to have just one consent file,
-        // that's why the first element is returned (array length should be = 1)
-        return consentFiles[0];
+        // should never happen
+        throw new Error('Consent file not found.');
     }
 
     /**
@@ -159,26 +156,25 @@ export default class ConsentFileModel extends EventEmmiter {
             channelId: this.channelId
         });
 
-        const dropoutFiles: ObjectData<DropoutFile>[] = [];
-
         for (const dropoutFile of oneDropoutFiles) {
             const {data, ...restObjectData} = dropoutFile;
             if (data.fileType === FileType.Dropout) {
                 const dropoutInfos = data.fileData.split('|');
-                dropoutFiles.push({
-                    ...restObjectData,
-                    data: {
-                        personId: dropoutInfos[0] as SHA256IdHash<Person>,
-                        reason: dropoutInfos[1],
-                        date: dropoutInfos[2]
-                    }
-                });
+                if (dropoutInfos.length === 3) {
+                    return {
+                        ...restObjectData,
+                        data: {
+                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                            reason: dropoutInfos[1],
+                            date: dropoutInfos[2]
+                        }
+                    };
+                }
+                throw new Error('The information of the dropout file is corrupted.');
             }
         }
 
-        // any user is supposed to have just one dropout file,
-        // that's why the first element is returned (array length should be = 1)
-        return dropoutFiles[0];
+        throw new Error('No dropout file found');
     }
 
     /**
@@ -207,6 +203,10 @@ export default class ConsentFileModel extends EventEmmiter {
                 }
             } else if (data.fileType === FileType.Dropout) {
                 const dropoutInfos = data.fileData.split('|');
+                if (dropoutInfos.length !== 3) {
+                    throw new Error('The information of the dropout file is corrupted.');
+                }
+
                 if (dropoutInfos[0] === this.personId) {
                     files.push({
                         ...restObjectData,
