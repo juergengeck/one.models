@@ -126,7 +126,7 @@ export default class ConsentFileModel extends EventEmmiter {
             }
         }
 
-        // should never happen
+        // happens when the registration process is interrupted
         throw new Error('Consent file not found.');
     }
 
