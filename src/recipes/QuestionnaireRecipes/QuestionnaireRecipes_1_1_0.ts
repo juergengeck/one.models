@@ -19,15 +19,10 @@ declare module '@OneCoreTypes' {
     }
 
     module Questionnaire_1_1_0 {
-        // /**
-        //  * Question of a questionnaire.
-        //  */
-        // type Question =
-        //     | Questionnaire.Question
-        //     | {
-        //           answerRestriction?: AnswerRestriction;
-        //       };
 
+        /**
+         * Question of a questionnaire.
+         */
         type Question = Questionnaire.Question & {
             answerRestriction?: AnswerRestriction;
         };
@@ -131,25 +126,21 @@ export const AnswerRestrictionRule: RecipeRule[] = [
     }
 ];
 
-console.log("Questionnaires rules before cloning: ", QuestionnaireRules_1_0_0);
 /**
  * The rules to build a questionnaire based on FHIR
  */
 export const QuestionnaireRules: RecipeRule[] = cloneRule(QuestionnaireRules_1_0_0);
-console.log("Questionnaire rules before: ", QuestionnaireRules);
-addRule(QuestionnaireRules, 'item', {
-    itemprop: 'answerRestriction',
-    rule: AnswerRestrictionRule,
-    optional: true
-});
-
 overwriteRule(QuestionnaireRules, 'item', {
     itemprop: 'item',
     inheritFrom: 'Questionnaire_1_1_0.item',
     optional: true
 });
 
-console.log("Questionnaire rules after: ", QuestionnaireRules);
+addRule(QuestionnaireRules, 'item', {
+    itemprop: 'answerRestriction',
+    rule: AnswerRestrictionRule,
+    optional: true
+});
 
 /**
  * Recipe for questionnaires based upon FHIR standard.
