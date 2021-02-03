@@ -3,20 +3,12 @@ import {Recipe} from '@OneCoreTypes';
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         ConsentFile: ConsentFile;
-        DropoutFile: DropoutFile;
     }
 
     export interface ConsentFile {
         $type$: 'ConsentFile';
-        personId: SHA256IdHash<Person>;
-        version?: string;
-    }
-
-    export interface DropoutFile {
-        $type$: 'DropoutFile';
-        personId: SHA256IdHash<Person>;
-        reason: string;
-        date: string;
+        fileData: string;
+        fileType: string;
     }
 }
 
@@ -25,31 +17,11 @@ const ConsentFileRecipe: Recipe = {
     name: 'ConsentFile',
     rule: [
         {
-            itemprop: 'personId',
-            referenceToId: new Set(['Person'])
-        },
-        {
-            itemprop: 'version',
-            valueType: 'string',
-            optional: true
-        }
-    ]
-};
-
-const DropoutFileRecipe: Recipe = {
-    $type$: 'Recipe',
-    name: 'DropoutFile',
-    rule: [
-        {
-            itemprop: 'personId',
-            referenceToId: new Set(['Person'])
-        },
-        {
-            itemprop: 'reason',
+            itemprop: 'fileData',
             valueType: 'string'
         },
         {
-            itemprop: 'date',
+            itemprop: 'fileType',
             valueType: 'string'
         }
     ]
@@ -57,6 +29,6 @@ const DropoutFileRecipe: Recipe = {
 
 // Export recipes
 
-const ConsentFile: Recipe[] = [ConsentFileRecipe,DropoutFileRecipe];
+const ConsentFile: Recipe[] = [ConsentFileRecipe];
 
 export default ConsentFile;

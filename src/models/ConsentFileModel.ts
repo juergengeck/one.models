@@ -1,5 +1,5 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager from './ChannelManager';
 import {Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
@@ -20,6 +20,11 @@ export type DropoutFile = {
     reason: string;
     date: string;
 };
+
+export enum FileType {
+    Consent = 'consent',
+    Dropout = 'dropout'
+}
 
 /**
  * This model implements the possibility to store and load the consent file and the dropout file of an user.
@@ -93,8 +98,8 @@ export default class ConsentFileModel extends EventEmmiter {
 
         await this.channelManager.postToChannel(this.channelId, {
             $type$: 'ConsentFile',
-            personId: consentFile.personId,
-            version: consentFile.version
+            fileData: consentFile.personId + ' ' + consentFile.version,
+            fileType: FileType.Consent
         });
     }
 
@@ -102,14 +107,26 @@ export default class ConsentFileModel extends EventEmmiter {
      * Used to retrieve the user consent file from one.
      * @returns {Promise<ObjectData<ConsentFile>>}
      */
-    async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
+    async getOwnerConsentFile(): Promise<ConsentFile> {
         const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
 
+        const consentFiles: ConsentFile[] = [];
+
+        for (const consentFile of oneConsentFiles) {
+            if (consentFile.data.fileType === FileType.Consent) {
+                const consentInfos = consentFile.data.fileData.split(' ');
+                consentFiles.push({
+                    personId: consentInfos[0] as SHA256IdHash<Person>,
+                    version: consentInfos[1]
+                });
+            }
+        }
+
         // any user is supposed to have just one consent file,
         // that's why the first element is returned (array length should be = 1)
-        return oneConsentFiles[0];
+        return consentFiles[0];
     }
 
     /**
@@ -123,10 +140,9 @@ export default class ConsentFileModel extends EventEmmiter {
         }
 
         await this.channelManager.postToChannel(this.channelId, {
-            $type$: 'DropoutFile',
-            personId: dropoutFile.personId,
-            reason: dropoutFile.reason,
-            date: dropoutFile.date
+            $type$: 'ConsentFile',
+            fileData: dropoutFile.personId + '|' + dropoutFile.reason + '|' + dropoutFile.date,
+            fileType: FileType.Dropout
         });
     }
 
@@ -134,44 +150,62 @@ export default class ConsentFileModel extends EventEmmiter {
      * Used to retrieve the user dropout file from one.
      * @returns {Promise<ObjectData<DropoutFile>>}
      */
-    async getOwnerDropoutFile(): Promise<ObjectData<DropoutFile>> {
-        const oneObjects = await this.channelManager.getObjectsWithType('DropoutFile', {
+    async getOwnerDropoutFile(): Promise<DropoutFile> {
+        const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
 
+        const dropoutFiles: DropoutFile[] = [];
+
+        for (const dropoutFile of oneDropoutFiles) {
+            if (dropoutFile.data.fileType === FileType.Dropout) {
+                const dropoutInfos = dropoutFile.data.fileData.split('|');
+                dropoutFiles.push({
+                    personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                    reason: dropoutInfos[1],
+                    date: dropoutInfos[2]
+                });
+            }
+        }
+
         // any user is supposed to have just one dropout file,
         // that's why the first element is returned (array length should be = 1)
-        return oneObjects[0];
+        return dropoutFiles[0];
     }
 
     /**
      * Used to retrieve both consent file and dropout file of an user.
      * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
      */
-    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
-        const objects: ObjectData<ConsentFile | DropoutFile>[] = [];
+    async entries(): Promise<ConsentFile[] & DropoutFile[]> {
+        const files: ConsentFile[] & DropoutFile[] = [];
 
-        const consentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+        const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
 
-        const dropoutFileObjects = await this.channelManager.getObjectsWithType('DropoutFile', {
-            channelId: this.channelId
-        });
-
-        for (const consentFile of consentFileObjects) {
-            if (consentFile.data.personId === this.personId) {
-                objects.push(consentFile);
+        for (const file of onConsentFileObjects) {
+            if (file.data.fileType === FileType.Consent) {
+                const consentInfos = file.data.fileData.split(' ');
+                if (consentInfos[0] === this.personId) {
+                    files.push({
+                        personId: consentInfos[0] as SHA256IdHash<Person>,
+                        version: consentInfos[1]
+                    });
+                }
+            } else if (file.data.fileType === FileType.Dropout) {
+                const dropoutInfos = file.data.fileData.split('|');
+                if (dropoutInfos[0] === this.personId) {
+                    files.push({
+                        personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                        reason: dropoutInfos[1],
+                        date: dropoutInfos[2]
+                    });
+                }
             }
         }
 
-        for (const dropoutFile of dropoutFileObjects) {
-            if (dropoutFile.data.personId === this.personId) {
-                objects.push(dropoutFile);
-            }
-        }
-
-        return objects;
+        return files;
     }
 
     /**
