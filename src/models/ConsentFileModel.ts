@@ -1,5 +1,5 @@
 import EventEmmiter from 'events';
-import ChannelManager from './ChannelManager';
+import ChannelManager, {ObjectData} from './ChannelManager';
 import {Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
@@ -177,29 +177,36 @@ export default class ConsentFileModel extends EventEmmiter {
      * Used to retrieve both consent file and dropout file of an user.
      * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
      */
-    async entries(): Promise<ConsentFile[] & DropoutFile[]> {
-        const files: ConsentFile[] & DropoutFile[] = [];
+    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
+        const files: ObjectData<ConsentFile | DropoutFile>[] = [];
 
         const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
 
-        for (const file of onConsentFileObjects) {
-            if (file.data.fileType === FileType.Consent) {
-                const consentInfos = file.data.fileData.split(' ');
+        for (const oneObject of onConsentFileObjects) {
+            const {data, ...restObjectData} = oneObject;
+            if (data.fileType === FileType.Consent) {
+                const consentInfos = data.fileData.split(' ');
                 if (consentInfos[0] === this.personId) {
                     files.push({
-                        personId: consentInfos[0] as SHA256IdHash<Person>,
-                        version: consentInfos[1]
+                        ...restObjectData,
+                        data: {
+                            personId: consentInfos[0] as SHA256IdHash<Person>,
+                            version: consentInfos[1]
+                        }
                     });
                 }
-            } else if (file.data.fileType === FileType.Dropout) {
-                const dropoutInfos = file.data.fileData.split('|');
+            } else if (data.fileType === FileType.Dropout) {
+                const dropoutInfos = data.fileData.split('|');
                 if (dropoutInfos[0] === this.personId) {
                     files.push({
-                        personId: dropoutInfos[0] as SHA256IdHash<Person>,
-                        reason: dropoutInfos[1],
-                        date: dropoutInfos[2]
+                        ...restObjectData,
+                        data: {
+                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                            reason: dropoutInfos[1],
+                            date: dropoutInfos[2]
+                        }
                     });
                 }
             }
