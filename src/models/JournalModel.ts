@@ -1,4 +1,5 @@
-import {WbcObservation, Electrocardiogram, QuestionnaireResponses} from '@OneCoreTypes';
+import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
+import {QuestionnaireResponses} from './QuestionnaireModel'
 import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
 import {DocumentInfo} from './DocumentModel';

@@ -2,19 +2,25 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     Person,
-    Questionnaire,
-    QuestionnaireResponse,
-    QuestionnaireResponses,
+    Questionnaire_1_1_0,
+    QuestionnaireResponses as QuestionnaireResponses_1_0_0,
     SHA256IdHash
 } from '@OneCoreTypes';
 
-/**
- * Type defines the data of a questionnaire response
- */
-/*export interface QuestionnaireResponse {
-    questionnaire: string;
-    item: Record<string, string>;
-}*/
+// Export the Questionnaire types
+export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
+export type Question = Questionnaire_1_1_0.Question;
+export type QuestionnaireAnswerMinMaxValue = Questionnaire_1_1_0.QuestionnaireAnswerMinMaxValue;
+export type AnswerRestriction = Questionnaire_1_1_0.AnswerRestriction;
+export type Coding = Questionnaire_1_1_0.Coding;
+export type QuestionnaireEnableWhenAnswer = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
+
+// Export the QuestionnaireResponses types
+export interface QuestionnaireResponses extends Omit<QuestionnaireResponses_1_0_0, '$type$'> {}
+export type QuestionnaireResponse = QuestionnaireResponses_1_0_0.QuestionnaireResponse;
+export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -101,7 +107,9 @@ export default class QuestionnaireModel extends EventEmitter {
                 return questionnaire;
             }
         }
-        throw Error('Questionnaire with name ' + name + ' and language ' + language + ' does not exist');
+        throw Error(
+            'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
+        );
     }
 
     /**
@@ -112,11 +120,17 @@ export default class QuestionnaireModel extends EventEmitter {
      */
     public async questionnaireUrlByName(name: string, language?: string): Promise<string> {
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaire.name === name && (!language || questionnaire.language === language) && questionnaire.url) {
+            if (
+                questionnaire.name === name &&
+                (!language || questionnaire.language === language) &&
+                questionnaire.url
+            ) {
                 return questionnaire.url;
             }
         }
-        throw Error('Questionnaire with name ' + name + ' and language ' + language + ' does not exist');
+        throw Error(
+            'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
+        );
     }
 
     /**
@@ -215,7 +229,9 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of responses.
      */
-    public async responses(queryOptions?: QueryOptions): Promise<ObjectData<QuestionnaireResponses>[]> {
+    public async responses(
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: this.channelId,
             ...queryOptions
@@ -227,13 +243,8 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
      */
-    public async responsesById(
-        id: string
-    ): Promise<ObjectData<QuestionnaireResponses>> {
-        return await this.channelManager.getObjectWithTypeById(
-            id,
-            'QuestionnaireResponses'
-        );
+    public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
+        return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
     }
 
     /**
@@ -287,15 +298,12 @@ export default class QuestionnaireModel extends EventEmitter {
         name?: string
     ): Promise<void> {
         // Post the result to the one instance
-        await this.channelManager.postToChannel(
-            this.incompleteResponsesChannelId,
-            {
-                $type$: 'QuestionnaireResponses',
-                name,
-                type,
-                response: responses
-            }
-        );
+        await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
+            $type$: 'QuestionnaireResponses',
+            name,
+            type,
+            response: responses
+        });
     }
 
     /**
@@ -310,13 +318,10 @@ export default class QuestionnaireModel extends EventEmitter {
         since?: Date
     ): Promise<ObjectData<QuestionnaireResponses> | null> {
         // Construct iterator
-        const iterator = this.channelManager.objectIteratorWithType(
-            'QuestionnaireResponses',
-            {
-                channelId: this.incompleteResponsesChannelId,
-                from: since
-            }
-        );
+        const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+            channelId: this.incompleteResponsesChannelId,
+            from: since
+        });
 
         // Iterate over all entries and see if a type is present
         for await (const responses of iterator) {
@@ -342,7 +347,7 @@ export default class QuestionnaireModel extends EventEmitter {
      * @returns
      */
     public async hasIncompleteResponse(type: string, since?: Date): Promise<boolean> {
-        return (await this.incompleteResponse(type, since) !== null);
+        return (await this.incompleteResponse(type, since)) !== null;
     }
 
     /**
@@ -354,14 +359,11 @@ export default class QuestionnaireModel extends EventEmitter {
      * @returns
      */
     public async markIncompleteResponseAsComplete(type: string): Promise<void> {
-        await this.channelManager.postToChannel(
-            this.incompleteResponsesChannelId,
-            {
-                $type$: 'QuestionnaireResponses',
-                type: type,
-                response: []
-            }
-        );
+        await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
+            $type$: 'QuestionnaireResponses',
+            type: type,
+            response: []
+        });
     }
 
     /**

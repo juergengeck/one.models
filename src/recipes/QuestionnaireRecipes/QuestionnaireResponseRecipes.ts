@@ -1,6 +1,6 @@
 import {Recipe, RecipeRule} from '@OneCoreTypes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
-import {ValueRules} from './QuestionnaireRecipes';
+import {ValueRules} from './QuestionnaireRecipes_1_0_0';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -8,39 +8,41 @@ declare module '@OneCoreTypes' {
     }
 
     /**
-     * An answer item in the questionnaire response
-     */
-    type QuestionnaireResponseItem = {
-        linkId: string;
-        answer: QuestionnaireValue[];
-        item?: QuestionnaireResponseItem[];
-    };
-
-    /**
-     * A single FHIR Questionnaire Response
-     */
-    type QuestionnaireResponse = {
-        resourceType: 'QuestionnaireResponse';
-        questionnaire?: string;
-        status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
-        item: QuestionnaireResponseItem[];
-    };
-
-    /**
      * Collection of Questionnaire Responses
      */
-    export interface QuestionnaireResponses {
+    interface QuestionnaireResponses {
         $type$: 'QuestionnaireResponses';
         name?: string;
         type?: string;
-        response: QuestionnaireResponse[];
+        response: QuestionnaireResponses.QuestionnaireResponse[];
+    }
+
+    module QuestionnaireResponses {
+        /**
+         * An answer item in the questionnaire response
+         */
+        type QuestionnaireResponseItem = {
+            linkId: string;
+            answer: Questionnaire.QuestionnaireValue[];
+            item?: QuestionnaireResponseItem[];
+        };
+
+        /**
+         * A single FHIR Questionnaire Response
+         */
+        type QuestionnaireResponse = {
+            resourceType: 'QuestionnaireResponse';
+            questionnaire?: string;
+            status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
+            item: QuestionnaireResponseItem[];
+        };
     }
 }
 
 /**
  * The rules to build a questionnaire based on FHIR
  */
-const QuestionnaireResponseRules: RecipeRule[] = [
+export const QuestionnaireResponseRules: RecipeRule[] = [
     // FHIR ressource type
     {
         itemprop: 'resourceType',
@@ -89,7 +91,7 @@ const QuestionnaireResponseRules: RecipeRule[] = [
     }
 ];
 
-const QuestionnaireResponsesRecipe: Recipe = {
+export const QuestionnaireResponsesRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'QuestionnaireResponses',
     rule: [
@@ -119,5 +121,4 @@ const QuestionnaireResponsesRecipe: Recipe = {
 };
 
 const QuestionnaireResponsesRecipes: Recipe[] = [QuestionnaireResponsesRecipe];
-
 export default QuestionnaireResponsesRecipes;
