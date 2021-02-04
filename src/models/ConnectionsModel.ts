@@ -235,7 +235,7 @@ class ConnectionsModel extends EventEmitter {
             establishOutgoingConnections:
                 config.establishOutgoingConnections !== undefined
                     ? config.establishOutgoingConnections
-                    : false,
+                    : true,
             connectToOthersWithAnonId:
                 config.connectToOthersWithAnonId !== undefined
                     ? config.connectToOthersWithAnonId
@@ -416,9 +416,10 @@ class ConnectionsModel extends EventEmitter {
         remotePerson: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
     ): Promise<void> {
-
         const endpoints = await this.contactModel.findAllOneInstanceEndpoints();
-        const remoteEndpoint = endpoints.find(endpoint => (endpoint.personId === remotePerson && endpoint.personKeys));
+        const remoteEndpoint = endpoints.find(
+            endpoint => endpoint.personId === remotePerson && endpoint.personKeys
+        );
         if (!remoteEndpoint) {
             throw new Error('Could not find pairing information.');
         }
@@ -430,7 +431,9 @@ class ConnectionsModel extends EventEmitter {
         }
 
         const anonInstanceInfo = this.anonInstanceInfo;
-        const remoteInstanceKey = toByteArray((await getObject(remoteEndpoint.instanceKeys)).publicKey);
+        const remoteInstanceKey = toByteArray(
+            (await getObject(remoteEndpoint.instanceKeys)).publicKey
+        );
 
         // Connect to target
         const conn = await OutgoingConnectionEstablisher.connectOnce(
@@ -478,7 +481,6 @@ class ConnectionsModel extends EventEmitter {
             conn.close(e.message);
             throw e;
         }
-
     }
 
     /**
@@ -687,7 +689,12 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
-                MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(conn.webSocket)}: Known: Start protocol ${protocolMsg.protocol} ${
+                        protocolMsg.version
+                    }`
+                );
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -808,7 +815,12 @@ class ConnectionsModel extends EventEmitter {
             // On incoming connections we wait for the peer to select its protocol
             else {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
-                MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`);
+                MessageBus.send(
+                    'log',
+                    `${wslogId(conn.webSocket)}: Unknown: Start protocol ${protocolMsg.protocol} ${
+                        protocolMsg.version
+                    }`
+                );
 
                 // The normal chum protocol
                 if (protocolMsg.protocol === 'chum' || protocolMsg.protocol === 'chum_one_time') {
@@ -1278,7 +1290,11 @@ class ConnectionsModel extends EventEmitter {
             }
 
             // Step 1: Exchange / authenticate person keys & person Id
-            const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
+            const remotePersonInfo = await this.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                false
+            );
 
             // Step 2: Wait for the authentication token and verify it against the token list
             const accessGroupMembers = await ConnectionsModel.waitForMessage(
@@ -1320,8 +1336,7 @@ class ConnectionsModel extends EventEmitter {
 
             // Wait for the other side to process the close message.
             await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        finally {
+        } finally {
             conn.close();
         }
     }
@@ -1363,8 +1378,7 @@ class ConnectionsModel extends EventEmitter {
 
             // Step 3: Wait for success message from the other side.
             await ConnectionsModel.waitForMessage(conn, 'success');
-        }
-        finally {
+        } finally {
             conn.close();
         }
     }

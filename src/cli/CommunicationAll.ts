@@ -2,7 +2,6 @@ import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../models';
-import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
 import Recipies from '../recipes/recipes';
@@ -80,7 +79,6 @@ async function main(): Promise<void> {
     const instancesModel = new InstancesModel();
     const channelManager = new ChannelManager(accessModel);
     const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
-    const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     const connectionsModel = new ConnectionsModel(contactModel, instancesModel, {
         commServerUrl: argv.u
     });
@@ -183,7 +181,6 @@ async function main(): Promise<void> {
     contactModel.on(ContactEvent.UpdatedContact, () => {
         console.log('ADDED a contact');
     });
-    await communicationModule.init();
     await connectionsModel.init();
 }
 
