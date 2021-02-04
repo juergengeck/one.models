@@ -5,7 +5,7 @@ import {DocumentInfo} from './DocumentModel';
 import {DiaryEntry} from './DiaryModel';
 import {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
-import {ConsentFile} from './ConsentFileModel';
+import {ConsentFile, DropoutFile} from './ConsentFileModel';
 
 /**
  * !!! Add the corresponding model class name here
@@ -34,6 +34,7 @@ export type EventListEntry = {
               | DiaryEntry
               | ConsentFile
               | Electrocardiogram
+              | DropoutFile
           >
         | HeartEvent
         | BodyTemperature;

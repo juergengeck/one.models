@@ -394,14 +394,14 @@ export default class OneInstanceModel extends EventEmitter {
         if (name && email) {
             await this.initialiseInstance(secret);
 
-            const consentFile = await this.consentFileModel.getOwnerConsentFile();
-
-            if (consentFile === undefined) {
+            try {
+                await this.consentFileModel.getOwnerConsentFile();
+                this.currentRegistrationState = false;
+            } catch {
                 this.currentRegistrationState = true;
                 this.emit('registration_state_changed');
-            } else {
-                this.currentRegistrationState = false;
             }
+
             this.emit('authstate_changed');
         }
     }
