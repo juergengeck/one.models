@@ -74,13 +74,14 @@ class OutgoingConnectionEstablisher {
                         encrypt,
                         decrypt
                     );
-                    if (this.stopped) {
-                        break;
-                    }
 
                     // Notify the listener of a new connection
                     if (this.onConnection) {
                         this.onConnection(conn, myPublicKey, targetPublicKey);
+                        break;
+                    }
+
+                    if (this.stopped) {
                         break;
                     }
                 } catch (e) {

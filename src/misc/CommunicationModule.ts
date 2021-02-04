@@ -278,8 +278,10 @@ export default class CommunicationModule extends EventEmitter {
                         const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
-                        // Check if the desired connection it's with you 
-                        if(mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey){
+                        // Check if the desired connection it's with you
+                        if (
+                            mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey
+                        ) {
                             return;
                         }
                         // Check if there is already a matching active connection in the unknown peer maps
@@ -750,7 +752,6 @@ export default class CommunicationModule extends EventEmitter {
         // Here we know that the connection is known
         // Check if we have a duplicate situation.
         if (endpoint.activeConnection !== null) {
-
             // Check if we are in the 200ms window where we drop new connections
             if (endpoint.dropDuplicates) {
                 // Close the new connection. No further action is required.
