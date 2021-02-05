@@ -454,13 +454,6 @@ class ConnectionsModel extends EventEmitter {
             }
         );
 
-        // Add this connection to the communication module, so that it becomes the known connection
-        this.communicationModule.addNewUnknownConnection(
-            toByteArray(anonInstanceInfo.instanceKeys.publicKey),
-            remoteInstanceKey,
-            conn
-        );
-
         // Start the takeover protocol
         try {
             // Send the other side the protocol we'd like to use
