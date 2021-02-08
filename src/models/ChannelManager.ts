@@ -123,6 +123,8 @@ export type DataSelectionOptions = {
     count?: number; // Query this number of items
     id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
+    type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
+    types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
 };
 
 /**
@@ -521,7 +523,11 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} id - id of the object to extract
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        return (await this.objectIterator({id}).next()).value;
+        const obj = (await this.objectIterator({id}).next()).value;
+        if (!obj) {
+            throw new Error('The referenced object does not exist');
+        }
+        return obj;
     }
 
     /**
@@ -549,7 +555,9 @@ export default class ChannelManager extends EventEmitter {
         }
 
         const obj = (await this.objectIterator({id}).next()).value;
-
+        if (!obj) {
+            throw new Error('The referenced object does not exist');
+        }
         if (!hasRequestedType(obj)) {
             throw new Error(`The referenced object does not have the expected type ${type}`);
         }
@@ -604,19 +612,16 @@ export default class ChannelManager extends EventEmitter {
         type: T,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        // Type check against the type
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.$type$ === type;
+        if (queryOptions) {
+            queryOptions.type = type;
+        } else {
+            queryOptions = {type};
         }
 
         // Iterate over all objects filtering out the ones with the wrong type
-        for await (const obj of this.objectIterator(queryOptions)) {
-            if (hasRequestedType(obj)) {
-                yield obj;
-            }
-        }
+        yield* this.objectIterator(queryOptions) as AsyncIterableIterator<
+            ObjectData<OneUnversionedObjectInterfaces[T]>
+        >;
     }
 
     /**
@@ -662,6 +667,7 @@ export default class ChannelManager extends EventEmitter {
         let from: Date | undefined;
         let to: Date | undefined;
         let ids: string[] | undefined;
+        let types: string[] | undefined;
         if (queryOptions) {
             from = queryOptions.from;
             to = queryOptions.to;
@@ -670,6 +676,12 @@ export default class ChannelManager extends EventEmitter {
             }
             if (queryOptions.ids) {
                 ids = queryOptions.ids;
+            }
+            if (queryOptions.type) {
+                types = [queryOptions.type];
+            }
+            if (queryOptions.types) {
+                types = queryOptions.types;
             }
         }
 
@@ -700,6 +712,12 @@ export default class ChannelManager extends EventEmitter {
                 );
             }
 
+            // Load the object to compare the type
+            const data = await getObject(entry.dataHash);
+            if (types && !types.includes(data.$type$)) {
+                continue;
+            }
+
             // Build meta data object and return it
             yield {
                 channelId: entry.channelInfo.id,
@@ -711,7 +729,7 @@ export default class ChannelManager extends EventEmitter {
                 author: entry.channelInfo.owner,
                 sharedWith: sharedWith,
 
-                data: await getObject(entry.dataHash),
+                data: data,
                 dataHash: entry.dataHash
             };
         }
