@@ -68,17 +68,37 @@ export default class BodyTemperatureModel extends EventEmitter {
         );
     }
 
-    async getBodyTemperatures(): Promise<BodyTemperature[]> {
-        const objects: BodyTemperature[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType('BodyTemperature', {
-            channelId: this.channelId
-        });
+    /**
+     * Used to retrieve the body temperatures.
+     * Depending on the provided params all the body temperatures are retrieved or just the body temperatures that fit the interval.
+     * @param {Date} startTimestamp - creation time of the body temperature shouldn't be before it.
+     * @param {Date} endTimestamp - creation time of the body temperature shouldn't be after it.
+     * @returns {Promise<BodyTemperature[]>} - the body temperatures.
+     */
+    async getBodyTemperatures(
+        startTimestamp?: Date,
+        endTimestamp?: Date
+    ): Promise<BodyTemperature[]> {
+        /** get all the body temperatures from one (within an interval if one of params are provided) **/
+        const oneBodyTemperatures = await this.channelManager.getObjectsWithType(
+            'BodyTemperature',
+            {
+                channelId: this.channelId,
+                from: startTimestamp,
+                to: endTimestamp
+            }
+        );
 
-        for (const obj of oneObjects) {
-            objects.push({temperature: obj.data.temperature, creationTime: obj.creationTime});
+        /** create the response array **/
+        const temperatures: BodyTemperature[] = [];
+        for (const oneBodyTemperature of oneBodyTemperatures) {
+            temperatures.push({
+                temperature: oneBodyTemperature.data.temperature,
+                creationTime: oneBodyTemperature.creationTime
+            });
         }
 
-        return objects;
+        return temperatures;
     }
 
     /**
