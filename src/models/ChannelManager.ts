@@ -342,11 +342,13 @@ export default class ChannelManager extends EventEmitter {
      * @param {string} channelId - The id of the channel to post to
      * @param {OneUnversionedObjectTypes} data - The object to post to the channel
      * @param {SHA256IdHash<Person>} channelOwner
+     * @param {number} timestamp
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
         data: T,
-        channelOwner?: SHA256IdHash<Person>
+        channelOwner?: SHA256IdHash<Person>,
+        timestamp?: number
     ): Promise<void> {
         // Determine the owner to use for posting.
         // It is either the passed one, or the default one if none was passed.
@@ -389,7 +391,8 @@ export default class ChannelManager extends EventEmitter {
                         {module: '@module/channelPost'},
                         channelId,
                         owner,
-                        data
+                        data,
+                        timestamp
                     );
 
                     logWithId(channelId, owner, `postToChannel - END`);
