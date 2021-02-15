@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
-import ChannelManager from './ChannelManager';
+import ChannelManager, {QueryOptions} from './ChannelManager';
 
 /**
  * This represents the model of a body temperature measurement
@@ -70,23 +70,21 @@ export default class BodyTemperatureModel extends EventEmitter {
 
     /**
      * Used to retrieve the body temperatures.
-     * Depending on the provided params all the body temperatures are retrieved or just the body temperatures that fit the interval.
-     * @param {Date} startTimestamp - creation time of the body temperature shouldn't be before it.
-     * @param {Date} endTimestamp - creation time of the body temperature shouldn't be after it.
+     * Depending on the provided params all the body temperatures are retrieved
+     * or just the body temperatures that fit the query parameters.
      * @returns {Promise<BodyTemperature[]>} - the body temperatures.
+     * @param queryParams - used to filter the returned data.
      */
-    async getBodyTemperatures(
-        startTimestamp?: Date,
-        endTimestamp?: Date
-    ): Promise<BodyTemperature[]> {
-        /** get all the body temperatures from one (within an interval if one of params are provided) **/
+    async getBodyTemperatures(queryParams?: QueryOptions): Promise<BodyTemperature[]> {
+        /** if the channel id is not specified we have to provide it manually **/
+        if (queryParams && !queryParams.channelId) {
+            queryParams.channelId = 'BodyTemperature';
+        }
+
+        /** get all the body temperatures from one that fit the query parameters **/
         const oneBodyTemperatures = await this.channelManager.getObjectsWithType(
             'BodyTemperature',
-            {
-                channelId: this.channelId,
-                from: startTimestamp,
-                to: endTimestamp
-            }
+            queryParams ? queryParams : {channelId: 'BodyTemperature'}
         );
 
         /** create the response array **/
