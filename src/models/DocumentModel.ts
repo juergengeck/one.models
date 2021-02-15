@@ -1,38 +1,19 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {BLOB, DocumentInfo as OneDocumentInfo, SHA256Hash} from '@OneCoreTypes';
+import {BLOB, DocumentInfo_1_1_0, SHA256Hash} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 
-/**
- * This represents a document.
- */
-export type DocumentInfo = ArrayBuffer;
-
-/**
- * Convert from model representation to one representation.
- *
- * @param {DocumentInfo} modelObject - the model object
- * @returns {Promise<OneDocumentInfo>} The corresponding one object
- */
-async function convertToOne(modelObject: DocumentInfo): Promise<OneDocumentInfo> {
-    // Create the resulting object
-    const documentReference = await saveDocumentAsBLOB(modelObject);
-
-    return {
-        $type$: 'DocumentInfo',
-        document: documentReference
-    };
-}
+export type DocumentInfo = DocumentInfo_1_1_0;
 
 /**
  * Saving the document in ONE as a BLOB and returning the reference for it.
  *
- * @param {DocumentInfo} document - the document that is saved in ONE as a BLOB.
+ * @param {ArrayBuffer} document - the document that is saved in ONE as a BLOB.
  * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
  */
-async function saveDocumentAsBLOB(document: DocumentInfo): Promise<SHA256Hash<BLOB>> {
+async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
     const minimalWriteStorageApiObj = {
         createFileWriteStream: createFileWriteStream
     } as WriteStorageApi;
@@ -48,13 +29,13 @@ async function saveDocumentAsBLOB(document: DocumentInfo): Promise<SHA256Hash<BL
 /**
  * Convert from one representation to model representation.
  *
- * @param {OneDocumentInfo} oneObject - the one object
- * @returns {DocumentInfo} The corresponding model object
+ * @param {DocumentInfo} oneObject - the one object
+ * @returns {ArrayBuffer} The corresponding model object
  */
-async function convertFromOne(oneObject: OneDocumentInfo): Promise<DocumentInfo> {
-    let document: DocumentInfo = {} as DocumentInfo;
+async function convertFromOne(oneObject: DocumentInfo): Promise<ArrayBuffer> {
+    let document: ArrayBuffer = {} as ArrayBuffer;
     const stream = Storage.createFileReadStream(oneObject.document);
-    stream.onData.addListener(data => {
+    stream.onData.addListener((data: ArrayBuffer) => {
         document = data;
     });
     await stream.promise;
@@ -106,22 +87,27 @@ export default class DocumentModel extends EventEmitter {
     /**
      * Create a new reference to a document.
      *
-     * @param {DocumentInfo} document - The document.
+     * @param {ArrayBuffer} document - The document.
+     * @param {DocumentInfo['mimeType']} mimeType
      */
-    async addDocument(document: DocumentInfo): Promise<void> {
-        const oneDocument = await convertToOne(document);
-        await this.channelManager.postToChannel(this.channelId, oneDocument);
+    async addDocument(document: ArrayBuffer, mimeType: DocumentInfo['mimeType']): Promise<void> {
+        const oneDocument = await saveDocumentAsBLOB(document);
+        await this.channelManager.postToChannel(this.channelId, {
+            $type$: 'DocumentInfo',
+            mimeType: mimeType,
+            document: oneDocument
+        });
     }
 
     /**
      * Getting all the documents stored in ONE.
      *
-     * @returns {Promise<ObjectData<DocumentInfo>[]>} - an array of documents.
+     * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
      */
-    async documents(): Promise<ObjectData<DocumentInfo>[]> {
-        const documents: ObjectData<DocumentInfo>[] = [];
+    async documents(): Promise<ObjectData<ArrayBuffer>[]> {
+        const documents: ObjectData<ArrayBuffer>[] = [];
 
-        const oneObjects = await this.channelManager.getObjectsWithType('DocumentInfo', {
+        const oneObjects = await this.channelManager.getObjectsWithType('DocumentInfo_1_1_0', {
             channelId: this.channelId
         });
 
@@ -139,12 +125,12 @@ export default class DocumentModel extends EventEmitter {
      * Getting a document with a specific id.
      *
      * @param {string} id - the id of the document.
-     * @returns {Promise<ObjectData<DocumentInfo>>} the document.
+     * @returns {Promise<ObjectData<ArrayBuffer>>} the document.
      */
-    async getDocumentById(id: string): Promise<ObjectData<DocumentInfo>> {
+    async getDocumentById(id: string): Promise<ObjectData<ArrayBuffer>> {
         const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
             id,
-            'DocumentInfo'
+            'DocumentInfo_1_1_0'
         );
         const document = await convertFromOne(data);
         return {...restObjectData, data: document};
