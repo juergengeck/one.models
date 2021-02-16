@@ -6,7 +6,7 @@ import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
 /**
  * This represents the model of a body temperature measurement
  */
-export type BodyTemperature = Omit<OneBodyTemperature, '$type$'>;
+export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
 
 /**
  * This model implements the possibility of adding a body temperature measurement into a journal and
