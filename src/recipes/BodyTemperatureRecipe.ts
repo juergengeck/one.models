@@ -5,7 +5,7 @@ declare module '@OneCoreTypes' {
         BodyTemperature: BodyTemperature;
     }
 
-    interface BodyTemperature {
+    export interface BodyTemperature {
         $type$: 'BodyTemperature';
         temperature: number;
     }
