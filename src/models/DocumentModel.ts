@@ -72,13 +72,16 @@ export default class DocumentModel extends EventEmitter {
      *
      * @param {ArrayBuffer} document - The document.
      * @param {DocumentInfo['mimeType']} mimeType
+     * @param {DocumentInfo['documentName']} documentName
      */
-    async addDocument(document: ArrayBuffer, mimeType: DocumentInfo['mimeType']): Promise<void> {
+    async addDocument(document: ArrayBuffer, mimeType: DocumentInfo['mimeType'], documentName: DocumentInfo['documentName']): Promise<void> {
         const oneDocument = await saveDocumentAsBLOB(document);
         await this.channelManager.postToChannel(this.channelId, {
-            $type$: 'DocumentInfo',
+            $type$: 'DocumentInfo_1_1_0',
             mimeType: mimeType,
-            document: oneDocument
+            documentName: documentName,
+            document: oneDocument,
+
         });
     }
 

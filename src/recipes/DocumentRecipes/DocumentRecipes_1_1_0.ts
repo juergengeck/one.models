@@ -1,6 +1,6 @@
 import {Recipe} from '@OneCoreTypes';
 
-enum MimeType {
+export enum MimeType {
     JPEG = 'image/jpeg',
     PNG = 'image/png',
     PDF = 'application/pdf'
@@ -13,13 +13,14 @@ declare module '@OneCoreTypes' {
 
     export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
         $type$: 'DocumentInfo_1_1_0';
-        mimeType: MimeType;
+        mimeType: string;
+        documentName: string;
     }
 }
 
 const DocumentInfoRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'DocumentInfo',
+    name: 'DocumentInfo_1_1_0',
     rule: [
         {
             itemprop: 'document',
@@ -27,6 +28,10 @@ const DocumentInfoRecipe: Recipe = {
         },
         {
             itemprop: 'mimeType',
+            valueType: 'string'
+        },
+        {
+            itemprop: 'documentName',
             valueType: 'string'
         }
     ]
