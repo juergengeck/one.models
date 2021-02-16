@@ -9,6 +9,8 @@ declare module '@OneCoreTypes' {
         $type$: 'BodyTemperature';
         temperature: number;
     }
+
+    export interface BodyTemperature_1_0_0 extends Omit<BodyTemperature, '$type$'>{}
 }
 
 export const BodyTemperatureRecipe: Recipe = {

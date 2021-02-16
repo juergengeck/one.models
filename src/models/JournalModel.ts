@@ -1,10 +1,9 @@
-import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
+import {WbcObservation, Electrocardiogram, BodyTemperature_1_0_0} from '@OneCoreTypes';
 import {QuestionnaireResponses} from './QuestionnaireModel'
 import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
 import {DocumentInfo} from './DocumentModel';
 import {DiaryEntry} from './DiaryModel';
-import {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import {ConsentFile, DropoutFile} from './ConsentFileModel';
 
@@ -36,7 +35,7 @@ export type EventListEntry = {
               | ConsentFile
               | Electrocardiogram
               | DropoutFile
-              | BodyTemperature
+              | BodyTemperature_1_0_0
           >
         | HeartEvent;
 };
