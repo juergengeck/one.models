@@ -36,9 +36,9 @@ export type EventListEntry = {
               | ConsentFile
               | Electrocardiogram
               | DropoutFile
+              | BodyTemperature
           >
-        | HeartEvent
-        | BodyTemperature;
+        | HeartEvent;
 };
 
 type JournalInput = {

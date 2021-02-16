@@ -1,14 +1,12 @@
 import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
-import ChannelManager, {QueryOptions} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
 
 /**
  * This represents the model of a body temperature measurement
  */
-export type BodyTemperature = {
-    creationTime: Date;
-    temperature: number;
-};
+export type BodyTemperature = Omit<OneBodyTemperature, '$type$'>;
 
 /**
  * This model implements the possibility of adding a body temperature measurement into a journal and
@@ -49,11 +47,6 @@ export default class BodyTemperatureModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async addBodyTemperature(bodyTemperature: number, creationTimestamp?: number): Promise<void> {
-        /** check if the body temperature was supplied **/
-        if (bodyTemperature === undefined || bodyTemperature === null) {
-            throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.notEmptyField'));
-        }
-
         /** make sure that the supplied body temperature fit the allowed range **/
         if (bodyTemperature < 35 || bodyTemperature > 45) {
             throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.entryError'));
@@ -72,31 +65,17 @@ export default class BodyTemperatureModel extends EventEmitter {
      * Used to retrieve the body temperatures.
      * Depending on the provided params all the body temperatures are retrieved
      * or just the body temperatures that fit the query parameters.
-     * @returns {Promise<BodyTemperature[]>} - the body temperatures.
+     * @returns {Promise<ObjectData<BodyTemperature>[]>} - the body temperatures.
      * @param queryParams - used to filter the returned data.
      */
-    async getBodyTemperatures(queryParams?: QueryOptions): Promise<BodyTemperature[]> {
+    async getBodyTemperatures(queryParams?: QueryOptions): Promise<ObjectData<BodyTemperature>[]> {
         /** if the channel id is not specified override it **/
         if (queryParams && !queryParams.channelId) {
             queryParams.channelId = this.channelId;
         }
 
         /** get all the body temperatures from one that fit the query parameters **/
-        const oneBodyTemperatures = await this.channelManager.getObjectsWithType(
-            'BodyTemperature',
-            queryParams
-        );
-
-        /** create the response array **/
-        const temperatures: BodyTemperature[] = [];
-        for (const oneBodyTemperature of oneBodyTemperatures) {
-            temperatures.push({
-                temperature: oneBodyTemperature.data.temperature,
-                creationTime: oneBodyTemperature.creationTime
-            });
-        }
-
-        return temperatures;
+        return await this.channelManager.getObjectsWithType('BodyTemperature', queryParams);
     }
 
     /**
