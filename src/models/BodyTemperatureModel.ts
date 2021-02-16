@@ -1,7 +1,12 @@
 import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {BodyTemperature_1_0_0 as BodyTemperature} from '@OneCoreTypes';
+import {BodyTemperature_1_0_0 as OneBodyTemperature} from '@OneCoreTypes';
+
+/**
+ * This represents the model of a body temperature measurement
+ */
+export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'>{};
 
 /**
  * This model implements the possibility of adding a body temperature measurement into a journal and
