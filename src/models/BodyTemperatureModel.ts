@@ -76,15 +76,15 @@ export default class BodyTemperatureModel extends EventEmitter {
      * @param queryParams - used to filter the returned data.
      */
     async getBodyTemperatures(queryParams?: QueryOptions): Promise<BodyTemperature[]> {
-        /** if the channel id is not specified we have to provide it manually **/
+        /** if the channel id is not specified override it **/
         if (queryParams && !queryParams.channelId) {
-            queryParams.channelId = 'BodyTemperature';
+            queryParams.channelId = this.channelId;
         }
 
         /** get all the body temperatures from one that fit the query parameters **/
         const oneBodyTemperatures = await this.channelManager.getObjectsWithType(
             'BodyTemperature',
-            queryParams ? queryParams : {channelId: 'BodyTemperature'}
+            queryParams
         );
 
         /** create the response array **/
