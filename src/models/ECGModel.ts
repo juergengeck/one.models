@@ -38,7 +38,12 @@ export default class ECGModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async postECG(ECGObject: Electrocardiogram): Promise<void> {
-        await this.channelManager.postToChannel(this.channelId, ECGObject);
+        await this.channelManager.postToChannel(
+            this.channelId,
+            ECGObject,
+            undefined,
+            ECGObject.startTimestamp
+        );
     }
 
     /**
