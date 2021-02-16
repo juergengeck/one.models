@@ -27,23 +27,6 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
 }
 
 /**
- * Convert from one representation to model representation.
- *
- * @param {DocumentInfo} oneObject - the one object
- * @returns {ArrayBuffer} The corresponding model object
- */
-async function convertFromOne(oneObject: DocumentInfo): Promise<ArrayBuffer> {
-    let document: ArrayBuffer = {} as ArrayBuffer;
-    const stream = Storage.createFileReadStream(oneObject.document);
-    stream.onData.addListener((data: ArrayBuffer) => {
-        document = data;
-    });
-    await stream.promise;
-
-    return document;
-}
-
-/**
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
@@ -104,21 +87,10 @@ export default class DocumentModel extends EventEmitter {
      *
      * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
      */
-    async documents(): Promise<ObjectData<ArrayBuffer>[]> {
-        const documents: ObjectData<ArrayBuffer>[] = [];
-
-        const oneObjects = await this.channelManager.getObjectsWithType('DocumentInfo_1_1_0', {
+    async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
+        return await this.channelManager.getObjectsWithType('DocumentInfo_1_1_0', {
             channelId: this.channelId
         });
-
-        // Convert the data member from one to model representation
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-            const document = await convertFromOne(data);
-            documents.push({...restObjectData, data: document});
-        }
-
-        return documents;
     }
 
     /**
@@ -127,14 +99,30 @@ export default class DocumentModel extends EventEmitter {
      * @param {string} id - the id of the document.
      * @returns {Promise<ObjectData<ArrayBuffer>>} the document.
      */
-    async getDocumentById(id: string): Promise<ObjectData<ArrayBuffer>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
+    async getDocumentById(id: string): Promise<ObjectData<DocumentInfo_1_1_0>> {
+        return await this.channelManager.getObjectWithTypeById(
             id,
             'DocumentInfo_1_1_0'
         );
-        const document = await convertFromOne(data);
-        return {...restObjectData, data: document};
     }
+
+    /**
+     * Convert from one representation to model representation.
+     *
+     * @param {DocumentInfo} oneObject - the one object
+     * @returns {ArrayBuffer} The corresponding model object
+     */
+    async blobHashToArrayBuffer(oneObject: DocumentInfo): Promise<ArrayBuffer> {
+        let document: ArrayBuffer = {} as ArrayBuffer;
+        const stream = Storage.createFileReadStream(oneObject.document);
+        stream.onData.addListener((data: ArrayBuffer) => {
+            document = data;
+        });
+        await stream.promise;
+
+        return document;
+    }
+
 
     /**
      *  Handler function for the 'updated' event

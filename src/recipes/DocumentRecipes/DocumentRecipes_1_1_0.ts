@@ -13,7 +13,6 @@ declare module '@OneCoreTypes' {
 
     export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
         $type$: 'DocumentInfo_1_1_0';
-        document: SHA256Hash<BLOB>;
         mimeType: MimeType;
     }
 }
