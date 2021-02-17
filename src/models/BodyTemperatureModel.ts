@@ -7,7 +7,7 @@ import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
  * This represents the model of a body temperature measurement
  */
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'>{}
+export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
 
 /**
  * This model implements the possibility of adding a body temperature measurement into a journal and
@@ -71,8 +71,12 @@ export default class BodyTemperatureModel extends EventEmitter {
      */
     async getBodyTemperatures(queryParams?: QueryOptions): Promise<ObjectData<BodyTemperature>[]> {
         /** if the channel id is not specified override it **/
-        if (queryParams && !queryParams.channelId) {
-            queryParams.channelId = this.channelId;
+        if (queryParams) {
+            if (!queryParams.channelId) {
+                queryParams.channelId = this.channelId;
+            }
+        } else {
+            queryParams = {channelId: this.channelId};
         }
 
         /** get all the body temperatures from one that fit the query parameters **/
