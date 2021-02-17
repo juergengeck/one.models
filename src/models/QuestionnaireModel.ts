@@ -18,6 +18,7 @@ export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEn
 export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
 // Export the QuestionnaireResponses types
+// @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
 export interface QuestionnaireResponses extends Omit<QuestionnaireResponses_1_0_0, '$type$'> {}
 export type QuestionnaireResponse = QuestionnaireResponses_1_0_0.QuestionnaireResponse;
 export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.QuestionnaireResponseItem;

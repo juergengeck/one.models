@@ -4,9 +4,9 @@ import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
 import {DocumentInfo} from './DocumentModel';
 import {DiaryEntry} from './DiaryModel';
-import {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
 import {ConsentFile, DropoutFile} from './ConsentFileModel';
+import {BodyTemperature} from "./BodyTemperatureModel";
 
 /**
  * !!! Add the corresponding model class name here
@@ -36,9 +36,9 @@ export type EventListEntry = {
               | ConsentFile
               | Electrocardiogram
               | DropoutFile
+              | BodyTemperature
           >
-        | HeartEvent
-        | BodyTemperature;
+        | HeartEvent;
 };
 
 type JournalInput = {

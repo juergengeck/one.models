@@ -815,6 +815,7 @@ export default class ChannelManager extends EventEmitter {
                 break;
             }
             if (to && creationTime.timestamp > to.getTime()) {
+                currentEntryHash = entry.previous;
                 continue;
             }
 
