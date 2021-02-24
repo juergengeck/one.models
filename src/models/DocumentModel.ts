@@ -1,9 +1,15 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {BLOB, DocumentInfo_1_1_0, SHA256Hash} from '@OneCoreTypes';
+import {
+    BLOB,
+    DocumentInfo as DocumentInfo_1_0_0,
+    DocumentInfo_1_1_0,
+    SHA256Hash
+} from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -74,14 +80,17 @@ export default class DocumentModel extends EventEmitter {
      * @param {DocumentInfo['mimeType']} mimeType
      * @param {DocumentInfo['documentName']} documentName
      */
-    async addDocument(document: ArrayBuffer, mimeType: DocumentInfo['mimeType'], documentName: DocumentInfo['documentName']): Promise<void> {
+    async addDocument(
+        document: ArrayBuffer,
+        mimeType: DocumentInfo['mimeType'],
+        documentName: DocumentInfo['documentName']
+    ): Promise<void> {
         const oneDocument = await saveDocumentAsBLOB(document);
         await this.channelManager.postToChannel(this.channelId, {
             $type$: 'DocumentInfo_1_1_0',
             mimeType: mimeType,
             documentName: documentName,
-            document: oneDocument,
-
+            document: oneDocument
         });
     }
 
@@ -91,9 +100,28 @@ export default class DocumentModel extends EventEmitter {
      * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
      */
     async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
-        return await this.channelManager.getObjectsWithType('DocumentInfo_1_1_0', {
+        const documentsData = (await this.channelManager.getObjects({
+            types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
             channelId: this.channelId
-        });
+        })) as ObjectData<DocumentInfo_1_1_0 | DocumentInfo_1_0_0>[];
+
+        return documentsData.map(
+            (documentData: ObjectData<DocumentInfo_1_1_0 | DocumentInfo_1_0_0>) => {
+                /** Update older versions of type {@link DocumentInfo_1_0_0} to {@link DocumentInfo_1_1_0} **/
+                if (documentData.data.$type$ === 'DocumentInfo') {
+                    documentData.data = {
+                        document: documentData.data.document,
+                        $type$: 'DocumentInfo_1_1_0',
+                        /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
+                        mimeType: AcceptedMimeType.PDF,
+                        documentName: ''
+                    };
+                    return documentData;
+                } else {
+                    return documentData;
+                }
+            }
+        ) as ObjectData<DocumentInfo_1_1_0>[];
     }
 
     /**
@@ -103,10 +131,33 @@ export default class DocumentModel extends EventEmitter {
      * @returns {Promise<ObjectData<ArrayBuffer>>} the document.
      */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo_1_1_0>> {
-        return await this.channelManager.getObjectWithTypeById(
-            id,
-            'DocumentInfo_1_1_0'
-        );
+        const documentsData = await this.channelManager.getObjects({
+            id: id,
+            types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
+            channelId: this.channelId
+        });
+
+        /** if the list is empty, the object reference does not exist - getObjectWithTypeById behaviour **/
+        if (documentsData.length === 0) {
+            throw new Error('The referenced object does not exist');
+        }
+
+        /** it should always be only one object with the desired id **/
+        const foundDocumentData = documentsData[0];
+
+        /** Update older versions of type {@link DocumentInfo_1_0_0} to {@link DocumentInfo_1_1_0} **/
+        if (foundDocumentData.data.$type$ === 'DocumentInfo') {
+            foundDocumentData.data = {
+                $type$: 'DocumentInfo_1_1_0',
+                document: foundDocumentData.data.document,
+                /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
+                mimeType: AcceptedMimeType.PDF,
+                documentName: ''
+            };
+            return foundDocumentData as ObjectData<DocumentInfo_1_1_0>;
+        }
+
+        return foundDocumentData as ObjectData<DocumentInfo_1_1_0>;
     }
 
     /**
@@ -125,7 +176,6 @@ export default class DocumentModel extends EventEmitter {
 
         return document;
     }
-
 
     /**
      *  Handler function for the 'updated' event

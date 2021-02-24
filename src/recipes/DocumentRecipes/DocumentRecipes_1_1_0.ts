@@ -1,6 +1,6 @@
 import {Recipe} from '@OneCoreTypes';
 
-export enum MimeType {
+export enum AcceptedMimeType {
     JPEG = 'image/jpeg',
     PNG = 'image/png',
     PDF = 'application/pdf'
