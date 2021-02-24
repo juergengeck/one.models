@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import Recipes from '../recipes/recipes';
 import oneModules from '../generated/oneModules';
 import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
@@ -314,6 +314,7 @@ export default class OneInstanceModel extends EventEmitter {
             });
 
             await importModules();
+            await registerRecipes(Recipes);
         }
         await this.initialisingApplication();
     }
