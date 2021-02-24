@@ -314,6 +314,8 @@ export default class OneInstanceModel extends EventEmitter {
             });
 
             await importModules();
+            
+            // this will register new added recipes to the runtime
             await registerRecipes(Recipes);
         }
         await this.initialisingApplication();
