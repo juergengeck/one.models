@@ -85,6 +85,24 @@ export default class ECGModel extends EventEmitter {
     }
 
     /**
+     * Returns the start timestamp of the last ECG available in the channel or 0 otherwise.
+     * @private
+     */
+    async getLastECGTimestamp(): Promise<number> {
+        let lastECGStartimestamp = 0;
+        const ecgs = await this.channelManager.getObjectsWithType('Electrocardiogram', {
+            count: 1,
+            channelId: this.channelId
+        });
+
+        if (ecgs.length > 0 && ecgs[0].data.startTimestamp) {
+            lastECGStartimestamp = ecgs[0].data.startTimestamp;
+        }
+
+        return lastECGStartimestamp;
+    }
+
+    /**
      * Paginated
      * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
      * @param {number} pageSize - DEFAULT = 100
