@@ -77,7 +77,6 @@ export default class WbcDiffModel extends EventEmitter {
 
         // post wbc measurement to channel
         await this.channelManager.postToChannel(this.channelId, wbcObservation);
-        this.emit('updated');
     }
 
     /**
