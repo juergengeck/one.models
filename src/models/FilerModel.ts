@@ -100,10 +100,11 @@ export default class FilerModel extends EventEmitter {
 
     /** ########################################## Private ########################################## **/
 
-    private async onConnectionQRCodeRequested(): Promise<string> {
+    private async onConnectionQRCodeRequested(): Promise<Buffer> {
         const pairingInformation = await this.connectionsModel.generatePairingInformation(false);
-        const qrcodeBuffer = await qrcode.toBuffer(JSON.stringify(pairingInformation));
-        return qrcodeBuffer.toString();
+        const encodedInformation = encodeURIComponent(JSON.stringify(pairingInformation));
+        const url = `localhost:3000/invites/invitePartner/?invited=true/#${encodedInformation}`
+        return await qrcode.toBuffer(url);
     }
 
     private async onConnectionQRCodeReceived(

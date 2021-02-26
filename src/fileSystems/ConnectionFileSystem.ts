@@ -18,7 +18,7 @@ type ParsedConnectionsPath = {
 export default class ConnectionFileSystem implements IFileSystem {
     private readonly rootMode: number = 0o0100444;
 
-    public onConnectionQRCodeRequested: (() => Promise<string>) | null = null;
+    public onConnectionQRCodeRequested: (() => Promise<Buffer>) | null = null;
     public onConnectionQRCodeReceived: ((pairingInformation: PairingInformation) => Promise<void>) | null = null;
     public onConnectionsInfoRequested: (() => ConnectionInfo[]) | null = null;
 
@@ -127,7 +127,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             if(this.onConnectionQRCodeRequested) {
                 const content = await this.onConnectionQRCodeRequested();
                 return {
-                    content: ConnectionFileSystem.stringToArrayBuffer(content)
+                    content: new Uint8Array(content).buffer
                 };
             }
         }
@@ -177,10 +177,10 @@ export default class ConnectionFileSystem implements IFileSystem {
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
             if(this.onConnectionQRCodeRequested) {
-                const connString = await this.onConnectionQRCodeRequested();
+                const content = await this.onConnectionQRCodeRequested();
 
                 return {
-                    content: ConnectionFileSystem.stringToArrayBuffer(connString).slice(
+                    content: new Uint8Array(content).buffer.slice(
                         position,
                         position + length
                     )
