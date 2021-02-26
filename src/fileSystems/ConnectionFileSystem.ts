@@ -18,23 +18,13 @@ type ParsedConnectionsPath = {
 export default class ConnectionFileSystem implements IFileSystem {
     private readonly rootMode: number = 0o0100444;
 
-    private readonly onConnectionQRCodeRequested: () => Promise<string>;
-    private readonly onConnectionQRCodeReceived: (
-        pairingInformation: PairingInformation
-    ) => Promise<void>;
-    private readonly onConnectionsInfoRequested: () => ConnectionInfo[];
+    public onConnectionQRCodeRequested: (() => Promise<string>) | null = null;
+    public onConnectionQRCodeReceived: ((pairingInformation: PairingInformation) => Promise<void>) | null = null;
+    public onConnectionsInfoRequested: (() => ConnectionInfo[]) | null = null;
 
     private importedQrFilesMap: Map<string, FileSystemFile>;
 
-    constructor(
-        onConnectionQRCodeRequested: () => Promise<string>,
-        onConnectionQRCodeReceived: (pairingInformation: PairingInformation) => Promise<void>,
-        onConnectionsInfoRequested: () => ConnectionInfo[]
-    ) {
-        this.onConnectionQRCodeRequested = onConnectionQRCodeRequested;
-        this.onConnectionQRCodeReceived = onConnectionQRCodeReceived;
-        this.onConnectionsInfoRequested = onConnectionsInfoRequested;
-
+    constructor() {
         this.importedQrFilesMap = new Map();
     }
 
@@ -75,7 +65,9 @@ export default class ConnectionFileSystem implements IFileSystem {
                 // @ts-ignore
                 String.fromCharCode.apply(null, new Uint16Array(fileContent))
             );
-            await this.onConnectionQRCodeReceived(pairingInformation);
+            if(this.onConnectionQRCodeReceived) {
+                await this.onConnectionQRCodeReceived(pairingInformation);
+            }
         } else {
             const rootMode = retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {
@@ -98,7 +90,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isRoot) {
-            return {children: ['import', 'export', 'connection_details']};
+            return {children: ['import', 'export', 'connections_details.txt']};
         }
 
         if (parsedPath.isImportPath) {
@@ -106,7 +98,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isExportPath) {
-            return {children: ['invited_qr_code']};
+            return {children: ['invited_qr_code.png']};
         }
 
         throw new Error('Error: the path could not be found.');
@@ -120,20 +112,24 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isDetailsPath) {
-            const content = this.onConnectionsInfoRequested();
-            return {
-                content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content))
-            };
+            if(this.onConnectionsInfoRequested) {
+                const content = this.onConnectionsInfoRequested();
+                return {
+                    content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content))
+                };
+            }
         }
 
         if (
             parsedPath.isExportPath &&
-            filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code'
+            filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            const content = await this.onConnectionQRCodeRequested();
-            return {
-                content: ConnectionFileSystem.stringToArrayBuffer(content)
-            };
+            if(this.onConnectionQRCodeRequested) {
+                const content = await this.onConnectionQRCodeRequested();
+                return {
+                    content: ConnectionFileSystem.stringToArrayBuffer(content)
+                };
+            }
         }
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
@@ -165,27 +161,31 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isDetailsPath) {
-            const content = this.onConnectionsInfoRequested();
-            return {
-                content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content)).slice(
-                    position,
-                    position + length
-                )
-            };
+            if(this.onConnectionsInfoRequested) {
+                const content = this.onConnectionsInfoRequested();
+                return {
+                    content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content)).slice(
+                        position,
+                        position + length
+                    )
+                };
+            }
         }
 
         if (
             parsedPath.isExportPath &&
-            filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code'
+            filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            const connString = await this.onConnectionQRCodeRequested();
+            if(this.onConnectionQRCodeRequested) {
+                const connString = await this.onConnectionQRCodeRequested();
 
-            return {
-                content: ConnectionFileSystem.stringToArrayBuffer(connString).slice(
-                    position,
-                    position + length
-                )
-            };
+                return {
+                    content: ConnectionFileSystem.stringToArrayBuffer(connString).slice(
+                        position,
+                        position + length
+                    )
+                };
+            }
         }
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
@@ -215,7 +215,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         if (
             parsedPath.isDetailsPath ||
             (parsedPath.isExportPath &&
-                path.substring(path.lastIndexOf('/') + 1) === 'invited_qr_code') ||
+                path.substring(path.lastIndexOf('/') + 1) === 'invited_qr_code.png') ||
             (parsedPath.isImportPath && path.includes('import/'))
         ) {
             const file = await this.readFile(path);
@@ -259,7 +259,7 @@ export default class ConnectionFileSystem implements IFileSystem {
                 isDetailsPath: false
             };
         }
-        if (path === '/connections_details') {
+        if (path === '/connections_details.txt') {
             return {
                 isRoot: false,
                 isImportPath: false,

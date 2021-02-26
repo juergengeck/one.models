@@ -64,11 +64,11 @@ export default class FilerModel extends EventEmitter {
         const root = await this.createRootDirectoryIfNotExists();
         this.objectsFileSystem = new ObjectsFileSystem();
         this.persistedFileSystem = new PersistentFileSystem(root);
-        this.connectionsFileSystem = new ConnectionFileSystem(
-            this.onConnectionQRCodeRequested,
-            this.onConnectionQRCodeReceived,
-            this.onConnectionsInfoRequested
-        );
+        this.connectionsFileSystem = new ConnectionFileSystem();
+        this.connectionsFileSystem.onConnectionQRCodeReceived = this.onConnectionQRCodeReceived;
+        this.connectionsFileSystem.onConnectionQRCodeRequested = this.onConnectionQRCodeRequested;
+        this.connectionsFileSystem.onConnectionsInfoRequested = this.onConnectionsInfoRequested;
+
         this.persistedFileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
     }
