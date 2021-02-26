@@ -65,9 +65,9 @@ export default class FilerModel extends EventEmitter {
         this.objectsFileSystem = new ObjectsFileSystem();
         this.persistedFileSystem = new PersistentFileSystem(root);
         this.connectionsFileSystem = new ConnectionFileSystem();
-        this.connectionsFileSystem.onConnectionQRCodeReceived = this.onConnectionQRCodeReceived;
-        this.connectionsFileSystem.onConnectionQRCodeRequested = this.onConnectionQRCodeRequested;
-        this.connectionsFileSystem.onConnectionsInfoRequested = this.onConnectionsInfoRequested;
+        this.connectionsFileSystem.onConnectionQRCodeReceived = this.onConnectionQRCodeReceived.bind(this);
+        this.connectionsFileSystem.onConnectionQRCodeRequested = this.onConnectionQRCodeRequested.bind(this);
+        this.connectionsFileSystem.onConnectionsInfoRequested = this.onConnectionsInfoRequested.bind(this);
 
         this.persistedFileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
