@@ -1,8 +1,8 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import Recipes from '../../lib/recipes/recipes';
-
+import RecipesStable from '../../lib/recipes/recipes-stable';
+import RecipesExperimental from '../../lib/recipes/recipes-experimental';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
 import {
     ContactModel,
@@ -127,7 +127,7 @@ export default class TestModel {
             email: `test-${email}`,
             secret: this.secret,
             ownerName: `test-${email}`,
-            initialRecipes: Recipes,
+            initialRecipes: [...RecipesStable, ...RecipesExperimental],
             directory: directory
         });
     }

@@ -9,17 +9,19 @@ import {
     getObjectByIdObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import Recipes from '../lib/recipes/recipes';
+import RecipesStable from '../lib/recipes/recipes-stable';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
+
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import AccessModel from '../lib/models/AccessModel';
-import rimraf from "rimraf";
+import rimraf from 'rimraf';
 
 let accessModel: typeof AccessModel;
 let testModel;
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes(Recipes);
+        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);
