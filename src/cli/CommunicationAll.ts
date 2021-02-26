@@ -4,7 +4,7 @@ import {printUint8Array} from '../misc/LogUtils';
 import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../models';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import Recipies from '../recipes/recipes';
+import RecipiesStable from '../recipes/recipes-stable';
 import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
 import oneModules from '../generated/oneModules';
 import {
@@ -95,7 +95,7 @@ async function main(): Promise<void> {
         secret: '1234',
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
-        initialRecipes: Recipies
+        initialRecipes: RecipiesStable
         //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();

@@ -1,5 +1,4 @@
 import {Recipe} from '@OneCoreTypes';
-import BodyTemperatureRecipes from './BodyTemperatureRecipe';
 import ChannelRecipes from './ChannelRecipes';
 import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';
@@ -10,14 +9,9 @@ import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import InstancesRecipes from './InstancesRecipies';
-import BlobRecipes from './BlobRecipes';
-import MatchingRecipes from './MatchingRecipes';
-import WbcRecipes from './WbcDiffRecipes';
 import DocumentRecipes from './DocumentRecipes/DocumentRecipes';
-import ECGRecipes from './ECGRecipes';
 
-const Recipes: Recipe[] = [
-    ...BodyTemperatureRecipes,
+const RecipesStable: Recipe[] = [
     ...ChannelRecipes,
     ...ContactRecipes,
     ...NewsRecipes,
@@ -28,11 +22,7 @@ const Recipes: Recipe[] = [
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...InstancesRecipes,
-    ...BlobRecipes,
-    ...MatchingRecipes,
-    ...WbcRecipes,
-    ...DocumentRecipes,
-    ...ECGRecipes
+    ...DocumentRecipes
 ];
 
-export default Recipes;
+export default RecipesStable;

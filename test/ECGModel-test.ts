@@ -4,18 +4,19 @@
 import {expect} from 'chai';
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers.js';
-import Recipes from '../lib/recipes/recipes';
+import RecipesStable from '../lib/recipes/recipes-stable';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {Electrocardiogram} from '@OneCoreTypes';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import ECGModel from '../lib/models/ECGModel';
-import rimraf from "rimraf";
+import rimraf from 'rimraf';
 let ecgModel: ECGModel;
 let testModel;
 
 describe('ECG Model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes(Recipes);
+        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);

@@ -1,6 +1,7 @@
 import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import Recipes from '../lib/recipes/recipes';
+import RecipesStable from '../lib/recipes/recipes-stable';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {AccessModel, ChannelManager} from '../lib/models';
 import {expect} from 'chai';
@@ -77,7 +78,7 @@ if (enableLogging) {
 describe('Channel Iterators test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes(Recipes);
+        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
         await model.init(undefined);

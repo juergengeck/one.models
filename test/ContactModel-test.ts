@@ -23,7 +23,8 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import TestModel, {dbKey, importModules, removeDir, TestAccessGroups} from './utils/TestModel';
 import InstancesModel from '../lib/models/InstancesModel';
-import Recipes from '../lib/recipes/recipes';
+import RecipesStable from '../lib/recipes/recipes-stable';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {AccessModel, ChannelManager} from '../lib/models';
 import rimraf from 'rimraf';
 import {MergedContact} from '../lib/src/models/ContactModel';
@@ -33,7 +34,7 @@ let testModel;
 describe('Contact model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false, secret: '1234'});
-        await registerRecipes(Recipes);
+        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
 
         const model = new TestModel('ws://localhost:8000', dbKey);

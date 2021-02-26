@@ -1,8 +1,7 @@
 import EventEmitter from 'events';
 import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
-import Recipes from '../recipes/recipes';
 import oneModules from '../generated/oneModules';
-import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
+import {Module, SHA256Hash, VersionedObjectResult, Instance, Person, Recipe} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
@@ -120,6 +119,7 @@ export default class OneInstanceModel extends EventEmitter {
     private password: string;
     private randomEmail: string | null;
     private randomInstanceName: string | null;
+    private initialRecipes: Recipe[];
 
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
@@ -134,16 +134,19 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
+     * @param {Recipe[]} initialRecipes
      */
     constructor(
         channelManager: ChannelManager,
         consentFileModel: ConsentFileModel,
-        accessModel: AccessModel
+        accessModel: AccessModel,
+        initialRecipes: Recipe[]
     ) {
         super();
         this.password = '';
         this.randomEmail = '';
         this.randomInstanceName = '';
+        this.initialRecipes = initialRecipes;
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
         this.currentRegistrationState = false;
         this.currentPartnerState = false;
@@ -273,7 +276,7 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipes
+            initialRecipes: this.initialRecipes
         });
 
         await importModules();
@@ -293,31 +296,30 @@ export default class OneInstanceModel extends EventEmitter {
         this.randomEmail = localStorage.getItem('email');
         this.randomInstanceName = localStorage.getItem('instance');
 
-        if (this.randomInstanceName === null && this.randomEmail === null) {
+        if (this.randomEmail === null) {
             this.randomEmail = await createRandomString(20);
-            this.randomInstanceName = await createRandomString(64);
-            localStorage.setItem('device_id', await createRandomString(64));
             localStorage.setItem('email', this.randomEmail);
+        }
+
+        if (this.randomInstanceName === null) {
+            this.randomInstanceName = await createRandomString(64);
             localStorage.setItem('instance', this.randomInstanceName);
         }
 
-        if (this.randomInstanceName && this.randomEmail) {
-            const {encryptStorage} = this;
+        await initInstance({
+            name: this.randomInstanceName,
+            email: this.randomEmail,
+            secret,
+            encryptStorage: this.encryptStorage,
+            ownerName: 'name' + this.randomEmail,
+            initialRecipes: this.initialRecipes
+        });
 
-            await initInstance({
-                name: this.randomInstanceName,
-                email: this.randomEmail,
-                secret,
-                encryptStorage,
-                ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipes
-            });
+        await importModules();
 
-            await importModules();
-            
-            // this will register new added recipes to the runtime
-            await registerRecipes(Recipes);
-        }
+        // needed because if the instance already exists initInstance will not load new recipes
+        await registerRecipes(this.initialRecipes);
+
         await this.initialisingApplication();
     }
 
