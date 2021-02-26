@@ -316,6 +316,8 @@ export default class OneInstanceModel extends EventEmitter {
         });
 
         await importModules();
+
+        // needed because if the instance already exists initInstance will not load new recipes
         await registerRecipes(this.initialRecipes);
 
         await this.initialisingApplication();
