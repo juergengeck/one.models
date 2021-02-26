@@ -26,8 +26,11 @@ export default class ConnectionFileSystem implements IFileSystem {
 
     private persistedQRCode: FileSystemFile | null = null;
 
-    constructor() {
+    constructor(initialQrCodeImage: FileSystemFile) {
         this.importedQrFilesMap = new Map();
+        this.persistedQRCode = initialQrCodeImage;
+        
+        /** refresh the qr code every 5 minutes **/
         setInterval(async () => {
             await this.refreshQRCode()
         }, 300000)

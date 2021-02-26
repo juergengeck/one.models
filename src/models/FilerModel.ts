@@ -64,7 +64,7 @@ export default class FilerModel extends EventEmitter {
         const root = await this.createRootDirectoryIfNotExists();
         this.objectsFileSystem = new ObjectsFileSystem();
         this.persistedFileSystem = new PersistentFileSystem(root);
-        this.connectionsFileSystem = new ConnectionFileSystem();
+        this.connectionsFileSystem = new ConnectionFileSystem({content: await this.onConnectionQRCodeRequested()});
         this.connectionsFileSystem.onConnectionQRCodeReceived = this.onConnectionQRCodeReceived.bind(this);
         this.connectionsFileSystem.onConnectionQRCodeRequested = this.onConnectionQRCodeRequested.bind(this);
         this.connectionsFileSystem.onConnectionsInfoRequested = this.onConnectionsInfoRequested.bind(this);
