@@ -13,7 +13,12 @@ import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
 import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {ObjectsFileSystem} from "../fileSystems";
+import {ObjectsFileSystem} from '../fileSystems';
+import ConnectionFileSystem from '../fileSystems/ConnectionFileSystem';
+import ConnectionsModel, {PairingInformation} from './ConnectionsModel';
+import qrcode from 'qrcode';
+import OneInstanceModel from './OneInstanceModel';
+import {ConnectionInfo} from '../misc/CommunicationModule';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
@@ -22,19 +27,31 @@ import {ObjectsFileSystem} from "../fileSystems";
  */
 export default class FilerModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
+    private readonly connectionsModel: ConnectionsModel;
+    private readonly oneInstanceModel: OneInstanceModel;
     private readonly fileSystemChannelId: string;
+
     private persistedFileSystem: PersistentFileSystem | null = null;
     private objectsFileSystem: ObjectsFileSystem | null = null;
+    private connectionsFileSystem: ConnectionFileSystem | null = null;
 
     private readonly boundOnChannelUpdateHandler: (id: string) => Promise<void>;
 
     /**
      *
      * @param {ChannelManager} channelManager
+     * @param {ConnectionsModel} connectionsModel
+     * @param {oneInstanceModel} oneInstanceModel
      */
-    public constructor(channelManager: ChannelManager) {
+    public constructor(
+        channelManager: ChannelManager,
+        connectionsModel: ConnectionsModel,
+        oneInstanceModel: OneInstanceModel
+    ) {
         super();
         this.channelManager = channelManager;
+        this.connectionsModel = connectionsModel;
+        this.oneInstanceModel = oneInstanceModel;
         this.fileSystemChannelId = 'mainFileSystemChannelId';
         this.boundOnChannelUpdateHandler = this.handleOnUpdated.bind(this);
     }
@@ -47,6 +64,11 @@ export default class FilerModel extends EventEmitter {
         const root = await this.createRootDirectoryIfNotExists();
         this.objectsFileSystem = new ObjectsFileSystem();
         this.persistedFileSystem = new PersistentFileSystem(root);
+        this.connectionsFileSystem = new ConnectionFileSystem(
+            this.onConnectionQRCodeRequested,
+            this.onConnectionQRCodeReceived,
+            this.onConnectionsInfoRequested
+        );
         this.persistedFileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
     }
@@ -69,7 +91,33 @@ export default class FilerModel extends EventEmitter {
         return this.objectsFileSystem;
     }
 
+    public get connectionsFS(): ConnectionFileSystem {
+        if (!this.connectionsFileSystem) {
+            throw new Error('Module was not instantiated');
+        }
+        return this.connectionsFileSystem;
+    }
+
     /** ########################################## Private ########################################## **/
+
+    private async onConnectionQRCodeRequested(): Promise<string> {
+        const pairingInformation = await this.connectionsModel.generatePairingInformation(false);
+        const qrcodeBuffer = await qrcode.toBuffer(JSON.stringify(pairingInformation));
+        return qrcodeBuffer.toString();
+    }
+
+    private async onConnectionQRCodeReceived(
+        pairingInformation: PairingInformation
+    ): Promise<void> {
+        await this.connectionsModel.connectUsingPairingInformation(
+            pairingInformation,
+            this.oneInstanceModel.getSecret()
+        );
+    }
+
+    private onConnectionsInfoRequested(): ConnectionInfo[] {
+        return this.connectionsModel.connectionsInfo();
+    }
 
     /**
      *
@@ -81,9 +129,12 @@ export default class FilerModel extends EventEmitter {
         rootHash: SHA256Hash<PersistentFileSystemDirectory>
     ): Promise<void> {
         await serializeWithType('FileSystemLock', async () => {
-            const rootDirectory = await this.channelManager.getObjectsWithType('PersistentFileSystemRoot', {
-                channelId: this.fileSystemChannelId
-            });
+            const rootDirectory = await this.channelManager.getObjectsWithType(
+                'PersistentFileSystemRoot',
+                {
+                    channelId: this.fileSystemChannelId
+                }
+            );
 
             if (rootDirectory[0]) {
                 const rootDir = await getObject(rootDirectory[0].dataHash);
@@ -119,9 +170,12 @@ export default class FilerModel extends EventEmitter {
     private async createRootDirectoryIfNotExists(): Promise<PersistentFileSystemRoot> {
         await this.channelManager.createChannel(this.fileSystemChannelId);
 
-        const rootDirectory = await this.channelManager.getObjectsWithType('PersistentFileSystemRoot', {
-            channelId: this.fileSystemChannelId
-        });
+        const rootDirectory = await this.channelManager.getObjectsWithType(
+            'PersistentFileSystemRoot',
+            {
+                channelId: this.fileSystemChannelId
+            }
+        );
         if (rootDirectory.length === 0) {
             const root = await createSingleObjectThroughPurePlan({
                 module: '@module/persistentFileSystemCreateRoot',

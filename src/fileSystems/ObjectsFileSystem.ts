@@ -172,7 +172,9 @@ export default class ObjectsFileSystem implements IFileSystem {
         /** check if its one of those hardcoded file's name **/
         return !(
             parsedPath.suffix &&
-            !['raw.txt', 'type.txt', 'pretty.txt', 'json.txt', 'moduleHash.txt'].includes(parsedPath.suffix)
+            !['raw.txt', 'type.txt', 'pretty.txt', 'json.txt', 'moduleHash.txt'].includes(
+                parsedPath.suffix
+            )
         );
     }
 
