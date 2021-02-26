@@ -24,8 +24,20 @@ export default class ConnectionFileSystem implements IFileSystem {
 
     private importedQrFilesMap: Map<string, FileSystemFile>;
 
+    private persistedQRCode: FileSystemFile | null = null;
+
     constructor() {
         this.importedQrFilesMap = new Map();
+        setInterval(async () => {
+            await this.refreshQRCode()
+        }, 300000)
+    }
+
+    private async refreshQRCode() {
+        if(this.onConnectionQRCodeRequested) {
+            const qrCodeAsBuffer: Buffer = await this.onConnectionQRCodeRequested();
+            this.persistedQRCode = {content: new Uint8Array(qrCodeAsBuffer).buffer}
+        }
     }
 
     /**
@@ -124,10 +136,9 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(this.onConnectionQRCodeRequested) {
-                const content = await this.onConnectionQRCodeRequested();
+            if(this.persistedQRCode) {
                 return {
-                    content: new Uint8Array(content).buffer
+                    content: this.persistedQRCode.content
                 };
             }
         }
@@ -176,11 +187,9 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(this.onConnectionQRCodeRequested) {
-                const content = await this.onConnectionQRCodeRequested();
-
+            if(this.persistedQRCode) {
                 return {
-                    content: new Uint8Array(content).buffer.slice(
+                    content: this.persistedQRCode.content.slice(
                         position,
                         position + length
                     )
