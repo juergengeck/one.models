@@ -1,8 +1,7 @@
 import EventEmitter from 'events';
-import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
-import Recipes from '../recipes/recipes';
+import {closeInstance, initInstance} from 'one.core/lib/instance';
 import oneModules from '../generated/oneModules';
-import {Module, SHA256Hash, VersionedObjectResult, Instance, Person} from '@OneCoreTypes';
+import {Module, SHA256Hash, VersionedObjectResult, Instance, Person, Recipe} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
@@ -120,6 +119,7 @@ export default class OneInstanceModel extends EventEmitter {
     private password: string;
     private randomEmail: string | null;
     private randomInstanceName: string | null;
+    private initialRecipes: Recipe[];
 
     private channelManager: ChannelManager;
     private consentFileModel: ConsentFileModel;
@@ -134,16 +134,19 @@ export default class OneInstanceModel extends EventEmitter {
      * @param {ChannelManager} channelManager
      * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
+     * @param {Recipe[]} initialRecipes
      */
     constructor(
         channelManager: ChannelManager,
         consentFileModel: ConsentFileModel,
-        accessModel: AccessModel
+        accessModel: AccessModel,
+        initialRecipes: Recipe[]
     ) {
         super();
         this.password = '';
         this.randomEmail = '';
         this.randomInstanceName = '';
+        this.initialRecipes = initialRecipes;
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
         this.currentRegistrationState = false;
         this.currentPartnerState = false;
@@ -273,7 +276,7 @@ export default class OneInstanceModel extends EventEmitter {
             secret: this.password,
             encryptStorage,
             ownerName: 'name' + this.randomEmail,
-            initialRecipes: Recipes
+            initialRecipes: this.initialRecipes
         });
 
         await importModules();
@@ -310,13 +313,10 @@ export default class OneInstanceModel extends EventEmitter {
                 secret,
                 encryptStorage,
                 ownerName: 'name' + this.randomEmail,
-                initialRecipes: Recipes
+                initialRecipes: this.initialRecipes
             });
 
             await importModules();
-            
-            // this will register new added recipes to the runtime
-            await registerRecipes(Recipes);
         }
         await this.initialisingApplication();
     }
