@@ -42,12 +42,22 @@ class CommunicationServerConnection_Client {
     }
 
     /**
-     * Closes the web socket.
+     * Closes the websocket
      *
      * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
+    }
+
+
+    /**
+     * Terminates the web socket.
+     *
+     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     */
+    public terminate(reason?: string): void {
+        return this.webSocketPB.terminate(reason);
     }
 
     /**
@@ -143,7 +153,7 @@ class CommunicationServerConnection_Client {
         const schedulePingTimeout = () => {
             cancelPingTimeout();
             timeoutHandle = setTimeout(() => {
-                this.webSocketPB.close('Ping timeout');
+                this.webSocketPB.terminate('Ping timeout');
             }, pingTimeout);
         };
 

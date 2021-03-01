@@ -278,8 +278,10 @@ export default class CommunicationModule extends EventEmitter {
                         const targetKey = toByteArray(remoteInstanceKeys.publicKey);
                         const mapKey = genMapKey(sourceKey, targetKey);
 
-                        // Check if the desired connection it's with you 
-                        if(mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey){
+                        // Check if the desired connection it's with you
+                        if (
+                            mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey
+                        ) {
                             return;
                         }
                         // Check if there is already a matching active connection in the unknown peer maps
@@ -747,60 +749,61 @@ export default class CommunicationModule extends EventEmitter {
             return;
         }
 
-        // Check whether this is a known connection (null in the map)
-        if (endpoint.activeConnection === null) {
-            // Stop the outgoing connection attempts
-            if (endpoint.connEst) {
-                endpoint.connEst.stop().catch(e => console.log(e));
+        // Here we know that the connection is known
+        // Check if we have a duplicate situation.
+        if (endpoint.activeConnection !== null) {
+            // Check if we are in the 200ms window where we drop new connections
+            if (endpoint.dropDuplicates) {
+                // Close the new connection. No further action is required.
+                conn.close('duplicate connection');
+                return;
             }
 
-            // Connect close handler
-            const closeHandler = () => {
-                endpoint.dropDuplicates = true;
-                endpoint.activeConnection = null;
-                delete endpoint.closeHandler;
-                this.emit('connectionsChange');
-                this.reconnect(endpoint, this.reconnectDelay);
-            };
-            conn.webSocket.addEventListener('close', closeHandler);
-            endpoint.closeHandler = closeHandler;
-
-            // Set the current connection as active connection
-            endpoint.activeConnection = conn;
-            this.emit('connectionsChange');
-
-            // Set timeout that changes duplicate connection behavior
-            setTimeout(() => {
-                endpoint.dropDuplicates = false;
-            }, 2000);
-
-            // Notify the outside
-            if (this.onKnownConnection) {
-                this.onKnownConnection(
-                    conn,
-                    localPublicKey,
-                    remotePublicKey,
-                    endpoint.sourcePersonId,
-                    endpoint.targetPersonId,
-                    initiatedLocally
-                );
-            }
-            return;
-        }
-
-        // Close if already a connection exists
-        // Based on the dropDuplicates we either drop the new connection  (before 2 seconds of initial connection establishment).
-        // or the old one and replace it by the new one (after 2 seconds of initial connection establishment).
-        if (endpoint.dropDuplicates) {
-            conn.close('duplicate connection');
-        } else {
+            //  If we replace the old connection, then
+            //  Disconnect the close handler and close the old connection
             if (endpoint.closeHandler) {
                 conn.webSocket.removeEventListener('close', endpoint.closeHandler);
             } else {
                 throw new Error('closeHandler is out of sync with activeConnection');
             }
             endpoint.activeConnection.close('duplicate connection');
-            endpoint.activeConnection = conn;
+        }
+
+        // Stop the outgoing connection attempts
+        if (endpoint.connEst) {
+            endpoint.connEst.stop().catch(e => console.log(e));
+        }
+
+        // Connect close handler
+        const closeHandler = () => {
+            endpoint.dropDuplicates = true;
+            endpoint.activeConnection = null;
+            delete endpoint.closeHandler;
+            this.emit('connectionsChange');
+            this.reconnect(endpoint, this.reconnectDelay);
+        };
+        conn.webSocket.addEventListener('close', closeHandler);
+        endpoint.closeHandler = closeHandler;
+
+        // Set the current connection as active connection
+        endpoint.activeConnection = conn;
+        this.emit('connectionsChange');
+
+        // Set timeout that changes duplicate connection behavior
+        setTimeout(() => {
+            endpoint.dropDuplicates = false;
+        }, 2000);
+
+        // Notify the outside
+        if (this.onKnownConnection) {
+            this.onKnownConnection(
+                conn,
+                localPublicKey,
+                remotePublicKey,
+                endpoint.sourcePersonId,
+                endpoint.targetPersonId,
+                initiatedLocally
+            );
         }
     }
 }

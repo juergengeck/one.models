@@ -13,7 +13,8 @@ declare module CommunicationInitiationProtocol {
         | 'chum'
         | 'chum_onetimeauth_withtoken'
         | 'chumAndPkExchange_onetimeauth_withtoken'
-        | 'chum_one_time';
+        | 'chum_one_time'
+        | 'accessGroup_set';
 
     /**
      * This request is sent by a client to request communication with somebody that has the specified public key.
@@ -99,6 +100,21 @@ declare module CommunicationInitiationProtocol {
         anonPersonPrivateSignKey: string;
     };
 
+    /**
+     * Message that transports persons for access groups.
+     */
+    export type AccessGroupMembersMessage = {
+        command: 'access_group_members';
+        persons: string[]; // these are the emails of the person objects, so that we can build the person objects from scratch
+    };
+
+    /**
+     * Just a message that signals success.
+     */
+    export type SuccessMessage = {
+        command: 'success';
+    };
+
     // ######## Message to Role (Client / Server) Mapping ########
 
     /**
@@ -125,6 +141,8 @@ declare module CommunicationInitiationProtocol {
         authentication_token: AuthenticationTokenMessage;
         encrypted_authentication_token: EncryptedAuthenticationTokenMessage;
         person_object: PersonObjectMessage;
+        access_group_members: AccessGroupMembersMessage;
+        success: SuccessMessage;
     }
 
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
@@ -217,6 +235,20 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
     }
     if (command === 'person_object') {
         return arg.obj && arg.obj.$type$ === 'Person';
+    }
+    if (command === 'access_group_members') {
+        if (arg && arg.persons && Array.isArray(arg.persons)) {
+            for (const person of arg.persons) {
+                if (typeof person !== 'string') {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    if (command === 'success') {
+        return true;
     }
     return false;
 }

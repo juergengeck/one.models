@@ -1,70 +1,27 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     Person,
-    QuestionnaireResponse as OneQuestionnaireResponse,
+    Questionnaire_1_1_0,
+    QuestionnaireResponses as QuestionnaireResponses_1_0_0,
     SHA256IdHash
 } from '@OneCoreTypes';
-import {Questionnaire} from './QuestionTypes';
 
-/**
- * Type defines the data of a questionnaire response
- */
-export interface QuestionnaireResponse {
-    questionnaire: string;
-    item: Record<string, string>;
-}
+// Export the Questionnaire types
+export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
+export type Question = Questionnaire_1_1_0.Question;
+export type QuestionnaireAnswerMinMaxValue = Questionnaire_1_1_0.QuestionnaireAnswerMinMaxValue;
+export type AnswerRestriction = Questionnaire_1_1_0.AnswerRestriction;
+export type Coding = Questionnaire_1_1_0.Coding;
+export type QuestionnaireEnableWhenAnswer = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
-/**
- * Convert from model representation to one representation.
- *
- * @param {QuestionnaireResponse} modelObject - the model object
- * @returns {OneQuestionnaireResponse} The corresponding one object
- */
-function convertToOne(modelObject: QuestionnaireResponse): OneQuestionnaireResponse {
-    const {item, ...rest} = modelObject;
-    const oneItems = [];
-
-    // Transform the items from object to array
-    for (const itemId in item) {
-        oneItems.push({
-            linkId: itemId,
-            answer: item[itemId]
-        });
-    }
-
-    // Create the resulting object
-    return {
-        $type$: 'QuestionnaireResponse',
-        ...rest,
-        item: oneItems
-    };
-}
-
-/**
- * Convert from one representation to model representation.
- *
- * @param {OneQuestionnaireResponse} oneObject - the one object
- * @returns {QuestionnaireResponse} The corresponding model object
- */
-function convertFromOne(oneObject: OneQuestionnaireResponse): QuestionnaireResponse {
-    const {item, ...restOneQuestionnaireResponse} = oneObject;
-
-    // transform the items from array to object
-    const newItems: Record<string, string> = {};
-
-    for (const i of item) {
-        newItems[i.linkId] = i.answer;
-    }
-
-    // Create the new ObjectData item
-    return {
-        ...restOneQuestionnaireResponse, // This is "questionnaire" and others that
-        // might be later added to Questionnaire
-        // Response
-        item: newItems
-    };
-}
+// Export the QuestionnaireResponses types
+// @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
+export interface QuestionnaireResponses extends Omit<QuestionnaireResponses_1_0_0, '$type$'> {}
+export type QuestionnaireResponse = QuestionnaireResponses_1_0_0.QuestionnaireResponse;
+export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -76,13 +33,13 @@ export default class QuestionnaireModel extends EventEmitter {
     private channelManager: ChannelManager;
     private readonly channelId: string;
     private readonly availableQuestionnaires: Questionnaire[];
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private readonly boundOnUpdatedHandler: (id: string) => void;
     private readonly incompleteResponsesChannelId: string;
 
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -99,7 +56,7 @@ export default class QuestionnaireModel extends EventEmitter {
      *
      * This must be done after the one instance was initialized.
      */
-    async init(): Promise<void> {
+    public async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.channelManager.on('updated', this.boundOnUpdatedHandler);
@@ -107,10 +64,8 @@ export default class QuestionnaireModel extends EventEmitter {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
-    async shutdown(): Promise<void> {
+    public async shutdown(): Promise<void> {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
@@ -119,99 +74,188 @@ export default class QuestionnaireModel extends EventEmitter {
     /**
      * Get a list of available questionnaires
      */
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async questionnaires(): Promise<Questionnaire[]> {
+    public async questionnaires(): Promise<Questionnaire[]> {
         return this.availableQuestionnaires;
     }
 
     /**
      * Get a specific questionnaire
      *
-     * @param {string} questionnaireId - the identifier of the questionnaire
+     * Note that this does not connect to the server behind the url. The url is
+     * simply the id used by questionnaires. FHIR uses urls for identifying resources
+     * such as questionnaires.
+     *
+     * @param url - The url of the questionnaire
      */
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async getQuestionnaireById(questionnaireId: string): Promise<Questionnaire> {
+    public async questionnaireByUrl(url: string): Promise<Questionnaire> {
         for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaireId === questionnaire.identifier) {
+            if (questionnaire.url === url) {
                 return questionnaire;
             }
         }
+        throw Error('Questionnaire with url ' + url + ' does not exist');
+    }
 
-        throw Error('Questionnaire with id ' + questionnaireId + ' does not exist');
+    /**
+     * Get a specific questionnaire
+     *
+     * @param name - The name of the questionnaire
+     * @param language - Language of questionnaire. If empty, just return the first in any language.
+     */
+    public async questionnaireByName(name: string, language?: string): Promise<Questionnaire> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.name === name && (!language || questionnaire.language === language)) {
+                return questionnaire;
+            }
+        }
+        throw Error(
+            'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
+        );
+    }
+
+    /**
+     * Get a questionnaire url by name and language.
+     *
+     * @param name
+     * @param language
+     */
+    public async questionnaireUrlByName(name: string, language?: string): Promise<string> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (
+                questionnaire.name === name &&
+                (!language || questionnaire.language === language) &&
+                questionnaire.url
+            ) {
+                return questionnaire.url;
+            }
+        }
+        throw Error(
+            'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
+        );
+    }
+
+    /**
+     * Checks whether a questionnaire exists.
+     *
+     * @param url - Url of the questionnaire
+     */
+    public async hasQuestionnaireWithUrl(url: string): Promise<boolean> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.url === url) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether a questionnaire exists.
+     *
+     * @param name - Name of the questionnaire
+     * @param language - Language of questionnaire. If empty, just check in any language.
+     */
+    public async hasQuestionnaireWithName(name: string, language?: string): Promise<boolean> {
+        for (const questionnaire of this.availableQuestionnaires) {
+            if (questionnaire.name === name && (!language || questionnaire.language === language)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Adding questionnaires to the available questionnaires list.
+     *
+     * Note: In the future questionnaires will be served by one as one objects.
+     *       This function will then change or be removed.
+     *
+     * @param questionnaires - The list of the questionnaires that will be added
+     */
+    public registerQuestionnaires(questionnaires: Questionnaire[]): void {
+        this.availableQuestionnaires.push(...questionnaires);
     }
 
     // #### Questionnaire response functions ####
 
     /**
-     * Create a new response for the Covid2 Patient questionnaire
+     * Create a new response to a questionnaire
      *
-     * @param {QuestionnaireResponse} data - The answers for the questionnaire.
-     * @param {SHA256IdHash<Person>} owner - change the owner of the channel to post to.
+     * @param response - The questionnaire response to post
+     * @param name - The name for this collection. This could be something the user specifies in order to be identified easily.
+     * @param type - An application specific type. It is up to the application what to do with it.
+     * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
-    async postResponse(data: QuestionnaireResponse, owner?: SHA256IdHash<Person>): Promise<void> {
-        // Assert that the questionnaire with questionnaireId exists
-        let questionnaireExists = false;
-
-        for (const questionnaire of this.availableQuestionnaires) {
-            if (data.questionnaire === questionnaire.identifier) {
-                questionnaireExists = true;
-            }
-        }
-
-        if (!questionnaireExists) {
-            throw Error(
-                'Posting questionnaire response failed: Questionnaire ' +
-                    data.questionnaire +
-                    ' does not exist'
-            );
-        }
-
-        // Todo: Assert that the mandatory fields have been set in the answer
-
-        // Post the result to the one instance
-        await this.channelManager.postToChannel(this.channelId, convertToOne(data), owner);
+    public async postResponse(
+        response: QuestionnaireResponse,
+        name?: string,
+        type?: string,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.postResponseCollection([response], name, type, owner);
     }
 
     /**
-     * Get a specific questionnaire response
+     * Post multiple responses as a single collection.
      *
-     * @param {string} questionnaireResponseId - the id of the questionnaire response
+     * This means that later when querying the questionnaires, this collection will appear as single entry.
+     * This is useful if you dynamically compose a big questionnaires from several partial questionnaires.
+     *
+     * @param responses - The list of questionnaire responses to post
+     * @param name - The name for this collection. This could be something the user specifies in order to be identified easily.
+     * @param type - An application specific type. It is up to the application what to do with it.
+     * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
-    async getQuestionnaireResponseById(
-        questionnaireResponseId: string
-    ): Promise<ObjectData<QuestionnaireResponse>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
-            questionnaireResponseId,
-            'QuestionnaireResponse'
+    public async postResponseCollection(
+        responses: QuestionnaireResponse[],
+        name?: string,
+        type?: string,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
+        // We decided not to do any validation here, because it is done by the questionnaire builder.
+        // If you post something wrong, then shame on you :-)
+
+        // Post the result to the one instance
+        await this.channelManager.postToChannel(
+            this.channelId,
+            {
+                $type$: 'QuestionnaireResponses',
+                name,
+                type,
+                response: responses
+            },
+            owner
         );
-        return {...restObjectData, data: convertFromOne(data)};
     }
 
     /**
      * Get a list of responses.
      */
-    async responses(): Promise<ObjectData<QuestionnaireResponse>[]> {
-        const objects: ObjectData<QuestionnaireResponse>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
-            channelId: this.channelId
+    public async responses(
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<QuestionnaireResponses>[]> {
+        return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
+            channelId: this.channelId,
+            ...queryOptions
         });
-
-        // Convert the data member from one to model representation
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-
-            objects.push({...restObjectData, data: convertFromOne(data)});
-        }
-
-        return objects;
     }
 
     /**
-     *  Getting the number of completed questionnaire by questionnaire type.
-     * @param {string} questionnaireResponseId - questionnaire response identifier
+     * Get a specific questionnaire response
+     *
+     * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
      */
-    async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponse', {
+    public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
+        return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
+    }
+
+    /**
+     * Getting the number of completed questionnaire by questionnaire type.
+     *
+     * @param {string} questionnaireResponseId - questionnaire response identifier
+     * TODO: Why do we need this? I disabled it, because it assumes a language suffix - we should rethink this!
+     */
+    /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
+        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: this.channelId
         });
         let numberOfSpecificQuestionnaires = 0;
@@ -223,159 +267,118 @@ export default class QuestionnaireModel extends EventEmitter {
         }
 
         return numberOfSpecificQuestionnaires;
-    }
-
-    /**
-     * Adding questionnaires to the available questionnaires list.
-     * @param questionnaires - Questionnaire[] - the list of the questionnaires that will be added to the available questionnaires list
-     */
-    registerQuestionnaires(questionnaires: Questionnaire[]): void {
-        this.availableQuestionnaires.push(...questionnaires);
-    }
-
-    /**
-     * Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
-     */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
-            this.emit('updated');
-        }
-    }
+    }*/
 
     // ######### Incomplete Response Methods ########
 
     /**
      * Saving incomplete questionnaires.
      *
-     * ## Note: if an empty questionnaire response it's passed as the argument,
-     * then the function will work as markIncompleteResponseAsComplete(questionnaireId: string) function.
-     *
-     * @param {QuestionnaireResponse} data - The answers for the questionnaire.
+     * @param response - The incomplete response.
+     * @param type - The type of the response. This is later used to find incomplete responses.
+     * @param name - The name of the response
      */
-    async postIncompleteResponse(data: QuestionnaireResponse): Promise<void> {
-        // Assert that the questionnaire with questionnaireId exists
-        let questionnaireExists = false;
+    public async postIncompleteResponse(
+        response: QuestionnaireResponse,
+        type: string,
+        name?: string
+    ): Promise<void> {
+        await this.postIncompleteResponseCollection([response], type, name);
+    }
 
-        for (const questionnaire of this.availableQuestionnaires) {
-            if (data.questionnaire === questionnaire.identifier) {
-                questionnaireExists = true;
-            }
-        }
-
-        if (!questionnaireExists) {
-            throw Error(
-                'Posting questionnaire response failed: Questionnaire ' +
-                    data.questionnaire +
-                    ' does not exist'
-            );
-        }
-
+    /**
+     * Save incomplete questionnaire collection.
+     *
+     * @param responses - The response list. If this list is empty then it works exactly as markIncompleteResponseAsComplete.
+     * @param type - The type of the response. This is later used to find incomplete responses.
+     * @param name - The name of the response
+     */
+    public async postIncompleteResponseCollection(
+        responses: QuestionnaireResponse[],
+        type: string,
+        name?: string
+    ): Promise<void> {
         // Post the result to the one instance
-        await this.channelManager.postToChannel(
-            this.incompleteResponsesChannelId,
-            convertToOne(data)
-        );
+        await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
+            $type$: 'QuestionnaireResponses',
+            name,
+            type,
+            response: responses
+        });
     }
 
     /**
      * Getting the latest incomplete questionnaire.
-     * @param {Date} since - not older than this date.
-     * @param {string} questionnaireId - questionnaire identifier.
-     * @returns {Promise<ObjectData<QuestionnaireResponse>[]>}
+     *
+     * @param type - type of incomplete response collection
+     * @param since - not older than this date.
+     * @returns the incomplete data, or null if there isn't such data.
      */
-    async incompleteResponse(
-        questionnaireId?: string,
+    public async incompleteResponse(
+        type: string,
         since?: Date
-    ): Promise<ObjectData<QuestionnaireResponse> | null> {
-        let incompleteResponse: ObjectData<QuestionnaireResponse> | null = null;
+    ): Promise<ObjectData<QuestionnaireResponses> | null> {
+        // Construct iterator
+        const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+            channelId: this.incompleteResponsesChannelId,
+            from: since
+        });
 
-        for await (const item of this.channelManager.objectIteratorWithType(
-            'QuestionnaireResponse',
-            {
-                channelId: this.incompleteResponsesChannelId,
-                from: since
-            }
-        )) {
-            if (questionnaireId && item.data.questionnaire !== questionnaireId) {
+        // Iterate over all entries and see if a type is present
+        for await (const responses of iterator) {
+            if (responses.data.type !== type) {
                 continue;
             }
 
-            const {data, ...restObjectData} = item;
-            // Convert the data member from one to model representation
-            incompleteResponse = {
-                ...restObjectData,
-                data: convertFromOne(data)
-            };
-            break;
-        }
+            // Check if an empty element is found => no incomplete entry
+            if (responses.data.response.length === 0) {
+                return null;
+            }
 
-        return incompleteResponse;
+            return responses;
+        }
+        return null;
     }
 
     /**
      * Check if incomplete questionnaires exists.
-     * @param {Date} since - not older than this date.
-     * @param {string} questionnaireId - questionnaire identifier.
-     * @returns {Promise<boolean>}
+     *
+     * @param type - The type of the incomplete response collection.
+     * @param since - Not older than this date.
+     * @returns
      */
-    async hasIncompleteResponse(questionnaireId?: string, since?: Date): Promise<boolean> {
-        for await (const item of this.channelManager.objectIteratorWithType(
-            'QuestionnaireResponse',
-            {
-                channelId: this.incompleteResponsesChannelId,
-                from: since
-            }
-        )) {
-            if (questionnaireId && item.data.questionnaire !== questionnaireId) {
-                continue;
-            }
-
-            // if the questionnaire it's empty then no incomplete questionnaire exists
-            return item.data.item.length > 0;
-        }
-
-        return false;
+    public async hasIncompleteResponse(type: string, since?: Date): Promise<boolean> {
+        return (await this.incompleteResponse(type, since)) !== null;
     }
 
     /**
-     * Posting an empty questionnaire.
+     * Marks an incomplete response as complete.
      *
-     * ## Note: this function is used to mark when a complete questionnaire was posted,
-     * so every time when a complete questionnaire it's added to the "questionnaireResponse" channel,
-     * an empty questionnaire response it's added to the "incompleteQuestionnaireResponse" channel.
+     * Note: This simply posts an empty responses object to the incomplete channel.
      *
-     * @param {string} questionnaireId - the id of the questionnaire.
-     * @returns {Promise<void>}
+     * @param type - The type of the incomplete response collection.
+     * @returns
      */
-    async markIncompleteResponseAsComplete(questionnaireId: string): Promise<void> {
-        // Assert that the questionnaire with questionnaireId exists
-        let questionnaireExists = false;
+    public async markIncompleteResponseAsComplete(type: string): Promise<void> {
+        await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
+            $type$: 'QuestionnaireResponses',
+            type: type,
+            response: []
+        });
+    }
 
-        for (const questionnaire of this.availableQuestionnaires) {
-            if (questionnaireId === questionnaire.identifier) {
-                questionnaireExists = true;
+    /**
+     * Handler function for the 'updated' event
+     *
+     * @param id
+     * @return
+     */
+    private handleOnUpdated(id: string): void {
+        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
+            this.emit('updated');
+            if (id === this.incompleteResponsesChannelId) {
+                this.emit('updatedIncomplete');
             }
         }
-
-        if (!questionnaireExists) {
-            throw Error(
-                'Posting questionnaire response failed: Questionnaire ' +
-                    questionnaireId +
-                    ' does not exist'
-            );
-        }
-
-        const emptyQuestionnaire: QuestionnaireResponse = {
-            questionnaire: questionnaireId,
-            item: {}
-        };
-
-        // Post the result to the one instance
-        await this.channelManager.postToChannel(
-            this.incompleteResponsesChannelId,
-            convertToOne(emptyQuestionnaire)
-        );
     }
 }

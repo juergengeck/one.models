@@ -4,7 +4,8 @@ import ChannelRecipes from './ChannelRecipes';
 import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';
 import MetaRecipes from './MetaRecipes';
-import QuestionnaireRecipes from './QuestionnaireRecipes';
+import QuestionnaireRecipes from './QuestionnaireRecipes/QuestionnaireRecipes';
+import QuestionnaireResponseRecipes from './QuestionnaireRecipes/QuestionnaireResponseRecipes';
 import ConsentFileRecipes from './ConsentFileRecipes';
 import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
@@ -24,6 +25,7 @@ const Recipes: Recipe[] = [
     ...DiaryRecipes,
     ...MetaRecipes,
     ...QuestionnaireRecipes,
+    ...QuestionnaireResponseRecipes,
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...InstancesRecipes,
