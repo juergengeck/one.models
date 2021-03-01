@@ -6,7 +6,7 @@ import {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
 
 /**
- * Json format for the objects parsed path
+ * Json format for the connectionsFS path
  */
 type ParsedConnectionsPath = {
     isRoot: boolean;
@@ -15,32 +15,46 @@ type ParsedConnectionsPath = {
     isDetailsPath: boolean;
 };
 
+/**
+ * ConnectionFileSystem represents a FileSystem Structure for connections. It provides two directories /import & /export and a connections_details.txt.
+ * Those two directories contains QR codes that are generated (in /export) or imported (in /import).
+ * The writing of files are only permitted inside /import directory.
+ * This class is using {@link FileSystemDirectory} & {@link FileSystemFile} types from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure.
+ */
 export default class ConnectionFileSystem implements IFileSystem {
     private readonly rootMode: number = 0o0100444;
 
+    /**
+     * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link FilerModel}
+     */
     public onConnectionQRCodeRequested: (() => Promise<Buffer>) | null = null;
     public onConnectionQRCodeReceived: ((pairingInformation: PairingInformation) => Promise<void>) | null = null;
     public onConnectionsInfoRequested: (() => ConnectionInfo[]) | null = null;
 
-    private importedQrFilesMap: Map<string, FileSystemFile>;
+    /**
+     * Those {@link FileSystemFile} are only persisted temporary in the fs. The reason behind that is to see them inside
+     * the folder after importing them.
+     * @type {Map<string, FileSystemFile>}
+     * @private
+     */
+    private importedQRCodesMap: Map<string, FileSystemFile>;
 
-    private persistedQRCode: FileSystemFile | null = null;
+    /**
+     * The QR code is refreshed every 5 minutes (3 * 10^5 ms) and it's temporary persisted.
+     * @type {FileSystemFile | null}
+     * @private
+     */
+    private exportedQRCode: FileSystemFile | null = null;
 
     constructor(initialQrCodeImage: FileSystemFile) {
-        this.importedQrFilesMap = new Map();
-        this.persistedQRCode = initialQrCodeImage;
-        
+        this.importedQRCodesMap = new Map();
+        this.exportedQRCode = initialQrCodeImage;
+
         /** refresh the qr code every 5 minutes **/
         setInterval(async () => {
             await this.refreshQRCode()
         }, 300000)
-    }
-
-    private async refreshQRCode() {
-        if(this.onConnectionQRCodeRequested) {
-            const qrCodeAsBuffer: Buffer = await this.onConnectionQRCodeRequested();
-            this.persistedQRCode = {content: new Uint8Array(qrCodeAsBuffer).buffer}
-        }
     }
 
     /**
@@ -75,14 +89,16 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(directoryPath);
         if (parsedPath && parsedPath.isImportPath) {
             const fileContent = await readBlobAsArrayBuffer(fileHash);
-            this.importedQrFilesMap.set(fileName, {content: fileContent});
-            const pairingInformation = JSON.parse(
+            this.importedQRCodesMap.set(fileName, {content: fileContent});
+
+            // @todo use the pairing information to connect
+            /*const pairingInformation = JSON.parse(
                 // @ts-ignore
                 String.fromCharCode.apply(null, new Uint16Array(fileContent))
             );
             if(this.onConnectionQRCodeReceived) {
                 await this.onConnectionQRCodeReceived(pairingInformation);
-            }
+            }*/
         } else {
             const rootMode = retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {
@@ -93,10 +109,20 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
     }
 
+    /**
+     * If the given path exists
+     * @param {string} path
+     * @returns {Promise<boolean>}
+     */
     async exists(path: string): Promise<boolean> {
         return !!this.parsePath(path);
     }
 
+    /**
+     * Read the given directory
+     * @param {string} dirPath
+     * @returns {Promise<FileSystemDirectory>}
+     */
     async readDir(dirPath: string): Promise<FileSystemDirectory> {
         const parsedPath = this.parsePath(dirPath);
 
@@ -109,7 +135,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isImportPath) {
-            return {children: []};
+            return {children: Array.from(this.importedQRCodesMap.keys())};
         }
 
         if (parsedPath.isExportPath) {
@@ -119,6 +145,11 @@ export default class ConnectionFileSystem implements IFileSystem {
         throw new Error('Error: the path could not be found.');
     }
 
+    /**
+     * Read the given file
+     * @param {string} filePath
+     * @returns {Promise<FileSystemFile>}
+     */
     async readFile(filePath: string): Promise<FileSystemFile> {
         const parsedPath = this.parsePath(filePath);
 
@@ -139,16 +170,16 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(this.persistedQRCode) {
+            if(this.exportedQRCode) {
                 return {
-                    content: this.persistedQRCode.content
+                    content: this.exportedQRCode.content
                 };
             }
         }
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
             const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            const fileContent = this.importedQrFilesMap.get(fileName);
+            const fileContent = this.importedQRCodesMap.get(fileName);
             if (fileContent) {
                 return {
                     content: fileContent.content
@@ -159,6 +190,13 @@ export default class ConnectionFileSystem implements IFileSystem {
         throw new Error('Error: the path could not be found.');
     }
 
+    /**
+     * Only allowed on node. See {@link this.supportsChunkedReading}
+     * @param {string} filePath
+     * @param {number} length
+     * @param {number} position
+     * @returns {Promise<FileSystemFile>}
+     */
     async readFileInChunks(
         filePath: string,
         length: number,
@@ -190,9 +228,9 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(this.persistedQRCode) {
+            if(this.exportedQRCode) {
                 return {
-                    content: this.persistedQRCode.content.slice(
+                    content: this.exportedQRCode.content.slice(
                         position,
                         position + length
                     )
@@ -202,7 +240,7 @@ export default class ConnectionFileSystem implements IFileSystem {
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
             const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            const fileContent = this.importedQrFilesMap.get(fileName);
+            const fileContent = this.importedQRCodesMap.get(fileName);
             if (fileContent) {
                 return {
                     content: fileContent.content
@@ -213,6 +251,11 @@ export default class ConnectionFileSystem implements IFileSystem {
         throw new Error('Error: the path could not be found.');
     }
 
+    /**
+     * Stats about the given path
+     * @param {string} path
+     * @returns {Promise<FileDescription>}
+     */
     async stat(path: string): Promise<FileDescription> {
         const parsedPath = this.parsePath(path);
 
@@ -312,5 +355,17 @@ export default class ConnectionFileSystem implements IFileSystem {
             bufView[i] = str.charCodeAt(i);
         }
         return buf;
+    }
+
+    /**
+     * Request a new QR code.
+     * @returns {Promise<void>}
+     * @private
+     */
+    private async refreshQRCode() {
+        if(this.onConnectionQRCodeRequested) {
+            const qrCodeAsBuffer: Buffer = await this.onConnectionQRCodeRequested();
+            this.exportedQRCode = {content: new Uint8Array(qrCodeAsBuffer).buffer}
+        }
     }
 }

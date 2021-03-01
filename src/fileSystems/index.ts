@@ -1,6 +1,6 @@
 import ObjectsFileSystem from './ObjectsFileSystem';
 import PersistentFileSystem from './PersistentFileSystem';
-
+import ConnectionsFileSystem from './ConnectionFileSystem';
 /**
  * @class
  *
@@ -33,3 +33,20 @@ export {ObjectsFileSystem};
  *
  */
 export {PersistentFileSystem};
+
+
+
+/**
+ * @class
+ *
+ * Hooked by the FilerModel (see {@link FilerModel})
+ *
+ * See {@link ConnectionsFileSystem}
+ *
+ * ConnectionFileSystem represents a FileSystem Structure for connections. It provides two directories /import & /export and a connections_details.txt.
+ * Those two directories contains QR codes that are generated (in /export) or imported (in /import).
+ * The writing of files are only permitted inside /import directory.
+ * This class is using {@link FileSystemDirectory} & {@link FileSystemFile} types from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure.
+ */
+export {ConnectionsFileSystem};
