@@ -1,12 +1,12 @@
 import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
-import {QuestionnaireResponse} from './QuestionnaireModel';
+import {QuestionnaireResponses} from './QuestionnaireModel'
 import EventEmitter from 'events';
 import {HeartEvent} from './HeartEventModel';
 import {DocumentInfo} from './DocumentModel';
 import {DiaryEntry} from './DiaryModel';
-import {BodyTemperature} from './BodyTemperatureModel';
 import {ObjectData} from './ChannelManager';
-import {ConsentFile} from './ConsentFileModel';
+import {ConsentFile, DropoutFile} from './ConsentFileModel';
+import {BodyTemperature} from "./BodyTemperatureModel";
 
 /**
  * !!! Add the corresponding model class name here
@@ -29,15 +29,16 @@ export type EventListEntry = {
     type: EventType;
     data:
         | ObjectData<
-        | WbcObservation
-        | QuestionnaireResponse
-        | DocumentInfo
-        | DiaryEntry
-        | ConsentFile
-        | Electrocardiogram
-        >
-        | HeartEvent
-        | BodyTemperature;
+              | WbcObservation
+              | QuestionnaireResponses
+              | DocumentInfo
+              | DiaryEntry
+              | ConsentFile
+              | Electrocardiogram
+              | DropoutFile
+              | BodyTemperature
+          >
+        | HeartEvent;
 };
 
 type JournalInput = {
@@ -59,31 +60,29 @@ export default class JournalModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     init() {
-        this.modelsDictionary
-            .forEach((journalInput: JournalInput) => {
-                const event = journalInput.eventType;
-                const handler = () => {
-                    this.emit('updated');
-                };
-                journalInput.model.on('updated', handler);
-                /** persist the function reference in a map **/
-                this.eventListeners.set(event, handler);
-            });
+        this.modelsDictionary.forEach((journalInput: JournalInput) => {
+            const event = journalInput.eventType;
+            const handler = () => {
+                this.emit('updated');
+            };
+            journalInput.model.on('updated', handler);
+            /** persist the function reference in a map **/
+            this.eventListeners.set(event, handler);
+        });
     }
 
     /**
      * removes the handler for every provided model
      */
     shutdown() {
-        this.modelsDictionary
-            .forEach((journalInput: JournalInput) => {
-                const event = journalInput.eventType as EventType;
-                /** retrieve the function reference in order to delete it **/
-                const handler = this.eventListeners.get(event);
-                if (handler) {
-                    journalInput.model.removeListener('updated', handler);
-                }
-            });
+        this.modelsDictionary.forEach((journalInput: JournalInput) => {
+            const event = journalInput.eventType as EventType;
+            /** retrieve the function reference in order to delete it **/
+            const handler = this.eventListeners.get(event);
+            if (handler) {
+                journalInput.model.removeListener('updated', handler);
+            }
+        });
     }
 
     /**

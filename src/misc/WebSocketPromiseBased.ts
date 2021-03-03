@@ -121,6 +121,13 @@ export default class WebSocketPromiseBased extends EventEmitter
 
     /**
      * Closes the underlying websocket.
+     *
+     * This function waits for the other side to also close the Tcp connection
+     * by responding with a FIN package. This might lead to a delay if the
+     * connection was interrupted because e.g. the wirless adapter was switched
+     * off.
+     *
+     * @param {string} reason - Reason for timeout
      */
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
@@ -133,6 +140,48 @@ export default class WebSocketPromiseBased extends EventEmitter
             } else {
                 this.webSocket.close();
             }
+        }
+    }
+
+    /**
+     * Terminates the connection immediately without waiting for the Tcp FIN handshake.
+     *
+     * This function terminates the readers immediately instead of waiting for the
+     * other side to also close the websocket by sending the Tcp FIN package. This
+     * function should only be used when a connection loss is detected (PING / PONG
+     * timeout)
+     *
+     * This also releases the websocket, because the state might still be open, but
+     * we don't want anyone to do any operation on the websocket anymore.
+     *
+     * @param {string} reason - Reason for timeout
+     */
+    public terminate(reason?: string) {
+        MessageBus.send('debug', `${wslogId(this.webSocket)}: terminate(${reason})`);
+        if (this.webSocket) {
+            if (this.webSocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            // Close the websocket
+            if (reason) {
+                this.webSocket.close(1000, reason);
+            } else {
+                this.webSocket.close();
+            }
+
+            // Notify the read handler and therefore immediately unblock any blocked read operations
+            this.closeReason = reason ? reason : 'Connection terminated locally';
+            if (this.dataAvailableFn) {
+                this.dataAvailableFn(new Error('Connection was closed: ' + reason));
+            }
+            if (this.socketOpenFn) {
+                this.socketOpenFn(new Error('Connection was closed: ' + reason));
+            }
+
+            // for now releasing websocket becomes null and throws and error no websocket assigned to connection
+            // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
+            // this.releaseWebSocket();
         }
     }
 

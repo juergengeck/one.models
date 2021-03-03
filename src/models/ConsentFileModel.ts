@@ -1,8 +1,25 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {ConsentFile as OneConsentFile, Person, SHA256IdHash} from '@OneCoreTypes';
+import {Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
+
+/**
+ * Represents the consent file object that will be stored in one.
+ */
+export type ConsentFile = {
+    personId: SHA256IdHash<Person>;
+    version?: string;
+};
+
+/**
+ * Represents the dropout file object that will be stored in one.
+ */
+export type DropoutFile = {
+    personId: SHA256IdHash<Person>;
+    reason: string;
+    date: string;
+};
 
 export enum FileType {
     Consent = 'consent',
@@ -10,39 +27,7 @@ export enum FileType {
 }
 
 /**
- * This represents the model of a consent file
- *
- */
-export type ConsentFile = {
-    fileData: string;
-    fileType: string;
-};
-
-/**
- * Convert from model representation to one representation.
- *
- *  @param {ConsentFile} modelObject - the model object
- * @returns {OneConsentFile} The corresponding one object
- *
- */
-
-function convertToOne(modelObject: ConsentFile): OneConsentFile {
-    // Create the resulting object
-    return {
-        $type$: 'ConsentFile',
-        fileData: modelObject.fileData,
-        fileType: modelObject.fileType
-    };
-}
-
-function convertFromOne(oneObject: OneConsentFile): ConsentFile {
-    // Create the new ObjectData item
-    return {fileType: oneObject.fileType, fileData: oneObject.fileData};
-}
-
-/**
- * This model implements the possibility to add new consent file to the journal
- *
+ * This model implements the possibility to store and load the consent file and the dropout file of an user.
  */
 export default class ConsentFileModel extends EventEmmiter {
     channelManager: ChannelManager;
@@ -101,88 +86,141 @@ export default class ConsentFileModel extends EventEmmiter {
         this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
     }
 
+    /**
+     * Used to store the consent file of an user in one.
+     * @param {ConsentFile} consentFile
+     * @returns {Promise<void>}
+     */
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
         if (!consentFile) {
-            throw new Error('empty file');
+            throw new Error('The file is empty.');
         }
 
-        await this.channelManager.postToChannel(this.channelId, convertToOne(consentFile));
+        await this.channelManager.postToChannel(this.channelId, {
+            $type$: 'ConsentFile',
+            fileData: consentFile.personId + ' ' + consentFile.version,
+            fileType: FileType.Consent
+        });
     }
 
-    async entries(): Promise<ObjectData<ConsentFile>[]> {
-        const objects: ObjectData<ConsentFile>[] = [];
-
-        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+    /**
+     * Used to retrieve the user consent file from one.
+     * @returns {Promise<ObjectData<ConsentFile>>}
+     */
+    async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
+        const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
 
-        for (const oneObject of oneObjects) {
+        for (const consentFile of oneConsentFiles) {
+            const {data, ...restObjectData} = consentFile;
+            if (data.fileType === FileType.Consent) {
+                const consentInfos = data.fileData.split(' ');
+                return {
+                    ...restObjectData,
+                    data: {
+                        personId: consentInfos[0] as SHA256IdHash<Person>,
+                        version: consentInfos[1]
+                    }
+                };
+            }
+        }
+
+        // happens when the registration process is interrupted
+        throw new Error('Consent file not found.');
+    }
+
+    /**
+     * Used to store the dropout file of an user in one.
+     * @param {DropoutFile} dropoutFile
+     * @returns {Promise<void>}
+     */
+    async addDropoutFile(dropoutFile: DropoutFile): Promise<void> {
+        if (!dropoutFile) {
+            throw new Error('The file is empty.');
+        }
+
+        await this.channelManager.postToChannel(this.channelId, {
+            $type$: 'ConsentFile',
+            fileData: dropoutFile.personId + '|' + dropoutFile.reason + '|' + dropoutFile.date,
+            fileType: FileType.Dropout
+        });
+    }
+
+    /**
+     * Used to retrieve the user dropout file from one.
+     * @returns {Promise<ObjectData<DropoutFile>>}
+     */
+    async getOwnerDropoutFile(): Promise<ObjectData<DropoutFile>> {
+        const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
+
+        for (const dropoutFile of oneDropoutFiles) {
+            const {data, ...restObjectData} = dropoutFile;
+            if (data.fileType === FileType.Dropout) {
+                const dropoutInfos = data.fileData.split('|');
+                if (dropoutInfos.length === 3) {
+                    return {
+                        ...restObjectData,
+                        data: {
+                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                            reason: dropoutInfos[1],
+                            date: dropoutInfos[2]
+                        }
+                    };
+                }
+                throw new Error('The information of the dropout file is corrupted.');
+            }
+        }
+
+        throw new Error('No dropout file found');
+    }
+
+    /**
+     * Used to retrieve both consent file and dropout file of an user.
+     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     */
+    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
+        const files: ObjectData<ConsentFile | DropoutFile>[] = [];
+
+        const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
+
+        for (const oneObject of onConsentFileObjects) {
             const {data, ...restObjectData} = oneObject;
+            if (data.fileType === FileType.Consent) {
+                const consentInfos = data.fileData.split(' ');
+                if (consentInfos[0] === this.personId) {
+                    files.push({
+                        ...restObjectData,
+                        data: {
+                            personId: consentInfos[0] as SHA256IdHash<Person>,
+                            version: consentInfos[1]
+                        }
+                    });
+                }
+            } else if (data.fileType === FileType.Dropout) {
+                const dropoutInfos = data.fileData.split('|');
+                if (dropoutInfos.length !== 3) {
+                    throw new Error('The information of the dropout file is corrupted.');
+                }
 
-            // For consent and dropout files check if the owner is the same as the current
-            // instance owner. Consent files will be shared with partner just for backup
-            // purpose so in partner journal page should not be visible.
-            if (data.fileType === 'consent' && data.fileData === this.personId) {
-                objects.push({...restObjectData, data: convertFromOne(data)});
-            } else if (data.fileType === 'dropout') {
-                const dropoutFileData = new Buffer(data.fileData, 'base64').toString('ascii');
-
-                if (dropoutFileData.split('|')[1].split(':')[1].trim() === this.personId) {
-                    objects.push({...restObjectData, data: convertFromOne(data)});
+                if (dropoutInfos[0] === this.personId) {
+                    files.push({
+                        ...restObjectData,
+                        data: {
+                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                            reason: dropoutInfos[1],
+                            date: dropoutInfos[2]
+                        }
+                    });
                 }
             }
         }
 
-        return objects;
-    }
-
-    async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
-        const objects: ObjectData<ConsentFile>[] = [];
-        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
-        });
-
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-            const dataFromOne = convertToOne(data);
-
-            if (dataFromOne.fileType === FileType.Consent) {
-                objects.push({...restObjectData, data: convertFromOne(data)});
-            }
-        }
-
-        // any user is sopose to heve just one consent file so if you are logged in,
-        // in one will be just your file and that's why this function returns just the first object of the consent array
-        return objects[0];
-    }
-
-    async getOwnerDropoutFile(): Promise<ObjectData<ConsentFile>> {
-        const objects: ObjectData<ConsentFile>[] = [];
-
-        const oneObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
-        });
-
-        for (const oneObject of oneObjects) {
-            const {data, ...restObjectData} = oneObject;
-            const dataFromOne = convertToOne(data);
-
-            if (dataFromOne.fileType === FileType.Dropout) {
-                objects.push({...restObjectData, data: convertFromOne(data)});
-            }
-        }
-
-        // any user is suppose to have just one consent file so if you are logged in,
-        // in one will be just your file and that's why this function returns just the first object of the consent array
-        return objects[0];
-    }
-
-    async getEntryById(id: string): Promise<ObjectData<ConsentFile>> {
-        const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
-            id,
-            'ConsentFile'
-        );
-        return {...restObjectData, data: convertFromOne(data)};
+        return files;
     }
 
     /**
