@@ -109,6 +109,7 @@ export class SimpleEvent<T extends (...arg: any) => void> {
         } else {
             let handlerResults: ReturnType<T>[] = [];
 
+            let promiseRejected = null;
             this.checkListenersNumber();
             for (const handler of this.handlers) {
                 try {
@@ -117,9 +118,17 @@ export class SimpleEvent<T extends (...arg: any) => void> {
                     if (this.onError) {
                         this.onError(e);
                     } else {
+                        if (promiseRejected === null) {
+                            promiseRejected = e;
+                        }
                         console.error(e);
                     }
                 }
+            }
+
+            // if one of the promises failed, return the rejection
+            if (promiseRejected !== null) {
+                return promiseRejected;
             }
             return handlerResults;
         }
