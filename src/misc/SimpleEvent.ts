@@ -119,7 +119,7 @@ export class SimpleEvent<T extends (...arg: any) => void> {
                         this.onError(e);
                     } else {
                         if (promiseRejected === null) {
-                            promiseRejected = e;
+                            promiseRejected = Promise.reject(e);
                         }
                         console.error(e);
                     }
