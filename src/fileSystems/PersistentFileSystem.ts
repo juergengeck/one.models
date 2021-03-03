@@ -27,6 +27,8 @@ import {retrieveFileMode} from './fileSystemModes';
 import * as fs from 'fs';
 import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
+import {platform} from "one.core/lib/system/platform";
+import {getObjectSize} from "./ObjectSize";
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -304,8 +306,8 @@ export default class PersistentFileSystem implements IFileSystem {
         }
         const resolvedDirectoryEntry = await getObject(foundFile.content);
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
-            const blobAsArrayBuffer = await readBlobAsArrayBuffer(resolvedDirectoryEntry.content);
-            return {mode: foundFile.mode, size: blobAsArrayBuffer.byteLength};
+            const objectSize = platform === 'node' ? await getObjectSize(resolvedDirectoryEntry.content) : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
+            return {mode: foundFile.mode, size: objectSize};
         }
         return {mode: foundFile.mode, size: 0};
     }
