@@ -1,15 +1,16 @@
 /**
  * Represents the behaviour when there are no listeners.
  * <br>
- *      -> Simple - does nothing if no listener is registered.<br>
- *      -> SpecialError - throws if no one is listening.<br>
+ *      -> Default - does nothing if no listener is registered.<br>
+ *      -> Error - throws if no one is listening.<br>
  */
 export enum EventTypes {
-    Simple,
-    SpecialError
+    Default,
+    Error
 }
 
 /**
+ * !OEvent is chosen as class name over Event, because the second option is reserved. <br>
  * Events handling class. Interface provides possibility to register handlers for an event and to emit it. There are 3
  * possible emit options:
  *
@@ -26,7 +27,7 @@ export enum EventTypes {
  * ####Emitter class:
  * ```
  * // create an event, which emits a string value
- * const event = new SimpleEvent<(arg:string) => void>(EventTypes.Simple, true);
+ * const event = new OEvent<(arg:string) => void>(EventTypes.Default, true);
  *
  * // emit the event
  * event.emitAll('emitted string value');
@@ -49,7 +50,7 @@ export enum EventTypes {
  * ```
  *
  */
-export class SimpleEvent<T extends (...arg: any) => void> {
+export class OEvent<T extends (...arg: any) => void> {
     public onError: ((err: any) => void) | null = null;
 
     private readonly handlers: ((arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>)[];
@@ -57,11 +58,11 @@ export class SimpleEvent<T extends (...arg: any) => void> {
     private readonly executeAsynchronously: boolean;
 
     /**
-     * Create a SimpleEvent object.
+     * Create a OEvent object.
      * @param type - defines if the emit functions will throw if no one is listening.
      * @param executeAsynchronously
      */
-    constructor(type: EventTypes, executeAsynchronously = true) {
+    constructor(type: EventTypes = EventTypes.Default, executeAsynchronously = true) {
         this.handlers = [];
         this.type = type;
         this.executeAsynchronously = executeAsynchronously;
@@ -115,14 +116,10 @@ export class SimpleEvent<T extends (...arg: any) => void> {
                 try {
                     handlerResults.push(await handler(emittedValue));
                 } catch (e) {
-                    if (this.onError) {
-                        this.onError(e);
-                    } else {
-                        if (promiseRejected === null) {
-                            promiseRejected = Promise.reject(e);
-                        }
-                        console.error(e);
+                    if (promiseRejected === null) {
+                        promiseRejected = Promise.reject(e);
                     }
+                    console.error(e);
                 }
             }
 
@@ -139,7 +136,7 @@ export class SimpleEvent<T extends (...arg: any) => void> {
      * sequentially based on the executeAsynchronously flag set in the constructor.
      * @param emittedValue
      */
-    emitAndForget(...emittedValue: Parameters<T>): void {
+    emit(...emittedValue: Parameters<T>): void {
         this.emitAll(...emittedValue).catch(e => {
             if (this.onError) {
                 this.onError(e);
@@ -193,11 +190,11 @@ export class SimpleEvent<T extends (...arg: any) => void> {
     }
 
     /**
-     * Throws if nobody is listening and the event type is 'SpecialError'
+     * Throws if nobody is listening and the event type is 'Error'
      * @private
      */
     private checkListenersNumber(): void {
-        if (this.type === EventTypes.SpecialError) {
+        if (this.type === EventTypes.Error) {
             if (this.handlers.length === 0) {
                 throw new Error('Nobody is listening for this event.');
             }

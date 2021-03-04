@@ -4,7 +4,7 @@ import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import {SimpleEvent, EventTypes} from '../lib/misc/SimpleEvent';
+import {OEvent, EventTypes} from '../lib/misc/OEvent';
 let testModel: TestModel;
 
 /**
@@ -27,8 +27,8 @@ describe('Simple event test', () => {
         testModel = model;
     });
 
-    it('emitAndForget sync - check listener handle is called synchronously ', async () => {
-        const onStringEvent = new SimpleEvent<(arg1: string, arg2:number) => void>(EventTypes.Simple, false);
+    it('emit sync - check listener handle is called synchronously ', async () => {
+        const onStringEvent = new OEvent<(arg1: string, arg2:number) => void>(EventTypes.Default, false);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -55,7 +55,7 @@ describe('Simple event test', () => {
         expect(handlerCalled2).to.be.equal(false);
         expect(emittedVal).to.be.equal(null);
 
-        onStringEvent.emitAndForget('EMIT AND FORGET STRING', 123);
+        onStringEvent.emit('EMIT AND FORGET STRING', 123);
 
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
@@ -76,8 +76,8 @@ describe('Simple event test', () => {
         disconnect2();
     }).timeout(1000);
 
-    it('emitAndForget async - check listener handle is called asynchronously ', async () => {
-        const onStringEvent = new SimpleEvent<(arg1: string, arg2:number) => void>(EventTypes.Simple, true);
+    it('emit async - check listener handle is called asynchronously ', async () => {
+        const onStringEvent = new OEvent<(arg1: string, arg2:number) => void>(EventTypes.Default, true);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -104,7 +104,7 @@ describe('Simple event test', () => {
         expect(handlerCalled2).to.be.equal(false);
         expect(emittedVal).to.be.equal(null);
 
-        onStringEvent.emitAndForget('EMIT AND FORGET STRING', 123);
+        onStringEvent.emit('EMIT AND FORGET STRING', 123);
 
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
@@ -121,8 +121,8 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitAll sync - promise settles when all handlers executed synchronously ', async () => {
-        const onStringEvent = new SimpleEvent<() => void>(
-            EventTypes.Simple,
+        const onStringEvent = new OEvent<() => void>(
+            EventTypes.Default,
             false
         );
 
@@ -188,7 +188,7 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitAll async - promise settles when all handlers executed asynchronously ', async () => {
-        const onStringEvent = new SimpleEvent<() => void>(EventTypes.Simple, true);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default, true);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -241,7 +241,7 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitRace - promise settles when first handler finishes execution ', async () => {
-        const onStringEvent = new SimpleEvent<() => void>(EventTypes.Simple);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
 
         let emitPromiseSettled = false;
         const disconnect1 = onStringEvent.connect(() => {
@@ -282,7 +282,7 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitRace reject - first handler rejects', async () => {
-        const onStringEvent = new SimpleEvent<() => void>(EventTypes.Simple);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
 
         let emitPromiseRejected = false;
         let secondHandlerExecuted = false;
@@ -323,7 +323,7 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitAll reject - one handler rejects', async () => {
-        const onStringEvent = new SimpleEvent<() => void>(EventTypes.Simple);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -378,6 +378,7 @@ describe('Simple event test', () => {
         disconnect2();
         disconnect3();
     }).timeout(1000);
+
 
     after(async () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
