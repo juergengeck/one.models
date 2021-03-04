@@ -53,7 +53,7 @@ export enum EventTypes {
 export class OEvent<T extends (...arg: any) => void> {
     public onError: ((err: any) => void) | null = null;
 
-    private readonly handlers: ((arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>)[];
+    private handlers = new Set<(arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>>();
     private readonly type: EventTypes;
     private readonly executeAsynchronously: boolean;
 
@@ -63,7 +63,6 @@ export class OEvent<T extends (...arg: any) => void> {
      * @param executeAsynchronously
      */
     constructor(type: EventTypes = EventTypes.Default, executeAsynchronously = true) {
-        this.handlers = [];
         this.type = type;
         this.executeAsynchronously = executeAsynchronously;
     }
@@ -75,13 +74,15 @@ export class OEvent<T extends (...arg: any) => void> {
     public connect(
         callback: (arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     ): () => void {
-        this.handlers.push(callback);
+        if (this.handlers.has(callback)) {
+            console.error('callback already registered');
+        }
+        this.handlers.add(callback);
         return () => {
-            this.handlers.forEach((item, index) => {
-                if (item === callback) {
-                    this.handlers.splice(index, 1);
-                }
-            });
+            const found = this.handlers.delete(callback);
+            if (!found) {
+                console.error('callback was not registered');
+            }
         };
     }
 
@@ -195,7 +196,7 @@ export class OEvent<T extends (...arg: any) => void> {
      */
     private checkListenersNumber(): void {
         if (this.type === EventTypes.Error) {
-            if (this.handlers.length === 0) {
+            if (this.handlers.size === 0) {
                 throw new Error('Nobody is listening for this event.');
             }
         }
