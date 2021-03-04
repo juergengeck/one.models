@@ -15,13 +15,7 @@ import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} fro
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {ObjectsFileSystem} from '../fileSystems';
 import ConnectionFileSystem from '../fileSystems/ConnectionFileSystem';
-import ConnectionsModel, {PairingInformation} from './ConnectionsModel';
-import qrcode from 'qrcode';
-import OneInstanceModel from './OneInstanceModel';
-import {ConnectionInfo} from '../misc/CommunicationModule';
-// @ts-ignore
-import QrcodeReader from 'qrcode-reader';
-import Jimp from 'jimp';
+
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
  * Because the file systems should be independent of our data types, this model takes care of the channel's implementation
@@ -29,8 +23,6 @@ import Jimp from 'jimp';
  */
 export default class FilerModel extends EventEmitter {
     private readonly channelManager: ChannelManager;
-    private readonly connectionsModel: ConnectionsModel;
-    private readonly oneInstanceModel: OneInstanceModel;
     private readonly fileSystemChannelId: string;
 
     private persistedFileSystem: PersistentFileSystem | null = null;
@@ -42,18 +34,12 @@ export default class FilerModel extends EventEmitter {
     /**
      *
      * @param {ChannelManager} channelManager
-     * @param {ConnectionsModel} connectionsModel
-     * @param {oneInstanceModel} oneInstanceModel
      */
     public constructor(
         channelManager: ChannelManager,
-        connectionsModel: ConnectionsModel,
-        oneInstanceModel: OneInstanceModel
     ) {
         super();
         this.channelManager = channelManager;
-        this.connectionsModel = connectionsModel;
-        this.oneInstanceModel = oneInstanceModel;
         this.fileSystemChannelId = 'mainFileSystemChannelId';
         this.boundOnChannelUpdateHandler = this.handleOnUpdated.bind(this);
     }
@@ -66,10 +52,7 @@ export default class FilerModel extends EventEmitter {
         const root = await this.createRootDirectoryIfNotExists();
         this.objectsFileSystem = new ObjectsFileSystem();
         this.persistedFileSystem = new PersistentFileSystem(root);
-        this.connectionsFileSystem = new ConnectionFileSystem({content: await this.onConnectionQRCodeRequested()});
-        this.connectionsFileSystem.onConnectionQRCodeReceived = this.onConnectionQRCodeReceived.bind(this);
-        this.connectionsFileSystem.onConnectionQRCodeRequested = this.onConnectionQRCodeRequested.bind(this);
-        this.connectionsFileSystem.onConnectionsInfoRequested = this.onConnectionsInfoRequested.bind(this);
+        this.connectionsFileSystem = new ConnectionFileSystem();
 
         this.persistedFileSystem.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
         this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
@@ -101,48 +84,6 @@ export default class FilerModel extends EventEmitter {
     }
 
     /** ########################################## Private ########################################## **/
-
-    private async onConnectionQRCodeRequested(): Promise<Buffer> {
-        const pairingInformation = await this.connectionsModel.generatePairingInformation(false);
-        const encodedInformation = encodeURIComponent(JSON.stringify(pairingInformation));
-        const url = `localhost:3000/invites/invitePartner/?invited=true/#${encodedInformation}`
-        return await qrcode.toBuffer(url);
-    }
-
-    private async onConnectionQRCodeReceived(
-        qrCodeContent: ArrayBuffer
-    ): Promise<void> {
-        const qrCodeReader = new QrcodeReader()
-        const buffer = new Buffer(qrCodeContent.byteLength);
-        const view = new Uint8Array(qrCodeContent);
-        for (let i = 0; i < buffer.length; ++i) {
-            buffer[i] = view[i];
-        }
-        Jimp.read(buffer, function(err, image) {
-            if (err) {
-                console.error(err);
-            }
-            const qr = new qrCodeReader();
-            qr.callback = function(err, value) {
-                if (err) {
-                    console.error(err);
-                    // TODO handle error
-                }
-                console.log(value.result);
-                console.log(value);
-            };
-            const res = qr.decode(image.bitmap);
-            console.log(res);
-        });
-        /*await this.connectionsModel.connectUsingPairingInformation(
-            pairingInformation,
-            this.oneInstanceModel.getSecret()
-        );*/
-    }
-
-    private onConnectionsInfoRequested(): ConnectionInfo[] {
-        return this.connectionsModel.connectionsInfo();
-    }
 
     /**
      *

@@ -1,7 +1,6 @@
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {retrieveFileMode} from './fileSystemModes';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
-import {PairingInformation} from '../models/ConnectionsModel';
 import {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
 
@@ -47,10 +46,8 @@ export default class ConnectionFileSystem implements IFileSystem {
      */
     private exportedQRCode: FileSystemFile | null = null;
 
-    constructor(initialQrCodeImage: FileSystemFile) {
+    constructor() {
         this.importedQRCodesMap = new Map();
-        this.exportedQRCode = initialQrCodeImage;
-
         /** refresh the qr code every 5 minutes **/
         setInterval(async () => {
             await this.refreshQRCode()
@@ -164,6 +161,10 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
+            if(!this.exportedQRCode && this.onConnectionQRCodeRequested){
+                await this.refreshQRCode();
+            }
+
             if(this.exportedQRCode) {
                 return {
                     content: this.exportedQRCode.content

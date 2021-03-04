@@ -21,10 +21,7 @@
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
-    "jimp": "^0.16.1",
     "one.core": "refinio/one.core#feature/20200720_communication_og",
-    "qrcode": "^1.4.4",
-    "qrcode-reader": "^1.0.4",
     "ts-loader": "^8.0.2",
     "yargs": "^15.4.0"
   },
