@@ -29,7 +29,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link FilerModel}
      */
     public onConnectionQRCodeRequested: (() => Promise<Buffer>) | null = null;
-    public onConnectionQRCodeReceived: ((pairingInformation: PairingInformation) => Promise<void>) | null = null;
+    public onConnectionQRCodeReceived: ((qrContent: ArrayBuffer) => Promise<void>) | null = null;
     public onConnectionsInfoRequested: (() => ConnectionInfo[]) | null = null;
 
     /**
@@ -90,15 +90,9 @@ export default class ConnectionFileSystem implements IFileSystem {
         if (parsedPath && parsedPath.isImportPath) {
             const fileContent = await readBlobAsArrayBuffer(fileHash);
             this.importedQRCodesMap.set(fileName, {content: fileContent});
-
-            // @todo use the pairing information to connect
-            /*const pairingInformation = JSON.parse(
-                // @ts-ignore
-                String.fromCharCode.apply(null, new Uint16Array(fileContent))
-            );
             if(this.onConnectionQRCodeReceived) {
-                await this.onConnectionQRCodeReceived(pairingInformation);
-            }*/
+                await this.onConnectionQRCodeReceived(fileContent);
+            }
         } else {
             const rootMode = retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {

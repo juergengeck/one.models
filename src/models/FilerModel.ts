@@ -19,7 +19,9 @@ import ConnectionsModel, {PairingInformation} from './ConnectionsModel';
 import qrcode from 'qrcode';
 import OneInstanceModel from './OneInstanceModel';
 import {ConnectionInfo} from '../misc/CommunicationModule';
-
+// @ts-ignore
+import QrcodeReader from 'qrcode-reader';
+import Jimp from 'jimp';
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
  * Because the file systems should be independent of our data types, this model takes care of the channel's implementation
@@ -108,12 +110,34 @@ export default class FilerModel extends EventEmitter {
     }
 
     private async onConnectionQRCodeReceived(
-        pairingInformation: PairingInformation
+        qrCodeContent: ArrayBuffer
     ): Promise<void> {
-        await this.connectionsModel.connectUsingPairingInformation(
+        const qrCodeReader = new QrcodeReader()
+        const buffer = new Buffer(qrCodeContent.byteLength);
+        const view = new Uint8Array(qrCodeContent);
+        for (let i = 0; i < buffer.length; ++i) {
+            buffer[i] = view[i];
+        }
+        Jimp.read(buffer, function(err, image) {
+            if (err) {
+                console.error(err);
+            }
+            const qr = new qrCodeReader();
+            qr.callback = function(err, value) {
+                if (err) {
+                    console.error(err);
+                    // TODO handle error
+                }
+                console.log(value.result);
+                console.log(value);
+            };
+            const res = qr.decode(image.bitmap);
+            console.log(res);
+        });
+        /*await this.connectionsModel.connectUsingPairingInformation(
             pairingInformation,
             this.oneInstanceModel.getSecret()
-        );
+        );*/
     }
 
     private onConnectionsInfoRequested(): ConnectionInfo[] {
