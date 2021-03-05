@@ -323,7 +323,7 @@ describe('Simple event test', () => {
     }).timeout(1000);
 
     it('emitAll reject - one handler rejects', async () => {
-        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default, true);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
