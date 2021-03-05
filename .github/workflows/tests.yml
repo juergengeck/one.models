@@ -3,8 +3,6 @@ name: Test build
 on:
     pull_request:
         branches: [master]
-    push:
-        branches: [Rename-test-workflow-steps]
 
 jobs:
     tests:
