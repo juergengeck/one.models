@@ -17,10 +17,16 @@ export enum EventTypes {
  * emitAndForget - Use when the emitter doesn't care about the result of the execution of the listeners handlers.<br>
  * emitAll - Use when the emitter is interested in the results of the listeners handlers execution.<br>
  * emitRace - Use when the emitter is interested only in the first settled promise from the listeners handlers.
- * NOTE: emitAndForget & emitAll offer the possibility to execute the listeners handlers in parallel or sequentially.
+ *<p><p>
+ * ####NOTE:
+ * emitAndForget & emitAll offer the possibility to execute the listeners handlers in parallel or sequentially.
  * This is configurable through the 'executeAsynchronously' optional parameter in the constructor. 'executeAsynchronously'
- * defaults to true.
- *
+ * defaults to true.<br>
+ * executeAsynchronously === false: If an event handler is disconnected from another event handler then the other handler
+ * will not be called if it didn't run, yet. If a new one is connected it will be executed as last event handler.<br>
+ * executeAsynchronously === true: If an event handler is disconnected from another event handler then the other
+ * handler will still be called (it already started because of being asynchronous) - If one is connected in another event
+ * handler it will not be called.
  * <p><p>
  * ### Usage:
  *
@@ -113,6 +119,7 @@ export class OEvent<T extends (...arg: any) => void> {
 
             let promiseRejected = null;
             this.checkListenersNumber();
+
             for (const handler of this.handlers) {
                 try {
                     handlerResults.push(await handler(emittedValue));
@@ -158,6 +165,7 @@ export class OEvent<T extends (...arg: any) => void> {
         results: (Promise<ReturnType<T>> | ReturnType<T>)[]
     ): Promise<ReturnType<T>>[] {
         const promises: Promise<ReturnType<T>>[] = [];
+
         for (const res of results) {
             promises.push(
                 (async (): Promise<ReturnType<T>> => {
@@ -179,7 +187,11 @@ export class OEvent<T extends (...arg: any) => void> {
     ): (Promise<ReturnType<T>> | ReturnType<T>)[] {
         let promises: (Promise<ReturnType<T>> | ReturnType<T>)[] = [];
         this.checkListenersNumber();
-        for (const handler of this.handlers) {
+
+        // eliminate undeterministic behaviour
+        const handlersSet = [...this.handlers];
+
+        for (const handler of handlersSet) {
             try {
                 promises.push(handler(emittedValue));
             } catch (e) {
