@@ -42,6 +42,22 @@ export interface FileSystemDirectory {
  */
 export interface IFileSystem {
     /**
+     * Attaches a filesystem to a directory. It will return 0 for success or a error code
+     * @param {string} storagePath
+     * @param {string} pathName
+     * @todo options do we needed them now?
+     * @returns {Promise<number>}
+     */
+    // mount(storagePath: string, pathName: string): Promise<number>;
+
+    /**
+     * Deattaches a filesystem or a directory. It will return 0 for success or a error code
+     * @param {string} pathName
+     * @returns {Promise<number>}
+     */
+    // unmount(pathName: string): Promise<number>;
+
+    /**
      * Creates a directory otherwise throws an error if the directory could not be created.
      * @param {string} directoryPath
      * @param {string} dirName
@@ -107,4 +123,54 @@ export interface IFileSystem {
      * @returns {Promise<void>}
      */
     exists(path: string): Promise<boolean>;
+
+    /**
+     * Deletes a directory. Return 0 for success or an error code
+     * @param {string} pathName
+     * @returns {Promise<number>}
+     */
+    // rmdir(pathName: string): Promise<number>;
+
+    /**
+     * Deletes a file or a symlink. Return 0 for success or an error code
+     * @param {string} pathName
+     * @returns {Promise<number>}
+     */
+    // unlink(pathName: string): Promise<number>;
+
+    /**
+     * Creates a hardlink. Return 0 for success or an error code
+     * @param {string} src
+     * @param {string} dest
+     * @todo options do we needed them now?
+     * @returns {Promise<number>}
+     */
+    // link(src: string, dest: string): Promise<number>;
+
+    /**
+     * Creates a symlink. Return 0 for success or an error code
+     * @param {string} src
+     * @param {string} dest
+     * @todo options do we needed them now?
+     * @returns {Promise<number>}
+     */
+    // symlink(src: string, dest: string): Promise<number>;
+
+    /**
+     * Rename file. Return 0 for success or an error code
+     * @param {string} src
+     * @param {string} dest
+     * @todo options do we needed them now?
+     * @returns {Promise<number>}
+     */
+    // rename(src: string, dest: string): Promise<number>;
+
+    /**
+     * Change the permissions. Return 0 for success or an error code
+     * @param {string} pathName
+     * @param {number} mode
+     * @todo options do we needed them now?
+     * @returns {Promise<number>}
+     */
+    // chmod(pathName: string, mode: number): Promise<number>;
 }
