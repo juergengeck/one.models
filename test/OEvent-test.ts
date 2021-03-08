@@ -158,7 +158,7 @@ describe('Simple event test', () => {
                 setTimeout(() => {
                     handlerCalled2 = true;
                     resolve();
-                }, 1 * 100);
+                }, 2 * 100);
             });
         });
         const disconnect3 = onEvent(() => {
@@ -183,7 +183,7 @@ describe('Simple event test', () => {
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseSettled).to.be.equal(false);
 
-        await promiseTimeout(1 * 100);
+        await promiseTimeout(2 * 100);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
         expect(handlerCalled3).to.be.equal(false);
