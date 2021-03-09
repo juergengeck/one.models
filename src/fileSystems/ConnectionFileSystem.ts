@@ -37,7 +37,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      * @type {Map<string, FileSystemFile>}
      * @private
      */
-    private importedQRCodesMap: Map<string, FileSystemFile>;
+    private importedQRCodesMap: Map<string, { qrHash: SHA256Hash<BLOB> }>;
 
     /**
      * The QR code is refreshed every 5 minutes (3 * 10^5 ms) and it's temporary persisted.
@@ -86,7 +86,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(directoryPath);
         if (parsedPath && parsedPath.isImportPath) {
             const fileContent = await readBlobAsArrayBuffer(fileHash);
-            this.importedQRCodesMap.set(fileName, {content: fileContent});
+            this.importedQRCodesMap.set(fileName, {qrHash: fileHash});
             if(this.onConnectionQRCodeReceived) {
                 await this.onConnectionQRCodeReceived(fileContent);
             }
@@ -174,10 +174,11 @@ export default class ConnectionFileSystem implements IFileSystem {
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
             const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            const fileContent = this.importedQRCodesMap.get(fileName);
-            if (fileContent) {
+            const file = this.importedQRCodesMap.get(fileName);
+            if (file) {
+                const fileContent = await readBlobAsArrayBuffer(file.qrHash);
                 return {
-                    content: fileContent.content
+                    content: fileContent
                 };
             }
         }
@@ -235,10 +236,11 @@ export default class ConnectionFileSystem implements IFileSystem {
 
         if (parsedPath.isImportPath && filePath.includes('import/')) {
             const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            const fileContent = this.importedQRCodesMap.get(fileName);
-            if (fileContent) {
+            const file = this.importedQRCodesMap.get(fileName);
+            if (file) {
+                const fileContent = await readBlobAsArrayBuffer(file.qrHash);
                 return {
-                    content: fileContent.content
+                    content: fileContent
                 };
             }
         }
