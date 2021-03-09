@@ -10,6 +10,36 @@ export enum EventTypes {
 }
 
 /**
+ * Emit functions for events.
+ */
+interface OEventI<T extends (...arg: any) => any> {
+    /**
+     * Returns the first settled promise from listeners handlers.
+     *
+     * NOTE: It behaves like Promise.race().
+     *
+     * @param emittedValue
+     */
+    emitRace(...emittedValue: Parameters<T>): Promise<ReturnType<T>>;
+
+    /**
+     * Triggers all listeners handlers. In the case of rejections, it passes them to the onError callback; if the
+     * onError callback is not registered, it prints it to console.error. The handlers will be executed in parallel
+     * or sequentially based on the executeAsynchronously flag set in the constructor.
+     * @param emittedValue
+     */
+    emit(...emittedValue: Parameters<T>): void;
+
+    /**
+     * Returns a promise that resolves to array of results of listeners handlers. The handlers will be executed in
+     * parallel or sequentially based on the executeAsynchronously flag set in the constructor.
+     *
+     * @param emittedValue
+     */
+    emitAll(...emittedValue: Parameters<T>): Promise<ReturnType<T>[]>;
+}
+
+/**
  * Events handling class. Interface provides possibility to register handlers for an event and to emit it. There are 3
  * possible emit options:
  *
@@ -30,12 +60,13 @@ export enum EventTypes {
  *
  * Usage:
  * ------
- * ```typescript
+ *
+ * ``` typescript
  *  class CoffeeMachine {
 
  *      // Event that signals when the coffee machine is powered on / off.
  *      // state: true when powered on, false when powered off.
- *      public onPowerChange = new OEvent<(state: boolean) => void>();
+ *      public onPowerChange = createEvent<(state: boolean) => void>();
  *
  *      // Turns the coffee machine on
  *      public turnOn() {
@@ -52,7 +83,7 @@ export enum EventTypes {
  *
  *  // Use the events provided by the class:
  *  const coffeeMachine = new CoffeeMachine();
- *  const disconnect = coffeeMachine.onPowerChange.connect(state => {
+ *  const disconnect = coffeeMachine.onPowerChange(state => {
  *      if (state) {
  *          console.log('Coffee machine was turned on')
  *      } else {
@@ -68,11 +99,13 @@ export enum EventTypes {
  * ```
  *
  * OEvent is chosen as class name over Event, because the second option is reserved.
- **/
-export class OEvent<T extends (...arg: any) => void> {
+ */
+export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
     public onError: ((err: any) => void) | null = null;
 
-    private handlers = new Set<(arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>>();
+    private handlers = new Set<
+        (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+    >();
     private readonly type: EventTypes;
     private readonly executeAsynchronously: boolean;
 
@@ -81,7 +114,7 @@ export class OEvent<T extends (...arg: any) => void> {
      * @param type - defines if the emit functions will throw if no one is listening.
      * @param executeAsynchronously
      */
-    constructor(type: EventTypes = EventTypes.Default, executeAsynchronously = false) {
+    constructor(type: EventTypes, executeAsynchronously: boolean) {
         this.type = type;
         this.executeAsynchronously = executeAsynchronously;
     }
@@ -91,7 +124,7 @@ export class OEvent<T extends (...arg: any) => void> {
      * @param callback - The callback to be executed when the event is emitted.
      */
     public connect(
-        callback: (arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+        callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     ): () => void {
         if (this.handlers.has(callback)) {
             console.error('callback already registered');
@@ -105,26 +138,13 @@ export class OEvent<T extends (...arg: any) => void> {
         };
     }
 
-    /**
-     * Returns the first settled promise from listeners handlers.
-     *
-     * NOTE: It behaves like Promise.race().
-     *
-     * @param emittedValue
-     */
     emitRace(...emittedValue: Parameters<T>): Promise<ReturnType<T>> {
         const handlersPromises = this.getHandlersPromises(emittedValue);
 
         return Promise.race(this.buildPromise(handlersPromises));
     }
 
-    /**
-     * Returns a promise that resolves to array of results of listeners handlers. The handlers will be executed in
-     * parallel or sequentially based on the executeAsynchronously flag set in the constructor.
-     *
-     * @param emittedValue
-     */
-    async emitAll(...emittedValue: Parameters<T>): Promise<ReturnType<T>[]> {
+    async emitAll(emittedValue: Parameters<T>): Promise<ReturnType<T>[]> {
         if (this.executeAsynchronously) {
             return Promise.all(this.getHandlersPromises(emittedValue));
         } else {
@@ -135,7 +155,7 @@ export class OEvent<T extends (...arg: any) => void> {
 
             for (const handler of this.handlers) {
                 try {
-                    handlerResults.push(await handler(emittedValue));
+                    handlerResults.push(await handler(...emittedValue));
                 } catch (e) {
                     if (promiseRejected === null) {
                         promiseRejected = Promise.reject(e);
@@ -152,14 +172,8 @@ export class OEvent<T extends (...arg: any) => void> {
         }
     }
 
-    /**
-     * Triggers all listeners handlers. In the case of rejections, it passes them to the onError callback; if the
-     * onError callback is not registered, it prints it to console.error. The handlers will be executed in parallel
-     * or sequentially based on the executeAsynchronously flag set in the constructor.
-     * @param emittedValue
-     */
     emit(...emittedValue: Parameters<T>): void {
-        this.emitAll(...emittedValue).catch(e => {
+        this.emitAll(emittedValue).catch(e => {
             if (this.onError) {
                 this.onError(e);
             } else {
@@ -207,7 +221,7 @@ export class OEvent<T extends (...arg: any) => void> {
 
         for (const handler of handlersSet) {
             try {
-                promises.push(handler(emittedValue));
+                promises.push(handler(...emittedValue));
             } catch (e) {
                 promises.push(Promise.reject(e));
             }
@@ -227,4 +241,49 @@ export class OEvent<T extends (...arg: any) => void> {
             }
         }
     }
+}
+
+/**
+ * Convenience wrapper function over the OEvent class to be used for event handling. Please see {@link OEvent}
+ *
+ * The convenience wrapper wraps the OEvent class in such a way, that when connecting to an event the user can write:
+ * ```
+ * oevent( () => {} )
+ * ```
+ * instead of
+ * ```
+ * oevent.connect( () => {})
+ * ```
+ *
+ * It kind of overloads the parenthesis operator of the OEvent class, by creating a function object that then inherits
+ * the method properties from the class.
+ *
+ *  @param type - The event type - Default or Error. The default value is EventTypes.Default.
+ *  @param executeAsynchronously - Specifies if the registered handlers will be executed synchronously or asynchronously.
+ *
+ */
+export function createEvent<T extends (...arg: any) => any>(
+    type: EventTypes = EventTypes.Default,
+    executeAsynchronously = false
+): OEvent<T>['connect'] & OEventI<T> {
+    const oEvent = new OEvent<T>(type, executeAsynchronously);
+
+    function parenthesisOperator(
+        callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+    ): () => void {
+        return oEvent.connect(callback);
+    }
+
+    parenthesisOperator.emit = (...args: Parameters<T>) => {
+        oEvent.emit(...args);
+    };
+
+    parenthesisOperator.emitRace = (...args: Parameters<T>) => {
+        return oEvent.emitRace(...args);
+    };
+    parenthesisOperator.emitAll = (...args: Parameters<T>) => {
+        return oEvent.emitAll(args);
+    };
+
+    return parenthesisOperator;
 }
