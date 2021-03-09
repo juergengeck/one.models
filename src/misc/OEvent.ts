@@ -244,13 +244,6 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
 }
 
 /**
- * Type of the create event function.
- */
-type ConnectFunctionType<T extends (...arg: any) => any> = (
-    callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
-) => () => void;
-
-/**
  * Convenience wrapper function over the OEvent class to be used for event handling. Please see {@link OEvent}
  *
  * The convenience wrapper wraps the OEvent class in such a way, that when connecting to an event the user can write:
@@ -272,7 +265,7 @@ type ConnectFunctionType<T extends (...arg: any) => any> = (
 export function createEvent<T extends (...arg: any) => any>(
     type: EventTypes = EventTypes.Default,
     executeAsynchronously = false
-): ConnectFunctionType<T> & OEventI<T> {
+): OEvent<T>['connect'] & OEventI<T> {
     const oEvent = new OEvent<T>(type, executeAsynchronously);
 
     function parenthesisOperator(
