@@ -17,7 +17,7 @@ function promiseTimeout(milis: number): Promise<void> {
     });
 }
 
-describe('Simple event test', () => {
+describe('OEvent test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
