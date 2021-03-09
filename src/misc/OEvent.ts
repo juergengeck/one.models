@@ -61,7 +61,7 @@ interface OEventI<T extends (...arg: any) => any> {
  * Usage:
  * ------
  *
- * ```typescript
+ * ``` typescript
  *  class CoffeeMachine {
 
  *      // Event that signals when the coffee machine is powered on / off.
@@ -246,12 +246,24 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
 /**
  * Type of the create event function.
  */
-type CreateEventType<T extends (...arg: any) => any> = (
-    callback: (arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+type ConnectFunctionType<T extends (...arg: any) => any> = (
+    callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
 ) => () => void;
 
 /**
  * Convenience wrapper function over the OEvent class to be used for event handling. Please see {@link OEvent}
+ *
+ * The convenience wrapper wraps the OEvent class in such a way, that when connecting to an event the user can write:
+ * ```
+ * oevent( () => {} )
+ * ```
+ * instead of
+ * ```
+ * oevent.connect( () => {})
+ * ```
+ *
+ * It kind of overloads the parenthesis operator of the OEvent class, by creating a function object that then inherits
+ * the method properties from the class.
  *
  *  @param type - The event type - Default or Error. The default value is EventTypes.Default.
  *  @param executeAsynchronously - Specifies if the registered handlers will be executed synchronously or asynchronously.
@@ -260,25 +272,25 @@ type CreateEventType<T extends (...arg: any) => any> = (
 export function createEvent<T extends (...arg: any) => any>(
     type: EventTypes = EventTypes.Default,
     executeAsynchronously = false
-): CreateEventType<T> & OEventI<T> {
+): ConnectFunctionType<T> & OEventI<T> {
     const oEvent = new OEvent<T>(type, executeAsynchronously);
 
-    function f(
-        callback: (arg1: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+    function parenthesisOperator(
+        callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     ): () => void {
         return oEvent.connect(callback);
     }
 
-    f.emit = (...args: Parameters<T>) => {
+    parenthesisOperator.emit = (...args: Parameters<T>) => {
         oEvent.emit(...args);
     };
 
-    f.emitRace = (...args: Parameters<T>) => {
+    parenthesisOperator.emitRace = (...args: Parameters<T>) => {
         return oEvent.emitRace(...args);
     };
-    f.emitAll = (...args: Parameters<T>) => {
+    parenthesisOperator.emitAll = (...args: Parameters<T>) => {
         return oEvent.emitAll(args);
     };
 
-    return f;
+    return parenthesisOperator;
 }
