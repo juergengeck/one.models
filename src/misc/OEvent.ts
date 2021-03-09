@@ -83,7 +83,7 @@ interface OEventI<T extends (...arg: any) => any> {
  *
  *  // Use the events provided by the class:
  *  const coffeeMachine = new CoffeeMachine();
- *  const disconnect = coffeeMachine.onPowerChange.connect(state => {
+ *  const disconnect = coffeeMachine.onPowerChange(state => {
  *      if (state) {
  *          console.log('Coffee machine was turned on')
  *      } else {
