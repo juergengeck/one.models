@@ -9,10 +9,12 @@ export enum EventTypes {
     Error
 }
 
+export type OEventType<T extends (...arg: any) => any> = OEvent<T>['connect'] & OEventI<T>;
+
 /**
  * Emit functions for events.
  */
-interface OEventI<T extends (...arg: any) => any> {
+export interface OEventI<T extends (...arg: any) => any> {
     /**
      * Returns the first settled promise from listeners handlers.
      *
@@ -25,14 +27,14 @@ interface OEventI<T extends (...arg: any) => any> {
     /**
      * Triggers all listeners handlers. In the case of rejections, it passes them to the onError callback; if the
      * onError callback is not registered, it prints it to console.error. The handlers will be executed in parallel
-     * or sequentially based on the executeAsynchronously flag set in the constructor.
+     * or sequentially based on the executeSequentially flag set in the constructor.
      * @param emittedValue
      */
     emit(...emittedValue: Parameters<T>): void;
 
     /**
      * Returns a promise that resolves to array of results of listeners handlers. The handlers will be executed in
-     * parallel or sequentially based on the executeAsynchronously flag set in the constructor.
+     * parallel or sequentially based on the executeSequentially flag set in the constructor.
      *
      * @param emittedValue
      */
@@ -47,15 +49,15 @@ interface OEventI<T extends (...arg: any) => any> {
  * - emitAll - Use when the emitter is interested in the results of the listeners handlers execution.
  * - emitRace - Use when the emitter is interested only in the first settled promise from the listeners handlers.
  *
- * Executing handlers synchronously vs asynchronously:
+ * Executing handlers sequentially vs parallelly:
  * -----------------------------------------------
  * emit & emitAll offer the possibility to execute the listeners handlers in parallel or sequentially.This is
- * configurable through the 'executeAsynchronously' optional parameter in the constructor. 'executeAsynchronously'
- * defaults to false.
- * - executeAsynchronously === false: If an event handler is disconnected from another event handler then the other handler
+ * configurable through the 'executeSequentially' optional parameter in the constructor. 'executeSequentially'
+ * defaults to true.
+ * - executeSequentially === true: If an event handler is disconnected from another event handler then the other handler
  * will not be called if it didn't run, yet. If a new one is connected it will be executed as last event handler.<br>
- * - executeAsynchronously === true: If an event handler is disconnected from another event handler then the other
- * handler will still be called (it already started because of being asynchronous) - If one is connected in another event
+ * - executeSequentially === false: If an event handler is disconnected from another event handler then the other
+ * handler will still be called (it already started because of being executed in parallel) - If one is connected in another event
  * handler it will not be called.
  *
  * Usage:
@@ -107,16 +109,16 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
         (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     >();
     private readonly type: EventTypes;
-    private readonly executeAsynchronously: boolean;
+    private readonly executeSequentially: boolean;
 
     /**
      * Create a OEvent object.
      * @param type - defines if the emit functions will throw if no one is listening.
-     * @param executeAsynchronously
+     * @param executeSequentially
      */
-    constructor(type: EventTypes, executeAsynchronously: boolean) {
+    constructor(type: EventTypes, executeSequentially: boolean) {
         this.type = type;
-        this.executeAsynchronously = executeAsynchronously;
+        this.executeSequentially = executeSequentially;
     }
 
     /**
@@ -145,31 +147,31 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
     }
 
     async emitAll(emittedValue: Parameters<T>): Promise<ReturnType<T>[]> {
-        if (this.executeAsynchronously) {
+        if (!this.executeSequentially) {
             return Promise.all(this.getHandlersPromises(emittedValue));
-        } else {
-            let handlerResults: ReturnType<T>[] = [];
-
-            let promiseRejected = null;
-            this.checkListenersNumber();
-
-            for (const handler of this.handlers) {
-                try {
-                    handlerResults.push(await handler(...emittedValue));
-                } catch (e) {
-                    if (promiseRejected === null) {
-                        promiseRejected = Promise.reject(e);
-                    }
-                    console.error(e);
-                }
-            }
-
-            // if one of the promises failed, return the rejection
-            if (promiseRejected !== null) {
-                return promiseRejected;
-            }
-            return handlerResults;
         }
+        let handlerResults: ReturnType<T>[] = [];
+
+        let promiseRejected = null;
+        this.checkListenersNumber();
+
+        for (const handler of this.handlers) {
+            try {
+                // need to run the handlers in sequence
+                handlerResults.push(await handler(...emittedValue));
+            } catch (e) {
+                if (promiseRejected === null) {
+                    promiseRejected = Promise.reject(e);
+                }
+                console.error(e);
+            }
+        }
+
+        // if one of the promises failed, return the rejection
+        if (promiseRejected !== null) {
+            return promiseRejected;
+        }
+        return handlerResults;
     }
 
     emit(...emittedValue: Parameters<T>): void {
@@ -235,10 +237,8 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
      * @private
      */
     private checkListenersNumber(): void {
-        if (this.type === EventTypes.Error) {
-            if (this.handlers.size === 0) {
-                throw new Error('Nobody is listening for this event.');
-            }
+        if (this.type === EventTypes.Error && this.handlers.size === 0) {
+            throw new Error('Nobody is listening for this event.');
         }
     }
 }
@@ -259,14 +259,14 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
  * the method properties from the class.
  *
  *  @param type - The event type - Default or Error. The default value is EventTypes.Default.
- *  @param executeAsynchronously - Specifies if the registered handlers will be executed synchronously or asynchronously.
+ *  @param executeSequentially - Specifies if the registered handlers will be executed sequentially or not.
  *
  */
 export function createEvent<T extends (...arg: any) => any>(
     type: EventTypes = EventTypes.Default,
-    executeAsynchronously = false
+    executeSequentially = true
 ): OEvent<T>['connect'] & OEventI<T> {
-    const oEvent = new OEvent<T>(type, executeAsynchronously);
+    const oEvent = new OEvent<T>(type, executeSequentially);
 
     function parenthesisOperator(
         callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
