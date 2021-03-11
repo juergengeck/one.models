@@ -3,6 +3,7 @@ import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
+import {createEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');
 
@@ -14,6 +15,9 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * acceptor of the connection) the key exchange procedure changes.
  */
 class EncryptedConnection extends EncryptedConnectionInterface {
+    public onMessage = createEvent<(decrypted: Uint8Array) => void>();
+    public onError = createEvent<(error: any) => void>();
+
     // @ts-ignore
     public webSocketPB: WebSocketPromiseBased; // Websocket used for communication
     protected sharedKey: Uint8Array | null = null; // The shared key used for encryption
@@ -52,7 +56,7 @@ class EncryptedConnection extends EncryptedConnectionInterface {
         }
 
         // Setup events
-        this.webSocketPB.on('message', (message: MessageEvent) => {
+        this.webSocketPB.onMessage((message: WebSocket.MessageEvent) => {
             // Only send events for encrypted messages and when the event interface is activated.
             // Because of nonce counting we can't have both running.
             if (this.sharedKey && this.webSocketPB.disableWaitForMessage) {
@@ -65,10 +69,12 @@ class EncryptedConnection extends EncryptedConnectionInterface {
                     }
                     const decrypted = this.decryptMessage(new Uint8Array(message.data));
                     this.emit('message', decrypted);
+                    this.onMessage.emit(decrypted);
                 } catch (e) {
                     this.close();
                     MessageBus.send('debug', `Error happened in message handler: ${e}`);
                     this.emit('error', e);
+                    this.onError.emit(e);
                 }
             }
         });

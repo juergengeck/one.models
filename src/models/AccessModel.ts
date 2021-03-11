@@ -20,6 +20,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {createEvent} from '../misc/OEvent';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
@@ -31,6 +32,8 @@ const ACCESS_LOCKS = {
  * @augments EventEmitter
  */
 export default class AccessModel extends EventEmitter {
+    public onGroupsUpdated = createEvent<() => void>();
+
     constructor() {
         super();
     }
@@ -90,6 +93,7 @@ export default class AccessModel extends EventEmitter {
                 group.obj
             );
             this.emit('groups_updated');
+            this.onGroupsUpdated.emit();
         }
     }
 
@@ -117,11 +121,15 @@ export default class AccessModel extends EventEmitter {
                 );
 
                 this.emit('groups_updated');
+                this.onGroupsUpdated.emit();
             }
         });
     }
 
-    async giveGroupAccessToObject(groupName: string, objectHash: SHA256Hash<OneObjectTypes>): Promise<VersionedObjectResult<Access | IdAccess>> {
+    async giveGroupAccessToObject(
+        groupName: string,
+        objectHash: SHA256Hash<OneObjectTypes>
+    ): Promise<VersionedObjectResult<Access | IdAccess>> {
         const group = await this.getAccessGroupByName(groupName);
         return await createSingleObjectThroughPurePlan(
             {
@@ -169,6 +177,7 @@ export default class AccessModel extends EventEmitter {
                 }
             );
             this.emit('groups_updated');
+            this.onGroupsUpdated.emit();
         }
     }
 }

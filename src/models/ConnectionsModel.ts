@@ -36,6 +36,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import {createEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -169,6 +170,25 @@ class ConnectionsModel extends EventEmitter {
     // TODO: try to remove the password dependency
     private password: string;
 
+    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+    public onConnectionsChange = createEvent<() => void>();
+    public onOneTimeAuthSuccess = createEvent<
+        (
+            token: string,
+            flag: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            personId: SHA256IdHash<Person>
+        ) => void
+    >();
+    public onChumStart = createEvent<
+        (
+            localPersonId: SHA256IdHash<Person>,
+            remotePersonId: SHA256IdHash<Person>,
+            protocol: CommunicationInitiationProtocol.Protocols,
+            initiatedLocally: boolean
+        ) => void
+    >();
+
     /**
      * Retrieve the online state based on connections to comm servers.
      *
@@ -254,11 +274,13 @@ class ConnectionsModel extends EventEmitter {
         );
         this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
         this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
-        this.communicationModule.on('onlineStateChange', state => {
+        this.communicationModule.onOnlineStateChange(state => {
             this.emit('onlineStateChange', state);
+            this.onOnlineStateChange.emit(state);
         });
-        this.communicationModule.on('connectionsChange', state => {
-            this.emit('connectionsChange', state);
+        this.communicationModule.onConnectionsChange(() => {
+            this.emit('connectionsChange');
+            this.onConnectionsChange.emit();
         });
 
         // Changed by init
@@ -1024,6 +1046,12 @@ class ConnectionsModel extends EventEmitter {
             localPersonId,
             remotePersonInfo.personId
         );
+        this.onOneTimeAuthSuccess.emit(
+            authToken.token,
+            true,
+            localPersonId,
+            remotePersonInfo.personId
+        );
 
         // Step 4: Start the chum
         await this.startChum(
@@ -1083,6 +1111,12 @@ class ConnectionsModel extends EventEmitter {
         // emit the one_time_auth_success event with the corresponding authentication token
         this.emit(
             'one_time_auth_success',
+            authenticationToken,
+            false,
+            localPersonId,
+            personInfo.personId
+        );
+        this.onOneTimeAuthSuccess.emit(
             authenticationToken,
             false,
             localPersonId,
@@ -1183,6 +1217,12 @@ class ConnectionsModel extends EventEmitter {
             localPersonId,
             remotePersonInfo.personId
         );
+        this.onOneTimeAuthSuccess.emit(
+            authToken.token,
+            true,
+            localPersonId,
+            remotePersonInfo.personId
+        );
 
         // Step 5: Start the chum
         await this.startChum(
@@ -1256,6 +1296,12 @@ class ConnectionsModel extends EventEmitter {
             'one_time_auth_success',
             authenticationToken,
             false,
+            localPersonId,
+            personInfo.personId
+        );
+        this.onOneTimeAuthSuccess.emit(
+            authenticationToken,
+            true,
             localPersonId,
             personInfo.personId
         );
@@ -1398,6 +1444,7 @@ class ConnectionsModel extends EventEmitter {
         keepRunning: boolean = true
     ): Promise<void> {
         this.emit('chum_start', localPersonId, remotePersonId, protocol, initiatedLocally);
+        this.onChumStart.emit(localPersonId, remotePersonId, protocol, initiatedLocally);
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (initiatedLocally) {

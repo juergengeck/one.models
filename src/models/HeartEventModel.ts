@@ -1,4 +1,6 @@
 import EventEmitter from 'events';
+import {createEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 export enum HeartEventType {
     SomethingEvent
@@ -15,11 +17,15 @@ export type HeartEvent = {
 /**
  * This model implements methods related to differential blood counts of white blood cells.
  */
-export default class HeartEventModel extends EventEmitter {
+export default class HeartEventModel extends EventEmitter implements Model {
+    public onUpdated = createEvent<() => void>();
+
     constructor() {
         super();
         this.heartEventList = [];
     }
+
+    async shutdown(): Promise<void> {}
 
     /**
      * Create a new response for a questionnaire.
@@ -32,6 +38,7 @@ export default class HeartEventModel extends EventEmitter {
         // Write the data to storage
         this.heartEventList.push(data);
         this.emit('updated');
+        this.onUpdated.emit();
     }
 
     /**

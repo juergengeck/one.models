@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     });
 
     console.log('INITIAL ONLINE STATE IS: ' + connectionsModel.onlineState);
-    connectionsModel.on('onlineStateChange', (state: boolean) => {
+    connectionsModel.onOnlineStateChange((state: boolean) => {
         console.log('ONLINE STATE IS NOW: ' + state);
     });
 

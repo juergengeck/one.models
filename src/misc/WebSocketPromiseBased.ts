@@ -3,6 +3,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
 import {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
+import {createEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -19,6 +20,7 @@ export default class WebSocketPromiseBased extends EventEmitter
     // @ts-ignore
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
+    public onMessage = createEvent<(messageEvent: WebSocket.MessageEvent) => void>();
     private dataQueue: WebSocket.MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;
@@ -488,6 +490,7 @@ export default class WebSocketPromiseBased extends EventEmitter
 
         // Notify listeners for a new message
         this.emit('message', messageEvent);
+        this.onMessage.emit(messageEvent);
 
         // If the queue is full, then we reject the next reader
         if (this.dataQueue.length >= this.maxDataQueueSize) {

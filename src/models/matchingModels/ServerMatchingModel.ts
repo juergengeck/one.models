@@ -69,8 +69,7 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.initNotifiedUsersList();
 
         await this.accessModel.createAccessGroup(this.accessGroupName);
-        await this.connectionsModel.on(
-            'chum_start',
+        await this.connectionsModel.onChumStart(
             (localPersonId: SHA256IdHash<Person>, remotePersonId: SHA256IdHash<Person>) => {
                 this.accessModel.addPersonToAccessGroup(this.accessGroupName, localPersonId);
                 this.accessModel.addPersonToAccessGroup(this.accessGroupName, remotePersonId);

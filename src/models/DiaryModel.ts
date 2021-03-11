@@ -2,6 +2,8 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {DiaryEntry as OneDiaryEntry} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
+import {createEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 /**
  * This represents the model of a diary entry
@@ -37,10 +39,11 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
  * This model implements the possibility of adding a diary entry into a journal and
  * keeping track of the list of the diary entries
  */
-export default class DiaryModel extends EventEmitter {
+export default class DiaryModel extends EventEmitter implements Model {
+    public onUpdated = createEvent<() => void>();
     channelManager: ChannelManager;
     channelId: string;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private disconnect: (() => void) | undefined;
 
     /**
      * Construct a new instance
@@ -52,7 +55,6 @@ export default class DiaryModel extends EventEmitter {
 
         this.channelId = 'diary';
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -62,7 +64,7 @@ export default class DiaryModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated);
     }
 
     /**
@@ -71,7 +73,9 @@ export default class DiaryModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     async addEntry(diaryEntry: DiaryEntry): Promise<void> {
@@ -112,6 +116,7 @@ export default class DiaryModel extends EventEmitter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

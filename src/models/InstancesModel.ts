@@ -19,6 +19,7 @@ import {
     loadInstanceKeys
 } from 'one.core/lib/instance-crypto';
 import {EventEmitter} from 'events';
+import {createEvent} from '../misc/OEvent';
 
 /**
  * This type stores information about an instance.
@@ -57,6 +58,8 @@ export type LocalInstanceInfo = {
  * - Info: Returns LocalInstanceInfo object(s)
  */
 class InstancesModel extends EventEmitter {
+    public onInstanceCreated = createEvent<(instance: SHA256IdHash<Instance>) => void>();
+
     private secret: string = '';
 
     /**
@@ -353,6 +356,7 @@ class InstancesModel extends EventEmitter {
         const person = await getObjectByIdHash(owner);
         const instance = await this.createLocalInstanceByEMail(person.obj.email);
         this.emit('instance_created', instance);
+        this.onInstanceCreated.emit(instance);
         return instance;
     }
 

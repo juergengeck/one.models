@@ -19,6 +19,8 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {Model} from '../Model';
+import {createEvent} from '../../misc/OEvent';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -27,7 +29,8 @@ import {serializeWithType} from 'one.core/lib/util/promise';
  * @description Matching Model class
  * @augments EventEmitter
  */
-export default abstract class MatchingModel extends EventEmitter {
+export default abstract class MatchingModel extends EventEmitter implements Model {
+    public onUpdated = createEvent<() => void>();
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
     protected anonInstanceInfo: LocalInstanceInfo | null;
@@ -38,6 +41,8 @@ export default abstract class MatchingModel extends EventEmitter {
 
     protected supplyMapName = 'SupplyMap';
     protected demandMapName = 'DemandMap';
+
+    private disconnect: (() => void) | undefined;
 
     protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
         super();
@@ -57,11 +62,16 @@ export default abstract class MatchingModel extends EventEmitter {
 
     protected async startMatchingChannel(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.disconnect = this.channelManager.onUpdated(this.handleUpdate);
+    }
+
+    /**
+     * Shutdown module
+     */
+    public async shutdown(): Promise<void> {
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -352,5 +362,17 @@ export default abstract class MatchingModel extends EventEmitter {
         }
 
         return false;
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     *  @param {string} id
+     * @return {Promise<void>}
+     */
+    private async handleUpdate(id: string): Promise<void> {
+        if (id === this.channelId) {
+            this.emit('updated');
+            this.onUpdated.emit();
+        }
     }
 }

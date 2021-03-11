@@ -38,6 +38,7 @@ import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
+import {createEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -205,6 +206,10 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager extends EventEmitter {
+    public onUpdated = createEvent<
+        (channelId: string, channelOwner: SHA256IdHash<Person>) => void
+    >();
+
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
 
     // Serialize locks
@@ -1319,6 +1324,7 @@ export default class ChannelManager extends EventEmitter {
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
                 this.emit('updated', channelId, channelOwner);
+                this.onUpdated.emit(channelId, channelOwner);
             });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());

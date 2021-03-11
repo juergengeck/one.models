@@ -9,6 +9,7 @@ import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {ContactEvent} from '../models/ContactModel';
 import {EventEmitter} from 'events';
+import {createEvent} from './OEvent';
 
 /**
  * This type represents information about a connection.
@@ -148,6 +149,10 @@ export default class CommunicationModule extends EventEmitter {
           ) => void)
         | null = null;
 
+    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+
+    public onConnectionsChange = createEvent<() => void>();
+
     /**
      * Retrieve the online state based on connections to comm servers.
      *
@@ -212,6 +217,7 @@ export default class CommunicationModule extends EventEmitter {
 
         this.incomingConnectionManager.onOnlineStateChange = (onlineState: boolean) => {
             this.emit('onlineStateChange', onlineState);
+            this.onOnlineStateChange.emit(onlineState);
         };
 
         // Setup event for instance creation
@@ -314,6 +320,7 @@ export default class CommunicationModule extends EventEmitter {
                         };
                         this.knownPeerMap.set(mapKey, connContainer);
                         this.emit('connectionsChange');
+                        this.onConnectionsChange.emit();
 
                         // If the connection is already active, then setup the close handler so that it is reactivated on close
                         if (activeConnection) {
@@ -325,6 +332,7 @@ export default class CommunicationModule extends EventEmitter {
                                 connContainer.activeConnection = null;
                                 delete connContainer.closeHandler;
                                 this.emit('connectionsChange');
+                                this.onConnectionsChange.emit();
                                 this.reconnect(connContainer, this.reconnectDelay);
                             };
                             activeConnection.webSocket.addEventListener('close', closeHandler);
@@ -546,6 +554,7 @@ export default class CommunicationModule extends EventEmitter {
 
         // Notify the user of a change in connections
         this.emit('connectionsChange');
+        this.onConnectionsChange.emit();
     }
 
     /**
@@ -780,6 +789,7 @@ export default class CommunicationModule extends EventEmitter {
             endpoint.activeConnection = null;
             delete endpoint.closeHandler;
             this.emit('connectionsChange');
+            this.onConnectionsChange.emit();
             this.reconnect(endpoint, this.reconnectDelay);
         };
         conn.webSocket.addEventListener('close', closeHandler);
@@ -788,6 +798,7 @@ export default class CommunicationModule extends EventEmitter {
         // Set the current connection as active connection
         endpoint.activeConnection = conn;
         this.emit('connectionsChange');
+        this.onConnectionsChange.emit();
 
         // Set timeout that changes duplicate connection behavior
         setTimeout(() => {
