@@ -4,13 +4,15 @@ import BlobRecipes from './BlobRecipes';
 import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import ECGRecipes from './ECGRecipes';
+import PersistentFileSystemRecipes from './PersistentFileSystemRecipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
     ...BlobRecipes,
     ...MatchingRecipes,
     ...WbcRecipes,
-    ...ECGRecipes
+    ...ECGRecipes,
+    ...PersistentFileSystemRecipes
 ];
 
 export default RecipesExperimental;
