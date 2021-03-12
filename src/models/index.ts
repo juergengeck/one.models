@@ -21,7 +21,9 @@ import ServerMatchingModel from './matchingModels/ServerMatchingModel';
 import ServerUserModel from './matchingModels/ServerUserModel';
 import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
-import FilerModel from './FilerModel';
+import ConnectionsFilerModel from './filer/ConnectionsFilerModel';
+import ObjectsFilerModel from './filer/ObjectsFilerModel';
+import PersistentFilerModel from './filer/PersistentFilerModel';
 /** for one line imports **/
 export {
     JournalModel,
@@ -49,5 +51,7 @@ export {
     ServerUserModel,
     InstancesModel,
     ECGModel,
-    FilerModel
+    ConnectionsFilerModel,
+    ObjectsFilerModel,
+    PersistentFilerModel
 };
