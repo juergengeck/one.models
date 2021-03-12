@@ -79,7 +79,7 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.startMatchingChannel();
         await this.registerHooks();
 
-        await this.accessModel.on('groups_updated', async () => {
+        await this.accessModel.onGroupsUpdated(async () => {
             const accessGroup = await this.accessModel.getAccessGroupByName(this.accessGroupName);
             const personsToGiveAccessTo = this.anonInstanceInfo
                 ? [...accessGroup.obj.person, this.anonInstanceInfo.personId]

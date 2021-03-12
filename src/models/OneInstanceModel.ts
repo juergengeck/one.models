@@ -164,7 +164,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.loggingOut = null;
 
         // listen for update events in access model and check for patient connections
-        this.accessModel.on('groups_updated', () => {
+        this.accessModel.onGroupsUpdated(() => {
             if (
                 this.currentAuthenticationState === AuthenticationState.Authenticated &&
                 this.currentPatientTypeState.includes('partner')

@@ -44,12 +44,6 @@ export class PropertyTreeProxy extends PropertyTree {
             const strippedKey = keys[keys.length - 1];
             this.onSettingChange.emit(strippedKey, value);
         });
-        this.parent.on('update', (key, value) => {
-            // strip prefix from key
-            const keys = key.split(separator);
-            const strippedKey = keys[keys.length - 1];
-            this.emit('update', strippedKey, value);
-        });
     }
 
     async setValue(key: string, value: string): Promise<void> {
