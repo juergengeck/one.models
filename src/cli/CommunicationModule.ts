@@ -18,7 +18,6 @@ import {implode} from 'one.core/lib/microdata-imploder';
 import fs from 'fs';
 import * as readline from 'readline';
 import {toByteArray} from 'base64-js';
-import {ContactEvent} from '../models/ContactModel';
 
 /**
  * Import all plan modules
@@ -221,7 +220,7 @@ async function main(): Promise<void> {
     // Start the communication module
     console.log('Start the comm module');
 
-    contactModel.on(ContactEvent.UpdatedContact, () => {
+    contactModel.onContactUpdate(() => {
         console.log('ADDED a contact');
     });
     await new Promise(resolve => {
