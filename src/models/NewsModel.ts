@@ -53,7 +53,7 @@ export default class NewsModel extends EventEmitter implements Model {
     async init(): Promise<void> {
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**

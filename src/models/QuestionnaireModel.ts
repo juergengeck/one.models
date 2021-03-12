@@ -63,7 +63,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     public async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**

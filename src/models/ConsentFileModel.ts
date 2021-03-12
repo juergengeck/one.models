@@ -77,7 +77,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**

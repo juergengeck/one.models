@@ -62,7 +62,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
 
     protected async startMatchingChannel(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.disconnect = this.channelManager.onUpdated(this.handleUpdate);
+        this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
     }
 
     /**

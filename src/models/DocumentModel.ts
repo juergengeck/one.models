@@ -55,7 +55,7 @@ export default class DocumentModel extends EventEmitter implements Model {
 
         this.channelId = 'document';
         this.channelManager = channelManager;
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**

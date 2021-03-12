@@ -34,7 +34,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate);
+        this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
     /**
