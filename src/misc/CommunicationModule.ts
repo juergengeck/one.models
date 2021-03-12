@@ -1,4 +1,11 @@
-import {Instance, Person, SHA256Hash, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
+import {
+    Instance,
+    Person,
+    SHA256Hash,
+    SHA256IdHash,
+    OneInstanceEndpoint,
+    CommunicationEndpointTypes
+} from '@OneCoreTypes';
 import {ContactModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import EncryptedConnection from './EncryptedConnection';
@@ -221,7 +228,7 @@ export default class CommunicationModule extends EventEmitter {
         };
 
         // Setup event for instance creation
-        this.instancesModel.on('created_instance', instance => {
+        this.instancesModel.onInstanceCreated(instance => {
             if (!this.initialized) {
                 return;
             }
@@ -231,9 +238,8 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for new contact objects on contact management
-        this.contactModel.on(
-            ContactEvent.NewCommunicationEndpointArrived,
-            async (endpointHashes: SHA256Hash<OneInstanceEndpoint>[]) => {
+        this.contactModel.onNewCommunicationEndpointArrive(
+            async (endpointHashes: SHA256Hash<CommunicationEndpointTypes>[]) => {
                 if (!this.initialized) {
                     return;
                 }
@@ -255,19 +261,21 @@ export default class CommunicationModule extends EventEmitter {
 
                 // Load the OneInstanceEndpoint objects
                 const endpoints = await Promise.all(
-                    endpointHashes.map((endpointHash: SHA256Hash<OneInstanceEndpoint>) =>
+                    endpointHashes.map((endpointHash: SHA256Hash<CommunicationEndpointTypes>) =>
                         getObject(endpointHash)
                     )
                 );
 
                 // Only OneInstanceEndpoints
                 // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
-                const instanceEndpoints = endpoints.filter((endpoint: OneInstanceEndpoint) => {
-                    return (
-                        endpoint.$type$ === 'OneInstanceEndpoint' &&
-                        endpoint.personId !== anonInstanceInfo.personId
-                    );
-                });
+                const instanceEndpoints = endpoints.filter(
+                    (endpoint: CommunicationEndpointTypes) => {
+                        return (
+                            endpoint.$type$ === 'OneInstanceEndpoint' &&
+                            endpoint.personId !== anonInstanceInfo.personId
+                        );
+                    }
+                ) as OneInstanceEndpoint[];
 
                 await Promise.all(
                     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
