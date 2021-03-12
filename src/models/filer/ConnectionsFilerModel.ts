@@ -9,13 +9,12 @@ import {EventEmitter} from 'events';
 
 import ConnectionFileSystem from '../../fileSystems/ConnectionFileSystem';
 
+
 /**
- * This model can bring and handle different file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
- * Because the file systems should be independent of our data types, this model takes care of the channel's implementation
- * and can hook different events on specific file systems(e.g update event).
+ * This model can bring and handle ConnectionsFilerModel file systems (see {@link ConnectionsFilerModel}).
  */
 export default class ConnectionsFilerModel extends EventEmitter {
-    private fileSystem: ConnectionFileSystem | null = null;
+    private fs: ConnectionFileSystem | null = null;
 
     /**
      *
@@ -29,14 +28,19 @@ export default class ConnectionsFilerModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     public async init() {
-        this.fileSystem = new ConnectionFileSystem();
+        this.fs = new ConnectionFileSystem();
     }
 
-    public get getFileSystem(): ConnectionFileSystem {
-        if (!this.fileSystem) {
+
+    /**
+     *
+     * @returns {ConnectionFileSystem}
+     */
+    public get fileSystem(): ConnectionFileSystem {
+        if (!this.fs) {
             throw new Error('Module was not instantiated');
         }
 
-        return this.fileSystem;
+        return this.fs;
     }
 }

@@ -9,12 +9,10 @@ import {EventEmitter} from 'events';
 import {ObjectsFileSystem} from '../../fileSystems';
 
 /**
- * This model can bring and handle ObjectsFileSystem file systems (see {@link PersistentFileSystem , @link ObjectsFileSystem}).
- * Because the file systems should be independent of our data types, this model takes care of the channel's implementation
- * and can hook different events on specific file systems(e.g update event).
+ * This model can bring and handle ObjectsFileSystem file systems (see {@link ObjectsFilerModel}).
  */
 export default class ObjectsFilerModel extends EventEmitter {
-    private fileSystem: ObjectsFileSystem | null = null;
+    private fs: ObjectsFileSystem | null = null;
 
     /**
      *
@@ -28,14 +26,19 @@ export default class ObjectsFilerModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     public async init() {
-        this.fileSystem = new ObjectsFileSystem();
+        this.fs = new ObjectsFileSystem();
     }
 
-    public get getFileSystem(): ObjectsFileSystem {
-        if (!this.fileSystem) {
+
+    /**
+     *
+     * @returns {ObjectsFileSystem}
+     */
+    public get fileSystem(): ObjectsFileSystem {
+        if (!this.fs) {
             throw new Error('Module was not instantiated');
         }
 
-        return this.fileSystem;
+        return this.fs;
     }
 }
