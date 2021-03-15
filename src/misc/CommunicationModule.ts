@@ -14,7 +14,6 @@ import {toByteArray, fromByteArray} from 'base64-js';
 import InstancesModel, {LocalInstanceInfo} from '../models/InstancesModel';
 import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
-import {ContactEvent} from '../models/ContactModel';
 import {EventEmitter} from 'events';
 import {createEvent} from './OEvent';
 
