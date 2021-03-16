@@ -32,6 +32,12 @@ const ACCESS_LOCKS = {
  * @augments EventEmitter
  */
 export default class AccessModel extends EventEmitter {
+    /**
+     * Event is emitted when:
+     * - a access group is created
+     * - persons are added to the access group
+     * - persons are removed from the access group
+     */
     public onGroupsUpdated = createEvent<() => void>();
 
     constructor() {

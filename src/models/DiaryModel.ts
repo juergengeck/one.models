@@ -40,7 +40,11 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
  * keeping track of the list of the diary entries
  */
 export default class DiaryModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when diary data is updated.
+     */
     public onUpdated = createEvent<() => void>();
+
     channelManager: ChannelManager;
     channelId: string;
     private disconnect: (() => void) | undefined;

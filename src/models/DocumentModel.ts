@@ -39,6 +39,9 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * and keeping track of the list of the documents.
  */
 export default class DocumentModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when document data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     channelManager: ChannelManager;

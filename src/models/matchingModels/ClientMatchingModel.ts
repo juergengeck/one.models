@@ -54,9 +54,27 @@ export enum MatchingEvents {
  * @augments MatchingModel
  */
 export default class ClientMatchingModel extends MatchingModel {
+    /**
+     * Event is emitted when:
+     * - a supply object is created
+     * - a supply object is deleted
+     * - the active status of the supply is changed
+     */
     public onSupplyUpdate = createEvent<() => void>();
+    /**
+     * Event is emitted when:
+     * - a demand object is created
+     * - a demand object is deleted
+     * - the active status of the demand is changed
+     */
     public onDemandUpdate = createEvent<() => void>();
+    /**
+     * Event is emitted when a new supply or demand object is received.
+     */
     public onCatalogUpdate = createEvent<() => void>();
+    /**
+     * Event is emitted when a new match is found.
+     */
     public onMatchUpdate = createEvent<() => void>();
 
     private matchMapName = 'MatchMap';

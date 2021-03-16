@@ -32,6 +32,9 @@ export enum FileType {
  * This model implements the possibility to store and load the consent file and the dropout file of an user.
  */
 export default class ConsentFileModel extends EventEmmiter implements Model {
+    /**
+     * Event is emitted when the consent file data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     channelManager: ChannelManager;

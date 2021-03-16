@@ -18,6 +18,9 @@ export type HeartEvent = {
  * This model implements methods related to differential blood counts of white blood cells.
  */
 export default class HeartEventModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when heart data is added.
+     */
     public onUpdated = createEvent<() => void>();
 
     constructor() {

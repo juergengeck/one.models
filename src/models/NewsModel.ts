@@ -34,7 +34,13 @@ function convertFromOne(oneObject: OneNews): News {
  * This model implements a broadcast channel.
  */
 export default class NewsModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when news data is updated.
+     */
     public onNewsEvent = createEvent<() => void>();
+    /**
+     * Event emitted when news or feedback data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     channelManager: ChannelManager;

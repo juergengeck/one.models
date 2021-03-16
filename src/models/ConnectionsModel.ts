@@ -148,6 +148,38 @@ type PkAuthenticationTokenInfo = {
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
 class ConnectionsModel extends EventEmitter {
+    /**
+     * Event is emitted when state of the connector changes. The emitted value represents the updated state.
+     */
+    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+    /**
+     * Event is emitted when a connection is established or closed.
+     */
+    public onConnectionsChange = createEvent<() => void>();
+    /**
+     * Event is emitted when the one time authentication was successful. The emitted event value represents the
+     * authentication token.
+     */
+    public onOneTimeAuthSuccess = createEvent<
+        (
+            token: string,
+            flag: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            personId: SHA256IdHash<Person>
+        ) => void
+    >();
+    /**
+     * Event is emitted when the chum starts.
+     */
+    public onChumStart = createEvent<
+        (
+            localPersonId: SHA256IdHash<Person>,
+            remotePersonId: SHA256IdHash<Person>,
+            protocol: CommunicationInitiationProtocol.Protocols,
+            initiatedLocally: boolean
+        ) => void
+    >();
+
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
@@ -169,25 +201,6 @@ class ConnectionsModel extends EventEmitter {
 
     // TODO: try to remove the password dependency
     private password: string;
-
-    public onOnlineStateChange = createEvent<(state: boolean) => void>();
-    public onConnectionsChange = createEvent<() => void>();
-    public onOneTimeAuthSuccess = createEvent<
-        (
-            token: string,
-            flag: boolean,
-            localPersonId: SHA256IdHash<Person>,
-            personId: SHA256IdHash<Person>
-        ) => void
-    >();
-    public onChumStart = createEvent<
-        (
-            localPersonId: SHA256IdHash<Person>,
-            remotePersonId: SHA256IdHash<Person>,
-            protocol: CommunicationInitiationProtocol.Protocols,
-            initiatedLocally: boolean
-        ) => void
-    >();
 
     /**
      * Retrieve the online state based on connections to comm servers.

@@ -30,7 +30,11 @@ import {createEvent} from '../../misc/OEvent';
  * @augments EventEmitter
  */
 export default abstract class MatchingModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when matching data is updated.
+     */
     public onUpdated = createEvent<() => void>();
+
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
     protected anonInstanceInfo: LocalInstanceInfo | null;

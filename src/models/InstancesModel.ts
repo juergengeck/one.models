@@ -58,6 +58,9 @@ export type LocalInstanceInfo = {
  * - Info: Returns LocalInstanceInfo object(s)
  */
 class InstancesModel extends EventEmitter {
+    /**
+     * Event emitted when a local instance is created.
+     */
     public onInstanceCreated = createEvent<(instance: SHA256IdHash<Instance>) => void>();
 
     private secret: string = '';

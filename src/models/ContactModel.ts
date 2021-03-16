@@ -123,13 +123,36 @@ export type MergedContact = {
  * @augments EventEmitter
  */
 export default class ContactModel extends EventEmitter {
+    /**
+     * Event emitted when a new contact is added.
+     */
     public onContactListUpdate = createEvent<(contacts: SHA256Hash<Someone>[]) => void>();
+    /**
+     * Event emitted when a contact is updated.
+     */
     public onContactUpdate = createEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    /**
+     * Event is emitted when the profile is updated with a new contact object.
+     */
     public onProfileUpdate = createEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    /**
+     * Event is emitted when:
+     * - a new profile for myself is created
+     * - a new contact object is created
+     * - profile is updated with a new contact object
+     */
     public onNewCommunicationEndpointArrive = createEvent<
         (communicationEndpoints: SHA256Hash<CommunicationEndpointTypes>[]) => void
     >();
+    /**
+     * Event is emitted when new ContactApp object is updated.
+     */
     public onContactAppUpdate = createEvent<() => void>();
+    /**
+     * Event is emitted when:
+     * - a new contact object is created
+     * - profile is updated with a new contact object
+     */
     public onContactNew = createEvent<(caughtObject: UnversionedObjectResult<Contact>) => void>();
 
     private readonly instancesModel: InstancesModel;

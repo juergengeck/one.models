@@ -83,6 +83,25 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
  * Model that exposes functionality closely related to one.core
  */
 export default class OneInstanceModel extends EventEmitter {
+    /**
+     * Event emitted:
+     * - when a new instance is created with takeOver
+     * - on login
+     * - on logout
+     * - on registration
+     */
+    public onAuthStateChange = createEvent<() => void>();
+    /**
+     * Event is emitted when the number of patients connections (and the partner state) changes.
+     */
+    public onPartnerStateChange = createEvent<() => void>();
+    /**
+     * Event is emitted when the user registration state changes. This is triggered on login if the user is doing IoM
+     * initialisation or if doesn't have the consent file, when starting the registration process and when the
+     * registration process is finished.
+     * */
+    public onRegistrationStateChange = createEvent<() => void>();
+
     // This signal is emitted just before the login finishes and after the instance is created
     // so that you can initialize the models
     public loggingIn:
@@ -97,10 +116,6 @@ export default class OneInstanceModel extends EventEmitter {
     // This signal is emitted just before the logout finishes and before the instance is closed
     // so that you can shutdown the models
     public loggingOut: (() => Promise<void>) | null;
-
-    public onAuthStateChange = createEvent<() => void>();
-    public onPartnerStateChange = createEvent<() => void>();
-    public onRegistrationStateChange = createEvent<() => void>();
 
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;

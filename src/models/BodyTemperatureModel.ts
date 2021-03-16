@@ -16,6 +16,9 @@ export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
  * keeping track of the list of the body temperature measurements
  */
 export default class BodyTemperatureModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when body temperature data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     channelManager: ChannelManager;

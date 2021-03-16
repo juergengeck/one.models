@@ -17,10 +17,14 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  */
 export default class WebSocketPromiseBased extends EventEmitter
     implements WebSocketPromiseBasedInterface {
+    /**
+     * Event is emitted when a new message is received.
+     */
+    public onMessage = createEvent<(messageEvent: WebSocket.MessageEvent) => void>();
+
     // @ts-ignore
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
-    public onMessage = createEvent<(messageEvent: WebSocket.MessageEvent) => void>();
     private dataQueue: WebSocket.MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;

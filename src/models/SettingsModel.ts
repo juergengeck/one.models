@@ -15,8 +15,11 @@ export type Settings = {
 };
 
 export abstract class PropertyTree extends EventEmitter {
-    proxyInstances: Map<string, PropertyTreeProxy> = new Map<string, PropertyTreeProxy>();
+    /**
+     * Event is emitted when the settings are updated.
+     */
     public onSettingChange = createEvent<(key: string, value: string | undefined) => void>();
+    proxyInstances: Map<string, PropertyTreeProxy> = new Map<string, PropertyTreeProxy>();
 
     abstract setValue(key: string, value: string): Promise<void>;
     abstract getValue(key: string): string;

@@ -15,7 +15,13 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * acceptor of the connection) the key exchange procedure changes.
  */
 class EncryptedConnection extends EncryptedConnectionInterface {
+    /**
+     * Event is emitted when an encrypted message is received. The event contains the decrypted message.
+     */
     public onMessage = createEvent<(decrypted: Uint8Array) => void>();
+    /**
+     * Event is emitted when the message data type is invalid or the decryption fails.
+     */
     public onError = createEvent<(error: any) => void>();
 
     // @ts-ignore

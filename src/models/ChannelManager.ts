@@ -206,6 +206,10 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager extends EventEmitter {
+    /**
+     * This event is emitted for each channel that has new data. The emitted event value has the (channelId,
+     * channelOwner) pair.
+     */
     public onUpdated = createEvent<
         (channelId: string, channelOwner: SHA256IdHash<Person>) => void
     >();

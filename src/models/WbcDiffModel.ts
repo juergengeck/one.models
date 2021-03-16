@@ -10,6 +10,9 @@ const MessageBus = createMessageBus('WbcDiffModel');
  * This model implements methods related to differential blood counts of white blood cells.
  */
 export default class WbcDiffModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when the wbc data is updated.
+     */
     public onUpdated = createEvent<() => void>();
     channelManager: ChannelManager;
     channelId: string;

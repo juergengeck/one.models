@@ -32,7 +32,14 @@ export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.Questionnai
  * In the future this will most probably also manage questionnaires.
  */
 export default class QuestionnaireModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when the incomplete questionnaire response data is updated.
+     */
     public onIncompleteResponse = createEvent<() => void>();
+
+    /**
+     * Event is emitted when the questionnaire response data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     private channelManager: ChannelManager;

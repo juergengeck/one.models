@@ -108,6 +108,15 @@ function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): str
  * - onlineStateChange - when the online state changed
  */
 export default class CommunicationModule extends EventEmitter {
+    /**
+     *  Event is emitted when the state of the connector changes. The event contains the value of the online state.
+     */
+    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+    /**
+     * Event is emitted when a connection is established or closed.
+     */
+    public onConnectionsChange = createEvent<() => void>();
+
     // Other models
     private readonly contactModel: ContactModel; // Contact model for getting contact objects
     private readonly instancesModel: InstancesModel; // Instance model for getting local instances
@@ -154,10 +163,6 @@ export default class CommunicationModule extends EventEmitter {
               initiatedLocally: boolean
           ) => void)
         | null = null;
-
-    public onOnlineStateChange = createEvent<(state: boolean) => void>();
-
-    public onConnectionsChange = createEvent<() => void>();
 
     /**
      * Retrieve the online state based on connections to comm servers.

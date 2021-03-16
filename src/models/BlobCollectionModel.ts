@@ -40,6 +40,9 @@ export interface BlobCollection {
  * Loading: call getCollection(name)[0]
  */
 export default class BlobCollectionModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when blob collection data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     private channelManager: ChannelManager;

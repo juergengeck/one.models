@@ -11,6 +11,9 @@ import {createEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 export default class ECGModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when ecg data is updated.
+     */
     public onUpdated = createEvent<() => void>();
 
     private disconnect: (() => void) | undefined;
