@@ -572,8 +572,8 @@ export default class ChannelManager extends EventEmitter {
      * Obtain the latest merged ChannelInfoHash from the registry
      *
      * It is useful for ChannelSelectionOptions
-     * @param channel
-     * @returns {Promise<SHA256Hash<ChannelInfo>>}
+     *
+     * @param channel - the channel for which to get the channel info
      */
     public async getLatestMergedChannelInfoHash(
         channel: Channel
