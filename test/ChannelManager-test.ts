@@ -294,13 +294,13 @@ describe('Channel Iterators test', () => {
 
     it('should get the latest merged ChannelInfoHash', async () => {
         const channels = await channelManager.channels();
-        const owner = channels[0].owner
-        const id = 'first'
+        const owner = channels[0].owner;
+        const id = 'first';
 
-        const channelInfoHash = await channelManager.getLatestMergedChannelInfoHash({id,owner})
+        const channelInfoHash = await channelManager.getLatestMergedChannelInfoHash({id, owner});
         const channelInfo = await getObject(channelInfoHash);
-        expect(channelInfo.$type$).to.equal('ChannelInfo')
-    })
+        expect(channelInfo.$type$).to.equal('ChannelInfo');
+    });
 
     after(async () => {
         // Wait for the hooks to run to completion

@@ -573,20 +573,20 @@ export default class ChannelManager extends EventEmitter {
      *
      * It is useful for ChannelSelectionOptions
      * @param channel
+     * @returns {Promise<SHA256Hash<ChannelInfo>>}
      */
-    public async getLatestMergedChannelInfoHash(channel: Channel){
-        const channelInfoIdHash = await calculateIdHashOfObj({$type$:'ChannelInfo',...channel})
+    public async getLatestMergedChannelInfoHash(
+        channel: Channel
+    ): Promise<SHA256Hash<ChannelInfo>> {
+        const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
 
         const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
 
-        if(!channelEntry){
+        if (!channelEntry) {
             throw new Error('The specified channel does not exist');
         }
 
-        return  await getNthVersionMapHash(
-            channelInfoIdHash,
-            channelEntry.readVersionIndex
-        );
+        return await getNthVersionMapHash(channelInfoIdHash, channelEntry.readVersionIndex);
     }
 
     // ######## Get data from channels - ITERATORS ########
