@@ -568,6 +568,27 @@ export default class ChannelManager extends EventEmitter {
         return obj;
     }
 
+    /**
+     * Obtain the latest merged ChannelInfoHash from the registry
+     *
+     * It is useful for ChannelSelectionOptions
+     * @param channel
+     */
+    public async getLatestMergedChannelInfoHash(channel: Channel){
+        const channelInfoIdHash = await calculateIdHashOfObj({$type$:'ChannelInfo',...channel})
+
+        const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
+
+        if(!channelEntry){
+            throw new Error('The specified channel does not exist');
+        }
+
+        return  await getNthVersionMapHash(
+            channelInfoIdHash,
+            channelEntry.readVersionIndex
+        );
+    }
+
     // ######## Get data from channels - ITERATORS ########
 
     /**
