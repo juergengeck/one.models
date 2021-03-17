@@ -8,6 +8,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import EncryptedConnetion_Server from './EncryptedConnection_Server';
 import EncryptedConnection from './EncryptedConnection';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
+import {createEvent} from './OEvent';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -15,6 +16,19 @@ const MessageBus = createMessageBus('IncomingConnectionManager');
  * This class manages and authenticates incoming connections.
  */
 class IncomingConnectionManager {
+    /**
+     * Event is emitted when E2E connection is setup correctly. The event will pass the connection to the listener.
+     */
+    public onConnection = createEvent<
+        (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
+    >();
+
+    /**
+     * Event is emitted when the state of the connector changes. The listener callback will be called
+     * in order to have access from outside to the errors that occur on the web socket level.
+     */
+    public onOnlineStateChange = createEvent<(online: boolean) => void>();
+
     commServerListener: Map<string, CommunicationServerListener[]>;
     webSocketListener: Map<
         string,
@@ -23,23 +37,6 @@ class IncomingConnectionManager {
             registeredPublicKeys: Uint8Array[];
         }
     >;
-
-    public onConnection:
-        | ((
-              conn: EncryptedConnection,
-              localPublicKey: Uint8Array,
-              remotePublicKey: Uint8Array
-          ) => void)
-        | null;
-
-    /**
-     * Handler for state change.
-     *
-     * When the state of the connector changes, this callback will be called
-     * in order to have access from outside to the errors that occur on the
-     * web socket level.
-     */
-    public onOnlineStateChange: ((online: boolean) => void) | null;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -71,8 +68,6 @@ class IncomingConnectionManager {
                 registeredPublicKeys: Uint8Array[];
             }
         >();
-        this.onConnection = null;
-        this.onOnlineStateChange = null;
     }
 
     /**
@@ -97,27 +92,27 @@ class IncomingConnectionManager {
 
         // Create listener for this key
         const listener = new CommunicationServerListener(2, 10000);
-        listener.onChallenge = (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
-            const decryptedChallenge = decrypt(publicKey, challenge);
-            for (let i = 0; i < decryptedChallenge.length; ++i) {
-                decryptedChallenge[i] = ~decryptedChallenge[i];
+        listener.onChallenge(
+            (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
+                const decryptedChallenge = decrypt(publicKey, challenge);
+                for (let i = 0; i < decryptedChallenge.length; ++i) {
+                    decryptedChallenge[i] = ~decryptedChallenge[i];
+                }
+                return encrypt(publicKey, decryptedChallenge);
             }
-            return encrypt(publicKey, decryptedChallenge);
-        };
-        listener.onConnection = (ws: WebSocketPromiseBased) => {
+        );
+        listener.onConnection((ws: WebSocketPromiseBased) => {
             this.acceptConnection(ws, [publicKey], encrypt, decrypt);
-        };
+        });
 
         // Connect the stateChanged event to the onelineStateChanged event
-        listener.onStateChange = () => {
+        listener.onStateChange(() => {
             // Delay the notification to remove short offline states
             // TODO: this emits the event multiple times ... fix this later
             setTimeout(() => {
-                if (this.onOnlineStateChange) {
-                    this.onOnlineStateChange(this.onlineState);
-                }
+                this.onOnlineStateChange.emit(this.onlineState);
             }, 1000);
-        };
+        });
 
         // Start listener
         await listener.start(server, publicKey);
@@ -159,9 +154,9 @@ class IncomingConnectionManager {
 
             // Create web socket listener & connect signals
             const listener = new WebSocketListener();
-            listener.onConnection = (ws: WebSocketPromiseBased) => {
+            listener.onConnection((ws: WebSocketPromiseBased) => {
                 this.acceptConnection(ws, registeredPublicKeys, encrypt, decrypt);
-            };
+            });
 
             // Start the listener
             await listener.start(host, port);
@@ -254,9 +249,7 @@ class IncomingConnectionManager {
             );
 
             // Step 6: E2E encryption is setup correctly. Pass the connection to a listener.
-            if (this.onConnection) {
-                this.onConnection(conn, request.targetPublicKey, request.sourcePublicKey);
-            }
+            this.onConnection.emit(conn, request.targetPublicKey, request.sourcePublicKey);
         } catch (e) {
             MessageBus.send('log', `${wslogId(ws.webSocket)}: ${e}`);
             ws.close();

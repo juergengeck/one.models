@@ -102,20 +102,24 @@ export default class OneInstanceModel extends EventEmitter {
      * */
     public onRegistrationStateChange = createEvent<() => void>();
 
-    // This signal is emitted just before the login finishes and after the instance is created
-    // so that you can initialize the models
-    public loggingIn:
-        | ((
-              currentRegistrationState: boolean,
-              anonymousEmail?: string,
-              takeOver?: boolean,
-              recoveryState?: boolean
-          ) => Promise<void>)
-        | null;
+    /**
+     * This event is emitted just before the login finishes and after the instance is
+     * create so that you can initialize the models.
+     */
+    public loggingIn = createEvent<
+        (
+            currentRegistrationState: boolean,
+            anonymousEmail?: string,
+            takeOver?: boolean,
+            recoveryState?: boolean
+        ) => Promise<void>
+    >();
 
-    // This signal is emitted just before the logout finishes and before the instance is closed
-    // so that you can shutdown the models
-    public loggingOut: (() => Promise<void>) | null;
+    /**
+     * This event is emitted just before the logout finishes and before the instance is
+     * closed so that you can shutdown the models.
+     */
+    public loggingOut = createEvent<() => Promise<void>>();
 
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;
@@ -174,9 +178,6 @@ export default class OneInstanceModel extends EventEmitter {
         this.channelManager = channelManager;
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
-
-        this.loggingIn = null;
-        this.loggingOut = null;
 
         // listen for update events in access model and check for patient connections
         this.accessModel.onGroupsUpdated(() => {
@@ -355,14 +356,13 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        if (this.loggingIn) {
-            await this.loggingIn(
-                this.currentRegistrationState,
-                anonymousEmail,
-                takeOver,
-                recoveryState
-            );
-        }
+
+        await this.loggingIn.emitAll(
+            this.currentRegistrationState,
+            anonymousEmail,
+            takeOver,
+            recoveryState
+        );
 
         if (this.currentPatientTypeState.includes('partner')) {
             this.updatePartnerState().catch(e => console.error(e));
@@ -453,9 +453,7 @@ export default class OneInstanceModel extends EventEmitter {
 
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
-        if (this.loggingOut) {
-            await this.loggingOut();
-        }
+        await this.loggingOut.emitAll();
 
         // Close the one instance -> why delayed?
         const dbInstance = getDbInstance();

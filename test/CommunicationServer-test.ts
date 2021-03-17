@@ -41,21 +41,24 @@ describe('communication server tests', () => {
         let listenerFailure: any | null = null;
         const listenerKeyPair = tweetnacl.box.keyPair();
         let commServerListener = new CommunicationServerListener(1, 1000);
-        commServerListener.onChallenge = (
-            challenge: Uint8Array,
-            publicKey: Uint8Array
-        ): Uint8Array => {
-            const decryptedChallenge = decryptWithPublicKey(
-                publicKey,
-                challenge,
-                listenerKeyPair.secretKey
-            );
-            for (let i = 0; i < decryptedChallenge.length; ++i) {
-                decryptedChallenge[i] = ~decryptedChallenge[i];
+        commServerListener.onChallenge(
+            (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
+                const decryptedChallenge = decryptWithPublicKey(
+                    publicKey,
+                    challenge,
+                    listenerKeyPair.secretKey
+                );
+                for (let i = 0; i < decryptedChallenge.length; ++i) {
+                    decryptedChallenge[i] = ~decryptedChallenge[i];
+                }
+                return encryptWithPublicKey(
+                    publicKey,
+                    decryptedChallenge,
+                    listenerKeyPair.secretKey
+                );
             }
-            return encryptWithPublicKey(publicKey, decryptedChallenge, listenerKeyPair.secretKey);
-        };
-        commServerListener.onConnection = async (ws: WebSocketPromiseBased) => {
+        );
+        commServerListener.onConnection(async (ws: WebSocketPromiseBased) => {
             try {
                 while (ws.webSocket.readyState === WebSocket.OPEN) {
                     ws.send(await ws.waitForMessage(1000));
@@ -65,7 +68,7 @@ describe('communication server tests', () => {
                 // will only be evaluated before the closing of connections happens.
                 listenerFailure = e;
             }
-        };
+        });
         commServerListener.start('ws://localhost:10000', listenerKeyPair.publicKey);
 
         try {

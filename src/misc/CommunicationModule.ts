@@ -117,6 +117,33 @@ export default class CommunicationModule extends EventEmitter {
      */
     public onConnectionsChange = createEvent<() => void>();
 
+    /**
+     * Event that is emitted if an incoming connection was accepted, but the identity of the other side is not known
+     */
+    public onUnknownConnection = createEvent<
+        (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array,
+            localPersonId: SHA256IdHash<Person>,
+            initiatedLocally: boolean
+        ) => void
+    >();
+
+    /**
+     * Event that is emitted if an incoming connection was accepted and the identity of the other side is known
+     */
+    public onKnownConnection = createEvent<
+        (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array,
+            localPersonId: SHA256IdHash<Person>,
+            remotePersonId: SHA256IdHash<Person>,
+            initiatedLocally: boolean
+        ) => void
+    >();
+
     // Other models
     private readonly contactModel: ContactModel; // Contact model for getting contact objects
     private readonly instancesModel: InstancesModel; // Instance model for getting local instances
@@ -140,29 +167,6 @@ export default class CommunicationModule extends EventEmitter {
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
-
-    // Event that is emitted if an incoming connection was accepted, but the identity of the other side is not known
-    public onUnknownConnection:
-        | ((
-              conn: EncryptedConnection,
-              localPublicKey: Uint8Array,
-              remotePublicKey: Uint8Array,
-              localPersonId: SHA256IdHash<Person>,
-              initiatedLocally: boolean
-          ) => void)
-        | null = null;
-
-    // Event that is emitted if an incoming connection was accepted and the identity of the other side is known
-    public onKnownConnection:
-        | ((
-              conn: EncryptedConnection,
-              localPublicKey: Uint8Array,
-              remotePublicKey: Uint8Array,
-              localPersonId: SHA256IdHash<Person>,
-              remotePersonId: SHA256IdHash<Person>,
-              initiatedLocally: boolean
-          ) => void)
-        | null = null;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -218,18 +222,20 @@ export default class CommunicationModule extends EventEmitter {
         this.initialized = false;
 
         // Setup incoming connection manager events
-        this.incomingConnectionManager.onConnection = (
-            conn: EncryptedConnection,
-            localPublicKey: Uint8Array,
-            remotePublicKey: Uint8Array
-        ) => {
-            this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
-        };
+        this.incomingConnectionManager.onConnection(
+            (
+                conn: EncryptedConnection,
+                localPublicKey: Uint8Array,
+                remotePublicKey: Uint8Array
+            ) => {
+                this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
+            }
+        );
 
-        this.incomingConnectionManager.onOnlineStateChange = (onlineState: boolean) => {
+        this.incomingConnectionManager.onOnlineStateChange((onlineState: boolean) => {
             this.emit('onlineStateChange', onlineState);
             this.onOnlineStateChange.emit(onlineState);
-        };
+        });
 
         // Setup event for instance creation
         this.instancesModel.onInstanceCreated(instance => {
@@ -636,13 +642,15 @@ export default class CommunicationModule extends EventEmitter {
             // If outgoing connection establisher does not exist, then create one
             if (!connContainer.connEst) {
                 connContainer.connEst = new OutgoingConnectionEstablisher();
-                connContainer.connEst.onConnection = (
-                    conn: EncryptedConnection,
-                    localPublicKey: Uint8Array,
-                    remotePublicKey: Uint8Array
-                ) => {
-                    this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
-                };
+                connContainer.connEst.onConnection(
+                    (
+                        conn: EncryptedConnection,
+                        localPublicKey: Uint8Array,
+                        remotePublicKey: Uint8Array
+                    ) => {
+                        this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
+                    }
+                );
             }
 
             // Start outgoing connections
@@ -743,30 +751,31 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
-            if (this.onUnknownConnection) {
-                if (this.unknownPeerMap.has(mapKey)) {
-                    conn.close('duplicate connection');
-                    return;
-                }
-
-                // register this connection on an internal list, so that when a new contact object arrives we can take this
-                // connection as activeConnection, so that we don't establish a second connection
-                this.unknownPeerMap.set(mapKey, conn);
-                conn.webSocket.addEventListener('close', () => {
-                    this.unknownPeerMap.delete(mapKey);
-                });
-
-                // Notify the listeners that we have an unknown connection
-                this.onUnknownConnection(
-                    conn,
-                    localPublicKey,
-                    remotePublicKey,
-                    localPersonInfo.personId,
-                    initiatedLocally
-                );
-            } else {
+            if (this.onUnknownConnection.getListenersCount() === 0) {
                 conn.close('no one listens on unknown connections.');
+                return;
             }
+
+            if (this.unknownPeerMap.has(mapKey)) {
+                conn.close('duplicate connection');
+                return;
+            }
+
+            // register this connection on an internal list, so that when a new contact object arrives we can take this
+            // connection as activeConnection, so that we don't establish a second connection
+            this.unknownPeerMap.set(mapKey, conn);
+            conn.webSocket.addEventListener('close', () => {
+                this.unknownPeerMap.delete(mapKey);
+            });
+
+            // Notify the listeners that we have an unknown connection
+            this.onUnknownConnection.emit(
+                conn,
+                localPublicKey,
+                remotePublicKey,
+                localPersonInfo.personId,
+                initiatedLocally
+            );
             return;
         }
 
@@ -818,15 +827,13 @@ export default class CommunicationModule extends EventEmitter {
         }, 2000);
 
         // Notify the outside
-        if (this.onKnownConnection) {
-            this.onKnownConnection(
-                conn,
-                localPublicKey,
-                remotePublicKey,
-                endpoint.sourcePersonId,
-                endpoint.targetPersonId,
-                initiatedLocally
-            );
-        }
+        this.onKnownConnection.emit(
+            conn,
+            localPublicKey,
+            remotePublicKey,
+            endpoint.sourcePersonId,
+            endpoint.targetPersonId,
+            initiatedLocally
+        );
     }
 }

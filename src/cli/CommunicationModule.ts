@@ -74,32 +74,35 @@ async function main(): Promise<void> {
     const channelManager = new ChannelManager(accessModel);
     const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
-    communicationModule.onKnownConnection = (
-        conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
-        localPersonId: SHA256IdHash<Person>,
-        remotePersonId: SHA256IdHash<Person>
-    ) => {
-        console.log('onKnownConnection');
-        printUint8Array('localPublicKey', localPublicKey);
-        printUint8Array('remotePublicKey', remotePublicKey);
-        console.log(`---- localPersonId: ${localPersonId}`);
-        console.log(`---- remotePersonId: ${remotePersonId}`);
-    };
-    communicationModule.onUnknownConnection = (
-        conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
-        localPersonId: SHA256IdHash<Person>
-    ) => {
-        console.log('onUnknownConnection');
-        printUint8Array('localPublicKey', localPublicKey);
-        printUint8Array('remotePublicKey', remotePublicKey);
-        console.log(`---- localPersonId: ${localPersonId}`);
+    communicationModule.onKnownConnection(
+        (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array,
+            localPersonId: SHA256IdHash<Person>,
+            remotePersonId: SHA256IdHash<Person>
+        ) => {
+            console.log('onKnownConnection');
+            printUint8Array('localPublicKey', localPublicKey);
+            printUint8Array('remotePublicKey', remotePublicKey);
+            console.log(`---- localPersonId: ${localPersonId}`);
+            console.log(`---- remotePersonId: ${remotePersonId}`);
+        }
+    );
+    communicationModule.onUnknownConnection(
+        (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array,
+            localPersonId: SHA256IdHash<Person>
+        ) => {
+            console.log('onUnknownConnection');
+            printUint8Array('localPublicKey', localPublicKey);
+            printUint8Array('remotePublicKey', remotePublicKey);
+            console.log(`---- localPersonId: ${localPersonId}`);
 
-        // Adding contact object
-        /*const instanceEndpoint = await createSingleObjectThroughPurePlan(
+            // Adding contact object
+            /*const instanceEndpoint = await createSingleObjectThroughPurePlan(
             {
                 module: '@one/identity',
                 versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
@@ -126,7 +129,8 @@ async function main(): Promise<void> {
             }
         );
         contactModel.addNewContactObject(contactObject);*/
-    };
+        }
+    );
 
     // Create the instance
     await initInstance({

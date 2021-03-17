@@ -285,8 +285,8 @@ class ConnectionsModel extends EventEmitter {
             this.config.establishOutgoingConnections,
             this.config.connectToOthersWithAnonId
         );
-        this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
-        this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
+        this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
+        this.communicationModule.onUnknownConnection(this.onUnknownConnection.bind(this));
         this.communicationModule.onOnlineStateChange(state => {
             this.emit('onlineStateChange', state);
             this.onOnlineStateChange.emit(state);

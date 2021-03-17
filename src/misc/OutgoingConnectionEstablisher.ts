@@ -2,6 +2,7 @@ import EncryptedConnection_Client from './EncryptedConnection_Client';
 import EncryptedConnection from './EncryptedConnection';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
+import {createEvent} from './OEvent';
 
 const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
 
@@ -13,13 +14,12 @@ const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
  * Attempting to establish a connection is stopped when stop() is called.
  */
 class OutgoingConnectionEstablisher {
-    public onConnection:
-        | ((
-              conn: EncryptedConnection,
-              localPublicKey: Uint8Array,
-              remotePublicKey: Uint8Array
-          ) => void)
-        | null = null;
+    /**
+     * Event is emitted on new connection.
+     */
+    public onConnection = createEvent<
+        (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
+    >();
 
     private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
     private stopped: boolean = true;
@@ -76,8 +76,8 @@ class OutgoingConnectionEstablisher {
                     );
 
                     // Notify the listener of a new connection
-                    if (this.onConnection) {
-                        this.onConnection(conn, myPublicKey, targetPublicKey);
+                    if (this.onConnection.getListenersCount() > 0) {
+                        this.onConnection.emit(conn, myPublicKey, targetPublicKey);
                         break;
                     }
 
@@ -146,14 +146,14 @@ class OutgoingConnectionEstablisher {
     ): Promise<EncryptedConnection> {
         return new Promise((resolve, reject) => {
             // If the connection is successful, stop the oce and return the connection
-            this.onConnection = conn => {
+            this.onConnection(conn => {
                 // We need to remove the connectOnceSuccessfullyReject value before calling
                 // the stop function, because the connection is successful and no error should
                 // be thrown
                 this.connectOnceSuccessfullyReject = null;
                 this.stop();
                 resolve(conn);
-            };
+            });
 
             // On timeout reject the promise
             const timeoutHandle = setTimeout(() => {

@@ -6,7 +6,8 @@
  */
 export enum EventTypes {
     Default,
-    Error
+    Error,
+    ExactlyOneListener
 }
 
 export type OEventType<T extends (...arg: any) => any> = OEvent<T>['connect'] & OEventI<T>;
@@ -39,6 +40,11 @@ export interface OEventI<T extends (...arg: any) => any> {
      * @param emittedValue
      */
     emitAll(...emittedValue: Parameters<T>): Promise<ReturnType<T>[]>;
+
+    /**
+     * Returns the number of the listeners handlers registered for the event.
+     */
+    getListenersCount(): number;
 }
 
 /**
@@ -131,6 +137,9 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
         if (this.handlers.has(callback)) {
             console.error('callback already registered');
         }
+        if (this.type === EventTypes.ExactlyOneListener && this.handlers.size > 0) {
+            throw new Error('There already is a listener for this event.');
+        }
         this.handlers.add(callback);
         return () => {
             const found = this.handlers.delete(callback);
@@ -182,6 +191,10 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
                 console.error(e);
             }
         });
+    }
+
+    getListenersCount(): number {
+        return this.handlers.size;
     }
 
     // ------------------- PRIVATE API -------------------
@@ -283,6 +296,10 @@ export function createEvent<T extends (...arg: any) => any>(
     };
     parenthesisOperator.emitAll = (...args: Parameters<T>) => {
         return oEvent.emitAll(args);
+    };
+
+    parenthesisOperator.getListenersCount = () => {
+        return oEvent.getListenersCount();
     };
 
     return parenthesisOperator;
