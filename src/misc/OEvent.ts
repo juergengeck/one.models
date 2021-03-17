@@ -3,6 +3,7 @@
  * <br>
  *      -> Default - does nothing if no listener is registered.<br>
  *      -> Error - throws if no one is listening.<br>
+ *      -> ExactlyOneListener - throws if connect is called more than one time. <br>
  */
 export enum EventTypes {
     Default,
