@@ -80,42 +80,46 @@ async function main(): Promise<void> {
         }
     );
 
-    connManager.onConnection = async (
-        conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array
-    ): Promise<void> => {
-        try {
-            console.log(`${wslogId(conn.webSocket)}: Accepted connection.`);
+    connManager.onConnection(
+        async (
+            conn: EncryptedConnection,
+            localPublicKey: Uint8Array,
+            remotePublicKey: Uint8Array
+        ): Promise<void> => {
+            try {
+                console.log(`${wslogId(conn.webSocket)}: Accepted connection.`);
 
-            // Release old connection
-            if (consoleWs) {
-                consoleWs.webSocket.close(1000, 'New client connected');
-            }
-
-            // Connect the websocket to the console
-            console.log(
-                `${wslogId(conn.webSocket)}: Connect websocket to console. You can now type stuff.`
-            );
-            consoleWs = conn;
-            consoleWs.webSocket.addEventListener('error', e => {
-                console.log(e.message);
-            });
-            consoleWs.webSocket.addEventListener('close', e => {
-                if (e.reason !== 'New client connected') {
-                    consoleWs = null;
+                // Release old connection
+                if (consoleWs) {
+                    consoleWs.webSocket.close(1000, 'New client connected');
                 }
-                console.log(`${wslogId(conn.webSocket)}: Connection closed: ${e.reason}`);
-            });
 
-            // Wait for messages
-            while (conn.webSocket.readyState === WebSocket.OPEN) {
-                console.log(await conn.waitForMessage());
+                // Connect the websocket to the console
+                console.log(
+                    `${wslogId(
+                        conn.webSocket
+                    )}: Connect websocket to console. You can now type stuff.`
+                );
+                consoleWs = conn;
+                consoleWs.webSocket.addEventListener('error', e => {
+                    console.log(e.message);
+                });
+                consoleWs.webSocket.addEventListener('close', e => {
+                    if (e.reason !== 'New client connected') {
+                        consoleWs = null;
+                    }
+                    console.log(`${wslogId(conn.webSocket)}: Connection closed: ${e.reason}`);
+                });
+
+                // Wait for messages
+                while (conn.webSocket.readyState === WebSocket.OPEN) {
+                    console.log(await conn.waitForMessage());
+                }
+            } catch (e) {
+                console.log(`${wslogId(conn.webSocket)}: ${e}`);
             }
-        } catch (e) {
-            console.log(`${wslogId(conn.webSocket)}: ${e}`);
         }
-    };
+    );
 
     // ######## CONSOLE I/O ########
 

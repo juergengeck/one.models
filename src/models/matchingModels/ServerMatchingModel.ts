@@ -69,8 +69,7 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.initNotifiedUsersList();
 
         await this.accessModel.createAccessGroup(this.accessGroupName);
-        await this.connectionsModel.on(
-            'chum_start',
+        await this.connectionsModel.onChumStart(
             (localPersonId: SHA256IdHash<Person>, remotePersonId: SHA256IdHash<Person>) => {
                 this.accessModel.addPersonToAccessGroup(this.accessGroupName, localPersonId);
                 this.accessModel.addPersonToAccessGroup(this.accessGroupName, remotePersonId);
@@ -80,7 +79,7 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.startMatchingChannel();
         await this.registerHooks();
 
-        await this.accessModel.on('groups_updated', async () => {
+        await this.accessModel.onGroupsUpdated(async () => {
             const accessGroup = await this.accessModel.getAccessGroupByName(this.accessGroupName);
             const personsToGiveAccessTo = this.anonInstanceInfo
                 ? [...accessGroup.obj.person, this.anonInstanceInfo.personId]

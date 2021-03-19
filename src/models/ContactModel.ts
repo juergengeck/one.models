@@ -41,6 +41,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This represents a ContactEvent
@@ -122,6 +123,38 @@ export type MergedContact = {
  * @augments EventEmitter
  */
 export default class ContactModel extends EventEmitter {
+    /**
+     * Event emitted when a new contact is added.
+     */
+    public onContactListUpdate = new OEvent<(contacts: SHA256Hash<Someone>[]) => void>();
+    /**
+     * Event emitted when a contact is updated.
+     */
+    public onContactUpdate = new OEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    /**
+     * Event is emitted when the profile is updated with a new contact object.
+     */
+    public onProfileUpdate = new OEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    /**
+     * Event is emitted when:
+     * - a new profile for myself is created
+     * - a new contact object is created
+     * - profile is updated with a new contact object
+     */
+    public onNewCommunicationEndpointArrive = new OEvent<
+        (communicationEndpoints: SHA256Hash<CommunicationEndpointTypes>[]) => void
+    >();
+    /**
+     * Event is emitted when new ContactApp object is updated.
+     */
+    public onContactAppUpdate = new OEvent<() => void>();
+    /**
+     * Event is emitted when:
+     * - a new contact object is created
+     * - profile is updated with a new contact object
+     */
+    public onContactNew = new OEvent<(caughtObject: UnversionedObjectResult<Contact>) => void>();
+
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
     // @ts-ignore
@@ -805,6 +838,9 @@ export default class ContactModel extends EventEmitter {
                     })
                 );
 
+                this.onNewCommunicationEndpointArrive.emit(
+                    contactObjects[0].communicationEndpoints
+                );
                 this.emit(
                     ContactEvent.NewCommunicationEndpointArrived,
                     contactObjects[0].communicationEndpoints
@@ -890,6 +926,7 @@ export default class ContactModel extends EventEmitter {
             });
 
             this.emit(ContactEvent.UpdatedContactApp);
+            this.onContactAppUpdate.emit();
         }
         if (ContactModel.isProfileVersionedObjectResult(caughtObject)) {
             await serializeWithType('Contacts', async () => {
@@ -945,11 +982,14 @@ export default class ContactModel extends EventEmitter {
                 // So this object might already exist in the profile, because the new profile version was
                 // synchronized. So emit the signals before returning!
                 this.emit(ContactEvent.UpdatedContact, profile);
+                this.onContactUpdate.emit(profile);
                 this.emit(
                     ContactEvent.NewCommunicationEndpointArrived,
                     caughtObject.obj.communicationEndpoints
                 );
+                this.onNewCommunicationEndpointArrive.emit(caughtObject.obj.communicationEndpoints);
                 this.emit(ContactEvent.NewContact, caughtObject);
+                this.onContactNew.emit(caughtObject);
                 // if the profile was just created, use the latest contact that arrived as a main contact and don't let an empty contact
                 if (profile.status === 'new') {
                     profile.obj.mainContact = caughtObject.hash;
@@ -1045,6 +1085,7 @@ export default class ContactModel extends EventEmitter {
                 );
             });
             this.emit(ContactEvent.UpdatedContactList, contactApp.obj.contacts);
+            this.onContactListUpdate.emit(contactApp.obj.contacts);
         }
     }
 
@@ -1099,12 +1140,15 @@ export default class ContactModel extends EventEmitter {
         });
 
         this.emit(ContactEvent.UpdatedProfile, profile);
+        this.onProfileUpdate.emit(profile);
         this.emit(ContactEvent.NewContact, contactObject);
+        this.onContactNew.emit(contactObject);
         if (existingContact === undefined) {
             this.emit(
                 ContactEvent.NewCommunicationEndpointArrived,
                 contactObject.obj.communicationEndpoints
             );
+            this.onNewCommunicationEndpointArrive.emit(contactObject.obj.communicationEndpoints);
         }
     }
 

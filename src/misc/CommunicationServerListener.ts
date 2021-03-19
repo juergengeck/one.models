@@ -3,6 +3,7 @@ import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
+import {OEvent, EventTypes} from './OEvent';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -23,12 +24,12 @@ export enum CommunicationServerListenerState {
  */
 class CommunicationServerListener {
     /**
-     * Handler used after a connection between two instances has been established.
+     * Event is emitted after a connection between two instances has been established.
      */
-    public onConnection: ((webSocket: WebSocketPromiseBased) => void) | null;
+    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
 
     /**
-     * Handler for proving that the instance that has asked to register on the
+     * Event is emitted  for proving that the instance that has asked to register on the
      * communication server has the corresponding private key to the public key
      * sent in the registration process.
      *
@@ -37,22 +38,22 @@ class CommunicationServerListener {
      * re-encrypt the decrypted string using it's private key and the received
      * server public key. The re-encrypted string will be returned.
      */
-    public onChallenge: ((challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array) | null;
+    public onChallenge = new OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>(
+        EventTypes.ExactlyOneListener
+    );
 
     /**
-     * Handler for state change.
-     *
-     * When the state of the connector changes, this callback will be called
-     * in order to have access from outside to the errors that occur on the
-     * web socket level.
+     * Event is emitted when the state of the connector changes. The listener handler
+     * will be called in order to have access from outside to the errors that occur on
+     * the websocket level.
      */
-    public onStateChange:
-        | ((
-              newState: CommunicationServerListenerState,
-              oldState: CommunicationServerListenerState,
-              reason?: string
-          ) => void)
-        | null;
+    public onStateChange = new OEvent<
+        (
+            newState: CommunicationServerListenerState,
+            oldState: CommunicationServerListenerState,
+            reason?: string
+        ) => void
+    >();
 
     public state: CommunicationServerListenerState; // Current connection state.
     private readonly reconnectTimeout: number; // Reconnect timeout when comm server is not reachable
@@ -74,10 +75,6 @@ class CommunicationServerListener {
         this.spareConnectionScheduled = false;
         this.reconnectTimeout = reconnectTimeout;
         this.running = false;
-
-        this.onConnection = null;
-        this.onChallenge = null;
-        this.onStateChange = null;
         this.state = CommunicationServerListenerState.NotListening;
     }
 
@@ -141,10 +138,6 @@ class CommunicationServerListener {
     ): void {
         MessageBus.send('debug', `scheduleSpareConnection(${server}, ${delayed})`);
 
-        // Check prerequisites for scheduling
-        if (!this.onChallenge) {
-            throw Error('onChallenge clalback is not registered.');
-        }
         if (!this.running) {
             // do not schedule if already stopped
             return;
@@ -193,9 +186,7 @@ class CommunicationServerListener {
             // On success schedule a new spare connection and give the outside world the connection via event
             else {
                 this.scheduleSpareConnection(server, publicKey, false);
-                if (this.onConnection) {
-                    this.onConnection(connection.webSocketPB);
-                }
+                this.onConnection.emit(connection.webSocketPB);
             }
         };
 
@@ -271,8 +262,8 @@ class CommunicationServerListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange && newState != oldState) {
-            this.onStateChange(newState, oldState, reason);
+        if (newState != oldState) {
+            this.onStateChange.emit(newState, oldState, reason);
         }
     }
 
@@ -300,7 +291,7 @@ class CommunicationServerListener {
         server: string,
         publicKey: Uint8Array,
         onConnect: (ws: CommunicationServerConnection_Client, err?: Error) => void,
-        onChallenge: (challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array
+        onChallengeEvent: OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
     ): Promise<CommunicationServerConnection_Client> {
         MessageBus.send('log', `establishConnection(${server})`);
 
@@ -331,8 +322,11 @@ class CommunicationServerListener {
                 'log',
                 `${wslogId(connection.webSocket)}: Step 3: Send authentication_response message`
             );
-            const response = onChallenge(authRequest.challenge, authRequest.publicKey);
-            await connection.sendAuthenticationResponseMessage(response);
+            const response = await onChallengeEvent.emitAll(
+                authRequest.challenge,
+                authRequest.publicKey
+            );
+            await connection.sendAuthenticationResponseMessage(response[0]);
 
             // Step4: Wait for authentication success message
             MessageBus.send(

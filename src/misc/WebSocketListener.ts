@@ -2,6 +2,7 @@ import WebSocket from 'isomorphic-ws';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
+import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -19,24 +20,22 @@ export enum WebSocketListenerState {
  */
 class WebSocketListener {
     /**
-     * Handler is called on incoming connections.
+     * Event is emitted on incoming connections.
      */
-    public onConnection: ((webSocket: WebSocketPromiseBased) => void) | null = null;
+    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
 
     /**
-     * Handler for state change.
-     *
-     * When the state of the connector changes, this callback will be called
-     * in order to have access from outside to the errors that occur on the
-     * web socket level.
+     * Event is emitted when the state of the connector changes. The listener callback
+     * will be called in order to have access from outside to the errors that occur on
+     * the web socket level.
      */
-    public onStateChange:
-        | ((
-              newState: WebSocketListenerState,
-              oldState: WebSocketListenerState,
-              reason?: string
-          ) => void)
-        | null = null;
+    public onStateChange = new OEvent<
+        (
+            newState: WebSocketListenerState,
+            oldState: WebSocketListenerState,
+            reason?: string
+        ) => void
+    >();
 
     public state: WebSocketListenerState; // Current connection state.
     private webSocketServer: WebSocket.Server | null = null; // The web socket server for listening for connections
@@ -134,9 +133,7 @@ class WebSocketListener {
     private async acceptConnection(ws: WebSocket): Promise<void> {
         MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
         try {
-            if (this.onConnection) {
-                this.onConnection(new WebSocketPromiseBased(ws));
-            }
+            this.onConnection.emit(new WebSocketPromiseBased(ws));
         } catch (e) {
             MessageBus.send('log', `${wslogId(ws)}: ${e}`);
             ws.close();
@@ -155,9 +152,9 @@ class WebSocketListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange && newState != oldState) {
+        if (this.onStateChange.listenerCount() > 0 && newState != oldState) {
             try {
-                this.onStateChange(newState, oldState, reason);
+                this.onStateChange.emit(newState, oldState, reason);
             } catch (e) {
                 MessageBus.send('log', `Error calling onStateChange handler: ${e}`);
             }

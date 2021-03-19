@@ -62,82 +62,89 @@ async function main(): Promise<void> {
 
     // Create commserver listener and register callbacks
     const listener = new CommunicationServerListener(argv.s, argv.t);
-    listener.onChallenge = (challenge: Uint8Array, pubkey: Uint8Array): Uint8Array => {
-        const decryptedChallenge = decryptWithPublicKey(pubkey, challenge, keyPair.secretKey);
-        for (let i = 0; i < decryptedChallenge.length; ++i) {
-            decryptedChallenge[i] = ~decryptedChallenge[i];
-        }
-        return encryptWithPublicKey(pubkey, decryptedChallenge, keyPair.secretKey);
-    };
-    listener.onConnection = async (ws: WebSocketPromiseBased): Promise<void> => {
-        try {
-            console.log(`${wslogId(ws.webSocket)}: Accepted connection.`);
-            const conn = new EncryptedConnetion_Server(ws);
-            const request = await conn.waitForUnencryptedMessage('communication_request');
-            if (tweetnacl.verify(request.targetPublicKey, keyPair.publicKey)) {
-                // Sending to the client that we accept his connection
-                console.log(`${wslogId(ws.webSocket)}: Send communication_accept message.`);
-                await conn.sendCommunicationReadyMessage();
-
-                // Release old connection
-                if (consoleWs) {
-                    consoleWs.webSocket.close(1000, 'New client connected');
-                }
-
-                // Setup encryption
-                console.log(`${wslogId(ws.webSocket)}: Setup encryption.`);
-                await conn.exchangeKeys(
-                    (text): Uint8Array => {
-                        return encryptWithPublicKey(
-                            request.sourcePublicKey,
-                            text,
-                            keyPair.secretKey
-                        );
-                    },
-                    cypher => {
-                        return decryptWithPublicKey(
-                            request.sourcePublicKey,
-                            cypher,
-                            keyPair.secretKey
-                        );
-                    }
-                );
-
-                // Connect the websocket to the console
-                console.log(
-                    `${wslogId(
-                        ws.webSocket
-                    )}: Connect websocket to console. You can now type stuff.`
-                );
-                consoleWs = conn;
-                consoleWs.webSocket.addEventListener('error', e => {
-                    console.log(e.message);
-                });
-                consoleWs.webSocket.addEventListener('close', e => {
-                    if (e.reason !== 'New client connected') {
-                        consoleWs = null;
-                    }
-                    console.log(`${wslogId(ws.webSocket)}: Connection closed: ${e.reason}`);
-                });
-
-                // Wait for messages
-                while (conn.webSocket.readyState === WebSocket.OPEN) {
-                    console.log(await conn.waitForMessage());
-                }
-            } else {
-                conn.close('Request public key does not match this public key.');
-                throw new Error('Request public key does not match this public key.');
+    listener.onChallenge(
+        (challenge: Uint8Array, pubkey: Uint8Array): Uint8Array => {
+            const decryptedChallenge = decryptWithPublicKey(pubkey, challenge, keyPair.secretKey);
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
             }
-        } catch (e) {
-            console.log(`${wslogId(ws.webSocket)}: ${e}`);
+            return encryptWithPublicKey(pubkey, decryptedChallenge, keyPair.secretKey);
         }
-    };
-    listener.onStateChange = (
-        newState: CommunicationServerListenerState,
-        oldState: CommunicationServerListenerState
-    ) => {
-        console.log(`State change from '${oldState}' to '${newState}'`);
-    };
+    );
+    listener.onConnection(
+        async (ws: WebSocketPromiseBased): Promise<void> => {
+            try {
+                console.log(`${wslogId(ws.webSocket)}: Accepted connection.`);
+                const conn = new EncryptedConnetion_Server(ws);
+                const request = await conn.waitForUnencryptedMessage('communication_request');
+                if (tweetnacl.verify(request.targetPublicKey, keyPair.publicKey)) {
+                    // Sending to the client that we accept his connection
+                    console.log(`${wslogId(ws.webSocket)}: Send communication_accept message.`);
+                    await conn.sendCommunicationReadyMessage();
+
+                    // Release old connection
+                    if (consoleWs) {
+                        consoleWs.webSocket.close(1000, 'New client connected');
+                    }
+
+                    // Setup encryption
+                    console.log(`${wslogId(ws.webSocket)}: Setup encryption.`);
+                    await conn.exchangeKeys(
+                        (text): Uint8Array => {
+                            return encryptWithPublicKey(
+                                request.sourcePublicKey,
+                                text,
+                                keyPair.secretKey
+                            );
+                        },
+                        cypher => {
+                            return decryptWithPublicKey(
+                                request.sourcePublicKey,
+                                cypher,
+                                keyPair.secretKey
+                            );
+                        }
+                    );
+
+                    // Connect the websocket to the console
+                    console.log(
+                        `${wslogId(
+                            ws.webSocket
+                        )}: Connect websocket to console. You can now type stuff.`
+                    );
+                    consoleWs = conn;
+                    consoleWs.webSocket.addEventListener('error', e => {
+                        console.log(e.message);
+                    });
+                    consoleWs.webSocket.addEventListener('close', e => {
+                        if (e.reason !== 'New client connected') {
+                            consoleWs = null;
+                        }
+                        console.log(`${wslogId(ws.webSocket)}: Connection closed: ${e.reason}`);
+                    });
+
+                    // Wait for messages
+                    while (conn.webSocket.readyState === WebSocket.OPEN) {
+                        console.log(await conn.waitForMessage());
+                    }
+                } else {
+                    conn.close('Request public key does not match this public key.');
+                    throw new Error('Request public key does not match this public key.');
+                }
+            } catch (e) {
+                console.log(`${wslogId(ws.webSocket)}: ${e}`);
+            }
+        }
+    );
+
+    listener.onStateChange(
+        (
+            newState: CommunicationServerListenerState,
+            oldState: CommunicationServerListenerState
+        ) => {
+            console.log(`State change from '${oldState}' to '${newState}'`);
+        }
+    );
 
     // Start comm server
     listener.start(argv.u, keyPair.publicKey);

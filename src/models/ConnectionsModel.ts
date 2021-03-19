@@ -36,6 +36,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import {OEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -147,6 +148,38 @@ type PkAuthenticationTokenInfo = {
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
 class ConnectionsModel extends EventEmitter {
+    /**
+     * Event is emitted when state of the connector changes. The emitted value represents the updated state.
+     */
+    public onOnlineStateChange = new OEvent<(state: boolean) => void>();
+    /**
+     * Event is emitted when a connection is established or closed.
+     */
+    public onConnectionsChange = new OEvent<() => void>();
+    /**
+     * Event is emitted when the one time authentication was successful. The emitted event value represents the
+     * authentication token.
+     */
+    public onOneTimeAuthSuccess = new OEvent<
+        (
+            token: string,
+            flag: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            personId: SHA256IdHash<Person>
+        ) => void
+    >();
+    /**
+     * Event is emitted when the chum starts.
+     */
+    public onChumStart = new OEvent<
+        (
+            localPersonId: SHA256IdHash<Person>,
+            remotePersonId: SHA256IdHash<Person>,
+            protocol: CommunicationInitiationProtocol.Protocols,
+            initiatedLocally: boolean
+        ) => void
+    >();
+
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
@@ -252,13 +285,15 @@ class ConnectionsModel extends EventEmitter {
             this.config.establishOutgoingConnections,
             this.config.connectToOthersWithAnonId
         );
-        this.communicationModule.onKnownConnection = this.onKnownConnection.bind(this);
-        this.communicationModule.onUnknownConnection = this.onUnknownConnection.bind(this);
-        this.communicationModule.on('onlineStateChange', state => {
+        this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
+        this.communicationModule.onUnknownConnection(this.onUnknownConnection.bind(this));
+        this.communicationModule.onOnlineStateChange(state => {
             this.emit('onlineStateChange', state);
+            this.onOnlineStateChange.emit(state);
         });
-        this.communicationModule.on('connectionsChange', state => {
-            this.emit('connectionsChange', state);
+        this.communicationModule.onConnectionsChange(() => {
+            this.emit('connectionsChange');
+            this.onConnectionsChange.emit();
         });
 
         // Changed by init
@@ -1024,6 +1059,12 @@ class ConnectionsModel extends EventEmitter {
             localPersonId,
             remotePersonInfo.personId
         );
+        this.onOneTimeAuthSuccess.emit(
+            authToken.token,
+            true,
+            localPersonId,
+            remotePersonInfo.personId
+        );
 
         // Step 4: Start the chum
         await this.startChum(
@@ -1083,6 +1124,12 @@ class ConnectionsModel extends EventEmitter {
         // emit the one_time_auth_success event with the corresponding authentication token
         this.emit(
             'one_time_auth_success',
+            authenticationToken,
+            false,
+            localPersonId,
+            personInfo.personId
+        );
+        this.onOneTimeAuthSuccess.emit(
             authenticationToken,
             false,
             localPersonId,
@@ -1183,6 +1230,12 @@ class ConnectionsModel extends EventEmitter {
             localPersonId,
             remotePersonInfo.personId
         );
+        this.onOneTimeAuthSuccess.emit(
+            authToken.token,
+            true,
+            localPersonId,
+            remotePersonInfo.personId
+        );
 
         // Step 5: Start the chum
         await this.startChum(
@@ -1256,6 +1309,12 @@ class ConnectionsModel extends EventEmitter {
             'one_time_auth_success',
             authenticationToken,
             false,
+            localPersonId,
+            personInfo.personId
+        );
+        this.onOneTimeAuthSuccess.emit(
+            authenticationToken,
+            true,
             localPersonId,
             personInfo.personId
         );
@@ -1398,6 +1457,7 @@ class ConnectionsModel extends EventEmitter {
         keepRunning: boolean = true
     ): Promise<void> {
         this.emit('chum_start', localPersonId, remotePersonId, protocol, initiatedLocally);
+        this.onChumStart.emit(localPersonId, remotePersonId, protocol, initiatedLocally);
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (initiatedLocally) {

@@ -84,10 +84,10 @@ async function main(): Promise<void> {
     // From here on - raw websocket communication
     const consoleWs: EncryptedConnection = conn;
     conn.switchToEvents = true;
-    consoleWs.on('message', data => {
+    consoleWs.onMessage(data => {
         console.log(new TextDecoder().decode(data));
     });
-    consoleWs.on('error', e => {
+    consoleWs.onError(e => {
         console.log(e.message);
     });
     consoleWs.webSocket.addEventListener('close', e => {

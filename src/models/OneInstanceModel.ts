@@ -17,6 +17,7 @@ import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -82,20 +83,43 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
  * Model that exposes functionality closely related to one.core
  */
 export default class OneInstanceModel extends EventEmitter {
-    // This signal is emitted just before the login finishes and after the instance is created
-    // so that you can initialize the models
-    public loggingIn:
-        | ((
-              currentRegistrationState: boolean,
-              anonymousEmail?: string,
-              takeOver?: boolean,
-              recoveryState?: boolean
-          ) => Promise<void>)
-        | null;
+    /**
+     * Event emitted:
+     * - when a new instance is created with takeOver
+     * - on login
+     * - on logout
+     * - on registration
+     */
+    public onAuthStateChange = new OEvent<() => void>();
+    /**
+     * Event is emitted when the number of patients connections (and the partner state) changes.
+     */
+    public onPartnerStateChange = new OEvent<() => void>();
+    /**
+     * Event is emitted when the user registration state changes. This is triggered on login if the user is doing IoM
+     * initialisation or if doesn't have the consent file, when starting the registration process and when the
+     * registration process is finished.
+     * */
+    public onRegistrationStateChange = new OEvent<() => void>();
 
-    // This signal is emitted just before the logout finishes and before the instance is closed
-    // so that you can shutdown the models
-    public loggingOut: (() => Promise<void>) | null;
+    /**
+     * This event is emitted just before the login finishes and after the instance is
+     * create so that you can initialize the models.
+     */
+    public loggingIn = new OEvent<
+        (
+            currentRegistrationState: boolean,
+            anonymousEmail?: string,
+            takeOver?: boolean,
+            recoveryState?: boolean
+        ) => Promise<void>
+    >();
+
+    /**
+     * This event is emitted just before the logout finishes and before the instance is
+     * closed so that you can shutdown the models.
+     */
+    public loggingOut = new OEvent<() => Promise<void>>();
 
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;
@@ -155,11 +179,8 @@ export default class OneInstanceModel extends EventEmitter {
         this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
 
-        this.loggingIn = null;
-        this.loggingOut = null;
-
         // listen for update events in access model and check for patient connections
-        this.accessModel.on('groups_updated', () => {
+        this.accessModel.onGroupsUpdated(() => {
             if (
                 this.currentAuthenticationState === AuthenticationState.Authenticated &&
                 this.currentPatientTypeState.includes('partner')
@@ -283,6 +304,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.unregister();
         await this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
         this.emit('authstate_changed');
+        this.onAuthStateChange.emit();
     }
 
     /**
@@ -334,14 +356,13 @@ export default class OneInstanceModel extends EventEmitter {
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
-        if (this.loggingIn) {
-            await this.loggingIn(
-                this.currentRegistrationState,
-                anonymousEmail,
-                takeOver,
-                recoveryState
-            );
-        }
+
+        await this.loggingIn.emitAll(
+            this.currentRegistrationState,
+            anonymousEmail,
+            takeOver,
+            recoveryState
+        );
 
         if (this.currentPatientTypeState.includes('partner')) {
             this.updatePartnerState().catch(e => console.error(e));
@@ -359,9 +380,11 @@ export default class OneInstanceModel extends EventEmitter {
         if (availablePatientConnections.length > 0) {
             this.currentPartnerState = false;
             this.emit('partner_state_changed');
+            this.onPartnerStateChange.emit();
         } else {
             this.currentPartnerState = true;
             this.emit('partner_state_changed');
+            this.onPartnerStateChange.emit();
         }
     }
 
@@ -385,7 +408,9 @@ export default class OneInstanceModel extends EventEmitter {
             this.currentRegistrationState = true;
             this.currentAuthenticationState = AuthenticationState.Authenticated;
             this.emit('registration_state_changed');
+            this.onRegistrationStateChange.emit();
             this.emit('authstate_changed');
+            this.onAuthStateChange.emit();
             return;
         }
 
@@ -405,9 +430,11 @@ export default class OneInstanceModel extends EventEmitter {
             } catch {
                 this.currentRegistrationState = true;
                 this.emit('registration_state_changed');
+                this.onRegistrationStateChange.emit();
             }
 
             this.emit('authstate_changed');
+            this.onAuthStateChange.emit();
         }
     }
 
@@ -422,12 +449,11 @@ export default class OneInstanceModel extends EventEmitter {
         // you won't see clitches, because of the indivdual models shutting down
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
         this.emit('authstate_changed');
+        this.onAuthStateChange.emit();
 
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
-        if (this.loggingOut) {
-            await this.loggingOut();
-        }
+        await this.loggingOut.emitAll();
 
         // Close the one instance -> why delayed?
         const dbInstance = getDbInstance();
@@ -453,7 +479,9 @@ export default class OneInstanceModel extends EventEmitter {
             this.currentPatientTypeState = patientType;
             await this.initialiseInstance(secret);
             this.emit('registration_state_changed');
+            this.onRegistrationStateChange.emit();
             this.emit('authstate_changed');
+            this.onAuthStateChange.emit();
             return;
         }
 
@@ -468,6 +496,7 @@ export default class OneInstanceModel extends EventEmitter {
     unregister(): void {
         this.currentRegistrationState = false;
         this.emit('registration_state_changed');
+        this.onRegistrationStateChange.emit();
     }
 
     /**

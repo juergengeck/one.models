@@ -7,11 +7,19 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
 import {Electrocardiogram, SHA256Hash} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
-export default class ECGModel extends EventEmitter {
+export default class ECGModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when ecg data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
+    private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
     private readonly channelId: string;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
     /**
      * Construct a new instance
      *
@@ -21,7 +29,6 @@ export default class ECGModel extends EventEmitter {
         super();
         this.channelId = 'electrocardiogram';
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleChannelUpdate.bind(this);
     }
 
     /**
@@ -29,7 +36,7 @@ export default class ECGModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
     /**
@@ -140,7 +147,9 @@ export default class ECGModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -179,6 +188,7 @@ export default class ECGModel extends EventEmitter {
     private async handleChannelUpdate(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

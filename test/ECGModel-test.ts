@@ -9,7 +9,6 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {Electrocardiogram} from '@OneCoreTypes';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import ECGModel from '../lib/models/ECGModel';
-import rimraf from 'rimraf';
 let ecgModel: ECGModel;
 let testModel;
 
