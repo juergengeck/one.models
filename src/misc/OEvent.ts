@@ -21,7 +21,7 @@ export enum EventTypes {
  *
  * - emit(args): Use when the emitter doesn't care about the result of the execution of the listeners.
  * - emitAll(args): Use when the emitter is interested in the results of the listeners execution or if the
- *                  emitter wants to wait until all listeners have completed their execution.
+ * emitter wants to wait until all listeners have completed their execution.
  * - emitRace(args): Use when the emitter is interested only in the first settled promise from the listeners.
  *
  * Executing handlers sequentially vs parallelly:
