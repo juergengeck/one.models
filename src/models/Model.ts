@@ -1,9 +1,9 @@
-import {OEventType} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * Models interface.
  */
 export interface Model {
-    onUpdated: OEventType<() => void>;
+    onUpdated: OEvent<() => void>;
     shutdown(): Promise<void>;
 }

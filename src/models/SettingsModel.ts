@@ -5,7 +5,7 @@ import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 // -------- LOW LEVEL API -----------
 
@@ -18,7 +18,7 @@ export abstract class PropertyTree extends EventEmitter {
     /**
      * Event is emitted when the settings are updated.
      */
-    public onSettingChange = createEvent<(key: string, value: string | undefined) => void>();
+    public onSettingChange = new OEvent<(key: string, value: string | undefined) => void>();
     proxyInstances: Map<string, PropertyTreeProxy> = new Map<string, PropertyTreeProxy>();
 
     abstract setValue(key: string, value: string): Promise<void>;

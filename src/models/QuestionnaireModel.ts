@@ -6,7 +6,7 @@ import {
     QuestionnaireResponses as QuestionnaireResponses_1_0_0,
     SHA256IdHash
 } from '@OneCoreTypes';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 // Export the Questionnaire types
@@ -35,12 +35,12 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the incomplete questionnaire response data is updated.
      */
-    public onIncompleteResponse = createEvent<() => void>();
+    public onIncompleteResponse = new OEvent<() => void>();
 
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     private channelManager: ChannelManager;
     private readonly channelId: string;

@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {DiaryEntry as OneDiaryEntry} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 /**
@@ -43,7 +43,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     /**
      * Event emitted when diary data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
     channelId: string;

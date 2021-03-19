@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 /**
@@ -19,7 +19,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     /**
      * Event is emitted when body temperature data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
     channelId: string;

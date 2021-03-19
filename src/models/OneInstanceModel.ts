@@ -17,7 +17,7 @@ import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -90,23 +90,23 @@ export default class OneInstanceModel extends EventEmitter {
      * - on logout
      * - on registration
      */
-    public onAuthStateChange = createEvent<() => void>();
+    public onAuthStateChange = new OEvent<() => void>();
     /**
      * Event is emitted when the number of patients connections (and the partner state) changes.
      */
-    public onPartnerStateChange = createEvent<() => void>();
+    public onPartnerStateChange = new OEvent<() => void>();
     /**
      * Event is emitted when the user registration state changes. This is triggered on login if the user is doing IoM
      * initialisation or if doesn't have the consent file, when starting the registration process and when the
      * registration process is finished.
      * */
-    public onRegistrationStateChange = createEvent<() => void>();
+    public onRegistrationStateChange = new OEvent<() => void>();
 
     /**
      * This event is emitted just before the login finishes and after the instance is
      * create so that you can initialize the models.
      */
-    public loggingIn = createEvent<
+    public loggingIn = new OEvent<
         (
             currentRegistrationState: boolean,
             anonymousEmail?: string,
@@ -119,7 +119,7 @@ export default class OneInstanceModel extends EventEmitter {
      * This event is emitted just before the logout finishes and before the instance is
      * closed so that you can shutdown the models.
      */
-    public loggingOut = createEvent<() => Promise<void>>();
+    public loggingOut = new OEvent<() => Promise<void>>();
 
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;

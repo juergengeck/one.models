@@ -20,7 +20,7 @@ import {
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {Model} from '../Model';
-import {createEvent} from '../../misc/OEvent';
+import {OEvent} from '../../misc/OEvent';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -33,7 +33,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     /**
      * Event emitted when matching data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;

@@ -15,7 +15,7 @@ import InstancesModel, {LocalInstanceInfo} from '../models/InstancesModel';
 import {createCrypto} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 
 /**
  * This type represents information about a connection.
@@ -111,16 +111,16 @@ export default class CommunicationModule extends EventEmitter {
     /**
      *  Event is emitted when the state of the connector changes. The event contains the value of the online state.
      */
-    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+    public onOnlineStateChange = new OEvent<(state: boolean) => void>();
     /**
      * Event is emitted when a connection is established or closed.
      */
-    public onConnectionsChange = createEvent<() => void>();
+    public onConnectionsChange = new OEvent<() => void>();
 
     /**
      * Event that is emitted if an incoming connection was accepted, but the identity of the other side is not known
      */
-    public onUnknownConnection = createEvent<
+    public onUnknownConnection = new OEvent<
         (
             conn: EncryptedConnection,
             localPublicKey: Uint8Array,
@@ -133,7 +133,7 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Event that is emitted if an incoming connection was accepted and the identity of the other side is known
      */
-    public onKnownConnection = createEvent<
+    public onKnownConnection = new OEvent<
         (
             conn: EncryptedConnection,
             localPublicKey: Uint8Array,
@@ -751,7 +751,7 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
-            if (this.onUnknownConnection.getListenersCount() === 0) {
+            if (this.onUnknownConnection.listenerCount() === 0) {
                 conn.close('no one listens on unknown connections.');
                 return;
             }

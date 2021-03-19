@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {WbcObservation} from '@OneCoreTypes';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 const MessageBus = createMessageBus('WbcDiffModel');
 
@@ -13,7 +13,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the wbc data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
     channelManager: ChannelManager;
     channelId: string;
 

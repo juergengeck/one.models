@@ -3,7 +3,7 @@ import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');
 
@@ -18,11 +18,11 @@ class EncryptedConnection extends EncryptedConnectionInterface {
     /**
      * Event is emitted when an encrypted message is received. The event contains the decrypted message.
      */
-    public onMessage = createEvent<(decrypted: Uint8Array) => void>();
+    public onMessage = new OEvent<(decrypted: Uint8Array) => void>();
     /**
      * Event is emitted when the message data type is invalid or the decryption fails.
      */
-    public onError = createEvent<(error: any) => void>();
+    public onError = new OEvent<(error: any) => void>();
 
     // @ts-ignore
     public webSocketPB: WebSocketPromiseBased; // Websocket used for communication

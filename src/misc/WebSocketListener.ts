@@ -2,7 +2,7 @@ import WebSocket from 'isomorphic-ws';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -22,14 +22,14 @@ class WebSocketListener {
     /**
      * Event is emitted on incoming connections.
      */
-    public onConnection = createEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
 
     /**
      * Event is emitted when the state of the connector changes. The listener callback
      * will be called in order to have access from outside to the errors that occur on
      * the web socket level.
      */
-    public onStateChange = createEvent<
+    public onStateChange = new OEvent<
         (
             newState: WebSocketListenerState,
             oldState: WebSocketListenerState,
@@ -152,7 +152,7 @@ class WebSocketListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange.getListenersCount() > 0 && newState != oldState) {
+        if (this.onStateChange.listenerCount() > 0 && newState != oldState) {
             try {
                 this.onStateChange.emit(newState, oldState, reason);
             } catch (e) {

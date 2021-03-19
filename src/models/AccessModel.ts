@@ -20,7 +20,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
@@ -38,7 +38,7 @@ export default class AccessModel extends EventEmitter {
      * - persons are added to the access group
      * - persons are removed from the access group
      */
-    public onGroupsUpdated = createEvent<() => void>();
+    public onGroupsUpdated = new OEvent<() => void>();
 
     constructor() {
         super();

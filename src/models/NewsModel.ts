@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {News as OneNews} from '@OneCoreTypes';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 /**
@@ -37,11 +37,11 @@ export default class NewsModel extends EventEmitter implements Model {
     /**
      * Event emitted when news data is updated.
      */
-    public onNewsEvent = createEvent<() => void>();
+    public onNewsEvent = new OEvent<() => void>();
     /**
      * Event emitted when news or feedback data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
 

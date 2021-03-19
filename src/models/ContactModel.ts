@@ -41,7 +41,7 @@ import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
 import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This represents a ContactEvent
@@ -126,34 +126,34 @@ export default class ContactModel extends EventEmitter {
     /**
      * Event emitted when a new contact is added.
      */
-    public onContactListUpdate = createEvent<(contacts: SHA256Hash<Someone>[]) => void>();
+    public onContactListUpdate = new OEvent<(contacts: SHA256Hash<Someone>[]) => void>();
     /**
      * Event emitted when a contact is updated.
      */
-    public onContactUpdate = createEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    public onContactUpdate = new OEvent<(profile: VersionedObjectResult<Profile>) => void>();
     /**
      * Event is emitted when the profile is updated with a new contact object.
      */
-    public onProfileUpdate = createEvent<(profile: VersionedObjectResult<Profile>) => void>();
+    public onProfileUpdate = new OEvent<(profile: VersionedObjectResult<Profile>) => void>();
     /**
      * Event is emitted when:
      * - a new profile for myself is created
      * - a new contact object is created
      * - profile is updated with a new contact object
      */
-    public onNewCommunicationEndpointArrive = createEvent<
+    public onNewCommunicationEndpointArrive = new OEvent<
         (communicationEndpoints: SHA256Hash<CommunicationEndpointTypes>[]) => void
     >();
     /**
      * Event is emitted when new ContactApp object is updated.
      */
-    public onContactAppUpdate = createEvent<() => void>();
+    public onContactAppUpdate = new OEvent<() => void>();
     /**
      * Event is emitted when:
      * - a new contact object is created
      * - profile is updated with a new contact object
      */
-    public onContactNew = createEvent<(caughtObject: UnversionedObjectResult<Contact>) => void>();
+    public onContactNew = new OEvent<(caughtObject: UnversionedObjectResult<Contact>) => void>();
 
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;

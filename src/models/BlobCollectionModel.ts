@@ -11,7 +11,7 @@ import {
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 export interface BlobDescriptor {
@@ -43,7 +43,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     /**
      * Event is emitted when blob collection data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     private channelManager: ChannelManager;
     private channelOwner: SHA256IdHash<Person> | undefined;

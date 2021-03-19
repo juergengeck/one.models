@@ -7,14 +7,14 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
 import {Electrocardiogram, SHA256Hash} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 export default class ECGModel extends EventEmitter implements Model {
     /**
      * Event emitted when ecg data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;

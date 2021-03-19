@@ -2,7 +2,7 @@ import EncryptedConnection_Client from './EncryptedConnection_Client';
 import EncryptedConnection from './EncryptedConnection';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('OutgoingConnectionEstablisher');
 
@@ -17,7 +17,7 @@ class OutgoingConnectionEstablisher {
     /**
      * Event is emitted on new connection.
      */
-    public onConnection = createEvent<
+    public onConnection = new OEvent<
         (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
     >();
 
@@ -76,7 +76,7 @@ class OutgoingConnectionEstablisher {
                     );
 
                     // Notify the listener of a new connection
-                    if (this.onConnection.getListenersCount() > 0) {
+                    if (this.onConnection.listenerCount() > 0) {
                         this.onConnection.emit(conn, myPublicKey, targetPublicKey);
                         break;
                     }

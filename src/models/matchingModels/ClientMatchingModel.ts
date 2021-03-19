@@ -24,7 +24,7 @@ import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
 import matchingContact from '../../../matching_contact/matching_public_contact.json';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {createEvent} from '../../misc/OEvent';
+import {OEvent} from '../../misc/OEvent';
 
 /**
  * This represents a MatchingEvents
@@ -60,22 +60,22 @@ export default class ClientMatchingModel extends MatchingModel {
      * - a supply object is deleted
      * - the active status of the supply is changed
      */
-    public onSupplyUpdate = createEvent<() => void>();
+    public onSupplyUpdate = new OEvent<() => void>();
     /**
      * Event is emitted when:
      * - a demand object is created
      * - a demand object is deleted
      * - the active status of the demand is changed
      */
-    public onDemandUpdate = createEvent<() => void>();
+    public onDemandUpdate = new OEvent<() => void>();
     /**
      * Event is emitted when a new supply or demand object is received.
      */
-    public onCatalogUpdate = createEvent<() => void>();
+    public onCatalogUpdate = new OEvent<() => void>();
     /**
      * Event is emitted when a new match is found.
      */
-    public onMatchUpdate = createEvent<() => void>();
+    public onMatchUpdate = new OEvent<() => void>();
 
     private matchMapName = 'MatchMap';
 

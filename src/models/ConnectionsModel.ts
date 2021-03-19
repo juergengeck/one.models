@@ -36,7 +36,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -151,16 +151,16 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Event is emitted when state of the connector changes. The emitted value represents the updated state.
      */
-    public onOnlineStateChange = createEvent<(state: boolean) => void>();
+    public onOnlineStateChange = new OEvent<(state: boolean) => void>();
     /**
      * Event is emitted when a connection is established or closed.
      */
-    public onConnectionsChange = createEvent<() => void>();
+    public onConnectionsChange = new OEvent<() => void>();
     /**
      * Event is emitted when the one time authentication was successful. The emitted event value represents the
      * authentication token.
      */
-    public onOneTimeAuthSuccess = createEvent<
+    public onOneTimeAuthSuccess = new OEvent<
         (
             token: string,
             flag: boolean,
@@ -171,7 +171,7 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Event is emitted when the chum starts.
      */
-    public onChumStart = createEvent<
+    public onChumStart = new OEvent<
         (
             localPersonId: SHA256IdHash<Person>,
             remotePersonId: SHA256IdHash<Person>,

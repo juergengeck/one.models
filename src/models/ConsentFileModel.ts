@@ -3,7 +3,7 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 /**
@@ -35,7 +35,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     /**
      * Event is emitted when the consent file data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
     channelId: string;

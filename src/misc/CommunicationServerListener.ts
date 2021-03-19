@@ -3,7 +3,7 @@ import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
-import {createEvent, EventTypes, OEventType} from './OEvent';
+import {OEvent, EventTypes} from './OEvent';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -26,7 +26,7 @@ class CommunicationServerListener {
     /**
      * Event is emitted after a connection between two instances has been established.
      */
-    public onConnection = createEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
 
     /**
      * Event is emitted  for proving that the instance that has asked to register on the
@@ -38,7 +38,7 @@ class CommunicationServerListener {
      * re-encrypt the decrypted string using it's private key and the received
      * server public key. The re-encrypted string will be returned.
      */
-    public onChallenge = createEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>(
+    public onChallenge = new OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>(
         EventTypes.ExactlyOneListener
     );
 
@@ -47,7 +47,7 @@ class CommunicationServerListener {
      * will be called in order to have access from outside to the errors that occur on
      * the websocket level.
      */
-    public onStateChange = createEvent<
+    public onStateChange = new OEvent<
         (
             newState: CommunicationServerListenerState,
             oldState: CommunicationServerListenerState,
@@ -291,7 +291,7 @@ class CommunicationServerListener {
         server: string,
         publicKey: Uint8Array,
         onConnect: (ws: CommunicationServerConnection_Client, err?: Error) => void,
-        onChallengeEvent: OEventType<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
+        onChallengeEvent: OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
     ): Promise<CommunicationServerConnection_Client> {
         MessageBus.send('log', `establishConnection(${server})`);
 

@@ -3,7 +3,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
 import {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -20,7 +20,7 @@ export default class WebSocketPromiseBased extends EventEmitter
     /**
      * Event is emitted when a new message is received.
      */
-    public onMessage = createEvent<(messageEvent: WebSocket.MessageEvent) => void>();
+    public onMessage = new OEvent<(messageEvent: WebSocket.MessageEvent) => void>();
 
     // @ts-ignore
     public webSocket: WebSocket | null;

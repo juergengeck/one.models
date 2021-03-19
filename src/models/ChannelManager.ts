@@ -38,7 +38,7 @@ import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -210,7 +210,7 @@ export default class ChannelManager extends EventEmitter {
      * This event is emitted for each channel that has new data. The emitted event value has the (channelId,
      * channelOwner) pair.
      */
-    public onUpdated = createEvent<
+    public onUpdated = new OEvent<
         (channelId: string, channelOwner: SHA256IdHash<Person>) => void
     >();
 

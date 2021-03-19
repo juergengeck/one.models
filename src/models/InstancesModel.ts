@@ -19,7 +19,7 @@ import {
     loadInstanceKeys
 } from 'one.core/lib/instance-crypto';
 import {EventEmitter} from 'events';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This type stores information about an instance.
@@ -61,7 +61,7 @@ class InstancesModel extends EventEmitter {
     /**
      * Event emitted when a local instance is created.
      */
-    public onInstanceCreated = createEvent<(instance: SHA256IdHash<Instance>) => void>();
+    public onInstanceCreated = new OEvent<(instance: SHA256IdHash<Instance>) => void>();
 
     private secret: string = '';
 

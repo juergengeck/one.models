@@ -10,7 +10,7 @@ import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
@@ -42,7 +42,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Event emitted when document data is updated.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
     channelId: string;

@@ -8,7 +8,7 @@ import {createMessageBus} from 'one.core/lib/message-bus';
 import EncryptedConnetion_Server from './EncryptedConnection_Server';
 import EncryptedConnection from './EncryptedConnection';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
-import {createEvent} from './OEvent';
+import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -19,7 +19,7 @@ class IncomingConnectionManager {
     /**
      * Event is emitted when E2E connection is setup correctly. The event will pass the connection to the listener.
      */
-    public onConnection = createEvent<
+    public onConnection = new OEvent<
         (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
     >();
 
@@ -27,7 +27,7 @@ class IncomingConnectionManager {
      * Event is emitted when the state of the connector changes. The listener callback will be called
      * in order to have access from outside to the errors that occur on the web socket level.
      */
-    public onOnlineStateChange = createEvent<(online: boolean) => void>();
+    public onOnlineStateChange = new OEvent<(online: boolean) => void>();
 
     commServerListener: Map<string, CommunicationServerListener[]>;
     webSocketListener: Map<

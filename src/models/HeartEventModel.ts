@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import {createEvent} from '../misc/OEvent';
+import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 export enum HeartEventType {
@@ -21,7 +21,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     /**
      * Event emitted when heart data is added.
      */
-    public onUpdated = createEvent<() => void>();
+    public onUpdated = new OEvent<() => void>();
 
     constructor() {
         super();
