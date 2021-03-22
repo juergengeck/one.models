@@ -106,20 +106,20 @@ export default class OneInstanceModel extends EventEmitter {
      * This event is emitted just before the login finishes and after the instance is
      * create so that you can initialize the models.
      */
-    public loggingIn = new OEvent<
+    public onLogin = new OEvent<
         (
             currentRegistrationState: boolean,
             anonymousEmail?: string,
             takeOver?: boolean,
             recoveryState?: boolean
-        ) => Promise<void>
+        ) => void
     >();
 
     /**
      * This event is emitted just before the logout finishes and before the instance is
      * closed so that you can shutdown the models.
      */
-    public loggingOut = new OEvent<() => Promise<void>>();
+    public onLogout = new OEvent<() => void>();
 
     /** Keeps track of the current user state. */
     private currentAuthenticationState: AuthenticationState;
@@ -357,7 +357,7 @@ export default class OneInstanceModel extends EventEmitter {
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
 
-        await this.loggingIn.emitAll(
+        await this.onLogin.emitAll(
             this.currentRegistrationState,
             anonymousEmail,
             takeOver,
@@ -453,18 +453,20 @@ export default class OneInstanceModel extends EventEmitter {
 
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
-        await this.loggingOut.emitAll();
+        try {
+            await this.onLogout.emitAll();
+        } finally {
+            // Close the one instance -> why delayed?
+            const dbInstance = getDbInstance();
+            setTimeout(() => {
+                dbInstance.close();
+                closeInstance();
+            }, 1500);
 
-        // Close the one instance -> why delayed?
-        const dbInstance = getDbInstance();
-        setTimeout(() => {
-            dbInstance.close();
-            closeInstance();
-        }, 1500);
-
-        // Delete the one instance if requested
-        if (logoutMode === LogoutMode.PurgeData) {
-            await this.deleteInstance(dbInstance.name);
+            // Delete the one instance if requested
+            if (logoutMode === LogoutMode.PurgeData) {
+                await this.deleteInstance(dbInstance.name);
+            }
         }
     }
 
