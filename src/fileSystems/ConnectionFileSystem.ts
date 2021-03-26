@@ -57,11 +57,10 @@ export default class ConnectionFileSystem implements IFileSystem {
     /**
      * The current Connection File System is not supporting the creation of directories.
      * @param {string} directoryPath
-     * @param {string} dirName
      * @param {number} dirMode
      * @returns {Promise<FileSystemDirectory>}
      */
-    createDir(directoryPath: string, dirName: string, dirMode: number): Promise<void> {
+    createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw new Error('Error: write permission required.');
@@ -69,6 +68,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             throw new Error('Error: not implemented.');
         }
     }
+
     /**
      * The current Connection File System is supporting the creation of files only for /import path.
      * @param {string} directoryPath

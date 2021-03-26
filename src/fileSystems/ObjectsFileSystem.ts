@@ -33,11 +33,10 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * The current Object File System is not supporting the creation of directories.
      * @param {string} directoryPath
-     * @param {string} dirName
      * @param {number} dirMode
      * @returns {Promise<FileSystemDirectory>}
      */
-    createDir(directoryPath: string, dirName: string, dirMode: number): Promise<void> {
+    createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw new Error('Error: write permission required.');

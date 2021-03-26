@@ -209,30 +209,33 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * @param directoryPath
-     * @param dirName
+     * @param folderPath
      * @param dirMode
      */
     public async createDir(
         directoryPath: string,
-        dirName: string,
         dirMode = 0o0040777
     ): Promise<void> {
+        const path = require('path')
+        const parentDirectoryPath = path.dirname(directoryPath);
+        const dirName = path.posix.basename(directoryPath)
         const mode = retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
             throw new Error('Error: the mode is not corresponding to a directory.');
         }
+
         await serializeWithType('FileSystemCreateLock', async () => {
-            const pathExists = await this.openPersistedDir(
-                PersistentFileSystem.pathJoin(directoryPath, dirName)
-            );
-            const targetDirectory = await this.openPersistedDir(directoryPath);
+            const pathExists = await this.openPersistedDir(directoryPath);
+
+            const targetDirectory = await this.openPersistedDir(parentDirectoryPath);
+
             const directoryMode = retrieveFileMode(
                 await this.getDirectoryMode(
-                    PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
-                    PersistentFileSystem.getLastItem(directoryPath)
+                    PersistentFileSystem.getParentDirectoryFullPath(parentDirectoryPath),
+                    PersistentFileSystem.getLastItem(parentDirectoryPath)
                 )
             );
+
             if (pathExists) {
                 throw new Error('Error: the path already exists.');
             }
@@ -240,6 +243,7 @@ export default class PersistentFileSystem implements IFileSystem {
             if (!targetDirectory) {
                 throw new Error('Error: the given directory path could not be found.');
             }
+
             if (!directoryMode.permissions.owner.write) {
                 throw new Error('Error: write permission required.');
             }
@@ -253,11 +257,12 @@ export default class PersistentFileSystem implements IFileSystem {
                     children: new Map()
                 }
             );
+
             const newDirectoryHash = await calculateHashOfObj(newDirectory.obj);
             /** Intentionally the same hash because this directory was created now **/
             await this.updateFileSystemTree(
                 newDirectoryHash,
-                directoryPath,
+                parentDirectoryPath,
                 dirMode,
                 PersistentFileSystem.pathJoin('/', dirName)
             );
@@ -282,13 +287,13 @@ export default class PersistentFileSystem implements IFileSystem {
             throw new Error('Error: directory could not be found.');
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
-
         if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
             throw new Error('Error: directory could not be found.');
         }
         if (!directoryMode.permissions.owner.read) {
             throw new Error('Error: read permission required.');
         }
+
         return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
             foundDirectoryEntryValue
         );
@@ -429,6 +434,7 @@ export default class PersistentFileSystem implements IFileSystem {
             return this.rootDirectoryContent.mode;
         }
         const parentDirectory = await this.openPersistedDir(parentDirectoryPath);
+
         if (!parentDirectory) {
             throw new Error('Error: parent directory could not be retrieved.');
         }

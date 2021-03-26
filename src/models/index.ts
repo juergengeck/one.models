@@ -24,6 +24,7 @@ import InstancesModel from './InstancesModel';
 import ConnectionsFilerModel from './filer/ConnectionsFilerModel';
 import ObjectsFilerModel from './filer/ObjectsFilerModel';
 import PersistentFilerModel from './filer/PersistentFilerModel';
+import TemporaryFilerModel from './filer/TemporaryFilerModel';
 /** for one line imports **/
 export {
     JournalModel,
@@ -53,5 +54,6 @@ export {
     ECGModel,
     ConnectionsFilerModel,
     ObjectsFilerModel,
-    PersistentFilerModel
+    PersistentFilerModel,
+    TemporaryFilerModel
 };

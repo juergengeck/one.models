@@ -33,10 +33,11 @@ export default class PersistentFilerModel extends EventEmitter {
      */
     public constructor(
         channelManager: ChannelManager,
+        channelId = 'mainFileSystemChannelId'
     ) {
         super();
         this.channelManager = channelManager;
-        this.fileSystemChannelId = 'mainFileSystemChannelId';
+        this.fileSystemChannelId = channelId;
         this.boundOnChannelUpdateHandler = this.handleOnUpdated.bind(this);
     }
 
@@ -125,6 +126,7 @@ export default class PersistentFilerModel extends EventEmitter {
                 channelId: this.fileSystemChannelId
             }
         );
+
         if (rootDirectory.length === 0) {
             const root = await createSingleObjectThroughPurePlan({
                 module: '@module/persistentFileSystemCreateRoot',

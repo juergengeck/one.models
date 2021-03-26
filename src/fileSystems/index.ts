@@ -1,15 +1,16 @@
 import ObjectsFileSystem from './ObjectsFileSystem';
 import PersistentFileSystem from './PersistentFileSystem';
 import ConnectionsFileSystem from './ConnectionFileSystem';
+import TemporaryFileSystem from './TemporaryFileSystem';
 /**
  * @class
  *
- * Hooked by the FilerModel (see {@link FilerModel})
+ * Hooked by the ObjectsFilerModel (see {@link ObjectsFilerModel})
  *
  * See {@link ObjectsFileSystem}
  *
  * This represents a file system structure for one objects that can open directories / files on the fly.
- * This class is using {@link FileSystemDirectory} & {@link FileSystemFile} types from {@link IFileSystem} interface in order
+ * This class is using {@link ObjectsFileSystem} from {@link IFileSystem} interface in order
  * to accomplish this FileSystem structure.
  *
  * This file system is **READ-ONLY** and it's simulated. It's not persisted in one and you can't create files/directories
@@ -21,7 +22,7 @@ export {ObjectsFileSystem};
 /**
  * @class
  *
- * Hooked by the FilerModel (see {@link FilerModel})
+ * Hooked by the PersistentFilerModel (see {@link PersistentFilerModel})
  *
  * See {@link PersistentFileSystem}
  *
@@ -35,11 +36,10 @@ export {ObjectsFileSystem};
 export {PersistentFileSystem};
 
 
-
 /**
  * @class
  *
- * Hooked by the FilerModel (see {@link FilerModel})
+ * Hooked by the ConnectionsFilerModel (see {@link ConnectionsFilerModel})
  *
  * See {@link ConnectionsFileSystem}
  *
@@ -50,3 +50,18 @@ export {PersistentFileSystem};
  * to accomplish this FileSystem structure.
  */
 export {ConnectionsFileSystem};
+
+
+/**
+ * @class
+ *
+ * Hooked by the TemporaryFilerModel (see {@link TemporaryFilerModel})
+ *
+ * See {@link TemporaryFileSystem}
+ *
+ * This represents a file system structure that can create and open directories/files and persist them in one.
+ * This class is using {@link TemporaryFileSystem} types from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure.
+ *
+ */
+export {TemporaryFileSystem};

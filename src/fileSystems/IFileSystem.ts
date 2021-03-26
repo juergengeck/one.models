@@ -41,30 +41,14 @@ export interface FileSystemDirectory {
  * signatures.
  */
 export interface IFileSystem {
-    /**
-     * Attaches a filesystem to a directory. It will return 0 for success or a error code
-     * @param {string} storagePath
-     * @param {string} pathName
-     * @todo options do we needed them now?
-     * @returns {Promise<number>}
-     */
-    // mount(storagePath: string, pathName: string): Promise<number>;
-
-    /**
-     * Deattaches a filesystem or a directory. It will return 0 for success or a error code
-     * @param {string} pathName
-     * @returns {Promise<number>}
-     */
-    // unmount(pathName: string): Promise<number>;
 
     /**
      * Creates a directory otherwise throws an error if the directory could not be created.
      * @param {string} directoryPath
-     * @param {string} dirName
      * @param {number} dirMode
      * @returns {Promise<FileSystemDirectory>}
      */
-    createDir(directoryPath: string, dirName: string, dirMode: number): Promise<void>;
+    createDir(directoryPath: string, dirMode: number): Promise<void>;
 
     /**
      * Creates a file otherwise throws an error if the file could not be created.
@@ -122,7 +106,7 @@ export interface IFileSystem {
      * @param {string} path
      * @returns {Promise<void>}
      */
-    exists(path: string): Promise<boolean>;
+    // exists(path: string): Promise<boolean>;
 
     /**
      * Deletes a directory. Return 0 for success or an error code
