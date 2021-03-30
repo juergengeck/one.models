@@ -152,7 +152,7 @@ export type ObjectData<T> = {
 /**
  * This type is returned by the raw channel iterator
  */
-type RawChannelEntry = {
+export type RawChannelEntry = {
     channelInfo: ChannelInfo;
     channelInfoIdHash: SHA256IdHash<ChannelInfo>;
     channelEntryHash: SHA256Hash<ChannelEntry>;
@@ -952,7 +952,7 @@ export default class ChannelManager extends EventEmitter {
      * @param onlyDifferentElements               - If true (default false) only elements that are only in a single channel are yielded.
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
-    private static async *mergeIteratorMostCurrent(
+    public static async *mergeIteratorMostCurrent(
         iterators: AsyncIterableIterator<RawChannelEntry>[],
         terminateOnSingleIterator: boolean = false,
         yieldCommonHistoryElement: boolean = true,

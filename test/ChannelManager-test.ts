@@ -5,7 +5,14 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime, SHA256Hash} from '@OneCoreTypes';
+import {
+    BodyTemperature,
+    ChannelEntry,
+    ChannelInfo,
+    CreationTime, OneUnversionedObjectTypes,
+    SHA256Hash,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
@@ -16,6 +23,7 @@ import {
     getObject, VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {getObjectByIdObj} from "one.core/lib/storage-versioned-objects";
+import {RawChannelEntry} from "../src/models/ChannelManager";
 
 let channelManager: typeof ChannelManager;
 let testModel;
@@ -150,7 +158,77 @@ describe('Channel Iterators test', () => {
     // X: C
     // Y: A
     // Z: A -> B -> C
-    it('MergeBugTest', async () => {
+    it('MergeBugTestIter', async () => {
+        /*channelInfo: ChannelInfo;
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>;
+        channelEntryHash: SHA256Hash<ChannelEntry>;
+        creationTimeHash: SHA256Hash<CreationTime>;
+        creationTime: number;
+        dataHash: SHA256Hash<OneUnversionedObjectTypes>;*/
+
+        async function *valueGenerator(arr: RawChannelEntry[]): AsyncIterableIterator<RawChannelEntry> {
+            yield *arr;
+        }
+
+        const W = [{
+            channelEntryHash: '5688af95b1f68d1a9118d7e17be9e219a91168e694ab407b2bad3ed915087d04',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }, {
+            channelEntryHash: 'f3f4aa9aaa21794b826951a4ee12e49400f23ac13fe71449f158bf779ec89573',
+            creationTimeHash: 'bea92e05d611a3f27c354fc23db0f3e921d7b5d0d4936d2ecc45f3c3f0751cec',
+            creationTime: 1614773575275,
+        }, {
+            channelEntryHash: 'fc64bb17a9fa12425e439beee9909a8a2edafc143c9e0b39257982414a9cbe56',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }, {
+            channelEntryHash: '1870c02045ab1a985550a88a2454e16cda952edeabdedb4b616f97959472ce15',
+            creationTimeHash: '523a2bf86fbc8755a0b6a48bd698178b996f2832a063ea8216cd476a64e0bfef',
+            creationTime: 1614170581769,
+        }];
+        const X = [{
+            channelEntryHash: '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }];
+        const Y = [{
+            channelEntryHash: '38cb1f4e0059a6f4112ea68f007a1403e75e77129c6575ba735722e25bda07b3',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }];
+        const Z = [{
+            channelEntryHash: '5b4cce50265587493b3eedc8b07ec4ad2ba26c1a17c7c817b04c8ef6914e6c86',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }, {
+            channelEntryHash: 'd5f0d34790e7d14129fdfdee60285c6f073cd860740506c87c4d773c651c96ca',
+            creationTimeHash: 'bea92e05d611a3f27c354fc23db0f3e921d7b5d0d4936d2ecc45f3c3f0751cec',
+            creationTime: 1614773575275,
+        }, {
+            channelEntryHash: '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }];
+
+        const iter = await ChannelManager.mergeIteratorMostCurrent([
+            valueGenerator(W as RawChannelEntry[]),
+            valueGenerator(X as RawChannelEntry[]),
+            valueGenerator(Y as RawChannelEntry[]),
+            valueGenerator(Z as RawChannelEntry[]),
+        ])
+
+        for await (const i of iter) {
+            console.log('#', i);
+        }
+    });
+
+    // This test tries to replicate this setup, because it doesn't work right.
+    // W: A -> B -> C -> D -> E -> ...
+    // X: C
+    // Y: A
+    // Z: A -> B -> C
+/*    it('MergeBugTest', async () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const owner = getInstanceOwnerIdHash();
@@ -191,8 +269,8 @@ describe('Channel Iterators test', () => {
 
         console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
     });
-
-    /*
+*/
+/*
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
