@@ -3,15 +3,19 @@ import * as StorageTestInit from 'one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {AccessModel, ChannelManager} from '../lib/models';
+import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {BodyTemperature} from '@OneCoreTypes';
+import {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime, SHA256Hash} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import rimraf from 'rimraf';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createSingleObjectThroughImpurePlan, getObject} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughImpurePlan,
+    createSingleObjectThroughPurePlan,
+    getObject, VERSION_UPDATES
+} from 'one.core/lib/storage';
+import {getObjectByIdObj} from "one.core/lib/storage-versioned-objects";
 
 let channelManager: typeof ChannelManager;
 let testModel;
@@ -73,6 +77,30 @@ if (enableLogging) {
     });
 }
 
+async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<ChannelInfo> {
+    let previous: SHA256Hash<ChannelEntry> | undefined = undefined;
+    for (const dataHash of dataHashes) {
+        previous = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'ChannelEntry',
+                data: dataHash,
+                previous
+            }
+        )).hash;
+    }
+    return {
+        $type$: 'ChannelInfo',
+        owner: getInstanceOwnerIdHash()!,
+        id: 'mergetest',
+        head: previous
+    }
+}
+
+
 // ######## SPECIALLY FORMATTED LOGGING - END ########
 
 describe('Channel Iterators test', () => {
@@ -91,6 +119,7 @@ describe('Channel Iterators test', () => {
         await channelManager.createChannel('second');
         await channelManager.createChannel('third');
         await channelManager.createChannel('fourth');
+        await channelManager.createChannel('mergetest');
     });
 
     it('should get zero objects by iterator', async () => {
@@ -108,9 +137,62 @@ describe('Channel Iterators test', () => {
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 4});
         await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 6});
+        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 5});
+        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 4});
+        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 3});
+        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 2});
+        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 1});
         //await new Promise(resolve => setTimeout(resolve, 1000));
     });
 
+    // This test tries to replicate this setup, because it doesn't work right.
+    // W: A -> B -> C -> D -> E -> ...
+    // X: C
+    // Y: A
+    // Z: A -> B -> C
+    it('MergeBugTest', async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const owner = getInstanceOwnerIdHash();
+        console.log('owner', owner);
+
+        const channelInfo = await getObjectByIdObj({
+            $type$: 'ChannelInfo',
+            owner,
+            id: 'mergetest'
+        });
+        console.log('channelInfo', channelInfo);
+
+        const WRawEntries: ObjectData<BodyTemperature>[] = [];
+        for await (const entry of channelManager.entryIterator(channelInfo)) {
+            WRawEntries.push(entry);
+        }
+
+        const XChannelInfo = buildChannelInfo(
+            [WRawEntries[2].creationTimeHash]
+        )
+        const YChannelInfo = buildChannelInfo(
+            [WRawEntries[0].creationTimeHash]
+        )
+        const ZChannelInfo = buildChannelInfo(
+            [WRawEntries[0].creationTimeHash, WRawEntries[1].creationTimeHash, WRawEntries[2].creationTimeHash]
+        )
+
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            XChannelInfo, YChannelInfo, ZChannelInfo
+        )
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
+    });
+
+    /*
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
@@ -258,19 +340,19 @@ describe('Channel Iterators test', () => {
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        /*const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
+        const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
         });
-        console.log(firstValuesAsc2);*/
+        console.log(firstValuesAsc2);
 
         const versionMap = await getAllVersionMapEntries(hash);
-        /*for (const versionMapEntry of versionMap) {
+        for (const versionMapEntry of versionMap) {
             const objects = await channelManager.getObjects({
                 channelInfoHash: versionMapEntry.hash
             });
             const filtered = objects.map(obj => obj.data.temperature);
             console.log('Channel Content', filtered);
-        }*/
+        }
 
         let elements1 = [];
         for await (const entry of ChannelManager.differencesIteratorMostCurrent(
@@ -301,7 +383,7 @@ describe('Channel Iterators test', () => {
         const channelInfo = await getObject(channelInfoHash);
         expect(channelInfo.$type$).to.equal('ChannelInfo');
     });
-
+*/
     after(async () => {
         // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));

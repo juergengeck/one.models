@@ -7,7 +7,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneIdObjectInterfaces {
-        ChannelInfo: Pick<ChannelInfo, 'id' | '$type$'>;
+        ChannelInfo: Pick<ChannelInfo, 'id' | 'owner' | '$type$'>;
         ChannelRegistry: Pick<ChannelRegistry, 'id' | '$type$'>;
     }
 
