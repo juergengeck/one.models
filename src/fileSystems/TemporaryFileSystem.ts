@@ -6,7 +6,6 @@
  */
 
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import * as fs from 'fs';
 import {BLOB, SHA256Hash} from "@OneCoreTypes";
 const path = require('path');
 /**
@@ -149,20 +148,29 @@ export default class TemporaryFileSystem implements IFileSystem {
         length: number,
         position: number
     ): Promise<FileSystemFile> {
+        if (!this.supportsChunkedReading(filePath)) {
+            throw new Error('Error: reading file in chunks is not supported.');
+        }
+        const searchFileSystem = this.search(filePath);
+        if (searchFileSystem) {
+            return await searchFileSystem.fileSystem.fs.readFileInChunks(searchFileSystem.relativePath, length, position);
+        }
 
+        throw new Error('Error: cannot read file.');
     }
 
     /**
-     * @todo remove from interface
      * @param {string} filePath
-     * @param {number} length
-     * @param {number} position
      * @returns {Promise<FileSystemFile>}
      */
-    public async supportsChunkedReading(
+    public supportsChunkedReading(
         filePath: string
-    ): Promise<FileSystemFile> {
-
+    ): boolean {
+        const searchFileSystem = this.search(filePath);
+        if (searchFileSystem) {
+            return searchFileSystem.fileSystem.fs.supportsChunkedReading();
+        }
+        return false;
     }
 
     /**
