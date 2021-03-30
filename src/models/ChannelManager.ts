@@ -152,7 +152,7 @@ export type ObjectData<T> = {
 /**
  * This type is returned by the raw channel iterator
  */
-type RawChannelEntry = {
+export type RawChannelEntry = {
     channelInfo: ChannelInfo;
     channelInfoIdHash: SHA256IdHash<ChannelInfo>;
     channelEntryHash: SHA256Hash<ChannelEntry>;
@@ -1059,7 +1059,8 @@ export default class ChannelManager extends EventEmitter {
                     currentValues[index] = (await iterators[index].next()).value;
                 }
 
-                // If we advanced more than one iterator, then it is not a difference
+                // If we don't advanced all iterators, then it is a difference, because one channel
+                // is missing this element.
                 if (sameIndices.length === iterators.length) {
                     continue;
                 }
@@ -1069,7 +1070,7 @@ export default class ChannelManager extends EventEmitter {
             }
 
             // If we have one active iterator remaining and the user requested it, we terminate
-            // This is done after the yield, because we want the first element of the remaining
+            // This is done before the yield, because we want the first element of the remaining
             // iterator not to be returned.
             if (terminateOnSingleIterator && !yieldCommonHistoryElement && activeIterators === 1) {
                 break;
@@ -1096,13 +1097,13 @@ export default class ChannelManager extends EventEmitter {
 
                 // Yield the value that has the highest creationTime
                 yield mostCurrentItem;
-            }
 
-            // If we have one active iterator remaining and the user requested it, we terminate
-            // This is done after the yield, because we want the first element of the remaining
-            // iterator to be returned.
-            if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
-                break;
+                // If we have one active iterator remaining and the user requested it, we terminate
+                // This is done after the yield, because we want the first element of the remaining
+                // iterator to be returned.
+                if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
+                    break;
+                }
             }
 
             previousItem = mostCurrentItem;

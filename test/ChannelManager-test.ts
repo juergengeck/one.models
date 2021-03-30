@@ -3,15 +3,27 @@ import * as StorageTestInit from 'one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {AccessModel, ChannelManager} from '../lib/models';
+import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {BodyTemperature} from '@OneCoreTypes';
+import {
+    BodyTemperature,
+    ChannelEntry,
+    ChannelInfo,
+    CreationTime, OneUnversionedObjectTypes,
+    SHA256Hash,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import rimraf from 'rimraf';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createSingleObjectThroughImpurePlan, getObject} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughImpurePlan,
+    createSingleObjectThroughPurePlan,
+    getObject, VERSION_UPDATES
+} from 'one.core/lib/storage';
+import {getObjectByIdObj} from "one.core/lib/storage-versioned-objects";
+import {RawChannelEntry} from "../src/models/ChannelManager";
 
 let channelManager: typeof ChannelManager;
 let testModel;
@@ -73,6 +85,30 @@ if (enableLogging) {
     });
 }
 
+async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<ChannelInfo> {
+    let previous: SHA256Hash<ChannelEntry> | undefined = undefined;
+    for (const dataHash of dataHashes) {
+        previous = (await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            {
+                $type$: 'ChannelEntry',
+                data: dataHash,
+                previous
+            }
+        )).hash;
+    }
+    return {
+        $type$: 'ChannelInfo',
+        owner: getInstanceOwnerIdHash()!,
+        id: 'mergetest',
+        head: previous
+    }
+}
+
+
 // ######## SPECIALLY FORMATTED LOGGING - END ########
 
 describe('Channel Iterators test', () => {
@@ -111,6 +147,118 @@ describe('Channel Iterators test', () => {
         //await new Promise(resolve => setTimeout(resolve, 1000));
     });
 
+    // This test tries to replicate this setup, because it doesn't work right.
+    // W: A -> B -> C -> D -> E -> ...
+    // X: C
+    // Y: A
+    // Z: A -> B -> C
+    it('MergeBugTestIter', async () => {
+        async function *valueGenerator(arr: RawChannelEntry[]): AsyncIterableIterator<RawChannelEntry> {
+            yield *arr;
+        }
+
+        const W = [{
+            channelEntryHash: '5688af95b1f68d1a9118d7e17be9e219a91168e694ab407b2bad3ed915087d04',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }, {
+            channelEntryHash: 'f3f4aa9aaa21794b826951a4ee12e49400f23ac13fe71449f158bf779ec89573',
+            creationTimeHash: 'bea92e05d611a3f27c354fc23db0f3e921d7b5d0d4936d2ecc45f3c3f0751cec',
+            creationTime: 1614773575275,
+        }, {
+            channelEntryHash: 'fc64bb17a9fa12425e439beee9909a8a2edafc143c9e0b39257982414a9cbe56',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }, {
+            channelEntryHash: '1870c02045ab1a985550a88a2454e16cda952edeabdedb4b616f97959472ce15',
+            creationTimeHash: '523a2bf86fbc8755a0b6a48bd698178b996f2832a063ea8216cd476a64e0bfef',
+            creationTime: 1614170581769,
+        }];
+        const X = [{
+            channelEntryHash: '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }];
+        const Y = [{
+            channelEntryHash: '38cb1f4e0059a6f4112ea68f007a1403e75e77129c6575ba735722e25bda07b3',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }];
+        const Z = [{
+            channelEntryHash: '5b4cce50265587493b3eedc8b07ec4ad2ba26c1a17c7c817b04c8ef6914e6c86',
+            creationTimeHash: '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+            creationTime: 1614773672411,
+        }, {
+            channelEntryHash: 'd5f0d34790e7d14129fdfdee60285c6f073cd860740506c87c4d773c651c96ca',
+            creationTimeHash: 'bea92e05d611a3f27c354fc23db0f3e921d7b5d0d4936d2ecc45f3c3f0751cec',
+            creationTime: 1614773575275,
+        }, {
+            channelEntryHash: '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
+            creationTimeHash: 'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+            creationTime: 1614174911147,
+        }];
+
+        const iter = await ChannelManager.mergeIteratorMostCurrent([
+            valueGenerator(W as RawChannelEntry[]),
+            //valueGenerator(X as RawChannelEntry[]),
+            //valueGenerator(Y as RawChannelEntry[]),
+            valueGenerator(Z as RawChannelEntry[]),
+        ], true);
+
+        let i = 0;
+        for await (const item of iter) {
+            ++i;
+        }
+        expect(i).to.be.equal(4);
+    });
+
+    // This test tries to replicate this setup, because it doesn't work right.
+    // W: A -> B -> C -> D -> E -> ...
+    // X: C
+    // Y: A
+    // Z: A -> B -> C
+/*    it('MergeBugTest', async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const owner = getInstanceOwnerIdHash();
+        console.log('owner', owner);
+
+        const channelInfo = await getObjectByIdObj({
+            $type$: 'ChannelInfo',
+            owner,
+            id: 'mergetest'
+        });
+        console.log('channelInfo', channelInfo);
+
+        const WRawEntries: ObjectData<BodyTemperature>[] = [];
+        for await (const entry of channelManager.entryIterator(channelInfo)) {
+            WRawEntries.push(entry);
+        }
+
+        const XChannelInfo = buildChannelInfo(
+            [WRawEntries[2].creationTimeHash]
+        )
+        const YChannelInfo = buildChannelInfo(
+            [WRawEntries[0].creationTimeHash]
+        )
+        const ZChannelInfo = buildChannelInfo(
+            [WRawEntries[0].creationTimeHash, WRawEntries[1].creationTimeHash, WRawEntries[2].creationTimeHash]
+        )
+
+
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            XChannelInfo, YChannelInfo, ZChannelInfo
+        )
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
+    });
+*/
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
