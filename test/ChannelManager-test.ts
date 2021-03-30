@@ -127,7 +127,6 @@ describe('Channel Iterators test', () => {
         await channelManager.createChannel('second');
         await channelManager.createChannel('third');
         await channelManager.createChannel('fourth');
-        await channelManager.createChannel('mergetest');
     });
 
     it('should get zero objects by iterator', async () => {
@@ -145,11 +144,6 @@ describe('Channel Iterators test', () => {
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 4});
         await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 6});
-        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 5});
-        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 4});
-        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 3});
-        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 2});
-        await channelManager.postToChannel('mergetest', {$type$: 'BodyTemperature', temperature: 1});
         //await new Promise(resolve => setTimeout(resolve, 1000));
     });
 
@@ -159,13 +153,6 @@ describe('Channel Iterators test', () => {
     // Y: A
     // Z: A -> B -> C
     it('MergeBugTestIter', async () => {
-        /*channelInfo: ChannelInfo;
-        channelInfoIdHash: SHA256IdHash<ChannelInfo>;
-        channelEntryHash: SHA256Hash<ChannelEntry>;
-        creationTimeHash: SHA256Hash<CreationTime>;
-        creationTime: number;
-        dataHash: SHA256Hash<OneUnversionedObjectTypes>;*/
-
         async function *valueGenerator(arr: RawChannelEntry[]): AsyncIterableIterator<RawChannelEntry> {
             yield *arr;
         }
@@ -213,14 +200,16 @@ describe('Channel Iterators test', () => {
 
         const iter = await ChannelManager.mergeIteratorMostCurrent([
             valueGenerator(W as RawChannelEntry[]),
-            valueGenerator(X as RawChannelEntry[]),
-            valueGenerator(Y as RawChannelEntry[]),
+            //valueGenerator(X as RawChannelEntry[]),
+            //valueGenerator(Y as RawChannelEntry[]),
             valueGenerator(Z as RawChannelEntry[]),
         ], true);
 
-        for await (const i of iter) {
-            console.log('#', i);
+        let i = 0;
+        for await (const item of iter) {
+            ++i;
         }
+        expect(i).to.be.equal(4);
     });
 
     // This test tries to replicate this setup, because it doesn't work right.
@@ -270,7 +259,6 @@ describe('Channel Iterators test', () => {
         console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
     });
 */
-/*
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
@@ -421,7 +409,7 @@ describe('Channel Iterators test', () => {
         const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
         });
-        console.log(firstValuesAsc2);
+        //console.log(firstValuesAsc2);
 
         const versionMap = await getAllVersionMapEntries(hash);
         for (const versionMapEntry of versionMap) {
@@ -429,7 +417,7 @@ describe('Channel Iterators test', () => {
                 channelInfoHash: versionMapEntry.hash
             });
             const filtered = objects.map(obj => obj.data.temperature);
-            console.log('Channel Content', filtered);
+            //console.log('Channel Content', filtered);
         }
 
         let elements1 = [];
@@ -461,7 +449,7 @@ describe('Channel Iterators test', () => {
         const channelInfo = await getObject(channelInfoHash);
         expect(channelInfo.$type$).to.equal('ChannelInfo');
     });
-*/
+
     after(async () => {
         // Wait for the hooks to run to completion
         await new Promise(resolve => setTimeout(resolve, 1000));

@@ -815,7 +815,7 @@ export default class ChannelManager extends EventEmitter {
      * @param {Date} to
      * @returns {AsyncIterableIterator<RawChannelEntry>}
      */
-    public static async *entryIterator(
+    private static async *entryIterator(
         channelInfo: ChannelInfo,
         from?: Date,
         to?: Date
@@ -952,7 +952,7 @@ export default class ChannelManager extends EventEmitter {
      * @param onlyDifferentElements               - If true (default false) only elements that are only in a single channel are yielded.
      * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
      */
-    public static async *mergeIteratorMostCurrent(
+    private static async *mergeIteratorMostCurrent(
         iterators: AsyncIterableIterator<RawChannelEntry>[],
         terminateOnSingleIterator: boolean = false,
         yieldCommonHistoryElement: boolean = true,
@@ -1097,13 +1097,13 @@ export default class ChannelManager extends EventEmitter {
 
                 // Yield the value that has the highest creationTime
                 yield mostCurrentItem;
-            }
 
-            // If we have one active iterator remaining and the user requested it, we terminate
-            // This is done after the yield, because we want the first element of the remaining
-            // iterator to be returned.
-            if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
-                break;
+                // If we have one active iterator remaining and the user requested it, we terminate
+                // This is done after the yield, because we want the first element of the remaining
+                // iterator to be returned.
+                if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
+                    break;
+                }
             }
 
             previousItem = mostCurrentItem;
