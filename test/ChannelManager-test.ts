@@ -406,19 +406,19 @@ describe('Channel Iterators test', () => {
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
+        /*const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
         });
-        //console.log(firstValuesAsc2);
+        console.log(firstValuesAsc2);*/
 
         const versionMap = await getAllVersionMapEntries(hash);
-        for (const versionMapEntry of versionMap) {
+        /*for (const versionMapEntry of versionMap) {
             const objects = await channelManager.getObjects({
                 channelInfoHash: versionMapEntry.hash
             });
             const filtered = objects.map(obj => obj.data.temperature);
-            //console.log('Channel Content', filtered);
-        }
+            console.log('Channel Content', filtered);
+        }*/
 
         let elements1 = [];
         for await (const entry of ChannelManager.differencesIteratorMostCurrent(
