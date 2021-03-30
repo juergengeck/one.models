@@ -216,7 +216,7 @@ describe('Channel Iterators test', () => {
             valueGenerator(X as RawChannelEntry[]),
             valueGenerator(Y as RawChannelEntry[]),
             valueGenerator(Z as RawChannelEntry[]),
-        ])
+        ], true);
 
         for await (const i of iter) {
             console.log('#', i);
