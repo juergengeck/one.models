@@ -54,6 +54,7 @@ type ConnectionContainer = {
     // This flag will change automatically from true to false
     // after two seconds of an connection to be established.
     closeHandler?: () => void;
+    reconnectScheduled: boolean;
 };
 
 /**
@@ -334,7 +335,8 @@ export default class CommunicationModule extends EventEmitter {
                                 ? mainInstanceInfo.cryptoApi
                                 : anonInstanceInfo.cryptoApi,
                             isInternetOfMe: isMyEndpoint,
-                            dropDuplicates: true
+                            dropDuplicates: true,
+                            reconnectScheduled: false
                         };
                         this.knownPeerMap.set(mapKey, connContainer);
                         this.emit('connectionsChange');
@@ -517,7 +519,8 @@ export default class CommunicationModule extends EventEmitter {
                         targetPersonId: endpoint.personId,
                         cryptoApi: mainInstanceInfo.cryptoApi,
                         isInternetOfMe: true,
-                        dropDuplicates: true
+                        dropDuplicates: true,
+                        reconnectScheduled: false
                     };
                 })
             )
@@ -540,7 +543,8 @@ export default class CommunicationModule extends EventEmitter {
                         targetPersonId: endpoint.personId,
                         cryptoApi: anonInstanceInfo.cryptoApi,
                         isInternetOfMe: false,
-                        dropDuplicates: true
+                        dropDuplicates: true,
+                        reconnectScheduled: false
                     };
                 } else {
                     return {
@@ -554,7 +558,8 @@ export default class CommunicationModule extends EventEmitter {
                         targetPersonId: endpoint.personId,
                         cryptoApi: mainInstanceInfo.cryptoApi,
                         isInternetOfMe: false,
-                        dropDuplicates: true
+                        dropDuplicates: true,
+                        reconnectScheduled: false
                     };
                 }
             })
@@ -675,8 +680,14 @@ export default class CommunicationModule extends EventEmitter {
 
         // Schedule the call delayed
         if (delay) {
+            if (connContainer.reconnectScheduled) {
+                return;
+            }
+            connContainer.reconnectScheduled = true;
+
             const handle = setTimeout(() => {
                 this.reconnectHandles.delete(handle);
+                connContainer.reconnectScheduled = false;
                 connect();
             }, delay);
             this.reconnectHandles.add(handle);
