@@ -235,10 +235,12 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param {string} checkPath
      * @returns {Promise<void>}
      */
-    public search(checkPath: string): any {
+    public search(checkPath: string): { fileSystem: IFileSystem, relativePath: string } | null {
         if (this.fstab.has(checkPath)) {
             const mountedFileSystem = this.fstab.get(checkPath);
-            return {fileSystem: mountedFileSystem, relativePath: '/'};
+            if(mountedFileSystem) {
+                return {fileSystem: mountedFileSystem, relativePath: '/'};
+            }
         }
 
         const parentCheckPath = path.dirname(checkPath);
