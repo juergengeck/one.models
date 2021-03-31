@@ -208,7 +208,7 @@ export default class ContactModel extends EventEmitter {
         }
 
         // Listen for new contact app objects -> own profiles
-        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+        //onVersionedObj.addListener(this.boundOnVersionedObjHandler);
 
         // Listen for new contact objects
         onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
@@ -220,7 +220,7 @@ export default class ContactModel extends EventEmitter {
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+        //onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
         onUnversionedObj.removeListener(this.boundOnUnVersionedObjHandler);
     }
 
@@ -1104,7 +1104,7 @@ export default class ContactModel extends EventEmitter {
             group: [],
             id: contactAppVersionedObjectResult.idHash,
             mode: SET_ACCESS_MODE.REPLACE,
-            person: [personIdHash]
+            person: []
         };
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
     }
