@@ -28,7 +28,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @private
      * @todo rights???
      */
-    private fstab = new Map();
+    private fstab = new Map<string, IFileSystem>();
 
     /**
      *
@@ -42,7 +42,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     /**
      * Attaches a filesystem to a directory. It will return 0 for success or a error code
      * @param {string} storagePath
-     * @param {string} pathName
+     * @param {IFileSystem} fileSystem
      * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
@@ -94,7 +94,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     ): Promise<void> {
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.createDir(searchFileSystem.relativePath, dirMode);
+            return await searchFileSystem.fileSystem.createDir(searchFileSystem.relativePath, dirMode);
         }
 
         throw new Error('Error: cannot create dir.');
@@ -117,7 +117,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     ): Promise<void> {
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.createFile(searchFileSystem.relativePath, fileHash, fileName, fileMode);
+            return await searchFileSystem.fileSystem.createFile(searchFileSystem.relativePath, fileHash, fileName, fileMode);
         }
 
         throw new Error('Error: cannot create file.');
@@ -130,7 +130,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     public async readFile(filePath: string): Promise<FileSystemFile> {
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.readFile(searchFileSystem.relativePath);
+            return await searchFileSystem.fileSystem.readFile(searchFileSystem.relativePath);
         }
 
         throw new Error('Error: cannot read file.');
@@ -153,7 +153,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.readFileInChunks(searchFileSystem.relativePath, length, position);
+            return await searchFileSystem.fileSystem.readFileInChunks(searchFileSystem.relativePath, length, position);
         }
 
         throw new Error('Error: cannot read file.');
@@ -168,7 +168,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     ): boolean {
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
-            return searchFileSystem.fileSystem.fs.supportsChunkedReading();
+            return searchFileSystem.fileSystem.supportsChunkedReading();
         }
         return false;
     }
@@ -185,7 +185,7 @@ export default class TemporaryFileSystem implements IFileSystem {
 
         const searchFileSystem = this.search(checkPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.readDir(searchFileSystem.relativePath);
+            return await searchFileSystem.fileSystem.readDir(searchFileSystem.relativePath);
         }
 
         return {
@@ -205,7 +205,7 @@ export default class TemporaryFileSystem implements IFileSystem {
 
         const searchFileSystem = this.search(checkPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.fs.stat(searchFileSystem.relativePath);
+            return await searchFileSystem.fileSystem.stat(searchFileSystem.relativePath);
         }
 
         return {mode: 0o0120000, size: 0};
