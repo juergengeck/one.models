@@ -113,11 +113,15 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      */
     protected async giveAccessToMatchingChannel(person: SHA256IdHash<Person>[]): Promise<void> {
         try {
+            if (!this.anonInstanceInfo) {
+                throw new Error('Anon instance info is not initialized!');
+            }
+
             const setAccessParam = {
                 id: await calculateIdHashOfObj({
                     $type$: 'ChannelInfo',
                     id: this.channelId,
-                    owner: this.anonInstanceInfo ? this.anonInstanceInfo.personId : undefined
+                    owner: this.anonInstanceInfo.personId
                 }),
                 person,
                 group: [],
@@ -132,7 +136,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
             setAccessParam.id = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: 'contacts',
-                owner: this.anonInstanceInfo ? this.anonInstanceInfo.personId : undefined
+                owner: this.anonInstanceInfo.personId
             });
             // check whether a channel with this id exists
             await getObjectByIdHash(setAccessParam.id);

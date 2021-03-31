@@ -27,7 +27,6 @@ import {
     VERSION_UPDATES,
     SetAccessParam,
     SET_ACCESS_MODE,
-    onVersionedObj,
     getObjectWithType,
     createSingleObjectThroughImpurePlan,
     readBlobAsArrayBuffer
@@ -159,6 +158,7 @@ export default class ContactModel extends EventEmitter {
     private readonly commServerUrl: string;
     // @ts-ignore
     private readonly channelManager: ChannelManager; // Let's keep it for now, because we will need it later again!
+    // @ts-ignore
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;

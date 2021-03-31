@@ -54,7 +54,7 @@ type ConnectionContainer = {
     // This flag will change automatically from true to false
     // after two seconds of an connection to be established.
     closeHandler?: () => void;
-    reconnectScheduled: boolean;
+    reconnectTimeoutHandle: ReturnType<typeof setTimeout> | null;
 };
 
 /**
@@ -153,7 +153,6 @@ export default class CommunicationModule extends EventEmitter {
     // Internal maps and lists (dynamic)
     private readonly knownPeerMap: Map<string, ConnectionContainer>; // Stores the known peers - Map from srcKey + dstKey
     private readonly unknownPeerMap: Map<string, EncryptedConnection>; // Stores unknown peers - Map from srcKey + dstKey
-    private readonly reconnectHandles: Set<ReturnType<typeof setTimeout>>; // List of reconnect timer handles - used to clear on timeout
 
     // Internal maps and lists (precomputed on init)
     private mainInstanceInfo: LocalInstanceInfo | null; // My person info
@@ -209,7 +208,6 @@ export default class CommunicationModule extends EventEmitter {
 
         this.knownPeerMap = new Map<string, ConnectionContainer>();
         this.unknownPeerMap = new Map<string, EncryptedConnection>();
-        this.reconnectHandles = new Set<ReturnType<typeof setTimeout>>();
 
         this.mainInstanceInfo = null;
         this.anonInstanceInfo = null;
@@ -336,7 +334,7 @@ export default class CommunicationModule extends EventEmitter {
                                 : anonInstanceInfo.cryptoApi,
                             isInternetOfMe: isMyEndpoint,
                             dropDuplicates: true,
-                            reconnectScheduled: false
+                            reconnectTimeoutHandle: null
                         };
                         this.knownPeerMap.set(mapKey, connContainer);
                         this.emit('connectionsChange');
@@ -406,21 +404,21 @@ export default class CommunicationModule extends EventEmitter {
                 await v.activeConnection.close();
             }
         }
-        this.knownPeerMap.clear();
-
         // Kill all unknown peer map connections
         for (const v of this.unknownPeerMap.values()) {
             await v.close();
         }
-        this.unknownPeerMap.clear();
 
         // Stop all reconnect timeouts
-        for (const handle of this.reconnectHandles) {
-            clearTimeout(handle);
+        for (const v of this.knownPeerMap.values()) {
+            if (v.reconnectTimeoutHandle !== null) {
+                clearTimeout(v.reconnectTimeoutHandle);
+            }
         }
-        this.reconnectHandles.clear();
 
         // Clear all other fields
+        this.unknownPeerMap.clear();
+        this.knownPeerMap.clear();
         this.mainInstanceInfo = null;
         this.anonInstanceInfo = null;
         this.myPublicKeyToInstanceInfoMap.clear();
@@ -520,7 +518,7 @@ export default class CommunicationModule extends EventEmitter {
                         cryptoApi: mainInstanceInfo.cryptoApi,
                         isInternetOfMe: true,
                         dropDuplicates: true,
-                        reconnectScheduled: false
+                        reconnectTimeoutHandle: null
                     };
                 })
             )
@@ -544,7 +542,7 @@ export default class CommunicationModule extends EventEmitter {
                         cryptoApi: anonInstanceInfo.cryptoApi,
                         isInternetOfMe: false,
                         dropDuplicates: true,
-                        reconnectScheduled: false
+                        reconnectTimeoutHandle: null
                     };
                 } else {
                     return {
@@ -559,7 +557,7 @@ export default class CommunicationModule extends EventEmitter {
                         cryptoApi: mainInstanceInfo.cryptoApi,
                         isInternetOfMe: false,
                         dropDuplicates: true,
-                        reconnectScheduled: false
+                        reconnectTimeoutHandle: null
                     };
                 }
             })
@@ -680,17 +678,14 @@ export default class CommunicationModule extends EventEmitter {
 
         // Schedule the call delayed
         if (delay) {
-            if (connContainer.reconnectScheduled) {
+            if (connContainer.reconnectTimeoutHandle === null) {
                 return;
             }
-            connContainer.reconnectScheduled = true;
 
-            const handle = setTimeout(() => {
-                this.reconnectHandles.delete(handle);
-                connContainer.reconnectScheduled = false;
+            connContainer.reconnectTimeoutHandle = setTimeout(() => {
+                connContainer.reconnectTimeoutHandle = null;
                 connect();
             }, delay);
-            this.reconnectHandles.add(handle);
         } else {
             connect();
         }
@@ -829,6 +824,10 @@ export default class CommunicationModule extends EventEmitter {
 
         // Set the current connection as active connection
         endpoint.activeConnection = conn;
+        if (endpoint.reconnectTimeoutHandle !== null) {
+            clearTimeout(endpoint.reconnectTimeoutHandle);
+            endpoint.reconnectTimeoutHandle = null;
+        }
         this.emit('connectionsChange');
         this.onConnectionsChange.emit();
 
