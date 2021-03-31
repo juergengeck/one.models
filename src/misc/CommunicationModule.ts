@@ -678,7 +678,7 @@ export default class CommunicationModule extends EventEmitter {
 
         // Schedule the call delayed
         if (delay) {
-            if (connContainer.reconnectTimeoutHandle === null) {
+            if (connContainer.reconnectTimeoutHandle !== null) {
                 return;
             }
 
