@@ -1106,7 +1106,12 @@ export default class ContactModel extends EventEmitter {
             mode: SET_ACCESS_MODE.REPLACE,
             person: []
         };
-        await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+        await createSingleObjectThroughImpurePlan({
+            module: '@one/access',
+            versionMapPolicy: {
+                '*': VERSION_UPDATES.NONE_IF_LATEST
+            }
+        }, [setAccessParam]);
     }
 
     /**
