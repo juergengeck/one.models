@@ -1,34 +1,34 @@
 import {OEvent} from './OEvent';
 
-interface TransitionData<StateT> {
-    srcState: StateT;
-    dstState: StateT;
-    levelCount: number;
-}
-
 export class StateMachine<StateT, EventT> {
     /**
-     * Emitted when the state machine enters a new state.
+     * Emitted when the state machine enters a new state. The enteredState
+     * value represents the deepest state the state machine enters.
      */
-    public onEnterState = new OEvent<(state: StateT) => void>();
+    public onEnterState = new OEvent<(enteredState: StateT) => void>();
 
     /**
-     * Emitted when the state machine leaves the current state.
+     * Emitted when the state machine leaves the current state. The leftState
+     * value represents the deepest state the state machine leaves.
      */
-    public onLeaveState = new OEvent<(state: StateT) => void>();
+    public onLeaveState = new OEvent<(leftState: StateT) => void>();
 
     /**
-     * Emitted when the state machine executes a transition.
+     * Emitted when the state machine executes a transition. The srcState
+     * and the dstState values represent the deepest source state and
+     * destination state respectively.
      */
     public onStateChange = new OEvent<
-        (oldState: StateT, newState: StateT, event: EventT) => void
+        (srcState: StateT, dstState: StateT, event: EventT) => void
     >();
 
     /**
-     * Emitted when the state machine executes a transition.
+     * Emitted when the state machine executes a transition. The srcStates
+     * and the dstStates arrays contain the full state hierarchy, from top
+     * to the bottom.
      */
     public onStatesChange = new OEvent<
-        (oldState: StateT[], newState: StateT[], event: EventT) => void
+        (srcStates: StateT[], dstStates: StateT[], event: EventT) => void
     >();
 
     /**
@@ -38,15 +38,19 @@ export class StateMachine<StateT, EventT> {
     private crtState: StateT | null = null;
 
     /**
+     * True if the state machine should not be reset when the parent state
+     * machine leaves the associated state.
+     * @private
+     */
+    private hasHistory: boolean = false;
+
+    /**
      * The initial state to which the state machine resets to.
      * @private
      */
     private initialState: StateT | null = null;
 
-    private transitions: Map<EventT, TransitionData<StateT>[]> = new Map<
-        EventT,
-        TransitionData<StateT>[]
-    >();
+    private transitions: Map<EventT, Map<StateT, StateT>> = new Map<EventT, Map<StateT, StateT>>();
 
     private events: EventT[] = [];
     private states: StateT[] = [];
@@ -61,7 +65,8 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Current state of the state machine, including all subStateMachines current states.
+     * Current state of the state machine as an array, including all subStateMachines
+     * current states, from top to the bottom.
      */
     public get currentStates(): StateT[] {
         return this.getCurrentStates();
@@ -82,15 +87,17 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Set the initial state of the state machine.
+     * Set the initial state of the state machine and the history configuration.
      * @param state
+     * @param hasHistory - rather the state machine has history or not. Defaults to false.
      */
-    setInitialState(state: StateT) {
+    setInitialState(state: StateT, hasHistory = false) {
         if (!this.states.includes(state)) {
             throw Error('Invalid initial state: ' + state);
         }
         this.initialState = state;
         this.crtState = state;
+        this.hasHistory = hasHistory;
     }
 
     /**
@@ -106,10 +113,8 @@ export class StateMachine<StateT, EventT> {
      * @param event - The event which triggers the transition.
      * @param srcState - The source state of the transition.
      * @param dstState - The destination state of the transition.
-     * @param levelCount - The number of levels to be reset when
-     * the transition is executed: 0 - none, -1 = all subStateMachines.
      */
-    addTransition(event: EventT, srcState: StateT, dstState: StateT, levelCount = 0) {
+    addTransition(event: EventT, srcState: StateT, dstState: StateT) {
         if (!this.events.includes(event)) {
             throw Error('Invalid event for transition: ' + event);
         }
@@ -120,15 +125,9 @@ export class StateMachine<StateT, EventT> {
 
         const transitionsForEvent = this.transitions.get(event);
         if (transitionsForEvent) {
-            transitionsForEvent.push({
-                srcState: srcState,
-                dstState: dstState,
-                levelCount: levelCount
-            });
+            transitionsForEvent.set(srcState, dstState);
         } else {
-            this.transitions.set(event, [
-                {srcState: srcState, dstState: dstState, levelCount: levelCount}
-            ]);
+            this.transitions.set(event, new Map([[srcState, dstState]]));
         }
     }
 
@@ -147,51 +146,73 @@ export class StateMachine<StateT, EventT> {
 
         if (!transitionsForEvent) {
             // propagate event to sub state machines
-            for (const [state, subStateMachine] of this.subStateMachines.entries()) {
-                if (state === this.crtState) {
-                    subStateMachine.triggerEvent(event);
-                    if (!subStateMachine.crtState) {
-                        throw Error('Invalid current state.');
-                    }
-                }
+            const subStateMachine = this.subStateMachines.get(this.crtState);
+            if (subStateMachine) {
+                const srcStates = this.currentStates;
+
+                subStateMachine.triggerEvent(event);
+
+                this.notifyListeners(
+                    srcStates[srcStates.length - 1],
+                    this.currentStates[this.currentStates.length - 1],
+                    srcStates,
+                    this.currentStates,
+                    event
+                );
+
+                return;
             }
+
             return;
         }
 
-        const transitionsForSrcState = transitionsForEvent.find(
-            transition => transition.srcState === this.crtState
-        );
+        const transitionsForSrcState = transitionsForEvent.get(this.crtState);
         if (transitionsForSrcState) {
-            this.executeTransition(
-                event,
-                transitionsForSrcState.srcState,
-                transitionsForSrcState.dstState,
-                transitionsForSrcState.levelCount
+            const srcStates = this.currentStates;
+
+            this.executeTransition(event, this.crtState, transitionsForSrcState);
+
+            this.notifyListeners(
+                srcStates[srcStates.length - 1],
+                this.currentStates[this.currentStates.length - 1],
+                srcStates,
+                this.currentStates,
+                event
             );
         }
+        return;
     }
 
     /**
-     * Reset to the initial state the stateMachine and its subStateMachines. The levels of subStateMachines
-     * to be reset are set through the parameter:
-     *  - levelCount === -1 - all subStateMachines will be reset to initial state.
-     *  - levelCount === 0 - no subStateMachine will be reset.
-     *  - levelCount >0 - specified levels of subStateMachines will be reset to intial state.
-     * @param levelCount - number of subStateMachine levels to be reset
+     * Reset to the initial state the stateMachine and its subStateMachines.
+     * @param event
      */
-    reset(levelCount: number) {
+    reset(event: EventT) {
+        if (!this.crtState) {
+            throw Error('Invalid current state.');
+        }
         if (!this.initialState) {
             throw Error('Invalid initial state.');
         }
 
-        this.crtState = this.initialState;
+        const subStateMachine = this.subStateMachines.get(this.crtState);
 
-        if (levelCount === 0) {
-            return;
+        if (subStateMachine) {
+            subStateMachine.reset(event);
         }
 
-        for (const subStateMachine of this.subStateMachines.values()) {
-            subStateMachine.reset(levelCount--);
+        if (!this.hasHistory && this.crtState !== this.initialState) {
+            const srcStates = this.currentStates;
+
+            this.crtState = this.initialState;
+
+            this.notifyListeners(
+                srcStates[srcStates.length - 1],
+                this.currentStates[this.currentStates.length - 1],
+                srcStates,
+                this.currentStates,
+                event
+            );
         }
     }
 
@@ -286,36 +307,32 @@ export class StateMachine<StateT, EventT> {
      * @param event - the event which triggered the transition.
      * @param srcState - the source state.
      * @param dstState - the destination state.
-     * @param levelCount - number of subStateMachine levels to be reset.
      * @private
      */
-    private executeTransition(
-        event: EventT,
-        srcState: StateT,
-        dstState: StateT,
-        levelCount: number
-    ) {
+    private executeTransition(event: EventT, srcState: StateT, dstState: StateT) {
         if (!this.crtState) {
             throw Error('Invalid current state.');
         }
 
-        const oldStates = this.getCurrentStates();
-
         this.crtState = dstState;
 
         // reset subStateMachines
-        if (levelCount !== 0) {
-            const subStateMachine = this.subStateMachines.get(srcState);
-            if (subStateMachine) {
-                subStateMachine.reset(levelCount - 1);
-            }
+        const subStateMachine = this.subStateMachines.get(srcState);
+        if (subStateMachine) {
+            subStateMachine.reset(event);
         }
+    }
 
-        const newStates = this.getCurrentStates();
-
+    private notifyListeners(
+        srcState: StateT,
+        dstState: StateT,
+        srcStates: StateT[],
+        dstStates: StateT[],
+        event: EventT
+    ) {
         this.onLeaveState.emit(srcState);
         this.onEnterState.emit(dstState);
         this.onStateChange.emit(srcState, dstState, event);
-        this.onStatesChange.emit(oldStates, newStates, event);
+        this.onStatesChange.emit(srcStates, dstStates, event);
     }
 }
