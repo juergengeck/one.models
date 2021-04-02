@@ -61,7 +61,7 @@ export class StateMachine<StateT, EventT> {
      * Current state of the state machine.
      */
     public get currentState(): StateT | null {
-        return this.crtState;
+        return this.currentStates[this.currentStates.length - 1];
     }
 
     /**
