@@ -212,6 +212,60 @@ export default class TemporaryFileSystem implements IFileSystem {
     }
 
     /**
+     * Not implemented
+     * @param pathName
+     * @param mode
+     */
+    chmod(pathName: string, mode: number): Promise<number> {
+        const searchFileSystem = this.search(pathName);
+        if (searchFileSystem) {
+            return await searchFileSystem.fileSystem.chmod(pathName, mode);
+        }
+
+        throw new Error('Error: cannot read file.');
+    }
+
+    /**
+     * Not Implemented
+     * @param src
+     * @param dest
+     */
+    rename(src: string, dest: string): Promise<number> {
+        const searchFileSystem = this.search(src);
+        if (searchFileSystem) {
+            return await searchFileSystem.fileSystem.rename(src, dest);
+        }
+
+        throw new Error('Error: cannot read file.');
+    }
+
+    /**
+     * Not implemented
+     * @param pathName
+     */
+    rmdir(pathName: string): Promise<number> {
+        const searchFileSystem = this.search(pathName);
+        if (searchFileSystem) {
+            return await searchFileSystem.fileSystem.rmdir(pathName);
+        }
+
+        throw new Error('Error: cannot read file.');
+    }
+
+    /**
+     * Not implemented
+     * @param pathName
+     */
+    unlink(pathName: string): Promise<number> {
+        const searchFileSystem = this.search(pathName);
+        if (searchFileSystem) {
+            return await searchFileSystem.fileSystem.unlink(pathName);
+        }
+
+        throw new Error('Error: cannot read file.');
+    }
+
+    /**
      *
      * @param {string} checkPath
      * @returns {Promise<void>}
