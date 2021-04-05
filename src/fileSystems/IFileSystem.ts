@@ -41,7 +41,6 @@ export interface FileSystemDirectory {
  * signatures.
  */
 export interface IFileSystem {
-
     /**
      * Creates a directory otherwise throws an error if the directory could not be created.
      * @param {string} directoryPath

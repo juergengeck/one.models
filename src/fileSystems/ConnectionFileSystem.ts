@@ -3,6 +3,7 @@ import {retrieveFileMode} from './fileSystemModes';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 import {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
+import {NotImplementedError, PermissionsRequiredError} from './FSErrors';
 
 /**
  * Json format for the connectionsFS path
@@ -22,7 +23,7 @@ type ParsedConnectionsPath = {
  * to accomplish this FileSystem structure.
  */
 export default class ConnectionFileSystem implements IFileSystem {
-    private readonly rootMode: number = 0o0100444;
+    private readonly rootMode: number = 0o0100555;
 
     /**
      * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link FilerModel}
@@ -37,7 +38,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      * @type {Map<string, FileSystemFile>}
      * @private
      */
-    private importedQRCodesMap: Map<string, { qrHash: SHA256Hash<BLOB> }>;
+    private importedQRCodesMap: Map<string, {qrHash: SHA256Hash<BLOB>}>;
 
     /**
      * The QR code is refreshed every 5 minutes (3 * 10^5 ms) and it's temporary persisted.
@@ -50,8 +51,8 @@ export default class ConnectionFileSystem implements IFileSystem {
         this.importedQRCodesMap = new Map();
         /** refresh the qr code every 5 minutes **/
         setInterval(async () => {
-            await this.refreshQRCode()
-        }, 300000)
+            await this.refreshQRCode();
+        }, 300000);
     }
 
     /**
@@ -63,9 +64,9 @@ export default class ConnectionFileSystem implements IFileSystem {
     createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new Error('Error: write permission required.');
+            throw new PermissionsRequiredError('Error: Permissions required.');
         } else {
-            throw new Error('Error: not implemented.');
+            throw new NotImplementedError('Error: not implemented.');
         }
     }
 
@@ -87,15 +88,15 @@ export default class ConnectionFileSystem implements IFileSystem {
         if (parsedPath && parsedPath.isImportPath) {
             const fileContent = await readBlobAsArrayBuffer(fileHash);
             this.importedQRCodesMap.set(fileName, {qrHash: fileHash});
-            if(this.onConnectionQRCodeReceived) {
+            if (this.onConnectionQRCodeReceived) {
                 await this.onConnectionQRCodeReceived(fileContent);
             }
         } else {
             const rootMode = retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {
-                throw new Error('Error: write permission required.');
+                throw new PermissionsRequiredError('Error: Permissions required.');
             } else {
-                throw new Error('Error: not implemented.');
+                throw new NotImplementedError('Error: not implemented.');
             }
         }
     }
@@ -149,7 +150,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isDetailsPath) {
-            if(this.onConnectionsInfoRequested) {
+            if (this.onConnectionsInfoRequested) {
                 const content = this.onConnectionsInfoRequested();
                 return {
                     content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content))
@@ -161,11 +162,11 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(!this.exportedQRCode && this.onConnectionQRCodeRequested){
+            if (!this.exportedQRCode && this.onConnectionQRCodeRequested) {
                 await this.refreshQRCode();
             }
 
-            if(this.exportedQRCode) {
+            if (this.exportedQRCode) {
                 return {
                     content: this.exportedQRCode.content
                 };
@@ -209,13 +210,12 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isDetailsPath) {
-            if(this.onConnectionsInfoRequested) {
+            if (this.onConnectionsInfoRequested) {
                 const content = this.onConnectionsInfoRequested();
                 return {
-                    content: ConnectionFileSystem.stringToArrayBuffer(JSON.stringify(content)).slice(
-                        position,
-                        position + length
-                    )
+                    content: ConnectionFileSystem.stringToArrayBuffer(
+                        JSON.stringify(content)
+                    ).slice(position, position + length)
                 };
             }
         }
@@ -224,12 +224,9 @@ export default class ConnectionFileSystem implements IFileSystem {
             parsedPath.isExportPath &&
             filePath.substring(filePath.lastIndexOf('/') + 1) === 'invited_qr_code.png'
         ) {
-            if(this.exportedQRCode) {
+            if (this.exportedQRCode) {
                 return {
-                    content: this.exportedQRCode.content.slice(
-                        position,
-                        position + length
-                    )
+                    content: this.exportedQRCode.content.slice(position, position + length)
                 };
             }
         }
@@ -249,37 +246,94 @@ export default class ConnectionFileSystem implements IFileSystem {
     }
 
     /**
-     * Not implemented
      * @param pathName
      * @param mode
      */
-    chmod(pathName: string, mode: number): Promise<number> {
-        throw new Error('Error: not implemented.');
+    async chmod(pathName: string, mode: number): Promise<number> {
+        const pathInfo = await this.stat(pathName);
+        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        if (!pathPermissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+        return 0;
     }
 
     /**
-     * Not Implemented
      * @param src
      * @param dest
      */
-    rename(src: string, dest: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+    async rename(src: string, dest: string): Promise<number> {
+        const parsedPath = this.parsePath(src);
+
+        if (!parsedPath) {
+            throw new Error('Error: the path could not be found.');
+        }
+
+        const pathInfo = await this.stat(src);
+        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+
+        if (!pathPermissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+
+        if (parsedPath.isImportPath) {
+            const fileName = src.substring(src.lastIndexOf('/') + 1);
+            const desiredFileName = dest.substring(dest.lastIndexOf('/') + 1);
+            const foundFile = this.importedQRCodesMap.get(fileName);
+            if (foundFile) {
+                this.importedQRCodesMap.set(desiredFileName, foundFile);
+                return 0;
+            } else {
+                return -2;
+            }
+        }
+
+        return -2;
     }
 
     /**
-     * Not implemented
      * @param pathName
      */
-    rmdir(pathName: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+    async rmdir(pathName: string): Promise<number> {
+        const pathInfo = await this.stat(pathName);
+        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        if (!pathPermissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+
+        // HACK - this is because write permissions exists for the import directory,
+        // but it's not the best idea to let the user deleted it.
+        throw new PermissionsRequiredError('Error: Permissions required.');
     }
 
     /**
-     * Not implemented
      * @param pathName
      */
-    unlink(pathName: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+    async unlink(pathName: string): Promise<number> {
+        const parsedPath = this.parsePath(pathName);
+
+        if (!parsedPath) {
+            throw new Error('Error: the path could not be found.');
+        }
+
+        const pathInfo = await this.stat(pathName);
+        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+
+        if (!pathPermissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+
+        if (parsedPath.isImportPath) {
+            const fileName = pathName.substring(pathName.lastIndexOf('/') + 1);
+            const foundFile = this.importedQRCodesMap.delete(fileName);
+            if (foundFile) {
+                return 0;
+            } else {
+                return -2;
+            }
+        }
+
+        return -2;
     }
 
     /**
@@ -295,7 +349,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         if (parsedPath.isRoot) {
-            return {mode: 0o0040555, size: 0};
+            return {mode: this.rootMode, size: 0};
         }
 
         if (
@@ -306,12 +360,12 @@ export default class ConnectionFileSystem implements IFileSystem {
         ) {
             const file = await this.readFile(path);
             if (file) {
-                return {mode: 0o0100644, size: file.content.byteLength};
+                return {mode: 0o0100444, size: file.content.byteLength};
             }
         }
 
         if (parsedPath.isExportPath) {
-            return {mode: 0o0040444, size: 0};
+            return {mode: 0o0040555, size: 0};
         }
 
         if (parsedPath.isImportPath) {
@@ -394,9 +448,9 @@ export default class ConnectionFileSystem implements IFileSystem {
      * @private
      */
     private async refreshQRCode() {
-        if(this.onConnectionQRCodeRequested) {
+        if (this.onConnectionQRCodeRequested) {
             const qrCodeAsBuffer: Buffer = await this.onConnectionQRCodeRequested();
-            this.exportedQRCode = {content: new Uint8Array(qrCodeAsBuffer).buffer}
+            this.exportedQRCode = {content: new Uint8Array(qrCodeAsBuffer).buffer};
         }
     }
 }

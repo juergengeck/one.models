@@ -29,6 +29,7 @@ import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {getObjectSize} from './ObjectSize';
+import {PermissionsRequiredError} from './FSErrors';
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -100,7 +101,7 @@ export default class PersistentFileSystem implements IFileSystem {
             }
 
             if (!directoryParsedMode.permissions.owner.write) {
-                throw new Error('Error: write permission required.');
+                throw new PermissionsRequiredError('Error: Permissions required.');
             }
 
             const savedFile = await createSingleObjectThroughPurePlan(
@@ -242,7 +243,7 @@ export default class PersistentFileSystem implements IFileSystem {
             }
 
             if (!directoryMode.permissions.owner.write) {
-                throw new Error('Error: write permission required.');
+                throw new PermissionsRequiredError('Error: Permissions required.');
             }
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
@@ -309,6 +310,10 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
+        const pathCurrentMode = retrieveFileMode(parent.mode);
+        if (!pathCurrentMode.permissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
 
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
@@ -321,8 +326,13 @@ export default class PersistentFileSystem implements IFileSystem {
                 foundDirectoryEntry
             );
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
-            parentContent.children.set(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)), newDirectory.hash);
+            parentContent.children.delete(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+            );
+            parentContent.children.set(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)),
+                newDirectory.hash
+            );
 
             if (parentPath === '/') {
                 /** update the channel with the updated root directory **/
@@ -335,16 +345,14 @@ export default class PersistentFileSystem implements IFileSystem {
                     await calculateHashOfObj(parentContent),
                     path.dirname(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin(
-                        '/',
-                        PersistentFileSystem.getLastItem(parentPath)
-                    )
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
                 );
             }
             return 0;
         }
 
-        throw new Error('Error: not a directory');    }
+        throw new Error('Error: not a directory');
+    }
 
     public async rename(src: string, dest: string): Promise<number> {
         const foundDirectoryEntry = await this.search(src);
@@ -359,11 +367,20 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
+        const pathCurrentMode = retrieveFileMode(foundDirectoryEntry.mode);
+        if (!pathCurrentMode.permissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src)));
-            parentContent.children.set(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)), foundDirectoryEntry);
+            parentContent.children.delete(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
+            );
+            parentContent.children.set(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
+                foundDirectoryEntry
+            );
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -382,10 +399,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     newDirectory.hash,
                     path.dirname(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin(
-                        '/',
-                        PersistentFileSystem.getLastItem(parentPath)
-                    )
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
                 );
             }
             return 0;
@@ -419,10 +433,17 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
+        const pathCurrentMode = retrieveFileMode(parent.mode);
+        if (!pathCurrentMode.permissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
+            parentContent.children.delete(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+            );
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -441,10 +462,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     newDirectory.hash,
                     path.dirname(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin(
-                        '/',
-                        PersistentFileSystem.getLastItem(parentPath)
-                    )
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
                 );
             }
             return 0;
@@ -475,10 +493,17 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
+        const pathCurrentMode = retrieveFileMode(parent.mode);
+        if (!pathCurrentMode.permissions.owner.write) {
+            throw new PermissionsRequiredError('Error: Permissions required.');
+        }
+
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
+            parentContent.children.delete(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+            );
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -497,10 +522,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     newDirectory.hash,
                     path.dirname(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin(
-                        '/',
-                        PersistentFileSystem.getLastItem(parentPath)
-                    )
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
                 );
             }
             return 0;

@@ -2,6 +2,7 @@ import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from 
 import {BLOB, HashTypes, SHA256Hash} from '@OneCoreTypes';
 import {retrieveFileMode} from './fileSystemModes';
 import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
+import {NotImplementedError, PermissionsRequiredError} from './FSErrors';
 
 /**
  * Json format for the objects parsed path
@@ -25,7 +26,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     //@ts-ignore
     private readonly rootDirectory: FileSystemDirectory;
-    private readonly rootMode: number = 0o0100444;
+
+    private readonly rootMode: number = 0o0100555;
+
     constructor(rootDirectory: FileSystemDirectory = {children: []}) {
         this.rootDirectory = rootDirectory;
     }
@@ -39,9 +42,9 @@ export default class ObjectsFileSystem implements IFileSystem {
     createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new Error('Error: write permission required.');
+            throw new PermissionsRequiredError('Error: Permissions required.');
         } else {
-            throw new Error('Error: not implemented.');
+            throw new NotImplementedError('Error: not implemented.');
         }
     }
 
@@ -98,9 +101,9 @@ export default class ObjectsFileSystem implements IFileSystem {
     ): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new Error('Error: write permission required.');
+            throw new PermissionsRequiredError('Error: Permissions required.');
         } else {
-            throw new Error('Error: not implemented.');
+            throw new NotImplementedError('Error: not implemented.');
         }
     }
 
@@ -185,7 +188,7 @@ export default class ObjectsFileSystem implements IFileSystem {
     async stat(path: string): Promise<FileDescription> {
         const parsedPath = this.parsePath(path);
         if (parsedPath.isRoot || parsedPath.suffix === '/' || parsedPath.suffix === '') {
-            return {mode: 0o0040555, size: 0};
+            return {mode: this.rootMode, size: 0};
         }
         if (
             parsedPath.suffix === '/raw.txt' ||
@@ -195,7 +198,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         ) {
             const file = await this.readFile(path);
             if (file) {
-                return {mode: 0o0100644, size: file.content.byteLength};
+                return {mode: 0o0100444, size: file.content.byteLength};
             }
         }
         if (parsedPath.suffix === '/moduleHash') {
@@ -239,37 +242,37 @@ export default class ObjectsFileSystem implements IFileSystem {
     }
 
     /**
-     * Not implemented
+     * Not implemented because of Read Only FS
      * @param pathName
      * @param mode
      */
     chmod(pathName: string, mode: number): Promise<number> {
-        throw new Error('Error: not implemented.');
+        throw new PermissionsRequiredError('Error: Permissions required.');
     }
 
     /**
-     * Not Implemented
+     * Not implemented because of Read Only FS
      * @param src
      * @param dest
      */
     rename(src: string, dest: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+        throw new PermissionsRequiredError('Error: Permissions required.');
     }
 
     /**
-     * Not implemented
+     * Not implemented because of Read Only FS
      * @param pathName
      */
     rmdir(pathName: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+        throw new PermissionsRequiredError('Error: Permissions required.');
     }
 
     /**
-     * Not implemented
+     * Not implemented because of Read Only FS
      * @param pathName
      */
     unlink(pathName: string): Promise<number> {
-        throw new Error('Error: not implemented.');
+        throw new PermissionsRequiredError('Error: Permissions required.');
     }
 
     // ---------------------------------------- Private ----------------------------------------

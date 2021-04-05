@@ -6,7 +6,7 @@
  */
 
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {BLOB, SHA256Hash} from "@OneCoreTypes";
+import {BLOB, SHA256Hash} from '@OneCoreTypes';
 const path = require('path');
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -46,18 +46,17 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
-    async mountFileSystem(
-        storagePath: string,
-        fileSystem: IFileSystem
-    ): Promise<number> {
+    async mountFileSystem(storagePath: string, fileSystem: IFileSystem): Promise<number> {
         if (this.fstab.has(storagePath)) {
-            throw new Error("Error: Cannot mount path already mounted. Please unmount first.");
+            throw new Error('Error: Cannot mount path already mounted. Please unmount first.');
         }
 
         for (const [dirPath, _] of this.fstab) {
             // @todo Cannot tree mount. Mabe change later on
             if (storagePath.includes(dirPath)) {
-                throw new Error("Error: Cannot mount path under already mounted path. Please unmount first.");
+                throw new Error(
+                    'Error: Cannot mount path under already mounted path. Please unmount first.'
+                );
             }
         }
 
@@ -75,7 +74,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      */
     async unmountFileSystem(storagePath: string): Promise<number> {
         if (!this.fstab.has(storagePath)) {
-            throw new Error("Error: Cannot unmount path not mounted.");
+            throw new Error('Error: Cannot unmount path not mounted.');
         }
 
         this.fstab.delete(storagePath);
@@ -88,18 +87,17 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param dirMode
      * @todo error handling
      */
-    public async createDir(
-        directoryPath: string,
-        dirMode = 0o0040777
-    ): Promise<void> {
+    public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.createDir(searchFileSystem.relativePath, dirMode);
+            return await searchFileSystem.fileSystem.createDir(
+                searchFileSystem.relativePath,
+                dirMode
+            );
         }
 
         throw new Error('Error: cannot create dir.');
     }
-
 
     /**
      * Overwrites a file if the file already exist in the folder, otherwise, adds the file.
@@ -117,7 +115,12 @@ export default class TemporaryFileSystem implements IFileSystem {
     ): Promise<void> {
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.createFile(searchFileSystem.relativePath, fileHash, fileName, fileMode);
+            return await searchFileSystem.fileSystem.createFile(
+                searchFileSystem.relativePath,
+                fileHash,
+                fileName,
+                fileMode
+            );
         }
 
         throw new Error('Error: cannot create file.');
@@ -153,7 +156,11 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.readFileInChunks(searchFileSystem.relativePath, length, position);
+            return await searchFileSystem.fileSystem.readFileInChunks(
+                searchFileSystem.relativePath,
+                length,
+                position
+            );
         }
 
         throw new Error('Error: cannot read file.');
@@ -163,9 +170,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param {string} filePath
      * @returns {Promise<FileSystemFile>}
      */
-    public supportsChunkedReading(
-        filePath: string
-    ): boolean {
+    public supportsChunkedReading(filePath: string): boolean {
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
             return searchFileSystem.fileSystem.supportsChunkedReading();
@@ -195,8 +200,8 @@ export default class TemporaryFileSystem implements IFileSystem {
 
     /**
      *
-     * @param {string} path
      * @returns {Promise<FileDescription>}
+     * @param checkPath
      */
     public async stat(checkPath: string): Promise<FileDescription> {
         if (checkPath === '/') {
@@ -230,10 +235,13 @@ export default class TemporaryFileSystem implements IFileSystem {
      */
     async rename(src: string, dest: string): Promise<number> {
         const searchFileSystem = this.search(src);
-        const destFileSystem = this.search(dest)
+        const destFileSystem = this.search(dest);
 
         if (searchFileSystem && destFileSystem) {
-            return await searchFileSystem.fileSystem.rename(searchFileSystem.relativePath, destFileSystem.relativePath);
+            return await searchFileSystem.fileSystem.rename(
+                searchFileSystem.relativePath,
+                destFileSystem.relativePath
+            );
         }
 
         throw new Error('Error: cannot rename file.');
@@ -265,7 +273,6 @@ export default class TemporaryFileSystem implements IFileSystem {
 
     /**
      *
-     * @param {string} checkPath
      * @returns {Promise<void>}
      */
     public getRootDirContents(): FileSystemDirectory {
@@ -287,10 +294,10 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param {string} checkPath
      * @returns {Promise<void>}
      */
-    public search(checkPath: string): { fileSystem: IFileSystem, relativePath: string } | null {
+    public search(checkPath: string): {fileSystem: IFileSystem; relativePath: string} | null {
         if (this.fstab.has(checkPath)) {
             const mountedFileSystem = this.fstab.get(checkPath);
-            if(mountedFileSystem) {
+            if (mountedFileSystem) {
                 return {fileSystem: mountedFileSystem, relativePath: '/'};
             }
         }
@@ -298,11 +305,16 @@ export default class TemporaryFileSystem implements IFileSystem {
         const parentCheckPath = path.dirname(checkPath);
         for (const [dirPath, mountedFileSystem] of this.fstab) {
             if (parentCheckPath.includes(dirPath)) {
-                return {fileSystem: mountedFileSystem, relativePath: checkPath.substring((checkPath.indexOf(dirPath)+dirPath.length), checkPath.length)};
+                return {
+                    fileSystem: mountedFileSystem,
+                    relativePath: checkPath.substring(
+                        checkPath.indexOf(dirPath) + dirPath.length,
+                        checkPath.length
+                    )
+                };
             }
         }
 
         return null;
     }
-
 }

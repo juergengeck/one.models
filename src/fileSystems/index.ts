@@ -35,7 +35,6 @@ export {ObjectsFileSystem};
  */
 export {PersistentFileSystem};
 
-
 /**
  * @class
  *
@@ -50,7 +49,6 @@ export {PersistentFileSystem};
  * to accomplish this FileSystem structure.
  */
 export {ConnectionsFileSystem};
-
 
 /**
  * @class
