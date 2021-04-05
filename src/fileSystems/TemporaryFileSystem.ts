@@ -212,7 +212,6 @@ export default class TemporaryFileSystem implements IFileSystem {
     }
 
     /**
-     * Not implemented
      * @param pathName
      * @param mode
      */
@@ -222,11 +221,10 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.chmod(searchFileSystem.relativePath, mode);
         }
 
-        throw new Error('Error: cannot read file.');
+        throw new Error('Error: cannot chmod file.');
     }
 
     /**
-     * Not Implemented
      * @param src
      * @param dest
      */
@@ -238,11 +236,10 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.rename(searchFileSystem.relativePath, destFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot read file.');
+        throw new Error('Error: cannot rename file.');
     }
 
     /**
-     * Not implemented
      * @param pathName
      */
     async rmdir(pathName: string): Promise<number> {
@@ -251,11 +248,10 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.rmdir(searchFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot read file.');
+        throw new Error('Error: cannot rmdir file.');
     }
 
     /**
-     * Not implemented
      * @param pathName
      */
     async unlink(pathName: string): Promise<number> {
@@ -264,7 +260,7 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.unlink(searchFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot read file.');
+        throw new Error('Error: cannot unlink file.');
     }
 
     /**
