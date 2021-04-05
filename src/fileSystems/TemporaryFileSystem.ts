@@ -219,7 +219,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     async chmod(pathName: string, mode: number): Promise<number> {
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.chmod(pathName, mode);
+            return await searchFileSystem.fileSystem.chmod(searchFileSystem.relativePath, mode);
         }
 
         throw new Error('Error: cannot read file.');
@@ -232,8 +232,10 @@ export default class TemporaryFileSystem implements IFileSystem {
      */
     async rename(src: string, dest: string): Promise<number> {
         const searchFileSystem = this.search(src);
-        if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.rename(src, dest);
+        const destFileSystem = this.search(dest)
+
+        if (searchFileSystem && destFileSystem) {
+            return await searchFileSystem.fileSystem.rename(searchFileSystem.relativePath, destFileSystem.relativePath);
         }
 
         throw new Error('Error: cannot read file.');
@@ -246,7 +248,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     async rmdir(pathName: string): Promise<number> {
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.rmdir(pathName);
+            return await searchFileSystem.fileSystem.rmdir(searchFileSystem.relativePath);
         }
 
         throw new Error('Error: cannot read file.');
@@ -259,7 +261,7 @@ export default class TemporaryFileSystem implements IFileSystem {
     async unlink(pathName: string): Promise<number> {
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.unlink(pathName);
+            return await searchFileSystem.fileSystem.unlink(searchFileSystem.relativePath);
         }
 
         throw new Error('Error: cannot read file.');

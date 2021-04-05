@@ -321,19 +321,26 @@ export default class PersistentFileSystem implements IFileSystem {
                 foundDirectoryEntry
             );
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
-            parentContent.children.set(PersistentFileSystem.getLastItem(pathName), newDirectory.hash);
+            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
+            parentContent.children.set(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)), newDirectory.hash);
 
-            /** Update the File System Tree **/
-            await this.updateFileSystemTree(
-                await calculateHashOfObj(parentContent),
-                path.dirname(parentPath),
-                0o0040777,
-                PersistentFileSystem.pathJoin(
-                    '/',
-                    PersistentFileSystem.getLastItem(parentPath)
-                )
-            );
+            if (parentPath === '/') {
+                /** update the channel with the updated root directory **/
+                if (this.onRootUpdate) {
+                    await this.onRootUpdate(newDirectory.hash);
+                }
+            } else {
+                /** Update the File System Tree **/
+                await this.updateFileSystemTree(
+                    await calculateHashOfObj(parentContent),
+                    path.dirname(parentPath),
+                    0o0040777,
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(parentPath)
+                    )
+                );
+            }
             return 0;
         }
 
@@ -355,8 +362,8 @@ export default class PersistentFileSystem implements IFileSystem {
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.getLastItem(src));
-            parentContent.children.set(PersistentFileSystem.getLastItem(dest), foundDirectoryEntry);
+            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src)));
+            parentContent.children.set(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)), foundDirectoryEntry);
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -365,15 +372,22 @@ export default class PersistentFileSystem implements IFileSystem {
                 parentContent
             );
             /** Update the File System Tree **/
-            await this.updateFileSystemTree(
-                newDirectory.hash,
-                path.dirname(parentPath),
-                0o0040777,
-                PersistentFileSystem.pathJoin(
-                    '/',
-                    PersistentFileSystem.getLastItem(parentPath)
-                )
-            );
+            if (parentPath === '/') {
+                /** update the channel with the updated root directory **/
+                if (this.onRootUpdate) {
+                    await this.onRootUpdate(newDirectory.hash);
+                }
+            } else {
+                await this.updateFileSystemTree(
+                    newDirectory.hash,
+                    path.dirname(parentPath),
+                    0o0040777,
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(parentPath)
+                    )
+                );
+            }
             return 0;
         }
 
@@ -408,7 +422,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
+            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -417,15 +431,22 @@ export default class PersistentFileSystem implements IFileSystem {
                 parentContent
             );
             /** Update the File System Tree **/
-            await this.updateFileSystemTree(
-                newDirectory.hash,
-                path.dirname(parentPath),
-                0o0040777,
-                PersistentFileSystem.pathJoin(
-                    '/',
-                    PersistentFileSystem.getLastItem(parentPath)
-                )
-            );
+            if (parentPath === '/') {
+                /** update the channel with the updated root directory **/
+                if (this.onRootUpdate) {
+                    await this.onRootUpdate(newDirectory.hash);
+                }
+            } else {
+                await this.updateFileSystemTree(
+                    newDirectory.hash,
+                    path.dirname(parentPath),
+                    0o0040777,
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(parentPath)
+                    )
+                );
+            }
             return 0;
         }
 
@@ -434,6 +455,7 @@ export default class PersistentFileSystem implements IFileSystem {
 
     public async unlink(pathName: string): Promise<number> {
         const foundFile = await this.search(pathName);
+
         const parentPath = path.dirname(pathName);
         const parent = await this.search(parentPath);
 
@@ -456,7 +478,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
+            parentContent.children.delete(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -464,16 +486,23 @@ export default class PersistentFileSystem implements IFileSystem {
                 },
                 parentContent
             );
-            /** Update the File System Tree **/
-            await this.updateFileSystemTree(
-                newDirectory.hash,
-                path.dirname(parentPath),
-                0o0040777,
-                PersistentFileSystem.pathJoin(
-                    '/',
-                    PersistentFileSystem.getLastItem(parentPath)
-                )
-            );
+            if (parentPath === '/') {
+                /** update the channel with the updated root directory **/
+                if (this.onRootUpdate) {
+                    await this.onRootUpdate(newDirectory.hash);
+                }
+            } else {
+                /** Update the File System Tree **/
+                await this.updateFileSystemTree(
+                    newDirectory.hash,
+                    path.dirname(parentPath),
+                    0o0040777,
+                    PersistentFileSystem.pathJoin(
+                        '/',
+                        PersistentFileSystem.getLastItem(parentPath)
+                    )
+                );
+            }
             return 0;
         }
 
