@@ -27,7 +27,7 @@ export default class ObjectsFileSystem implements IFileSystem {
     //@ts-ignore
     private readonly rootDirectory: FileSystemDirectory;
 
-    private readonly rootMode: number = 0o0100555;
+    private readonly rootMode: number = 0o0400555;
 
     constructor(rootDirectory: FileSystemDirectory = {children: []}) {
         this.rootDirectory = rootDirectory;

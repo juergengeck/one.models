@@ -23,7 +23,7 @@ type ParsedConnectionsPath = {
  * to accomplish this FileSystem structure.
  */
 export default class ConnectionFileSystem implements IFileSystem {
-    private readonly rootMode: number = 0o0100555;
+    private readonly rootMode: number = 0o0400555;
 
     /**
      * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link FilerModel}
