@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     sm.addEvent('shutdown');
     sm.addEvent('init');
     sm.addTransition('init', 'not initialized', 'initialized');
-    sm.addTransition('shutdown', 'initialized', 'not initialized');
+    sm.addTransition('shutdown', 'initialized', 'not initialized', ['B']);
     sm.addTransition('shutdown', 'not initialized', 'not initialized');
 
     console.log('Localize B', sm.locateState('B'));

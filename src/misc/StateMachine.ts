@@ -1,5 +1,14 @@
 import {OEvent} from './OEvent';
 
+/**
+ * Transition related data.
+ */
+type TransitionData<StateT> = {
+    srcState: StateT;
+    dstState: StateT;
+    conditionStates: StateT[] | undefined;
+};
+
 export class StateMachine<StateT, EventT> {
     /**
      * Emitted when the state machine enters a new state. The enteredState
@@ -42,7 +51,7 @@ export class StateMachine<StateT, EventT> {
      * machine leaves the associated state.
      * @private
      */
-    private hasHistory: boolean = false;
+    private hasHistory = false;
 
     /**
      * The initial state to which the state machine resets to.
@@ -50,11 +59,32 @@ export class StateMachine<StateT, EventT> {
      */
     private initialState: StateT | null = null;
 
-    private transitions: Map<EventT, Map<StateT, StateT>> = new Map<EventT, Map<StateT, StateT>>();
+    /**
+     * The transitions map.
+     * @private
+     */
+    private transitions: Map<EventT, TransitionData<StateT>[]> = new Map<
+        EventT,
+        TransitionData<StateT>[]
+    >();
 
+    /**
+     * The events array.
+     * @private
+     */
     private events: EventT[] = [];
+
+    /**
+     * The states array.
+     * @private
+     */
     private states: StateT[] = [];
 
+    /**
+     * The map of the subStateMachines. A subStateMachine is associated to a state of
+     * the state machine.
+     * @private
+     */
     private subStateMachines = new Map<StateT, StateMachine<StateT, EventT>>();
 
     /**
@@ -88,7 +118,7 @@ export class StateMachine<StateT, EventT> {
 
     /**
      * Set the initial state of the state machine and the history configuration.
-     * @param state
+     * @param state - the initial state.
      * @param hasHistory - rather the state machine has history or not. Defaults to false.
      */
     setInitialState(state: StateT, hasHistory = false) {
@@ -102,7 +132,7 @@ export class StateMachine<StateT, EventT> {
 
     /**
      * Add an event to state machine.
-     * @param event
+     * @param event - the event to be added.
      */
     addEvent(event: EventT) {
         this.events.push(event);
@@ -113,8 +143,10 @@ export class StateMachine<StateT, EventT> {
      * @param event - The event which triggers the transition.
      * @param srcState - The source state of the transition.
      * @param dstState - The destination state of the transition.
+     * @param conditionStates - Array of necessary states or subStates of the
+     * current state machine for the transition to happen.
      */
-    addTransition(event: EventT, srcState: StateT, dstState: StateT) {
+    addTransition(event: EventT, srcState: StateT, dstState: StateT, conditionStates?: StateT[]) {
         if (!this.events.includes(event)) {
             throw Error('Invalid event for transition: ' + event);
         }
@@ -123,28 +155,37 @@ export class StateMachine<StateT, EventT> {
             throw Error(`Invalid states for transition: ${srcState} ${dstState}`);
         }
 
-        const transitionsForEvent = this.transitions.get(event);
-        if (transitionsForEvent) {
-            transitionsForEvent.set(srcState, dstState);
+        const transitionDatas = this.transitions.get(event);
+
+        if (transitionDatas) {
+            transitionDatas.push({
+                srcState: srcState,
+                dstState: dstState,
+                conditionStates: conditionStates
+            });
         } else {
-            this.transitions.set(event, new Map([[srcState, dstState]]));
+            this.transitions.set(event, [
+                {srcState: srcState, dstState: dstState, conditionStates: conditionStates}
+            ]);
         }
     }
 
     /**
-     * Triggers an event. If the event maps to a transition in the state machine,
-     * it will execute the transition, otherwise the event is propagated to the
-     * subStateMachines.
-     * @param event - the triggered event.
+     * Triggers the given event.
+     *  - If the event maps to a transition in the state machine, it will execute
+     *  the transition, otherwise the event is propagated to the subStateMachines.
+     * - If the given event doesn't map to a transition in the state machine
+     * or its subStateMachines, it will be ignored.
+     * @param event - The triggered event.
      */
     triggerEvent(event: EventT) {
         if (!this.crtState) {
             throw Error('Invalid current state.');
         }
 
-        const transitionsForEvent = this.transitions.get(event);
+        const transitionDatasForEvent = this.transitions.get(event);
 
-        if (!transitionsForEvent) {
+        if (!transitionDatasForEvent) {
             // propagate event to sub state machines
             const subStateMachine = this.subStateMachines.get(this.crtState);
             if (subStateMachine) {
@@ -152,13 +193,7 @@ export class StateMachine<StateT, EventT> {
 
                 subStateMachine.triggerEvent(event);
 
-                this.notifyListeners(
-                    srcStates[srcStates.length - 1],
-                    this.currentStates[this.currentStates.length - 1],
-                    srcStates,
-                    this.currentStates,
-                    event
-                );
+                this.notifyListeners(srcStates, this.currentStates, event);
 
                 return;
             }
@@ -166,26 +201,34 @@ export class StateMachine<StateT, EventT> {
             return;
         }
 
-        const transitionsForSrcState = transitionsForEvent.get(this.crtState);
+        const transitionsForSrcState = transitionDatasForEvent.find(transitionData => {
+            return transitionData.srcState === this.crtState;
+        });
+
         if (transitionsForSrcState) {
+            if (
+                transitionsForSrcState.conditionStates &&
+                !transitionsForSrcState.conditionStates.some(condState =>
+                    this.currentStates.includes(condState)
+                )
+            ) {
+                // if the conditionStates exist and the state machine is not in one of the
+                // condition states
+                return;
+            }
             const srcStates = this.currentStates;
 
-            this.executeTransition(event, this.crtState, transitionsForSrcState);
+            this.executeTransition(event, this.crtState, transitionsForSrcState.dstState);
 
-            this.notifyListeners(
-                srcStates[srcStates.length - 1],
-                this.currentStates[this.currentStates.length - 1],
-                srcStates,
-                this.currentStates,
-                event
-            );
+            this.notifyListeners(srcStates, this.currentStates, event);
         }
         return;
     }
 
     /**
-     * Reset to the initial state the stateMachine and its subStateMachines.
-     * @param event
+     * Reset to the initial state the stateMachine and its subStateMachines, if
+     * they don't have history.
+     * @param event - The event which triggered the reset.
      */
     reset(event: EventT) {
         if (!this.crtState) {
@@ -206,13 +249,7 @@ export class StateMachine<StateT, EventT> {
 
             this.crtState = this.initialState;
 
-            this.notifyListeners(
-                srcStates[srcStates.length - 1],
-                this.currentStates[this.currentStates.length - 1],
-                srcStates,
-                this.currentStates,
-                event
-            );
+            this.notifyListeners(srcStates, this.currentStates, event);
         }
     }
 
@@ -236,7 +273,7 @@ export class StateMachine<StateT, EventT> {
     // ------------------------------- PRIVATE API -------------------------------
 
     /**
-     * Creates a states array from the state machine current state and all the subStateMachines current states.
+     * Creates a states array from the state machine current state and all its subStateMachines current states.
      * @param currentStates
      */
     private getCurrentStates(currentStates?: StateT[]): StateT[] {
@@ -262,9 +299,9 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Search the given state in the current state machine and all sub state machines recursively.
-     * - state doesn't exist in current SM or its subStateMachines -  null it's returned.
-     * - state exists in current SM or its subStateMachines - an array containing all the states
+     * Search the given state in the current state machine and its subStateMachines recursively.
+     * - if state doesn't exist in current SM or its subStateMachines -  null it's returned.
+     * - if state exists in current SM or its subStateMachines - an array containing all the states
      * its returned, states being ordered from the bottom to the top.
      * @param searchedState - the state to be located.
      * @param stateMachine - the state machine to search the state into.
@@ -303,10 +340,10 @@ export class StateMachine<StateT, EventT> {
 
     /**
      * Executes a transition by updating the current state and resets the subStateMachines,
-     * if case.
-     * @param event - the event which triggered the transition.
-     * @param srcState - the source state.
-     * @param dstState - the destination state.
+     * if case, depending on the state machines history configuration.
+     * @param event - The event which triggered the transition.
+     * @param srcState - The source state.
+     * @param dstState - The destination state.
      * @private
      */
     private executeTransition(event: EventT, srcState: StateT, dstState: StateT) {
@@ -323,16 +360,21 @@ export class StateMachine<StateT, EventT> {
         }
     }
 
-    private notifyListeners(
-        srcState: StateT,
-        dstState: StateT,
-        srcStates: StateT[],
-        dstStates: StateT[],
-        event: EventT
-    ) {
-        this.onLeaveState.emit(srcState);
-        this.onEnterState.emit(dstState);
-        this.onStateChange.emit(srcState, dstState, event);
+    /**
+     * Emit the events.
+     * @param srcStates - The source states, from top to the bottom.
+     * @param dstStates - The destination states, from top to the bottom.
+     * @param event - The event which triggered the transition.
+     * @private
+     */
+    private notifyListeners(srcStates: StateT[], dstStates: StateT[], event: EventT) {
+        this.onLeaveState.emit(srcStates[srcStates.length - 1]);
+        this.onEnterState.emit(dstStates[dstStates.length - 1]);
+        this.onStateChange.emit(
+            srcStates[srcStates.length - 1],
+            dstStates[dstStates.length - 1],
+            event
+        );
         this.onStatesChange.emit(srcStates, dstStates, event);
     }
 }
