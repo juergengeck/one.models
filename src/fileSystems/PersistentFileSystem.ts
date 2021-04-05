@@ -27,8 +27,8 @@ import {retrieveFileMode} from './fileSystemModes';
 import * as fs from 'fs';
 import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
-import {platform} from "one.core/lib/system/platform";
-import {getObjectSize} from "./ObjectSize";
+import {platform} from 'one.core/lib/system/platform';
+import {getObjectSize} from './ObjectSize';
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -209,16 +209,13 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * @param folderPath
+     * @param directoryPath
      * @param dirMode
      */
-    public async createDir(
-        directoryPath: string,
-        dirMode = 0o0040777
-    ): Promise<void> {
-        const path = require('path')
+    public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
+        const path = require('path');
         const parentDirectoryPath = path.dirname(directoryPath);
-        const dirName = path.posix.basename(directoryPath)
+        const dirName = path.posix.basename(directoryPath);
         const mode = retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
             throw new Error('Error: the mode is not corresponding to a directory.');
@@ -299,6 +296,189 @@ export default class PersistentFileSystem implements IFileSystem {
         );
     }
 
+    public async chmod(pathName: string, mode: number): Promise<number> {
+        const foundDirectoryEntry = await this.search(pathName);
+        const parentPath = path.dirname(pathName);
+        const parent = await this.search(parentPath);
+
+        /** If the parent or the current could not be found **/
+        if (!foundDirectoryEntry || !parent) {
+            throw new Error('Error: the given path could not be found.');
+        }
+
+        /** Get parent content **/
+        const parentContent = await getObject(parent.content);
+
+
+        /** If the parent is a {@link PersistentFileSystemDirectory} **/
+        if (PersistentFileSystem.isDir(parentContent)) {
+            foundDirectoryEntry.mode = mode;
+            const newDirectory = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                foundDirectoryEntry
+            );
+            /** Delete the given node from his content **/
+            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
+            parentContent.children.set(PersistentFileSystem.getLastItem(pathName), newDirectory.hash);
+
+            /** Update the File System Tree **/
+            await this.updateFileSystemTree(
+                await calculateHashOfObj(parentContent),
+                path.dirname(parentPath),
+                0o0040777,
+                PersistentFileSystem.pathJoin(
+                    '/',
+                    PersistentFileSystem.getLastItem(parentPath)
+                )
+            );
+            return 0;
+        }
+
+        throw new Error('Error: not a directory');    }
+
+    public async rename(src: string, dest: string): Promise<number> {
+        const foundDirectoryEntry = await this.search(src);
+        const parentPath = path.dirname(src);
+        const parent = await this.search(parentPath);
+
+        /** If the parent or the current could not be found **/
+        if (!foundDirectoryEntry || !parent) {
+            throw new Error('Error: the given path could not be found.');
+        }
+
+        /** Get parent content **/
+        const parentContent = await getObject(parent.content);
+
+        /** If the parent is a {@link PersistentFileSystemDirectory} **/
+        if (PersistentFileSystem.isDir(parentContent)) {
+            /** Delete the given node from his content **/
+            parentContent.children.delete(PersistentFileSystem.getLastItem(src));
+            parentContent.children.set(PersistentFileSystem.getLastItem(dest), foundDirectoryEntry);
+            const newDirectory = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                parentContent
+            );
+            /** Update the File System Tree **/
+            await this.updateFileSystemTree(
+                newDirectory.hash,
+                path.dirname(parentPath),
+                0o0040777,
+                PersistentFileSystem.pathJoin(
+                    '/',
+                    PersistentFileSystem.getLastItem(parentPath)
+                )
+            );
+            return 0;
+        }
+
+        throw new Error('Error: not a directory');
+    }
+
+    /**
+     * Removes the directory
+     * @param pathName
+     */
+    public async rmdir(pathName: string): Promise<number> {
+        const foundDirectoryEntry = await this.search(pathName);
+        const parentPath = path.dirname(pathName);
+        const parent = await this.search(parentPath);
+
+        /** If the parent or the current could not be found **/
+        if (!foundDirectoryEntry || !parent) {
+            throw new Error('Error: the given path could not be found.');
+        }
+
+        /** If the given path is not a directory **/
+        if (foundDirectoryEntry.content) {
+            const dirContent = await getObject(foundDirectoryEntry.content);
+            if (!PersistentFileSystem.isDir(dirContent)) {
+                throw new Error('Error: not a directory');
+            }
+        }
+
+        /** Get parent content **/
+        const parentContent = await getObject(parent.content);
+
+        /** If the parent is a {@link PersistentFileSystemDirectory} **/
+        if (PersistentFileSystem.isDir(parentContent)) {
+            /** Delete the given node from his content **/
+            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
+            const newDirectory = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                parentContent
+            );
+            /** Update the File System Tree **/
+            await this.updateFileSystemTree(
+                newDirectory.hash,
+                path.dirname(parentPath),
+                0o0040777,
+                PersistentFileSystem.pathJoin(
+                    '/',
+                    PersistentFileSystem.getLastItem(parentPath)
+                )
+            );
+            return 0;
+        }
+
+        throw new Error('Error: not a directory');
+    }
+
+    public async unlink(pathName: string): Promise<number> {
+        const foundFile = await this.search(pathName);
+        const parentPath = path.dirname(pathName);
+        const parent = await this.search(parentPath);
+
+        /** If the parent or the current could not be found **/
+        if (!foundFile || !parent) {
+            throw new Error('Error: the given path could not be found.');
+        }
+
+        /** If the given path is not a directory **/
+        if (foundFile.content) {
+            const dirContent = await getObject(foundFile.content);
+            if (!PersistentFileSystem.isFile(dirContent)) {
+                throw new Error('Error: not a file');
+            }
+        }
+
+        /** Get parent content **/
+        const parentContent = await getObject(parent.content);
+
+        /** If the parent is a {@link PersistentFileSystemDirectory} **/
+        if (PersistentFileSystem.isDir(parentContent)) {
+            /** Delete the given node from his content **/
+            parentContent.children.delete(PersistentFileSystem.getLastItem(pathName));
+            const newDirectory = await createSingleObjectThroughPurePlan(
+                {
+                    module: '@one/identity',
+                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                },
+                parentContent
+            );
+            /** Update the File System Tree **/
+            await this.updateFileSystemTree(
+                newDirectory.hash,
+                path.dirname(parentPath),
+                0o0040777,
+                PersistentFileSystem.pathJoin(
+                    '/',
+                    PersistentFileSystem.getLastItem(parentPath)
+                )
+            );
+            return 0;
+        }
+
+        throw new Error('Error: not a directory');
+    }
     /**
      *
      * @param {string} path
@@ -311,7 +491,10 @@ export default class PersistentFileSystem implements IFileSystem {
         }
         const resolvedDirectoryEntry = await getObject(foundFile.content);
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
-            const objectSize = platform === 'node' ? await getObjectSize(resolvedDirectoryEntry.content) : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
+            const objectSize =
+                platform === 'node'
+                    ? await getObjectSize(resolvedDirectoryEntry.content)
+                    : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
             return {mode: foundFile.mode, size: objectSize};
         }
         return {mode: foundFile.mode, size: 0};

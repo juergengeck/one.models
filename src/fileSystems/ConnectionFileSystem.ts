@@ -249,6 +249,40 @@ export default class ConnectionFileSystem implements IFileSystem {
     }
 
     /**
+     * Not implemented
+     * @param pathName
+     * @param mode
+     */
+    chmod(pathName: string, mode: number): Promise<number> {
+        throw new Error('Error: not implemented.');
+    }
+
+    /**
+     * Not Implemented
+     * @param src
+     * @param dest
+     */
+    rename(src: string, dest: string): Promise<number> {
+        throw new Error('Error: not implemented.');
+    }
+
+    /**
+     * Not implemented
+     * @param pathName
+     */
+    rmdir(pathName: string): Promise<number> {
+        throw new Error('Error: not implemented.');
+    }
+
+    /**
+     * Not implemented
+     * @param pathName
+     */
+    unlink(pathName: string): Promise<number> {
+        throw new Error('Error: not implemented.');
+    }
+
+    /**
      * Stats about the given path
      * @param {string} path
      * @returns {Promise<FileDescription>}

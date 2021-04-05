@@ -113,14 +113,14 @@ export interface IFileSystem {
      * @param {string} pathName
      * @returns {Promise<number>}
      */
-    // rmdir(pathName: string): Promise<number>;
+    rmdir(pathName: string): Promise<number>;
 
     /**
      * Deletes a file or a symlink. Return 0 for success or an error code
      * @param {string} pathName
      * @returns {Promise<number>}
      */
-    // unlink(pathName: string): Promise<number>;
+    unlink(pathName: string): Promise<number>;
 
     /**
      * Creates a hardlink. Return 0 for success or an error code
@@ -147,7 +147,7 @@ export interface IFileSystem {
      * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
-    // rename(src: string, dest: string): Promise<number>;
+    rename(src: string, dest: string): Promise<number>;
 
     /**
      * Change the permissions. Return 0 for success or an error code
@@ -156,5 +156,5 @@ export interface IFileSystem {
      * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
-    // chmod(pathName: string, mode: number): Promise<number>;
+    chmod(pathName: string, mode: number): Promise<number>;
 }
