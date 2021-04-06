@@ -27,6 +27,7 @@ import {
     VERSION_UPDATES,
     SetAccessParam,
     SET_ACCESS_MODE,
+    onVersionedObj,
     getObjectWithType,
     createSingleObjectThroughImpurePlan,
     readBlobAsArrayBuffer
@@ -38,7 +39,6 @@ import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import InstancesModel from './InstancesModel';
-import ChannelManager from './ChannelManager';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
 
@@ -156,25 +156,32 @@ export default class ContactModel extends EventEmitter {
 
     private readonly instancesModel: InstancesModel;
     private readonly commServerUrl: string;
-    // @ts-ignore
-    private readonly channelManager: ChannelManager; // Let's keep it for now, because we will need it later again!
-    // @ts-ignore
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
     private readonly boundOnUnVersionedObjHandler: (
         caughtObject: UnversionedObjectResult
     ) => Promise<void>;
+    private syncContactApp: boolean = true;
 
+    /**
+     * Create a new contact model for managing contacts.
+     *
+     * @param instancesModel - The model for managing local instance
+     * @param commServerUrl - The comm server url for creating local contact objects
+     * @param syncContactApp - If true then sync the root contact app object with your IoM. Set to
+     *                         false if each instance should maintain its own list of contacts and
+     *                         profiles.
+     */
     constructor(
         instancesModel: InstancesModel,
         commServerUrl: string,
-        channelManager: ChannelManager
+        syncContactApp: boolean = true
     ) {
         super();
         this.instancesModel = instancesModel;
         this.commServerUrl = commServerUrl;
-        this.channelManager = channelManager;
+        this.syncContactApp = syncContactApp;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.boundOnUnVersionedObjHandler = this.handleOnUnVersionedObj.bind(this);
     }
@@ -208,19 +215,32 @@ export default class ContactModel extends EventEmitter {
         }
 
         // Listen for new contact app objects -> own profiles
-        //onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+        if (this.syncContactApp) {
+            onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+        }
 
         // Listen for new contact objects
         onUnversionedObj.addListener(this.boundOnUnVersionedObjHandler);
 
-        await ContactModel.shareContactAppWithYourInstances();
+        // Write an access object that reflects the syncContactApp flag.
+        // Note: For new applications that never shared the ContactApp object we would not need to
+        // call unshare, because this only creates an unnecessary object with no access. To be on
+        // the safe side for applications that are already out there we overwrite it explicitly.
+        // When we redesign this model we might remove the unsharing again.
+        if (this.syncContactApp) {
+            await ContactModel.shareContactAppWithYourInstances();
+        } else {
+            await ContactModel.unshareContactAppWithYourInstances();
+        }
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        //onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+        if (this.syncContactApp) {
+            onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+        }
         onUnversionedObj.removeListener(this.boundOnUnVersionedObjHandler);
     }
 
@@ -1099,6 +1119,28 @@ export default class ContactModel extends EventEmitter {
         if (personIdHash === undefined) {
             return;
         }
+
+        const setAccessParam: SetAccessParam = {
+            group: [],
+            id: contactAppVersionedObjectResult.idHash,
+            mode: SET_ACCESS_MODE.REPLACE,
+            person: [personIdHash]
+        };
+        await createSingleObjectThroughImpurePlan({
+            module: '@one/access',
+            versionMapPolicy: {
+                '*': VERSION_UPDATES.NONE_IF_LATEST
+            }
+        }, [setAccessParam]);
+    }
+
+    /**
+     * Revoke a previous sharing of the contact app object.
+     *
+     * This does not have to be called when the instance never shared the ContactApp object before.
+     */
+    private static async unshareContactAppWithYourInstances(): Promise<void> {
+        const contactAppVersionedObjectResult = await ContactModel.getContactAppObject();
 
         const setAccessParam: SetAccessParam = {
             group: [],
