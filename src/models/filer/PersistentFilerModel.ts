@@ -30,6 +30,7 @@ export default class PersistentFilerModel extends EventEmitter {
     /**
      *
      * @param {ChannelManager} channelManager
+     * @param channelId
      */
     public constructor(
         channelManager: ChannelManager,
@@ -88,7 +89,7 @@ export default class PersistentFilerModel extends EventEmitter {
 
             if (rootDirectory[0]) {
                 const rootDir = await getObject(rootDirectory[0].dataHash);
-                if ('root' in rootDir && rootDir.root.entry !== rootHash) {
+                if ('root' in rootDir) {
                     const updatedRoot = await createSingleObjectThroughPurePlan(
                         {
                             module: '@module/persistentFileSystemUpdateRoot',
