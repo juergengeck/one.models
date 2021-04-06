@@ -356,52 +356,137 @@ export default class PersistentFileSystem implements IFileSystem {
 
     public async rename(src: string, dest: string): Promise<number> {
         const foundDirectoryEntry = await this.search(src);
-        const parentPath = path.dirname(src);
-        const parent = await this.search(parentPath);
+
+        const srcParentPath = path.dirname(src);
+        const destParentPath = path.dirname(dest);
+
+        const srcParent = await this.search(srcParentPath);
+        const destParent = await this.search(destParentPath);
 
         /** If the parent or the current could not be found **/
-        if (!foundDirectoryEntry || !parent) {
+        if (!foundDirectoryEntry || !srcParent || !destParent) {
             throw new Error('Error: the given path could not be found.');
         }
 
         /** Get parent content **/
-        const parentContent = await getObject(parent.content);
+        const srcParentContent = await getObject(srcParent.content);
+        const destParentContent = await getObject(destParent.content);
 
         const pathCurrentMode = retrieveFileMode(foundDirectoryEntry.mode);
-        if (!pathCurrentMode.permissions.owner.write) {
+        const destCurrentMode = retrieveFileMode(destParent.mode);
+
+        /** Check if the file and the dest folder has write rights **/
+        if (!pathCurrentMode.permissions.owner.write || !destCurrentMode.permissions.owner.write) {
             throw new PermissionsRequiredError('Error: Permissions required.');
         }
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
-        if (PersistentFileSystem.isDir(parentContent)) {
-            /** Delete the given node from his content **/
-            parentContent.children.delete(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
-            );
-            parentContent.children.set(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
-                foundDirectoryEntry
-            );
-            const newDirectory = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                parentContent
-            );
-            /** Update the File System Tree **/
-            if (parentPath === '/') {
-                /** update the channel with the updated root directory **/
-                if (this.onRootUpdate) {
-                    await this.onRootUpdate(newDirectory.hash);
-                }
-            } else {
-                await this.updateFileSystemTree(
-                    newDirectory.hash,
-                    path.dirname(parentPath),
-                    0o0040777,
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
+        if (
+            PersistentFileSystem.isDir(srcParentContent) &&
+            PersistentFileSystem.isDir(destParentContent)
+        ) {
+            /** If the paths are different folders, operate on both of them **/
+            if (srcParentPath !== destParentPath) {
+                /** delete the file from the src **/
+                srcParentContent.children.delete(
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
                 );
+                /** added it to the dest path **/
+                destParentContent.children.set(
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
+                    foundDirectoryEntry
+                );
+
+                /** save updated directories **/
+                const srcNewDirectory = await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    srcParentContent
+                );
+                const destNewDirectory = await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    destParentContent
+                );
+
+                /** if the src is root **/
+                if (srcParentPath === '/') {
+                    if (this.onRootUpdate) {
+                        await this.onRootUpdate(srcNewDirectory.hash);
+                    }
+                }
+
+                /** if the dest is root **/
+                if (destParentPath === '/') {
+                    if (this.onRootUpdate) {
+                        await this.onRootUpdate(destNewDirectory.hash);
+                    }
+                }
+
+                /** update the system tree if src is not root **/
+                if (srcParentPath !== '/') {
+                    await this.updateFileSystemTree(
+                        srcNewDirectory.hash,
+                        path.dirname(srcParentPath),
+                        0o0040777,
+                        PersistentFileSystem.pathJoin(
+                            '/',
+                            PersistentFileSystem.getLastItem(srcParentPath)
+                        )
+                    );
+                }
+                /** update the system tree if dest is not root **/
+                if (destParentPath !== '/') {
+                    await this.updateFileSystemTree(
+                        destNewDirectory.hash,
+                        path.dirname(destParentPath),
+                        0o0040777,
+                        PersistentFileSystem.pathJoin(
+                            '/',
+                            PersistentFileSystem.getLastItem(destParentPath)
+                        )
+                    );
+                }
             }
+            /** If src and path are EQUAL, operate only on one directory because they are the same **/
+            else {
+                /** Delete the given node from his content **/
+                srcParentContent.children.delete(
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
+                );
+                srcParentContent.children.set(
+                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
+                    foundDirectoryEntry
+                );
+                const newDirectory = await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    srcParentContent
+                );
+                /** Update the File System Tree **/
+                if (srcParentPath === '/') {
+                    /** update the channel with the updated root directory **/
+                    if (this.onRootUpdate) {
+                        await this.onRootUpdate(newDirectory.hash);
+                    }
+                } else {
+                    await this.updateFileSystemTree(
+                        newDirectory.hash,
+                        path.dirname(srcParentPath),
+                        0o0040777,
+                        PersistentFileSystem.pathJoin(
+                            '/',
+                            PersistentFileSystem.getLastItem(srcParentPath)
+                        )
+                    );
+                }
+            }
+
             return 0;
         }
 
