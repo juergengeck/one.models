@@ -2,17 +2,29 @@ import {OEvent} from './OEvent';
 
 /**
  *
+ * State machine class.
+ *
+ * This class manages state machines and their events invocations. The state machines emit 4 event types:
+ * - onEnterState(enteredState: StateT) - emitted when the state machine enters a new state.
+ * - onLeaveState(leftState: StateT) - emitted when the state machine leaves a state.
+ * - onStateChange(srcState: StateT, dstState: StateT, event: EventT) - emitted when a transition happens. The
+ * source state and the destination state represent the deepest states from the transition.
+ * - srcStates: StateT[], dstStates: StateT[], event: EventT)
+ *
+ * <uml>
+ * State1: this is a string
+ * State1 -> State2
+ * </uml>
+ *
  */
 export class StateMachine<StateT, EventT> {
     /**
-     * Emitted when the state machine enters a new state. The enteredState
-     * value represents the deepest state the state machine enters.
+     * Emitted when the state machine enters a new state.
      */
     public onEnterState = new OEvent<(enteredState: StateT) => void>();
 
     /**
-     * Emitted when the state machine leaves the current state. The leftState
-     * value represents the deepest state the state machine leaves.
+     * Emitted when the state machine leaves the current state.
      */
     public onLeaveState = new OEvent<(leftState: StateT) => void>();
 
