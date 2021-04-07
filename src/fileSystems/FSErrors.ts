@@ -3,7 +3,7 @@ export const FS_INTERNAL_ERROR_CODE = 999
 /**
  * FSE stands for 'File System Error'
  */
-export const FS_ERRORS = {
+export const FS_ERRORS: {[key: string]: {message: string, linuxErrCode: number}} = {
     'FSE-ENOENT': {message: 'No such file or directory', linuxErrCode: -2},
     'FSE-EACCES-W': {message: 'Write permissions required', linuxErrCode: -13},
     'FSE-EACCES-R': {message: 'Read permissions required', linuxErrCode: -13},
@@ -30,6 +30,7 @@ export const FS_ERRORS = {
         linuxErrCode: FS_INTERNAL_ERROR_CODE
     },
     'FSE-WRM1': {message: 'The given file mode was malformed', linuxErrCode: FS_INTERNAL_ERROR_CODE},
-    'FSE-WRM2': {message: 'The given file permissions were malformed', linuxErrCode: FS_INTERNAL_ERROR_CODE}
+    'FSE-WRM2': {message: 'The given file permissions were malformed', linuxErrCode: FS_INTERNAL_ERROR_CODE},
+    'FSE-UNK': {message: 'Unknown File System Error', linuxErrCode: FS_INTERNAL_ERROR_CODE}
 };
 
