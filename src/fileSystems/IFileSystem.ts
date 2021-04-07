@@ -143,7 +143,6 @@ export interface IFileSystem {
      * Rename file. Return 0 for success or an error code
      * @param {string} src
      * @param {string} dest
-     * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
     rename(src: string, dest: string): Promise<number>;
@@ -152,7 +151,6 @@ export interface IFileSystem {
      * Change the permissions. Return 0 for success or an error code
      * @param {string} pathName
      * @param {number} mode
-     * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
     chmod(pathName: string, mode: number): Promise<number>;

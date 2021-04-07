@@ -1,3 +1,6 @@
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
+
 /**
  * @type {{permissions: {rwx: number, rNN: number, NwN: number, rwN: number, NNx: number, rNx: number, Nwx: number}, fileType: {file: string, symlink: string, dir: string}}}
  */
@@ -49,13 +52,13 @@ export function retrieveFileMode(mode: number): FileMode {
     /** the file type is represent from this interval of indexes [modeAsArray[0],modesAsArray[4]] **/
     const type = getFileType(modeAsArray.slice(0, 4).join(''));
     if (!type) {
-        throw new Error('Error: the given file mode was malformed.');
+        throw createError('FSE-WRM1', {message: FS_ERRORS['FSE-WRM1'].message, mode: mode});
     }
     parsedMode.type = type;
     /** the file type is represent from this interval of indexes [modeAsArray[4],modesAsArray[7]] **/
     const permissions = getFilePermission(modeAsArray.slice(4, 7));
     if (!permissions) {
-        throw new Error('Error: the given file permissions were malformed.');
+        throw createError('FSE-WRM2', {message: FS_ERRORS['FSE-WRM2'].message, mode: mode});
     }
     parsedMode.permissions = permissions;
     return parsedMode;

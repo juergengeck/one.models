@@ -2,7 +2,8 @@ import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from 
 import {BLOB, HashTypes, SHA256Hash} from '@OneCoreTypes';
 import {retrieveFileMode} from './fileSystemModes';
 import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
-import {NotImplementedError, PermissionsRequiredError} from './FSErrors';
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
 
 /**
  * Json format for the objects parsed path
@@ -42,9 +43,16 @@ export default class ObjectsFileSystem implements IFileSystem {
     createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: directoryPath
+            });
         } else {
-            throw new NotImplementedError('Error: not implemented.');
+            throw createError('FSE-ENOSYS', {
+                message: FS_ERRORS['FSE-ENOSYS'].message,
+                functionName: 'createDir()',
+                path: directoryPath
+            });
         }
     }
 
@@ -61,12 +69,18 @@ export default class ObjectsFileSystem implements IFileSystem {
         position: number
     ): Promise<FileSystemFile> {
         if (!this.supportsChunkedReading()) {
-            throw new Error('Error: reading file in chunks is not supported.');
+            throw createError('FSE-CHUNK-R', {
+                message: FS_ERRORS['FSE-CHUNK-R'].message,
+                path: filePath
+            });
         }
 
         const content = await this.retrieveContentAboutHash(filePath);
         if (!content) {
-            throw new Error('Error: file could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
         return {
             content: ObjectsFileSystem.stringToArrayBuffer(content).slice(
@@ -101,9 +115,16 @@ export default class ObjectsFileSystem implements IFileSystem {
     ): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: directoryPath
+            });
         } else {
-            throw new NotImplementedError('Error: not implemented.');
+            throw createError('FSE-ENOSYS', {
+                message: FS_ERRORS['FSE-ENOSYS'].message,
+                functionName: 'createFile()',
+                path: directoryPath
+            });
         }
     }
 
@@ -123,7 +144,10 @@ export default class ObjectsFileSystem implements IFileSystem {
 
         /** Handle malformed path / not a valid one hash **/
         if (!parsedPath.hash) {
-            throw new Error('Error: directory could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: dirPath
+            });
         }
 
         if (parsedPath.suffix === '/' || parsedPath.suffix === '') {
@@ -139,7 +163,7 @@ export default class ObjectsFileSystem implements IFileSystem {
                 return await ObjectsFileSystem.returnDirectoryContentForRegularObject();
             }
         }
-        throw new Error('Error: directory could not be found.');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: dirPath});
     }
 
     /**
@@ -150,7 +174,10 @@ export default class ObjectsFileSystem implements IFileSystem {
     async readFile(filePath: string): Promise<FileSystemFile> {
         const content = await this.retrieveContentAboutHash(filePath);
         if (!content) {
-            throw new Error('Error: file could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
         return {
             content: ObjectsFileSystem.stringToArrayBuffer(content)
@@ -204,7 +231,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         if (parsedPath.suffix === '/moduleHash') {
             return {mode: 0o0120000, size: 0};
         }
-        throw new Error('Not found');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
     }
 
     /**
@@ -247,7 +274,11 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param mode
      */
     chmod(pathName: string, mode: number): Promise<number> {
-        throw new PermissionsRequiredError('Error: Permissions required.');
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'chmod()',
+            path: pathName
+        });
     }
 
     /**
@@ -256,7 +287,11 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param dest
      */
     rename(src: string, dest: string): Promise<number> {
-        throw new PermissionsRequiredError('Error: Permissions required.');
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'rename()',
+            path: src
+        });
     }
 
     /**
@@ -264,7 +299,11 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param pathName
      */
     rmdir(pathName: string): Promise<number> {
-        throw new PermissionsRequiredError('Error: Permissions required.');
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'rmdir()',
+            path: pathName
+        });
     }
 
     /**
@@ -272,7 +311,11 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @param pathName
      */
     unlink(pathName: string): Promise<number> {
-        throw new PermissionsRequiredError('Error: Permissions required.');
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'unlink()',
+            path: pathName
+        });
     }
 
     // ---------------------------------------- Private ----------------------------------------

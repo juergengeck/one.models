@@ -30,7 +30,7 @@ export {ObjectsFileSystem};
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
  * {@link FileSystemDirectory} and {@link FileSystemFile} types from {@link IFileSystem} interface in order
  * to accomplish this FileSystem structure. This keeps the reference to the root in his state (see {@link rootDirectoryContent}) and
- * uses a callback to notify the {@link FilerModel} about the updates (see {@link onRootUpdate}).
+ * uses a callback to notify the {@link PersistentFilerModel} about the updates (see {@link onRootUpdate}).
  *
  */
 export {PersistentFileSystem};

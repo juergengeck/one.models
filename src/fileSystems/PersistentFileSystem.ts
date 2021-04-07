@@ -29,7 +29,8 @@ import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {getObjectSize} from './ObjectSize';
-import {PermissionsRequiredError} from './FSErrors';
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -77,7 +78,10 @@ export default class PersistentFileSystem implements IFileSystem {
     ): Promise<void> {
         const mode = retrieveFileMode(fileMode);
         if (mode.type !== 'file') {
-            throw new Error('Error: the mode is not corresponding to a file.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: directoryPath
+            });
         }
         await serializeWithType('FileSystemCreateLock', async () => {
             /** the directory where you want to save the file **/
@@ -93,15 +97,24 @@ export default class PersistentFileSystem implements IFileSystem {
             );
 
             if (doesFileExists) {
-                throw new Error('Error: a directory with the same path already exists.');
+                throw createError('FSE-EXISTS', {
+                    message: FS_ERRORS['FSE-EXISTS'].message,
+                    path: directoryPath
+                });
             }
 
             if (!targetDirectory) {
-                throw new Error('Error: the given directory path could not be found.');
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: directoryPath
+                });
             }
 
             if (!directoryParsedMode.permissions.owner.write) {
-                throw new PermissionsRequiredError('Error: Permissions required.');
+                throw createError('FSE-EACCES-W', {
+                    message: FS_ERRORS['FSE-EACCES-W'].message,
+                    path: directoryPath
+                });
             }
 
             const savedFile = await createSingleObjectThroughPurePlan(
@@ -181,7 +194,10 @@ export default class PersistentFileSystem implements IFileSystem {
         position: number
     ): Promise<FileSystemFile> {
         if (!this.supportsChunkedReading()) {
-            throw new Error('Error: reading file in chunks is not supported.');
+            throw createError('FSE-CHUNK-R', {
+                message: FS_ERRORS['FSE-CHUNK-R'].message,
+                path: filePath
+            });
         }
 
         const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
@@ -219,7 +235,10 @@ export default class PersistentFileSystem implements IFileSystem {
         const dirName = path.posix.basename(directoryPath);
         const mode = retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
-            throw new Error('Error: the mode is not corresponding to a directory.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: directoryPath
+            });
         }
 
         await serializeWithType('FileSystemCreateLock', async () => {
@@ -235,16 +254,26 @@ export default class PersistentFileSystem implements IFileSystem {
             );
 
             if (pathExists) {
-                throw new Error('Error: the path already exists.');
+                throw createError('FSE-EXISTS', {
+                    message: FS_ERRORS['FSE-EXISTS'].message,
+                    path: directoryPath
+                });
             }
 
             if (!targetDirectory) {
-                throw new Error('Error: the given directory path could not be found.');
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: directoryPath
+                });
             }
 
             if (!directoryMode.permissions.owner.write) {
-                throw new PermissionsRequiredError('Error: Permissions required.');
+                throw createError('FSE-EACCES-W', {
+                    message: FS_ERRORS['FSE-EACCES-W'].message,
+                    path: directoryPath
+                });
             }
+
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -282,14 +311,17 @@ export default class PersistentFileSystem implements IFileSystem {
         );
 
         if (!foundDirectoryEntry) {
-            throw new Error('Error: directory could not be found.');
+            throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
         if (!PersistentFileSystem.isDir(foundDirectoryEntryValue)) {
-            throw new Error('Error: directory could not be found.');
+            throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
         }
         if (!directoryMode.permissions.owner.read) {
-            throw new Error('Error: read permission required.');
+            throw createError('FSE-EACCES-R', {
+                message: FS_ERRORS['FSE-EACCES-R'].message,
+                path: path
+            });
         }
 
         return await PersistentFileSystem.transformPersistedDirectoryToFileSystemDirectory(
@@ -304,7 +336,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /** If the parent or the current could not be found **/
         if (!foundDirectoryEntry || !parent) {
-            throw new Error('Error: the given path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: parentPath
+            });
         }
 
         /** Get parent content **/
@@ -312,7 +347,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         const pathCurrentMode = retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: parentPath
+            });
         }
 
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
@@ -351,7 +389,10 @@ export default class PersistentFileSystem implements IFileSystem {
             return 0;
         }
 
-        throw new Error('Error: not a directory');
+        throw createError('FSE-ENOENT', {
+            message: FS_ERRORS['FSE-ENOENT'].message,
+            path: parentPath
+        });
     }
 
     public async rename(src: string, dest: string): Promise<number> {
@@ -365,7 +406,11 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /** If the parent or the current could not be found **/
         if (!foundDirectoryEntry || !srcParent || !destParent) {
-            throw new Error('Error: the given path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                srcPath: srcParentPath,
+                destPath: destParentPath
+            });
         }
 
         /** Get parent content **/
@@ -377,7 +422,11 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /** Check if the file and the dest folder has write rights **/
         if (!pathCurrentMode.permissions.owner.write || !destCurrentMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                srcPath: srcParentPath,
+                destPath: destParentPath
+            });
         }
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (
@@ -450,9 +499,8 @@ export default class PersistentFileSystem implements IFileSystem {
                         )
                     );
                 }
-            }
-            /** If src and path are EQUAL, operate only on one directory because they are the same **/
-            else {
+            } else {
+                /** If src and path are EQUAL, operate only on one directory because they are the same **/
                 /** Delete the given node from his content **/
                 srcParentContent.children.delete(
                     PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
@@ -490,7 +538,11 @@ export default class PersistentFileSystem implements IFileSystem {
             return 0;
         }
 
-        throw new Error('Error: not a directory');
+        throw createError('FSE-ENOENT', {
+            message: FS_ERRORS['FSE-ENOENT'].message,
+            srcPath: srcParentPath,
+            destPath: destParentPath
+        });
     }
 
     /**
@@ -504,14 +556,20 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /** If the parent or the current could not be found **/
         if (!foundDirectoryEntry || !parent) {
-            throw new Error('Error: the given path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: pathName
+            });
         }
 
         /** If the given path is not a directory **/
         if (foundDirectoryEntry.content) {
             const dirContent = await getObject(foundDirectoryEntry.content);
             if (!PersistentFileSystem.isDir(dirContent)) {
-                throw new Error('Error: not a directory');
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: pathName
+                });
             }
         }
 
@@ -520,7 +578,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         const pathCurrentMode = retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: parentPath
+            });
         }
 
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
@@ -553,7 +614,7 @@ export default class PersistentFileSystem implements IFileSystem {
             return 0;
         }
 
-        throw new Error('Error: not a directory');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: pathName});
     }
 
     public async unlink(pathName: string): Promise<number> {
@@ -564,14 +625,20 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /** If the parent or the current could not be found **/
         if (!foundFile || !parent) {
-            throw new Error('Error: the given path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: pathName
+            });
         }
 
         /** If the given path is not a directory **/
         if (foundFile.content) {
             const dirContent = await getObject(foundFile.content);
             if (!PersistentFileSystem.isFile(dirContent)) {
-                throw new Error('Error: not a file');
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: pathName
+                });
             }
         }
 
@@ -580,7 +647,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         const pathCurrentMode = retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: pathName
+            });
         }
 
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
@@ -613,7 +683,7 @@ export default class PersistentFileSystem implements IFileSystem {
             return 0;
         }
 
-        throw new Error('Error: not a directory');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: pathName});
     }
     /**
      *
@@ -623,7 +693,7 @@ export default class PersistentFileSystem implements IFileSystem {
     public async stat(path: string): Promise<FileDescription> {
         const foundFile = await this.search(path);
         if (!foundFile) {
-            throw new Error('Error: the given path could not be found.');
+            throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
         }
         const resolvedDirectoryEntry = await getObject(foundFile.content);
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
@@ -671,16 +741,25 @@ export default class PersistentFileSystem implements IFileSystem {
         );
         const foundDirectoryEntry = await this.search(filePath);
         if (!foundDirectoryEntry) {
-            throw new Error('Error: file could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
         const foundDirectoryEntryValue = await getObject(foundDirectoryEntry.content);
 
         if (!PersistentFileSystem.isFile(foundDirectoryEntryValue)) {
-            throw new Error('Error: file could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
 
         if (!directoryMode.permissions.owner.read) {
-            throw new Error('Error: read permission required.');
+            throw createError('FSE-EACCES-R', {
+                message: FS_ERRORS['FSE-EACCES-R'].message,
+                path: filePath
+            });
         }
         return foundDirectoryEntryValue;
     }
@@ -755,15 +834,19 @@ export default class PersistentFileSystem implements IFileSystem {
         const parentDirectory = await this.openPersistedDir(parentDirectoryPath);
 
         if (!parentDirectory) {
-            throw new Error('Error: parent directory could not be retrieved.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: parentDirectoryPath
+            });
         }
         const child = parentDirectory.children.get(
             PersistentFileSystem.pathJoin('/', directoryName)
         );
         if (!child) {
-            throw new Error(
-                'Error: child directory could not be found within the parent directory.'
-            );
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: PersistentFileSystem.pathJoin('/', directoryName)
+            });
         }
         return child.mode;
     }

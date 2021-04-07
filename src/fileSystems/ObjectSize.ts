@@ -1,6 +1,8 @@
 import {platform} from 'one.core/lib/system/platform';
 import {HashTypes, SHA256Hash} from '@OneCoreTypes';
 import {getInstanceIdHash} from 'one.core/lib/instance';
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
 
 /**
  * Read the object's file size
@@ -15,5 +17,5 @@ export async function getObjectSize(hash: SHA256Hash<HashTypes>): Promise<number
         return stat.size;
     }
 
-    throw new Error('Error: getObjectSize() is not supported on other systems then node.');
+    throw createError('FSE-OBJS', {message: FS_ERRORS['FSE-OBJS'].message});
 }

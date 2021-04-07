@@ -3,7 +3,8 @@ import {retrieveFileMode} from './fileSystemModes';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 import {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
-import {NotImplementedError, PermissionsRequiredError} from './FSErrors';
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
 
 /**
  * Json format for the connectionsFS path
@@ -26,7 +27,7 @@ export default class ConnectionFileSystem implements IFileSystem {
     private readonly rootMode: number = 0o0040555;
 
     /**
-     * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link FilerModel}
+     * Handler in order to provide QR code & connections info functionalities. Usually passed from {@link ConnectionsFilerModel}
      */
     public onConnectionQRCodeRequested: (() => Promise<Buffer>) | null = null;
     public onConnectionQRCodeReceived: ((qrContent: ArrayBuffer) => Promise<void>) | null = null;
@@ -64,9 +65,16 @@ export default class ConnectionFileSystem implements IFileSystem {
     createDir(directoryPath: string, dirMode: number): Promise<void> {
         const rootMode = retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: directoryPath
+            });
         } else {
-            throw new NotImplementedError('Error: not implemented.');
+            throw createError('FSE-ENOSYS', {
+                message: FS_ERRORS['FSE-ENOSYS'].message,
+                functionName: 'createDir()',
+                path: directoryPath
+            });
         }
     }
 
@@ -94,9 +102,16 @@ export default class ConnectionFileSystem implements IFileSystem {
         } else {
             const rootMode = retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {
-                throw new PermissionsRequiredError('Error: Permissions required.');
+                throw createError('FSE-EACCES-W', {
+                    message: FS_ERRORS['FSE-EACCES-W'].message,
+                    path: directoryPath
+                });
             } else {
-                throw new NotImplementedError('Error: not implemented.');
+                throw createError('FSE-ENOSYS', {
+                    message: FS_ERRORS['FSE-ENOSYS'].message,
+                    functionName: 'createFile()',
+                    path: directoryPath
+                });
             }
         }
     }
@@ -119,7 +134,10 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(dirPath);
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: dirPath
+            });
         }
 
         if (parsedPath.isRoot) {
@@ -134,7 +152,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             return {children: ['invited_qr_code.png']};
         }
 
-        throw new Error('Error: the path could not be found.');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: dirPath});
     }
 
     /**
@@ -146,7 +164,10 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(filePath);
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
 
         if (parsedPath.isDetailsPath) {
@@ -184,7 +205,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             }
         }
 
-        throw new Error('Error: the path could not be found.');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: filePath});
     }
 
     /**
@@ -202,11 +223,17 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(filePath);
 
         if (!this.supportsChunkedReading()) {
-            throw new Error('Error: reading file in chunks is not supported.');
+            throw createError('FSE-CHUNK-R', {
+                message: FS_ERRORS['FSE-CHUNK-R'].message,
+                path: filePath
+            });
         }
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: filePath
+            });
         }
 
         if (parsedPath.isDetailsPath) {
@@ -242,7 +269,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             }
         }
 
-        throw new Error('Error: the path could not be found.');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: filePath});
     }
 
     /**
@@ -253,7 +280,10 @@ export default class ConnectionFileSystem implements IFileSystem {
         const pathInfo = await this.stat(pathName);
         const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
         if (!pathPermissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: pathName
+            });
         }
         return 0;
     }
@@ -266,14 +296,17 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(src);
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: src});
         }
 
         const pathInfo = await this.stat(src);
         const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
 
         if (!pathPermissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: src
+            });
         }
 
         if (parsedPath.isImportPath) {
@@ -298,12 +331,18 @@ export default class ConnectionFileSystem implements IFileSystem {
         const pathInfo = await this.stat(pathName);
         const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
         if (!pathPermissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: pathName
+            });
         }
 
         // HACK - this is because write permissions exists for the import directory,
         // but it's not the best idea to let the user deleted it.
-        throw new PermissionsRequiredError('Error: Permissions required.');
+        throw createError('FSE-EACCES-W', {
+            message: FS_ERRORS['FSE-EACCES-W'].message,
+            path: pathName
+        });
     }
 
     /**
@@ -313,14 +352,20 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(pathName);
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {
+                message: FS_ERRORS['FSE-ENOENT'].message,
+                path: pathName
+            });
         }
 
         const pathInfo = await this.stat(pathName);
         const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
 
         if (!pathPermissions.owner.write) {
-            throw new PermissionsRequiredError('Error: Permissions required.');
+            throw createError('FSE-EACCES-W', {
+                message: FS_ERRORS['FSE-EACCES-W'].message,
+                path: pathName
+            });
         }
 
         if (parsedPath.isImportPath) {
@@ -345,7 +390,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(path);
 
         if (!parsedPath) {
-            throw new Error('Error: the path could not be found.');
+            throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
         }
 
         if (parsedPath.isRoot) {
@@ -372,7 +417,7 @@ export default class ConnectionFileSystem implements IFileSystem {
             return {mode: 0o0040777, size: 0};
         }
 
-        throw new Error('Error: the path could not be found.');
+        throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
     }
 
     /**

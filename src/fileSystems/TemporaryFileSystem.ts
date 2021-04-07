@@ -7,6 +7,8 @@
 
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
+import {createError} from 'one.core/lib/errors';
+import {FS_ERRORS} from './FSErrors';
 const path = require('path');
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -43,20 +45,23 @@ export default class TemporaryFileSystem implements IFileSystem {
      * Attaches a filesystem to a directory. It will return 0 for success or a error code
      * @param {string} storagePath
      * @param {IFileSystem} fileSystem
-     * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
     async mountFileSystem(storagePath: string, fileSystem: IFileSystem): Promise<number> {
         if (this.fstab.has(storagePath)) {
-            throw new Error('Error: Cannot mount path already mounted. Please unmount first.');
+            throw createError('FSE-MOUNT1', {
+                message: FS_ERRORS['FSE-MOUNT1'].message,
+                path: storagePath
+            });
         }
 
         for (const [dirPath, _] of this.fstab) {
             // @todo Cannot tree mount. Mabe change later on
             if (storagePath.includes(dirPath)) {
-                throw new Error(
-                    'Error: Cannot mount path under already mounted path. Please unmount first.'
-                );
+                throw createError('FSE-MOUNT2', {
+                    message: FS_ERRORS['FSE-MOUNT2'].message,
+                    path: storagePath
+                });
             }
         }
 
@@ -68,13 +73,14 @@ export default class TemporaryFileSystem implements IFileSystem {
     /**
      * Attaches a filesystem to a directory. It will return 0 for success or a error code
      * @param {string} storagePath
-     * @param {string} pathName
-     * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
     async unmountFileSystem(storagePath: string): Promise<number> {
         if (!this.fstab.has(storagePath)) {
-            throw new Error('Error: Cannot unmount path not mounted.');
+            throw createError('FSE-MOUNT3', {
+                message: FS_ERRORS['FSE-MOUNT3'].message,
+                path: storagePath
+            });
         }
 
         this.fstab.delete(storagePath);
@@ -96,7 +102,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             );
         }
 
-        throw new Error('Error: cannot create dir.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'createDir()',
+            path: directoryPath
+        });
     }
 
     /**
@@ -123,7 +133,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             );
         }
 
-        throw new Error('Error: cannot create file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'createFile()',
+            path: directoryPath
+        });
     }
 
     /**
@@ -136,11 +150,14 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.readFile(searchFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot read file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'readFile()',
+            path: filePath
+        });
     }
 
     /**
-     * @todo remove from interface
      * @param {string} filePath
      * @param {number} length
      * @param {number} position
@@ -152,7 +169,10 @@ export default class TemporaryFileSystem implements IFileSystem {
         position: number
     ): Promise<FileSystemFile> {
         if (!this.supportsChunkedReading(filePath)) {
-            throw new Error('Error: reading file in chunks is not supported.');
+            throw createError('FSE-CHUNK-R', {
+                message: FS_ERRORS['FSE-CHUNK-R'].message,
+                path: filePath
+            });
         }
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
@@ -163,7 +183,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             );
         }
 
-        throw new Error('Error: cannot read file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'readFileInChunks()',
+            path: filePath
+        });
     }
 
     /**
@@ -226,7 +250,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.chmod(searchFileSystem.relativePath, mode);
         }
 
-        throw new Error('Error: cannot chmod file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'chmod()',
+            path: pathName
+        });
     }
 
     /**
@@ -244,7 +272,12 @@ export default class TemporaryFileSystem implements IFileSystem {
             );
         }
 
-        throw new Error('Error: cannot rename file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'rename()',
+            destPath: dest,
+            srcPath: src
+        });
     }
 
     /**
@@ -256,7 +289,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.rmdir(searchFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot rmdir file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'rmdir()',
+            path: pathName
+        });
     }
 
     /**
@@ -268,7 +305,11 @@ export default class TemporaryFileSystem implements IFileSystem {
             return await searchFileSystem.fileSystem.unlink(searchFileSystem.relativePath);
         }
 
-        throw new Error('Error: cannot unlink file.');
+        throw createError('FSE-FSMAP', {
+            message: FS_ERRORS['FSE-FSMAP'].message,
+            op: 'unlink()',
+            path: pathName
+        });
     }
 
     /**
