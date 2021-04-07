@@ -10,6 +10,7 @@ export const FS_ERRORS: {[key: string]: {message: string, linuxErrCode: number}}
     'FSE-EACCES-E': {message: 'Execute permissions required', linuxErrCode: -13},
     'FSE-ENOSYS': {message: 'Function not implemented', linuxErrCode: -38},
     'FSE-EXISTS': {message: 'Path already exists', linuxErrCode: -17},
+    'FSE-MACH': {message: 'Hidden files and extended attributes are disabled on MacOS', linuxErrCode: -2},
 
     'FSE-CHUNK-R': {
         message: 'Reading file in chunks is not supported on other systems than node',
