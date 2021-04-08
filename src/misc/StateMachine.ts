@@ -4,27 +4,99 @@ import {OEvent} from './OEvent';
  *
  * State machine class.
  *
- * This class manages state machines and their events invocations. The state machines emit 4 event types:
- * - onEnterState(enteredState: StateT) - emitted when the state machine enters a new state.
- * - onLeaveState(leftState: StateT) - emitted when the state machine leaves a state.
- * - onStateChange(srcState: StateT, dstState: StateT, event: EventT) - emitted when a transition happens. The
- * source state and the destination state represent the deepest states from the transition.
- * - srcStates: StateT[], dstStates: StateT[], event: EventT)
+ * This class manages state machines and their events emits.
  *
+ * Emitted events
+ * --------------
+ *
+ * The state machines emit 4 event types:
+ * - onEnterState(enteredState: StateT) - Emitted when the state machine enters a new state. If the entered state
+ *  has subStates, the event will be emitted for each subStateMachine, from top to the bottom.
+ * - onLeaveState(leftState: StateT) - Emitted when the state machine leaves a state. If the left state has
+ * subStates, the event will be emitted for each subStateMachine, from the bottom to the top.
+ * - onStateChange(srcState: StateT, dstState: StateT, event: EventT) - Emitted when a transition happens. The
+ * source state and the destination state represent the deepest states of the transition.
+ * - srcStates: StateT[], dstStates: StateT[], event: EventT) - Emitted when a transition happens. The source states
+ * and the destination states contain all the subStates of the source and destination states, from top to the
+ * bottom.
+ *
+ *
+ * History
+ * -------
+ * The history configuration gives the possibility to specify if leaving a state will reset the sub state machine to the initial
+ * state or not. If the history flag is set to true, the sub state machine is not reset and when the parent
+ * state machine enters the state back, the old state of the sub state machine is restored. The history configuration
+ * can be optionally set through the setInitialState call. Default value is 'false'.
+ *
+ *
+ * Transition between current SM state and subSM states
+ * ---------------------------------------------------
+ * Transitions between current state machine and states of the subStateMachines can be defined, only if the source
+ * state or the destination state represent states of the state machine for which the transition is defined.
+ *
+ * ```typescript
+ * // Example (see StateMachine uml from Usage):
+ * stateMachine.addTransition('eventName', 'NotInitialized', 'Initialized') //  -> OK, both states are state of stateMachine
+ * stateMachine.addTransition('eventName', 'NotListening', 'Listening') // -> throws, none of the states is a state of stateMachine
+ * stateMachine.addTransition('eventName', 'NotInitialized', 'Listening') // -> OK, 'NotInitialized' is a state of stateMachine and 'Listening' is a sub state
+ * stateMachine.addTransition('eventName', 'NotListening', 'NotInitialized') // -> OK, 'NotInitialized' is a state of stateMachine and 'NotListening' is a sub state
+ * ```
+ *
+ *
+ * Usage:
+ * ------
+ * The following state machine will be created in typescript:
  * <uml>
- * State1: this is a string
- * State1 -> State2
+ * hide empty description
+ * [*] -> NotInitialized
+ * Initialized -left-> NotInitialized : shutdown
+ * NotInitialized -right-> Initialized[H] : init
+ * state Initialized {
+ *     [*] --> NotListening
+ *     NotListening -right-> Listening : startListen
+ *     Listening -left-> NotListening : stopListen
+ * }
  * </uml>
  *
+ *
+ * ```typescript
+ * // The state machine must be created from bottom to the top. Therefore the sub state machine is created first.
+ * const subStateMachine = new StateMachine<SMStates, SMEvents>();
+ * subStateMachine.addState('Listening');
+ * subStateMachine.addState('NotListening');
+ * // history configuration is set through 'setInitialState'
+ * subStateMachine.setInitialState('NotListening',true);
+ * subStateMachine.addTransition('startListen','NotListening','Listening');
+ * subStateMachine.addTransition('stopListen', 'Listening', 'NotListening');
+ *
+ * // Create top state machine and set the subState machine with addState.
+ * const stateMachine = new StateMachine<SMStates, SMEvents>();
+ * stateMachine.addState('NotInitialized');
+ * // set the subStateMachine for the 'Initialized' state
+ * stateMachine.addState('Initialized', subStateMachine);
+ * stateMachine.setInitialState('shutdown');
+ * stateMachine.addTransition('init','NotInitialized','Initialized');
+ * stateMachine.addTransition('shutdown', 'Initialized', 'NotInitialized');
+ *
+ * // listen for events
+ * stateMachine.onEnterState( enteredState => {
+ *     //...
+ * }
+ *
+ * // trigger events
+ * stateMachine.triggerEvent('init');
+ * stateMachine.triggerEvent('startListen');
+ * ```
  */
+
 export class StateMachine<StateT, EventT> {
     /**
-     * Emitted when the state machine enters a new state.
+     * Emitted when the state machine enters a state.
      */
     public onEnterState = new OEvent<(enteredState: StateT) => void>();
 
     /**
-     * Emitted when the state machine leaves the current state.
+     * Emitted when the state machine leaves a state.
      */
     public onLeaveState = new OEvent<(leftState: StateT) => void>();
 
@@ -91,9 +163,9 @@ export class StateMachine<StateT, EventT> {
     private subStateMachines = new Map<StateT, StateMachine<StateT, EventT>>();
 
     /**
-     * Current state of the state machine.
+     * Current (deepest) state of the state machine.
      */
-    public get currentState(): StateT | null {
+    public get currentState(): StateT {
         return this.currentStates[this.currentStates.length - 1];
     }
 
@@ -120,7 +192,7 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Set the initial state of the state machine and the history configuration.
+     * Set the initial state and the history of the state machine.
      * @param state - the initial state.
      * @param hasHistory - rather the state machine has history or not. Defaults to false.
      */
@@ -144,9 +216,10 @@ export class StateMachine<StateT, EventT> {
     /**
      * Add a transition to the state machine.
      * @param event - The event which triggers the transition.
-     * @param srcState - The source state of the transition.
-     * @param dstState - The destination state of the transition.
-     * current state machine for the transition to happen.
+     * @param srcState - The source state of the transition. It must be either a state of the current state machine
+     * or a sub state, only if dstState is a state of the current state machine.
+     * @param dstState - The destination state of the transition. It must be either a state of the current state
+     * machine or a sub state, only if srcState is a state of the current machine.
      */
     addTransition(event: EventT, srcState: StateT, dstState: StateT) {
         if (!this.events.includes(event)) {
@@ -214,6 +287,7 @@ export class StateMachine<StateT, EventT> {
                 if (this.crtState === undefined) {
                     throw new Error('Current state is undefined.');
                 }
+
                 this.executeTransition(event, this.crtState, dstState);
 
                 this.notifyListeners(srcStates, this.currentStates, event);
@@ -313,7 +387,7 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Search the given state in the current state machine and its subStateMachines recursively.
+     * Search the given state in the current state machine or its subStateMachines recursively.
      * - if state doesn't exist in current SM or its subStateMachines -  null it's returned.
      * - if state exists in current SM or its subStateMachines - an array containing all the states
      * its returned, states being ordered from the bottom to the top.
@@ -353,8 +427,8 @@ export class StateMachine<StateT, EventT> {
     }
 
     /**
-     * Executes a transition by updating the current state and resets the subStateMachines,
-     * if case, depending on the state machines history configuration.
+     * Executes a transition by updating the current state and resetting the subStateMachines,
+     * if the subStateMachines don't have history.
      * @param event - The event which triggered the transition.
      * @param srcState - The source state.
      * @param dstState - The destination state.
@@ -365,12 +439,42 @@ export class StateMachine<StateT, EventT> {
             throw new Error('Current state is undefined.');
         }
 
-        this.crtState = dstState;
+        if (!this.states.includes(dstState)) {
+            this.executeTransitionToSubState(dstState, event);
+        } else {
+            this.crtState = dstState;
+        }
 
         // reset subStateMachines
         const subStateMachine = this.subStateMachines.get(srcState);
         if (subStateMachine) {
             subStateMachine.reset(event);
+        }
+    }
+
+    /**
+     * Execute a transition from the current state machine to a sub state.
+     * @param dstState - The destination sub state.
+     * @param event - The event which triggered the transition.
+     * @param notifyListeners - True if the events should be emitted.
+     * @private
+     */
+    private executeTransitionToSubState(dstState: StateT, event: EventT, notifyListeners = false) {
+        const stateLocation = this.locateState(dstState);
+        const currentSMDstState = stateLocation[0];
+        const srcStates = this.currentStates;
+        this.crtState = currentSMDstState;
+        const subSM = this.subStateMachines.get(currentSMDstState);
+
+        if (subSM) {
+            if (subSM.crtState === undefined) {
+                throw new Error('Current state is undefined.');
+            }
+            subSM.executeTransitionToSubState(dstState, event, true);
+        }
+
+        if (notifyListeners) {
+            this.notifyListeners(srcStates, this.currentStates, event);
         }
     }
 
@@ -382,18 +486,19 @@ export class StateMachine<StateT, EventT> {
      * @private
      */
     private notifyListeners(srcStates: StateT[], dstStates: StateT[], event: EventT) {
-        srcStates.reverse().forEach(state => {
-            if (!this.currentStates.includes(state)) {
-                this.onLeaveState.emit(state);
-            }
-        });
-
+        srcStates
+            .slice()
+            .reverse()
+            .forEach(state => {
+                if (!this.currentStates.includes(state)) {
+                    this.onLeaveState.emit(state);
+                }
+            });
         this.currentStates.forEach(state => {
             if (!srcStates.includes(state)) {
                 this.onEnterState.emit(state);
             }
         });
-
         this.onStateChange.emit(
             srcStates[srcStates.length - 1],
             dstStates[dstStates.length - 1],

@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     sm.addEvent('shutdown');
     sm.addEvent('init');
     sm.addTransition('init', 'not initialized', 'initialized');
-    sm.addTransition('shutdown', 'initialized', 'not initialized', ['B']);
+    sm.addTransition('shutdown', 'B', 'not initialized');
     sm.addTransition('shutdown', 'not initialized', 'not initialized');
 
     console.log('Localize B', sm.locateState('B'));
@@ -84,73 +84,74 @@ async function main(): Promise<void> {
         );
     });
 
-    subSMLvl1.onEnterState(state => {
-        console.log('subSMLvl1 onEnterState: ' + state);
-    });
-    subSMLvl1.onLeaveState(state => {
-        console.log('subSMLvl1 onLeaveState: ' + state);
-    });
-
-    subSMLvl1.onStateChange((oldState, newState, event) => {
-        console.log(
-            'subSMLvl1 onStateChange: [oldState] = ' +
-                oldState +
-                ' [newState] = ' +
-                newState +
-                ' [event] = ' +
-                event
-        );
-    });
-
-    subSMLvl1.onStatesChange((oldStates, newStates, event) => {
-        console.log(
-            'subSMLvl1 onStatesChange: [oldState] = ' +
-                oldStates +
-                ' [newState] = ' +
-                newStates +
-                ' [event] = ' +
-                event
-        );
-    });
-
-    subSMLvl2.onEnterState(state => {
-        console.log('subSMLvl2 onEnterState: ' + state);
-    });
-    subSMLvl2.onLeaveState(state => {
-        console.log('subSMLvl2 onLeaveState: ' + state);
-    });
-
-    subSMLvl2.onStateChange((oldState, newState, event) => {
-        console.log(
-            'subSMLvl2 onStateChange: [oldState] = ' +
-                oldState +
-                ' [newState] = ' +
-                newState +
-                ' [event] = ' +
-                event
-        );
-    });
-
-    subSMLvl2.onStatesChange((oldStates, newStates, event) => {
-        console.log(
-            'subSMLvl2 onStatesChange: [oldState] = ' +
-                oldStates +
-                ' [newState] = ' +
-                newStates +
-                ' [event] = ' +
-                event
-        );
-    });
+    // subSMLvl1.onEnterState(state => {
+    //     console.log('subSMLvl1 onEnterState: ' + state);
+    // });
+    // subSMLvl1.onLeaveState(state => {
+    //     console.log('subSMLvl1 onLeaveState: ' + state);
+    // });
+    //
+    // subSMLvl1.onStateChange((oldState, newState, event) => {
+    //     console.log(
+    //         'subSMLvl1 onStateChange: [oldState] = ' +
+    //             oldState +
+    //             ' [newState] = ' +
+    //             newState +
+    //             ' [event] = ' +
+    //             event
+    //     );
+    // });
+    //
+    // subSMLvl1.onStatesChange((oldStates, newStates, event) => {
+    //     console.log(
+    //         'subSMLvl1 onStatesChange: [oldState] = ' +
+    //             oldStates +
+    //             ' [newState] = ' +
+    //             newStates +
+    //             ' [event] = ' +
+    //             event
+    //     );
+    // });
+    //
+    // subSMLvl2.onEnterState(state => {
+    //     console.log('subSMLvl2 onEnterState: ' + state);
+    // });
+    // subSMLvl2.onLeaveState(state => {
+    //     console.log('subSMLvl2 onLeaveState: ' + state);
+    // });
+    //
+    // subSMLvl2.onStateChange((oldState, newState, event) => {
+    //     console.log(
+    //         'subSMLvl2 onStateChange: [oldState] = ' +
+    //             oldState +
+    //             ' [newState] = ' +
+    //             newState +
+    //             ' [event] = ' +
+    //             event
+    //     );
+    // });
+    //
+    // subSMLvl2.onStatesChange((oldStates, newStates, event) => {
+    //     console.log(
+    //         'subSMLvl2 onStatesChange: [oldState] = ' +
+    //             oldStates +
+    //             ' [newState] = ' +
+    //             newStates +
+    //             ' [event] = ' +
+    //             event
+    //     );
+    // });
 
     // Read from stdin
     for await (const line of rl) {
         console.log('====================================================');
         console.log('Triggered event: ' + line);
-        //console.log('StateMachine: ', sm);
+
         sm.triggerEvent(<SMEvents>line);
+
         console.log('1. sm Current STATE:', sm.currentState);
         console.log('1. sm Current States: ', sm.currentStates);
-        //
+
         // console.log('2. subSMLvl1 Current STATE:', subSMLvl1.currentState);
         // console.log('2. subSMLvl1 Current States: ', subSMLvl1.currentStates);
         //

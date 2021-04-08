@@ -101,7 +101,7 @@ describe('StateMachine test', () => {
 
         sm.onEnterState((state: SMStates) => {
             onEnterStateTriggered = true;
-            expect(state).to.be.eql('not listening');
+            expect(state).to.be.oneOf(['initialized', 'not listening']);
         });
         sm.onLeaveState((state: SMStates) => {
             onLeaveStateTriggered = true;
@@ -140,7 +140,7 @@ describe('StateMachine test', () => {
         sm.triggerEvent('init');
         sm.onEnterState((state: SMStates) => {
             onEnterStateTriggered++;
-            expect(state).to.be.eql('A');
+            expect(state).to.be.oneOf(['listening', 'A']);
         });
         sm.onLeaveState((state: SMStates) => {
             onLeaveStateTriggered++;
@@ -163,7 +163,7 @@ describe('StateMachine test', () => {
 
         await promiseTimeout(100);
 
-        expect(onEnterStateTriggered).to.be.equal(1);
+        expect(onEnterStateTriggered).to.be.equal(2);
         expect(onLeaveStateTriggered).to.be.equal(1);
         expect(onStateChangeTriggered).to.be.equal(1);
         expect(onStatesChangeTriggered).to.be.equal(1);
@@ -265,7 +265,7 @@ describe('StateMachine test', () => {
         });
         sm.onLeaveState((state: SMStates) => {
             onLeaveStateTriggered++;
-            expect(state).to.be.eql('B');
+            expect(state).to.be.oneOf(['listening', 'B']);
         });
         sm.onStateChange((oldState: SMStates, newState: SMStates, event: SMEvents) => {
             onStateChangeTriggered++;
@@ -285,7 +285,7 @@ describe('StateMachine test', () => {
         await promiseTimeout(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
-        expect(onLeaveStateTriggered).to.be.equal(1);
+        expect(onLeaveStateTriggered).to.be.equal(2);
         expect(onStateChangeTriggered).to.be.equal(1);
         expect(onStatesChangeTriggered).to.be.equal(1);
     }).timeout(1000);
@@ -306,7 +306,7 @@ describe('StateMachine test', () => {
         });
         sm.onLeaveState((state: SMStates) => {
             onLeaveStateTriggered++;
-            expect(state).to.be.eql('B');
+            expect(state).to.be.oneOf(['initialized', 'listening', 'B']);
         });
         sm.onStateChange((oldState: SMStates, newState: SMStates, event: SMEvents) => {
             onStateChangeTriggered++;
@@ -326,7 +326,7 @@ describe('StateMachine test', () => {
         await promiseTimeout(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
-        expect(onLeaveStateTriggered).to.be.equal(1);
+        expect(onLeaveStateTriggered).to.be.equal(3);
         expect(onStateChangeTriggered).to.be.equal(1);
         expect(onStatesChangeTriggered).to.be.equal(1);
     }).timeout(1000);
@@ -493,7 +493,7 @@ describe('StateMachine test', () => {
         expect(onStatesChangeTriggeredLevel2).to.be.equal(1);
     }).timeout(1000);
 
-    it('Check transition does not happen if the state machine is not in a specific state', async () => {
+    it('Check transition from substate to parent', async () => {
         const subSMLvl2 = new StateMachine<SMStates, SMEvents>();
         subSMLvl2.addState('A');
         subSMLvl2.addState('B');
@@ -519,23 +519,84 @@ describe('StateMachine test', () => {
         sm.addEvent('shutdown');
         sm.addEvent('init');
         sm.addTransition('init', 'not initialized', 'initialized');
-        sm.addTransition('shutdown', 'initialized', 'not initialized', ['B']);
+        sm.addTransition('shutdown', 'B', 'not initialized');
         sm.addTransition('shutdown', 'not initialized', 'not initialized');
 
         sm.triggerEvent('init');
         sm.triggerEvent('startListen');
-
-        expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'A']);
-        sm.triggerEvent('shutdown');
-        // expect transition didn't happen, the precondition state was not met
-        expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'A']);
-
         sm.triggerEvent('AtoB');
         expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'B']);
 
         sm.triggerEvent('shutdown');
-        // expect shutdown happened, precondition state met
+
         expect(sm.currentStates).to.be.eql(['not initialized']);
+    }).timeout(1000);
+
+    it('Check transition from parent to subState', async () => {
+        let onEnterStateTriggered = 0;
+        let onLeaveStateTriggered = 0;
+        let onStateChangeTriggered = 0;
+        let onStatesChangeTriggered = 0;
+        const subSMLvl2 = new StateMachine<SMStates, SMEvents>();
+        subSMLvl2.addState('A');
+        subSMLvl2.addState('B');
+        subSMLvl2.setInitialState('A', false);
+        subSMLvl2.addEvent('AtoB');
+        subSMLvl2.addEvent('BtoA');
+        subSMLvl2.addTransition('AtoB', 'A', 'B');
+        subSMLvl2.addTransition('BtoA', 'B', 'A');
+
+        const subSMLvl1 = new StateMachine<SMStates, SMEvents>();
+        subSMLvl1.addState('listening', subSMLvl2);
+        subSMLvl1.addState('not listening');
+        subSMLvl1.setInitialState('not listening', false);
+        subSMLvl1.addEvent('startListen');
+        subSMLvl1.addEvent('stopListen');
+        subSMLvl1.addTransition('startListen', 'not listening', 'listening');
+        subSMLvl1.addTransition('stopListen', 'listening', 'not listening');
+
+        const sm = new StateMachine<SMStates, SMEvents>();
+        sm.addState('initialized', subSMLvl1);
+        sm.addState('not initialized');
+        sm.setInitialState('not initialized', false);
+        sm.addEvent('shutdown');
+        sm.addEvent('init');
+        sm.addTransition('init', 'not initialized', 'B');
+        sm.addTransition('shutdown', 'initialized', 'not initialized');
+        sm.addTransition('shutdown', 'not initialized', 'not initialized');
+
+        expect(sm.currentStates).to.be.eql(['not initialized']);
+
+        sm.onEnterState((state: SMStates) => {
+            onEnterStateTriggered++;
+            expect(state).to.be.oneOf(['initialized', 'listening', 'B']);
+        });
+        sm.onLeaveState((state: SMStates) => {
+            onLeaveStateTriggered++;
+            expect(state).to.be.eql('not initialized');
+        });
+        sm.onStateChange((oldState: SMStates, newState: SMStates, event: SMEvents) => {
+            onStateChangeTriggered++;
+            expect(oldState).to.be.eql('not initialized');
+            expect(newState).to.be.eql('B');
+            expect(event).to.be.eql('init');
+        });
+        sm.onStatesChange((oldStates: SMStates[], newStates: SMStates[], event: SMEvents) => {
+            onStatesChangeTriggered++;
+            expect(oldStates).to.be.eql(['not initialized']);
+            expect(newStates).to.be.eql(['initialized', 'listening', 'B']);
+            expect(event).to.be.eql('init');
+        });
+        sm.triggerEvent('init');
+
+        expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'B']);
+
+        await promiseTimeout(100);
+
+        expect(onEnterStateTriggered).to.be.equal(3);
+        expect(onLeaveStateTriggered).to.be.equal(1);
+        expect(onStateChangeTriggered).to.be.equal(1);
+        expect(onStatesChangeTriggered).to.be.equal(1);
     }).timeout(1000);
 
     after(async () => {
