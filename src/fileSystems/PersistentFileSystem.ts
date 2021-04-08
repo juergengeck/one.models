@@ -333,8 +333,7 @@ export default class PersistentFileSystem implements IFileSystem {
         const foundDirectoryEntry = await this.search(pathName);
         const parentPath = path.dirname(pathName);
         const parent = await this.search(parentPath);
-
-        /** If the parent or the current could not be found **/
+        /* If the parent or the current could not be found */
         if (!foundDirectoryEntry || !parent) {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
@@ -342,7 +341,7 @@ export default class PersistentFileSystem implements IFileSystem {
             });
         }
 
-        /** Get parent content **/
+        /* Get parent content */
         const parentContent = await getObject(parent.content);
 
         const pathCurrentMode = retrieveFileMode(parent.mode);
@@ -353,32 +352,36 @@ export default class PersistentFileSystem implements IFileSystem {
             });
         }
 
-        /** If the parent is a {@link PersistentFileSystemDirectory} **/
+        /* If the parent is a {@link PersistentFileSystemDirectory} */
         if (PersistentFileSystem.isDir(parentContent)) {
-            foundDirectoryEntry.mode = mode;
+            const desiredTarget = parentContent.children.get(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+            );
+
+            if (desiredTarget === undefined) {
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: parentPath
+                });
+            }
+
+            desiredTarget.mode = mode;
+
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
-                foundDirectoryEntry
-            );
-            /** Delete the given node from his content **/
-            parentContent.children.delete(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
-            );
-            parentContent.children.set(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)),
-                newDirectory.hash
+                parentContent
             );
 
             if (parentPath === '/') {
-                /** update the channel with the updated root directory **/
+                /* update the channel with the updated root directory */
                 if (this.onRootUpdate) {
                     await this.onRootUpdate(newDirectory.hash);
                 }
             } else {
-                /** Update the File System Tree **/
+                /* Update the File System Tree */
                 await this.updateFileSystemTree(
                     await calculateHashOfObj(parentContent),
                     path.dirname(parentPath),
