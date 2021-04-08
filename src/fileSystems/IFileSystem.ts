@@ -79,6 +79,13 @@ export interface IFileSystem {
     readFile(filePath: string): Promise<FileSystemFile>;
 
     /**
+     * Opens a directory otherwise throws error if the directory could not be found.
+     * @param {string} dirPath
+     * @returns {Promise<FileSystemDirectory | undefined>}
+     */
+    readLink(filePath: string): Promise<FileSystemFile>;
+
+    /**
      * Reads file in chunks.
      * @param {string} filePath
      * @param length
@@ -137,7 +144,7 @@ export interface IFileSystem {
      * @todo options do we needed them now?
      * @returns {Promise<number>}
      */
-    // symlink(src: string, dest: string): Promise<number>;
+    symlink(src: string, dest: string): Promise<number>;
 
     /**
      * Rename file. Return 0 for success or an error code

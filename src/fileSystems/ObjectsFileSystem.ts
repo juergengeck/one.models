@@ -468,4 +468,32 @@ export default class ObjectsFileSystem implements IFileSystem {
         /** return the prettified xml **/
         return accumulator;
     }
+
+    /**
+     * Not implemented because of Read Only FS
+     * @param {string} src
+     * @param {string} dest
+     * @returns {Promise<number>}
+     */
+    symlink(src: string, dest: string): Promise<number> {
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'symlink()',
+            path: src
+        });
+    }
+
+    /**
+     * Not implemented because of Read Only FS
+     * @param {string} src
+     * @param {string} dest
+     * @returns {Promise<number>}
+     */
+    readLink(src: string, dest: string): Promise<number> {
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'readLink()',
+            path: src
+        });
+    }
 }

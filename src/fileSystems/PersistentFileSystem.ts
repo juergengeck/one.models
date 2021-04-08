@@ -16,6 +16,7 @@ import {
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
+    createSingleObjectThroughImpurePlan,
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
@@ -31,6 +32,7 @@ import {platform} from 'one.core/lib/system/platform';
 import {getObjectSize} from './ObjectSize';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FSErrors';
+import {createHash} from "crypto";
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -77,7 +79,7 @@ export default class PersistentFileSystem implements IFileSystem {
         fileMode = 0o0100666
     ): Promise<void> {
         const mode = retrieveFileMode(fileMode);
-        if (mode.type !== 'file') {
+        if (!(mode.type === 'file' || mode.type === 'symlink')) {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
                 path: directoryPath
@@ -1050,5 +1052,49 @@ export default class PersistentFileSystem implements IFileSystem {
         } else {
             return splitedPath[0];
         }
+    }
+
+
+    /**
+     * Creates a symlink. Return 0 for success or an error code
+     *
+     * @param {string} src
+     * @param {string} dest
+     * @returns {Promise<void>}
+     */
+    async symlink(src: string, dest: string): Promise<void> {
+        var buf = Buffer.from(src, 'utf8');
+        var view = new Uint8Array(buf);
+        for (var i = 0; i < buf.length; ++i) {
+            view[i] = buf[i];
+        }
+
+        const fileName = PersistentFileSystem.getLastItem(dest);
+        const fileDescriptor = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@module/persistentFileSystemSymlink',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            view,
+            fileName,
+            'Plain text file'
+        )
+
+        await this.createFile(PersistentFileSystem.getParentDirectoryFullPath(dest), fileDescriptor.obj.data, fileName, 0o0120666)
+
+    }
+
+    /**
+     * Checks if a file exists or not.
+     * @param filePath
+     */
+    public async readLink(filePath: string): Promise<FileSystemFile> {
+        const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
+
+        const fileContent = await readBlobAsArrayBuffer(blobHash);
+
+        return {
+            content: fileContent
+        };
     }
 }
