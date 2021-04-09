@@ -84,7 +84,7 @@ export interface IFileSystem {
      * @param {string} filePath
      * @returns {Promise<number>}
      */
-    readLink(filePath: string): Promise<FileSystemFile>;
+    readlink(filePath: string): Promise<FileSystemFile>;
 
     /**
      * Reads file in chunks.
