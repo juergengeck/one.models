@@ -4,7 +4,7 @@ import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import {EventTypes, createEvent} from '../lib/misc/OEvent';
+import {EventTypes, OEvent} from '../lib/misc/OEvent';
 let testModel: TestModel;
 
 /**
@@ -27,10 +27,10 @@ describe('OEvent test', () => {
         testModel = model;
     });
 
-    it('emit sync - check listener handle is called synchronously ', async () => {
-        const onEvent = createEvent<(stringVal: string, numberVal: number) => void>(
+    it('emit sync - check listener handle is called sequentially ', async () => {
+        const onEvent = new OEvent<(stringVal: string, numberVal: number) => void>(
             EventTypes.Default,
-            false
+            true
         );
 
         let handlerCalled1 = false;
@@ -85,8 +85,11 @@ describe('OEvent test', () => {
         disconnect2();
     }).timeout(1000);
 
-    it('emit async - check listener handle is called asynchronously ', async () => {
-        const onEvent = createEvent<(arg1: string, arg2: number) => void>(EventTypes.Default, true);
+    it('emit async - check listener handle is called in parallel ', async () => {
+        const onEvent = new OEvent<(arg1: string, arg2: number) => void>(
+            EventTypes.Default,
+            false
+        );
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -136,8 +139,8 @@ describe('OEvent test', () => {
         disconnect2();
     }).timeout(1000);
 
-    it('emitAll sync - promise settles when all handlers executed synchronously ', async () => {
-        const onEvent = createEvent<() => void>(EventTypes.Default, false);
+    it('emitAll sync - promise settles when all handlers executed sequentially ', async () => {
+        const onEvent = new OEvent<() => void>(EventTypes.Default, true);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -200,8 +203,8 @@ describe('OEvent test', () => {
         disconnect3();
     }).timeout(1000);
 
-    it('emitAll async - promise settles when all handlers executed asynchronously ', async () => {
-        const onStringEvent = createEvent<() => void>(EventTypes.Default, true);
+    it('emitAll async - promise settles when all handlers executed in parallel ', async () => {
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default, false);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -254,7 +257,7 @@ describe('OEvent test', () => {
     }).timeout(1000);
 
     it('emitRace - promise settles when first handler finishes execution ', async () => {
-        const onStringEvent = createEvent<() => void>(EventTypes.Default);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
 
         let emitPromiseSettled = false;
         const disconnect1 = onStringEvent(() => {
@@ -295,7 +298,7 @@ describe('OEvent test', () => {
     }).timeout(1000);
 
     it('emitRace reject - first handler rejects', async () => {
-        const onStringEvent = createEvent<() => void>(EventTypes.Default);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default);
 
         let emitPromiseRejected = false;
         let secondHandlerExecuted = false;
@@ -336,7 +339,7 @@ describe('OEvent test', () => {
     }).timeout(1000);
 
     it('emitAll reject - one handler rejects', async () => {
-        const onStringEvent = createEvent<() => void>(EventTypes.Default, true);
+        const onStringEvent = new OEvent<() => void>(EventTypes.Default, false);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;

@@ -3,6 +3,8 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 /**
  * Represents the consent file object that will be stored in one.
@@ -29,11 +31,16 @@ export enum FileType {
 /**
  * This model implements the possibility to store and load the consent file and the dropout file of an user.
  */
-export default class ConsentFileModel extends EventEmmiter {
+export default class ConsentFileModel extends EventEmmiter implements Model {
+    /**
+     * Event is emitted when the consent file data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     channelManager: ChannelManager;
     channelId: string;
     private personId: SHA256IdHash<Person> | undefined;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private disconnect: (() => void) | undefined;
 
     /**
      * Construct a new instance
@@ -46,7 +53,6 @@ export default class ConsentFileModel extends EventEmmiter {
         this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     setPersonId(id: SHA256IdHash<Person>): void {
@@ -74,7 +80,7 @@ export default class ConsentFileModel extends EventEmmiter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -83,7 +89,9 @@ export default class ConsentFileModel extends EventEmmiter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -231,6 +239,7 @@ export default class ConsentFileModel extends EventEmmiter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

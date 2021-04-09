@@ -6,6 +6,8 @@ import {
     QuestionnaireResponses as QuestionnaireResponses_1_0_0,
     SHA256IdHash
 } from '@OneCoreTypes';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 // Export the Questionnaire types
 export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
@@ -29,12 +31,22 @@ export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.Questionnai
  * At the moment this model is just managing questionnaire responses.
  * In the future this will most probably also manage questionnaires.
  */
-export default class QuestionnaireModel extends EventEmitter {
+export default class QuestionnaireModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when the incomplete questionnaire response data is updated.
+     */
+    public onIncompleteResponse = new OEvent<() => void>();
+
+    /**
+     * Event is emitted when the questionnaire response data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     private channelManager: ChannelManager;
     private readonly channelId: string;
     private readonly availableQuestionnaires: Questionnaire[];
-    private readonly boundOnUpdatedHandler: (id: string) => void;
     private readonly incompleteResponsesChannelId: string;
+    private disconnect: (() => void) | undefined;
 
     /**
      * Construct a new instance
@@ -47,7 +59,6 @@ export default class QuestionnaireModel extends EventEmitter {
         this.channelId = 'questionnaireResponse';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
     }
 
@@ -59,14 +70,16 @@ export default class QuestionnaireModel extends EventEmitter {
     public async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     // #### Questionnaire functions ####
@@ -376,8 +389,10 @@ export default class QuestionnaireModel extends EventEmitter {
     private handleOnUpdated(id: string): void {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
+            this.onUpdated.emit();
             if (id === this.incompleteResponsesChannelId) {
                 this.emit('updatedIncomplete');
+                this.onIncompleteResponse.emit();
             }
         }
     }

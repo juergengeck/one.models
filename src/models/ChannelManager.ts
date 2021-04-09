@@ -38,6 +38,7 @@ import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
+import {OEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -151,7 +152,7 @@ export type ObjectData<T> = {
 /**
  * This type is returned by the raw channel iterator
  */
-type RawChannelEntry = {
+export type RawChannelEntry = {
     channelInfo: ChannelInfo;
     channelInfoIdHash: SHA256IdHash<ChannelInfo>;
     channelEntryHash: SHA256Hash<ChannelEntry>;
@@ -205,6 +206,14 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager extends EventEmitter {
+    /**
+     * This event is emitted for each channel that has new data. The emitted event value has the (channelId,
+     * channelOwner) pair.
+     */
+    public onUpdated = new OEvent<
+        (channelId: string, channelOwner: SHA256IdHash<Person>) => void
+    >();
+
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
 
     // Serialize locks
@@ -566,6 +575,27 @@ export default class ChannelManager extends EventEmitter {
         }
 
         return obj;
+    }
+
+    /**
+     * Obtain the latest merged ChannelInfoHash from the registry
+     *
+     * It is useful for ChannelSelectionOptions
+     *
+     * @param channel - the channel for which to get the channel info
+     */
+    public async getLatestMergedChannelInfoHash(
+        channel: Channel
+    ): Promise<SHA256Hash<ChannelInfo>> {
+        const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
+
+        const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
+
+        if (!channelEntry) {
+            throw new Error('The specified channel does not exist');
+        }
+
+        return await getNthVersionMapHash(channelInfoIdHash, channelEntry.readVersionIndex);
     }
 
     // ######## Get data from channels - ITERATORS ########
@@ -1029,7 +1059,8 @@ export default class ChannelManager extends EventEmitter {
                     currentValues[index] = (await iterators[index].next()).value;
                 }
 
-                // If we advanced more than one iterator, then it is not a difference
+                // If we don't advanced all iterators, then it is a difference, because one channel
+                // is missing this element.
                 if (sameIndices.length === iterators.length) {
                     continue;
                 }
@@ -1039,7 +1070,7 @@ export default class ChannelManager extends EventEmitter {
             }
 
             // If we have one active iterator remaining and the user requested it, we terminate
-            // This is done after the yield, because we want the first element of the remaining
+            // This is done before the yield, because we want the first element of the remaining
             // iterator not to be returned.
             if (terminateOnSingleIterator && !yieldCommonHistoryElement && activeIterators === 1) {
                 break;
@@ -1066,13 +1097,13 @@ export default class ChannelManager extends EventEmitter {
 
                 // Yield the value that has the highest creationTime
                 yield mostCurrentItem;
-            }
 
-            // If we have one active iterator remaining and the user requested it, we terminate
-            // This is done after the yield, because we want the first element of the remaining
-            // iterator to be returned.
-            if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
-                break;
+                // If we have one active iterator remaining and the user requested it, we terminate
+                // This is done after the yield, because we want the first element of the remaining
+                // iterator to be returned.
+                if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
+                    break;
+                }
             }
 
             previousItem = mostCurrentItem;
@@ -1319,6 +1350,7 @@ export default class ChannelManager extends EventEmitter {
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
                 this.emit('updated', channelId, channelOwner);
+                this.onUpdated.emit(channelId, channelOwner);
             });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());

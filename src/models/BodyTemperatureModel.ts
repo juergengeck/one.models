@@ -2,6 +2,8 @@ import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 /**
  * This represents the model of a body temperature measurement
@@ -13,17 +15,21 @@ export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
  * This model implements the possibility of adding a body temperature measurement into a journal and
  * keeping track of the list of the body temperature measurements
  */
-export default class BodyTemperatureModel extends EventEmitter {
+export default class BodyTemperatureModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when body temperature data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     channelManager: ChannelManager;
     channelId: string;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
 
         this.channelManager = channelManager;
         this.channelId = 'bodyTemperature';
-        this.boundOnUpdatedHandler = this.handleChannelUpdate.bind(this);
     }
 
     /**
@@ -31,14 +37,16 @@ export default class BodyTemperatureModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -91,6 +99,7 @@ export default class BodyTemperatureModel extends EventEmitter {
     private async handleChannelUpdate(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

@@ -1,6 +1,8 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {News as OneNews} from '@OneCoreTypes';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 /**
  * This represents the model of a news for now
@@ -31,14 +33,23 @@ function convertFromOne(oneObject: OneNews): News {
 /**
  * This model implements a broadcast channel.
  */
-export default class NewsModel extends EventEmitter {
+export default class NewsModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when news data is updated.
+     */
+    public onNewsEvent = new OEvent<() => void>();
+    /**
+     * Event emitted when news or feedback data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     channelManager: ChannelManager;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
+    private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -48,7 +59,7 @@ export default class NewsModel extends EventEmitter {
     async init(): Promise<void> {
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -57,7 +68,9 @@ export default class NewsModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     async addNews(content: string): Promise<void> {
@@ -71,6 +84,7 @@ export default class NewsModel extends EventEmitter {
     private async postContent(channelId: string, content: string): Promise<void> {
         await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
         this.emit('news');
+        this.onNewsEvent.emit();
     }
 
     /**
@@ -100,6 +114,7 @@ export default class NewsModel extends EventEmitter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === 'feedbackChannel' || id === 'newsChannel') {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

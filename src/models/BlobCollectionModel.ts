@@ -11,6 +11,8 @@ import {
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -37,17 +39,21 @@ export interface BlobCollection {
  * Storing: call addCollections with an array of files containing one element and a name.
  * Loading: call getCollection(name)[0]
  */
-export default class BlobCollectionModel extends EventEmitter {
+export default class BlobCollectionModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when blob collection data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     private channelManager: ChannelManager;
     private channelOwner: SHA256IdHash<Person> | undefined;
     private channelId = 'blobCollections';
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
 
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -63,11 +69,7 @@ export default class BlobCollectionModel extends EventEmitter {
      */
     async init() {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', id => {
-            if (id === this.channelId) {
-                this.emit('updated');
-            }
-        });
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -76,7 +78,9 @@ export default class BlobCollectionModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
@@ -125,6 +129,7 @@ export default class BlobCollectionModel extends EventEmitter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 

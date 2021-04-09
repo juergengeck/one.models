@@ -5,6 +5,7 @@ import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {OEvent} from '../misc/OEvent';
 
 // -------- LOW LEVEL API -----------
 
@@ -14,6 +15,10 @@ export type Settings = {
 };
 
 export abstract class PropertyTree extends EventEmitter {
+    /**
+     * Event is emitted when the settings are updated.
+     */
+    public onSettingChange = new OEvent<(key: string, value: string | undefined) => void>();
     proxyInstances: Map<string, PropertyTreeProxy> = new Map<string, PropertyTreeProxy>();
 
     abstract setValue(key: string, value: string): Promise<void>;
@@ -35,11 +40,12 @@ export class PropertyTreeProxy extends PropertyTree {
         this.prefix = prefix;
         this.separator = separator;
         this.parent = parent;
-        this.parent.on('update', (key, value) => {
+
+        this.parent.onSettingChange((key, value) => {
             // strip prefix from key
             const keys = key.split(separator);
             const strippedKey = keys[keys.length - 1];
-            this.emit('update', strippedKey, value);
+            this.onSettingChange.emit(strippedKey, value);
         });
     }
 
@@ -108,6 +114,7 @@ export default class PropertyTreeStore extends PropertyTree {
         if (this.keyValueStore.size === 0) {
             this.keyValueStore = new Map<string, string>(oneSettings.properties);
             this.emit('update', '');
+            this.onSettingChange.emit('', undefined);
         } else {
             // diff the oneSettings with the keyValueStore
             for (const [key, value] of oneSettings.properties.entries()) {
@@ -116,6 +123,7 @@ export default class PropertyTreeStore extends PropertyTree {
                     this.keyValueStore.set(key, value);
                     // emit only the remembered changes
                     this.emit('update', key, value);
+                    this.onSettingChange.emit(key, value);
                 }
             }
         }

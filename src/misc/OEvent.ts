@@ -1,61 +1,38 @@
+import { Functor } from "./Functor";
+
 /**
  * Represents the behaviour when there are no listeners.
  * <br>
  *      -> Default - does nothing if no listener is registered.<br>
  *      -> Error - throws if no one is listening.<br>
+ *      -> ExactlyOneListener - throws if connect is called more than one time. <br>
  */
 export enum EventTypes {
     Default,
-    Error
+    Error,
+    ExactlyOneListener
 }
 
 /**
- * Emit functions for events.
- */
-interface OEventI<T extends (...arg: any) => any> {
-    /**
-     * Returns the first settled promise from listeners handlers.
-     *
-     * NOTE: It behaves like Promise.race().
-     *
-     * @param emittedValue
-     */
-    emitRace(...emittedValue: Parameters<T>): Promise<ReturnType<T>>;
-
-    /**
-     * Triggers all listeners handlers. In the case of rejections, it passes them to the onError callback; if the
-     * onError callback is not registered, it prints it to console.error. The handlers will be executed in parallel
-     * or sequentially based on the executeAsynchronously flag set in the constructor.
-     * @param emittedValue
-     */
-    emit(...emittedValue: Parameters<T>): void;
-
-    /**
-     * Returns a promise that resolves to array of results of listeners handlers. The handlers will be executed in
-     * parallel or sequentially based on the executeAsynchronously flag set in the constructor.
-     *
-     * @param emittedValue
-     */
-    emitAll(...emittedValue: Parameters<T>): Promise<ReturnType<T>[]>;
-}
-
-/**
- * Events handling class. Interface provides possibility to register handlers for an event and to emit it. There are 3
- * possible emit options:
+ * Event handling class.
  *
- * - emit - Use when the emitter doesn't care about the result of the execution of the listeners handlers.
- * - emitAll - Use when the emitter is interested in the results of the listeners handlers execution.
- * - emitRace - Use when the emitter is interested only in the first settled promise from the listeners handlers.
+ * This class manages event listeners and their invocation. Listeners are registered with the listen method - or better
+ * by using the () operator of this class - and can be invoked with one of the emit* methods:
  *
- * Executing handlers synchronously vs asynchronously:
+ * - emit(args): Use when the emitter doesn't care about the result of the execution of the listeners.
+ * - emitAll(args): Use when the emitter is interested in the results of the listeners execution or if the
+ * emitter wants to wait until all listeners have completed their execution.
+ * - emitRace(args): Use when the emitter is interested only in the first settled promise from the listeners.
+ *
+ * Executing handlers sequentially vs parallelly:
  * -----------------------------------------------
  * emit & emitAll offer the possibility to execute the listeners handlers in parallel or sequentially.This is
- * configurable through the 'executeAsynchronously' optional parameter in the constructor. 'executeAsynchronously'
- * defaults to false.
- * - executeAsynchronously === false: If an event handler is disconnected from another event handler then the other handler
+ * configurable through the 'executeSequentially' optional parameter in the constructor. 'executeSequentially'
+ * defaults to true.
+ * - executeSequentially === true: If an event handler is disconnected from another event handler then the other handler
  * will not be called if it didn't run, yet. If a new one is connected it will be executed as last event handler.<br>
- * - executeAsynchronously === true: If an event handler is disconnected from another event handler then the other
- * handler will still be called (it already started because of being asynchronous) - If one is connected in another event
+ * - executeSequentially === false: If an event handler is disconnected from another event handler then the other
+ * handler will still be called (it already started because of being executed in parallel) - If one is connected in another event
  * handler it will not be called.
  *
  * Usage:
@@ -66,7 +43,7 @@ interface OEventI<T extends (...arg: any) => any> {
 
  *      // Event that signals when the coffee machine is powered on / off.
  *      // state: true when powered on, false when powered off.
- *      public onPowerChange = createEvent<(state: boolean) => void>();
+ *      public onPowerChange = new OEvent<(state: boolean) => void>();
  *
  *      // Turns the coffee machine on
  *      public turnOn() {
@@ -99,105 +76,167 @@ interface OEventI<T extends (...arg: any) => any> {
  * ```
  *
  * OEvent is chosen as class name over Event, because the second option is reserved.
+ *
+ * @param T - The expected type (function signature) of the event listeners.
  */
-export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
+export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) => (() => void)> {
+    // TODO: Add proper listenOnError handler - this member based approach is bad.
     public onError: ((err: any) => void) | null = null;
 
-    private handlers = new Set<
+    private listeners = new Set<
         (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     >();
     private readonly type: EventTypes;
-    private readonly executeAsynchronously: boolean;
+    private readonly executeSequentially: boolean;
 
     /**
-     * Create a OEvent object.
-     * @param type - defines if the emit functions will throw if no one is listening.
-     * @param executeAsynchronously
+     * Create an OEvent object.
+     *
+     * @param type - The type of the event.
+     * @param executeSequentially - Type of execution. See class descriptions for more detail.
      */
-    constructor(type: EventTypes, executeAsynchronously: boolean) {
+    constructor(type: EventTypes = EventTypes.Default, executeSequentially: boolean = true) {
+        super((listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) => this.listen(listener));
         this.type = type;
-        this.executeAsynchronously = executeAsynchronously;
+        this.executeSequentially = executeSequentially;
     }
 
     /**
-     * Registers a callback to be executed when the event is emitted. Returns the handler for unregistration.
-     * @param callback - The callback to be executed when the event is emitted.
+     * Registers a listener to be executed when the event is emitted.
+     *
+     * @param listener - The callback to be executed when the event is emitted.
+     * @return a function that disconnects the listener.
+     *         If executeSequentially is true: No further calls to the event
+     *         listener will be made after this call.
+     *         If executeSequentially is false: Further calls might happen when
+     *         the disconnect happens in another event listener.
      */
-    public connect(
-        callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
+    public listen(
+        listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     ): () => void {
-        if (this.handlers.has(callback)) {
+        if (this.listeners.has(listener)) {
             console.error('callback already registered');
         }
-        this.handlers.add(callback);
+        if (this.type === EventTypes.ExactlyOneListener && this.listeners.size > 0) {
+            throw new Error('There already is a listener for this event.');
+        }
+        this.listeners.add(listener);
         return () => {
-            const found = this.handlers.delete(callback);
+            const found = this.listeners.delete(listener);
             if (!found) {
                 console.error('callback was not registered');
             }
         };
     }
 
-    emitRace(...emittedValue: Parameters<T>): Promise<ReturnType<T>> {
-        const handlersPromises = this.getHandlersPromises(emittedValue);
-
-        return Promise.race(this.buildPromise(handlersPromises));
+    /**
+     * Invoke all listeners and return the result of the first resolved promise.
+     *
+     * All event listeners will be executed in parallel - even if  executeSequentially is set to true. It just does not
+     * make sense to have a race between listeners and then invoke them sequentially.
+     *
+     * It behaves like Promise.race() over all event listeners.
+     *
+     * @param listenerArguments - Arguments are passed to the invoked listeners.
+     */
+    public emitRace(...listenerArguments: Parameters<T>): Promise<ReturnType<T>> {
+        this.checkListenerCount();
+        return Promise.race(this.executeAndPromisifyListenersOnlyPromises(listenerArguments));
     }
 
-    async emitAll(emittedValue: Parameters<T>): Promise<ReturnType<T>[]> {
-        if (this.executeAsynchronously) {
-            return Promise.all(this.getHandlersPromises(emittedValue));
-        } else {
-            let handlerResults: ReturnType<T>[] = [];
+    /**
+     * Invokes all event listeners and returns the results of all listeners.
+     *
+     * Even if the listeners ha a return value of void / Promise<void> this function is useful. The returned promise of
+     * emitAll resolves after all event listeners have been executed, so this method can be used to wait for the
+     * execution of all event handlers.
+     *
+     * It behaves like Promise.all() over all event listeners.
+     *
+     * @param listenerArguments - Arguments are passed to the invoked listeners.
+     */
+    public async emitAll(...listenerArguments: Parameters<T>): Promise<ReturnType<T>[]> {
+        this.checkListenerCount();
 
-            let promiseRejected = null;
-            this.checkListenersNumber();
-
-            for (const handler of this.handlers) {
-                try {
-                    handlerResults.push(await handler(...emittedValue));
-                } catch (e) {
-                    if (promiseRejected === null) {
-                        promiseRejected = Promise.reject(e);
-                    }
-                    console.error(e);
-                }
-            }
-
-            // if one of the promises failed, return the rejection
-            if (promiseRejected !== null) {
-                return promiseRejected;
-            }
-            return handlerResults;
+        if (!this.executeSequentially) {
+            return Promise.all(this.executeAndPromisifyListeners(listenerArguments));
         }
-    }
+        let listenerResults: ReturnType<T>[] = [];
 
-    emit(...emittedValue: Parameters<T>): void {
-        this.emitAll(emittedValue).catch(e => {
-            if (this.onError) {
-                this.onError(e);
-            } else {
+        let promiseRejected = null;
+
+        for (const listener of this.listeners) {
+            try {
+                // need to run the listeners in sequence
+                listenerResults.push(await listener(...listenerArguments));
+            } catch (e) {
+                if (promiseRejected === null) {
+                    promiseRejected = Promise.reject(e);
+                }
                 console.error(e);
             }
+        }
+
+        // if one of the promises failed, return the rejection
+        if (promiseRejected !== null) {
+            return promiseRejected;
+        }
+        return listenerResults;
+    }
+
+    /**
+     * Invokes all event listeners.
+     *
+     * If a listener throws an error - or a listener returns a promise that rejects - the following will happen:
+     * 1) All remaining event handlers will still be executed
+     * 2) If onError callback exists: The onError callback will be called with the error
+     * 3) Else: The errors will be logged with console.error()
+     *
+     * The listeners will be executed in parallel or sequentially based on the executeSequentially flag set in the
+     * constructor.
+     *
+     * @param listenerArguments - Arguments are passed to the invoked listeners.
+     */
+    public emit(...listenerArguments: Parameters<T>): void {
+        this.emitAll(...listenerArguments).catch(e => {
+            if (this.onError) {
+                try {
+                    this.onError(e);
+                }
+                catch(e) {
+                    console.error('onError listener failed:', e);
+                }
+            } else {
+                console.error('Event listener failed:', e);
+            }
         });
+    }
+
+    /**
+     * Returns the number of registered event listeners.
+     */
+    public listenerCount(): number {
+        return this.listeners.size;
     }
 
     // ------------------- PRIVATE API -------------------
 
     /**
-     * Transforms the parameter array in promises array.
-     * @param results
-     * @private
+     * Invokes the listeners and wraps the return values in a promise.
+     *
+     * This is the correct format for Promise.race()
+     *
+     * @param listenerArguments - Arguments are passed to the invoked listeners.
      */
-    private buildPromise(
-        results: (Promise<ReturnType<T>> | ReturnType<T>)[]
+    private executeAndPromisifyListenersOnlyPromises(
+        listenerArguments: Parameters<T>
     ): Promise<ReturnType<T>>[] {
         const promises: Promise<ReturnType<T>>[] = [];
 
-        for (const res of results) {
+        for (const listenerResult of this.executeAndPromisifyListeners(listenerArguments)) {
             promises.push(
                 (async (): Promise<ReturnType<T>> => {
-                    return await res;
+                    return listenerResult;
                 })()
             );
         }
@@ -206,22 +245,24 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
     }
 
     /**
-     * Triggers the listeners handlers and returns an array containing their promises.
-     * @param emittedValue
-     * @private
+     * Invokes the listeners and returns the return values (Either a promise or a value)
+     *
+     * This is the correct format for Promise.all()
+     *
+     * @param listenerArguments - Arguments are passed to the invoked listeners.
      */
-    private getHandlersPromises(
-        emittedValue: Parameters<T>
+    private executeAndPromisifyListeners(
+        listenerArguments: Parameters<T>
     ): (Promise<ReturnType<T>> | ReturnType<T>)[] {
         let promises: (Promise<ReturnType<T>> | ReturnType<T>)[] = [];
-        this.checkListenersNumber();
 
-        // eliminate undeterministic behaviour
-        const handlersSet = [...this.handlers];
+        // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
+        // parallel.
+        const listenerSet = [...this.listeners];
 
-        for (const handler of handlersSet) {
+        for (const listener of listenerSet) {
             try {
-                promises.push(handler(...emittedValue));
+                promises.push(listener(...listenerArguments));
             } catch (e) {
                 promises.push(Promise.reject(e));
             }
@@ -232,58 +273,19 @@ export class OEvent<T extends (...arg: any) => any> implements OEventI<T> {
 
     /**
      * Throws if nobody is listening and the event type is 'Error'
-     * @private
      */
-    private checkListenersNumber(): void {
-        if (this.type === EventTypes.Error) {
-            if (this.handlers.size === 0) {
-                throw new Error('Nobody is listening for this event.');
-            }
+    private checkListenerCount(): void {
+        switch (this.type) {
+            case EventTypes.Error:
+                if (this.listeners.size === 0) {
+                    throw new Error('Nobody is listening for this event.');
+                }
+                break;
+            case EventTypes.ExactlyOneListener:
+                if (this.listeners.size === 0) {
+                    throw new Error('Nobody is listening for this event.');
+                }
+                break;
         }
     }
-}
-
-/**
- * Convenience wrapper function over the OEvent class to be used for event handling. Please see {@link OEvent}
- *
- * The convenience wrapper wraps the OEvent class in such a way, that when connecting to an event the user can write:
- * ```
- * oevent( () => {} )
- * ```
- * instead of
- * ```
- * oevent.connect( () => {})
- * ```
- *
- * It kind of overloads the parenthesis operator of the OEvent class, by creating a function object that then inherits
- * the method properties from the class.
- *
- *  @param type - The event type - Default or Error. The default value is EventTypes.Default.
- *  @param executeAsynchronously - Specifies if the registered handlers will be executed synchronously or asynchronously.
- *
- */
-export function createEvent<T extends (...arg: any) => any>(
-    type: EventTypes = EventTypes.Default,
-    executeAsynchronously = false
-): OEvent<T>['connect'] & OEventI<T> {
-    const oEvent = new OEvent<T>(type, executeAsynchronously);
-
-    function parenthesisOperator(
-        callback: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
-    ): () => void {
-        return oEvent.connect(callback);
-    }
-
-    parenthesisOperator.emit = (...args: Parameters<T>) => {
-        oEvent.emit(...args);
-    };
-
-    parenthesisOperator.emitRace = (...args: Parameters<T>) => {
-        return oEvent.emitRace(...args);
-    };
-    parenthesisOperator.emitAll = (...args: Parameters<T>) => {
-        return oEvent.emitAll(args);
-    };
-
-    return parenthesisOperator;
 }

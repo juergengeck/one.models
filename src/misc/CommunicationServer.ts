@@ -40,7 +40,7 @@ class CommunicationServer {
         this.pingInterval = 5000;
         this.pongTimeout = 1000;
 
-        this.webSocketListener.onConnection = this.acceptConnection.bind(this);
+        this.webSocketListener.onConnection(this.acceptConnection.bind(this));
     }
 
     /**

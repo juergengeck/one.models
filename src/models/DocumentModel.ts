@@ -10,6 +10,8 @@ import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -36,10 +38,15 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
-export default class DocumentModel extends EventEmitter {
+export default class DocumentModel extends EventEmitter implements Model {
+    /**
+     * Event emitted when document data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
+
     channelManager: ChannelManager;
     channelId: string;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+    private disconnect: (() => void) | undefined;
 
     /**
      * Construct a new instance
@@ -51,7 +58,7 @@ export default class DocumentModel extends EventEmitter {
 
         this.channelId = 'document';
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -61,7 +68,6 @@ export default class DocumentModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
     }
 
     /**
@@ -70,7 +76,9 @@ export default class DocumentModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -185,6 +193,7 @@ export default class DocumentModel extends EventEmitter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 }

@@ -2,21 +2,27 @@ import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {WbcObservation} from '@OneCoreTypes';
 import {createMessageBus} from 'one.core/lib/message-bus';
+import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 const MessageBus = createMessageBus('WbcDiffModel');
 
 /**
  * This model implements methods related to differential blood counts of white blood cells.
  */
-export default class WbcDiffModel extends EventEmitter {
+export default class WbcDiffModel extends EventEmitter implements Model {
+    /**
+     * Event is emitted when the wbc data is updated.
+     */
+    public onUpdated = new OEvent<() => void>();
     channelManager: ChannelManager;
     channelId: string;
-    private readonly boundOnUpdatedHandler: (id: string) => Promise<void>;
+
+    private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
         this.channelId = 'wbc';
         this.channelManager = channelManager;
-        this.boundOnUpdatedHandler = this.handleOnUpdated.bind(this);
     }
 
     /**
@@ -26,7 +32,7 @@ export default class WbcDiffModel extends EventEmitter {
      */
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
-        this.channelManager.on('updated', this.boundOnUpdatedHandler);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -35,7 +41,9 @@ export default class WbcDiffModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
-        this.channelManager.removeListener('updated', this.boundOnUpdatedHandler);
+        if (this.disconnect) {
+            this.disconnect();
+        }
     }
 
     /**
@@ -46,6 +54,7 @@ export default class WbcDiffModel extends EventEmitter {
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
+            this.onUpdated.emit();
         }
     }
 
