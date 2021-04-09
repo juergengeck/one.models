@@ -525,5 +525,4 @@ export default class ConnectionFileSystem implements IFileSystem {
             path: filePath
         });
     }
-
 }

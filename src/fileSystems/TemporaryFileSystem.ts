@@ -12,10 +12,7 @@ import {FS_ERRORS} from './FSErrors';
 const path = require('path');
 
 /**
- * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
- * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
- * {@link FileSystemDirectory} and {@link FileSystemFile} types from {@link IFileSystem} interface in order
- * to accomplish this FileSystem structure.
+ * This represents a special File System that maps the given path to the specific file system implementation
  */
 export default class TemporaryFileSystem implements IFileSystem {
     /**

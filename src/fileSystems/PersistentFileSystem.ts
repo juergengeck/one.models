@@ -355,9 +355,11 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /* If the parent is a {@link PersistentFileSystemDirectory} */
         if (PersistentFileSystem.isDir(parentContent)) {
-            const desiredTarget = parentContent.children.get(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
+            const desiredTarget = parentContent.children.get(
+                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+            );
 
-            if(desiredTarget === undefined){
+            if (desiredTarget === undefined) {
                 throw createError('FSE-ENOENT', {
                     message: FS_ERRORS['FSE-ENOENT'].message,
                     path: parentPath
@@ -929,7 +931,7 @@ export default class PersistentFileSystem implements IFileSystem {
         givenPath: string,
         parentDirectoryHash: SHA256Hash<
             PersistentFileSystemDirectory | PersistentFileSystemFile
-            > = this.rootDirectoryContent.entry
+        > = this.rootDirectoryContent.entry
     ): Promise<PersistentFileSystemDirectoryEntry | undefined> {
         /** get the top level directory **/
         const parentDirectory = await getObject(parentDirectoryHash);
@@ -1052,7 +1054,6 @@ export default class PersistentFileSystem implements IFileSystem {
         }
     }
 
-
     /**
      * Creates a symlink. Return 0 for success or an error code
      *
@@ -1076,10 +1077,14 @@ export default class PersistentFileSystem implements IFileSystem {
             view,
             fileName,
             'Plain text file'
-        )
+        );
 
-        await this.createFile(PersistentFileSystem.getParentDirectoryFullPath(dest), fileDescriptor.obj.data, fileName, 0o0120666)
-
+        await this.createFile(
+            PersistentFileSystem.getParentDirectoryFullPath(dest),
+            fileDescriptor.obj.data,
+            fileName,
+            0o0120666
+        );
     }
 
     /**

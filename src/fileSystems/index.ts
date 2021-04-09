@@ -2,6 +2,7 @@ import ObjectsFileSystem from './ObjectsFileSystem';
 import PersistentFileSystem from './PersistentFileSystem';
 import ConnectionsFileSystem from './ConnectionFileSystem';
 import TemporaryFileSystem from './TemporaryFileSystem';
+
 /**
  * @class
  *
@@ -57,9 +58,7 @@ export {ConnectionsFileSystem};
  *
  * See {@link TemporaryFileSystem}
  *
- * This represents a file system structure that can create and open directories/files and persist them in one.
- * This class is using {@link TemporaryFileSystem} types from {@link IFileSystem} interface in order
- * to accomplish this FileSystem structure.
+ * This represents a special File System that maps the given path to the specific file system implementation
  *
  */
 export {TemporaryFileSystem};

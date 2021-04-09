@@ -1,7 +1,7 @@
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 
 /**
- * This interface the main structure for files
+ * This interface the main return structure for files
  */
 export interface FileSystemFile {
     /**
@@ -25,7 +25,7 @@ export interface FileDescription {
 }
 
 /**
- * This interface represents the main structure for directories.
+ * This interface represents the main return structure for directories.
  */
 export interface FileSystemDirectory {
     /**
@@ -35,27 +35,100 @@ export interface FileSystemDirectory {
 }
 
 /**
- * @global
+ * File system generic interface
+ * -----------------------------------------------
+ *
  * Common file system interface for future file systems implementations. In order to achieve this, any
- * file system will have to implement those functions and transform their data in order to match function's
+ * file system will have to implement the Interface and transform their data output in order to match function's
  * signatures.
+ *
+ * The following interfaces are used in order to create a common return type for most of the calls.
+ * - {@link FileSystemFile}
+ * - {@link FileSystemDirectory}
+ * - {@link FileDescription}
+ *
+ *
+ * Usage:
+ * ------
+ *
+ * ``` typescript
+ * class DemoFileSystem implements IFileSystem {
+ *         createDir(directoryPath: string, dirMode: number): Promise<void> {
+ *              // ... implement call
+ *         }
+ *         createFile(directoryPath: string,fileHash: SHA256Hash<BLOB>,fileName: string,fileMode: number): Promise<void> {
+ *              // ... implement call
+ *         }
+ *         readDir(dirPath: string): Promise<FileSystemDirectory> {
+ *              // ... implement call
+ *         }
+ *         readFile(filePath: string): Promise<FileSystemFile> {
+ *              // ... implement call
+ *         }
+ *         readlink(filePath: string): Promise<FileSystemFile> {
+ *              // ... implement call
+ *         }
+ *         readFileInChunks(filePath: string, length: number, position: number): Promise<FileSystemFile> {
+ *              // ... implement call
+ *         }
+ *         supportsChunkedReading(path?: string): boolean {
+ *              // ... implement call
+ *         }
+ *         stat(path: string): Promise<FileDescription> {
+ *              // ... implement call
+ *         }
+ *         rmdir(pathName: string): Promise<number> {
+ *              // ... implement call
+ *         }
+ *         unlink(pathName: string): Promise<number> {
+ *              // ... implement call
+ *         }
+ *         symlink(src: string, dest: string): Promise<void> {
+ *              // ... implement call
+ *         }
+ *         symlink(src: string, dest: string): Promise<void> {
+ *              // ... implement call
+ *         }
+ *         rename(src: string, dest: string): Promise<number> {
+ *              // ... implement call
+ *         }
+ *         chmod(pathName: string, mode: number): Promise<number> {
+ *              // ... implement call
+ *         }
+ * }
+ * ```
+ *
+ *
+ *
  */
 export interface IFileSystem {
     /**
-     * Creates a directory otherwise throws an error if the directory could not be created.
-     * @param {string} directoryPath
-     * @param {number} dirMode
-     * @returns {Promise<FileSystemDirectory>}
+     * Creates a directory.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a dir type
+     * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
+     *
+     * @param {string} directoryPath - The wanted dir path
+     * @param {number} dirMode - The wanted mode for the wanted dir
+     * @returns {Promise<void>}
      */
     createDir(directoryPath: string, dirMode: number): Promise<void>;
 
     /**
-     * Creates a file otherwise throws an error if the file could not be created.
-     * @param {string} directoryPath
-     * @param {SHA256Hash<BLOB>} fileHash
-     * @param {string} fileName
-     * @param {number} fileMode
-     * @returns {Promise<FileSystemFile>}
+     * Creates a file otherwise
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
+     *
+     * @param {string} directoryPath - The directory where the file will be saved
+     * @param {SHA256Hash<BLOB>} fileHash - The BLOB file hash
+     * @param {string} fileName - The file name
+     * @param {number} fileMode - The file mode
+     * @returns {Promise<void>}
      */
     createFile(
         directoryPath: string,
@@ -65,33 +138,53 @@ export interface IFileSystem {
     ): Promise<void>;
 
     /**
-     * Opens a directory otherwise throws error if the directory could not be found.
-     * @param {string} dirPath
-     * @returns {Promise<FileSystemDirectory | undefined>}
+     * Reads a directory.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the directory does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-R} if the directory does not have read permission
+     *
+     * @param {string} dirPath - The directory path
+     * @returns {Promise<FileSystemDirectory>} - The content of the directory
      */
     readDir(dirPath: string): Promise<FileSystemDirectory>;
 
     /**
-     * Opens a file otherwise throws error if the file could not be found.
-     * @param {string} filePath
-     * @returns {Promise<FileSystemFile | undefined>}
+     * Reads a file.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
+     *
+     * @param {string} filePath - The file path
+     * @returns {Promise<FileSystemFile>} - The content of the file
      */
     readFile(filePath: string): Promise<FileSystemFile>;
 
     /**
-     * Reads a symlink. Return 0 for success or an error code and the pointed path
+     * Reads a link.
      *
-     * @param {string} filePath
-     * @returns {Promise<number>}
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
+     *
+     * @param {string} filePath - The file path
+     * @returns {Promise<FileSystemFile>} - The content of the file
      */
     readlink(filePath: string): Promise<FileSystemFile>;
 
     /**
-     * Reads file in chunks.
-     * @param {string} filePath
+     * Reads a file in chunks by a given len and position.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-CHUNK-R} if the platform does not support chunked reading. This is supported only on Node. This happen if the check for {@link Platform} is not nodejs.
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
+     *
+     * @param {string} filePath - The file path
      * @param length
      * @param position
-     * @returns {Promise<FileSystemFile>}
+     * @returns {Promise<FileSystemFile>} - The content of the file
      */
     readFileInChunks(filePath: string, length: number, position: number): Promise<FileSystemFile>;
 
@@ -101,10 +194,15 @@ export interface IFileSystem {
      * @returns {boolean}
      */
     supportsChunkedReading(path?: string): boolean;
+
     /**
-     * Returns the mode (in the future it may return the last access/change/modify timestamp
-     * @param {string} path
-     * @returns {Promise<FileDescription>}
+     * Stat a file.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     *
+     * @param path
+     * @returns {Promise<FileSystemFile>} - The content of the file
      */
     stat(path: string): Promise<FileDescription>;
 
@@ -116,16 +214,26 @@ export interface IFileSystem {
     // exists(path: string): Promise<boolean>;
 
     /**
-     * Deletes a directory. Return 0 for success or an error code
-     * @param {string} pathName
-     * @returns {Promise<number>}
+     * Deletes a directory
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the dir does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the dir does not have write permission
+     *
+     * @param {string} pathName - the directory path
+     * @returns {Promise<number>} Returns 0 for success
      */
     rmdir(pathName: string): Promise<number>;
 
     /**
-     * Deletes a file or a symlink. Return 0 for success or an error code
+     * Deletes a file or a symlink.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the file does not have write permission
+     *
      * @param {string} pathName
-     * @returns {Promise<number>}
+     * @returns {Promise<number>} - Returns 0 for success
      */
     unlink(pathName: string): Promise<number>;
 
@@ -139,26 +247,42 @@ export interface IFileSystem {
     // link(src: string, dest: string): Promise<number>;
 
     /**
-     * Creates a symlink. Return 0 for success or an error code
-     * @param {string} src
-     * @param {string} dest
-     * @returns {Promise<void>}
+     * Creates a symlink.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
+     *
+     * @param {string} src - The src path
+     * @param {string} dest - The dest path
+     * @returns {Promise<void>} - Returns 0 for success
      */
     symlink(src: string, dest: string): Promise<void>;
 
     /**
-     * Rename file. Return 0 for success or an error code
-     * @param {string} src
-     * @param {string} dest
-     * @returns {Promise<number>}
+     * Rename file.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
+     *
+     * @param {string} src - The src path
+     * @param {string} dest - The dest path
+     * @returns {Promise<void>} - Returns 0 for success
      */
     rename(src: string, dest: string): Promise<number>;
 
     /**
-     * Change the permissions. Return 0 for success or an error code
-     * @param {string} pathName
-     * @param {number} mode
-     * @returns {Promise<number>}
+     * Change the permissions.
+     *
+     * Can throw:
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
+     *
+     * @param {string} pathName - The file path
+     * @param {number} mode - The desired mode
+     * @returns {Promise<number>} - Returns 0 for success
      */
     chmod(pathName: string, mode: number): Promise<number>;
 }
