@@ -12,7 +12,7 @@ import {
     PersistentFileSystemDirectoryEntry,
     OneObjectTypes,
     SHA256Hash,
-    PersistentFileSystemRoot
+    PersistentFileSystemRoot, HashTypes
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -24,14 +24,13 @@ import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {retrieveFileMode} from './fileSystemModes';
+import {retrieveFileMode} from './FileSystemHelpers';
 import * as fs from 'fs';
 import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
-import {getObjectSize} from './ObjectSize';
 import {createError} from 'one.core/lib/errors';
-import {FS_ERRORS} from './FSErrors';
+import {FS_ERRORS} from './FileSystemErrors';
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -703,7 +702,7 @@ export default class PersistentFileSystem implements IFileSystem {
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
             const objectSize =
                 platform === 'node'
-                    ? await getObjectSize(resolvedDirectoryEntry.content)
+                    ? await this.getObjectSize(resolvedDirectoryEntry.content)
                     : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
             return {mode: foundFile.mode, size: objectSize};
         }
@@ -718,6 +717,55 @@ export default class PersistentFileSystem implements IFileSystem {
     public async exists(path: string): Promise<boolean> {
         const foundFile = await this.search(path);
         return !foundFile;
+    }
+
+    /**
+     * Creates a symlink. Return 0 for success or an error code
+     *
+     * @param {string} src
+     * @param {string} dest
+     * @returns {Promise<void>}
+     */
+    async symlink(src: string, dest: string): Promise<void> {
+        const buf = Buffer.from(src, 'utf8');
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < buf.length; ++i) {
+            view[i] = buf[i];
+        }
+
+        const fileName = PersistentFileSystem.getLastItem(dest);
+        const fileDescriptor = await createSingleObjectThroughImpurePlan(
+            {
+                module: '@module/persistentFileSystemSymlink',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            view,
+            fileName,
+            'Plain text file'
+        );
+
+        await this.createFile(
+            PersistentFileSystem.getParentDirectoryFullPath(dest),
+            fileDescriptor.obj.data,
+            fileName,
+            0o0120666
+        );
+    }
+
+    /**
+     * Reads a symlink. Return 0 for success or an error code and the pointed path
+     *
+     * @param {string} filePath
+     * @returns {Promise<number>}
+     */
+    public async readlink(filePath: string): Promise<FileSystemFile> {
+        const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
+
+        const fileContent = await readBlobAsArrayBuffer(blobHash);
+
+        return {
+            content: fileContent
+        };
     }
 
     /**
@@ -1055,51 +1103,18 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Creates a symlink. Return 0 for success or an error code
-     *
-     * @param {string} src
-     * @param {string} dest
-     * @returns {Promise<void>}
-     */
-    async symlink(src: string, dest: string): Promise<void> {
-        const buf = Buffer.from(src, 'utf8');
-        const view = new Uint8Array(buf);
-        for (let i = 0; i < buf.length; ++i) {
-            view[i] = buf[i];
-        }
-
-        const fileName = PersistentFileSystem.getLastItem(dest);
-        const fileDescriptor = await createSingleObjectThroughImpurePlan(
-            {
-                module: '@module/persistentFileSystemSymlink',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            view,
-            fileName,
-            'Plain text file'
-        );
-
-        await this.createFile(
-            PersistentFileSystem.getParentDirectoryFullPath(dest),
-            fileDescriptor.obj.data,
-            fileName,
-            0o0120666
-        );
-    }
-
-    /**
-     * Reads a symlink. Return 0 for success or an error code and the pointed path
-     *
-     * @param {string} filePath
+     * Read the object's file size only when node
+     * @param {SHA256Hash<HashTypes>} hash
      * @returns {Promise<number>}
      */
-    public async readlink(filePath: string): Promise<FileSystemFile> {
-        const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
+    private async getObjectSize(hash: SHA256Hash<HashTypes>): Promise<number> {
+        if (platform === 'node') {
+            const {default: fs} = await import('fs');
+            const path = `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`;
+            const stat = fs.statSync(path);
+            return stat.size;
+        }
 
-        const fileContent = await readBlobAsArrayBuffer(blobHash);
-
-        return {
-            content: fileContent
-        };
+        throw createError('FSE-OBJS', {message: FS_ERRORS['FSE-OBJS'].message});
     }
 }

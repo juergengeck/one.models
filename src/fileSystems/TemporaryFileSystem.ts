@@ -8,7 +8,7 @@
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 import {createError} from 'one.core/lib/errors';
-import {FS_ERRORS} from './FSErrors';
+import {FS_ERRORS} from './FileSystemErrors';
 const path = require('path');
 
 /**
@@ -38,7 +38,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         for (const [dirPath, _] of this.fstab) {
-            // @todo Cannot tree mount. Mabe change later on
+            // @todo Cannot tree mount. Maybe change later on
             if (storagePath.includes(dirPath)) {
                 throw createError('FSE-MOUNT2', {
                     message: FS_ERRORS['FSE-MOUNT2'].message,

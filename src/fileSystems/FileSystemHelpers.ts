@@ -1,5 +1,5 @@
 import {createError} from 'one.core/lib/errors';
-import {FS_ERRORS} from './FSErrors';
+import {FS_ERRORS} from './FileSystemErrors';
 
 /**
  * @type {{permissions: {rwx: number, rNN: number, NwN: number, rwN: number, NNx: number, rNx: number, Nwx: number}, fileType: {file: string, symlink: string, dir: string}}}

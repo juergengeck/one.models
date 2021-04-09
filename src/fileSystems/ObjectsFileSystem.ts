@@ -1,9 +1,9 @@
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {BLOB, HashTypes, SHA256Hash} from '@OneCoreTypes';
-import {retrieveFileMode} from './fileSystemModes';
+import {retrieveFileMode} from './FileSystemHelpers';
 import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
 import {createError} from 'one.core/lib/errors';
-import {FS_ERRORS} from './FSErrors';
+import {FS_ERRORS} from './FileSystemErrors';
 
 /**
  * Json format for the objects parsed path
