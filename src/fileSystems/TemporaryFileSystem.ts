@@ -75,7 +75,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param dirMode
      */
     public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
-        if (this.isRootHiddenFile(directoryPath)) {
+        if (this.isRootHiddenFileOrRoot(directoryPath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'createDir()',
@@ -112,7 +112,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         fileName: string,
         fileMode = 0o0100666
     ): Promise<void> {
-        if (this.isRootHiddenFile(directoryPath)) {
+        if (this.isRootHiddenFileOrRoot(directoryPath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'createFile()',
@@ -142,7 +142,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param filePath
      */
     public async readFile(filePath: string): Promise<FileSystemFile> {
-        if (this.isRootHiddenFile(filePath)) {
+        if (this.isRootHiddenFileOrRoot(filePath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'readFile()',
@@ -173,7 +173,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         length: number,
         position: number
     ): Promise<FileSystemFile> {
-        if (this.isRootHiddenFile(filePath)) {
+        if (this.isRootHiddenFileOrRoot(filePath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'readFileInChunks()',
@@ -208,7 +208,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemFile>}
      */
     public supportsChunkedReading(filePath: string): boolean {
-        if (this.isRootHiddenFile(filePath)) {
+        if (this.isRootHiddenFileOrRoot(filePath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'supportsChunkedReading()',
@@ -229,7 +229,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<PersistentFileSystemDirectory | undefined>}
      */
     public async readDir(checkPath: string): Promise<FileSystemDirectory> {
-        if (this.isRootHiddenFile(checkPath)) {
+        if (this.isRootHiddenFileOrRoot(checkPath)) {
             return this.getRootDirContents();
         }
 
@@ -249,7 +249,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param checkPath
      */
     public async stat(checkPath: string): Promise<FileDescription> {
-        if (this.isRootHiddenFile(checkPath)) {
+        if (this.isRootHiddenFileOrRoot(checkPath)) {
             return {mode: 16877, size: 4096};
         }
 
@@ -266,7 +266,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param mode
      */
     async chmod(pathName: string, mode: number): Promise<number> {
-        if (this.isRootHiddenFile(pathName)) {
+        if (this.isRootHiddenFileOrRoot(pathName)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'chmod()',
@@ -291,7 +291,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param dest
      */
     async rename(src: string, dest: string): Promise<number> {
-        if (this.isRootHiddenFile(src)) {
+        if (this.isRootHiddenFileOrRoot(src)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'rename()',
@@ -299,7 +299,7 @@ export default class TemporaryFileSystem implements IFileSystem {
             });
         }
 
-        if (this.isRootHiddenFile(dest)) {
+        if (this.isRootHiddenFileOrRoot(dest)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'rename()',
@@ -329,7 +329,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param pathName
      */
     async rmdir(pathName: string): Promise<number> {
-        if (this.isRootHiddenFile(pathName)) {
+        if (this.isRootHiddenFileOrRoot(pathName)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'rmdir()',
@@ -353,7 +353,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param pathName
      */
     async unlink(pathName: string): Promise<number> {
-        if (this.isRootHiddenFile(pathName)) {
+        if (this.isRootHiddenFileOrRoot(pathName)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'unlink()',
@@ -428,7 +428,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<void>}
      */
     async symlink(src: string, dest: string): Promise<void> {
-        if (this.isRootHiddenFile(src)) {
+        if (this.isRootHiddenFileOrRoot(src)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'symlink()',
@@ -436,7 +436,7 @@ export default class TemporaryFileSystem implements IFileSystem {
             });
         }
 
-        if (this.isRootHiddenFile(dest)) {
+        if (this.isRootHiddenFileOrRoot(dest)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'symlink()',
@@ -464,7 +464,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<number>}
      */
     async readlink(filePath: string): Promise<FileSystemFile> {
-        if (this.isRootHiddenFile(filePath)) {
+        if (this.isRootHiddenFileOrRoot(filePath)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
                 op: 'readlink()',
@@ -484,10 +484,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         });
     }
 
-    public isRootHiddenFile(checkPath: string): Boolean {
-        if(this.search(checkPath)){
-            return false;
-        }
-        return checkPath.startsWith('/.');
+    public isRootHiddenFileOrRoot(checkPath: string): Boolean {
+        return checkPath.startsWith('/.') || checkPath === '/';
     }
 }
