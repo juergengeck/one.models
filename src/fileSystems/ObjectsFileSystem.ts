@@ -41,7 +41,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemDirectory>}
      */
     createDir(directoryPath: string, dirMode: number): Promise<void> {
-        const rootMode = retrieveFileMode(this.rootMode);
+        const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -113,7 +113,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         fileName: string,
         fileMode: number
     ): Promise<void> {
-        const rootMode = retrieveFileMode(this.rootMode);
+        const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,

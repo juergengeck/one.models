@@ -9,7 +9,7 @@ import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from 
 import {BLOB, SHA256Hash} from '@OneCoreTypes';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-const path = require('path');
+import FileSystemHelpers from './FileSystemHelpers';
 
 /**
  * This represents a special File System that maps the given path to the specific file system implementation
@@ -380,9 +380,9 @@ export default class TemporaryFileSystem implements IFileSystem {
     public getRootDirContents(): FileSystemDirectory {
         let rootChildren = [];
         for (const [dirPath, _] of this.fstab) {
-            const parentDirectoryPath = path.dirname(dirPath);
+            const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(dirPath);
             if (parentDirectoryPath === '/') {
-                rootChildren.push(path.posix.basename(dirPath));
+                rootChildren.push(FileSystemHelpers.getLastItem(dirPath));
             }
         }
 
@@ -404,7 +404,7 @@ export default class TemporaryFileSystem implements IFileSystem {
             }
         }
 
-        const parentCheckPath = path.dirname(checkPath);
+        const parentCheckPath = FileSystemHelpers.getParentDirectoryFullPath(checkPath);
         for (const [dirPath, mountedFileSystem] of this.fstab) {
             if (parentCheckPath.includes(dirPath)) {
                 return {

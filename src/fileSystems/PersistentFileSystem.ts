@@ -24,14 +24,15 @@ import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {retrieveFileMode} from './FileSystemHelpers';
+import FileSystemHelpers from './FileSystemHelpers';
+// @todo remove
 import * as fs from 'fs';
+// @todo remove
 import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -76,7 +77,7 @@ export default class PersistentFileSystem implements IFileSystem {
         fileName: string,
         fileMode = 0o0100666
     ): Promise<void> {
-        const mode = retrieveFileMode(fileMode);
+        const mode = FileSystemHelpers.retrieveFileMode(fileMode);
         if (!(mode.type === 'file' || mode.type === 'symlink')) {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
@@ -87,13 +88,13 @@ export default class PersistentFileSystem implements IFileSystem {
             /** the directory where you want to save the file **/
             const targetDirectory = await this.openPersistedDir(directoryPath);
             const directoryMode = await this.getDirectoryMode(
-                PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
-                PersistentFileSystem.getLastItem(directoryPath)
+                FileSystemHelpers.getParentDirectoryFullPath(directoryPath),
+                FileSystemHelpers.getLastItem(directoryPath)
             );
-            const directoryParsedMode = retrieveFileMode(directoryMode);
+            const directoryParsedMode = FileSystemHelpers.retrieveFileMode(directoryMode);
 
             const doesFileExists = await this.openPersistedDir(
-                PersistentFileSystem.pathJoin(directoryPath, fileName)
+                FileSystemHelpers.pathJoin(directoryPath, fileName)
             );
 
             if (doesFileExists) {
@@ -152,11 +153,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 /** update the nodes above **/
                 await this.updateFileSystemTree(
                     updatedTargetDirectoryHash,
-                    PersistentFileSystem.getParentDirectoryFullPath(directoryPath),
+                    FileSystemHelpers.getParentDirectoryFullPath(directoryPath),
                     directoryMode,
-                    PersistentFileSystem.pathJoin(
+                    FileSystemHelpers.pathJoin(
                         '/',
-                        PersistentFileSystem.getLastItem(directoryPath)
+                        FileSystemHelpers.getLastItem(directoryPath)
                     )
                 );
             }
@@ -230,10 +231,9 @@ export default class PersistentFileSystem implements IFileSystem {
      * @param dirMode
      */
     public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
-        const path = require('path');
-        const parentDirectoryPath = path.dirname(directoryPath);
-        const dirName = path.posix.basename(directoryPath);
-        const mode = retrieveFileMode(dirMode);
+        const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(directoryPath);
+        const dirName = FileSystemHelpers.getLastItem(directoryPath);
+        const mode = FileSystemHelpers.retrieveFileMode(dirMode);
         if (mode.type !== 'dir') {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
@@ -246,10 +246,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
             const targetDirectory = await this.openPersistedDir(parentDirectoryPath);
 
-            const directoryMode = retrieveFileMode(
+            const directoryMode = FileSystemHelpers.retrieveFileMode(
                 await this.getDirectoryMode(
-                    PersistentFileSystem.getParentDirectoryFullPath(parentDirectoryPath),
-                    PersistentFileSystem.getLastItem(parentDirectoryPath)
+                    FileSystemHelpers.getParentDirectoryFullPath(parentDirectoryPath),
+                    FileSystemHelpers.getLastItem(parentDirectoryPath)
                 )
             );
 
@@ -291,7 +291,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 newDirectoryHash,
                 parentDirectoryPath,
                 dirMode,
-                PersistentFileSystem.pathJoin('/', dirName)
+                FileSystemHelpers.pathJoin('/', dirName)
             );
         });
     }
@@ -303,10 +303,10 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     public async readDir(path: string): Promise<FileSystemDirectory> {
         const foundDirectoryEntry = await this.search(path);
-        const directoryMode = retrieveFileMode(
+        const directoryMode = FileSystemHelpers.retrieveFileMode(
             await this.getDirectoryMode(
-                PersistentFileSystem.getParentDirectoryFullPath(path),
-                PersistentFileSystem.getLastItem(path)
+                FileSystemHelpers.getParentDirectoryFullPath(path),
+                FileSystemHelpers.getLastItem(path)
             )
         );
 
@@ -331,7 +331,7 @@ export default class PersistentFileSystem implements IFileSystem {
 
     public async chmod(pathName: string, mode: number): Promise<number> {
         const foundDirectoryEntry = await this.search(pathName);
-        const parentPath = path.dirname(pathName);
+        const parentPath = FileSystemHelpers.getParentDirectoryFullPath(pathName);
         const parent = await this.search(parentPath);
         /* If the parent or the current could not be found */
         if (!foundDirectoryEntry || !parent) {
@@ -344,7 +344,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /* Get parent content */
         const parentContent = await getObject(parent.content);
 
-        const pathCurrentMode = retrieveFileMode(parent.mode);
+        const pathCurrentMode = FileSystemHelpers.retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -355,7 +355,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /* If the parent is a {@link PersistentFileSystemDirectory} */
         if (PersistentFileSystem.isDir(parentContent)) {
             const desiredTarget = parentContent.children.get(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
 
             if (desiredTarget === undefined) {
@@ -384,9 +384,9 @@ export default class PersistentFileSystem implements IFileSystem {
                 /* Update the File System Tree */
                 await this.updateFileSystemTree(
                     await calculateHashOfObj(parentContent),
-                    path.dirname(parentPath),
+                    FileSystemHelpers.getParentDirectoryFullPath(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(parentPath))
                 );
             }
             return 0;
@@ -401,8 +401,8 @@ export default class PersistentFileSystem implements IFileSystem {
     public async rename(src: string, dest: string): Promise<number> {
         const foundDirectoryEntry = await this.search(src);
 
-        const srcParentPath = path.dirname(src);
-        const destParentPath = path.dirname(dest);
+        const srcParentPath = FileSystemHelpers.getParentDirectoryFullPath(src);
+        const destParentPath = FileSystemHelpers.getParentDirectoryFullPath(dest);
 
         const srcParent = await this.search(srcParentPath);
         const destParent = await this.search(destParentPath);
@@ -420,8 +420,8 @@ export default class PersistentFileSystem implements IFileSystem {
         const srcParentContent = await getObject(srcParent.content);
         const destParentContent = await getObject(destParent.content);
 
-        const pathCurrentMode = retrieveFileMode(foundDirectoryEntry.mode);
-        const destCurrentMode = retrieveFileMode(destParent.mode);
+        const pathCurrentMode = FileSystemHelpers.retrieveFileMode(foundDirectoryEntry.mode);
+        const destCurrentMode = FileSystemHelpers.retrieveFileMode(destParent.mode);
 
         /** Check if the file and the dest folder has write rights **/
         if (!pathCurrentMode.permissions.owner.write || !destCurrentMode.permissions.owner.write) {
@@ -440,11 +440,11 @@ export default class PersistentFileSystem implements IFileSystem {
             if (srcParentPath !== destParentPath) {
                 /** delete the file from the src **/
                 srcParentContent.children.delete(
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
                 );
                 /** added it to the dest path **/
                 destParentContent.children.set(
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
                     foundDirectoryEntry
                 );
 
@@ -482,11 +482,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 if (srcParentPath !== '/') {
                     await this.updateFileSystemTree(
                         srcNewDirectory.hash,
-                        path.dirname(srcParentPath),
+                        FileSystemHelpers.getParentDirectoryFullPath(srcParentPath),
                         0o0040777,
-                        PersistentFileSystem.pathJoin(
+                        FileSystemHelpers.pathJoin(
                             '/',
-                            PersistentFileSystem.getLastItem(srcParentPath)
+                            FileSystemHelpers.getLastItem(srcParentPath)
                         )
                     );
                 }
@@ -494,11 +494,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 if (destParentPath !== '/') {
                     await this.updateFileSystemTree(
                         destNewDirectory.hash,
-                        path.dirname(destParentPath),
+                        FileSystemHelpers.getParentDirectoryFullPath(destParentPath),
                         0o0040777,
-                        PersistentFileSystem.pathJoin(
+                        FileSystemHelpers.pathJoin(
                             '/',
-                            PersistentFileSystem.getLastItem(destParentPath)
+                            FileSystemHelpers.getLastItem(destParentPath)
                         )
                     );
                 }
@@ -506,10 +506,10 @@ export default class PersistentFileSystem implements IFileSystem {
                 /** If src and path are EQUAL, operate only on one directory because they are the same **/
                 /** Delete the given node from his content **/
                 srcParentContent.children.delete(
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(src))
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
                 );
                 srcParentContent.children.set(
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(dest)),
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
                     foundDirectoryEntry
                 );
                 const newDirectory = await createSingleObjectThroughPurePlan(
@@ -528,11 +528,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 } else {
                     await this.updateFileSystemTree(
                         newDirectory.hash,
-                        path.dirname(srcParentPath),
+                        FileSystemHelpers.getParentDirectoryFullPath(srcParentPath),
                         0o0040777,
-                        PersistentFileSystem.pathJoin(
+                        FileSystemHelpers.pathJoin(
                             '/',
-                            PersistentFileSystem.getLastItem(srcParentPath)
+                            FileSystemHelpers.getLastItem(srcParentPath)
                         )
                     );
                 }
@@ -554,7 +554,7 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     public async rmdir(pathName: string): Promise<number> {
         const foundDirectoryEntry = await this.search(pathName);
-        const parentPath = path.dirname(pathName);
+        const parentPath = FileSystemHelpers.getParentDirectoryFullPath(pathName);
         const parent = await this.search(parentPath);
 
         /** If the parent or the current could not be found **/
@@ -579,7 +579,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
-        const pathCurrentMode = retrieveFileMode(parent.mode);
+        const pathCurrentMode = FileSystemHelpers.retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -591,7 +591,7 @@ export default class PersistentFileSystem implements IFileSystem {
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
             parentContent.children.delete(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
@@ -609,9 +609,9 @@ export default class PersistentFileSystem implements IFileSystem {
             } else {
                 await this.updateFileSystemTree(
                     newDirectory.hash,
-                    path.dirname(parentPath),
+                    FileSystemHelpers.getParentDirectoryFullPath(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(parentPath))
                 );
             }
             return 0;
@@ -623,7 +623,7 @@ export default class PersistentFileSystem implements IFileSystem {
     public async unlink(pathName: string): Promise<number> {
         const foundFile = await this.search(pathName);
 
-        const parentPath = path.dirname(pathName);
+        const parentPath = FileSystemHelpers.getParentDirectoryFullPath(pathName);
         const parent = await this.search(parentPath);
 
         /** If the parent or the current could not be found **/
@@ -648,7 +648,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /** Get parent content **/
         const parentContent = await getObject(parent.content);
 
-        const pathCurrentMode = retrieveFileMode(parent.mode);
+        const pathCurrentMode = FileSystemHelpers.retrieveFileMode(parent.mode);
         if (!pathCurrentMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -660,7 +660,7 @@ export default class PersistentFileSystem implements IFileSystem {
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
             parentContent.children.delete(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
+                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
@@ -678,9 +678,9 @@ export default class PersistentFileSystem implements IFileSystem {
                 /** Update the File System Tree **/
                 await this.updateFileSystemTree(
                     newDirectory.hash,
-                    path.dirname(parentPath),
+                    FileSystemHelpers.getParentDirectoryFullPath(parentPath),
                     0o0040777,
-                    PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(parentPath))
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(parentPath))
                 );
             }
             return 0;
@@ -733,7 +733,7 @@ export default class PersistentFileSystem implements IFileSystem {
             view[i] = buf[i];
         }
 
-        const fileName = PersistentFileSystem.getLastItem(dest);
+        const fileName = FileSystemHelpers.getLastItem(dest);
         const fileDescriptor = await createSingleObjectThroughImpurePlan(
             {
                 module: '@module/persistentFileSystemSymlink',
@@ -745,7 +745,7 @@ export default class PersistentFileSystem implements IFileSystem {
         );
 
         await this.createFile(
-            PersistentFileSystem.getParentDirectoryFullPath(dest),
+            FileSystemHelpers.getParentDirectoryFullPath(dest),
             fileDescriptor.obj.data,
             fileName,
             0o0120666
@@ -785,10 +785,10 @@ export default class PersistentFileSystem implements IFileSystem {
      * @private
      */
     private async findFile(filePath: string): Promise<PersistentFileSystemFile> {
-        const directoryMode = retrieveFileMode(
+        const directoryMode = FileSystemHelpers.retrieveFileMode(
             await this.getDirectoryMode(
-                PersistentFileSystem.getParentDirectoryFullPath(filePath),
-                PersistentFileSystem.getLastItem(filePath)
+                FileSystemHelpers.getParentDirectoryFullPath(filePath),
+                FileSystemHelpers.getLastItem(filePath)
             )
         );
 
@@ -893,12 +893,12 @@ export default class PersistentFileSystem implements IFileSystem {
             });
         }
         const child = parentDirectory.children.get(
-            PersistentFileSystem.pathJoin('/', directoryName)
+            FileSystemHelpers.pathJoin('/', directoryName)
         );
         if (!child) {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
-                path: PersistentFileSystem.pathJoin('/', directoryName)
+                path: FileSystemHelpers.pathJoin('/', directoryName)
             });
         }
         return child.mode;
@@ -941,7 +941,7 @@ export default class PersistentFileSystem implements IFileSystem {
             );
             /** get the updated parent hash **/
             const updatedCurrentDirectoryParent = await calculateHashOfObj(currentDirectoryParent);
-            const parentDirectoryPath = PersistentFileSystem.getParentDirectoryFullPath(
+            const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(
                 updateToPath
             );
 
@@ -949,15 +949,15 @@ export default class PersistentFileSystem implements IFileSystem {
             if (updateToPath !== '/') {
                 const directoryMode = await this.getDirectoryMode(
                     parentDirectoryPath,
-                    PersistentFileSystem.getLastItem(updateToPath)
+                    FileSystemHelpers.getLastItem(updateToPath)
                 );
                 await this.updateFileSystemTree(
                     updatedCurrentDirectoryParent,
                     parentDirectoryPath,
                     directoryMode,
-                    PersistentFileSystem.pathJoin(
+                    FileSystemHelpers.pathJoin(
                         '/',
-                        PersistentFileSystem.getLastItem(updateToPath)
+                        FileSystemHelpers.getLastItem(updateToPath)
                     )
                 );
             } else {
@@ -1018,35 +1018,6 @@ export default class PersistentFileSystem implements IFileSystem {
 
     /**
      * @static
-     * Get full path of the last directory's parent
-     * E.g /dir1/dir2/dir3. Call this function will result in /dir1/dir2.
-     * @param {string} givenPath
-     * @returns {string}
-     * @private
-     */
-    private static getParentDirectoryFullPath(givenPath: string): string {
-        const regex = new RegExp('/[^/]*$');
-        let res = givenPath.replace(regex, '/');
-        if (res !== '/') {
-            return res.substring(0, res.length - 1);
-        }
-        return res;
-    }
-
-    /**
-     * @static
-     * Append paths.
-     * @param {string} pathToJoin
-     * @param {string} path
-     * @returns {string}
-     * @private
-     */
-    private static pathJoin(pathToJoin: string, path: string): string {
-        return pathToJoin === '/' ? `${pathToJoin}${path}` : `${pathToJoin}/${path}`;
-    }
-
-    /**
-     * @static
      * Checks if the path is a final path, e.g /dir1 will return true.
      * @param {string} path
      * @returns {boolean}
@@ -1074,16 +1045,6 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     private static isFile(oneObject: OneObjectTypes): oneObject is PersistentFileSystemFile {
         return oneObject.$type$ === 'PersistentFileSystemFile';
-    }
-
-    /**
-     * @static
-     * Retrieves the last item of path.
-     * @param {string} path
-     * @private
-     */
-    private static getLastItem(path: string) {
-        return path.substring(path.lastIndexOf('/') + 1);
     }
 
     /**

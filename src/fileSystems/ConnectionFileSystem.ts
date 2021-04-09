@@ -63,7 +63,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemDirectory>}
      */
     createDir(directoryPath: string, dirMode: number): Promise<void> {
-        const rootMode = retrieveFileMode(this.rootMode);
+        const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
         if (!rootMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -100,7 +100,7 @@ export default class ConnectionFileSystem implements IFileSystem {
                 await this.onConnectionQRCodeReceived(fileContent);
             }
         } else {
-            const rootMode = retrieveFileMode(this.rootMode);
+            const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
             if (!rootMode.permissions.owner.write) {
                 throw createError('FSE-EACCES-W', {
                     message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -278,7 +278,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      */
     async chmod(pathName: string, mode: number): Promise<number> {
         const pathInfo = await this.stat(pathName);
-        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        const pathPermissions = FileSystemHelpers.retrieveFileMode(pathInfo.mode).permissions;
         if (!pathPermissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -300,7 +300,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         const pathInfo = await this.stat(src);
-        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        const pathPermissions = FileSystemHelpers.retrieveFileMode(pathInfo.mode).permissions;
 
         if (!pathPermissions.owner.write) {
             throw createError('FSE-EACCES-W', {
@@ -329,7 +329,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      */
     async rmdir(pathName: string): Promise<number> {
         const pathInfo = await this.stat(pathName);
-        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        const pathPermissions = FileSystemHelpers.retrieveFileMode(pathInfo.mode).permissions;
         if (!pathPermissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
@@ -359,7 +359,7 @@ export default class ConnectionFileSystem implements IFileSystem {
         }
 
         const pathInfo = await this.stat(pathName);
-        const pathPermissions = retrieveFileMode(pathInfo.mode).permissions;
+        const pathPermissions = FileSystemHelpers.retrieveFileMode(pathInfo.mode).permissions;
 
         if (!pathPermissions.owner.write) {
             throw createError('FSE-EACCES-W', {
