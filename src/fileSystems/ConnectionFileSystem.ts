@@ -519,7 +519,7 @@ export default class ConnectionFileSystem implements IFileSystem {
      * @param {string} filePath
      * @returns {Promise<number>}
      */
-    readLink(src: string, dest: string): Promise<FileSystemFile> {
+    readlink(src: string, dest: string): Promise<FileSystemFile> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'readLink()',
