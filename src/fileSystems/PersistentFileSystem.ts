@@ -1061,9 +1061,9 @@ export default class PersistentFileSystem implements IFileSystem {
      * @returns {Promise<void>}
      */
     async symlink(src: string, dest: string): Promise<void> {
-        var buf = Buffer.from(src, 'utf8');
-        var view = new Uint8Array(buf);
-        for (var i = 0; i < buf.length; ++i) {
+        const buf = Buffer.from(src, 'utf8');
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < buf.length; ++i) {
             view[i] = buf[i];
         }
 

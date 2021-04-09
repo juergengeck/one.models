@@ -64,6 +64,10 @@ declare module '@OneCoreTypes' {
             args: any;
             result: UnversionedObjectResult<PersistentFileSystemRoot>;
         };
+        '@module/persistentFileSystemSymlink': {
+            args: any;
+            result: UnversionedObjectResult<BlobDescriptor>
+        }
     }
 }
 /**

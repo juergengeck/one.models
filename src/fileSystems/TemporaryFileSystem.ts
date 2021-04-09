@@ -10,6 +10,7 @@ import {BLOB, SHA256Hash} from '@OneCoreTypes';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FSErrors';
 const path = require('path');
+
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -18,28 +19,12 @@ const path = require('path');
  */
 export default class TemporaryFileSystem implements IFileSystem {
     /**
-     * @global the root of the file system
-     * @type string
-     * @private
-     */
-    private rootMountDir: string;
-
-    /**
      * @global the fstab
      * @type {Map}
      * @private
      * @todo rights???
      */
     private fstab = new Map<string, IFileSystem>();
-
-    /**
-     *
-     * @param {string} rootDirectory
-     */
-    public constructor(rootDirectory: string) {
-        // @todo remove
-        this.rootMountDir = rootDirectory;
-    }
 
     /**
      * Attaches a filesystem to a directory. It will return 0 for success or a error code
@@ -91,7 +76,6 @@ export default class TemporaryFileSystem implements IFileSystem {
     /**
      * @param directoryPath
      * @param dirMode
-     * @todo error handling
      */
     public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
         const searchFileSystem = this.search(directoryPath);
