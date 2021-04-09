@@ -78,6 +78,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param dirMode
      */
     public async createDir(directoryPath: string, dirMode = 0o0040777): Promise<void> {
+        if (this.isRootDir(directoryPath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'createDir()',
+                path: directoryPath
+            });
+        }
+
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.createDir(
@@ -107,6 +115,14 @@ export default class TemporaryFileSystem implements IFileSystem {
         fileName: string,
         fileMode = 0o0100666
     ): Promise<void> {
+        if (this.isRootDir(directoryPath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'createFile()',
+                path: directoryPath
+            });
+        }
+
         const searchFileSystem = this.search(directoryPath);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.createFile(
@@ -129,6 +145,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param filePath
      */
     public async readFile(filePath: string): Promise<FileSystemFile> {
+        if (this.isRootDir(filePath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'readFile()',
+                path: filePath
+            });
+        }
+
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.readFile(searchFileSystem.relativePath);
@@ -152,6 +176,14 @@ export default class TemporaryFileSystem implements IFileSystem {
         length: number,
         position: number
     ): Promise<FileSystemFile> {
+        if (this.isRootDir(filePath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'readFileInChunks()',
+                path: filePath
+            });
+        }
+
         if (!this.supportsChunkedReading(filePath)) {
             throw createError('FSE-CHUNK-R', {
                 message: FS_ERRORS['FSE-CHUNK-R'].message,
@@ -179,6 +211,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<FileSystemFile>}
      */
     public supportsChunkedReading(filePath: string): boolean {
+        if (this.isRootDir(filePath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'supportsChunkedReading()',
+                path: filePath
+            });
+        }
+
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
             return searchFileSystem.fileSystem.supportsChunkedReading();
@@ -192,7 +232,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<PersistentFileSystemDirectory | undefined>}
      */
     public async readDir(checkPath: string): Promise<FileSystemDirectory> {
-        if (checkPath == '/') {
+        if (this.isRootDir(checkPath)) {
             return this.getRootDirContents();
         }
 
@@ -212,7 +252,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param checkPath
      */
     public async stat(checkPath: string): Promise<FileDescription> {
-        if (checkPath === '/') {
+        if (this.isRootDir(checkPath)) {
             return {mode: 16877, size: 4096};
         }
 
@@ -229,6 +269,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param mode
      */
     async chmod(pathName: string, mode: number): Promise<number> {
+        if (this.isRootDir(pathName)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'chmod()',
+                path: pathName
+            });
+        }
+
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.chmod(searchFileSystem.relativePath, mode);
@@ -246,6 +294,22 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param dest
      */
     async rename(src: string, dest: string): Promise<number> {
+        if (this.isRootDir(src)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'rename()',
+                path: src
+            });
+        }
+
+        if (this.isRootDir(dest)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'rename()',
+                path: dest
+            });
+        }
+
         const searchFileSystem = this.search(src);
         const destFileSystem = this.search(dest);
 
@@ -268,6 +332,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param pathName
      */
     async rmdir(pathName: string): Promise<number> {
+        if (this.isRootDir(pathName)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'rmdir()',
+                path: pathName
+            });
+        }
+
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.rmdir(searchFileSystem.relativePath);
@@ -284,6 +356,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @param pathName
      */
     async unlink(pathName: string): Promise<number> {
+        if (this.isRootDir(pathName)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'unlink()',
+                path: pathName
+            });
+        }
+
         const searchFileSystem = this.search(pathName);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.unlink(searchFileSystem.relativePath);
@@ -351,6 +431,22 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<void>}
      */
     async symlink(src: string, dest: string): Promise<void> {
+        if (this.isRootDir(src)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'symlink()',
+                path: src
+            });
+        }
+
+        if (this.isRootDir(dest)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'symlink()',
+                path: dest
+            });
+        }
+
         const searchFileSystem = this.search(dest);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.symlink(src, searchFileSystem.relativePath);
@@ -371,6 +467,14 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<number>}
      */
     async readlink(filePath: string): Promise<FileSystemFile> {
+        if (this.isRootDir(filePath)) {
+            throw createError('FSE-ROOT', {
+                message: FS_ERRORS['FSE-ROOT'].message,
+                op: 'readlink()',
+                path: filePath
+            });
+        }
+
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.readlink(searchFileSystem.relativePath);
@@ -381,5 +485,9 @@ export default class TemporaryFileSystem implements IFileSystem {
             op: 'readlink()',
             path: filePath
         });
+    }
+
+    public isRootDir(checkPath: string): Boolean {
+        return path.dirname(checkPath) == '/';
     }
 }

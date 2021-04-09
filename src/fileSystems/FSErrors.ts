@@ -32,6 +32,7 @@ export const FS_ERRORS: {[key: string]: {message: string, linuxErrCode: number}}
     },
     'FSE-WRM1': {message: 'The given file mode was malformed', linuxErrCode: FS_INTERNAL_ERROR_CODE},
     'FSE-WRM2': {message: 'The given file permissions were malformed', linuxErrCode: FS_INTERNAL_ERROR_CODE},
-    'FSE-UNK': {message: 'Unknown File System Error', linuxErrCode: FS_INTERNAL_ERROR_CODE}
+    'FSE-UNK': {message: 'Unknown File System Error', linuxErrCode: FS_INTERNAL_ERROR_CODE},
+    'FSE-ROOT': {message: 'Cannot execute command on root path', linuxErrCode: 0}
 };
 
