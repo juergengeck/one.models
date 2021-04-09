@@ -473,9 +473,9 @@ export default class ObjectsFileSystem implements IFileSystem {
      * Not implemented because of Read Only FS
      * @param {string} src
      * @param {string} dest
-     * @returns {Promise<number>}
+     * @returns {Promise<void>}
      */
-    symlink(src: string, dest: string): Promise<number> {
+    symlink(src: string, dest: string): Promise<void> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'symlink()',
@@ -484,12 +484,12 @@ export default class ObjectsFileSystem implements IFileSystem {
     }
 
     /**
-     * Not implemented because of Read Only FS
-     * @param {string} src
-     * @param {string} dest
+     * Reads a symlink. Return 0 for success or an error code and the pointed path
+     *
+     * @param {string} filePath
      * @returns {Promise<number>}
      */
-    readLink(src: string, dest: string): Promise<number> {
+    readLink(src: string, dest: string): Promise<FileSystemFile> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'readLink()',

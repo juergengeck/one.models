@@ -32,7 +32,6 @@ import {platform} from 'one.core/lib/system/platform';
 import {getObjectSize} from './ObjectSize';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FSErrors';
-import {createHash} from "crypto";
 
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
@@ -356,11 +355,9 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /* If the parent is a {@link PersistentFileSystemDirectory} */
         if (PersistentFileSystem.isDir(parentContent)) {
-            const desiredTarget = parentContent.children.get(
-                PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName))
-            );
+            const desiredTarget = parentContent.children.get(PersistentFileSystem.pathJoin('/', PersistentFileSystem.getLastItem(pathName)));
 
-            if (desiredTarget === undefined) {
+            if(desiredTarget === undefined){
                 throw createError('FSE-ENOENT', {
                     message: FS_ERRORS['FSE-ENOENT'].message,
                     path: parentPath
@@ -744,6 +741,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 PersistentFileSystem.getLastItem(filePath)
             )
         );
+
         const foundDirectoryEntry = await this.search(filePath);
         if (!foundDirectoryEntry) {
             throw createError('FSE-ENOENT', {
@@ -931,7 +929,7 @@ export default class PersistentFileSystem implements IFileSystem {
         givenPath: string,
         parentDirectoryHash: SHA256Hash<
             PersistentFileSystemDirectory | PersistentFileSystemFile
-        > = this.rootDirectoryContent.entry
+            > = this.rootDirectoryContent.entry
     ): Promise<PersistentFileSystemDirectoryEntry | undefined> {
         /** get the top level directory **/
         const parentDirectory = await getObject(parentDirectoryHash);
@@ -1085,10 +1083,12 @@ export default class PersistentFileSystem implements IFileSystem {
     }
 
     /**
-     * Checks if a file exists or not.
-     * @param filePath
+     * Reads a symlink. Return 0 for success or an error code and the pointed path
+     *
+     * @param {string} filePath
+     * @returns {Promise<number>}
      */
-    public async readLink(filePath: string): Promise<FileSystemFile> {
+    public async readlink(filePath: string): Promise<FileSystemFile> {
         const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
 
         const fileContent = await readBlobAsArrayBuffer(blobHash);

@@ -364,9 +364,9 @@ export default class TemporaryFileSystem implements IFileSystem {
      *
      * @param {string} src
      * @param {string} dest
-     * @returns {Promise<number>}
+     * @returns {Promise<void>}
      */
-    async symlink(src: string, dest: string): Promise<number> {
+    async symlink(src: string, dest: string): Promise<void> {
         const searchFileSystem = this.search(dest);
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.symlink(src, searchFileSystem.relativePath);
@@ -383,19 +383,18 @@ export default class TemporaryFileSystem implements IFileSystem {
     /**
      * Reads a symlink. Return 0 for success or an error code and the pointed path
      *
-     * @param {string} src
-     * @param {string} dest
+     * @param {string} filePath
      * @returns {Promise<number>}
      */
-    async readLink(filePath: string): Promise<FileSystemFile> {
+    async readlink(filePath: string): Promise<FileSystemFile> {
         const searchFileSystem = this.search(filePath);
         if (searchFileSystem) {
-            return await searchFileSystem.fileSystem.readLink(searchFileSystem.relativePath);
+            return await searchFileSystem.fileSystem.readlink(searchFileSystem.relativePath);
         }
 
         throw createError('FSE-FSMAP', {
             message: FS_ERRORS['FSE-FSMAP'].message,
-            op: 'readLink()',
+            op: 'readlink()',
             path: filePath
         });
     }
