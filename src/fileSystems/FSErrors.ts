@@ -108,5 +108,9 @@ export const FS_ERRORS: {[key: string]: {message: string; linuxErrCode: number}}
     /**
      * Unknown Internal Error
      */
-    'FSE-UNK': {message: 'Unknown File System Error', linuxErrCode: FS_INTERNAL_ERROR_CODE}
+    'FSE-UNK': {message: 'Unknown File System Error', linuxErrCode: FS_INTERNAL_ERROR_CODE},
+    /**
+     * Cannot execute command on the root path
+     */
+    'FSE-ROOT': {message: 'Cannot execute command on root path', linuxErrCode: 0}
 };
