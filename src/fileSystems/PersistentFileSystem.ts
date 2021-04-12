@@ -25,10 +25,6 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
-// @todo remove
-import * as fs from 'fs';
-// @todo remove
-import path from 'path';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {createError} from 'one.core/lib/errors';
@@ -200,6 +196,8 @@ export default class PersistentFileSystem implements IFileSystem {
                 path: filePath
             });
         }
+        const {default: fs} = await import('fs');
+        const {default: path} = await import('path');
 
         const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
 
