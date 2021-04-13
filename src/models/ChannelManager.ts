@@ -757,7 +757,7 @@ export default class ChannelManager extends EventEmitter {
             // making the data field optional would cause problems
             // in other apps.
             const data =
-                omitData === undefined || omitData
+                omitData === undefined || !omitData
                     ? await getObject(entry.dataHash)
                     : (undefined as any);
 
