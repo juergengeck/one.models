@@ -703,7 +703,8 @@ export default class ChannelManager extends EventEmitter {
         let to: Date | undefined;
         let ids: string[] | undefined;
         let types: string[] | undefined;
-        let omitData: boolean | undefined;
+
+        let omitData: boolean = false;
 
         if (queryOptions) {
             from = queryOptions.from;
@@ -757,9 +758,9 @@ export default class ChannelManager extends EventEmitter {
             // making the data field optional would cause problems
             // in other apps.
             const data =
-                omitData === undefined || !omitData
-                    ? await getObject(entry.dataHash)
-                    : (undefined as any);
+                omitData
+                    ? (undefined as any)
+                    : await getObject(entry.dataHash);
 
             if (data && types && !types.includes(data.$type$)) {
                 continue;
