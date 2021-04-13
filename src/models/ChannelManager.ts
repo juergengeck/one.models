@@ -126,6 +126,7 @@ export type DataSelectionOptions = {
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
     type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
     types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
+    omitData?: boolean; // omit the data field if set to true
 };
 
 /**
@@ -139,6 +140,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 export type ObjectData<T> = {
     channelId: string; // The channel id
     channelOwner: SHA256IdHash<Person>; // The owner of the channel
+    channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
 
     id: string; // This id identifies the data point. It can be used to reference this data point in other methods of this class.
     creationTime: Date; // Time when this data point was created
@@ -701,6 +703,8 @@ export default class ChannelManager extends EventEmitter {
         let to: Date | undefined;
         let ids: string[] | undefined;
         let types: string[] | undefined;
+        let omitData: boolean | undefined;
+
         if (queryOptions) {
             from = queryOptions.from;
             to = queryOptions.to;
@@ -715,6 +719,9 @@ export default class ChannelManager extends EventEmitter {
             }
             if (queryOptions.types) {
                 types = queryOptions.types;
+            }
+            if (queryOptions.omitData) {
+                omitData = queryOptions.omitData;
             }
         }
 
@@ -746,8 +753,15 @@ export default class ChannelManager extends EventEmitter {
             }
 
             // Load the object to compare the type
-            const data = await getObject(entry.dataHash);
-            if (types && !types.includes(data.$type$)) {
+            // AUTHORIZED HACK - casting undefined to any type because
+            // making the data field optional would cause problems
+            // in other apps.
+            const data =
+                omitData === undefined || omitData
+                    ? await getObject(entry.dataHash)
+                    : (undefined as any);
+
+            if (data && types && !types.includes(data.$type$)) {
                 continue;
             }
 
@@ -755,7 +769,7 @@ export default class ChannelManager extends EventEmitter {
             yield {
                 channelId: entry.channelInfo.id,
                 channelOwner: entry.channelInfo.owner,
-
+                channelEntryHash: entry.channelEntryHash,
                 id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
 
                 creationTime: new Date(entry.creationTime),
@@ -1101,7 +1115,11 @@ export default class ChannelManager extends EventEmitter {
                 // If we have one active iterator remaining and the user requested it, we terminate
                 // This is done after the yield, because we want the first element of the remaining
                 // iterator to be returned.
-                if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
+                if (
+                    terminateOnSingleIterator &&
+                    yieldCommonHistoryElement &&
+                    activeIterators === 1
+                ) {
                     break;
                 }
             }
