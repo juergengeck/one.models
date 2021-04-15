@@ -31,7 +31,7 @@ export enum EventType {
 export type EventListEntry = {
     type: EventType;
     data:
-        | ObjectData<
+        ObjectData<
               | WbcObservation
               | QuestionnaireResponses
               | DocumentInfo
@@ -56,7 +56,7 @@ export default class JournalModel extends EventEmitter {
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<EventType, {disconnect: (() => void) | undefined; listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void}> = new Map();
 
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes> | HeartEvent) => void>();
+    public onUpdated = new OEvent<(data?: EventListEntry) => void>();
 
 
     constructor(modelsInput: JournalInput[]) {
@@ -74,8 +74,8 @@ export default class JournalModel extends EventEmitter {
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
-            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes>) => {
-                this.onUpdated.emit(data);
+            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes> | HeartEvent) => {
+                this.onUpdated.emit(JournalModel.mapObjectDataToEventListEntry(data));
             }
             journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
@@ -175,5 +175,44 @@ export default class JournalModel extends EventEmitter {
 
         /** Now all elements should be sorted in the list => return it **/
         return eventList;
+    }
+
+
+    /**
+     * Maps the given object data to the corresponding event type
+     * @param {ObjectData<OneUnversionedObjectTypes> | HeartEvent} objectData
+     * @private
+     */
+    private static mapObjectDataToEventListEntry(objectData?: ObjectData<OneUnversionedObjectTypes> | HeartEvent): EventListEntry | undefined {
+        if(!objectData){
+            return undefined;
+        }
+
+        if("creationTime" in objectData && "heartEventType" in objectData){
+            return {type: EventType.HeartEvent, data: objectData};
+        }
+
+        if ("data" in objectData) {
+            const castedObjectData = objectData as EventListEntry['data']
+            switch (objectData.data.$type$){
+                case "ConsentFile":
+                    return {type: EventType.ConsentFileEvent, data: castedObjectData};
+                case "DocumentInfo_1_1_0":
+                    return {type: EventType.DocumentInfo, data: castedObjectData};
+                case "WbcObservation":
+                    return {type: EventType.WbcDiffMeasurement, data: castedObjectData};
+                case "BodyTemperature":
+                    return {type: EventType.BodyTemperature, data: castedObjectData};
+                case "QuestionnaireResponses":
+                    return {type: EventType.QuestionnaireResponse, data: castedObjectData};
+                case "DiaryEntry":
+                    return {type: EventType.DiaryEntry, data: castedObjectData};
+                case "Electrocardiogram":
+                    return {type: EventType.ECGEvent, data: castedObjectData};
+                case "DocumentInfo":
+                    return {type: EventType.DocumentInfo, data: castedObjectData};
+            }
+        }
+        return undefined;
     }
 }
