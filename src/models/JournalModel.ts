@@ -1,7 +1,7 @@
 import {WbcObservation, Electrocardiogram, OneUnversionedObjectTypes} from '@OneCoreTypes';
 import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel'
 import EventEmitter from 'events';
-import {HeartEvent} from './HeartEventModel';
+import HeartEventModel, {HeartEvent} from './HeartEventModel';
 import DocumentModel, {DocumentInfo} from './DocumentModel';
 import DiaryModel, {DiaryEntry} from './DiaryModel';
 import {ObjectData} from './ChannelManager';
@@ -45,7 +45,7 @@ export type EventListEntry = {
 };
 
 type JournalInput = {
-    model: WbcDiffModel | QuestionnaireModel | DocumentModel | DiaryModel | ConsentFileModel | ECGModel | BodyTemperatureModel;
+    model: HeartEventModel | WbcDiffModel | QuestionnaireModel | DocumentModel | DiaryModel | ConsentFileModel | ECGModel | BodyTemperatureModel;
     retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
     eventType: EventType;
 };
