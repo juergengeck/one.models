@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
+    OneUnversionedObjectTypes,
     Person,
     Questionnaire_1_1_0,
     QuestionnaireResponses as QuestionnaireResponses_1_0_0,
@@ -40,7 +41,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private channelManager: ChannelManager;
     private readonly channelId: string;
@@ -381,15 +382,16 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     }
 
     /**
-     * Handler function for the 'updated' event
-     *
-     * @param id
-     * @return
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
+     * @return {Promise<void>}
      */
-    private handleOnUpdated(id: string): void {
+    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {
                 this.emit('updatedIncomplete');
                 this.onIncompleteResponse.emit();

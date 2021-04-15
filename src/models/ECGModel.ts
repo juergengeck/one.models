@@ -5,7 +5,7 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {Electrocardiogram, SHA256Hash} from '@OneCoreTypes';
+import {Electrocardiogram, OneUnversionedObjectTypes, Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -14,7 +14,7 @@ export default class ECGModel extends EventEmitter implements Model {
     /**
      * Event emitted when ecg data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
@@ -57,15 +57,14 @@ export default class ECGModel extends EventEmitter implements Model {
      *
      * @returns {Promise<ObjectData<Electrocardiogram>[]>}
      */
-    async retrieveAll(): Promise<ObjectData<Electrocardiogram>[]> {
-        const electrocardiograms = await this.channelManager.getObjectsWithType(
+    async retrieveAll(omitData?: boolean): Promise<ObjectData<Electrocardiogram>[]> {
+        return await this.channelManager.getObjectsWithType(
             'Electrocardiogram',
             {
-                channelId: this.channelId
+                channelId: this.channelId,
+                omitData: omitData
             }
         );
-
-        return electrocardiograms;
     }
 
     /**
@@ -183,12 +182,14 @@ export default class ECGModel extends EventEmitter implements Model {
     /**
      *  Handler function for the 'updated' event
      *  @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleChannelUpdate(id: string): Promise<void> {
+    private async handleChannelUpdate(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }
