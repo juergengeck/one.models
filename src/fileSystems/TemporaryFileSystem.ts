@@ -428,14 +428,6 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<void>}
      */
     async symlink(src: string, dest: string): Promise<void> {
-        if (this.isRootPath(src)) {
-            throw createError('FSE-ROOT', {
-                message: FS_ERRORS['FSE-ROOT'].message,
-                op: 'symlink()',
-                path: src
-            });
-        }
-
         if (this.isRootPath(dest)) {
             throw createError('FSE-ROOT', {
                 message: FS_ERRORS['FSE-ROOT'].message,
