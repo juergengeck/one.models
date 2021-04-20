@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {OneUnversionedObjectTypes, Person, SHA256IdHash, WbcObservation} from '@OneCoreTypes';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
@@ -53,7 +53,11 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
@@ -93,8 +97,8 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * returns all WbcObservations from the channel
      */
-    async observations(): Promise<ObjectData<WbcObservation>[]> {
-        return await this.channelManager.getObjectsWithType('WbcObservation');
+    async observations(queryOptions?: QueryOptions): Promise<ObjectData<WbcObservation>[]> {
+        return await this.channelManager.getObjectsWithType('WbcObservation', queryOptions);
     }
 
     /**

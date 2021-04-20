@@ -47,8 +47,22 @@ export default class HeartEventModel extends EventEmitter implements Model {
     /**
      * Get a list of heart rate events.
      */
-    async heartEvents(): Promise<HeartEvent[]> {
-        return [...this.heartEventList].sort((a, b) => {
+    async heartEvents(from?: Date, to?: Date, count?: number): Promise<HeartEvent[]> {
+        let data: HeartEvent[] = this.heartEventList;
+
+        if (from) {
+            data = data.filter(item => item.creationTime.getTime() > from.getTime());
+        }
+
+        if (to) {
+            data = data.filter(item => item.creationTime.getTime() < to.getTime());
+        }
+
+        if (count) {
+            data = data.slice(0, count);
+        }
+
+        return data.sort((a, b) => {
             return b.creationTime.getTime() - a.creationTime.getTime();
         });
     }

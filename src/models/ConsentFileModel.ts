@@ -1,5 +1,5 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
@@ -189,10 +189,11 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * Used to retrieve both consent file and dropout file of an user.
      * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
      */
-    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
+    async entries(queryOptions?: QueryOptions): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
         const files: ObjectData<ConsentFile | DropoutFile>[] = [];
 
         const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
+            ...queryOptions,
             channelId: this.channelId
         });
 
@@ -238,7 +239,11 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);

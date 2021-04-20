@@ -1,6 +1,11 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {DiaryEntry as OneDiaryEntry, OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {
+    DiaryEntry as OneDiaryEntry,
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -89,9 +94,10 @@ export default class DiaryModel extends EventEmitter implements Model {
         await this.channelManager.postToChannel(this.channelId, convertToOne(diaryEntry));
     }
 
-    async entries(): Promise<ObjectData<DiaryEntry>[]> {
+    async entries(queryOptions?: QueryOptions): Promise<ObjectData<DiaryEntry>[]> {
         const objects: ObjectData<DiaryEntry>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType('DiaryEntry', {
+            ...queryOptions,
             channelId: this.channelId
         });
 
@@ -119,7 +125,11 @@ export default class DiaryModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);

@@ -4,7 +4,7 @@ import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
 import DocumentModel, {DocumentInfo} from './DocumentModel';
 import DiaryModel, {DiaryEntry} from './DiaryModel';
-import {ObjectData} from './ChannelManager';
+import {ObjectData, QueryOptions} from './ChannelManager';
 import ConsentFileModel, {ConsentFile, DropoutFile} from './ConsentFileModel';
 import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
 import {OEvent} from '../misc/OEvent';
@@ -54,12 +54,24 @@ type JournalInput = {
         | ConsentFileModel
         | ECGModel
         | BodyTemperatureModel;
-    retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
+    retrieveFn: (
+        queryOptions?: QueryOptions
+    ) => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
     eventType: EventType;
+};
+
+type CachedTimeFrame = {
+    latestFrom: Date;
+    latestTo: Date;
+    statistics: {collectedItems: number};
 };
 
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
+
+    private readonly oneDayAgo: number = 1000 * 60 * 60 * 24;
+
+    private cachedTimeFrames: Map<JournalInput['model'], CachedTimeFrame> = new Map();
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<
@@ -93,6 +105,11 @@ export default class JournalModel extends EventEmitter {
             journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
+            this.cachedTimeFrames.set(journalInput.model, {
+                latestFrom: new Date(new Date().valueOf() - this.oneDayAgo),
+                latestTo: new Date(),
+                statistics: {collectedItems: 0}
+            });
             this.eventEmitterListeners.set(event, handlerEventEmitter);
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
@@ -118,11 +135,71 @@ export default class JournalModel extends EventEmitter {
         });
     }
 
+    private async consumeTimeFrame(
+        pageSize: number,
+        dataDictionary: {
+            [event: string]: {values: EventListEntry['data'][]; index: number};
+        },
+        neededItems?: number
+    ): Promise<{
+        [event: string]: {values: EventListEntry['data'][]; index: number};
+    }> {
+        const count = Math.floor(
+            neededItems ? neededItems : pageSize / Array.from(this.cachedTimeFrames.keys()).length
+        );
+        await Promise.all(
+            this.modelsDictionary.map(async (journalInput: JournalInput) => {
+                const event = journalInput.eventType;
+                const cachedTimeFrame = this.cachedTimeFrames.get(journalInput.model);
+                if (cachedTimeFrame) {
+                    const totalLen: number = Object.keys(dataDictionary)
+                        .map((event: string) => dataDictionary[event].values.length)
+                        .reduce((acc: number, cur: number) => acc + cur);
+
+                    if (neededItems && totalLen === pageSize) {
+                        return;
+                    }
+
+                    const data = await journalInput.retrieveFn({
+                        count: count,
+                        from: cachedTimeFrame.latestFrom,
+                        to: cachedTimeFrame.latestTo
+                    });
+
+                    const lastItemData = data[data.length - 1];
+
+                    this.cachedTimeFrames.set(journalInput.model, {
+                        latestFrom: new Date(cachedTimeFrame.latestFrom.valueOf() - this.oneDayAgo),
+                        latestTo: lastItemData.creationTime,
+                        statistics: {
+                            collectedItems: cachedTimeFrame.statistics.collectedItems + data.length
+                        }
+                    });
+
+                    dataDictionary[event] = {
+                        values: data,
+                        index: 0
+                    };
+                }
+            })
+        );
+        /** get the total length of data values **/
+        const totalLen: number = Object.keys(dataDictionary)
+            .map((event: string) => dataDictionary[event].values.length)
+            .reduce((acc: number, cur: number) => acc + cur);
+
+        if (totalLen < pageSize) {
+            await this.consumeTimeFrame(pageSize - totalLen, dataDictionary);
+        }
+
+        return dataDictionary;
+    }
+
     /**
      * Get the stored events sorted by date. In Ascending order
      * @returns {Promise<EventListEntry[]>}
      */
-    async events(): Promise<EventListEntry[]> {
+    async events(pageSize?: number): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
             return [];
@@ -135,11 +212,15 @@ export default class JournalModel extends EventEmitter {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                const data = await journalInput.retrieveFn();
-                dataDictionary[event] = {
-                    values: data,
-                    index: 0
-                };
+                if (pageSize) {
+                    await this.consumeTimeFrame(pageSize, dataDictionary);
+                } else {
+                    const data = await journalInput.retrieveFn();
+                    dataDictionary[event] = {
+                        values: data,
+                        index: 0
+                    };
+                }
             })
         );
         /** get the total length of data values **/

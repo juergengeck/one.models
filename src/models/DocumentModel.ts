@@ -1,10 +1,13 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     BLOB,
     DocumentInfo as DocumentInfo_1_0_0,
-    DocumentInfo_1_1_0, OneUnversionedObjectTypes, Person,
-    SHA256Hash, SHA256IdHash
+    DocumentInfo_1_1_0,
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash
 } from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
@@ -107,8 +110,9 @@ export default class DocumentModel extends EventEmitter implements Model {
      *
      * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
      */
-    async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
+    async documents(queryOptions?: QueryOptions): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
         const documentsData = (await this.channelManager.getObjects({
+            ...queryOptions,
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
             channelId: this.channelId
         })) as ObjectData<DocumentInfo_1_1_0 | DocumentInfo_1_0_0>[];
@@ -192,7 +196,11 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
