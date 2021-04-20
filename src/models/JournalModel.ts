@@ -1,15 +1,15 @@
 import {WbcObservation, Electrocardiogram, OneUnversionedObjectTypes} from '@OneCoreTypes';
-import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel'
+import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
 import DocumentModel, {DocumentInfo} from './DocumentModel';
 import DiaryModel, {DiaryEntry} from './DiaryModel';
 import {ObjectData} from './ChannelManager';
 import ConsentFileModel, {ConsentFile, DropoutFile} from './ConsentFileModel';
-import BodyTemperatureModel, {BodyTemperature} from "./BodyTemperatureModel";
-import {OEvent} from "../misc/OEvent";
-import WbcDiffModel from "./WbcDiffModel";
-import ECGModel from "./ECGModel";
+import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
+import {OEvent} from '../misc/OEvent';
+import WbcDiffModel from './WbcDiffModel';
+import ECGModel from './ECGModel';
 
 /**
  * !!! Add the corresponding model class name here
@@ -31,7 +31,7 @@ export enum EventType {
 export type EventListEntry = {
     type: EventType;
     data:
-        ObjectData<
+        | ObjectData<
               | WbcObservation
               | QuestionnaireResponses
               | DocumentInfo
@@ -45,7 +45,15 @@ export type EventListEntry = {
 };
 
 type JournalInput = {
-    model: HeartEventModel | WbcDiffModel | QuestionnaireModel | DocumentModel | DiaryModel | ConsentFileModel | ECGModel | BodyTemperatureModel;
+    model:
+        | HeartEventModel
+        | WbcDiffModel
+        | QuestionnaireModel
+        | DocumentModel
+        | DiaryModel
+        | ConsentFileModel
+        | ECGModel
+        | BodyTemperatureModel;
     retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
     eventType: EventType;
 };
@@ -54,10 +62,15 @@ export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
-    private oEventListeners: Map<EventType, {disconnect: (() => void) | undefined; listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void}> = new Map();
+    private oEventListeners: Map<
+        EventType,
+        {
+            disconnect: (() => void) | undefined;
+            listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void;
+        }
+    > = new Map();
 
     public onUpdated = new OEvent<(data?: EventListEntry) => void>();
-
 
     constructor(modelsInput: JournalInput[]) {
         super();
@@ -76,7 +89,7 @@ export default class JournalModel extends EventEmitter {
             };
             const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes> | HeartEvent) => {
                 this.onUpdated.emit(JournalModel.mapObjectDataToEventListEntry(data));
-            }
+            };
             journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
@@ -93,9 +106,9 @@ export default class JournalModel extends EventEmitter {
             const event = journalInput.eventType as EventType;
             /** retrieve the function reference in order to delete it **/
             const eventEmitterHandler = this.eventEmitterListeners.get(event);
-            const oEventHandler = this.oEventListeners.get(event)
+            const oEventHandler = this.oEventListeners.get(event);
 
-            if(oEventHandler && oEventHandler.disconnect){
+            if (oEventHandler && oEventHandler.disconnect) {
                 oEventHandler.disconnect();
             }
 
@@ -177,39 +190,40 @@ export default class JournalModel extends EventEmitter {
         return eventList;
     }
 
-
     /**
      * Maps the given object data to the corresponding event type
      * @param {ObjectData<OneUnversionedObjectTypes> | HeartEvent} objectData
      * @private
      */
-    private static mapObjectDataToEventListEntry(objectData?: ObjectData<OneUnversionedObjectTypes> | HeartEvent): EventListEntry | undefined {
-        if(!objectData){
+    private static mapObjectDataToEventListEntry(
+        objectData?: ObjectData<OneUnversionedObjectTypes> | HeartEvent
+    ): EventListEntry | undefined {
+        if (!objectData) {
             return undefined;
         }
 
-        if("creationTime" in objectData && "heartEventType" in objectData){
+        if ('creationTime' in objectData && 'heartEventType' in objectData) {
             return {type: EventType.HeartEvent, data: objectData};
         }
 
-        if ("data" in objectData) {
-            const castedObjectData = objectData as EventListEntry['data']
-            switch (objectData.data.$type$){
-                case "ConsentFile":
+        if ('data' in objectData) {
+            const castedObjectData = objectData as EventListEntry['data'];
+            switch (objectData.data.$type$) {
+                case 'ConsentFile':
                     return {type: EventType.ConsentFileEvent, data: castedObjectData};
-                case "DocumentInfo_1_1_0":
+                case 'DocumentInfo_1_1_0':
                     return {type: EventType.DocumentInfo, data: castedObjectData};
-                case "WbcObservation":
+                case 'WbcObservation':
                     return {type: EventType.WbcDiffMeasurement, data: castedObjectData};
-                case "BodyTemperature":
+                case 'BodyTemperature':
                     return {type: EventType.BodyTemperature, data: castedObjectData};
-                case "QuestionnaireResponses":
+                case 'QuestionnaireResponses':
                     return {type: EventType.QuestionnaireResponse, data: castedObjectData};
-                case "DiaryEntry":
+                case 'DiaryEntry':
                     return {type: EventType.DiaryEntry, data: castedObjectData};
-                case "Electrocardiogram":
+                case 'Electrocardiogram':
                     return {type: EventType.ECGEvent, data: castedObjectData};
-                case "DocumentInfo":
+                case 'DocumentInfo':
                     return {type: EventType.DocumentInfo, data: castedObjectData};
             }
         }
