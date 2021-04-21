@@ -3,9 +3,15 @@
  */
 
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {Electrocardiogram, OneUnversionedObjectTypes, Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
+import {
+    Electrocardiogram,
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -57,14 +63,11 @@ export default class ECGModel extends EventEmitter implements Model {
      *
      * @returns {Promise<ObjectData<Electrocardiogram>[]>}
      */
-    async retrieveAll(omitData?: boolean): Promise<ObjectData<Electrocardiogram>[]> {
-        return await this.channelManager.getObjectsWithType(
-            'Electrocardiogram',
-            {
-                channelId: this.channelId,
-                omitData: omitData
-            }
-        );
+    async retrieve(queryOptions?: QueryOptions): Promise<ObjectData<Electrocardiogram>[]> {
+        return await this.channelManager.getObjectsWithType('Electrocardiogram', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**
@@ -186,7 +189,11 @@ export default class ECGModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleChannelUpdate(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleChannelUpdate(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
