@@ -5,11 +5,11 @@ import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
 declare module '@OneCoreTypes' {
     // #### CRDT INTERFACES ####
     export interface OneCrdtObjectInterfaces {
-        ProfileCRDTRecipe: ProfileCRDT;
+        ProfileCRDT: ProfileCRDT;
     }
 
     export interface OneCrdtIdObjectInterfaces {
-        ProfileCRDTRecipe: Pick<ProfileCRDT, '$type$' | 'personId' | 'profileName'>;
+        ProfileCRDT: Pick<ProfileCRDT, '$type$' | 'personId' | 'profileName'>;
     }
 
     export interface OneCrdtMetaObjectInterfaces {
@@ -17,7 +17,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneCrdtToMetaObjectInterfaces {
-        ProfileCRDTRecipe: ProfileCRDTMetaData;
+        ProfileCRDT: ProfileCRDTMetaData;
     }
 
     // #### Normal interfaces ####
@@ -150,7 +150,7 @@ declare module '@OneCoreTypes' {
 
 export const ProfileCRDTRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'ProfileCRDTRecipe',
+    name: 'ProfileCRDT',
     rule: [
         {
             itemprop: 'personId',
@@ -190,11 +190,11 @@ export const SomeoneRecipe: Recipe = {
     rule: [
         {
             itemprop: 'mainProfile',
-            referenceToId: new Set(['ProfileCRDTRecipe'])
+            referenceToId: new Set(['ProfileCRDT'])
         },
         {
             itemprop: 'profiles',
-            referenceToId: new Set(['ProfileCRDTRecipe']),
+            referenceToId: new Set(['ProfileCRDT']),
             referenceToObj: new Set(['Person']),
             list: ORDERED_BY.ONE
         }

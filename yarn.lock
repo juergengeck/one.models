@@ -5074,9 +5074,9 @@ once@^1.3.0, once@^1.3.1, once@^1.4.0:
   dependencies:
     wrappy "1"
 
-one.core@refinio/one.core#feature/20200720_communication_og:
-  version "0.2.18"
-  resolved "git+ssh://git@github.com/refinio/one.core.git#351b537548bcf48587b292ade01e191c17a55e5f"
+one.core@refinio/one.core#crdts_eh:
+  version "0.2.13"
+  resolved "git+ssh://git@github.com/refinio/one.core.git#c16bb852aa6a1a436c184fd981a43f0655e0fe53"
   dependencies:
     "@babel/core" "*"
     "@babel/plugin-proposal-class-properties" "*"
