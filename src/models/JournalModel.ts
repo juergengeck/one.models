@@ -69,7 +69,9 @@ export default class JournalModel extends EventEmitter {
 
     private readonly oneDayAgo: number = 1000 * 60 * 60 * 24;
 
-    private currentTimeFrame: TimeFrame;
+    // @Todo make this live only in the generator !!!!!
+    // Initialise it first with 0 values, this object will be assigned in the init function
+    private currentTimeFrame: TimeFrame = {from: new Date(0), to: new Date(0)};
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<
@@ -142,28 +144,8 @@ export default class JournalModel extends EventEmitter {
     }
 
     /**
-     * This function queries the channels and finds the highest creation time
-     * @param from
-     * @param to
-     * @private
+     * Get the latest day stored events sorted by date. In Ascending order
      */
-    private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
-        const timestamps: number[] = await Promise.all(
-            this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                const data = await journalInput.retrieveFn({
-                    count: 1,
-                    from: from,
-                    to: to
-                });
-                if (data.length > 0) {
-                    return data[0].creationTime.getTime();
-                }
-                return 0;
-            })
-        );
-        return Math.max(...timestamps);
-    }
-
     async retrieveLatestDayEvents(): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
@@ -193,6 +175,9 @@ export default class JournalModel extends EventEmitter {
         return this.createEventList(dataDictionary);
     }
 
+    /**
+     * Generator function that gets the next day stored events sorted by date. In Ascending order
+     */
     async *retrieveEventsByDayIterator(): AsyncIterableIterator<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
@@ -247,6 +232,13 @@ export default class JournalModel extends EventEmitter {
         return this.createEventList(dataDictionary);
     }
 
+    /**
+     * It uses the currentTimeFrame object in order to retrieve data from this specific time frame.
+     * If it could not find any data in the current time frame, it will find the next time frame that had
+     * data in it.
+     * @param {JournalData} dataDictionary
+     * @private
+     */
     private async consumeTimeFrame(dataDictionary: JournalData): Promise<void> {
         /** The stop condition **/
         if (
@@ -286,7 +278,12 @@ export default class JournalModel extends EventEmitter {
         }
     }
 
-    private createEventList(dataDictionary: JournalData) {
+    /**
+     * This function will create & sort in ascending order the event list.
+     * @param {JournalData} dataDictionary
+     * @private
+     */
+    private createEventList(dataDictionary: JournalData): EventListEntry[] {
         /** get the total length of data values **/
         const totalLen: number = Object.keys(dataDictionary)
             .map((event: string) => dataDictionary[event].values.length)
@@ -333,6 +330,29 @@ export default class JournalModel extends EventEmitter {
 
         /** Now all elements should be sorted in the list => return it **/
         return eventList;
+    }
+
+    /**
+     * This function queries the channels and finds the newest creation time
+     * @param {Date} from
+     * @param {Date} to
+     * @private
+     */
+    private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
+        const timestamps: number[] = await Promise.all(
+            this.modelsDictionary.map(async (journalInput: JournalInput) => {
+                const data = await journalInput.retrieveFn({
+                    count: 1,
+                    from: from,
+                    to: to
+                });
+                if (data.length > 0) {
+                    return data[0].creationTime.getTime();
+                }
+                return 0;
+            })
+        );
+        return Math.max(...timestamps);
     }
 
     /**
