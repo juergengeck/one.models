@@ -60,18 +60,16 @@ type JournalInput = {
     eventType: EventType;
 };
 
-type CachedTimeFrame = {
-    latestFrom: Date;
-    latestTo: Date;
-    statistics: {collectedItems: number};
-};
+type TimeFrame = {from: Date; to: Date};
+
+type JournalData = {[event: string]: {values: EventListEntry['data'][]; index: number}};
 
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
 
     private readonly oneDayAgo: number = 1000 * 60 * 60 * 24;
 
-    private cachedTimeFrames: Map<JournalInput['model'], CachedTimeFrame> = new Map();
+    private currentTimeFrame: TimeFrame;
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<
@@ -93,13 +91,22 @@ export default class JournalModel extends EventEmitter {
      * maps an handler on every provided model
      * @returns {Promise<void>}
      */
-    init() {
+    async init() {
+        /**
+         * Find the highest timestamp and set the currentTimeFrame to it.
+         * The "from" field will be one day behind the "to" field.
+         */
+        const latestTo = new Date(await this.findLatestTimeFrame());
+        const latestFrom = new Date(
+            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
+        );
+        this.currentTimeFrame = {
+            from: latestFrom,
+            to: latestTo
+        };
+
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
-
-            /*
-             * @Todo this event will be removed in the future for the only use of oEvent
-             */
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
@@ -109,11 +116,6 @@ export default class JournalModel extends EventEmitter {
             journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
-            this.cachedTimeFrames.set(journalInput.model, {
-                latestFrom: new Date(new Date().valueOf() - this.oneDayAgo),
-                latestTo: new Date(),
-                statistics: {collectedItems: 0}
-            });
             this.eventEmitterListeners.set(event, handlerEventEmitter);
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
@@ -139,94 +141,152 @@ export default class JournalModel extends EventEmitter {
         });
     }
 
-    private async consumeTimeFrame(
-        pageSize: number,
-        dataDictionary: {
-            [event: string]: {values: EventListEntry['data'][]; index: number};
-        },
-        neededItems?: number
-    ): Promise<{
-        [event: string]: {values: EventListEntry['data'][]; index: number};
-    }> {
-        const count = Math.floor(
-            neededItems ? neededItems : pageSize / Array.from(this.cachedTimeFrames.keys()).length
+    /**
+     * This function queries the channels and finds the highest creation time
+     * @param from
+     * @param to
+     * @private
+     */
+    private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
+        const timestamps: number[] = await Promise.all(
+            this.modelsDictionary.map(async (journalInput: JournalInput) => {
+                const data = await journalInput.retrieveFn({
+                    count: 1,
+                    from: from,
+                    to: to
+                });
+                if (data.length > 0) {
+                    return data[0].creationTime.getTime();
+                }
+                return 0;
+            })
+        );
+        return Math.max(...timestamps);
+    }
+
+    async retrieveLatestDayEvents(): Promise<EventListEntry[]> {
+        /** if there are no provided models, return empty list **/
+        if (this.modelsDictionary.length === 0) {
+            return [];
+        }
+        /** data structure as a dictionary **/
+        const dataDictionary: JournalData = {};
+
+        const latestTo = new Date(await this.findLatestTimeFrame());
+        const latestFrom = new Date(
+            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
         );
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                const cachedTimeFrame = this.cachedTimeFrames.get(journalInput.model);
-                if (cachedTimeFrame) {
-                    const totalLen: number = Object.keys(dataDictionary)
-                        .map((event: string) => dataDictionary[event].values.length)
-                        .reduce((acc: number, cur: number) => acc + cur);
 
-                    if (neededItems && totalLen === pageSize) {
-                        return;
-                    }
-
-                    const data = await journalInput.retrieveFn({
-                        count: count,
-                        from: cachedTimeFrame.latestFrom,
-                        to: cachedTimeFrame.latestTo
-                    });
-
-                    const lastItemData = data[data.length - 1];
-
-                    this.cachedTimeFrames.set(journalInput.model, {
-                        latestFrom: new Date(cachedTimeFrame.latestFrom.valueOf() - this.oneDayAgo),
-                        latestTo: lastItemData.creationTime,
-                        statistics: {
-                            collectedItems: cachedTimeFrame.statistics.collectedItems + data.length
-                        }
-                    });
-
-                    dataDictionary[event] = {
-                        values: data,
-                        index: 0
-                    };
-                }
+                const data = await journalInput.retrieveFn({
+                    to: latestTo,
+                    from: latestFrom
+                });
+                dataDictionary[event] = {
+                    values: data,
+                    index: 0
+                };
             })
         );
-        /** get the total length of data values **/
-        const totalLen: number = Object.keys(dataDictionary)
-            .map((event: string) => dataDictionary[event].values.length)
-            .reduce((acc: number, cur: number) => acc + cur);
+        return this.createEventList(dataDictionary);
+    }
 
-        if (totalLen < pageSize) {
-            await this.consumeTimeFrame(pageSize - totalLen, dataDictionary);
+    async *retrieveEventsByDayIterator(): AsyncIterableIterator<EventListEntry[]> {
+        /** if there are no provided models, return empty list **/
+        if (this.modelsDictionary.length === 0) {
+            yield [];
         }
 
-        return dataDictionary;
+        /** data structure as a dictionary **/
+        const dataDictionary: JournalData = {};
+
+        await this.consumeTimeFrame(dataDictionary);
+
+        /**
+         * Move the TimeFrame to find the next latestTo Date.
+         * Start "from" 0 to the previous "from" and update the
+         * currentTimeFrame with the found Values.
+         */
+        const latestTo = new Date(
+            await this.findLatestTimeFrame(new Date(0), this.currentTimeFrame.from)
+        );
+        const latestFrom = new Date(
+            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
+        );
+        this.currentTimeFrame = {
+            from: latestFrom,
+            to: latestTo
+        };
+        yield this.createEventList(dataDictionary);
     }
 
     /**
      * Get the stored events sorted by date. In Ascending order
      * @returns {Promise<EventListEntry[]>}
      */
-    async events(pageSize?: number): Promise<EventListEntry[]> {
+    async retrieveAllEvents(): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
             return [];
         }
         /** data structure as a dictionary **/
-        const dataDictionary: {
-            [event: string]: {values: EventListEntry['data'][]; index: number};
-        } = {};
+        const dataDictionary: JournalData = {};
         /** map every provided model to the data dictionary and get their values **/
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                if (pageSize) {
-                    await this.consumeTimeFrame(pageSize, dataDictionary);
-                } else {
-                    const data = await journalInput.retrieveFn();
-                    dataDictionary[event] = {
-                        values: data,
-                        index: 0
-                    };
-                }
+                const data = await journalInput.retrieveFn();
+                dataDictionary[event] = {
+                    values: data,
+                    index: 0
+                };
             })
         );
+        return this.createEventList(dataDictionary);
+    }
+
+    private async consumeTimeFrame(dataDictionary: JournalData): Promise<void> {
+        /** The stop condition **/
+        if (
+            this.currentTimeFrame.from.getTime() === 0 &&
+            this.currentTimeFrame.to.getTime() === 0
+        ) {
+            return;
+        }
+
+        await Promise.all(
+            this.modelsDictionary.map(async (journalInput: JournalInput) => {
+                const event = journalInput.eventType;
+
+                const data = await journalInput.retrieveFn({
+                    from: this.currentTimeFrame.from,
+                    to: this.currentTimeFrame.to
+                });
+                dataDictionary[event] = {
+                    values: data,
+                    index: 0
+                };
+            })
+        );
+
+        if (Array.from(Object.keys(dataDictionary)).length === 0) {
+            const latestTo = new Date(
+                await this.findLatestTimeFrame(new Date(0), this.currentTimeFrame.from)
+            );
+            const latestFrom = new Date(
+                latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
+            );
+            this.currentTimeFrame = {
+                from: latestFrom,
+                to: latestTo
+            };
+            await this.consumeTimeFrame(dataDictionary);
+        }
+    }
+
+    private createEventList(dataDictionary: JournalData) {
         /** get the total length of data values **/
         const totalLen: number = Object.keys(dataDictionary)
             .map((event: string) => dataDictionary[event].values.length)
