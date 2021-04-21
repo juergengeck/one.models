@@ -208,9 +208,7 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager extends EventEmitter {
-
-    /**
-     *
+    /*
      * Note @sebastian 15.04.2021 - channelId & channelOwner is already present in the ObjectData, so it's redundant data.
      * We could let only the data field and extract channelId and channelOwner from there
      *
@@ -1742,7 +1740,6 @@ export default class ChannelManager extends EventEmitter {
             );
         });
     }
-
 
     /**
      * This function wraps the given channel info into {@link ObjectData}

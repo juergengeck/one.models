@@ -96,6 +96,10 @@ export default class JournalModel extends EventEmitter {
     init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
+
+            /*
+             * @Todo this event will be removed in the future for the only use of oEvent
+             */
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
