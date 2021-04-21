@@ -69,10 +69,6 @@ export default class JournalModel extends EventEmitter {
 
     private readonly oneDayAgo: number = 1000 * 60 * 60 * 24;
 
-    // @Todo make this live only in the generator !!!!!
-    // Initialise it first with 0 values, this object will be assigned in the init function
-    private currentTimeFrame: TimeFrame = {from: new Date(0), to: new Date(0)};
-
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<
         EventType,
@@ -94,19 +90,6 @@ export default class JournalModel extends EventEmitter {
      * @returns {Promise<void>}
      */
     async init() {
-        /**
-         * Find the highest timestamp and set the currentTimeFrame to it.
-         * The "from" field will be one day behind the "to" field.
-         */
-        const latestTo = new Date(await this.findLatestTimeFrame());
-        const latestFrom = new Date(
-            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
-        );
-        this.currentTimeFrame = {
-            from: latestFrom,
-            to: latestTo
-        };
-
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
             const handlerEventEmitter = () => {
@@ -179,32 +162,46 @@ export default class JournalModel extends EventEmitter {
      * Generator function that gets the next day stored events sorted by date. In Ascending order
      */
     async *retrieveEventsByDayIterator(): AsyncIterableIterator<EventListEntry[]> {
+        /**
+         * Find the highest timestamp and set the currentTimeFrame to it.
+         * The "from" field will be one day behind the "to" field.
+         */
+        const to = new Date(await this.findLatestTimeFrame());
+        const from = new Date(to.valueOf() === 0 ? 0 : to.valueOf() - this.oneDayAgo);
+        let currentTimeFrame: TimeFrame = {
+            from: from,
+            to: to
+        };
+
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
             yield [];
         }
 
         /** data structure as a dictionary **/
-        const dataDictionary: JournalData = {};
-
-        await this.consumeTimeFrame(dataDictionary);
-
-        /**
-         * Move the TimeFrame to find the next latestTo Date.
-         * Start "from" 0 to the previous "from" and update the
-         * currentTimeFrame with the found Values.
-         */
-        const latestTo = new Date(
-            await this.findLatestTimeFrame(new Date(0), this.currentTimeFrame.from)
-        );
-        const latestFrom = new Date(
-            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
-        );
-        this.currentTimeFrame = {
-            from: latestFrom,
-            to: latestTo
-        };
-        yield this.createEventList(dataDictionary);
+        for (;;) {
+            const dataDictionary: JournalData = {};
+            await this.consumeTimeFrame(dataDictionary, currentTimeFrame);
+            if (Array.from(Object.keys(dataDictionary)).length === 0) {
+                return;
+            }
+            /**
+             * Move the TimeFrame to find the next latestTo Date.
+             * Start "from" 0 to the previous "from" and update the
+             * currentTimeFrame with the found Values.
+             */
+            const nextTo = new Date(
+                await this.findLatestTimeFrame(new Date(0), currentTimeFrame.from)
+            );
+            const nextFrom = new Date(
+                nextTo.valueOf() === 0 ? 0 : nextTo.valueOf() - this.oneDayAgo
+            );
+            currentTimeFrame = {
+                from: nextFrom,
+                to: nextTo
+            };
+            yield this.createEventList(dataDictionary);
+        }
     }
 
     /**
@@ -237,14 +234,15 @@ export default class JournalModel extends EventEmitter {
      * If it could not find any data in the current time frame, it will find the next time frame that had
      * data in it.
      * @param {JournalData} dataDictionary
+     * @param {TimeFrame} timeFrame
      * @private
      */
-    private async consumeTimeFrame(dataDictionary: JournalData): Promise<void> {
+    private async consumeTimeFrame(
+        dataDictionary: JournalData,
+        timeFrame: TimeFrame
+    ): Promise<void> {
         /** The stop condition **/
-        if (
-            this.currentTimeFrame.from.getTime() === 0 &&
-            this.currentTimeFrame.to.getTime() === 0
-        ) {
+        if (timeFrame.from.getTime() === 0 && timeFrame.to.getTime() === 0) {
             return;
         }
 
@@ -253,8 +251,8 @@ export default class JournalModel extends EventEmitter {
                 const event = journalInput.eventType;
 
                 const data = await journalInput.retrieveFn({
-                    from: this.currentTimeFrame.from,
-                    to: this.currentTimeFrame.to
+                    from: timeFrame.from,
+                    to: timeFrame.to
                 });
                 dataDictionary[event] = {
                     values: data,
@@ -264,17 +262,15 @@ export default class JournalModel extends EventEmitter {
         );
 
         if (Array.from(Object.keys(dataDictionary)).length === 0) {
-            const latestTo = new Date(
-                await this.findLatestTimeFrame(new Date(0), this.currentTimeFrame.from)
-            );
+            const latestTo = new Date(await this.findLatestTimeFrame(new Date(0), timeFrame.from));
             const latestFrom = new Date(
                 latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
             );
-            this.currentTimeFrame = {
+            timeFrame = {
                 from: latestFrom,
                 to: latestTo
             };
-            await this.consumeTimeFrame(dataDictionary);
+            await this.consumeTimeFrame(dataDictionary, timeFrame);
         }
     }
 
