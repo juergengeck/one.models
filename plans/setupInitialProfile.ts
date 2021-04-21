@@ -56,18 +56,13 @@ export async function createObjects(
         url
     });
 
-    const contactObject = await WriteStorage.storeUnversionedObject({
-        $type$: 'Contact',
+    const profileObject = await WriteStorage.storeVersionedObjectCRDT({
+        $type$: 'ProfileCRDT',
         personId: personIdHash,
+        profileName: 'default',
+        author: personIdHash, // the writer is the author
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
-    });
-
-    const profileObject = await WriteStorage.storeVersionedObject({
-        $type$: 'Profile',
-        personId: personIdHash,
-        mainContact: contactObject.hash,
-        contactObjects: [contactObject.hash]
     });
 
     const someoneObject = await WriteStorage.storeUnversionedObject({

@@ -8,7 +8,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Profile, SHA256IdHash, Instance} from '@OneCoreTypes';
+import {ProfileCRDT, SHA256IdHash, Instance} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 
@@ -23,10 +23,11 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 export async function createObjects(
     WriteStorage: WriteStorageApi,
     email: string,
+    profileName: string,
     instanceIdHash: SHA256IdHash<Instance>,
     contactObjUrl: string,
     takeOver?: boolean
-): Promise<VersionedObjectResult<Profile>> {
+): Promise<VersionedObjectResult<ProfileCRDT>> {
     const personIdHash = (await getObjectByIdObj({$type$: 'Person', email})).idHash;
 
     /** Person key **/
@@ -45,7 +46,7 @@ export async function createObjects(
     );
     const instancePubEncryptionKeysHash = await calculateHashOfObj(instancePubEncryptionKeys);
 
-    /** Create the structure **/
+    /** Create the communication endpoint **/
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
         personId: personIdHash,
@@ -55,17 +56,13 @@ export async function createObjects(
         url: contactObjUrl
     });
 
-    const contactObject = await WriteStorage.storeUnversionedObject({
-        $type$: 'Contact',
+    /** Create the profile **/
+    return await WriteStorage.storeVersionedObjectCRDT({
+        $type$: 'ProfileCRDT',
         personId: personIdHash,
+        profileName: profileName,
+        author: personIdHash, // the writer is the author
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
-    });
-
-    return await WriteStorage.storeVersionedObject({
-        $type$: 'Profile',
-        personId: personIdHash,
-        mainContact: contactObject.hash,
-        contactObjects: [contactObject.hash]
     });
 }

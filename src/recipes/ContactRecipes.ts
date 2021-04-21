@@ -9,7 +9,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneCrdtIdObjectInterfaces {
-        ProfileCRDTRecipe: Pick<ProfileCRDT, '$type$' | 'personId' | 'profileName' | 'author'>;
+        ProfileCRDTRecipe: Pick<ProfileCRDT, '$type$' | 'personId' | 'profileName'>;
     }
 
     export interface OneCrdtMetaObjectInterfaces {
@@ -22,12 +22,20 @@ declare module '@OneCoreTypes' {
 
     // #### Normal interfaces ####
 
+    export interface OneIdObjectInterfaces {
+        ContactApp: Pick<ContactApp, 'appId' | '$type$'>;
+    }
+
+    export interface OneVersionedObjectInterfaces {
+        ContactApp: ContactApp;
+    }
+
     export interface OneUnversionedObjectInterfaces {
         OneInstanceEndpoint: OneInstanceEndpoint;
         PersonName: PersonName;
         ProfileImageRecipe: ProfileImage;
         EmailRecipe: Email;
-        ContactApp: ContactApp;
+        Someone: Someone;
     }
 
     export interface PlanResultTypes {
@@ -101,6 +109,30 @@ declare module '@OneCoreTypes' {
         $type$: 'ProfileCRDTMetaRecipe';
     }
 
+    /**
+     * This object collects all profiles that describe the same person.
+     *
+     * A person may have multiple person ids, so if someone knows that a person
+     * uses several person ids, then it is possible to collect all those alias
+     * person ids in one someone object, so that applications can display them
+     * as a single person.
+     *
+     * Should this be versioned?
+     * - It doesn't really make sense, because when you look up the corresponding
+     *   versioned someone object it might have outdated information. You always
+     *   have to go through the app object, no matter what. Reason: The someone
+     *   in its current form would refer to the main profile as id ... this means
+     *   that if a profile is demoted from "main profile" to "alias profile" it keeps
+     *   its versioned object based on its id. So you will not get the someone object
+     *   with the correct id! So we need to iterate over all current someone objects
+     *   and this can only be done through the App object.
+     */
+    export interface Someone {
+        $type$: 'Someone';
+        mainProfile: SHA256IdHash<ProfileCRDT>;
+        profiles: SHA256IdHash<ProfileCRDT>[];
+    }
+
     // #### Top level ####
 
     /**
@@ -108,8 +140,9 @@ declare module '@OneCoreTypes' {
      */
     export interface ContactApp {
         $type$: 'ContactApp';
-        me: SHA256Hash<Person>;
-        contacts: SHA256Hash<Person>[];
+        appId: 'ContactApp'; // since this is a versioned object we need some kind of id ... and this is it
+        me: SHA256Hash<Someone>;
+        contacts: SHA256Hash<Someone>[];
     }
 }
 
@@ -127,13 +160,11 @@ export const ProfileCRDTRecipe: Recipe = {
         {
             itemprop: 'profileName',
             valueType: 'string',
-
             isId: true
         },
         {
             itemprop: 'author',
-            referenceToId: new Set(['Person']),
-            isId: true
+            referenceToId: new Set(['Person'])
         },
         {
             itemprop: 'communicationEndpoints',
@@ -153,11 +184,33 @@ export const ProfileCRDTMetaRecipe: Recipe = generateCrdtRecipe(
     'ProfileCRDTMetaRecipe'
 );
 
+export const SomeoneRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Someone',
+    rule: [
+        {
+            itemprop: 'mainProfile',
+            referenceToId: new Set(['ProfileCRDTRecipe'])
+        },
+        {
+            itemprop: 'profiles',
+            referenceToId: new Set(['ProfileCRDTRecipe']),
+            referenceToObj: new Set(['Person']),
+            list: ORDERED_BY.ONE
+        }
+    ]
+};
+
 //not crdt
 export const ContactAppRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ContactApp',
     rule: [
+        {
+            itemprop: 'appId',
+            regexp: /^ContactApp$/,
+            isId: true
+        },
         {
             itemprop: 'me',
             referenceToObj: new Set(['Person'])
@@ -240,7 +293,8 @@ const ContactRecipes: Recipe[] = [
     ContactAppRecipe,
     ProfileCRDTRecipe,
     ProfileCRDTMetaRecipe,
-    EmailRecipe
+    EmailRecipe,
+    SomeoneRecipe
 ];
 
 export default ContactRecipes;

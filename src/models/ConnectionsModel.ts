@@ -1710,24 +1710,14 @@ class ConnectionsModel extends EventEmitter {
             throw new Error('Unknown anonymous identity!');
         }
 
-        // Get all contact objects for the person received as parameter
-        const allContactObjects = await this.contactModel.getContactObjects(remotePersonId);
-
-        // Read al known endpoints for the person received as argument
-        const endpointHashes = allContactObjects
-            .map(contact => {
-                return contact.communicationEndpoints;
-            })
-            .flat();
-
-        // Get all the communication endpoint objects
-        const endpoints = await Promise.all(
-            endpointHashes.map(endpointHash => getObject(endpointHash))
+        // Get all communication endpoints for the person received as parameter
+        const communicationEndpoints = await this.contactModel.getCommunicationEndpoints(
+            remotePersonId
         );
         const instanceEndpoints: OneInstanceEndpoint[] = [];
 
         // Filter only the OneInstanceEndpoint objects
-        for (const endpoint of endpoints) {
+        for (const endpoint of communicationEndpoints) {
             if (!thisAnonInstanceInfo) {
                 throw new Error('Unknown anonymous identity!');
             }

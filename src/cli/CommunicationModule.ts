@@ -14,7 +14,6 @@ import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {implode} from 'one.core/lib/microdata-imploder';
 import fs from 'fs';
 import * as readline from 'readline';
 import {toByteArray} from 'base64-js';
@@ -72,7 +71,7 @@ async function main(): Promise<void> {
     const instancesModel = new InstancesModel();
     const accessModel = new AccessModel();
     const channelManager = new ChannelManager(accessModel);
-    const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
+    const contactModel = new ContactModel(instancesModel, argv.u, false);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     communicationModule.onKnownConnection(
         (
@@ -175,18 +174,17 @@ async function main(): Promise<void> {
     );
 
     // Get the contact objects for the main and anon id
-    const mainContactObjects = await contactModel.getContactObjectHashes(person);
-    const anonContactObjects = await contactModel.getContactObjectHashes(personAnon);
-    if (mainContactObjects.length !== 1) {
+    const mainCommunicationEndpoints = await contactModel.getCommunicationEndpoints(person);
+    const anonCommunicationEndpoints = await contactModel.getCommunicationEndpoints(personAnon);
+    if (mainCommunicationEndpoints.length !== 1) {
         throw new Error('There is more than one contact object for main user.');
     }
-    if (anonContactObjects.length !== 1) {
+    if (anonCommunicationEndpoints.length !== 1) {
         throw new Error('There is more than one contact object for anon user.');
     }
 
     // Write the contact objects to files, so that others can import them.
-    //fs.writeFileSync(`${argv.i}_main.contact`, await implode(mainContactObjects[0]));
-    fs.writeFileSync(`${argv.i}_anon.contact`, await implode(anonContactObjects[0]));
+    fs.writeFileSync(`${argv.i}_anon.contact`, anonCommunicationEndpoints[0]);
 
     // Wait here for user input
     await new Promise(resolve => {
@@ -224,9 +222,6 @@ async function main(): Promise<void> {
     // Start the communication module
     console.log('Start the comm module');
 
-    contactModel.onContactUpdate(() => {
-        console.log('ADDED a contact');
-    });
     await new Promise(resolve => {
         const rl = readline.createInterface({
             input: process.stdin,
