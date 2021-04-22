@@ -263,24 +263,14 @@ export default class JournalModel extends EventEmitter {
                     from: timeFrame.from,
                     to: timeFrame.to
                 });
-                dataDictionary[event] = {
-                    values: data,
-                    index: 0
-                };
+                if (data.length > 0) {
+                    dataDictionary[event] = {
+                        values: data,
+                        index: 0
+                    };
+                }
             })
         );
-
-        if (Array.from(Object.keys(dataDictionary)).length === 0) {
-            const latestTo = new Date(await this.findLatestTimeFrame(new Date(0), timeFrame.from));
-            const latestFrom = new Date(
-                latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
-            );
-            timeFrame = {
-                from: latestFrom,
-                to: latestTo
-            };
-            await this.consumeTimeFrame(dataDictionary, timeFrame);
-        }
     }
 
     /**
