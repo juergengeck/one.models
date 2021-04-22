@@ -175,15 +175,24 @@ export default class JournalModel extends EventEmitter {
 
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
-            yield [];
+            return;
         }
 
         /** data structure as a dictionary **/
         for (;;) {
             const dataDictionary: JournalData = {};
+
+            // @todo Big Optimisation (@Sebastian note)
+            // - Make consumeTimeFrame a generator that will yield every value
+            // - Use channelManager's objectIterator in order to yield through values (IMPORTANT) !!!
+            // - Add a pageSize in the retrieveEventsByDayIterator
+            // - Create a for loop and check the pageSize with retrieved items
+            // - Met the PageSize ? Yield the dataDictionary
+
             await this.consumeTimeFrame(dataDictionary, currentTimeFrame);
+
             if (Array.from(Object.keys(dataDictionary)).length === 0) {
-                return;
+                break;
             }
             /**
              * Move the TimeFrame to find the next latestTo Date.
