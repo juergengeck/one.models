@@ -886,7 +886,7 @@ export default class ContactModel extends EventEmitter {
         await serializeWithType('Contacts', async () => {
             return await createSingleObjectThroughPurePlan(
                 {
-                    module: '@one/mergeProfileCRDT',
+                    module: '@module/mergeProfileCRDT',
                     versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                 },
                 profile,

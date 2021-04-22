@@ -33,8 +33,8 @@ declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         OneInstanceEndpoint: OneInstanceEndpoint;
         PersonName: PersonName;
-        ProfileImageRecipe: ProfileImage;
-        EmailRecipe: Email;
+        ProfileImage: ProfileImage;
+        Email: Email;
         Someone: Someone;
     }
 
@@ -168,12 +168,12 @@ export const ProfileCRDTRecipe: Recipe = {
         },
         {
             itemprop: 'communicationEndpoints',
-            referenceToObj: new Set(['OneInstanceEndpoint', 'EmailRecipe']),
+            referenceToObj: new Set(['OneInstanceEndpoint', 'Email']),
             list: ORDERED_BY.ONE
         },
         {
             itemprop: 'contactDescriptions',
-            referenceToObj: new Set(['PersonName', 'ProfileImageRecipe']),
+            referenceToObj: new Set(['PersonName', 'ProfileImage']),
             list: ORDERED_BY.ONE
         }
     ]
@@ -263,7 +263,7 @@ export const PersonNameRecipe: Recipe = {
 
 export const ProfileImageRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'ProfileImageRecipe',
+    name: 'ProfileImage',
     rule: [
         {
             itemprop: 'image',
@@ -274,7 +274,7 @@ export const ProfileImageRecipe: Recipe = {
 
 export const EmailRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'EmailRecipe',
+    name: 'Email',
     rule: [
         {
             itemprop: 'email',
