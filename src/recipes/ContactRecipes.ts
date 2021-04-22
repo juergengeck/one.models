@@ -9,7 +9,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneCrdtIdObjectInterfaces {
-        ProfileCRDT: Pick<ProfileCRDT, '$type$' | 'personId' | 'profileName'>;
+        ProfileCRDT: Pick<ProfileCRDT, 'personId' | 'profileName' | '$type$'>;
     }
 
     export interface OneCrdtMetaObjectInterfaces {
