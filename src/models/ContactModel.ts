@@ -624,7 +624,7 @@ export default class ContactModel extends EventEmitter {
 
                 // Create relevant profile objects
                 const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createOwnProfile'},
+                    {module: '@module/createOwnProfileCRDT'},
                     personEmail,
                     'default',
                     createdInstance,

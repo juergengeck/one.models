@@ -13,7 +13,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneCrdtMetaObjectInterfaces {
-        ProfileCRDTMetaRecipe: ProfileCRDTMetaData;
+        ProfileCRDTMeta: ProfileCRDTMetaData;
     }
 
     export interface OneCrdtToMetaObjectInterfaces {
@@ -106,7 +106,7 @@ declare module '@OneCoreTypes' {
     }
 
     export interface ProfileCRDTMetaData extends CRDTMetaData<ProfileCRDT> {
-        $type$: 'ProfileCRDTMetaRecipe';
+        $type$: 'ProfileCRDTMeta';
     }
 
     /**
@@ -181,7 +181,7 @@ export const ProfileCRDTRecipe: Recipe = {
 
 export const ProfileCRDTMetaRecipe: Recipe = generateCrdtRecipe(
     ProfileCRDTRecipe,
-    'ProfileCRDTMetaRecipe'
+    'ProfileCRDTMeta'
 );
 
 export const SomeoneRecipe: Recipe = {
@@ -195,7 +195,6 @@ export const SomeoneRecipe: Recipe = {
         {
             itemprop: 'profiles',
             referenceToId: new Set(['ProfileCRDT']),
-            referenceToObj: new Set(['Person']),
             list: ORDERED_BY.ONE
         }
     ]
