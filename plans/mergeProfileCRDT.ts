@@ -18,7 +18,6 @@ export async function createObjects(
     profile: ProfileCRDT,
     baseProfileHash: SHA256Hash<ProfileCRDT>
 ): Promise<VersionedObjectResult<ProfileCRDT>> {
-    console.log('CRDT MERGE');
-    /** Create the profile **/
+    /** Update the profile **/
     return await WriteStorage.storeVersionedObjectCRDT(profile, baseProfileHash);
 }

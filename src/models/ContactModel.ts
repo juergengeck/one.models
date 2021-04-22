@@ -644,12 +644,12 @@ export default class ContactModel extends EventEmitter {
             });
         } else {
             // Create a profile for others
-            // TODO not possible in version V0.0.1
             return await serializeWithType('Contacts', async () => {
                 // Just create the person id and the relevant profile objects
                 const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createProfile'},
-                    personEmail
+                    {module: '@module/createOthersProfileCRDT'},
+                    personEmail,
+                    'default'
                 )) as VersionedObjectResult<ProfileCRDT>;
 
                 // Add the profile to the someone object (or create a new one)
