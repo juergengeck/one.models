@@ -20,6 +20,7 @@ export async function createObjects(
     url: string,
     takeOver?: boolean
 ): Promise<VersionedObjectResult<ContactApp>> {
+    console.log('PLAN-setupInitialProfile');
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
     const instanceIdHash = getInstanceIdHash();
@@ -46,6 +47,8 @@ export async function createObjects(
     // 2. get the instance hash by ``const instanceIdHash = getInstanceIdHash();``
     // 3. from the reverse map obtain the key object for this instance
 
+    console.log('PLAN-setupInitialProfile1');
+
     /** Create the structure **/
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
@@ -55,6 +58,7 @@ export async function createObjects(
         instanceKeys: instancePubEncryptionKeysHash,
         url
     });
+    console.log('PLAN-setupInitialProfile2', instanceEndpoint);
 
     const profileObject = await WriteStorage.storeVersionedObjectCRDT({
         $type$: 'ProfileCRDT',
@@ -64,12 +68,14 @@ export async function createObjects(
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
     });
+    console.log('PLAN-setupInitialProfile3', profileObject);
 
     const someoneObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Someone',
         mainProfile: profileObject.idHash,
         profiles: [profileObject.idHash]
     });
+    console.log('PLAN-setupInitialProfile4', someoneObject);
 
     return await WriteStorage.storeVersionedObject({
         $type$: 'ContactApp',
