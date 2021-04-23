@@ -56,7 +56,7 @@ type JournalInput = {
         | BodyTemperatureModel;
     retrieveFn: (
         queryOptions?: QueryOptions
-    ) => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
+    ) => AsyncIterableIterator<EventListEntry['data'][] | Promise<EventListEntry['data'][]>>;
     eventType: EventType;
 };
 
@@ -144,11 +144,13 @@ export default class JournalModel extends EventEmitter {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-
-                const data = await journalInput.retrieveFn({
+                const data: EventListEntry['data'][] = [];
+                for await (const retrievedData of journalInput.retrieveFn({
                     to: latestTo,
                     from: latestFrom
-                });
+                })) {
+                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                }
                 dataDictionary[event] = {
                     values: data,
                     index: 0
@@ -161,7 +163,9 @@ export default class JournalModel extends EventEmitter {
     /**
      * Generator function that gets the next day stored events sorted by date. In Ascending order
      */
-    async *retrieveEventsByDayIterator(): AsyncIterableIterator<EventListEntry[]> {
+    async *retrieveEventsByDayIterator(
+        pageSize: number = 25
+    ): AsyncIterableIterator<EventListEntry[]> {
         /**
          * Find the highest timestamp and set the currentTimeFrame to it.
          * The "from" field will be one day behind the "to" field.
@@ -178,19 +182,53 @@ export default class JournalModel extends EventEmitter {
             return;
         }
 
-        /** data structure as a dictionary **/
+        let counter = 0;
+        let dataDictionary: JournalData = {};
+
+        /** Start iterating **/
         for (;;) {
-            const dataDictionary: JournalData = {};
+            /** if the current time frame reached time '0' **/
+            if (currentTimeFrame.from.getTime() === 0 && currentTimeFrame.to.getTime() === 0) {
+                /** Yield the remaining values from the dictionary **/
+                if (Array.from(Object.keys(dataDictionary)).length !== 0) {
+                    yield this.createEventList(dataDictionary);
+                }
+                /** break free :) **/
+                break;
+            }
 
-            // @todo Big Optimisation (@Sebastian note)
-            // - Make consumeTimeFrame a generator that will yield every value
-            // - Use channelManager's objectIterator in order to yield through values (IMPORTANT) !!!
-            // - Add a pageSize in the retrieveEventsByDayIterator
-            // - Create a for loop and check the pageSize with retrieved items
-            // - Met the PageSize ? Yield the dataDictionary
+            for (const model of this.modelsDictionary) {
+                const event = model.eventType;
 
-            await this.consumeTimeFrame(dataDictionary, currentTimeFrame);
+                for await (const retrievedData of model.retrieveFn({
+                    to: currentTimeFrame.to,
+                    from: currentTimeFrame.from
+                })) {
+                    /** if the pageSize condition is met **/
+                    if (pageSize === counter) {
+                        yield this.createEventList(dataDictionary);
+                        /** clear counter and dictionary **/
+                        dataDictionary = {};
+                        counter = 0;
+                    }
 
+                    const data = (retrievedData as unknown) as EventListEntry['data'];
+                    counter++;
+
+                    dataDictionary[event] = {
+                        //@ts-ignore
+                        values: dataDictionary[event]
+                            ? dataDictionary[event].values.push(data)
+                            : [data],
+                        index: 0
+                    };
+                }
+            }
+
+            /**
+             * I don't think this can happen, because the timeframe is calculated based on nearest channel entry
+             * creation time, so it must find some items in it.
+             */
             if (Array.from(Object.keys(dataDictionary)).length === 0) {
                 break;
             }
@@ -209,7 +247,7 @@ export default class JournalModel extends EventEmitter {
                 from: nextFrom,
                 to: nextTo
             };
-            yield this.createEventList(dataDictionary);
+            // yield this.createEventList(dataDictionary);
         }
     }
 
@@ -228,7 +266,10 @@ export default class JournalModel extends EventEmitter {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                const data = await journalInput.retrieveFn();
+                const data: EventListEntry['data'][] = [];
+                for await (const retrievedData of journalInput.retrieveFn()) {
+                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                }
                 dataDictionary[event] = {
                     values: data,
                     index: 0
@@ -245,20 +286,28 @@ export default class JournalModel extends EventEmitter {
      * @param {JournalData} dataDictionary
      * @param {TimeFrame} timeFrame
      * @private
-     */
-    private async consumeTimeFrame(
+    private async* consumeTimeFrameIterator(
         dataDictionary: JournalData,
         timeFrame: TimeFrame
     ): Promise<void> {
-        /** The stop condition **/
+        /!** The stop condition **!/
         if (timeFrame.from.getTime() === 0 && timeFrame.to.getTime() === 0) {
             return;
         }
 
+        for(const model of this.modelsDictionary){
+            for await (const retrievedData of model.retrieveFn({
+                to: timeFrame.to,
+                from: timeFrame.from
+            })) {
+                yield retrievedData;
+            }
+        }
+        
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-
+               
                 const data = await journalInput.retrieveFn({
                     from: timeFrame.from,
                     to: timeFrame.to
@@ -272,7 +321,7 @@ export default class JournalModel extends EventEmitter {
             })
         );
     }
-
+*/
     /**
      * This function will create & sort in ascending order the event list.
      * @param {JournalData} dataDictionary
@@ -336,11 +385,14 @@ export default class JournalModel extends EventEmitter {
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
         const timestamps: number[] = await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                const data = await journalInput.retrieveFn({
+                const data: EventListEntry['data'][] = [];
+                for await (const retrievedData of journalInput.retrieveFn({
                     count: 1,
-                    from: from,
-                    to: to
-                });
+                    to: to,
+                    from: from
+                })) {
+                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                }
                 if (data.length > 0) {
                     return data[0].creationTime.getTime();
                 }

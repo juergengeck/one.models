@@ -94,10 +94,9 @@ export default class DiaryModel extends EventEmitter implements Model {
         await this.channelManager.postToChannel(this.channelId, convertToOne(diaryEntry));
     }
 
-    async entries(queryOptions?: QueryOptions): Promise<ObjectData<DiaryEntry>[]> {
+    async entries(): Promise<ObjectData<DiaryEntry>[]> {
         const objects: ObjectData<DiaryEntry>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType('DiaryEntry', {
-            ...queryOptions,
             channelId: this.channelId
         });
 
@@ -108,6 +107,22 @@ export default class DiaryModel extends EventEmitter implements Model {
         }
 
         return objects;
+    }
+
+    /**
+     * returns iterator for Diary Entries
+     * @param queryOptions
+     */
+    async *entriesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<DiaryEntry>> {
+        for await (const entry of this.channelManager.objectIteratorWithType('DiaryEntry', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            const {data, ...restObjectData} = entry;
+            yield {...restObjectData, data: convertFromOne(data)};
+        }
     }
 
     async getEntryById(id: string): Promise<ObjectData<DiaryEntry>> {

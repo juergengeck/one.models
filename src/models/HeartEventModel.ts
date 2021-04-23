@@ -47,24 +47,33 @@ export default class HeartEventModel extends EventEmitter implements Model {
     /**
      * Get a list of heart rate events.
      */
-    async heartEvents(from?: Date, to?: Date, count?: number): Promise<HeartEvent[]> {
-        let data: HeartEvent[] = this.heartEventList;
-
-        if (from) {
-            data = data.filter(item => item.creationTime.getTime() > from.getTime());
-        }
-
-        if (to) {
-            data = data.filter(item => item.creationTime.getTime() < to.getTime());
-        }
-
-        if (count) {
-            data = data.slice(0, count);
-        }
-
-        return data.sort((a, b) => {
+    async heartEvents(): Promise<HeartEvent[]> {
+        return [...this.heartEventList].sort((a, b) => {
             return b.creationTime.getTime() - a.creationTime.getTime();
         });
+    }
+
+    /**
+     * returns iterator for heartEvents
+     * @param from
+     * @param to
+     */
+    async *heartEventsIterator(from?: Date, to?: Date): AsyncIterableIterator<HeartEvent> {
+        const sortedHeartEvents = this.heartEventList.sort((a, b) => {
+            return b.creationTime.getTime() - a.creationTime.getTime();
+        });
+        for (const heartEvent of sortedHeartEvents) {
+            if (from && to) {
+                if (
+                    heartEvent.creationTime.getTime() > from.getTime() &&
+                    heartEvent.creationTime.getTime() < to.getTime()
+                ) {
+                    yield heartEvent;
+                }
+            } else {
+                yield heartEvent;
+            }
+        }
     }
 
     private readonly heartEventList: HeartEvent[]; // List of measurements. Will be stored in one instance later

@@ -110,9 +110,8 @@ export default class DocumentModel extends EventEmitter implements Model {
      *
      * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
      */
-    async documents(queryOptions?: QueryOptions): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
+    async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
         const documentsData = (await this.channelManager.getObjects({
-            ...queryOptions,
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
             channelId: this.channelId
         })) as ObjectData<DocumentInfo_1_1_0 | DocumentInfo_1_0_0>[];
@@ -134,6 +133,34 @@ export default class DocumentModel extends EventEmitter implements Model {
                 }
             }
         ) as ObjectData<DocumentInfo_1_1_0>[];
+    }
+
+    /**
+     * returns iterator for DocumentInfo_1_1_0
+     * @param queryOptions
+     */
+    async *documentsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
+        for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            yield {
+                ...document,
+                data: {
+                    document: document.data.document,
+                    $type$: 'DocumentInfo_1_1_0',
+                    /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
+                    mimeType: AcceptedMimeType.PDF,
+                    documentName: ''
+                }
+            };
+        }
+        yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**

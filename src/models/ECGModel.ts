@@ -91,6 +91,19 @@ export default class ECGModel extends EventEmitter implements Model {
     }
 
     /**
+     * returns iterator for ECGs
+     * @param queryOptions
+     */
+    async *electrocardiogramsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<Electrocardiogram>> {
+        yield* this.channelManager.objectIteratorWithType('Electrocardiogram', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
+    }
+
+    /**
      * Retrieve all the readings from an ECG
      * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
      * @returns {Promise<ElectrocardiogramReadings[]>}

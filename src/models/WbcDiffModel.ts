@@ -97,8 +97,21 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * returns all WbcObservations from the channel
      */
-    async observations(queryOptions?: QueryOptions): Promise<ObjectData<WbcObservation>[]> {
-        return await this.channelManager.getObjectsWithType('WbcObservation', queryOptions);
+    async observations(): Promise<ObjectData<WbcObservation>[]> {
+        return await this.channelManager.getObjectsWithType('WbcObservation');
+    }
+
+    /**
+     * returns iterator for observations
+     * @param queryOptions
+     */
+    async *observationsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<WbcObservation>> {
+        yield* this.channelManager.objectIteratorWithType('WbcObservation', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**

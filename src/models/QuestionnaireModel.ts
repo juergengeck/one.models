@@ -244,12 +244,22 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Get a list of responses.
      */
-    public async responses(
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<QuestionnaireResponses>[]> {
+    public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId,
-            ...queryOptions
+            channelId: this.channelId
+        });
+    }
+
+    /**
+     * returns iterator for QuestionnaireResponses
+     * @param queryOptions
+     */
+    async *responsesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
+        yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+            ...queryOptions,
+            channelId: this.channelId
         });
     }
 
@@ -388,7 +398,11 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
