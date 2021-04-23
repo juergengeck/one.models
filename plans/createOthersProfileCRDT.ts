@@ -2,15 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    getObjectByIdObj,
-    getObjectWithType,
-    VersionedObjectResult,
-    WriteStorageApi
-} from 'one.core/lib/storage';
-import {ProfileCRDT, SHA256IdHash, Instance} from '@OneCoreTypes';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {ProfileCRDT} from '@OneCoreTypes';
 
 /**
  * @description Pure plan for creating a profile for yourself

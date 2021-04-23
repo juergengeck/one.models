@@ -206,6 +206,9 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Identity management ###################### **/
 
     /**
+     * TODO: this method will overwrite the previous profile if called twice with the same email! Should it throw
+     * if identity already exists?
+     *
      * Create a new personId and an associated profile.
      *
      * @param myself - flag that specifies whether the identity should be for me(if true) or another person(if false)
