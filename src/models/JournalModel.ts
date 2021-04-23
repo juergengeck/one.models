@@ -1,12 +1,15 @@
-import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
-import {QuestionnaireResponses} from './QuestionnaireModel'
+import {WbcObservation, Electrocardiogram, OneUnversionedObjectTypes} from '@OneCoreTypes';
+import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel';
 import EventEmitter from 'events';
-import {HeartEvent} from './HeartEventModel';
-import {DocumentInfo} from './DocumentModel';
-import {DiaryEntry} from './DiaryModel';
+import HeartEventModel, {HeartEvent} from './HeartEventModel';
+import DocumentModel, {DocumentInfo} from './DocumentModel';
+import DiaryModel, {DiaryEntry} from './DiaryModel';
 import {ObjectData} from './ChannelManager';
-import {ConsentFile, DropoutFile} from './ConsentFileModel';
-import {BodyTemperature} from "./BodyTemperatureModel";
+import ConsentFileModel, {ConsentFile, DropoutFile} from './ConsentFileModel';
+import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
+import {OEvent} from '../misc/OEvent';
+import WbcDiffModel from './WbcDiffModel';
+import ECGModel from './ECGModel';
 
 /**
  * !!! Add the corresponding model class name here
@@ -42,14 +45,33 @@ export type EventListEntry = {
 };
 
 type JournalInput = {
-    model: EventEmitter;
+    model:
+        | HeartEventModel
+        | WbcDiffModel
+        | QuestionnaireModel
+        | DocumentModel
+        | DiaryModel
+        | ConsentFileModel
+        | ECGModel
+        | BodyTemperatureModel;
     retrieveFn: () => EventListEntry['data'][] | Promise<EventListEntry['data'][]>;
     eventType: EventType;
 };
 
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
-    private eventListeners: Map<EventType, () => void> = new Map();
+
+    private eventEmitterListeners: Map<EventType, () => void> = new Map();
+    private oEventListeners: Map<
+        EventType,
+        {
+            disconnect: (() => void) | undefined;
+            listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void;
+        }
+    > = new Map();
+
+    public onUpdated = new OEvent<(data?: EventListEntry) => void>();
+
     constructor(modelsInput: JournalInput[]) {
         super();
         this.modelsDictionary = modelsInput;
@@ -62,12 +84,21 @@ export default class JournalModel extends EventEmitter {
     init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
-            const handler = () => {
+
+            /*
+             * @Todo this event will be removed in the future for the only use of oEvent
+             */
+            const handlerEventEmitter = () => {
                 this.emit('updated');
             };
-            journalInput.model.on('updated', handler);
+            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes> | HeartEvent) => {
+                this.onUpdated.emit(JournalModel.mapObjectDataToEventListEntry(data));
+            };
+            journalInput.model.on('updated', handlerEventEmitter);
+            const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
-            this.eventListeners.set(event, handler);
+            this.eventEmitterListeners.set(event, handlerEventEmitter);
+            this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
     }
 
@@ -78,9 +109,15 @@ export default class JournalModel extends EventEmitter {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType as EventType;
             /** retrieve the function reference in order to delete it **/
-            const handler = this.eventListeners.get(event);
-            if (handler) {
-                journalInput.model.removeListener('updated', handler);
+            const eventEmitterHandler = this.eventEmitterListeners.get(event);
+            const oEventHandler = this.oEventListeners.get(event);
+
+            if (oEventHandler && oEventHandler.disconnect) {
+                oEventHandler.disconnect();
+            }
+
+            if (eventEmitterHandler) {
+                journalInput.model.removeListener('updated', eventEmitterHandler);
             }
         });
     }
@@ -155,5 +192,45 @@ export default class JournalModel extends EventEmitter {
 
         /** Now all elements should be sorted in the list => return it **/
         return eventList;
+    }
+
+    /**
+     * Maps the given object data to the corresponding event type
+     * @param {ObjectData<OneUnversionedObjectTypes> | HeartEvent} objectData
+     * @private
+     */
+    private static mapObjectDataToEventListEntry(
+        objectData?: ObjectData<OneUnversionedObjectTypes> | HeartEvent
+    ): EventListEntry | undefined {
+        if (!objectData) {
+            return undefined;
+        }
+
+        if ('creationTime' in objectData && 'heartEventType' in objectData) {
+            return {type: EventType.HeartEvent, data: objectData};
+        }
+
+        if ('data' in objectData) {
+            const castedObjectData = objectData as EventListEntry['data'];
+            switch (objectData.data.$type$) {
+                case 'ConsentFile':
+                    return {type: EventType.ConsentFileEvent, data: castedObjectData};
+                case 'DocumentInfo_1_1_0':
+                    return {type: EventType.DocumentInfo, data: castedObjectData};
+                case 'WbcObservation':
+                    return {type: EventType.WbcDiffMeasurement, data: castedObjectData};
+                case 'BodyTemperature':
+                    return {type: EventType.BodyTemperature, data: castedObjectData};
+                case 'QuestionnaireResponses':
+                    return {type: EventType.QuestionnaireResponse, data: castedObjectData};
+                case 'DiaryEntry':
+                    return {type: EventType.DiaryEntry, data: castedObjectData};
+                case 'Electrocardiogram':
+                    return {type: EventType.ECGEvent, data: castedObjectData};
+                case 'DocumentInfo':
+                    return {type: EventType.DocumentInfo, data: castedObjectData};
+            }
+        }
+        return undefined;
     }
 }

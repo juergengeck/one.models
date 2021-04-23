@@ -21,7 +21,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     /**
      * Event emitted when heart data is added.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data: HeartEvent) => void>();
 
     constructor() {
         super();
@@ -41,7 +41,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
         // Write the data to storage
         this.heartEventList.push(data);
         this.emit('updated');
-        this.onUpdated.emit();
+        this.onUpdated.emit(data);
     }
 
     /**

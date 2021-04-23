@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
+import {BodyTemperature as OneBodyTemperature, OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
@@ -19,7 +19,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     /**
      * Event is emitted when body temperature data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -93,13 +93,15 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
 
     /**
      *  Handler function for the 'updated' event
-     *  @param {string} id
+     * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleChannelUpdate(id: string): Promise<void> {
+    private async handleChannelUpdate(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }

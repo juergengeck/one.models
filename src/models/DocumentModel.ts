@@ -3,8 +3,8 @@ import ChannelManager, {ObjectData} from './ChannelManager';
 import {
     BLOB,
     DocumentInfo as DocumentInfo_1_0_0,
-    DocumentInfo_1_1_0,
-    SHA256Hash
+    DocumentInfo_1_1_0, OneUnversionedObjectTypes, Person,
+    SHA256Hash, SHA256IdHash
 } from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
@@ -42,7 +42,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Event emitted when document data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -188,12 +188,14 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      *  Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }
