@@ -13,11 +13,11 @@ declare module '@OneCoreTypes' {
     }
 
     export interface OneCrdtMetaObjectInterfaces {
-        ProfileCRDTMeta: ProfileCRDTMetaData;
+        ProfileCRDTMeta: ProfileCRDTMeta;
     }
 
     export interface OneCrdtToMetaObjectInterfaces {
-        ProfileCRDT: ProfileCRDTMetaData;
+        ProfileCRDT: ProfileCRDTMeta;
     }
 
     // #### Normal interfaces ####
@@ -105,7 +105,7 @@ declare module '@OneCoreTypes' {
         contactDescriptions: SHA256Hash<ContactDescriptionTypes>[];
     }
 
-    export interface ProfileCRDTMetaData extends CRDTMetaData<ProfileCRDT> {
+    export interface ProfileCRDTMeta extends CRDTMetaData<ProfileCRDT> {
         $type$: 'ProfileCRDTMeta';
     }
 
