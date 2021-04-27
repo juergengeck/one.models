@@ -47,8 +47,6 @@ export async function createObjects(
     // 2. get the instance hash by ``const instanceIdHash = getInstanceIdHash();``
     // 3. from the reverse map obtain the key object for this instance
 
-    console.log('PLAN-setupInitialProfile1');
-
     /** Create the structure **/
     const instanceEndpoint = await WriteStorage.storeUnversionedObject({
         $type$: 'OneInstanceEndpoint',
@@ -58,7 +56,6 @@ export async function createObjects(
         instanceKeys: instancePubEncryptionKeysHash,
         url
     });
-    console.log('PLAN-setupInitialProfile2', instanceEndpoint);
 
     const prof = {
         $type$: 'ProfileCRDT',
