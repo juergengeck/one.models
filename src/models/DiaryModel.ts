@@ -120,8 +120,7 @@ export default class DiaryModel extends EventEmitter implements Model {
             ...queryOptions,
             channelId: this.channelId
         })) {
-            const {data, ...restObjectData} = entry;
-            yield {...restObjectData, data: convertFromOne(data)};
+            yield {...entry, data: convertFromOne(entry.data)};
         }
     }
 

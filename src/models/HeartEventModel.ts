@@ -70,6 +70,14 @@ export default class HeartEventModel extends EventEmitter implements Model {
                 ) {
                     yield heartEvent;
                 }
+            } else if (from) {
+                if (heartEvent.creationTime.getTime() > from.getTime()) {
+                    yield heartEvent;
+                }
+            } else if (to) {
+                if (heartEvent.creationTime.getTime() < to.getTime()) {
+                    yield heartEvent;
+                }
             } else {
                 yield heartEvent;
             }

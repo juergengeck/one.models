@@ -68,10 +68,10 @@ type TimeFrame = {from: Date; to: Date};
 
 type JournalData = {[event: string]: {values: EventListEntry['data'][]; index: number}};
 
+const ONE_DAY_AGO = 1000 * 60 * 60 * 24;
+
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
-
-    private readonly oneDayAgo: number = 1000 * 60 * 60 * 24;
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
     private oEventListeners: Map<
@@ -96,6 +96,9 @@ export default class JournalModel extends EventEmitter {
     async init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
+            /*
+             * @Todo this event will be removed in the future for the only use of oEvent
+             */
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
@@ -143,7 +146,7 @@ export default class JournalModel extends EventEmitter {
 
         const latestTo = new Date(await this.findLatestTimeFrame());
         const latestFrom = new Date(
-            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - this.oneDayAgo
+            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - ONE_DAY_AGO
         );
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
@@ -175,11 +178,8 @@ export default class JournalModel extends EventEmitter {
          * The "from" field will be one day behind the "to" field.
          */
         const to = new Date(await this.findLatestTimeFrame());
-        const from = new Date(to.valueOf() === 0 ? 0 : to.valueOf() - this.oneDayAgo);
-        let currentTimeFrame: TimeFrame = {
-            from: from,
-            to: to
-        };
+        const from = new Date(to.valueOf() === 0 ? 0 : to.valueOf() - ONE_DAY_AGO);
+        let currentTimeFrame: TimeFrame = {from, to};
 
         /** if there are no provided models **/
         if (this.modelsDictionary.length === 0) {
@@ -216,7 +216,12 @@ export default class JournalModel extends EventEmitter {
                         counter = 0;
                     }
 
-                    const data = (retrievedData as unknown) as EventListEntry['data'];
+                    /** same issue as in {@link this.findLatestTimeFrame} **/
+                    const data = retrievedData as EventListEntry['data'];
+
+                    /** If the event exists in the dictionary and if the array exists,
+                     *  create a new array with the new value and the rest of the array
+                     **/
                     if (dataDictionary[event] && dataDictionary[event].values.length) {
                         dataDictionary[event] = {
                             values: [...dataDictionary[event].values, data],
@@ -241,9 +246,7 @@ export default class JournalModel extends EventEmitter {
             const nextTo = new Date(
                 await this.findLatestTimeFrame(new Date(0), currentTimeFrame.from)
             );
-            const nextFrom = new Date(
-                nextTo.valueOf() === 0 ? 0 : nextTo.valueOf() - this.oneDayAgo
-            );
+            const nextFrom = new Date(nextTo.valueOf() === 0 ? 0 : nextTo.valueOf() - ONE_DAY_AGO);
             currentTimeFrame = {
                 from: nextFrom,
                 to: nextTo
@@ -342,16 +345,19 @@ export default class JournalModel extends EventEmitter {
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
         const timestamps: number[] = await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                const data: EventListEntry['data'][] = [];
+                let data: EventListEntry['data'] | null = null;
                 for await (const retrievedData of journalInput.retrieveFn({
                     count: 1,
                     to: to,
                     from: from
                 })) {
-                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                    /** The return type of provided functions will always be EventListEntry['data'].
+                     *  I don't know the reason why TS does not recognise the return type of the retrieve function.
+                     **/
+                    data = retrievedData as EventListEntry['data'];
                 }
-                if (data.length > 0) {
-                    return data[0].creationTime.getTime();
+                if (data !== null) {
+                    return data.creationTime.getTime();
                 }
                 return 0;
             })

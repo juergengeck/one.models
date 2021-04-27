@@ -242,27 +242,26 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
             ...queryOptions,
             channelId: this.channelId
         })) {
-            const {data, ...restObjectData} = entry;
-            if (data.fileType === FileType.Consent) {
-                const consentInfos = data.fileData.split(' ');
+            if (entry.data.fileType === FileType.Consent) {
+                const consentInfos = entry.data.fileData.split(' ');
                 if (consentInfos[0] === this.personId) {
                     yield {
-                        ...restObjectData,
+                        ...entry,
                         data: {
                             personId: consentInfos[0] as SHA256IdHash<Person>,
                             version: consentInfos[1]
                         }
                     };
                 }
-            } else if (data.fileType === FileType.Dropout) {
-                const dropoutInfos = data.fileData.split('|');
+            } else if (entry.data.fileType === FileType.Dropout) {
+                const dropoutInfos = entry.data.fileData.split('|');
                 if (dropoutInfos.length !== 3) {
                     throw new Error('The information of the dropout file is corrupted.');
                 }
 
                 if (dropoutInfos[0] === this.personId) {
                     yield {
-                        ...restObjectData,
+                        ...entry,
                         data: {
                             personId: dropoutInfos[0] as SHA256IdHash<Person>,
                             reason: dropoutInfos[1],
