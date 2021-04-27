@@ -63,21 +63,17 @@ export default class HeartEventModel extends EventEmitter implements Model {
             return b.creationTime.getTime() - a.creationTime.getTime();
         });
         for (const heartEvent of sortedHeartEvents) {
-            if (from && to) {
-                if (
-                    heartEvent.creationTime.getTime() > from.getTime() &&
-                    heartEvent.creationTime.getTime() < to.getTime()
-                ) {
-                    yield heartEvent;
-                }
-            } else if (from) {
-                if (heartEvent.creationTime.getTime() > from.getTime()) {
-                    yield heartEvent;
-                }
-            } else if (to) {
-                if (heartEvent.creationTime.getTime() < to.getTime()) {
-                    yield heartEvent;
-                }
+            if (
+                from &&
+                to &&
+                heartEvent.creationTime.getTime() > from.getTime() &&
+                heartEvent.creationTime.getTime() < to.getTime()
+            ) {
+                yield heartEvent;
+            } else if (from && heartEvent.creationTime.getTime() > from.getTime()) {
+                yield heartEvent;
+            } else if (to && heartEvent.creationTime.getTime() < to.getTime()) {
+                yield heartEvent;
             } else {
                 yield heartEvent;
             }

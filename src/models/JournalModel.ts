@@ -68,7 +68,7 @@ type TimeFrame = {from: Date; to: Date};
 
 type JournalData = {[event: string]: {values: EventListEntry['data'][]; index: number}};
 
-const ONE_DAY_AGO = 1000 * 60 * 60 * 24;
+const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
 export default class JournalModel extends EventEmitter {
     private modelsDictionary: JournalInput[] = [];
@@ -145,9 +145,7 @@ export default class JournalModel extends EventEmitter {
         const dataDictionary: JournalData = {};
 
         const latestTo = new Date(await this.findLatestTimeFrame());
-        const latestFrom = new Date(
-            latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - ONE_DAY_AGO
-        );
+        const latestFrom = new Date(latestTo.valueOf() === 0 ? 0 : latestTo.valueOf() - ONE_DAY_MS);
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
@@ -178,7 +176,7 @@ export default class JournalModel extends EventEmitter {
          * The "from" field will be one day behind the "to" field.
          */
         const to = new Date(await this.findLatestTimeFrame());
-        const from = new Date(to.valueOf() === 0 ? 0 : to.valueOf() - ONE_DAY_AGO);
+        const from = new Date(to.valueOf() === 0 ? 0 : to.valueOf() - ONE_DAY_MS);
         let currentTimeFrame: TimeFrame = {from, to};
 
         /** if there are no provided models **/
@@ -246,7 +244,7 @@ export default class JournalModel extends EventEmitter {
             const nextTo = new Date(
                 await this.findLatestTimeFrame(new Date(0), currentTimeFrame.from)
             );
-            const nextFrom = new Date(nextTo.valueOf() === 0 ? 0 : nextTo.valueOf() - ONE_DAY_AGO);
+            const nextFrom = new Date(nextTo.valueOf() === 0 ? 0 : nextTo.valueOf() - ONE_DAY_MS);
             currentTimeFrame = {
                 from: nextFrom,
                 to: nextTo
@@ -343,7 +341,7 @@ export default class JournalModel extends EventEmitter {
      * @private
      */
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
-        const timestamps: number[] = await Promise.all(
+        const timestamps = await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 let data: EventListEntry['data'] | null = null;
                 for await (const retrievedData of journalInput.retrieveFn({
