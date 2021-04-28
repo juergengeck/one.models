@@ -22,8 +22,8 @@ import {
     SET_ACCESS_MODE,
     onVersionedObj,
     getObjectWithType,
-    createSingleObjectThroughImpurePlan
-    // readBlobAsArrayBuffer
+    createSingleObjectThroughImpurePlan,
+    readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -107,6 +107,11 @@ export type Info = {
 export type MergedContact = {
     type: string;
     info: Info[];
+};
+
+export type ProfileInfo = {
+    type: string;
+    value: string | ArrayBuffer;
 };
 
 /**
@@ -369,6 +374,32 @@ export default class ContactModel extends EventEmitter {
         }
 
         return someoneName;
+    }
+
+    public async getProfileInfos(personId: SHA256IdHash<Person>) {
+        const profileInfos: ProfileInfo[] = [];
+        const profile = await this.getProfile(personId);
+
+        const descriptions = await this.getContactDescriptions(profile);
+        for (const description of descriptions) {
+            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                profileInfos.push({type: 'PersonName', value: description.name});
+            }
+
+            if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
+                const image = await readBlobAsArrayBuffer(description.image);
+                profileInfos.push({type: 'ProfileImage', value: image});
+            }
+        }
+
+        const commEndpoints = await this.getCommunicationEndpoints(personId);
+        for (const commEndpoint of commEndpoints) {
+            if (commEndpoint.$type$ === CommunicationEndpointsTypes.EMAIL) {
+                profileInfos.push({type: 'Email', value: commEndpoint.email});
+            }
+        }
+
+        return profileInfos;
     }
 
     /**
