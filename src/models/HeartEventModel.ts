@@ -53,5 +53,32 @@ export default class HeartEventModel extends EventEmitter implements Model {
         });
     }
 
+    /**
+     * returns iterator for heartEvents
+     * @param from
+     * @param to
+     */
+    async *heartEventsIterator(from?: Date, to?: Date): AsyncIterableIterator<HeartEvent> {
+        const sortedHeartEvents = this.heartEventList.sort((a, b) => {
+            return b.creationTime.getTime() - a.creationTime.getTime();
+        });
+        for (const heartEvent of sortedHeartEvents) {
+            if (
+                from &&
+                to &&
+                heartEvent.creationTime.getTime() > from.getTime() &&
+                heartEvent.creationTime.getTime() < to.getTime()
+            ) {
+                yield heartEvent;
+            } else if (from && heartEvent.creationTime.getTime() > from.getTime()) {
+                yield heartEvent;
+            } else if (to && heartEvent.creationTime.getTime() < to.getTime()) {
+                yield heartEvent;
+            } else {
+                yield heartEvent;
+            }
+        }
+    }
+
     private readonly heartEventList: HeartEvent[]; // List of measurements. Will be stored in one instance later
 }

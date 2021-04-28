@@ -1,5 +1,5 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
@@ -232,13 +232,59 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     }
 
     /**
+     * returns iterator for Consent files or Dropout Files
+     * @param queryOptions
+     */
+    async *entriesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<ConsentFile | DropoutFile>> {
+        for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            if (entry.data.fileType === FileType.Consent) {
+                const consentInfos = entry.data.fileData.split(' ');
+                if (consentInfos[0] === this.personId) {
+                    yield {
+                        ...entry,
+                        data: {
+                            personId: consentInfos[0] as SHA256IdHash<Person>,
+                            version: consentInfos[1]
+                        }
+                    };
+                }
+            } else if (entry.data.fileType === FileType.Dropout) {
+                const dropoutInfos = entry.data.fileData.split('|');
+                if (dropoutInfos.length !== 3) {
+                    throw new Error('The information of the dropout file is corrupted.');
+                }
+
+                if (dropoutInfos[0] === this.personId) {
+                    yield {
+                        ...entry,
+                        data: {
+                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                            reason: dropoutInfos[1],
+                            date: dropoutInfos[2]
+                        }
+                    };
+                }
+            }
+        }
+    }
+
+    /**
      *  Handler function for the 'updated' event
      * @param {string} id
      * @param {SHA256IdHash<Person>} owner
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);

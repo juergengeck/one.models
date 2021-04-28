@@ -70,6 +70,15 @@ export default class ECGModel extends EventEmitter implements Model {
         });
     }
 
+    async retrieveWithQueryOptions(
+        queryOptions: QueryOptions
+    ): Promise<ObjectData<Electrocardiogram>[]> {
+        return await this.channelManager.getObjectsWithType('Electrocardiogram', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
+    }
+
     /**
      *
      * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
@@ -79,6 +88,19 @@ export default class ECGModel extends EventEmitter implements Model {
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
     ): Promise<Electrocardiogram> {
         return await getObject(electrocardiogramHash);
+    }
+
+    /**
+     * returns iterator for ECGs
+     * @param queryOptions
+     */
+    async *electrocardiogramsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<Electrocardiogram>> {
+        yield* this.channelManager.objectIteratorWithType('Electrocardiogram', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**

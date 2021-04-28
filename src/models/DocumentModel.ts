@@ -1,10 +1,13 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     BLOB,
     DocumentInfo as DocumentInfo_1_0_0,
-    DocumentInfo_1_1_0, OneUnversionedObjectTypes, Person,
-    SHA256Hash, SHA256IdHash
+    DocumentInfo_1_1_0,
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash
 } from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
@@ -133,6 +136,34 @@ export default class DocumentModel extends EventEmitter implements Model {
     }
 
     /**
+     * returns iterator for DocumentInfo_1_1_0
+     * @param queryOptions
+     */
+    async *documentsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
+        for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            yield {
+                ...document,
+                data: {
+                    document: document.data.document,
+                    $type$: 'DocumentInfo_1_1_0',
+                    /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
+                    mimeType: AcceptedMimeType.PDF,
+                    documentName: ''
+                }
+            };
+        }
+        yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
+    }
+
+    /**
      * Getting a document with a specific id.
      *
      * @param {string} id - the id of the document.
@@ -192,7 +223,11 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string, owner: SHA256IdHash<Person>, data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
