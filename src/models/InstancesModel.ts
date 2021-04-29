@@ -14,7 +14,7 @@ import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {
     authenticateOwner,
-    createCrypto,
+    createCryptoAPI,
     CryptoAPI,
     loadInstanceKeys
 } from 'one.core/lib/instance-crypto';
@@ -252,7 +252,7 @@ class InstancesModel extends EventEmitter {
         }
         const instance = await getObjectByIdHash(instanceId);
         const instanceKeys = await this.localInstanceKeys(instanceId);
-        const cryptoApi = createCrypto(instanceId);
+        const cryptoApi = createCryptoAPI(instanceId);
         return {
             isMain: instanceId === (await this.mainInstanceId()),
             personId: instance.obj.owner,

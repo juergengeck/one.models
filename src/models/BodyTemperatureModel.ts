@@ -1,14 +1,11 @@
 import EventEmitter from 'events';
 import i18nModelsInstance from '../i18n';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    BodyTemperature as OneBodyTemperature,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import {BodyTemperature as OneBodyTemperature} from '@OneCoreTypes';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * This represents the model of a body temperature measurement

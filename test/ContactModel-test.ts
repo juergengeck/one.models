@@ -17,7 +17,7 @@ import {
     getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {SHA256Hash, Someone, Profile, SHA256IdHash, Person} from '@OneCoreTypes';
+import {Someone, Profile} from '@OneCoreTypes';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
@@ -28,6 +28,7 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {AccessModel, ChannelManager} from '../lib/models';
 import rimraf from 'rimraf';
 import {MergedContact} from '../lib/src/models/ContactModel';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 let contactModel: ContactModel;
 let testModel;
 

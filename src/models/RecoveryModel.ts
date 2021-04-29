@@ -11,10 +11,11 @@ import {fromByteArray, toByteArray} from 'base64-js';
 import ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getObjectByIdHash} from 'one.core/lib/storage';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
 import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 /**
  * For the recovery process the person email with the corresponding

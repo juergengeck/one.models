@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {WbcObservation, Electrocardiogram, OneUnversionedObjectTypes} from '@OneCoreTypes';
+import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
 import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel';
 import EventEmitter from 'events';
 import HeartEventModel, {HeartEvent} from './HeartEventModel';
@@ -14,6 +14,7 @@ import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
 import {OEvent} from '../misc/OEvent';
 import WbcDiffModel from './WbcDiffModel';
 import ECGModel from './ECGModel';
+import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
 
 /**
  * !!! Add the corresponding model class name here

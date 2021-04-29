@@ -1,11 +1,12 @@
 import EventEmitter from 'events';
 import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
-import {Settings as OneSettings, VersionedObjectResult} from '@OneCoreTypes';
+import {Settings as OneSettings} from '@OneCoreTypes';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // -------- LOW LEVEL API -----------
 

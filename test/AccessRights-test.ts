@@ -14,10 +14,9 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import AccessModel from '../lib/models/AccessModel';
-import rimraf from 'rimraf';
 
-let accessModel: typeof AccessModel;
-let testModel;
+let accessModel: AccessModel;
+let testModel: TestModel;
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
@@ -128,6 +127,6 @@ describe('AccessRights model test', () => {
         await testModel.shutdown();
         closeInstance();
         await removeDir(`./test/${dbKey}`);
-        // await StorageTestInit.deleteTestDB();
+        await StorageTestInit.deleteTestDB();
     });
 });

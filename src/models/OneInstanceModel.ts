@@ -1,12 +1,12 @@
 import EventEmitter from 'events';
 import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import oneModules from '../generated/oneModules';
-import {Module, SHA256Hash, VersionedObjectResult, Instance, Person, Recipe} from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
     createManyObjectsThroughPurePlan
 } from 'one.core/lib/storage';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 //@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
@@ -18,6 +18,8 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import AccessModel from './AccessModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
+import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model

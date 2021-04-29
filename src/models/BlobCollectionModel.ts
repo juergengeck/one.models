@@ -1,9 +1,7 @@
 import EventEmitter from 'events';
 import {
     BlobCollection as OneBlobCollection,
-    BlobDescriptor as OneBlobDescirptor,
-    Person,
-    SHA256IdHash
+    BlobDescriptor as OneBlobDescirptor
 } from '@OneCoreTypes';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {
@@ -13,6 +11,8 @@ import {
 } from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;

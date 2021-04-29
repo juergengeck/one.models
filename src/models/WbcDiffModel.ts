@@ -1,9 +1,11 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash, WbcObservation} from '@OneCoreTypes';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {WbcObservation} from '@OneCoreTypes';
 const MessageBus = createMessageBus('WbcDiffModel');
 
 /**
