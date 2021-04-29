@@ -711,7 +711,6 @@ export default class ContactModel extends EventEmitter {
      * @param caughtObject - the caught object
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
-        console.log('handleOnVersionedObj', caughtObject);
         if (ContactModel.isContactAppVersionedObjectResult(caughtObject)) {
             // TODO ContactApp might be shared for IoM, but not for version V0.0.1
             // // Get the profiles of myself
@@ -766,8 +765,6 @@ export default class ContactModel extends EventEmitter {
             // this.onContactAppUpdate.emit();
         }
         if (ContactModel.isProfileCRDTVersionedObjectResult(caughtObject)) {
-            console.log('caught ProfileCRDT object', caughtObject);
-
             await serializeWithType('Contacts', async () => {
                 try {
                     const firstPreviousProfileObjectHash = await getNthVersionMapHash(

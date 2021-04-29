@@ -3,7 +3,7 @@
  */
 
 import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {CommunicationEndpointTypes, ContactApp, ContactDescriptionTypes} from '@OneCoreTypes';
+import {ContactApp} from '@OneCoreTypes';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
@@ -20,7 +20,6 @@ export async function createObjects(
     url: string,
     takeOver?: boolean
 ): Promise<VersionedObjectResult<ContactApp>> {
-    console.log('PLAN-setupInitialProfile');
     /** Get the current person id hash **/
     const personIdHash = getInstanceOwnerIdHash();
     const instanceIdHash = getInstanceIdHash();
@@ -57,15 +56,6 @@ export async function createObjects(
         url
     });
 
-    const prof = {
-        $type$: 'ProfileCRDT',
-        personId: personIdHash,
-        profileName: 'default',
-        author: personIdHash, // the writer is the author
-        communicationEndpoints: [instanceEndpoint.hash],
-        contactDescriptions: []
-    };
-    console.log('PROFILE TO BE WRITTEN', prof);
     const profileObject = await WriteStorage.storeVersionedObjectCRDT({
         $type$: 'ProfileCRDT',
         personId: personIdHash,
@@ -74,14 +64,12 @@ export async function createObjects(
         communicationEndpoints: [instanceEndpoint.hash],
         contactDescriptions: []
     });
-    console.log('PLAN-setupInitialProfile3', profileObject);
 
     const someoneObject = await WriteStorage.storeUnversionedObject({
         $type$: 'Someone',
         mainProfile: profileObject.idHash,
         profiles: [profileObject.idHash]
     });
-    console.log('PLAN-setupInitialProfile4', someoneObject);
 
     return await WriteStorage.storeVersionedObject({
         $type$: 'ContactApp',
