@@ -78,7 +78,7 @@ class WebSocketListener {
                     if (this.webSocketServer) {
                         this.webSocketServer.removeAllListeners();
                     }
-                    resolve();
+                    resolve(true);
                 });
                 this.webSocketServer.on('error', (err: Error) => {
                     if (this.webSocketServer) {
@@ -116,7 +116,7 @@ class WebSocketListener {
 
             this.webSocketServer.close(() => {
                 this.webSocketServer = null;
-                resolve(); // ignore errors. Stop should not throw.
+                resolve(true); // ignore errors. Stop should not throw.
             });
         });
 

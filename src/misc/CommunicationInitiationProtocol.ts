@@ -1,7 +1,8 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import {Person, SHA256IdHash} from '@OneCoreTypes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########

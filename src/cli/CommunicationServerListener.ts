@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     if (argv.p) {
         await new Promise(resolve => {
             fs.writeFile('public.key', keyPair.publicKey, () => {
-                resolve();
+                resolve(true);
             });
         });
     }
