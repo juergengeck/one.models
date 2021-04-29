@@ -5,17 +5,19 @@ import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../mo
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
 import RecipiesStable from '../recipes/recipes-stable';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import type {Module, Person} from 'one.core/lib/recipes';
 import oneModules from '../generated/oneModules';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {implode} from 'one.core/lib/microdata-imploder';
 import fs from 'fs';
 import * as readline from 'readline';
 import {toByteArray} from 'base64-js';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * Import all plan modules
@@ -77,7 +79,7 @@ async function main(): Promise<void> {
     const accessModel = new AccessModel();
     const instancesModel = new InstancesModel();
     const channelManager = new ChannelManager(accessModel);
-    const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
+    const contactModel = new ContactModel(instancesModel, argv.u);
     const connectionsModel = new ConnectionsModel(contactModel, instancesModel, {
         commServerUrl: argv.u
     });
