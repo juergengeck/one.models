@@ -3,24 +3,17 @@
  */
 
 import EventEmitter from 'events';
-import {
-    Group,
-    OneObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash,
-    VersionedObjectResult,
-    Access,
-    IdAccess
-} from '@OneCoreTypes';
+import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
     SET_ACCESS_MODE,
-    VERSION_UPDATES
+    VERSION_UPDATES,
+    VersionedObjectResult
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {OEvent} from '../misc/OEvent';
+import {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
@@ -51,7 +44,7 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {AccessGroupNames}groupName
+     * @param {string | string[]}groupName
      * @returns { Promise<SHA256IdHash<Person>[]> }
      */
     async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
@@ -78,7 +71,7 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {AccessGroupNames}name
+     * @param {string}name
      * @param {SHA256IdHash<Person>}personId
      * @returns {Promise<void>}
      */
