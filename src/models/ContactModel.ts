@@ -565,7 +565,7 @@ export default class ContactModel extends EventEmitter {
      * @param personId - the given person id
      * @returns the Someone object if it exists, otherwise undefined
      */
-    private async getSomeoneObject(personId: SHA256IdHash<Person>): Promise<Someone | undefined> {
+    public async getSomeoneObject(personId: SHA256IdHash<Person>): Promise<Someone | undefined> {
         const contactApp = await ContactModel.getContactAppObject();
         /** get the person profile, if it doesn't exist, it means it doesn't exist in the Someone object either **/
         const personProfile = await this.getProfile(personId);
