@@ -601,36 +601,34 @@ export default class ContactModel extends EventEmitter {
         profile: VersionedObjectResult<ProfileCRDT>
     ): Promise<void> {
         const contactApp = await ContactModel.getContactAppObject();
-        const mySomeoneObject = await getObject(contactApp.obj.me);
+        const someoneObject = await this.getSomeoneObject(profile.obj.personId);
 
-        /** adding the new profile to your profiles **/
-        mySomeoneObject.profiles.push(profile.idHash);
+        if (someoneObject === undefined) {
+            /** if not, create a new someone object **/
+            const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {
+                    $type$: 'Someone',
+                    mainProfile: profile.idHash,
+                    profiles: [profile.idHash]
+                }
+            );
 
-        /** saving the updates **/
-        const updatedSomeone = await serializeWithType(
-            await calculateHashOfObj(mySomeoneObject),
-            async () => {
+            /** update the contactApp **/
+            contactApp.obj.contacts.push(updatedSomeoneObject.hash);
+
+            /** save the contactApp **/
+            await serializeWithType('ContactApp', async () => {
                 return await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/identity',
                         versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
                     },
-                    mySomeoneObject
+                    contactApp.obj
                 );
-            }
-        );
-        contactApp.obj.me = updatedSomeone.hash;
-
-        /** saving the contact app **/
-        await serializeWithType('ContactApp', async () => {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                contactApp.obj
-            );
-        });
+            });
+            this.emit(ContactEvent.UpdatedContactList, contactApp.obj.contacts);
+        }
     }
 
     /**
@@ -776,6 +774,8 @@ export default class ContactModel extends EventEmitter {
                         caughtObject.idHash,
                         -1
                     );
+
+                    await this.registerNewSelfProfile(caughtObject);
                     if (firstPreviousProfileObjectHash !== caughtObject.hash) {
                         this.onProfileUpdate.emit(caughtObject.obj);
                         this.emitNewCommunicationEndpointsEventIfCase(
