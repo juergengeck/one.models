@@ -1,14 +1,12 @@
-import {Recipe} from '@OneCoreTypes';
+import type {BLOB, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+export interface OneUnversionedObjectInterfaces {
+    DocumentInfo: DocumentInfo;
+}
 
-declare module '@OneCoreTypes' {
-    export interface OneUnversionedObjectInterfaces {
-        DocumentInfo: DocumentInfo;
-    }
-
-    export interface DocumentInfo {
-        $type$: 'DocumentInfo';
-        document: SHA256Hash<BLOB>;
-    }
+export interface DocumentInfo {
+    $type$: 'DocumentInfo';
+    document: SHA256Hash<BLOB>;
 }
 
 const DocumentInfoRecipe: Recipe = {

@@ -1,5 +1,4 @@
-import {Recipe} from '@OneCoreTypes';
-
+import type {Recipe} from 'one.core/lib/recipes';
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         BodyTemperature: BodyTemperature;

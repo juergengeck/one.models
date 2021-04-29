@@ -1,5 +1,7 @@
-import {Recipe} from '@OneCoreTypes';
+import type {BLOB, Recipe} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {

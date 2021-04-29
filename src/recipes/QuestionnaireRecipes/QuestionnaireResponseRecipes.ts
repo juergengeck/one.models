@@ -1,4 +1,4 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
+import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
 import {ValueRules} from './QuestionnaireRecipes_1_0_0';
 

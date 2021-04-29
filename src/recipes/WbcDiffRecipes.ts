@@ -1,4 +1,4 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
+import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 
 /**
  * This represents a Wbc Measurement.

@@ -1,4 +1,4 @@
-import {RecipeRule} from '@OneCoreTypes';
+import type {RecipeRule} from 'one.core/lib/recipes';
 
 // ######## Modifying functions ########
 

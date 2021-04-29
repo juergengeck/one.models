@@ -1,4 +1,4 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
+import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 import {
     CodingRules,
     QuestionnaireRules as QuestionnaireRules_1_0_0
@@ -19,7 +19,6 @@ declare module '@OneCoreTypes' {
     }
 
     module Questionnaire_1_1_0 {
-
         /**
          * Question of a questionnaire.
          */
