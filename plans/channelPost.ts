@@ -1,11 +1,9 @@
-import {
-    getObject,
-    getObjectByIdHash,
-    VersionedObjectResult,
-    WriteStorageApi
-} from 'one.core/lib/storage';
-import {OneUnversionedObjectTypes, SHA256IdHash, ChannelInfo, Person} from '@OneObjectInterfaces';
+import {getObject, getObjectByIdHash, VersionedObjectResult} from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import {ChannelInfo} from '../src/recipes/ChannelRecipes';
 
 /**
  * Post a new entry in a channel.

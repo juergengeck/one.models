@@ -2,11 +2,12 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {ContactApp} from '@OneObjectInterfaces';
+import {getObjectWithType} from 'one.core/lib/storage';
+import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
+import type {ContactApp} from '../src/recipes/ContactRecipes';
 
 /**
  * @description Pure plan for initialising the contact structure <-> used only on the very start

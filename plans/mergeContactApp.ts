@@ -6,10 +6,11 @@ import {
     getAllVersionMapEntries,
     getObject,
     getObjectByIdHash,
-    VersionedObjectResult,
-    WriteStorageApi
+    VersionedObjectResult
 } from 'one.core/lib/storage';
-import {ContactApp, SHA256IdHash, Someone, SHA256Hash} from '@OneObjectInterfaces';
+import type {WriteStorageApi} from 'one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {ContactApp, Someone} from '../src/recipes/ContactRecipes';
 
 /**
  *

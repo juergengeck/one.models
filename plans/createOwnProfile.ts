@@ -2,15 +2,13 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    getObjectByIdObj,
-    getObjectWithType,
-    VersionedObjectResult,
-    WriteStorageApi
-} from 'one.core/lib/storage';
-import {Profile, SHA256IdHash, Instance} from '@OneObjectInterfaces';
+import {getObjectByIdObj, getObjectWithType, VersionedObjectResult} from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Instance} from 'one.core/lib/recipes';
+import type {Profile} from '../src/recipes/ContactRecipes';
 
 /**
  * @description Pure plan for creating a profile for yourself

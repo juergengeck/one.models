@@ -1,13 +1,8 @@
-import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {
-    Person,
-    ChannelInfo,
-    ChannelEntry,
-    CreationTime,
-    SHA256Hash,
-    SHA256IdHash,
-    UnversionedObjectResult
-} from '@OneObjectInterfaces';
+import type {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {ChannelEntry} from '../src/recipes/ChannelRecipes';
+import type {Person} from 'one.core/lib/recipes';
+import type {CreationTime} from '../src/recipes/MetaRecipes';
 
 /**
  * Creates a new channel version by rebuilding the channel.
@@ -24,7 +19,7 @@ import {
  * @param {SHA256IdHash<Person>} channelOwner
  * @param {SHA256Hash<ChannelEntry>} oldHead - The old head that the new elements will be based on
  * @param {SHA256Hash<CreationTime>[]} newElementsReversed - the new elements, but in reversed order
- * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+ * @returns {Promise<UnversionedObjectResult<ChannelInfo>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

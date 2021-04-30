@@ -2,8 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {Profile} from '@OneObjectInterfaces';
+import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {Profile} from '../src/recipes/ContactRecipes';
 
 /**
  * @description Pure plan for creating a profile for another person
