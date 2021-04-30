@@ -3,71 +3,71 @@ import {
     CodingRules,
     QuestionnaireRules as QuestionnaireRules_1_0_0
 } from './QuestionnaireRecipes_1_0_0';
+import type {Questionnaire} from './QuestionnaireRecipes_1_0_0';
 import {addRule, cloneRule, overwriteRule} from '../RecipeUtils';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         Questionnaire_1_1_0: Questionnaire_1_1_0;
     }
+}
+/**
+ * FHIR Questionnaire type
+ */
+export interface Questionnaire_1_1_0 extends Omit<Questionnaire, '$type$' | 'item'> {
+    $type$: 'Questionnaire_1_1_0';
+    item: Questionnaire_1_1_0.Question[];
+}
+
+export module Questionnaire_1_1_0 {
+    /**
+     * Question of a questionnaire.
+     */
+    export type Question = Omit<Questionnaire.Question, 'item'> & {
+        answerRestriction?: AnswerRestriction;
+        item?: Question[];
+    };
 
     /**
-     * FHIR Questionnaire type
+     * Used to specify min and max value for an answer.
      */
-    export interface Questionnaire_1_1_0 extends Omit<Questionnaire, '$type$' | 'item'> {
-        $type$: 'Questionnaire_1_1_0';
-        item: Questionnaire_1_1_0.Question[];
-    }
+    type QuestionnaireAnswerMinMaxValue = {
+        valueInteger?: string;
+        valueDate?: string; // can also be 'now'
+        valueTime?: string;
+        valueString?: string;
+        valueCoding?: Coding;
+    };
 
-    module Questionnaire_1_1_0 {
-        /**
-         * Question of a questionnaire.
-         */
-        type Question = Omit<Questionnaire.Question, 'item'> & {
-            answerRestriction?: AnswerRestriction;
-            item?: Question[];
-        };
+    /**
+     * Represents the restriction that will be applied to an answer.
+     */
+    type AnswerRestriction = {
+        minValue?: QuestionnaireAnswerMinMaxValue;
+        minInclusive?: boolean; // default = true
+        maxValue?: QuestionnaireAnswerMinMaxValue;
+        maxInclusive?: boolean; // default = true
+    };
 
-        /**
-         * Used to specify min and max value for an answer.
-         */
-        type QuestionnaireAnswerMinMaxValue = {
-            valueInteger?: string;
-            valueDate?: string; // can also be 'now'
-            valueTime?: string;
-            valueString?: string;
-            valueCoding?: Coding;
-        };
+    /**
+     * FHIR Coding type for encoding coded values.
+     */
+    type Coding = Questionnaire.Coding;
 
-        /**
-         * Represents the restriction that will be applied to an answer.
-         */
-        type AnswerRestriction = {
-            minValue?: QuestionnaireAnswerMinMaxValue;
-            minInclusive?: boolean; // default = true
-            maxValue?: QuestionnaireAnswerMinMaxValue;
-            maxInclusive?: boolean; // default = true
-        };
+    /**
+     * Type for the enable when compare value of questionnaires.
+     */
+    export type QuestionnaireEnableWhenAnswer = Questionnaire.QuestionnaireEnableWhenAnswer;
 
-        /**
-         * FHIR Coding type for encoding coded values.
-         */
-        type Coding = Questionnaire.Coding;
+    /**
+     * Type for answer option values of questionnaires.
+     */
+    export type QuestionnaireAnswerOptionValue = Questionnaire.QuestionnaireEnableWhenAnswer;
 
-        /**
-         * Type for the enable when compare value of questionnaires.
-         */
-        type QuestionnaireEnableWhenAnswer = Questionnaire.QuestionnaireEnableWhenAnswer;
-
-        /**
-         * Type for answer option values of questionnaires.
-         */
-        type QuestionnaireAnswerOptionValue = Questionnaire.QuestionnaireEnableWhenAnswer;
-
-        /**
-         * Type of questionnaire answers and initial values.
-         */
-        type QuestionnaireValue = Questionnaire.QuestionnaireValue;
-    }
+    /**
+     * Type of questionnaire answers and initial values.
+     */
+    export type QuestionnaireValue = Questionnaire.QuestionnaireValue;
 }
 
 /**

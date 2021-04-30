@@ -5,120 +5,119 @@ declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         Questionnaire: Questionnaire;
     }
+}
+/**
+ * FHIR Questionnaire type
+ */
+export interface Questionnaire {
+    $type$: 'Questionnaire';
+    resourceType: 'Questionnaire';
+    language?: string;
+    url?: string;
+    name?: string;
+    title?: string;
+    status: 'draft' | 'active' | 'retired' | 'unknown';
+    item: Questionnaire.Question[];
+}
+
+export module Questionnaire {
+    /**
+     * FHIR Coding type for encoding coded values.
+     */
+    export type Coding = {
+        system?: string;
+        version?: string;
+        code?: string;
+        display?: string;
+        userSelected?: boolean;
+    };
 
     /**
-     * FHIR Questionnaire type
+     * Type for the enable when compare value of questionnaires.
      */
-    interface Questionnaire {
-        $type$: 'Questionnaire';
-        resourceType: 'Questionnaire';
-        language?: string;
-        url?: string;
-        name?: string;
-        title?: string;
-        status: 'draft' | 'active' | 'retired' | 'unknown';
-        item: Questionnaire.Question[];
-    }
+    export type QuestionnaireEnableWhenAnswer = {
+        answerBoolean?: boolean;
+        answerDecimal?: string;
+        answerInteger?: string;
+        answerDate?: string;
+        answerDateTime?: string;
+        answerTime?: string;
+        answerString?: string;
+        answerCoding?: Coding;
+        //answerQuantity?: Coding;
+        //answerReference?: string;
+    };
 
-    module Questionnaire {
-        /**
-         * FHIR Coding type for encoding coded values.
-         */
-        export type Coding = {
-            system?: string;
-            version?: string;
-            code?: string;
-            display?: string;
-            userSelected?: boolean;
-        };
+    /**
+     * Type for answer option values of questionnaires.
+     */
+    export type QuestionnaireAnswerOptionValue = {
+        valueInteger?: string;
+        valueDate?: string;
+        valueTime?: string;
+        valueString?: string;
+        valueCoding?: Coding;
+        //valueReference?: string;
+    };
 
-        /**
-         * Type for the enable when compare value of questionnaires.
-         */
-        export type QuestionnaireEnableWhenAnswer = {
-            answerBoolean?: boolean;
-            answerDecimal?: string;
-            answerInteger?: string;
-            answerDate?: string;
-            answerDateTime?: string;
-            answerTime?: string;
-            answerString?: string;
-            answerCoding?: Coding;
-            //answerQuantity?: Coding;
-            //answerReference?: string;
-        };
+    /**
+     * Type of questionnaire answers and initial values.
+     */
+    export type QuestionnaireValue = {
+        valueBoolean?: boolean;
+        valueDecimal?: string;
+        valueInteger?: string;
+        valueDate?: string;
+        valueDateTime?: string;
+        valueTime?: string;
+        valueString?: string;
+        valueUri?: string;
+        //valueAttachment?: string;
+        valueCoding?: Coding;
+        //valueQuantity?: Coding;
+        //valueReference?: string;
+    };
 
-        /**
-         * Type for answer option values of questionnaires.
-         */
-        export type QuestionnaireAnswerOptionValue = {
-            valueInteger?: string;
-            valueDate?: string;
-            valueTime?: string;
-            valueString?: string;
-            valueCoding?: Coding;
-            //valueReference?: string;
-        };
-
-        /**
-         * Type of questionnaire answers and initial values.
-         */
-        export type QuestionnaireValue = {
-            valueBoolean?: boolean;
-            valueDecimal?: string;
-            valueInteger?: string;
-            valueDate?: string;
-            valueDateTime?: string;
-            valueTime?: string;
-            valueString?: string;
-            valueUri?: string;
-            //valueAttachment?: string;
-            valueCoding?: Coding;
-            //valueQuantity?: Coding;
-            //valueReference?: string;
-        };
-
-        /**
-         * Question of a questionnaire.
-         */
-        export type Question = {
-            linkId: string;
-            prefix?: string;
-            text?: string;
-            type:
-                | 'group'
-                | 'display'
-                | 'question'
-                | 'boolean'
-                | 'decimal'
-                | 'integer'
-                | 'date'
-                | 'dateTime'
-                | 'time'
-                | 'string'
-                | 'text'
-                | 'url'
-                | 'choice'
-                | 'open-choice'
-                | 'attachment'
-                | 'reference'
-                | 'quantity'
-                | 'slider';
-            enableWhen?: (QuestionnaireEnableWhenAnswer & {
-                question: string;
-                operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
-            })[];
-            enableBehavior?: 'all' | 'any';
-            required?: boolean;
-            repeats?: boolean;
-            readOnly?: boolean;
-            minLength?: number;
-            maxLength?: number;
-            answerOption?: QuestionnaireAnswerOptionValue[];
-            initial?: QuestionnaireValue[];
-            item?: Question[];
-        };
-    }
+    /**
+     * Question of a questionnaire.
+     */
+    export type Question = {
+        linkId: string;
+        prefix?: string;
+        text?: string;
+        type:
+            | 'group'
+            | 'display'
+            | 'question'
+            | 'boolean'
+            | 'decimal'
+            | 'integer'
+            | 'date'
+            | 'dateTime'
+            | 'time'
+            | 'string'
+            | 'text'
+            | 'url'
+            | 'choice'
+            | 'open-choice'
+            | 'attachment'
+            | 'reference'
+            | 'quantity'
+            | 'slider';
+        enableWhen?: (QuestionnaireEnableWhenAnswer & {
+            question: string;
+            operator: 'exists' | '=' | '!=' | '>' | '<' | '>=' | '<=';
+        })[];
+        enableBehavior?: 'all' | 'any';
+        required?: boolean;
+        repeats?: boolean;
+        readOnly?: boolean;
+        minLength?: number;
+        maxLength?: number;
+        answerOption?: QuestionnaireAnswerOptionValue[];
+        initial?: QuestionnaireValue[];
+        item?: Question[];
+    };
 }
 
 export const CodingRules: RecipeRule[] = [
