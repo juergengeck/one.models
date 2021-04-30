@@ -5,11 +5,11 @@ export enum AcceptedMimeType {
     PNG = 'image/png',
     PDF = 'application/pdf'
 }
-
-export interface OneUnversionedObjectInterfaces {
-    DocumentInfo_1_1_0: DocumentInfo_1_1_0;
+declare module '@OneObjectInterfaces' {
+    export interface OneUnversionedObjectInterfaces {
+        DocumentInfo_1_1_0: DocumentInfo_1_1_0;
+    }
 }
-
 export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
     $type$: 'DocumentInfo_1_1_0';
     mimeType: string;
