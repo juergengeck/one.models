@@ -6,7 +6,7 @@ import {AccessModel, ChannelManager, ContactModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import RecipiesStable from '../recipes/recipes-stable';
+import RecipesStable from '../recipes/recipes-stable';
 import oneModules from '../generated/oneModules';
 import {
     createManyObjectsThroughPurePlan,
@@ -141,7 +141,7 @@ async function main(): Promise<void> {
         secret: '1234',
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
-        initialRecipes: RecipiesStable
+        initialRecipes: RecipesStable
         //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();
