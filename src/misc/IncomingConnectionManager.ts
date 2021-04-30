@@ -5,7 +5,7 @@ import WebSocketListener from './WebSocketListener';
 import tweetnacl from 'tweetnacl';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import EncryptedConnetion_Server from './EncryptedConnection_Server';
+import EncryptedConnection_Server from './EncryptedConnection_Server';
 import EncryptedConnection from './EncryptedConnection';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
@@ -207,7 +207,7 @@ class IncomingConnectionManager {
     ): Promise<void> {
         MessageBus.send('log', `${wslogId(ws.webSocket)}: Accepted WebSocket`);
         try {
-            const conn = new EncryptedConnetion_Server(ws);
+            const conn = new EncryptedConnection_Server(ws);
 
             // Step 1: Wait for the communication request
             const request = await conn.waitForUnencryptedMessage('communication_request');
