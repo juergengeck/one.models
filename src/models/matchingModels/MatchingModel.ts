@@ -1,15 +1,6 @@
 import EventEmitter from 'events';
 import InstancesModel, {LocalInstanceInfo} from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
-import {
-    Person,
-    SHA256IdHash,
-    Supply,
-    Demand,
-    VersionedObjectResult,
-    SupplyMap,
-    DemandMap
-} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {
     createSingleObjectThroughPurePlan,
@@ -18,9 +9,13 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {Model} from '../Model';
 import {OEvent} from '../../misc/OEvent';
+import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 /**
  * This class contains the common behaviour used both by clients and

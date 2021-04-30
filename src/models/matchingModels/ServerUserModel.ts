@@ -1,9 +1,10 @@
 import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
-import {Supply, Demand, UnversionedObjectResult} from '@OneObjectInterfaces';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {Demand, Supply} from '../../recipes/MatchingRecipes';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(instanceModel: InstancesModel, channelManager: ChannelManager) {

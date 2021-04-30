@@ -8,23 +8,16 @@ import {
     onUnversionedObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {
-    UnversionedObjectResult,
-    Supply,
-    Demand,
-    SHA256IdHash,
-    Person,
-    Contact,
-    VersionedObjectResult,
-    MatchMap,
-    MatchResponse,
-    SHA256Hash
-} from '@OneObjectInterfaces';
+import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
 import matchingContact from '../../../matching_contact/matching_public_contact.json';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {OEvent} from '../../misc/OEvent';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
+import type {Contact} from '../../recipes/ContactRecipes';
+import type {Demand, MatchMap, MatchResponse, Supply} from '../../recipes/MatchingRecipes';
 
 /**
  * This represents a MatchingEvents
