@@ -1,5 +1,5 @@
-import {getObject, getObjectByIdHash, VersionedObjectResult} from 'one.core/lib/storage';
-import type {WriteStorageApi} from 'one.core/lib/storage';
+import {getObject, getObjectByIdHash} from 'one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';

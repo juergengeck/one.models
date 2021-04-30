@@ -1,10 +1,5 @@
-import {
-    getObjectByIdHash,
-    SET_ACCESS_MODE,
-    SetAccessParam,
-    VersionedObjectResult
-} from 'one.core/lib/storage';
-import type {WriteStorageApi} from 'one.core/lib/storage';
+import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from 'one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';

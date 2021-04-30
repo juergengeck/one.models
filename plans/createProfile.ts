@@ -3,7 +3,7 @@
  */
 
 import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {Profile} from '../src/recipes/ContactRecipes';
+import type {Profile} from '../src/recipes/ContactRecipes';
 
 /**
  * @description Pure plan for creating a profile for another person

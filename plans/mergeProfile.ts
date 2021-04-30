@@ -2,13 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    getAllVersionMapEntries,
-    getObject,
-    getObjectByIdHash,
-    VersionedObjectResult
-} from 'one.core/lib/storage';
-import type {WriteStorageApi} from 'one.core/lib/storage';
+import {getAllVersionMapEntries, getObject, getObjectByIdHash} from 'one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Contact, Profile} from '../src/recipes/ContactRecipes';
 

@@ -2,8 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {getObjectByIdObj, getObjectWithType, VersionedObjectResult} from 'one.core/lib/storage';
-import type {WriteStorageApi} from 'one.core/lib/storage';
+import {getObjectByIdObj, getObjectWithType} from 'one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
