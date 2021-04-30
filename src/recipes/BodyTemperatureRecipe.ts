@@ -3,11 +3,11 @@ declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         BodyTemperature: BodyTemperature;
     }
+}
 
-    export interface BodyTemperature {
-        $type$: 'BodyTemperature';
-        temperature: number;
-    }
+export interface BodyTemperature {
+    $type$: 'BodyTemperature';
+    temperature: number;
 }
 
 export const BodyTemperatureRecipe: Recipe = {
