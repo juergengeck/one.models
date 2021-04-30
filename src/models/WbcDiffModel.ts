@@ -5,7 +5,7 @@ import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {WbcObservation} from '@OneCoreTypes';
+import type {WbcObservation} from '../recipes/WbcDiffRecipes';
 const MessageBus = createMessageBus('WbcDiffModel');
 
 /**

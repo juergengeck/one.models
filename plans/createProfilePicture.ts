@@ -1,5 +1,5 @@
 import {WriteStorageApi} from 'one.core/lib/storage';
-import {ProfileImage, UnversionedObjectResult} from '@OneCoreTypes';
+import {ProfileImage, UnversionedObjectResult} from '@OneObjectInterfaces';
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,

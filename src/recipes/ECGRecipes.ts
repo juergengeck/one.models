@@ -4,23 +4,23 @@ export interface ElectrocardiogramReadings {
     leadVoltage: number;
 }
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         Electrocardiogram: Electrocardiogram;
     }
+}
 
-    export interface Electrocardiogram {
-        $type$: 'Electrocardiogram';
-        typeDescription?: string;
-        voltageMeasurements: number;
-        startTimestamp?: number;
-        samplingFrequencyHz?: number;
-        endTimestamp?: number;
-        classification?: string;
-        averageHeartRateBPM?: number;
-        symptoms?: string;
-        readings?: ElectrocardiogramReadings[];
-    }
+export interface Electrocardiogram {
+    $type$: 'Electrocardiogram';
+    typeDescription?: string;
+    voltageMeasurements: number;
+    startTimestamp?: number;
+    samplingFrequencyHz?: number;
+    endTimestamp?: number;
+    classification?: string;
+    averageHeartRateBPM?: number;
+    symptoms?: string;
+    readings?: ElectrocardiogramReadings[];
 }
 
 const ECGRecipe: Recipe = {

@@ -1,5 +1,5 @@
 import {WriteStorageApi} from 'one.core/lib/storage';
-import {BlobDescriptor, BlobCollection, UnversionedObjectResult} from '@OneCoreTypes';
+import {BlobDescriptor, BlobCollection, UnversionedObjectResult} from '@OneObjectInterfaces';
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,

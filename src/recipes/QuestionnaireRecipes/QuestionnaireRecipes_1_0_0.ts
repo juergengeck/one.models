@@ -1,7 +1,7 @@
 import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         Questionnaire: Questionnaire;
     }

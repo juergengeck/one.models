@@ -5,7 +5,7 @@ import {
 } from './QuestionnaireRecipes_1_0_0';
 import {addRule, cloneRule, overwriteRule} from '../RecipeUtils';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         Questionnaire_1_1_0: Questionnaire_1_1_0;
     }

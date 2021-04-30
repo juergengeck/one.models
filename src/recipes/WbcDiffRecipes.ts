@@ -19,21 +19,21 @@ export interface WbcMeasurement {
     unsafe?: boolean;
 }
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         WbcObservation: WbcObservation;
     }
+}
 
-    export interface WbcObservation {
-        $type$: 'WbcObservation';
-        acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
-        Leukocytes: WbcMeasurement;
-        Neutrophils?: WbcMeasurement;
-        Lymphocytes?: WbcMeasurement;
-        Monocytes?: WbcMeasurement;
-        Eosinophils?: WbcMeasurement;
-        Basophils?: WbcMeasurement;
-    }
+export interface WbcObservation {
+    $type$: 'WbcObservation';
+    acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
+    Leukocytes: WbcMeasurement;
+    Neutrophils?: WbcMeasurement;
+    Lymphocytes?: WbcMeasurement;
+    Monocytes?: WbcMeasurement;
+    Eosinophils?: WbcMeasurement;
+    Basophils?: WbcMeasurement;
 }
 
 const WbcMeasurementRules: RecipeRule[] = [

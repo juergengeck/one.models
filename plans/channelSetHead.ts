@@ -1,8 +1,5 @@
-import {
-    VersionedObjectResult,
-    WriteStorageApi
-} from 'one.core/lib/storage';
-import {Person, ChannelInfo, ChannelEntry, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
+import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import {Person, ChannelInfo, ChannelEntry, SHA256Hash, SHA256IdHash} from '@OneObjectInterfaces';
 
 /**
  * Gives a channel a new head pointer.

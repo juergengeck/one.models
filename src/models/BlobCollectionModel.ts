@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import {
     BlobCollection as OneBlobCollection,
     BlobDescriptor as OneBlobDescirptor
-} from '@OneCoreTypes';
+} from '../recipes/BlobRecipes';
 import ChannelManager, {ObjectData} from './ChannelManager';
 import {
     createSingleObjectThroughPurePlan,

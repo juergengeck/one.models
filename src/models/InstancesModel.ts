@@ -1,4 +1,4 @@
-import {Instance, SHA256IdHash, LocalInstancesList, Person, Keys} from '@OneCoreTypes';
+import {Instance, SHA256IdHash, LocalInstancesList, Person, Keys} from '@OneObjectInterfaces';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {
     createSingleObjectThroughImpurePlan,

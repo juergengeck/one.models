@@ -3,7 +3,7 @@ import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     Questionnaire_1_1_0,
     QuestionnaireResponses as QuestionnaireResponses_1_0_0
-} from '@OneCoreTypes';
+} from '@OneObjectInterfaces';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';

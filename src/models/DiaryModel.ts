@@ -1,14 +1,11 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    DiaryEntry as OneDiaryEntry,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
 import i18nModelsInstance from '../i18n';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * This represents the model of a diary entry

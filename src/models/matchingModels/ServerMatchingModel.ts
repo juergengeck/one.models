@@ -13,7 +13,7 @@ import {
     Supply,
     UnversionedObjectResult,
     VersionedObjectResult
-} from '@OneCoreTypes';
+} from '@OneObjectInterfaces';
 import {
     createSingleObjectThroughPurePlan,
     getObject,

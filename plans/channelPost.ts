@@ -4,7 +4,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {OneUnversionedObjectTypes, SHA256IdHash, ChannelInfo, Person} from '@OneCoreTypes';
+import {OneUnversionedObjectTypes, SHA256IdHash, ChannelInfo, Person} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 
 /**

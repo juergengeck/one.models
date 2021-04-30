@@ -5,8 +5,9 @@ import {
     ChannelEntry,
     CreationTime,
     SHA256Hash,
-    SHA256IdHash, UnversionedObjectResult
-} from '@OneCoreTypes';
+    SHA256IdHash,
+    UnversionedObjectResult
+} from '@OneObjectInterfaces';
 
 /**
  * Creates a new channel version by rebuilding the channel.
@@ -32,7 +33,6 @@ export async function createObjects(
     oldHead: SHA256Hash<ChannelEntry>,
     newElementsReversed: SHA256Hash<CreationTime>[]
 ): Promise<UnversionedObjectResult<ChannelEntry>> {
-
     // Create the new channel entries linked list from the array elements
     let lastChannelEntry = oldHead;
     let newEntryResult;

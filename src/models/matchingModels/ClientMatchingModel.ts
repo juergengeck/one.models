@@ -19,7 +19,7 @@ import {
     MatchMap,
     MatchResponse,
     SHA256Hash
-} from '@OneCoreTypes';
+} from '@OneObjectInterfaces';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
 import matchingContact from '../../../matching_contact/matching_public_contact.json';

@@ -1,10 +1,11 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
 /**
  * Represents the consent file object that will be stored in one.

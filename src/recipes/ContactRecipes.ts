@@ -3,30 +3,32 @@ import {ORDERED_BY} from 'one.core/lib/recipes';
 import type {UnversionedObjectResult} from 'one.core/lib/storage';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
-export interface OneIdObjectInterfaces {
-    Profile: Pick<Profile, 'personId' | '$type$'>;
-    ContactApp: Pick<ContactApp, 'appId' | '$type$'>;
-}
+declare module '@OneObjectInterfaces' {
+    export interface OneIdObjectInterfaces {
+        Profile: Pick<Profile, 'personId' | '$type$'>;
+        ContactApp: Pick<ContactApp, 'appId' | '$type$'>;
+    }
 
-export interface OneVersionedObjectInterfaces {
-    Profile: Profile;
-    ContactApp: ContactApp;
-}
+    export interface OneVersionedObjectInterfaces {
+        Profile: Profile;
+        ContactApp: ContactApp;
+    }
 
-export interface OneUnversionedObjectInterfaces {
-    Contact: Contact;
-    Someone: Someone;
-    OneInstanceEndpoint: OneInstanceEndpoint;
-    PersonName: PersonName;
-    ProfileImage: ProfileImage;
-    Email: Email;
-}
+    export interface OneUnversionedObjectInterfaces {
+        Contact: Contact;
+        Someone: Someone;
+        OneInstanceEndpoint: OneInstanceEndpoint;
+        PersonName: PersonName;
+        ProfileImage: ProfileImage;
+        Email: Email;
+    }
 
-export interface PlanResultTypes {
-    '@module/createProfilePicture': {
-        args: any;
-        result: UnversionedObjectResult<ProfileImage>;
-    };
+    export interface PlanResultTypes {
+        '@module/createProfilePicture': {
+            args: any;
+            result: UnversionedObjectResult<ProfileImage>;
+        };
+    }
 }
 
 // #### Communication endpoints #####

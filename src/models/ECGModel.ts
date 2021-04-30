@@ -5,16 +5,11 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {
-    Electrocardiogram,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
-import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
+import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
 export default class ECGModel extends EventEmitter implements Model {
     /**

@@ -2,19 +2,25 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {WbcObservation, Electrocardiogram} from '@OneCoreTypes';
-import QuestionnaireModel, {QuestionnaireResponses} from './QuestionnaireModel';
+import QuestionnaireModel from './QuestionnaireModel';
+import type {QuestionnaireResponses} from './QuestionnaireModel';
 import EventEmitter from 'events';
-import HeartEventModel, {HeartEvent} from './HeartEventModel';
+import HeartEventModel from './HeartEventModel';
+import type {HeartEvent} from './HeartEventModel';
 import DocumentModel, {DocumentInfo} from './DocumentModel';
-import DiaryModel, {DiaryEntry} from './DiaryModel';
-import {ObjectData, QueryOptions} from './ChannelManager';
-import ConsentFileModel, {ConsentFile, DropoutFile} from './ConsentFileModel';
-import BodyTemperatureModel, {BodyTemperature} from './BodyTemperatureModel';
+import DiaryModel from './DiaryModel';
+import type {DiaryEntry} from './DiaryModel';
+import type {ObjectData, QueryOptions} from './ChannelManager';
+import ConsentFileModel from './ConsentFileModel';
+import type {ConsentFile, DropoutFile} from './ConsentFileModel';
+import BodyTemperatureModel from './BodyTemperatureModel';
+import type {BodyTemperature} from './BodyTemperatureModel';
 import {OEvent} from '../misc/OEvent';
 import WbcDiffModel from './WbcDiffModel';
 import ECGModel from './ECGModel';
 import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
+import type {WbcObservation} from '../recipes/WbcDiffRecipes';
+import type {Electrocardiogram} from '../recipes/ECGRecipes';
 
 /**
  * !!! Add the corresponding model class name here

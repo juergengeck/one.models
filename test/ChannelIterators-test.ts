@@ -18,7 +18,7 @@ import {
 } from 'one.core/lib/storage';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {ChannelRegistry, BodyTemperature} from '@OneCoreTypes';
+import {ChannelRegistry, BodyTemperature} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import rimraf from 'rimraf';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';

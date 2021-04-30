@@ -3,7 +3,7 @@
  */
 
 import {getObjectWithType, VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {ContactApp} from '@OneCoreTypes';
+import {ContactApp} from '@OneObjectInterfaces';
 import {getInstanceOwnerIdHash, getInstanceIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';

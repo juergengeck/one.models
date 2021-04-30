@@ -5,7 +5,7 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime} from '@OneCoreTypes';
+import {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime} from '@OneObjectInterfaces';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';

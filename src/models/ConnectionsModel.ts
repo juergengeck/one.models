@@ -10,13 +10,13 @@ import {
     getObject,
     getObjectByIdHash,
     getObjectWithType,
-    VERSION_UPDATES,
-    WriteStorageApi
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {
-    createCrypto,
+    createCryptoAPI,
     CryptoAPI,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
@@ -26,7 +26,6 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -37,6 +36,9 @@ import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Keys, Person} from 'one.core/lib/recipes';
+import type {OneInstanceEndpoint} from '../recipes/ContactRecipes';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -1902,7 +1904,7 @@ class ConnectionsModel extends EventEmitter {
     }> {
         // Initialize the crypto stuff
         const instanceHash = await this.instancesModel.localInstanceIdForPerson(localPersonId);
-        const crypto = createCrypto(instanceHash);
+        const crypto = createCryptoAPI(instanceHash);
 
         // Get my own person key
         const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');

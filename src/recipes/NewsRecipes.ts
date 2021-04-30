@@ -1,13 +1,13 @@
 import type {Recipe} from 'one.core/lib/recipes';
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         News: News;
     }
+}
 
-    export interface News {
-        $type$: 'News';
-        content: string;
-    }
+export interface News {
+    $type$: 'News';
+    content: string;
 }
 
 export const NewsRecipe: Recipe = {

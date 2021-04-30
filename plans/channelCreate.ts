@@ -5,7 +5,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {ChannelInfo, SHA256IdHash, Person} from '@OneCoreTypes';
+import {ChannelInfo, SHA256IdHash, Person} from '@OneObjectInterfaces';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 
 /**
@@ -36,7 +36,6 @@ export async function createObjects(
     channelId: string,
     channelOwner: SHA256IdHash<Person>
 ): Promise<VersionedObjectResult<ChannelInfo>> {
-
     // Update the head of the ChannelInfo entry
     const channelInfoResult = await WriteStorage.storeVersionedObject({
         $type$: 'ChannelInfo',
@@ -54,7 +53,9 @@ export async function createObjects(
             mode: SET_ACCESS_MODE.REPLACE,
             person: [instanceResult.obj.owner]
         };
-        await WriteStorage.createSingleObjectThroughPureSubPlan({module: '@one/access'}, [setAccessParam]);
+        await WriteStorage.createSingleObjectThroughPureSubPlan({module: '@one/access'}, [
+            setAccessParam
+        ]);
     }
 
     return channelInfoResult;

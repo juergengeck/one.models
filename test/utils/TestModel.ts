@@ -15,7 +15,7 @@ import {
     BodyTemperatureModel
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneObjectInterfaces';
 import oneModules from '../../lib/generated/oneModules';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 export const dbKey = 'testDb';

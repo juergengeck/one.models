@@ -8,7 +8,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Profile, SHA256IdHash, Instance} from '@OneCoreTypes';
+import {Profile, SHA256IdHash, Instance} from '@OneObjectInterfaces';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 

@@ -9,7 +9,7 @@ import {
     VersionedObjectResult,
     WriteStorageApi
 } from 'one.core/lib/storage';
-import {Profile, SHA256IdHash, Contact, SHA256Hash} from '@OneCoreTypes';
+import {Profile, SHA256IdHash, Contact, SHA256Hash} from '@OneObjectInterfaces';
 
 /**
  *

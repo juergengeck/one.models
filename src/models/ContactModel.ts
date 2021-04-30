@@ -17,7 +17,7 @@ import {
     createSingleObjectThroughImpurePlan,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
-import {VersionedObjectResult, UnversionedObjectResult} from 'one.core/lib/storage';
+import type {VersionedObjectResult, UnversionedObjectResult} from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';

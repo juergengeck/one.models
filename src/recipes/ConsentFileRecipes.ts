@@ -1,14 +1,14 @@
 import type {Recipe} from 'one.core/lib/recipes';
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         ConsentFile: ConsentFile;
     }
+}
 
-    export interface ConsentFile {
-        $type$: 'ConsentFile';
-        fileData: string;
-        fileType: string;
-    }
+export interface ConsentFile {
+    $type$: 'ConsentFile';
+    fileData: string;
+    fileType: string;
 }
 
 const ConsentFileRecipe: Recipe = {

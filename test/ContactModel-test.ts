@@ -17,7 +17,7 @@ import {
     getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {Someone, Profile} from '@OneCoreTypes';
+import {Someone, Profile} from '@OneObjectInterfaces';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {getAllValues} from 'one.core/lib/reverse-map-query';

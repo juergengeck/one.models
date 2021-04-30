@@ -9,7 +9,7 @@ import {
     VersionedObjectResult,
     SupplyMap,
     DemandMap
-} from '@OneCoreTypes';
+} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {
     createSingleObjectThroughPurePlan,

@@ -1,22 +1,5 @@
 import EventEmitter from 'events';
 import {
-    ChannelEntry,
-    ChannelInfo,
-    ChannelRegistry,
-    CreationTime,
-    OneUnversionedObjectInterfaces,
-    OneUnversionedObjectTypeNames,
-    OneUnversionedObjectTypes,
-    Person,
-    IdAccess,
-    SHA256Hash,
-    SHA256IdHash,
-    VersionedObjectResult,
-    Access,
-    ChannelRegistryEntry,
-    UnversionedObjectResult
-} from '@OneCoreTypes';
-import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
@@ -29,6 +12,7 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
@@ -37,8 +21,24 @@ import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
+import {ensureHash, ensureIdHash, SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
+import type {
+    Access,
+    IdAccess,
+    OneUnversionedObjectTypeNames,
+    OneUnversionedObjectTypes,
+    Person
+} from 'one.core/lib/recipes';
+import type {
+    ChannelEntry,
+    ChannelInfo,
+    ChannelRegistry,
+    ChannelRegistryEntry
+} from '../recipes/ChannelRecipes';
+import type {CreationTime} from '../recipes/MetaRecipes';
+import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 
 const MessageBus = createMessageBus('ChannelManager');
 

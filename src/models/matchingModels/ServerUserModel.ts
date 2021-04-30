@@ -1,7 +1,7 @@
 import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
 import InstancesModel from '../InstancesModel';
 import ChannelManager from '../ChannelManager';
-import {Supply, Demand, UnversionedObjectResult} from '@OneCoreTypes';
+import {Supply, Demand, UnversionedObjectResult} from '@OneObjectInterfaces';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 

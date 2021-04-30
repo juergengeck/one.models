@@ -1,1 +1,1 @@
-declare module '@OneCoreTypes' {}
+declare module '@OneObjectInterfaces' {}
