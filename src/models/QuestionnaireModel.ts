@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {
     Questionnaire_1_1_0,
     QuestionnaireResponses as QuestionnaireResponses_1_0_0

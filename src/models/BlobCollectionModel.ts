@@ -1,9 +1,10 @@
 import EventEmitter from 'events';
 import {
     BlobCollection as OneBlobCollection,
-    BlobDescriptor as OneBlobDescirptor
+    BlobDescriptor as OneBlobDescriptor
 } from '../recipes/BlobRecipes';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData} from './ChannelManager';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -142,7 +143,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     private async resolveBlobCollection(
         blobCollection: OneBlobCollection
     ): Promise<BlobCollection> {
-        const blobDescriptors: OneBlobDescirptor[] = await Promise.all(
+        const blobDescriptors: OneBlobDescriptor[] = await Promise.all(
             blobCollection.blobs.map(hash => getObject(hash))
         );
         const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
@@ -160,7 +161,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
      * @private
      */
     private static async resolveBlobDescriptor(
-        blobDescriptor: OneBlobDescirptor
+        blobDescriptor: OneBlobDescriptor
     ): Promise<BlobDescriptor> {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);
 

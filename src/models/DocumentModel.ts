@@ -1,8 +1,12 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {DocumentInfo as DocumentInfo_1_0_0, DocumentInfo_1_1_0} from '@OneObjectInterfaces';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
+import {
+    DocumentInfo as DocumentInfo_1_0_0,
+    DocumentInfo_1_1_0
+} from '../recipes/DocumentRecipes/DocumentRecipes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {WriteStorageApi} from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import {OEvent} from '../misc/OEvent';

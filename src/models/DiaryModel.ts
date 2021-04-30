@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
 import i18nModelsInstance from '../i18n';
 import {OEvent} from '../misc/OEvent';

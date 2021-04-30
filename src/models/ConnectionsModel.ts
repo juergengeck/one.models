@@ -1,7 +1,9 @@
 import EventEmitter from 'events';
-import CommunicationModule, {ConnectionInfo} from '../misc/CommunicationModule';
+import CommunicationModule from '../misc/CommunicationModule';
+import type {ConnectionInfo} from '../misc/CommunicationModule';
 import ContactModel from './ContactModel';
-import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
+import InstancesModel from './InstancesModel';
+import type {LocalInstanceInfo} from './InstancesModel';
 import EncryptedConnection from '../misc/EncryptedConnection';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {

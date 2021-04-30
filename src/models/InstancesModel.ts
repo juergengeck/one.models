@@ -1,4 +1,3 @@
-import {Instance, SHA256IdHash, LocalInstancesList, Person, Keys} from '@OneObjectInterfaces';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {
     createSingleObjectThroughImpurePlan,
@@ -20,6 +19,9 @@ import {
 } from 'one.core/lib/instance-crypto';
 import {EventEmitter} from 'events';
 import {OEvent} from '../misc/OEvent';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {LocalInstancesList} from '../recipes/InstancesRecipies';
+import type {Instance, Keys, Person} from 'one.core/lib/recipes';
 
 /**
  * This type stores information about an instance.

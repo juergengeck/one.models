@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';

@@ -3,7 +3,8 @@
  */
 
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
 import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';

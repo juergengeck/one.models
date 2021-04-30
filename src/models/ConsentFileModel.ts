@@ -1,5 +1,6 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
