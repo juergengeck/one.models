@@ -1,20 +1,16 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    BLOB,
-    DocumentInfo as DocumentInfo_1_0_0,
-    DocumentInfo_1_1_0,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {WriteStorageApi} from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage.js';
-import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
+import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
+import {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -90,14 +86,16 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param {ArrayBuffer} document - The document.
      * @param {DocumentInfo['mimeType']} mimeType
      * @param {DocumentInfo['documentName']} documentName
+     * @param {string} channelId - The default is this.channelId
      */
     async addDocument(
         document: ArrayBuffer,
         mimeType: DocumentInfo['mimeType'],
-        documentName: DocumentInfo['documentName']
+        documentName: DocumentInfo['documentName'],
+        channelId: string = this.channelId
     ): Promise<void> {
         const oneDocument = await saveDocumentAsBLOB(document);
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(channelId, {
             $type$: 'DocumentInfo_1_1_0',
             mimeType: mimeType,
             documentName: documentName,
