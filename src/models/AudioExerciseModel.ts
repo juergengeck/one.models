@@ -2,12 +2,7 @@ import EventEmitter from 'events';
 import {Model} from './Model';
 import {OEvent} from '../misc/OEvent';
 import ChannelManager, {ObjectData} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
-
-export type AudioExercise = {
-    name: string;
-    startTimestamp: number;
-};
+import {OneUnversionedObjectTypes, Person, SHA256IdHash, AudioExercise} from '@OneCoreTypes';
 
 export default class AudioExerciseModel extends EventEmitter implements Model {
     /**
@@ -50,11 +45,15 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      */
     async addAudioExercise(audioFileName: string, startTimestamp: number): Promise<void> {
         /** store the audio exercise object in one **/
-        await this.channelManager.postToChannel(this.channelId, {
-            $type$: 'AudioExercise',
-            name: audioFileName,
-            startTimestamp: startTimestamp
-        });
+        await this.channelManager.postToChannel(
+            this.channelId,
+            {
+                $type$: 'AudioExercise',
+                name: audioFileName
+            },
+            undefined,
+            startTimestamp
+        );
     }
 
     /**

@@ -8,7 +8,6 @@ declare module '@OneCoreTypes' {
     export interface AudioExercise {
         $type$: 'AudioExercise';
         name: string;
-        startTimestamp: number;
     }
 }
 
@@ -19,10 +18,6 @@ export const AudioExerciseRecipe: Recipe = {
         {
             itemprop: 'name',
             valueType: 'string'
-        },
-        {
-            itemprop: 'startTimestamp',
-            valueType: 'number'
         }
     ]
 };
