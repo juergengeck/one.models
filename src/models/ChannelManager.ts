@@ -1679,10 +1679,7 @@ export default class ChannelManager extends EventEmitter {
                     );
                     console.error(e); // Introduce an error event later!
                 } finally {
-                    promiseTracker.promise.finally(() => {
-                        this.promiseTrackers.delete(promiseId);
-                        console.log('Got solved ', promiseId);
-                    });
+                    promiseTracker.promise.finally(() => this.promiseTrackers.delete(promiseId));
                 }
             }
         } catch (e) {
