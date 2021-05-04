@@ -72,7 +72,7 @@ async function main(): Promise<void> {
     const instancesModel = new InstancesModel();
     const accessModel = new AccessModel();
     const channelManager = new ChannelManager(accessModel);
-    const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
+    const contactModel = new ContactModel(instancesModel, argv.u);
     const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
     communicationModule.onKnownConnection(
         (

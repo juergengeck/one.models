@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     const accessModel = new AccessModel();
     const instancesModel = new InstancesModel();
     const channelManager = new ChannelManager(accessModel);
-    const contactModel = new ContactModel(instancesModel, argv.u, channelManager);
+    const contactModel = new ContactModel(instancesModel, argv.u);
     const connectionsModel = new ConnectionsModel(contactModel, instancesModel, {
         commServerUrl: argv.u
     });
