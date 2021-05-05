@@ -228,7 +228,7 @@ export default class ChannelManager extends EventEmitter {
     >();
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
-    private promiseTrackers: Map<string, TrackingPromiseObj<void>>;
+    private promiseTrackers: Set<Promise<void>>;
 
     // Serialize locks
     private readonly postLockName = 'ChannelManager_postLock';
@@ -254,7 +254,7 @@ export default class ChannelManager extends EventEmitter {
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
-        this.promiseTrackers = new Map<string, TrackingPromiseObj<void>>();
+        this.promiseTrackers = new Set<Promise<void>>();
     }
 
     /**
@@ -296,11 +296,7 @@ export default class ChannelManager extends EventEmitter {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
 
         // Resolve the pending promises
-        await Promise.all(
-            Array.from(this.promiseTrackers.values()).map(
-                async (promise: TrackingPromiseObj<void>) => await promise.promise
-            )
-        );
+        await Promise.all(this.promiseTrackers.values());
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
@@ -1652,8 +1648,7 @@ export default class ChannelManager extends EventEmitter {
                 let channelId: string;
                 let channelOwner: SHA256IdHash<Person>;
 
-                const promiseId = `${caughtObject.hash}#${new Date().getTime()}`;
-                this.promiseTrackers.set(promiseId, promiseTracker);
+                this.promiseTrackers.add(promiseTracker.promise);
 
                 {
                     const channelInfo = await getObjectByIdHash(caughtObject.idHash);
@@ -1679,7 +1674,9 @@ export default class ChannelManager extends EventEmitter {
                     );
                     console.error(e); // Introduce an error event later!
                 } finally {
-                    promiseTracker.promise.finally(() => this.promiseTrackers.delete(promiseId));
+                    promiseTracker.promise.finally(() =>
+                        this.promiseTrackers.delete(promiseTracker.promise)
+                    );
                 }
             }
         } catch (e) {
