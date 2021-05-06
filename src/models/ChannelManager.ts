@@ -16,7 +16,11 @@ import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {
+    createTrackingPromise,
+    serializeWithType,
+    TrackingPromiseObj
+} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
@@ -224,6 +228,7 @@ export default class ChannelManager extends EventEmitter {
     >();
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
+    private promiseTrackers: Set<Promise<void>>;
 
     // Serialize locks
     private readonly postLockName = 'ChannelManager_postLock';
@@ -249,6 +254,7 @@ export default class ChannelManager extends EventEmitter {
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
+        this.promiseTrackers = new Set<Promise<void>>();
     }
 
     /**
@@ -288,6 +294,9 @@ export default class ChannelManager extends EventEmitter {
      */
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+
+        // Resolve the pending promises
+        await Promise.all(this.promiseTrackers.values());
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
@@ -1633,9 +1642,14 @@ export default class ChannelManager extends EventEmitter {
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
         try {
             if (isChannelInfoResult(caughtObject)) {
+                const promiseTracker = createTrackingPromise<void>();
+
                 // Determine the channel id and owner
                 let channelId: string;
                 let channelOwner: SHA256IdHash<Person>;
+
+                this.promiseTrackers.add(promiseTracker.promise);
+
                 {
                     const channelInfo = await getObjectByIdHash(caughtObject.idHash);
                     channelId = channelInfo.obj.id;
@@ -1648,13 +1662,21 @@ export default class ChannelManager extends EventEmitter {
                     await this.addChannelIfNotExist(caughtObject.idHash);
                     await this.mergePendingVersions(caughtObject.idHash);
                     logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
+
+                    promiseTracker.resolve();
                 } catch (e) {
+                    promiseTracker.reject();
+
                     logWithId(
                         channelId,
                         channelOwner,
                         'handleOnVersionedObj - FAIL: ' + e.toString()
                     );
                     console.error(e); // Introduce an error event later!
+                } finally {
+                    promiseTracker.promise.finally(() =>
+                        this.promiseTrackers.delete(promiseTracker.promise)
+                    );
                 }
             }
         } catch (e) {
