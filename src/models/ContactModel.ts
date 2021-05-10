@@ -447,7 +447,10 @@ export default class ContactModel extends EventEmitter {
             newContactDescriptions.push(
                 await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
-                    {$type$: DescriptionTypes.PERSON_STATUS, name: contactDescription.personStatus}
+                    {
+                        $type$: DescriptionTypes.PERSON_STATUS,
+                        status: contactDescription.personStatus
+                    }
                 )
             );
         }
