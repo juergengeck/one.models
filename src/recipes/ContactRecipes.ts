@@ -33,6 +33,7 @@ declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
         OneInstanceEndpoint: OneInstanceEndpoint;
         PersonName: PersonName;
+        PersonStatus: PersonStatus;
         ProfileImage: ProfileImage;
         Email: Email;
         Someone: Someone;
@@ -80,15 +81,21 @@ declare module '@OneCoreTypes' {
      * examples:
      * - name
      * - profile image
+     * - status
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     // @ts-ignore
-    export type ContactDescriptionTypes = PersonName | ProfileImage;
+    export type ContactDescriptionTypes = PersonName | ProfileImage | PersonStatus;
     export interface ContactDescription {}
 
     export interface PersonName extends ContactDescription {
         $type$: 'PersonName';
         name: string;
+    }
+
+    export interface PersonStatus extends ContactDescription {
+        $type$: 'PersonStatus';
+        status: string;
     }
 
     export interface ProfileImage extends ContactDescription {
@@ -173,7 +180,7 @@ export const ProfileCRDTRecipe: Recipe = {
         },
         {
             itemprop: 'contactDescriptions',
-            referenceToObj: new Set(['PersonName', 'ProfileImage']),
+            referenceToObj: new Set(['PersonName', 'ProfileImage', 'PersonStatus']),
             list: ORDERED_BY.ONE
         }
     ]
@@ -261,6 +268,17 @@ export const PersonNameRecipe: Recipe = {
     ]
 };
 
+export const PersonStatusRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'PersonStatus',
+    rule: [
+        {
+            itemprop: 'status',
+            valueType: 'string'
+        }
+    ]
+};
+
 export const ProfileImageRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ProfileImage',
@@ -288,6 +306,7 @@ export const EmailRecipe: Recipe = {
 const ContactRecipes: Recipe[] = [
     ProfileImageRecipe,
     PersonNameRecipe,
+    PersonStatusRecipe,
     OneInstanceEndpointRecipe,
     ContactAppRecipe,
     ProfileCRDTRecipe,

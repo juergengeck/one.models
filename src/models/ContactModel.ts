@@ -60,7 +60,8 @@ export enum ContactEvent {
  */
 export enum DescriptionTypes {
     PERSON_NAME = 'PersonName',
-    PROFILE_IMAGE = 'ProfileImage'
+    PROFILE_IMAGE = 'ProfileImage',
+    PERSON_STATUS = 'PersonStatus'
 }
 
 /**
@@ -77,6 +78,7 @@ export enum CommunicationEndpointsTypes {
 export type ContactDescription = {
     personName?: string;
     image?: ArrayBuffer;
+    personStatus?: string;
 };
 
 /**
@@ -390,6 +392,10 @@ export default class ContactModel extends EventEmitter {
                 const image = await readBlobAsArrayBuffer(description.image);
                 profileInfos.push({type: 'ProfileImage', value: image});
             }
+
+            if (description.$type$ === DescriptionTypes.PERSON_STATUS) {
+                profileInfos.push({type: 'PersonStatus', value: description.status});
+            }
         }
 
         const commEndpoints = await this.getCommunicationEndpoints(personId);
@@ -434,6 +440,14 @@ export default class ContactModel extends EventEmitter {
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
                     },
                     contactDescription.image
+                )
+            );
+        } else if (contactDescription.personStatus) {
+            // creates the personStatus object
+            newContactDescriptions.push(
+                await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {$type$: DescriptionTypes.PERSON_STATUS, name: contactDescription.personStatus}
                 )
             );
         }
