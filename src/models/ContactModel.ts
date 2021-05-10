@@ -590,6 +590,41 @@ export default class ContactModel extends EventEmitter {
         });
     }
 
+    /**
+     * Create a someone object for the given profile if it doesn't exist.
+     * @param profile
+     * @private
+     */
+    private async createSomeoneIfNotExists(profile: VersionedObjectResult<ProfileCRDT>) {
+        const contactApp = await ContactModel.getContactAppObject();
+        const someoneObject = await this.getSomeoneObject(profile.obj.personId);
+
+        if (someoneObject === undefined) {
+            /** create a new someone object **/
+            const updatedSomeoneObject = await createSingleObjectThroughPurePlan(
+                {module: '@one/identity'},
+                {
+                    $type$: 'Someone',
+                    mainProfile: profile.idHash,
+                    profiles: [profile.idHash]
+                }
+            );
+
+            /** update the contactApp **/
+            contactApp.obj.contacts.push(updatedSomeoneObject.hash);
+
+            /** save the contactApp **/
+            await serializeWithType('ContactApp', async () => {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    contactApp.obj
+                );
+            });
+        }
+    }
     // TODO A single profile per person in V0.0.1
     /**
      * Register the given profile to my someoneObject and update contactApp.
@@ -774,7 +809,9 @@ export default class ContactModel extends EventEmitter {
                         -1
                     );
 
-                    // await this.registerNewSelfProfile(caughtObject);
+                    //await this.registerNewSelfProfile(caughtObject);
+                    await this.createSomeoneIfNotExists(caughtObject);
+
                     if (firstPreviousProfileObjectHash !== caughtObject.hash) {
                         this.onProfileUpdate.emit(caughtObject.obj);
                         this.emitNewCommunicationEndpointsEventIfCase(
