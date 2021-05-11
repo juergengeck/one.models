@@ -823,7 +823,7 @@ export default class ContactModel extends EventEmitter {
                 try {
                     const firstPreviousProfileObjectHash = await getNthVersionMapHash(
                         caughtObject.idHash,
-                        -1
+                        -2
                     );
 
                     //await this.registerNewSelfProfile(caughtObject);
