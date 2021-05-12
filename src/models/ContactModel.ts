@@ -820,14 +820,12 @@ export default class ContactModel extends EventEmitter {
         }
         if (ContactModel.isProfileCRDTVersionedObjectResult(caughtObject)) {
             await serializeWithType('Contacts', async () => {
+                await this.createSomeoneIfNotExists(caughtObject);
                 try {
                     const firstPreviousProfileObjectHash = await getNthVersionMapHash(
                         caughtObject.idHash,
                         -2
                     );
-
-                    //await this.registerNewSelfProfile(caughtObject);
-                    await this.createSomeoneIfNotExists(caughtObject);
 
                     if (firstPreviousProfileObjectHash !== caughtObject.hash) {
                         this.onProfileUpdate.emit(caughtObject.obj);
@@ -837,6 +835,11 @@ export default class ContactModel extends EventEmitter {
                         );
                     }
                 } catch (_) {
+                    // catch reached when there isn't a previous version
+                    this.onNewCommunicationEndpointArrive.emit(
+                        caughtObject.obj.communicationEndpoints
+                    );
+
                     return;
                 }
             });
