@@ -256,7 +256,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     async *responsesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
+    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses_1_0_0>> {
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
             channelId: this.channelId

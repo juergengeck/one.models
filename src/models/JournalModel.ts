@@ -7,8 +7,8 @@ import {
     Electrocardiogram,
     OneUnversionedObjectTypes,
     DiaryEntry,
-    ConsentFile,
     DocumentInfo_1_1_0,
+    ConsentFile,
     BodyTemperature,
     HeartEvent,
     QuestionnaireResponses
@@ -386,7 +386,7 @@ export default class JournalModel extends EventEmitter {
             return undefined;
         }
 
-        if ('data' in objectData) {
+        if ('$type$' in objectData.data) {
             switch (objectData.data.$type$) {
                 case 'ConsentFile':
                     return {type: EventType.ConsentFileEvent, data: objectData};

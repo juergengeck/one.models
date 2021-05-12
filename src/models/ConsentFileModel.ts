@@ -1,6 +1,11 @@
 import EventEmmiter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash} from '@OneCoreTypes';
+import {
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256IdHash,
+    ConsentFile as OneConsentFile
+} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
@@ -237,39 +242,12 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      */
     async *entriesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<ConsentFile | DropoutFile>> {
+    ): AsyncIterableIterator<ObjectData<OneConsentFile>> {
         for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
             ...queryOptions,
             channelId: this.channelId
         })) {
-            if (entry.data.fileType === FileType.Consent) {
-                const consentInfos = entry.data.fileData.split(' ');
-                if (consentInfos[0] === this.personId) {
-                    yield {
-                        ...entry,
-                        data: {
-                            personId: consentInfos[0] as SHA256IdHash<Person>,
-                            version: consentInfos[1]
-                        }
-                    };
-                }
-            } else if (entry.data.fileType === FileType.Dropout) {
-                const dropoutInfos = entry.data.fileData.split('|');
-                if (dropoutInfos.length !== 3) {
-                    throw new Error('The information of the dropout file is corrupted.');
-                }
-
-                if (dropoutInfos[0] === this.personId) {
-                    yield {
-                        ...entry,
-                        data: {
-                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
-                            reason: dropoutInfos[1],
-                            date: dropoutInfos[2]
-                        }
-                    };
-                }
-            }
+            yield entry;
         }
     }
 
