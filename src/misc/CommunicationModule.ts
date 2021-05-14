@@ -453,34 +453,6 @@ export default class CommunicationModule extends EventEmitter {
     }
 
     /**
-     * Return information about the connection with the given targetPublicKey.
-     * @param targetPublicKey
-     */
-    public connectionInfo(targetPublicKey: string): ConnectionInfo | undefined {
-        const containerWithTargetPublicKey = [...this.knownPeerMap].find(
-            ([key, val]) => val.targetPublicKey === targetPublicKey
-        );
-
-        if (!containerWithTargetPublicKey) {
-            return;
-        }
-
-        const container = containerWithTargetPublicKey[1];
-        const connectionInfo = {
-            isConnected: container.activeConnection !== null,
-            url: container.url,
-            sourcePublicKey: Buffer.from(toByteArray(container.sourcePublicKey)).toString('hex'),
-            targetPublicKey: Buffer.from(toByteArray(container.targetPublicKey)).toString('hex'),
-            sourceInstanceId: container.sourceInstanceId,
-            targetInstanceId: container.targetInstanceId,
-            sourcePersonId: container.sourcePersonId,
-            targetPersonId: container.targetPersonId,
-            isInternetOfMe: container.isInternetOfMe
-        };
-
-        return connectionInfo;
-    }
-    /**
      * Return information about all known connections.
      *
      * @returns {ConnectionInfo[]}

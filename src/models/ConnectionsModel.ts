@@ -357,14 +357,6 @@ class ConnectionsModel extends EventEmitter {
     }
 
     /**
-     *
-     * @returns {ConnectionInfo | undefined}
-     */
-    public connectionInfo(targetPublicKey: string): ConnectionInfo | undefined {
-        return this.communicationModule.connectionInfo(targetPublicKey);
-    }
-
-    /**
      * The password needs to be memorised for personal cloud connections authentication.
      *
      * TODO: remove me and ask the user instead. Long term storage is a bad idea!

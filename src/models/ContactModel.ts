@@ -598,6 +598,9 @@ export default class ContactModel extends EventEmitter {
             })
         );
 
+        /** include my someone object **/
+        someoneObjects.push(await getObject(contactApp.obj.me));
+
         const idHash = await calculateIdHashOfObj(personProfile);
         /** search for the profile **/
         return someoneObjects.find((someone: Someone) => {
