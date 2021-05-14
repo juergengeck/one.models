@@ -842,6 +842,7 @@ export default class ContactModel extends EventEmitter {
                     this.onNewCommunicationEndpointArrive.emit(
                         caughtObject.obj.communicationEndpoints
                     );
+                    this.onProfileUpdate.emit(caughtObject.obj);
 
                     return;
                 }
