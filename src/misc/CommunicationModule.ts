@@ -828,7 +828,7 @@ export default class CommunicationModule extends EventEmitter {
             clearTimeout(endpoint.reconnectTimeoutHandle);
             endpoint.reconnectTimeoutHandle = null;
         }
-        console.log('acceptConnection');
+
         this.emit('connectionsChange');
         this.onConnectionsChange.emit();
 
