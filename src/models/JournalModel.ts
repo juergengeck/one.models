@@ -129,7 +129,7 @@ export default class JournalModel extends EventEmitter {
      */
     shutdown() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
-            const event = journalInput.eventType as EventType;
+            const event = journalInput.eventType;
             /** retrieve the function reference in order to delete it **/
             const eventEmitterHandler = this.eventEmitterListeners.get(event);
             const oEventHandler = this.oEventListeners.get(event);
@@ -386,25 +386,23 @@ export default class JournalModel extends EventEmitter {
             return undefined;
         }
 
-        if ('$type$' in objectData.data) {
-            switch (objectData.data.$type$) {
-                case 'ConsentFile':
-                    return {type: EventType.ConsentFileEvent, data: objectData};
-                case 'DocumentInfo_1_1_0':
-                    return {type: EventType.DocumentInfo, data: objectData};
-                case 'WbcObservation':
-                    return {type: EventType.WbcDiffMeasurement, data: objectData};
-                case 'BodyTemperature':
-                    return {type: EventType.BodyTemperature, data: objectData};
-                case 'QuestionnaireResponses':
-                    return {type: EventType.QuestionnaireResponse, data: objectData};
-                case 'DiaryEntry':
-                    return {type: EventType.DiaryEntry, data: objectData};
-                case 'Electrocardiogram':
-                    return {type: EventType.ECGEvent, data: objectData};
-                case 'HeartEvent':
-                    return {type: EventType.HeartEvent, data: objectData};
-            }
+        switch (objectData.data.$type$) {
+            case 'ConsentFile':
+                return {type: EventType.ConsentFileEvent, data: objectData};
+            case 'DocumentInfo_1_1_0':
+                return {type: EventType.DocumentInfo, data: objectData};
+            case 'WbcObservation':
+                return {type: EventType.WbcDiffMeasurement, data: objectData};
+            case 'BodyTemperature':
+                return {type: EventType.BodyTemperature, data: objectData};
+            case 'QuestionnaireResponses':
+                return {type: EventType.QuestionnaireResponse, data: objectData};
+            case 'DiaryEntry':
+                return {type: EventType.DiaryEntry, data: objectData};
+            case 'Electrocardiogram':
+                return {type: EventType.ECGEvent, data: objectData};
+            case 'HeartEvent':
+                return {type: EventType.HeartEvent, data: objectData};
         }
         return undefined;
     }

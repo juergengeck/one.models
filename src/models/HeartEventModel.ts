@@ -16,7 +16,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private readonly channelManager: ChannelManager;
-    private readonly channelId: string;
+    public static readonly channelId: string = 'heartEvent';
 
     /**
      * Disconnect function to detach the channel manager listener
@@ -29,7 +29,6 @@ export default class HeartEventModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'heartEvent';
         this.channelManager = channelManager;
     }
 
@@ -37,7 +36,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * Initialize the model
      */
     public async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(HeartEventModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -57,7 +56,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * @param {HeartEvent} heartEvent
      */
     public async addHeartEvent(heartEvent: HeartEvent): Promise<void> {
-        await this.channelManager.postToChannel(this.channelId, heartEvent);
+        await this.channelManager.postToChannel(HeartEventModel.channelId, heartEvent);
     }
 
     /**
@@ -65,7 +64,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
      */
     public async heartEvents(): Promise<ObjectData<HeartEvent>[]> {
         return await this.channelManager.getObjectsWithType('HeartEvent', {
-            channelId: this.channelId
+            channelId: HeartEventModel.channelId
         });
     }
 
@@ -78,7 +77,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<HeartEvent>> {
         for await (const entry of this.channelManager.objectIteratorWithType('HeartEvent', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: HeartEventModel.channelId
         })) {
             yield entry;
         }
@@ -96,7 +95,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data?: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === HeartEventModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }
