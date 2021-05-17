@@ -191,49 +191,59 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     }
 
     /**
-     * Used to retrieve both consent file and dropout file of an user.
-     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     * This function transforms an array of {@link ObjectData<OneConsentFile>[]} to {@link ObjectData<ConsentFile | DropoutFile>[]}
+     * @param oneConsentFiles
+     * @param filterOthersConsentFiles by enabling this, you will get only {@link this.personId}'s ConsentFiles
      */
-    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
+    public formatEntries(
+        oneConsentFiles: ObjectData<OneConsentFile>[],
+        filterOthersConsentFiles: boolean = true
+    ): ObjectData<ConsentFile | DropoutFile>[] {
         const files: ObjectData<ConsentFile | DropoutFile>[] = [];
 
-        const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
-        });
-
-        for (const oneObject of onConsentFileObjects) {
+        for (const oneObject of oneConsentFiles) {
             const {data, ...restObjectData} = oneObject;
             if (data.fileType === FileType.Consent) {
                 const consentInfos = data.fileData.split(' ');
-                if (consentInfos[0] === this.personId) {
-                    files.push({
-                        ...restObjectData,
-                        data: {
-                            personId: consentInfos[0] as SHA256IdHash<Person>,
-                            version: consentInfos[1]
-                        }
-                    });
+                if (filterOthersConsentFiles && consentInfos[0] !== this.personId) {
+                    continue;
                 }
+                files.push({
+                    ...restObjectData,
+                    data: {
+                        personId: consentInfos[0] as SHA256IdHash<Person>,
+                        version: consentInfos[1]
+                    }
+                });
             } else if (data.fileType === FileType.Dropout) {
                 const dropoutInfos = data.fileData.split('|');
                 if (dropoutInfos.length !== 3) {
                     throw new Error('The information of the dropout file is corrupted.');
                 }
-
-                if (dropoutInfos[0] === this.personId) {
-                    files.push({
-                        ...restObjectData,
-                        data: {
-                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
-                            reason: dropoutInfos[1],
-                            date: dropoutInfos[2]
-                        }
-                    });
+                if (filterOthersConsentFiles && dropoutInfos[0] !== this.personId) {
+                    continue;
                 }
+                files.push({
+                    ...restObjectData,
+                    data: {
+                        personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                        reason: dropoutInfos[1],
+                        date: dropoutInfos[2]
+                    }
+                });
             }
         }
-
         return files;
+    }
+
+    /**
+     * Retrieves entries
+     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     */
+    async entries(): Promise<ObjectData<OneConsentFile>[]> {
+        return await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
     }
 
     /**
