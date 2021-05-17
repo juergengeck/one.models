@@ -2,7 +2,7 @@ name: Audit
 
 on:
     schedule:
-        - cron: '0 6 * * 3'
+        - cron: '0 4 * * 3'
     push:
         branches: [do-audit]
 
@@ -38,11 +38,11 @@ jobs:
               with:
                   node-version: ${{ matrix.node-version }}
 
-            - name: Run yarn audit text
-              run: yarn audit --no-color > yarn-audit.txt || true
+            - name: Run yarn audit text-high
+              run: yarn audit --no-color --level high > yarn-audit-high.txt || true
 
             - name: Run yarn audit json
-              run: yarn audit --json > yarn-audit.json || true
+              run: yarn audit --no-color > yarn-audit-all.txt || true
 
             - name: Send mail
               uses: dawidd6/action-send-mail@v2
@@ -53,10 +53,10 @@ jobs:
                   password: ${{secrets.REPORT_MAIL_PASSWORD}}
                   subject: Audit-Report for ${{github.repository}}
                   # Read file contents as body:
-                  body: file://yarn-audit.txt
+                  body: file://yarn-audit-high.txt
                   to: devops@refinio.net,erik@refinio.net,winpuc@refinio.net,milena@refinio.net
                   from: devops@refinio.net # <user@example.com>
                   # Optional content type (defaults to text/plain):
                   content_type: text
                   # Optional attachments:
-                  attachments: yarn-audit.json
+                  attachments: yarn-audit-all.txt
