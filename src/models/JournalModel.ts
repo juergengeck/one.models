@@ -8,6 +8,7 @@ import {
     OneUnversionedObjectTypes,
     DiaryEntry,
     DocumentInfo_1_1_0,
+    DocumentInfo,
     ConsentFile,
     BodyTemperature,
     HeartEvent,
@@ -48,6 +49,7 @@ export type EventListEntry = {
         | WbcObservation
         | QuestionnaireResponses
         | DocumentInfo_1_1_0
+        | DocumentInfo
         | DiaryEntry
         | ConsentFile
         | Electrocardiogram
@@ -387,6 +389,8 @@ export default class JournalModel extends EventEmitter {
         }
 
         switch (objectData.data.$type$) {
+            case 'DocumentInfo':
+                return {type: EventType.DocumentInfo, data: objectData};
             case 'ConsentFile':
                 return {type: EventType.ConsentFileEvent, data: objectData};
             case 'DocumentInfo_1_1_0':
