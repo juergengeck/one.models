@@ -32,11 +32,7 @@ import {
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {
-    createTrackingPromise,
-    serializeWithType,
-    TrackingPromiseObj
-} from 'one.core/lib/util/promise';
+import {createTrackingPromise, serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';

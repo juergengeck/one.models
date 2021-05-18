@@ -10,6 +10,7 @@ import SettingsRecipe from './SettingsRecipe';
 import NewsRecipes from './NewsRecipes';
 import InstancesRecipes from './InstancesRecipies';
 import DocumentRecipes from './DocumentRecipes/DocumentRecipes';
+import HeartEventRecipes from './HeartEventRecipes';
 
 const RecipesStable: Recipe[] = [
     ...ChannelRecipes,
@@ -22,7 +23,8 @@ const RecipesStable: Recipe[] = [
     ...ConsentFileRecipes,
     ...SettingsRecipe,
     ...InstancesRecipes,
-    ...DocumentRecipes
+    ...DocumentRecipes,
+    ...HeartEventRecipes
 ];
 
 export default RecipesStable;
