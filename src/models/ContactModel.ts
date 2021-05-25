@@ -237,6 +237,11 @@ export default class ContactModel extends EventEmitter {
             myself,
             takeOver
         );
+
+        await this.updateCommunicationEndpoint(createdProfile.obj.personId, 'default', {
+            email: personEmail
+        });
+
         return createdProfile.obj.personId;
     }
 
