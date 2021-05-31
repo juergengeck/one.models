@@ -100,7 +100,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
      */
     async *bodyTemperaturesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<BodyTemperature>> {
+    ): AsyncIterableIterator<ObjectData<OneBodyTemperature>> {
         yield* this.channelManager.objectIteratorWithType('BodyTemperature', {
             ...queryOptions,
             channelId: this.channelId

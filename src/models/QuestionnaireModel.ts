@@ -1,10 +1,6 @@
 import EventEmitter from 'events';
 import ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    Questionnaire_1_1_0,
-    QuestionnaireResponses as QuestionnaireResponses_1_0_0
-} from '@OneObjectInterfaces';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
@@ -22,9 +18,9 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
 // Export the QuestionnaireResponses types
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface QuestionnaireResponses extends Omit<QuestionnaireResponses_1_0_0, '$type$'> {}
-export type QuestionnaireResponse = QuestionnaireResponses_1_0_0.QuestionnaireResponse;
-export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.QuestionnaireResponseItem;
+export interface QuestionnaireResponses extends Omit<OneQuestionnaireResponses, '$type$'> {}
+export type QuestionnaireResponse = OneQuestionnaireResponses.QuestionnaireResponse;
+export type QuestionnaireResponseItem = OneQuestionnaireResponses.QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -256,7 +252,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     async *responsesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
+    ): AsyncIterableIterator<ObjectData<OneQuestionnaireResponses>> {
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
             channelId: this.channelId

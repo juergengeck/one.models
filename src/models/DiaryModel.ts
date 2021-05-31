@@ -113,12 +113,12 @@ export default class DiaryModel extends EventEmitter implements Model {
      */
     async *entriesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<DiaryEntry>> {
+    ): AsyncIterableIterator<ObjectData<OneDiaryEntry>> {
         for await (const entry of this.channelManager.objectIteratorWithType('DiaryEntry', {
             ...queryOptions,
             channelId: this.channelId
         })) {
-            yield {...entry, data: convertFromOne(entry.data)};
+            yield entry;
         }
     }
 
