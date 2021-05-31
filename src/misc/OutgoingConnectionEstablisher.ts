@@ -58,7 +58,7 @@ class OutgoingConnectionEstablisher {
         targetPublicKey: Uint8Array,
         encrypt: (text: Uint8Array) => Uint8Array,
         decrypt: (cypher: Uint8Array) => Uint8Array,
-        retryTimeout = 5000
+        retryTimeout = 30000
     ): void {
         MessageBus.send('log', `start(${url})`);
         const makeAsync = async () => {
