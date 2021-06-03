@@ -389,17 +389,20 @@ export default class ContactModel extends EventEmitter {
 
         const descriptions = await this.getContactDescriptions(profile);
         for (const description of descriptions) {
-            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                profileInfos.push({type: 'PersonName', value: description.name});
-            }
-
-            if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
-                const image = await readBlobAsArrayBuffer(description.image);
-                profileInfos.push({type: 'ProfileImage', value: image});
-            }
-
-            if (description.$type$ === DescriptionTypes.PERSON_STATUS) {
-                profileInfos.push({type: 'PersonStatus', value: description.status});
+            switch (description.$type$) {
+                case DescriptionTypes.PERSON_NAME: {
+                    profileInfos.push({type: 'PersonName', value: description.name});
+                    break;
+                }
+                case DescriptionTypes.PROFILE_IMAGE: {
+                    const image = await readBlobAsArrayBuffer(description.image);
+                    profileInfos.push({type: 'ProfileImage', value: image});
+                    break;
+                }
+                case DescriptionTypes.PERSON_STATUS: {
+                    profileInfos.push({type: 'PersonStatus', value: description.status});
+                    break;
+                }
             }
         }
 
@@ -987,7 +990,6 @@ export default class ContactModel extends EventEmitter {
     private async updateProfileCRDT(
         profile: ProfileCRDT,
         baseProfileHash: SHA256Hash<ProfileCRDT>
-        // contactObject: UnversionedObjectResult<Contact>
     ): Promise<void> {
         /** update the profile **/
         await serializeWithType('Contacts', async () => {
