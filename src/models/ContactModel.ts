@@ -85,7 +85,7 @@ export type ContactDescription = {
  * This represents the current contact communicationEndpoint fields that can be provided by the user.
  */
 export type CommunicationEndpoint = {
-    email?: string;
+    emails?: string[];
 };
 
 /**
@@ -239,7 +239,7 @@ export default class ContactModel extends EventEmitter {
         );
 
         await this.updateCommunicationEndpoint(createdProfile.obj.personId, 'default', {
-            email: personEmail
+            emails: [personEmail]
         });
 
         return createdProfile.obj.personId;
@@ -477,14 +477,19 @@ export default class ContactModel extends EventEmitter {
     ): Promise<void> {
         let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
 
-        if (communicationEndpoint.email) {
-            // creates the email object
-            newCommunicationEndpoints.push(
-                await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {$type$: CommunicationEndpointsTypes.EMAIL, email: communicationEndpoint.email}
-                )
-            );
+        if (communicationEndpoint.emails) {
+            for (const email of communicationEndpoint.emails) {
+                // creates the email object
+                newCommunicationEndpoints.push(
+                    await createSingleObjectThroughPurePlan(
+                        {module: '@one/identity'},
+                        {
+                            $type$: CommunicationEndpointsTypes.EMAIL,
+                            email: email
+                        }
+                    )
+                );
+            }
         }
 
         await this.updateContactContent(personId, false, newCommunicationEndpoints, profileName);
