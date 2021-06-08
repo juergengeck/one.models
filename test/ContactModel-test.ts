@@ -11,6 +11,7 @@ import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import RecipesStable from './../lib/recipes/recipes-stable';
 import RecipesExperimental from './../lib/recipes/recipes-experimental';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {ProfileInfo, ProfileData} from '../lib/src/models/ContactModel';
 
 let contactModel: typeof ContactModel;
 let testModel: TestModel;
@@ -119,6 +120,206 @@ describe('Contact model test', () => {
                 profileIdHash === versionedProfileObject.idHash
         );
         expect(foundSomeone).to.not.be.equal(undefined);
+    });
+
+    it('should update multiple profile properties with single calls', async () => {
+        const personIdHash = await contactModel.createNewIdentity(false, 'johnDoe@refinio.net');
+
+        const profileInfos = await contactModel.getProfileInfos(personIdHash);
+
+        const personNameFound = profileInfos.some((pi: ProfileInfo) => pi.type === 'PersonName');
+        const emailFound = profileInfos.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'johnDoe@refinio.net'
+        );
+        const statusFound = profileInfos.some((pi: ProfileInfo) => pi.type === 'PersonStatus');
+
+        expect(personNameFound).to.be.equal(false);
+        expect(emailFound).to.be.equal(true);
+        expect(statusFound).to.be.equal(false);
+
+        const updateProfileData: ProfileData = {
+            communicationEndpoint: {},
+            description: {personStatus: 'such a cool day', personName: 'Bob Marley'}
+        };
+
+        // remove email, add person status and name
+        await contactModel.updateProfile(updateProfileData, personIdHash);
+        const profileInfos2 = await contactModel.getProfileInfos(personIdHash);
+
+        const personNameFound2 = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'Bob Marley'
+        );
+        const emailFound2 = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'johnDoe@refinio.net'
+        );
+        const statusFound2 = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'PersonStatus' && pi.value === 'such a cool day'
+        );
+
+        expect(personNameFound2).to.be.equal(true);
+        expect(emailFound2).to.be.equal(false);
+        expect(statusFound2).to.be.equal(true);
+
+        // add email address, update name and status
+        updateProfileData.communicationEndpoint.email = 'newMail@mail.com';
+        updateProfileData.description.personName = 'New Name';
+        updateProfileData.description.personStatus = 'raining';
+        await contactModel.updateProfile(updateProfileData, personIdHash);
+        const profileInfos3 = await contactModel.getProfileInfos(personIdHash);
+        const personNameFound3 = profileInfos3.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'New Name'
+        );
+        const emailFound3 = profileInfos3.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'newMail@mail.com'
+        );
+        const statusFound3 = profileInfos3.some(
+            (pi: ProfileInfo) => pi.type === 'PersonStatus' && pi.value === 'raining'
+        );
+
+        expect(personNameFound3).to.be.equal(true);
+        expect(emailFound3).to.be.equal(true);
+        expect(statusFound3).to.be.equal(true);
+    });
+
+    it('should create another profile for myself', async () => {
+        let contactApp = await ContactModel.getContactAppObject();
+        let mySomeone: Someone = await getObject(contactApp.obj.me);
+
+        const noOfProfiles = mySomeone.profiles.length;
+
+        const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
+        const myPersonIdHash = myProfile.obj.personId;
+        await contactModel.createNewProfileForSomeone(true, myPersonIdHash);
+
+        contactApp = await ContactModel.getContactAppObject();
+        mySomeone = await getObject(contactApp.obj.me);
+        const noOfProfilesAfterNewProfileCreation = mySomeone.profiles.length;
+
+        expect(noOfProfilesAfterNewProfileCreation).to.be.equal(noOfProfiles + 1);
+    });
+
+    it('should create 2 anon profiles for a someone', async () => {
+        const personIdHash1 = await contactModel.createNewIdentity(false, 'flaps@refinio.net');
+
+        const versionedProfileObject = await getObjectByIdObj({
+            $type$: 'ProfileCRDT',
+            personId: personIdHash1,
+            profileName: 'default'
+        });
+        expect(versionedProfileObject).to.not.be.equal(undefined);
+
+        const someoneObject = await contactModel.getSomeoneObject(personIdHash1);
+        expect(someoneObject).to.not.be.equal(undefined);
+
+        if (!someoneObject) {
+            throw new Error('Error: someoneObject is undefined');
+        }
+
+        const someoneObjectHash = await calculateHashOfObj(someoneObject);
+        const contactApp = await ContactModel.getContactAppObject();
+        const foundSomeone = contactApp.obj.contacts.find(
+            (someoneHash: SHA256Hash<Someone>) => someoneHash === someoneObjectHash
+        );
+        expect(foundSomeone).to.not.be.equal(undefined);
+        await contactModel.updateDescription(personIdHash1, 'default', {personName: 'Jonathan'});
+        const profileInfos = await contactModel.getProfileInfos(personIdHash1);
+        const personNameFound = profileInfos.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'Jonathan'
+        );
+        const emailFound = profileInfos.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'flaps@refinio.net'
+        );
+
+        expect(personNameFound).to.be.equal(true);
+        expect(emailFound).to.be.equal(true);
+
+        // now create a second profile for the same someone object
+        const personIdHash2 = await contactModel.createNewProfileForSomeone(false, personIdHash1);
+
+        await contactModel.updateDescription(personIdHash2, 'default', {
+            personName: 'SecondProfileName'
+        });
+        await contactModel.updateCommunicationEndpoint(personIdHash2, 'default', {
+            email: 'secondProfile@test.one'
+        });
+        const profileInfos3 = await contactModel.getProfileInfos(personIdHash2);
+
+        const personNameFound2 = profileInfos3.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'SecondProfileName'
+        );
+        const emailFound2 = profileInfos3.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'secondProfile@test.one'
+        );
+
+        expect(personNameFound2).to.be.equal(true);
+        expect(emailFound2).to.be.equal(true);
+    });
+
+    it('should create second anon profile with data', async () => {
+        // create initial profile
+        const personIdHash1 = await contactModel.createNewIdentity(false, 'user@refinio.net');
+
+        const versionedProfileObject = await getObjectByIdObj({
+            $type$: 'ProfileCRDT',
+            personId: personIdHash1,
+            profileName: 'default'
+        });
+        expect(versionedProfileObject).to.not.be.equal(undefined);
+
+        const someoneObject = await contactModel.getSomeoneObject(personIdHash1);
+        expect(someoneObject).to.not.be.equal(undefined);
+
+        if (!someoneObject) {
+            throw new Error('Error: someoneObject is undefined');
+        }
+
+        const someoneObjectHash = await calculateHashOfObj(someoneObject);
+        const contactApp = await ContactModel.getContactAppObject();
+        const foundSomeone = contactApp.obj.contacts.find(
+            (someoneHash: SHA256Hash<Someone>) => someoneHash === someoneObjectHash
+        );
+        expect(foundSomeone).to.not.be.equal(undefined);
+
+        // update initial profile
+        await contactModel.updateDescription(personIdHash1, 'default', {personName: 'Jonathan'});
+        const profileInfos = await contactModel.getProfileInfos(personIdHash1);
+        const personNameFound = profileInfos.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'Jonathan'
+        );
+        const emailFound = profileInfos.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'user@refinio.net'
+        );
+        expect(personNameFound).to.be.equal(true);
+        expect(emailFound).to.be.equal(true);
+
+        // create profileData object for second anon profile
+        const newProfileData: ProfileData = {
+            communicationEndpoint: {email: 'veryAnon@mail.com'},
+            description: {personStatus: 'such a cool day', personName: 'John Snow'}
+        };
+
+        // now create a second profile for the same someone object with profile data
+        const personIdHash2 = await contactModel.createNewProfileForSomeone(
+            false,
+            personIdHash1,
+            newProfileData
+        );
+
+        // check the created profile has the correct profile info
+        const profileInfos2 = await contactModel.getProfileInfos(personIdHash2);
+        const personNameFound2 = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'PersonName' && pi.value === 'John Snow'
+        );
+        const emailFound2 = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'Email' && pi.value === 'veryAnon@mail.com'
+        );
+        const statusFound = profileInfos2.some(
+            (pi: ProfileInfo) => pi.type === 'PersonStatus' && pi.value === 'such a cool day'
+        );
+
+        expect(personNameFound2).to.be.equal(true);
+        expect(emailFound2).to.be.equal(true);
+        expect(statusFound).to.be.equal(true);
     });
 
     it('should create anon profile for my person', async () => {
