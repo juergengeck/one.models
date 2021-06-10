@@ -39,6 +39,9 @@ import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
+import PersistentFilerModel from './filer/PersistentFilerModel';
+import {DocumentInfo} from './DocumentModel';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -238,15 +241,18 @@ export default class ChannelManager extends EventEmitter {
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
+    private persistentFilerModel: PersistentFilerModel | undefined;
 
     /**
      * Create the channel manager instance.
      *
      * @param {AccessModel} accessModel
+     * @param {PersistentFilerModel} persistentFilerModel
      */
-    constructor(accessModel: AccessModel) {
+    constructor(accessModel: AccessModel, persistentFilerModel?: PersistentFilerModel) {
         super();
         this.accessModel = accessModel;
+        this.persistentFilerModel = persistentFilerModel;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
@@ -425,6 +431,35 @@ export default class ChannelManager extends EventEmitter {
             // Wait until the merge has completed before we resolve the promise
             if (waitForMergePromise) {
                 await waitForMergePromise;
+            }
+
+            // Persist the saved object into the Persisted File System
+            if (this.persistentFilerModel && data.$type$ === 'DocumentInfo_1_1_0') {
+                // Safe cast since we check the data.$type$
+                const documentInfo = data as DocumentInfo;
+                // Accepts only pictures for now
+                if (
+                    documentInfo.mimeType === AcceptedMimeType.PDF ||
+                    documentInfo.mimeType === AcceptedMimeType.PNG
+                ) {
+                    const exists = await this.persistentFilerModel.fileSystem.exists(`/pictures`);
+                    if (!exists) {
+                        await this.persistentFilerModel.fileSystem.createDir('/pictures');
+                    }
+                    try {
+                        await this.persistentFilerModel.fileSystem.createFile(
+                            '/pictures',
+                            documentInfo.document,
+                            documentInfo.documentName
+                        );
+                    } catch (e) {
+                        logWithId(
+                            channelId,
+                            owner,
+                            'postToChannel persisting in FS - FAIL: ' + e.toString()
+                        );
+                    }
+                }
             }
         } catch (e) {
             logWithId(channelId, owner, 'postToChannel - FAIL: ' + e.toString());
