@@ -85,7 +85,7 @@ export type ContactDescription = {
  * This represents the current contact communicationEndpoint fields that can be provided by the user.
  */
 export type CommunicationEndpoint = {
-    email?: string;
+    emails?: string[];
 };
 
 /**
@@ -248,7 +248,7 @@ export default class ContactModel extends EventEmitter {
         );
 
         await this.updateCommunicationEndpoint(createdProfile.obj.personId, 'default', {
-            email: personEmail
+            emails: [personEmail]
         });
 
         return createdProfile.obj.personId;
@@ -534,17 +534,20 @@ export default class ContactModel extends EventEmitter {
 
         const descriptions = await this.getContactDescriptions(profile);
         for (const description of descriptions) {
-            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                profileInfos.push({type: 'PersonName', value: description.name});
-            }
-
-            if (description.$type$ === DescriptionTypes.PROFILE_IMAGE) {
-                const image = await readBlobAsArrayBuffer(description.image);
-                profileInfos.push({type: 'ProfileImage', value: image});
-            }
-
-            if (description.$type$ === DescriptionTypes.PERSON_STATUS) {
-                profileInfos.push({type: 'PersonStatus', value: description.status});
+            switch (description.$type$) {
+                case DescriptionTypes.PERSON_NAME: {
+                    profileInfos.push({type: 'PersonName', value: description.name});
+                    break;
+                }
+                case DescriptionTypes.PROFILE_IMAGE: {
+                    const image = await readBlobAsArrayBuffer(description.image);
+                    profileInfos.push({type: 'ProfileImage', value: image});
+                    break;
+                }
+                case DescriptionTypes.PERSON_STATUS: {
+                    profileInfos.push({type: 'PersonStatus', value: description.status});
+                    break;
+                }
             }
         }
 
@@ -622,14 +625,19 @@ export default class ContactModel extends EventEmitter {
     ): Promise<void> {
         let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
 
-        if (communicationEndpoint.email) {
-            // creates the email object
-            newCommunicationEndpoints.push(
-                await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {$type$: CommunicationEndpointsTypes.EMAIL, email: communicationEndpoint.email}
-                )
-            );
+        if (communicationEndpoint.emails) {
+            for (const email of communicationEndpoint.emails) {
+                // creates the email object
+                newCommunicationEndpoints.push(
+                    await createSingleObjectThroughPurePlan(
+                        {module: '@one/identity'},
+                        {
+                            $type$: CommunicationEndpointsTypes.EMAIL,
+                            email: email
+                        }
+                    )
+                );
+            }
         }
 
         await this.updateContactContent(personId, false, newCommunicationEndpoints, profileName);
@@ -1179,7 +1187,6 @@ export default class ContactModel extends EventEmitter {
     private async updateProfileCRDT(
         profile: ProfileCRDT,
         baseProfileHash: SHA256Hash<ProfileCRDT>
-        // contactObject: UnversionedObjectResult<Contact>
     ): Promise<void> {
         /** update the profile **/
         await serializeWithType('Contacts', async () => {
