@@ -5,6 +5,7 @@ import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import ECGRecipes from './ECGRecipes';
 import PersistentFileSystemRecipes from './PersistentFileSystemRecipes';
+import AudioExerciseRecipes from './AudioExerciseRecipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -12,7 +13,9 @@ const RecipesExperimental: Recipe[] = [
     ...MatchingRecipes,
     ...WbcRecipes,
     ...ECGRecipes,
-    ...PersistentFileSystemRecipes
+    ...PersistentFileSystemRecipes,
+    ...ECGRecipes,
+    ...AudioExerciseRecipes
 ];
 
 export default RecipesExperimental;

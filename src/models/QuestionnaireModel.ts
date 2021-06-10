@@ -1,9 +1,10 @@
 import EventEmitter from 'events';
 import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
+    OneUnversionedObjectTypes,
     Person,
     Questionnaire_1_1_0,
-    QuestionnaireResponses as QuestionnaireResponses_1_0_0,
+    QuestionnaireResponses as OneQuestionnaireResponses,
     SHA256IdHash
 } from '@OneCoreTypes';
 import {OEvent} from '../misc/OEvent';
@@ -21,9 +22,9 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
 // Export the QuestionnaireResponses types
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface QuestionnaireResponses extends Omit<QuestionnaireResponses_1_0_0, '$type$'> {}
-export type QuestionnaireResponse = QuestionnaireResponses_1_0_0.QuestionnaireResponse;
-export type QuestionnaireResponseItem = QuestionnaireResponses_1_0_0.QuestionnaireResponseItem;
+export interface QuestionnaireResponses extends Omit<OneQuestionnaireResponses, '$type$'> {}
+export type QuestionnaireResponse = OneQuestionnaireResponses.QuestionnaireResponse;
+export type QuestionnaireResponseItem = OneQuestionnaireResponses.QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -40,7 +41,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private channelManager: ChannelManager;
     private readonly channelId: string;
@@ -243,12 +244,22 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Get a list of responses.
      */
-    public async responses(
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<QuestionnaireResponses>[]> {
+    public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId,
-            ...queryOptions
+            channelId: this.channelId
+        });
+    }
+
+    /**
+     * returns iterator for QuestionnaireResponses
+     * @param queryOptions
+     */
+    async *responsesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneQuestionnaireResponses>> {
+        yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+            ...queryOptions,
+            channelId: this.channelId
         });
     }
 
@@ -381,15 +392,20 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     }
 
     /**
-     * Handler function for the 'updated' event
-     *
-     * @param id
-     * @return
+     *  Handler function for the 'updated' event
+     * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
+     * @return {Promise<void>}
      */
-    private handleOnUpdated(id: string): void {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {
                 this.emit('updatedIncomplete');
                 this.onIncompleteResponse.emit();

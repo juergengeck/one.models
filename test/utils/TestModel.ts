@@ -86,11 +86,7 @@ export default class TestModel {
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager(this.accessModel);
         this.consentFile = new ConsentFileModel(this.channelManager);
-        this.contactModel = new ContactModel(
-            this.instancesModel,
-            commServerUrl,
-            this.channelManager
-        );
+        this.contactModel = new ContactModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }

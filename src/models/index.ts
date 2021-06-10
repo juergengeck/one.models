@@ -1,7 +1,6 @@
 import JournalModel from './JournalModel';
 import QuestionnaireModel from './QuestionnaireModel';
 import WbcDiffModel from './WbcDiffModel';
-import HeartEventModel from './HeartEventModel';
 import DocumentModel from './DocumentModel';
 import ConnectionsModel from './ConnectionsModel';
 import BodyTemperatureModel from './BodyTemperatureModel';
@@ -25,12 +24,12 @@ import ConnectionsFilerModel from './filer/ConnectionsFilerModel';
 import ObjectsFilerModel from './filer/ObjectsFilerModel';
 import PersistentFilerModel from './filer/PersistentFilerModel';
 import TemporaryFilerModel from './filer/TemporaryFilerModel';
+import HeartEventModel from './HeartEventModel';
 /** for one line imports **/
 export {
     JournalModel,
     QuestionnaireModel,
     WbcDiffModel,
-    HeartEventModel,
     DocumentModel,
     ConnectionsModel,
     BodyTemperatureModel,
@@ -52,6 +51,7 @@ export {
     ServerUserModel,
     InstancesModel,
     ECGModel,
+    HeartEventModel,
     ConnectionsFilerModel,
     ObjectsFilerModel,
     PersistentFilerModel,

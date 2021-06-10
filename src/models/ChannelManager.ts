@@ -32,7 +32,7 @@ import {
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {createTrackingPromise, serializeWithType} from 'one.core/lib/util/promise';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
 import AccessModel from './AccessModel';
@@ -126,6 +126,7 @@ export type DataSelectionOptions = {
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
     type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
     types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
+    omitData?: boolean; // omit the data field if set to true
 };
 
 /**
@@ -139,6 +140,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 export type ObjectData<T> = {
     channelId: string; // The channel id
     channelOwner: SHA256IdHash<Person>; // The owner of the channel
+    channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
 
     id: string; // This id identifies the data point. It can be used to reference this data point in other methods of this class.
     creationTime: Date; // Time when this data point was created
@@ -206,15 +208,23 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager extends EventEmitter {
-    /**
+    /*
+     * Note @sebastian 15.04.2021 - channelId & channelOwner is already present in the ObjectData, so it's redundant data.
+     * We could let only the data field and extract channelId and channelOwner from there
+     *
      * This event is emitted for each channel that has new data. The emitted event value has the (channelId,
      * channelOwner) pair.
      */
     public onUpdated = new OEvent<
-        (channelId: string, channelOwner: SHA256IdHash<Person>) => void
+        (
+            channelId: string,
+            channelOwner: SHA256IdHash<Person>,
+            data?: ObjectData<OneUnversionedObjectTypes>
+        ) => void
     >();
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
+    private promiseTrackers: Set<Promise<void>>;
 
     // Serialize locks
     private readonly postLockName = 'ChannelManager_postLock';
@@ -240,6 +250,7 @@ export default class ChannelManager extends EventEmitter {
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
+        this.promiseTrackers = new Set<Promise<void>>();
     }
 
     /**
@@ -279,6 +290,9 @@ export default class ChannelManager extends EventEmitter {
      */
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+
+        // Resolve the pending promises
+        await Promise.all(this.promiseTrackers.values());
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
@@ -701,6 +715,9 @@ export default class ChannelManager extends EventEmitter {
         let to: Date | undefined;
         let ids: string[] | undefined;
         let types: string[] | undefined;
+
+        let omitData: boolean = false;
+
         if (queryOptions) {
             from = queryOptions.from;
             to = queryOptions.to;
@@ -715,6 +732,9 @@ export default class ChannelManager extends EventEmitter {
             }
             if (queryOptions.types) {
                 types = queryOptions.types;
+            }
+            if (queryOptions.omitData) {
+                omitData = queryOptions.omitData;
             }
         }
 
@@ -746,8 +766,12 @@ export default class ChannelManager extends EventEmitter {
             }
 
             // Load the object to compare the type
-            const data = await getObject(entry.dataHash);
-            if (types && !types.includes(data.$type$)) {
+            // AUTHORIZED HACK - casting undefined to any type because
+            // making the data field optional would cause problems
+            // in other apps.
+            const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
+
+            if (data && types && !types.includes(data.$type$)) {
                 continue;
             }
 
@@ -755,7 +779,7 @@ export default class ChannelManager extends EventEmitter {
             yield {
                 channelId: entry.channelInfo.id,
                 channelOwner: entry.channelInfo.owner,
-
+                channelEntryHash: entry.channelEntryHash,
                 id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
 
                 creationTime: new Date(entry.creationTime),
@@ -1101,7 +1125,11 @@ export default class ChannelManager extends EventEmitter {
                 // If we have one active iterator remaining and the user requested it, we terminate
                 // This is done after the yield, because we want the first element of the remaining
                 // iterator to be returned.
-                if (terminateOnSingleIterator && yieldCommonHistoryElement && activeIterators === 1) {
+                if (
+                    terminateOnSingleIterator &&
+                    yieldCommonHistoryElement &&
+                    activeIterators === 1
+                ) {
                     break;
                 }
             }
@@ -1350,7 +1378,11 @@ export default class ChannelManager extends EventEmitter {
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
                 this.emit('updated', channelId, channelOwner);
-                this.onUpdated.emit(channelId, channelOwner);
+                this.onUpdated.emit(
+                    channelId,
+                    channelOwner,
+                    await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash)
+                );
             });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());
@@ -1606,9 +1638,14 @@ export default class ChannelManager extends EventEmitter {
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
         try {
             if (isChannelInfoResult(caughtObject)) {
+                const promiseTracker = createTrackingPromise<void>();
+
                 // Determine the channel id and owner
                 let channelId: string;
                 let channelOwner: SHA256IdHash<Person>;
+
+                this.promiseTrackers.add(promiseTracker.promise);
+
                 {
                     const channelInfo = await getObjectByIdHash(caughtObject.idHash);
                     channelId = channelInfo.obj.id;
@@ -1621,13 +1658,21 @@ export default class ChannelManager extends EventEmitter {
                     await this.addChannelIfNotExist(caughtObject.idHash);
                     await this.mergePendingVersions(caughtObject.idHash);
                     logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
+
+                    promiseTracker.resolve();
                 } catch (e) {
+                    promiseTracker.reject();
+
                     logWithId(
                         channelId,
                         channelOwner,
                         'handleOnVersionedObj - FAIL: ' + e.toString()
                     );
                     console.error(e); // Introduce an error event later!
+                } finally {
+                    promiseTracker.promise.finally(() =>
+                        this.promiseTrackers.delete(promiseTracker.promise)
+                    );
                 }
             }
         } catch (e) {
@@ -1712,6 +1757,40 @@ export default class ChannelManager extends EventEmitter {
                 }
             );
         });
+    }
+
+    /**
+     * This function wraps the given channel info into {@link ObjectData}
+     * Returns undefined if the channel head is empty
+     *
+     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @private
+     */
+    private static async wrapChannelInfoWithObjectData(
+        channelIdHash: SHA256IdHash<ChannelInfo>
+    ): Promise<ObjectData<OneUnversionedObjectTypes> | undefined> {
+        const channel = await getObjectByIdHash(channelIdHash);
+        if (channel.obj.head) {
+            const channelEntry = await getObject(channel.obj.head);
+            const channelCreationTime = await getObject(channelEntry.data);
+            const channelData = await getObject(channelCreationTime.data);
+
+            const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
+
+            return {
+                channelId: channel.obj.id,
+                channelOwner: channel.obj.owner,
+                channelEntryHash: channel.obj.head,
+                id: ChannelManager.encodeEntryId(channelIdHash, channel.obj.head),
+                creationTime: new Date(channelCreationTime.timestamp),
+                author: channel.obj.owner,
+                sharedWith: sharedWithPersons,
+
+                data: channelData,
+                dataHash: channelCreationTime.data
+            };
+        }
+        return undefined;
     }
 
     /**

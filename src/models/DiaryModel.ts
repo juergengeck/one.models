@@ -1,6 +1,11 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {DiaryEntry as OneDiaryEntry} from '@OneCoreTypes';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {
+    DiaryEntry as OneDiaryEntry,
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -43,7 +48,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     /**
      * Event emitted when diary data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -104,6 +109,21 @@ export default class DiaryModel extends EventEmitter implements Model {
         return objects;
     }
 
+    /**
+     * returns iterator for Diary Entries
+     * @param queryOptions
+     */
+    async *entriesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneDiaryEntry>> {
+        for await (const entry of this.channelManager.objectIteratorWithType('DiaryEntry', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            yield entry;
+        }
+    }
+
     async getEntryById(id: string): Promise<ObjectData<DiaryEntry>> {
         const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
             id,
@@ -115,12 +135,18 @@ export default class DiaryModel extends EventEmitter implements Model {
     /**
      *  Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }
