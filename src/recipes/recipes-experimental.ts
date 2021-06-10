@@ -14,7 +14,6 @@ const RecipesExperimental: Recipe[] = [
     ...WbcRecipes,
     ...ECGRecipes,
     ...PersistentFileSystemRecipes,
-    ...ECGRecipes,
     ...AudioExerciseRecipes
 ];
 
