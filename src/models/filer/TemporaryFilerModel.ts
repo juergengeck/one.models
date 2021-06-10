@@ -25,8 +25,8 @@ export default class TemporaryFilerModel extends EventEmitter {
      * create the channel & the root directory if it does not exists
      * @returns {Promise<void>}
      */
-    public async init(rootDirPath: string) {
-        this.fs = new TemporaryFileSystem(rootDirPath);
+    public async init() {
+        this.fs = new TemporaryFileSystem();
     }
 
 
