@@ -29,6 +29,7 @@ import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
+import {PLATFORMS} from "one.core/lib/platforms";
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -699,7 +700,9 @@ export default class PersistentFileSystem implements IFileSystem {
         const resolvedDirectoryEntry = await getObject(foundFile.content);
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
             const objectSize =
-                platform === 'node'
+                // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
+                // @ts-ignore
+                platform === PLATFORMS.NODE_JS
                     ? await this.getObjectSize(resolvedDirectoryEntry.content)
                     : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
             return {mode: foundFile.mode, size: objectSize};
@@ -1067,7 +1070,9 @@ export default class PersistentFileSystem implements IFileSystem {
      * @returns {Promise<number>}
      */
     private async getObjectSize(hash: SHA256Hash<HashTypes>): Promise<number> {
-        if (platform === 'node') {
+        // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
+        // @ts-ignore
+        if (platform === PLATFORMS.NODE_JS) {
             const {default: fs} = await import('fs');
             const path = `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`;
             const stat = fs.statSync(path);
