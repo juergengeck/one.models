@@ -247,16 +247,18 @@ export default class ChannelManager extends EventEmitter {
      * Create the channel manager instance.
      *
      * @param {AccessModel} accessModel
-     * @param {PersistentFilerModel} persistentFilerModel
      */
-    constructor(accessModel: AccessModel, persistentFilerModel?: PersistentFilerModel) {
+    constructor(accessModel: AccessModel) {
         super();
         this.accessModel = accessModel;
-        this.persistentFilerModel = persistentFilerModel;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
         this.promiseTrackers = new Set<Promise<void>>();
+    }
+
+    public set fileSystemPersisting(persistentFilerModel: PersistentFilerModel){
+        this.persistentFilerModel = persistentFilerModel;
     }
 
     /**
