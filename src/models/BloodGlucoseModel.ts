@@ -103,7 +103,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
     }
 
     /**
-     * Returns the start timestamp of the last ECG available in the channel or 0 otherwise.
+     * Returns the start timestamp of the last Blood Glucose available in the channel or 0 otherwise.
      * @private
      */
     async getLastBloodGlucoseTimestamp(): Promise<number> {
