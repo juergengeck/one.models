@@ -441,7 +441,7 @@ export default class ChannelManager extends EventEmitter {
                 const documentInfo = data as DocumentInfo;
                 // Accepts only pictures for now
                 if (
-                    documentInfo.mimeType === AcceptedMimeType.PDF ||
+                    documentInfo.mimeType === AcceptedMimeType.JPEG ||
                     documentInfo.mimeType === AcceptedMimeType.PNG
                 ) {
                     const exists = await this.persistentFilerModel.fileSystem.exists(`/pictures`);

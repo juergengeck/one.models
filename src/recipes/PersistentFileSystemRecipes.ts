@@ -1,4 +1,5 @@
 import {Recipe, RecipeRule} from '@OneCoreTypes';
+import {ORDERED_BY} from "one.core/lib/recipes";
 
 declare module '@OneCoreTypes' {
     export interface OneUnversionedObjectInterfaces {
@@ -43,13 +44,19 @@ declare module '@OneCoreTypes' {
         content: SHA256Hash<BLOB>;
     }
 
+    export interface PersistentFileSystemChild {
+        mode: number;
+        path: string;
+        content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>
+    }
+
     /**
      * @global
      * Persisted file system directory structure
      */
     export interface PersistentFileSystemDirectory {
         $type$: 'PersistentFileSystemDirectory';
-        children: Map<string, PersistentFileSystemDirectoryEntry>;
+        children: PersistentFileSystemChild[];
     }
 
     /**
@@ -84,6 +91,22 @@ export const PersistentFileSystemRootEntryRule: RecipeRule[] = [
         referenceToObj: new Set(['PersistentFileSystemDirectory'])
     }
 ];
+
+export const PersistentFileSystemChildrenListRule: RecipeRule[] = [
+    {
+        itemprop: 'path',
+        valueType: 'string'
+    },
+    {
+        itemprop: 'mode',
+        valueType: 'number'
+    },
+    {
+        itemprop: 'content',
+        referenceToObj: new Set(['PersistentFileSystemDirectory', 'PersistentFileSystemFile'])
+    }
+]
+
 /**
  * used to represent BLOBs
  * @type {{name: string, rule: {referenceToBlob: boolean, itemprop: string}[], $type$: string}}
@@ -109,7 +132,8 @@ export const PersistentFileSystemDirectoryRecipe: Recipe = {
     rule: [
         {
             itemprop: 'children',
-            valueType: 'Map'
+            list: ORDERED_BY.ONE,
+            rule: PersistentFileSystemChildrenListRule
         }
     ]
 };

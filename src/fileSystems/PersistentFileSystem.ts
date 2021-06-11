@@ -12,7 +12,9 @@ import {
     PersistentFileSystemDirectoryEntry,
     OneObjectTypes,
     SHA256Hash,
-    PersistentFileSystemRoot, HashTypes
+    PersistentFileSystemRoot,
+    HashTypes,
+    PersistentFileSystemChild
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -29,7 +31,7 @@ import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import {PLATFORMS} from "one.core/lib/platforms";
+import {PLATFORMS} from 'one.core/lib/platforms';
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -126,11 +128,10 @@ export default class PersistentFileSystem implements IFileSystem {
                 }
             );
             /** set the new file **/
-            targetDirectory.children.set(
-                `/${fileName}`,
-                PersistentFileSystem.buildFileSystemDirectoryEntry(savedFile.hash, fileMode)
-            );
-
+            targetDirectory.children.push({
+                ...PersistentFileSystem.buildFileSystemDirectoryEntry(savedFile.hash, fileMode),
+                path: `/${fileName}`
+            });
             /** update the directory **/
             await createSingleObjectThroughPurePlan(
                 {
@@ -152,10 +153,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     updatedTargetDirectoryHash,
                     FileSystemHelpers.getParentDirectoryFullPath(directoryPath),
                     directoryMode,
-                    FileSystemHelpers.pathJoin(
-                        '/',
-                        FileSystemHelpers.getLastItem(directoryPath)
-                    )
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(directoryPath))
                 );
             }
         });
@@ -353,8 +351,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         /* If the parent is a {@link PersistentFileSystemDirectory} */
         if (PersistentFileSystem.isDir(parentContent)) {
-            const desiredTarget = parentContent.children.get(
-                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
+            const desiredTarget = parentContent.children.find(
+                (child: PersistentFileSystemChild) =>
+                    child.path ===
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
 
             if (desiredTarget === undefined) {
@@ -438,14 +438,17 @@ export default class PersistentFileSystem implements IFileSystem {
             /** If the paths are different folders, operate on both of them **/
             if (srcParentPath !== destParentPath) {
                 /** delete the file from the src **/
-                srcParentContent.children.delete(
-                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
+                const foundIndex = srcParentContent.children.findIndex(
+                    (child: PersistentFileSystemChild) =>
+                        child.path ===
+                        FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
                 );
+                srcParentContent.children.splice(foundIndex, 1);
                 /** added it to the dest path **/
-                destParentContent.children.set(
-                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
-                    foundDirectoryEntry
-                );
+                destParentContent.children.push({
+                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
+                    ...foundDirectoryEntry
+                });
 
                 /** save updated directories **/
                 const srcNewDirectory = await createSingleObjectThroughPurePlan(
@@ -504,13 +507,17 @@ export default class PersistentFileSystem implements IFileSystem {
             } else {
                 /** If src and path are EQUAL, operate only on one directory because they are the same **/
                 /** Delete the given node from his content **/
-                srcParentContent.children.delete(
-                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
+                const foundIndex = srcParentContent.children.findIndex(
+                    (child: PersistentFileSystemChild) =>
+                        child.path ===
+                        FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(src))
                 );
-                srcParentContent.children.set(
-                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
-                    foundDirectoryEntry
-                );
+                srcParentContent.children.splice(foundIndex, 1);
+                srcParentContent.children.push({
+                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
+                    ...foundDirectoryEntry
+                });
+
                 const newDirectory = await createSingleObjectThroughPurePlan(
                     {
                         module: '@one/identity',
@@ -589,9 +596,13 @@ export default class PersistentFileSystem implements IFileSystem {
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(
-                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
+            const foundIndex = parentContent.children.findIndex(
+                (child: PersistentFileSystemChild) =>
+                    child.path ===
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
+            parentContent.children.splice(foundIndex, 1);
+
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -658,9 +669,13 @@ export default class PersistentFileSystem implements IFileSystem {
         /** If the parent is a {@link PersistentFileSystemDirectory} **/
         if (PersistentFileSystem.isDir(parentContent)) {
             /** Delete the given node from his content **/
-            parentContent.children.delete(
-                FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
+            const foundIndex = parentContent.children.findIndex(
+                (child: PersistentFileSystemChild) =>
+                    child.path ===
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(pathName))
             );
+            parentContent.children.splice(foundIndex, 1);
+
             const newDirectory = await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
@@ -717,7 +732,7 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     public async exists(path: string): Promise<boolean> {
         const foundFile = await this.search(path);
-        return !foundFile;
+        return foundFile !== undefined;
     }
 
     /**
@@ -828,7 +843,9 @@ export default class PersistentFileSystem implements IFileSystem {
         dir: PersistentFileSystemDirectory
     ): Promise<FileSystemDirectory> {
         return {
-            children: Array.from(dir.children.keys()).map((name: string) => name.replace('/', ''))
+            children: dir.children.map((child: PersistentFileSystemChild) =>
+                child.path.replace('/', '')
+            )
         };
     }
 
@@ -893,9 +910,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 path: parentDirectoryPath
             });
         }
-        const child = parentDirectory.children.get(
-            FileSystemHelpers.pathJoin('/', directoryName)
+        const child = parentDirectory.children.find(
+            (child: PersistentFileSystemChild) =>
+                child.path === FileSystemHelpers.pathJoin('/', directoryName)
         );
+
         if (!child) {
             throw createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,
@@ -925,13 +944,13 @@ export default class PersistentFileSystem implements IFileSystem {
         /** check if the parent directory exists**/
         if (currentDirectoryParent) {
             /** locate the outdated current directory hash in the parent's children **/
-            currentDirectoryParent.children.set(
-                directorySimplePath,
-                PersistentFileSystem.buildFileSystemDirectoryEntry(
+            currentDirectoryParent.children.push({
+                path: directorySimplePath,
+                ...PersistentFileSystem.buildFileSystemDirectoryEntry(
                     updatedCurrentDirectoryHash,
                     dirMode
                 )
-            );
+            });
             /** save the parent **/
             await createSingleObjectThroughPurePlan(
                 {
@@ -942,9 +961,7 @@ export default class PersistentFileSystem implements IFileSystem {
             );
             /** get the updated parent hash **/
             const updatedCurrentDirectoryParent = await calculateHashOfObj(currentDirectoryParent);
-            const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(
-                updateToPath
-            );
+            const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(updateToPath);
 
             /** if its not root **/
             if (updateToPath !== '/') {
@@ -956,10 +973,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     updatedCurrentDirectoryParent,
                     parentDirectoryPath,
                     directoryMode,
-                    FileSystemHelpers.pathJoin(
-                        '/',
-                        FileSystemHelpers.getLastItem(updateToPath)
-                    )
+                    FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(updateToPath))
                 );
             } else {
                 /** update the channel with the updated root directory **/
@@ -992,7 +1006,9 @@ export default class PersistentFileSystem implements IFileSystem {
         /** if the given path it's not the root but it's a final path, e.g '/dir1' **/
         if (givenPath !== '/' && PersistentFileSystem.hasFoldersAboveExceptRoot(givenPath)) {
             if (PersistentFileSystem.isDir(parentDirectory)) {
-                const child = parentDirectory.children.get(givenPath);
+                const child = parentDirectory.children.find(
+                    (child: PersistentFileSystemChild) => child.path === givenPath
+                );
                 if (child) {
                     return child;
                 }
@@ -1005,7 +1021,9 @@ export default class PersistentFileSystem implements IFileSystem {
         /** if the top level entity is a directory. Note that if it's a file and it's not the final path, it's an error **/
         if (PersistentFileSystem.isDir(parentDirectory)) {
             /** get his child **/
-            const foundDirectory = parentDirectory.children.get(`/${desiredPathInRoot}`);
+            const foundDirectory = parentDirectory.children.find(
+                (child: PersistentFileSystemChild) => child.path === `/${desiredPathInRoot}`
+            );
             if (foundDirectory) {
                 /** consume the path from the start **/
                 const nextPath = givenPath.replace(`/${desiredPathInRoot}`, '');
