@@ -278,7 +278,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 },
                 {
                     $type$: 'PersistentFileSystemDirectory',
-                    children: new Map()
+                    children: []
                 }
             );
 
