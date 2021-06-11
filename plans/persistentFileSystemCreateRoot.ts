@@ -16,7 +16,7 @@ export async function createObjects(
 ): Promise<UnversionedObjectResult<PersistentFileSystemRoot>> {
     const root = await WriteStorage.storeUnversionedObject({
         $type$: 'PersistentFileSystemDirectory',
-        children: new Map<string, PersistentFileSystemDirectoryEntry>()
+        children: []
     });
 
     return await WriteStorage.storeUnversionedObject({
