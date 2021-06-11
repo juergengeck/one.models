@@ -85,7 +85,7 @@ export type ContactDescription = {
  * This represents the current contact communicationEndpoint fields that can be provided by the user.
  */
 export type CommunicationEndpoint = {
-    emails?: string[];
+    emails: string[];
 };
 
 /**
@@ -625,19 +625,17 @@ export default class ContactModel extends EventEmitter {
     ): Promise<void> {
         let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
 
-        if (communicationEndpoint.emails) {
-            for (const email of communicationEndpoint.emails) {
-                // creates the email object
-                newCommunicationEndpoints.push(
-                    await createSingleObjectThroughPurePlan(
-                        {module: '@one/identity'},
-                        {
-                            $type$: CommunicationEndpointsTypes.EMAIL,
-                            email: email
-                        }
-                    )
-                );
-            }
+        for (const email of communicationEndpoint.emails) {
+            // creates the email object
+            newCommunicationEndpoints.push(
+                await createSingleObjectThroughPurePlan(
+                    {module: '@one/identity'},
+                    {
+                        $type$: CommunicationEndpointsTypes.EMAIL,
+                        email: email
+                    }
+                )
+            );
         }
 
         await this.updateContactContent(personId, false, newCommunicationEndpoints, profileName);
@@ -667,14 +665,14 @@ export default class ContactModel extends EventEmitter {
         /** update communication endpoint **/
         let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
 
-        if (newProfileData.communicationEndpoint.email) {
+        for (const email of newProfileData.communicationEndpoint.emails) {
             // creates the email object
             newCommunicationEndpoints.push(
                 await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
                         $type$: CommunicationEndpointsTypes.EMAIL,
-                        email: newProfileData.communicationEndpoint.email
+                        email: email
                     }
                 )
             );
