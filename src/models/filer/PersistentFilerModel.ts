@@ -11,8 +11,16 @@ import {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
-import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
+import {
+    OneUnversionedObjectTypes,
+    PersistentFileSystemDirectory,
+    PersistentFileSystemRoot,
+    Person,
+    SHA256Hash,
+    SHA256IdHash
+} from '@OneCoreTypes';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import {ObjectData} from "../ChannelManager";
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).
@@ -24,8 +32,8 @@ export default class PersistentFilerModel extends EventEmitter {
     private readonly fileSystemChannelId: string;
 
     private fs: PersistentFileSystem | null = null;
+    private disconnect: (() => void) | undefined;
 
-    private readonly boundOnChannelUpdateHandler: (id: string) => Promise<void>;
 
     /**
      *
@@ -39,7 +47,7 @@ export default class PersistentFilerModel extends EventEmitter {
         super();
         this.channelManager = channelManager;
         this.fileSystemChannelId = channelId;
-        this.boundOnChannelUpdateHandler = this.handleOnUpdated.bind(this);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -51,7 +59,6 @@ export default class PersistentFilerModel extends EventEmitter {
         this.fs = new PersistentFileSystem(root);
 
         this.fs.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
-        this.channelManager.on('updated', async () => await this.boundOnChannelUpdateHandler);
     }
 
     /**
@@ -66,6 +73,11 @@ export default class PersistentFilerModel extends EventEmitter {
         return this.fs;
     }
 
+    public async shutdown() {
+        if (this.disconnect) {
+            this.disconnect();
+        }
+    }
 
 
     /** ########################################## Private ########################################## **/
@@ -143,27 +155,20 @@ export default class PersistentFilerModel extends EventEmitter {
     /**
      * Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated( id: string,
+                                   owner: SHA256IdHash<Person>,
+                                   data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
         await serializeWithType('FileSystemLock', async () => {
             if (id === this.fileSystemChannelId) {
-                const rootDirectory = await this.channelManager.getObjectsWithType(
-                    'PersistentFileSystemRoot',
-                    {
-                        channelId: this.fileSystemChannelId
-                    }
-                );
-
-                if (rootDirectory[0]) {
-                    if (!this.fs) {
-                        throw new Error('Module was not instantiated');
-                    }
-                    this.fs.updateRoot = (await getObject(
-                        rootDirectory[0].dataHash
-                    )) as PersistentFileSystemRoot;
-                } else {
+                if (!this.fs) {
                     throw new Error('Module was not instantiated');
+                }
+                if(data){
+                    this.fs.updateRoot = data.data as PersistentFileSystemRoot;
                 }
                 this.emit('updated');
             }
