@@ -477,6 +477,8 @@ export default class TemporaryFileSystem implements IFileSystem {
     }
 
     public isRootPath(checkPath: string): Boolean {
-        return !(Array.from(this.fstab.keys()).find((storagePath: string) => checkPath.includes(storagePath)))
+        return !Array.from(this.fstab.keys()).find((storagePath: string) =>
+            checkPath.includes(storagePath)
+        );
     }
 }

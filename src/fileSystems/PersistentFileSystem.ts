@@ -943,10 +943,11 @@ export default class PersistentFileSystem implements IFileSystem {
         const currentDirectoryParent = await this.openPersistedDir(updateToPath);
         /** check if the parent directory exists**/
         if (currentDirectoryParent) {
+            const foundIndex = currentDirectoryParent.children.findIndex(
+                (child: PersistentFileSystemChild) => child.path === directorySimplePath
+            );
 
-            const foundIndex = currentDirectoryParent.children.findIndex((child: PersistentFileSystemChild) => child.path === directorySimplePath);
-
-            if(foundIndex !== undefined){
+            if (foundIndex >= 0) {
                 currentDirectoryParent.children.splice(foundIndex, 1);
             }
 

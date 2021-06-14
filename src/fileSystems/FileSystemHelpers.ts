@@ -32,7 +32,6 @@ type FileMode = {
  */
 type AccessEntity = 'owner' | 'group' | 'public';
 
-
 export default class FileSystemHelpers {
     /**
      * This function will parse the given octal (mode) and return the file modes in json format.
@@ -66,8 +65,6 @@ export default class FileSystemHelpers {
         parsedMode.permissions = permissions;
         return parsedMode;
     }
-
-
 
     /**
      * This function converts the octal into an array of numbers. If the length its not 7, unshift with 0.

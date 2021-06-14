@@ -4,7 +4,7 @@ import {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import FileSystemHelpers from "./FileSystemHelpers";
+import FileSystemHelpers from './FileSystemHelpers';
 
 /**
  * Json format for the connectionsFS path
