@@ -943,6 +943,13 @@ export default class PersistentFileSystem implements IFileSystem {
         const currentDirectoryParent = await this.openPersistedDir(updateToPath);
         /** check if the parent directory exists**/
         if (currentDirectoryParent) {
+
+            const foundIndex = currentDirectoryParent.children.findIndex((child: PersistentFileSystemChild) => child.path === directorySimplePath);
+
+            if(foundIndex !== undefined){
+                currentDirectoryParent.children.splice(foundIndex, 1);
+            }
+
             /** locate the outdated current directory hash in the parent's children **/
             currentDirectoryParent.children.push({
                 path: directorySimplePath,
