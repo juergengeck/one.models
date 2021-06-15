@@ -2,6 +2,7 @@ import ObjectsFileSystem from './ObjectsFileSystem';
 import PersistentFileSystem from './PersistentFileSystem';
 import ConnectionsFileSystem from './ConnectionFileSystem';
 import TemporaryFileSystem from './TemporaryFileSystem';
+import {FilerConnector, PWAConnector } from './FileSystemConnectors';
 
 /**
  * @class
@@ -62,3 +63,21 @@ export {ConnectionsFileSystem};
  *
  */
 export {TemporaryFileSystem};
+
+/**
+ * @class
+ *
+ * PWA connector between {@link ChannelManager} and {@link PersistentFileSystem}. This module allows the saving of
+ * new channels items into the {@link PersistentFileSystem}.
+ *
+ */
+export {PWAConnector};
+
+/**
+ * @class
+ *
+ * Filer connector between {@link PersistentFileSystem} and {@link ChannelManager}. This module allows the saving of
+ * new added files into the {@link DocumentModel} channel.
+ *
+ */
+export {FilerConnector};

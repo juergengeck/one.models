@@ -162,16 +162,16 @@ export default class PersistentFilerModel extends EventEmitter {
     private async handleOnUpdated( id: string,
                                    owner: SHA256IdHash<Person>,
                                    data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
-        await serializeWithType('FileSystemLock', async () => {
-            if (id === this.fileSystemChannelId) {
+        if (id === this.fileSystemChannelId) {
+            await serializeWithType('FileSystemLock', async () => {
                 if (!this.fs) {
                     throw new Error('Module was not instantiated');
                 }
-                if(data){
+                if (data) {
                     this.fs.updateRoot = data.data as PersistentFileSystemRoot;
                 }
                 this.emit('updated');
-            }
-        });
+            });
+        }
     }
 }

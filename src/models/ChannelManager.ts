@@ -39,9 +39,6 @@ import AccessModel from './AccessModel';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {ensureHash, ensureIdHash} from 'one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
-import PersistentFilerModel from './filer/PersistentFilerModel';
-import {DocumentInfo} from './DocumentModel';
-import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -241,7 +238,6 @@ export default class ChannelManager extends EventEmitter {
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
-    private persistentFilerModel: PersistentFilerModel | undefined;
 
     /**
      * Create the channel manager instance.
@@ -255,10 +251,6 @@ export default class ChannelManager extends EventEmitter {
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
         this.promiseTrackers = new Set<Promise<void>>();
-    }
-
-    public set fileSystemPersisting(persistentFilerModel: PersistentFilerModel){
-        this.persistentFilerModel = persistentFilerModel;
     }
 
     /**
@@ -435,34 +427,6 @@ export default class ChannelManager extends EventEmitter {
                 await waitForMergePromise;
             }
 
-            // Persist the saved object into the Persisted File System
-            if (this.persistentFilerModel && data.$type$ === 'DocumentInfo_1_1_0') {
-                // Safe cast since we check the data.$type$
-                const documentInfo = data as DocumentInfo;
-                // Accepts only pictures for now
-                if (
-                    documentInfo.mimeType === AcceptedMimeType.JPEG ||
-                    documentInfo.mimeType === AcceptedMimeType.PNG
-                ) {
-                    const exists = await this.persistentFilerModel.fileSystem.exists(`/pictures`);
-                    if (!exists) {
-                        await this.persistentFilerModel.fileSystem.createDir('/pictures');
-                    }
-                    try {
-                        await this.persistentFilerModel.fileSystem.createFile(
-                            '/pictures',
-                            documentInfo.document,
-                            documentInfo.documentName
-                        );
-                    } catch (e) {
-                        logWithId(
-                            channelId,
-                            owner,
-                            'postToChannel persisting in FS - FAIL: ' + e.toString()
-                        );
-                    }
-                }
-            }
         } catch (e) {
             logWithId(channelId, owner, 'postToChannel - FAIL: ' + e.toString());
             throw e;

@@ -32,6 +32,7 @@ import {platform} from 'one.core/lib/system/platform';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import {PLATFORMS} from 'one.core/lib/platforms';
+import {OEvent} from "../misc/OEvent";
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -39,6 +40,9 @@ import {PLATFORMS} from 'one.core/lib/platforms';
  * to accomplish this FileSystem structure.
  */
 export default class PersistentFileSystem implements IFileSystem {
+    public onFilePersisted = new OEvent<(data: {fileHash: SHA256Hash<BLOB>; fileName: string}) => void>();
+
+
     /**
      * @global the root of the file system
      * @type {PersistentFileSystemRoot["root"]}
@@ -156,6 +160,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(directoryPath))
                 );
             }
+            this.onFilePersisted.emit({fileHash: fileHash, fileName: fileName})
         });
     }
 
