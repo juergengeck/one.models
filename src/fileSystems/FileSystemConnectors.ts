@@ -2,7 +2,6 @@ import {ChannelManager, DocumentModel} from '../models';
 import PersistentFileSystem from './PersistentFileSystem';
 import {BLOB, OneUnversionedObjectTypes, Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import {ObjectData} from '../models/ChannelManager';
-import {serializeWithType} from 'one.core/lib/util/promise';
 import {platform} from 'one.core/lib/system/platform';
 import {PLATFORMS} from 'one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
@@ -74,37 +73,35 @@ export class PWAConnector {
             const viewingFolder = isChannelIdAllowed.folder
                 ? isChannelIdAllowed.folder
                 : objectData.$type$;
-            await serializeWithType('FileSystemLock', async () => {
-                const exists = await this.persistedFileSystem.exists(`/${viewingFolder}`);
+            const exists = await this.persistedFileSystem.exists(`/${viewingFolder}`);
 
-                if (!exists) {
-                    await this.persistedFileSystem.createDir(`/${viewingFolder}`);
-                }
-                try {
-                    switch (objectData.$type$) {
-                        // DocumentInfo is a special case because it already contains the BLOB and has a file name attached to it
-                        case 'DocumentInfo_1_1_0': {
-                            await this.persistedFileSystem.createFile(
-                                `/${viewingFolder}`,
-                                objectData.document,
-                                objectData.documentName
-                            );
-                            break;
-                        }
-                        default: {
-                            await this.persistedFileSystem.createFile(
-                                `/${viewingFolder}`,
-                                // dataHash is actually the BLOB of the object
-                                (data.dataHash as unknown) as SHA256Hash<BLOB>,
-                                `${objectData.$type$}-${data.dataHash}`
-                            );
-                            break;
-                        }
+            if (!exists) {
+                await this.persistedFileSystem.createDir(`/${viewingFolder}`);
+            }
+            try {
+                switch (objectData.$type$) {
+                    // DocumentInfo is a special case because it already contains the BLOB and has a file name attached to it
+                    case 'DocumentInfo_1_1_0': {
+                        await this.persistedFileSystem.createFile(
+                            `/${viewingFolder}`,
+                            objectData.document,
+                            objectData.documentName
+                        );
+                        break;
                     }
-                } catch (e) {
-                    console.error(e);
+                    default: {
+                        await this.persistedFileSystem.createFile(
+                            `/${viewingFolder}`,
+                            // dataHash is actually the BLOB of the object
+                            (data.dataHash as unknown) as SHA256Hash<BLOB>,
+                            `${objectData.$type$}-${data.dataHash}`
+                        );
+                        break;
+                    }
                 }
-            });
+            } catch (e) {
+                console.error(e);
+            }
         }
     }
 }
