@@ -3,9 +3,9 @@ import PersistentFileSystem from './PersistentFileSystem';
 import {BLOB, OneUnversionedObjectTypes, Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import {ObjectData} from '../models/ChannelManager';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {platform} from "one.core/lib/system/platform";
-import {PLATFORMS} from "one.core/lib/platforms";
-import {AcceptedMimeType} from "../recipes/DocumentRecipes/DocumentRecipes_1_1_0";
+import {platform} from 'one.core/lib/system/platform';
+import {PLATFORMS} from 'one.core/lib/platforms';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 
 export type AllowedChannel = {channelId: string; folder?: string};
 
@@ -32,8 +32,8 @@ export class PWAConnector {
     ) {
         // Accepted because of TS2367: This condition will always return 'true' since the types '"node"' and '"browser"' have no overlap.
         // @ts-ignore
-        if(platform !== PLATFORMS.BROWSER){
-            throw new Error('Error: this module can be used only on Browser environment.')
+        if (platform !== PLATFORMS.BROWSER) {
+            throw new Error('Error: this module can be used only on Browser environment.');
         }
 
         this.channelManager = channelManager;
@@ -41,7 +41,7 @@ export class PWAConnector {
         this.allowedChannels = allowedChannels;
     }
 
-    async init(){
+    async init() {
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -67,9 +67,7 @@ export class PWAConnector {
         owner: SHA256IdHash<Person>,
         data?: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        const isChannelIdAllowed = this.allowedChannels.find(
-            item => item.channelId === id
-        );
+        const isChannelIdAllowed = this.allowedChannels.find(item => item.channelId === id);
 
         if (isChannelIdAllowed && data !== undefined) {
             const objectData = data.data;
@@ -128,8 +126,8 @@ export class FilerConnector {
     ) {
         // Accepted because of TS2367: This condition will always return 'true' since the types '"node"' and '"browser"' have no overlap.
         // @ts-ignore
-        if(platform !== PLATFORMS.NODE_JS){
-            throw new Error('Error: this module can be used only on NODEJS environment.')
+        if (platform !== PLATFORMS.NODE_JS) {
+            throw new Error('Error: this module can be used only on NODEJS environment.');
         }
 
         this.documentModel = documentModel;
@@ -137,7 +135,7 @@ export class FilerConnector {
         this.persistedFileSystem = persistedFileSystem;
     }
 
-    async init(){
+    async init() {
         this.disconnect = this.persistedFileSystem.onFilePersisted(this.handleOnUpdated.bind(this));
     }
 
@@ -157,25 +155,28 @@ export class FilerConnector {
      * @param {fileHash: SHA256Hash<BLOB>; fileName: string} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(
-        data: {fileHash: SHA256Hash<BLOB>; fileName: string}
-    ): Promise<void> {
-        const fileType = (data.fileName.slice((data.fileName.lastIndexOf(".") - 1 >>> 0) + 2)).toLowerCase();
+    private async handleOnUpdated(data: {
+        fileHash: SHA256Hash<BLOB>;
+        fileName: string;
+    }): Promise<void> {
+        const fileType = data.fileName
+            .slice(((data.fileName.lastIndexOf('.') - 1) >>> 0) + 2)
+            .toLowerCase();
         let mimeType: AcceptedMimeType | undefined = undefined;
 
-        if(fileType === 'png'){
+        if (fileType === 'png') {
             mimeType = AcceptedMimeType.PNG;
         }
 
-        if(['jpg','jpeg'].includes(fileType)){
+        if (['jpg', 'jpeg'].includes(fileType)) {
             mimeType = AcceptedMimeType.JPEG;
         }
 
-        if(fileType === 'pdf'){
+        if (fileType === 'pdf') {
             mimeType = AcceptedMimeType.PDF;
         }
 
-        if(fileType !== undefined) {
+        if (fileType !== undefined) {
             await this.channelManager.postToChannel(this.documentModel.channelId, {
                 $type$: 'DocumentInfo_1_1_0',
                 mimeType: mimeType as string,
