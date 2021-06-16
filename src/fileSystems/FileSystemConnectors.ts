@@ -173,7 +173,7 @@ export class FilerConnector {
             mimeType = AcceptedMimeType.PDF;
         }
 
-        if (fileType !== undefined) {
+        if (mimeType !== undefined) {
             await this.channelManager.postToChannel(this.documentModel.channelId, {
                 $type$: 'DocumentInfo_1_1_0',
                 mimeType: mimeType as string,
