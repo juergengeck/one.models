@@ -451,8 +451,8 @@ export default class PersistentFileSystem implements IFileSystem {
                 srcParentContent.children.splice(foundIndex, 1);
                 /** added it to the dest path **/
                 destParentContent.children.push({
+                    ...foundDirectoryEntry,
                     path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
-                    ...foundDirectoryEntry
                 });
 
                 /** save updated directories **/
@@ -519,8 +519,8 @@ export default class PersistentFileSystem implements IFileSystem {
                 );
                 srcParentContent.children.splice(foundIndex, 1);
                 srcParentContent.children.push({
+                    ...foundDirectoryEntry,
                     path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
-                    ...foundDirectoryEntry
                 });
 
                 const newDirectory = await createSingleObjectThroughPurePlan(
