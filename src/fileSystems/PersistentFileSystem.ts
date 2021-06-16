@@ -131,6 +131,13 @@ export default class PersistentFileSystem implements IFileSystem {
                     content: fileHash
                 }
             );
+
+            const foundIndex = targetDirectory.children.findIndex((child: PersistentFileSystemChild) => child.path === `/${fileName}`);
+
+            if(foundIndex >= 0){
+                targetDirectory.children.splice(foundIndex, 1);
+            }
+
             /** set the new file **/
             targetDirectory.children.push({
                 ...PersistentFileSystem.buildFileSystemDirectoryEntry(savedFile.hash, fileMode),
