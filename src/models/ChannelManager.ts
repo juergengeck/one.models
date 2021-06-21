@@ -227,10 +227,10 @@ export default class ChannelManager extends EventEmitter {
     private promiseTrackers: Set<Promise<void>>;
 
     // Serialize locks
-    private readonly postLockName = 'ChannelManager_postLock';
-    private readonly postNELockName = 'ChannelManager_postNELock';
-    private readonly cacheLockName = 'ChannelManager_cacheLock_';
-    private readonly registryLockName = 'ChannelManager_registryLock';
+    private static readonly postLockName = 'ChannelManager_postLock';
+    private static readonly postNELockName = 'ChannelManager_postNELock';
+    private static readonly cacheLockName = 'ChannelManager_cacheLock_';
+    private static readonly registryLockName = 'ChannelManager_registryLock';
 
     // Default owner for post calls
     private defaultOwner: SHA256IdHash<Person> | null;

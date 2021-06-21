@@ -75,7 +75,7 @@ type JournalData = {[event: string]: {values: EventListEntry['data'][]; index: n
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
-export default class JournalModel extends EventEmitter {
+export default class JournalModel extends EventEmitter implements Model {
     private modelsDictionary: JournalInput[] = [];
 
     private eventEmitterListeners: Map<EventType, () => void> = new Map();
@@ -299,10 +299,10 @@ export default class JournalModel extends EventEmitter {
             .map((event: string) => dataDictionary[event].values.length)
             .reduce((acc: number, cur: number) => acc + cur);
 
-        const eventList: EventListEntry[] = [];
+        const eventList = [];
 
         for (let i = 0; i < totalLen; ++i) {
-            const compareElements: EventListEntry[] = [];
+            const compareElements = [];
             /** for every key of the data dictionary **/
             for (const event of Object.keys(dataDictionary)) {
                 /** get the actual object **/
@@ -311,7 +311,7 @@ export default class JournalModel extends EventEmitter {
                 if (eventData.index < eventData.values.length) {
                     compareElements.push({
                         /** put the data key as the event type, also = model class name **/
-                        type: event as EventType,
+                        type: event,
                         data: eventData.values[eventData.index]
                     });
                 }
@@ -325,7 +325,7 @@ export default class JournalModel extends EventEmitter {
                 );
             }
             /** Lets find the element with the newest date **/
-            let oldestElement: EventListEntry = compareElements[0];
+            let oldestElement = compareElements[0];
 
             for (const compareElement of compareElements) {
                 if (compareElement.data.creationTime < oldestElement.data.creationTime) {
