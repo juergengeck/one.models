@@ -54,15 +54,7 @@ export type EventListEntry = {
 };
 
 type JournalInput = {
-    model:
-        | HeartEventModel
-        | WbcDiffModel
-        | QuestionnaireModel
-        | DocumentModel
-        | DiaryModel
-        | ConsentFileModel
-        | ECGModel
-        | BodyTemperatureModel;
+    model: Model;
     retrieveFn: (
         queryOptions?: QueryOptions
     ) => AsyncIterableIterator<EventListEntry['data'] | Promise<EventListEntry['data']>>;
@@ -78,12 +70,12 @@ const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 export default class JournalModel extends EventEmitter implements Model {
     private modelsDictionary: JournalInput[] = [];
 
-    private eventEmitterListeners: Map<EventType, () => void> = new Map();
+    private eventEmitterListeners: Map<string, () => void> = new Map();
     private oEventListeners: Map<
-        EventType,
+        string,
         {
             disconnect: (() => void) | undefined;
-            listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void;
+            listener: (data: ObjectData<unknown>) => void;
         }
     > = new Map();
 
@@ -116,7 +108,6 @@ export default class JournalModel extends EventEmitter implements Model {
             journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
-            this.eventEmitterListeners.set(event, handlerEventEmitter);
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
     }
@@ -124,7 +115,7 @@ export default class JournalModel extends EventEmitter implements Model {
     /**
      * removes the handler for every provided model
      */
-    shutdown() {
+    async shutdown(): Promise<void> {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
             /** retrieve the function reference in order to delete it **/
@@ -134,17 +125,13 @@ export default class JournalModel extends EventEmitter implements Model {
             if (oEventHandler && oEventHandler.disconnect) {
                 oEventHandler.disconnect();
             }
-
-            if (eventEmitterHandler) {
-                journalInput.model.removeListener('updated', eventEmitterHandler);
-            }
         });
     }
 
     /**
      * Get the latest day stored events sorted by date. In Ascending order
      */
-    async retrieveLatestDayEvents(): Promise<EventListEntry[]> {
+    async retrieveLatestDayEvents(): Promise<JournalEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
             return [];
@@ -178,7 +165,7 @@ export default class JournalModel extends EventEmitter implements Model {
      */
     async *retrieveEventsByDayIterator(
         pageSize: number = 25
-    ): AsyncIterableIterator<EventListEntry[]> {
+    ): AsyncIterableIterator<JournalEntry[]> {
         /**
          * Find the highest timestamp and set the currentTimeFrame to it.
          * The "from" field will be one day behind the "to" field.
@@ -262,9 +249,9 @@ export default class JournalModel extends EventEmitter implements Model {
 
     /**
      * Get the stored events sorted by date. In Ascending order
-     * @returns {Promise<EventListEntry[]>}
+     * @returns {Promise<JournalEntry[]>}
      */
-    async retrieveAllEvents(): Promise<EventListEntry[]> {
+    async retrieveAllEvents(): Promise<JournalEntry[]> {
         /** if there are no provided models, return empty list **/
         if (this.modelsDictionary.length === 0) {
             return [];
@@ -293,7 +280,7 @@ export default class JournalModel extends EventEmitter implements Model {
      * @param {JournalData} dataDictionary
      * @private
      */
-    private createEventList(dataDictionary: JournalData): EventListEntry[] {
+    private createEventList(dataDictionary: JournalData): JournalEntry[] {
         /** get the total length of data values **/
         const totalLen: number = Object.keys(dataDictionary)
             .map((event: string) => dataDictionary[event].values.length)

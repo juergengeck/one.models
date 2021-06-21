@@ -37,7 +37,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     /**
      * Event is emitted when the consent file data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;

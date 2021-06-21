@@ -219,7 +219,7 @@ export default class ChannelManager extends EventEmitter {
         (
             channelId: string,
             channelOwner: SHA256IdHash<Person>,
-            data?: ObjectData<OneUnversionedObjectTypes>
+            data: ObjectData<OneUnversionedObjectTypes>
         ) => void
     >();
 
@@ -1378,11 +1378,14 @@ export default class ChannelManager extends EventEmitter {
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
                 this.emit('updated', channelId, channelOwner);
-                this.onUpdated.emit(
-                    channelId,
-                    channelOwner,
-                    await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash)
-                );
+                const data = await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash);
+                if (data !== undefined) {
+                    this.onUpdated.emit(
+                        channelId,
+                        channelOwner,
+                        data
+                    );
+                }
             });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());
