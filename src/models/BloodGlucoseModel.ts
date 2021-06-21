@@ -3,19 +3,16 @@
  */
 
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {
-    BloodGlucose,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
 
-export default class BloodGlucoseModel extends EventEmitter implements Model{
+export default class BloodGlucoseModel extends EventEmitter implements Model {
     /**
      * Event emitted when BloodGlucose data is updated.
      */
@@ -148,5 +145,4 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
             this.onUpdated.emit(data);
         }
     }
-
 }

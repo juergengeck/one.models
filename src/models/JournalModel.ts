@@ -2,68 +2,27 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import QuestionnaireModel from './QuestionnaireModel';
-import type {QuestionnaireResponses} from './QuestionnaireModel';
 import EventEmitter from 'events';
-import HeartEventModel from './HeartEventModel';
-import type {HeartEvent} from './HeartEventModel';
-import DocumentModel, {DocumentInfo} from './DocumentModel';
-import DiaryModel from './DiaryModel';
-import type {DiaryEntry} from './DiaryModel';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import ConsentFileModel from './ConsentFileModel';
-import type {ConsentFile, DropoutFile} from './ConsentFileModel';
-import BodyTemperatureModel from './BodyTemperatureModel';
-import type {BodyTemperature} from './BodyTemperatureModel';
 import {OEvent} from '../misc/OEvent';
-import WbcDiffModel from './WbcDiffModel';
-import ECGModel from './ECGModel';
-import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
-import type {WbcObservation} from '../recipes/WbcDiffRecipes';
-import type {Electrocardiogram} from '../recipes/ECGRecipes';
+import type {Model} from './Model';
 
-/**
- * !!! Add the corresponding model class name here
- */
-export enum EventType {
-    QuestionnaireResponse = 'QuestionnaireModel',
-    WbcDiffMeasurement = 'WbcDiffModel',
-    HeartEvent = 'HeartEventModel',
-    DocumentInfo = 'DocumentModel',
-    DiaryEntry = 'DiaryModel',
-    BodyTemperature = 'BodyTemperatureModel',
-    ConsentFileEvent = 'ConsentFileModel',
-    ECGEvent = 'ECGModel'
-}
-
-/**
- * Add the corresponding type here
- */
-export type EventListEntry = {
-    type: EventType;
-    data: ObjectData<
-        | WbcObservation
-        | QuestionnaireResponses
-        | DocumentInfo_1_1_0
-        | DiaryEntry
-        | ConsentFile
-        | Electrocardiogram
-        | BodyTemperature
-        | HeartEvent
-    >;
+export type JournalEntry = {
+    type: string;
+    data: ObjectData<unknown>;
 };
 
 type JournalInput = {
     model: Model;
     retrieveFn: (
         queryOptions?: QueryOptions
-    ) => AsyncIterableIterator<EventListEntry['data'] | Promise<EventListEntry['data']>>;
-    eventType: EventType;
+    ) => AsyncIterableIterator<ObjectData<unknown> | Promise<ObjectData<unknown>>>;
+    eventType: string;
 };
 
 type TimeFrame = {from: Date; to: Date};
 
-type JournalData = {[event: string]: {values: EventListEntry['data'][]; index: number}};
+type JournalData = {[event: string]: {values: ObjectData<unknown>[]; index: number}};
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -79,7 +38,7 @@ export default class JournalModel extends EventEmitter implements Model {
         }
     > = new Map();
 
-    public onUpdated = new OEvent<(data?: EventListEntry) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
 
     constructor(modelsInput: JournalInput[]) {
         super();
@@ -93,19 +52,9 @@ export default class JournalModel extends EventEmitter implements Model {
     async init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
-            /*
-             * @Todo this event will be removed in the future for the only use of oEvent
-             */
-            const handlerEventEmitter = () => {
-                this.emit('updated');
+            const oEventHandler = (data: ObjectData<unknown>) => {
+                this.onUpdated.emit(data, event);
             };
-            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes>) => {
-                /** It's guaranteed that incoming objects are "data" of {@link EventListEntry} because of the {@link JournalInput} **/
-                this.onUpdated.emit(
-                    JournalModel.mapObjectDataToEventListEntry(data as EventListEntry['data'])
-                );
-            };
-            journalInput.model.on('updated', handlerEventEmitter);
             const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
             /** persist the function reference in a map **/
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
@@ -144,12 +93,12 @@ export default class JournalModel extends EventEmitter implements Model {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                const data: EventListEntry['data'][] = [];
+                const data: ObjectData<unknown>[] = [];
                 for await (const retrievedData of journalInput.retrieveFn({
                     to: latestTo,
                     from: latestFrom
                 })) {
-                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                    data.push(retrievedData as unknown as ObjectData<unknown>);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -210,7 +159,7 @@ export default class JournalModel extends EventEmitter implements Model {
                     }
 
                     /** same issue as in {@link this.findLatestTimeFrame} **/
-                    const data = retrievedData as EventListEntry['data'];
+                    const data = retrievedData as ObjectData<unknown>;
 
                     /** If the event exists in the dictionary and if the array exists,
                      *  create a new array with the new value and the rest of the array
@@ -262,9 +211,9 @@ export default class JournalModel extends EventEmitter implements Model {
         await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
-                const data: EventListEntry['data'][] = [];
+                const data: ObjectData<unknown>[] = [];
                 for await (const retrievedData of journalInput.retrieveFn()) {
-                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                    data.push(retrievedData as unknown as ObjectData<unknown>);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -338,16 +287,16 @@ export default class JournalModel extends EventEmitter implements Model {
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
         const timestamps = await Promise.all(
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
-                let data: EventListEntry['data'] | null = null;
+                let data: ObjectData<unknown> | null = null;
                 for await (const retrievedData of journalInput.retrieveFn({
                     count: 1,
                     to: to,
                     from: from
                 })) {
-                    /** The return type of provided functions will always be EventListEntry['data'].
+                    /** The return type of provided functions will always be ObjectData<unknown>.
                      *  I don't know the reason why TS does not recognise the return type of the retrieve function.
                      **/
-                    data = retrievedData as EventListEntry['data'];
+                    data = retrievedData as ObjectData<unknown>;
                 }
                 if (data !== null) {
                     return data.creationTime.getTime();
@@ -356,38 +305,5 @@ export default class JournalModel extends EventEmitter implements Model {
             })
         );
         return Math.max(...timestamps);
-    }
-
-    /**
-     * Maps the given object data to the corresponding event type
-     * @param {ObjectData<OneUnversionedObjectTypes>} objectData
-     * @private
-     */
-    private static mapObjectDataToEventListEntry(
-        objectData?: EventListEntry['data']
-    ): EventListEntry | undefined {
-        if (!objectData) {
-            return undefined;
-        }
-
-        switch (objectData.data.$type$) {
-            case 'ConsentFile':
-                return {type: EventType.ConsentFileEvent, data: objectData};
-            case 'DocumentInfo_1_1_0':
-                return {type: EventType.DocumentInfo, data: objectData};
-            case 'WbcObservation':
-                return {type: EventType.WbcDiffMeasurement, data: objectData};
-            case 'BodyTemperature':
-                return {type: EventType.BodyTemperature, data: objectData};
-            case 'QuestionnaireResponses':
-                return {type: EventType.QuestionnaireResponse, data: objectData};
-            case 'DiaryEntry':
-                return {type: EventType.DiaryEntry, data: objectData};
-            case 'Electrocardiogram':
-                return {type: EventType.ECGEvent, data: objectData};
-            case 'HeartEvent':
-                return {type: EventType.HeartEvent, data: objectData};
-        }
-        return undefined;
     }
 }

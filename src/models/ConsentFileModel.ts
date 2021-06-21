@@ -1,10 +1,11 @@
 import EventEmmiter from 'events';
-import ChannelManager from './ChannelManager';
+
+import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 

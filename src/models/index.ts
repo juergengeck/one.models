@@ -13,11 +13,7 @@ import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
-import MatchingModel from './matchingModels/MatchingModel';
 import RecoveryModel from './RecoveryModel';
-import ClientMatchingModel from './matchingModels/ClientMatchingModel';
-import ServerMatchingModel from './matchingModels/ServerMatchingModel';
-import ServerUserModel from './matchingModels/ServerUserModel';
 import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
 import HeartEventModel from './HeartEventModel';
@@ -40,11 +36,7 @@ export {
     PropertyTree,
     AccessModel,
     BlobCollectionModel,
-    MatchingModel,
     RecoveryModel,
-    ClientMatchingModel,
-    ServerMatchingModel,
-    ServerUserModel,
     InstancesModel,
     ECGModel,
     HeartEventModel

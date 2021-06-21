@@ -1,18 +1,18 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         BloodGlucose: BloodGlucose;
     }
+}
 
-    export interface BloodGlucose {
-        $type$: 'BloodGlucose';
-        typeDescription?: string;
-        value: number;
-        unit: string;
-        startTimestamp?: number;
-        endTimestamp?: number;
-    }
+export interface BloodGlucose {
+    $type$: 'BloodGlucose';
+    typeDescription?: string;
+    value: number;
+    unit: string;
+    startTimestamp?: number;
+    endTimestamp?: number;
 }
 
 const BloodGlucoseRecipe: Recipe = {

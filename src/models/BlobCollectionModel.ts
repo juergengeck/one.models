@@ -1,17 +1,17 @@
 import EventEmitter from 'events';
-import {
+
+import type {
     BlobCollection as OneBlobCollection,
     BlobDescriptor as OneBlobDescriptor
 } from '../recipes/BlobRecipes';
-import ChannelManager from './ChannelManager';
-import type {ObjectData} from './ChannelManager';
+import type ChannelManager from './ChannelManager';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
@@ -99,9 +99,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
             owner: this.channelOwner,
             channelId: this.channelId
         });
-        const collection = collections.find(
-            (objectData: ObjectData<OneBlobCollection>) => objectData.data.name === name
-        );
+        const collection = collections.find(objectData => objectData.data.name === name);
         if (collection) {
             return this.resolveBlobCollection(collection.data);
         } else {
@@ -118,7 +116,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
         if (collection && collection.length > 0) {
             return this.resolveBlobCollection(collection[0].data);
         } else {
-            throw new Error(`BlobCollection ${name} not found.`);
+            throw new Error(`No BlobCollection found in channel`);
         }
     }
 
@@ -146,7 +144,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
         const blobDescriptors: OneBlobDescriptor[] = await Promise.all(
             blobCollection.blobs.map(hash => getObject(hash))
         );
-        const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
+        const resolvedBlobDescriptors = await Promise.all(
             blobDescriptors.map(blobDescriptor =>
                 BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
             )
@@ -155,8 +153,8 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     }
 
     /**
-     * Resolves the OneBlobDescirptor.data blob reference to tha actual ArrayBuffer data
-     * @param {OneBlobDescirptor} blobDescriptor
+     * Resolves the OneBlobDescriptor.data blob reference to tha actual ArrayBuffer data
+     * @param {OneBlobDescriptor} blobDescriptor
      * @return {Promise<BlobDescriptor>}
      * @private
      */

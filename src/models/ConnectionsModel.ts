@@ -1,10 +1,10 @@
 import EventEmitter from 'events';
 import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
-import ContactModel from './ContactModel';
-import InstancesModel from './InstancesModel';
+import type ContactModel from './ContactModel';
+import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
-import EncryptedConnection from '../misc/EncryptedConnection';
+import type EncryptedConnection from '../misc/EncryptedConnection';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
@@ -22,7 +22,7 @@ import {
     CryptoAPI,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
-    overwritePersonKeys,
+    reloadPersonKeys,
     stringToUint8Array,
     Uint8ArrayToString
 } from 'one.core/lib/instance-crypto';
@@ -1515,9 +1515,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * @returns {Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage>}
      */
-    async extractExistingPersonKeys(): Promise<
-        CommunicationInitiationProtocol.PrivatePersonInformationMessage
-    > {
+    async extractExistingPersonKeys(): Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage> {
         if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
@@ -1657,12 +1655,12 @@ class ConnectionsModel extends EventEmitter {
             `${savedAnonOwnerKeys.hash}.owner.sign`
         );
 
-        await overwritePersonKeys(
+        await reloadPersonKeys(
             this.password,
             thisMainInstanceInfo.personId,
             thisMainInstanceInfo.instanceId
         );
-        await overwritePersonKeys(
+        await reloadPersonKeys(
             this.password,
             thisAnonInstanceInfo.personId,
             thisAnonInstanceInfo.instanceId
@@ -1820,9 +1818,7 @@ class ConnectionsModel extends EventEmitter {
      * @returns {Promise<{personPublicKeys: string, personPrivateEncryptionKey: string, personPrivateSignKey: string}>}
      * @private
      */
-    private async extractKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: string;
         personPrivateSignKey: string;

@@ -17,7 +17,7 @@ import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
-};
+} as const;
 
 /**
  *

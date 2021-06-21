@@ -1,8 +1,12 @@
 import EventEmitter from 'events';
-import {Model} from './Model';
+
+import type {Model} from './Model';
 import {OEvent} from '../misc/OEvent';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash, AudioExercise} from '@OneCoreTypes';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData} from './ChannelManager';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 export default class AudioExerciseModel extends EventEmitter implements Model {
     /**
@@ -66,7 +70,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     }
 
     /**
-     *  Handler function for the 'updated' event
+     * Handler-function for the 'updated' event
      * @param {string} id
      * @param {SHA256IdHash<Person>} owner
      * @param {ObjectData<OneUnversionedObjectTypes>} data

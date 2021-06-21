@@ -1,23 +1,25 @@
-import {Model} from './Model';
-import {OEvent} from '../misc/OEvent';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash, HeartEvent} from '@OneCoreTypes';
 import EventEmitter from 'events';
 
+import type {Model} from './Model';
+import {OEvent} from '../misc/OEvent';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {HeartEvent} from '../recipes/HeartEventRecipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+
 /**
- * This model implements the possibility of adding or retrieving HeartEvents that occurred on the apple watch.
+ * This model implements the possibility of adding or retrieving HeartEvents that occurred on the Apple watch.
  * Those Events can be {@link HEART_OCCURRING_EVENTS}
  * For more information, see Chapter Vital Signs in {@link https://developer.apple.com/documentation/healthkit/data_types}
  */
 export default class HeartEventModel extends EventEmitter implements Model {
+    public static readonly channelId: string = 'heartEvent';
     /**
      * Event emitted when HeartEvent data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
     private readonly channelManager: ChannelManager;
-    public static readonly channelId: string = 'heartEvent';
-
     /**
      * Disconnect function to detach the channel manager listener
      * @private
@@ -93,7 +95,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === HeartEventModel.channelId) {
             this.emit('updated');

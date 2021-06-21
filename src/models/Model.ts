@@ -1,4 +1,5 @@
-import {OEvent} from '../misc/OEvent';
+import type {OEvent} from '../misc/OEvent';
+import type {ObjectData} from './ChannelManager';
 
 /**
  * Models interface.

@@ -1,11 +1,11 @@
 {
     "compilerOptions": {
-        "noEmit": true,
-        "outDir": "lib",
+        "noEmit": false,
+        "outDir": "../lib",
         "isolatedModules": false,
         "moduleResolution": "node",
         "sourceMap": false,
-        "emitDeclarationOnly": false,
+        "emitDeclarationOnly": true,
         "declaration": true,
         "declarationMap": true,
         "downlevelIteration": false,
@@ -13,11 +13,8 @@
         "esModuleInterop": true,
         "importsNotUsedAsValues": "error",
         "composite": true,
-        "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-        "lib": [
-            "esnext",
-            "dom"
-        ],
+        "tsBuildInfoFile": "../tsconfig.plan.tsbuildinfo",
+        "lib": ["esnext", "dom"],
         "module": "esnext",
         "target": "esnext",
         "alwaysStrict": true,
@@ -29,28 +26,8 @@
         "allowJs": true,
         "checkJs": true,
         "removeComments": false,
-        "forceConsistentCasingInFileNames": true,
-        "baseUrl": "./",
-        "paths": {
-        }
+        "forceConsistentCasingInFileNames": true
     },
-    "references": [
-        {
-            "path": "./plans"
-        },
-        {
-            "path": "./src"
-        },
-        {
-            "path": "./test"
-        }
-    ],
-    "include": [
-        "*.js"
-    ],
-    "exclude": [
-        "node_modules/one.core/src",
-        ".*.js",
-        "doc"
-    ]
+    "include": ["./*.ts", "./**/*.ts"],
+    "exclude": []
 }

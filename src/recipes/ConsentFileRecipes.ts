@@ -1,4 +1,5 @@
 import type {Recipe} from 'one.core/lib/recipes';
+
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         ConsentFile: ConsentFile;

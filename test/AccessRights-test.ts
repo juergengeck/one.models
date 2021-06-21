@@ -1,7 +1,9 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
+
 import {expect} from 'chai';
+
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
@@ -11,12 +13,12 @@ import {
 } from 'one.core/lib/storage';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import AccessModel from '../lib/models/AccessModel';
 
 let accessModel: AccessModel;
 let testModel: TestModel;
+
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
