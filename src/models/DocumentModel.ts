@@ -42,9 +42,9 @@ export default class DocumentModel extends EventEmitter implements Model {
      * Event emitted when document data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'document';
 
     channelManager: ChannelManager;
-    channelId: string;
     private disconnect: (() => void) | undefined;
 
     /**
@@ -55,7 +55,6 @@ export default class DocumentModel extends EventEmitter implements Model {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'document';
         this.channelManager = channelManager;
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
@@ -66,7 +65,7 @@ export default class DocumentModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(DocumentModel.channelId);
     }
 
     /**
@@ -86,13 +85,13 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param {ArrayBuffer} document - The document.
      * @param {DocumentInfo['mimeType']} mimeType
      * @param {DocumentInfo['documentName']} documentName
-     * @param {string} channelId - The default is this.channelId
+     * @param {string} channelId - The default is DocumentModel.channelId
      */
     async addDocument(
         document: ArrayBuffer,
         mimeType: DocumentInfo['mimeType'],
         documentName: DocumentInfo['documentName'],
-        channelId: string = this.channelId
+        channelId: string = DocumentModel.channelId
     ): Promise<void> {
         const oneDocument = await saveDocumentAsBLOB(document);
         await this.channelManager.postToChannel(channelId, {
@@ -111,7 +110,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
         const documentsData = (await this.channelManager.getObjects({
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
-            channelId: this.channelId
+            channelId: DocumentModel.channelId
         })) as ObjectData<DocumentInfo_1_1_0 | DocumentInfo_1_0_0>[];
 
         return documentsData.map(
@@ -142,7 +141,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
         for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: DocumentModel.channelId
         })) {
             yield {
                 ...document,
@@ -157,7 +156,7 @@ export default class DocumentModel extends EventEmitter implements Model {
         }
         yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: DocumentModel.channelId
         });
     }
 
@@ -171,7 +170,7 @@ export default class DocumentModel extends EventEmitter implements Model {
         const documentsData = await this.channelManager.getObjects({
             id: id,
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
-            channelId: this.channelId
+            channelId: DocumentModel.channelId
         });
 
         /** if the list is empty, the object reference does not exist - getObjectWithTypeById behaviour **/
@@ -226,7 +225,7 @@ export default class DocumentModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === DocumentModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

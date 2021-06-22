@@ -40,9 +40,9 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Event is emitted when the questionnaire response data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'questionnaireResponse';
 
     private channelManager: ChannelManager;
-    private readonly channelId: string;
     private readonly availableQuestionnaires: Questionnaire[];
     private readonly incompleteResponsesChannelId: string;
     private disconnect: (() => void) | undefined;
@@ -54,8 +54,6 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
-
-        this.channelId = 'questionnaireResponse';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
@@ -67,7 +65,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     public async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(QuestionnaireModel.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
@@ -228,7 +226,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(
-            this.channelId,
+            QuestionnaireModel.channelId,
             {
                 $type$: 'QuestionnaireResponses',
                 name,
@@ -244,7 +242,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
     }
 
@@ -257,7 +255,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<OneQuestionnaireResponses>> {
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
     }
 
@@ -278,7 +276,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
         const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
         let numberOfSpecificQuestionnaires = 0;
 
@@ -401,7 +399,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
+        if (id === QuestionnaireModel.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {

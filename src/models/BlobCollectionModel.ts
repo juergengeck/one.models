@@ -48,7 +48,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     private channelManager: ChannelManager;
     private channelOwner: SHA256IdHash<Person> | undefined;
-    private channelId = 'blobCollections';
+    public static readonly channelId = 'blobCollections';
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
@@ -69,7 +69,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
      * Used to init the model to receive the updates.
      */
     async init() {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(BlobCollectionModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -91,13 +91,13 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
             name
         );
 
-        await this.channelManager.postToChannel(this.channelId, blobCollection.obj);
+        await this.channelManager.postToChannel(BlobCollectionModel.channelId, blobCollection.obj);
     }
 
     async getCollection(name: OneBlobCollection['name']): Promise<BlobCollection> {
         const collections = await this.channelManager.getObjectsWithType('BlobCollection', {
             owner: this.channelOwner,
-            channelId: this.channelId
+            channelId: BlobCollectionModel.channelId
         });
         const collection = collections.find(objectData => objectData.data.name === name);
         if (collection) {
@@ -109,7 +109,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     async getLatestCollection(): Promise<BlobCollection> {
         const collection = await this.channelManager.getObjectsWithType('BlobCollection', {
-            channelId: this.channelId,
+            channelId: BlobCollectionModel.channelId,
             count: 1,
             owner: this.channelOwner
         });
@@ -126,7 +126,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
      * @return {Promise<void>}
      */
     private async handleOnUpdated(id: string): Promise<void> {
-        if (id === this.channelId) {
+        if (id === BlobCollectionModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit();
         }

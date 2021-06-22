@@ -47,9 +47,9 @@ export default class DiaryModel extends EventEmitter implements Model {
      * Event emitted when diary data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'diary';
 
     channelManager: ChannelManager;
-    channelId: string;
     private disconnect: (() => void) | undefined;
 
     /**
@@ -60,7 +60,6 @@ export default class DiaryModel extends EventEmitter implements Model {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'diary';
         this.channelManager = channelManager;
     }
 
@@ -70,7 +69,7 @@ export default class DiaryModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(DiaryModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -89,13 +88,13 @@ export default class DiaryModel extends EventEmitter implements Model {
         if (!diaryEntry) {
             throw Error(i18nModelsInstance.t('errors:diaryModel.notEmptyField'));
         }
-        await this.channelManager.postToChannel(this.channelId, convertToOne(diaryEntry));
+        await this.channelManager.postToChannel(DiaryModel.channelId, convertToOne(diaryEntry));
     }
 
     async entries(): Promise<ObjectData<DiaryEntry>[]> {
         const objects: ObjectData<DiaryEntry>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType('DiaryEntry', {
-            channelId: this.channelId
+            channelId: DiaryModel.channelId
         });
 
         // Convert the data member from one to model representation
@@ -116,7 +115,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<OneDiaryEntry>> {
         for await (const entry of this.channelManager.objectIteratorWithType('DiaryEntry', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: DiaryModel.channelId
         })) {
             yield entry;
         }
@@ -142,7 +141,7 @@ export default class DiaryModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === DiaryModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

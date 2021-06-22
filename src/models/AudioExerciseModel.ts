@@ -13,22 +13,21 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      * Event is emitted when audio data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'audioExercise';
 
     channelManager: ChannelManager;
-    channelId: string;
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
-        this.channelId = 'audioExercise';
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(AudioExerciseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
@@ -50,7 +49,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     async addAudioExercise(audioFileName: string, startTimestamp: number): Promise<void> {
         /** store the audio exercise object in one **/
         await this.channelManager.postToChannel(
-            this.channelId,
+            AudioExerciseModel.channelId,
             {
                 $type$: 'AudioExercise',
                 name: audioFileName
@@ -65,7 +64,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      */
     public async audioExercises(): Promise<ObjectData<AudioExercise>[]> {
         return await this.channelManager.getObjectsWithType('AudioExercise', {
-            channelId: this.channelId
+            channelId: AudioExerciseModel.channelId
         });
     }
 
@@ -81,7 +80,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === AudioExerciseModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

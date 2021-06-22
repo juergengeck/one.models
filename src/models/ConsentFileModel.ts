@@ -39,9 +39,9 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * Event is emitted when the consent file data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'consentFile';
 
     channelManager: ChannelManager;
-    channelId: string;
     private personId: SHA256IdHash<Person> | undefined;
     private disconnect: (() => void) | undefined;
 
@@ -53,7 +53,6 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     constructor(channelManager: ChannelManager) {
         super();
 
-        this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
     }
@@ -82,7 +81,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(ConsentFileModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -107,7 +106,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
             throw new Error('The file is empty.');
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(ConsentFileModel.channelId, {
             $type$: 'ConsentFile',
             fileData: consentFile.personId + ' ' + consentFile.version,
             fileType: FileType.Consent
@@ -120,7 +119,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      */
     async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
         const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
 
         for (const consentFile of oneConsentFiles) {
@@ -151,7 +150,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
             throw new Error('The file is empty.');
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(ConsentFileModel.channelId, {
             $type$: 'ConsentFile',
             fileData: dropoutFile.personId + '|' + dropoutFile.reason + '|' + dropoutFile.date,
             fileType: FileType.Dropout
@@ -164,7 +163,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      */
     async getOwnerDropoutFile(): Promise<ObjectData<DropoutFile>> {
         const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
 
         for (const dropoutFile of oneDropoutFiles) {
@@ -241,7 +240,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      */
     async entries(): Promise<ObjectData<OneConsentFile>[]> {
         return await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
     }
 
@@ -254,7 +253,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     ): AsyncIterableIterator<ObjectData<OneConsentFile>> {
         for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         })) {
             yield entry;
         }
@@ -272,7 +271,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
         owner: SHA256IdHash<Person>,
         data?: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === ConsentFileModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

@@ -18,13 +18,12 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
     channelManager: ChannelManager;
-    channelId: string;
+    public static readonly channelId = 'wbc';
 
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'wbc';
         this.channelManager = channelManager;
     }
 
@@ -34,7 +33,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(WbcDiffModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -61,7 +60,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === WbcDiffModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }
@@ -94,7 +93,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
         }
 
         // post wbc measurement to channel
-        await this.channelManager.postToChannel(this.channelId, wbcObservation);
+        await this.channelManager.postToChannel(WbcDiffModel.channelId, wbcObservation);
     }
 
     /**
@@ -113,7 +112,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<WbcObservation>> {
         yield* this.channelManager.objectIteratorWithType('WbcObservation', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: WbcDiffModel.channelId
         });
     }
 
