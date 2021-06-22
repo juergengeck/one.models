@@ -1,9 +1,10 @@
-import {ContactModel} from '../models';
+import type {ContactModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
-import EncryptedConnection from './EncryptedConnection';
+import type EncryptedConnection from './EncryptedConnection';
 import {getObject} from 'one.core/lib/storage';
 import {toByteArray, fromByteArray} from 'base64-js';
-import InstancesModel, {LocalInstanceInfo} from '../models/InstancesModel';
+import type InstancesModel from '../models/InstancesModel';
+import type {LocalInstanceInfo} from '../models/InstancesModel';
 import {createCryptoAPI} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';

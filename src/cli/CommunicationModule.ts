@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
-import EncryptedConnection from '../misc/EncryptedConnection';
+import type EncryptedConnection from '../misc/EncryptedConnection';
 import {AccessModel, ChannelManager, ContactModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
@@ -27,7 +27,7 @@ import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return Promise.all(
