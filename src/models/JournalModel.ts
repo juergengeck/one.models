@@ -98,7 +98,7 @@ export default class JournalModel extends EventEmitter implements Model {
                     to: latestTo,
                     from: latestFrom
                 })) {
-                    data.push(retrievedData as unknown as ObjectData<unknown>);
+                    data.push(await retrievedData);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -158,8 +158,7 @@ export default class JournalModel extends EventEmitter implements Model {
                         counter = 0;
                     }
 
-                    /** same issue as in {@link this.findLatestTimeFrame} **/
-                    const data = retrievedData as ObjectData<unknown>;
+                    const data = await retrievedData;
 
                     /** If the event exists in the dictionary and if the array exists,
                      *  create a new array with the new value and the rest of the array
@@ -213,7 +212,7 @@ export default class JournalModel extends EventEmitter implements Model {
                 const event = journalInput.eventType;
                 const data: ObjectData<unknown>[] = [];
                 for await (const retrievedData of journalInput.retrieveFn()) {
-                    data.push(retrievedData as unknown as ObjectData<unknown>);
+                    data.push(await retrievedData);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -293,10 +292,7 @@ export default class JournalModel extends EventEmitter implements Model {
                     to: to,
                     from: from
                 })) {
-                    /** The return type of provided functions will always be ObjectData<unknown>.
-                     *  I don't know the reason why TS does not recognise the return type of the retrieve function.
-                     **/
-                    data = retrievedData as ObjectData<unknown>;
+                    data = await retrievedData;
                 }
                 if (data !== null) {
                     return data.creationTime.getTime();
