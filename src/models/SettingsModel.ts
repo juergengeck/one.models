@@ -26,7 +26,7 @@ export abstract class PropertyTree extends EventEmitter {
     abstract getValue(key: string): string;
     abstract getChild(key: string): PropertyTree;
     abstract hasValue(key: string): boolean;
-    abstract async init(): Promise<void>;
+    abstract init(): Promise<void>;
 }
 
 export class PropertyTreeProxy extends PropertyTree {

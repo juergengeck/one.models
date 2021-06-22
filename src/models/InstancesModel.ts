@@ -101,7 +101,9 @@ class InstancesModel extends EventEmitter {
 
         // Authenticate owner and local instance for private keys
         await Promise.all(
-            (await this.localInstancesIds(true)).map(async instanceId => {
+            (
+                await this.localInstancesIds(true)
+            ).map(async instanceId => {
                 const instance = await getObjectByIdHash(instanceId);
                 await authenticateOwner(this.secret, instance.obj.owner, instanceId);
                 await loadInstanceKeys(this.secret, instanceId);
@@ -229,9 +231,7 @@ class InstancesModel extends EventEmitter {
     }
 
     /**
-     * Get the instance keys for a specific person.
-     *
-     * @param {SHA256IdHash<Person>} personId
+     * @param {SHA256IdHash<Instance>} instanceId
      * @returns {Promise<Keys>}
      */
     public async localInstanceKeys(instanceId: SHA256IdHash<Instance>): Promise<Keys> {

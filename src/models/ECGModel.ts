@@ -145,7 +145,7 @@ export default class ECGModel extends EventEmitter implements Model {
         );
 
         if (from !== -1) {
-            const endIndex = this.findReadingIndex(ecgReadings, from);
+            const endIndex = ECGModel.findReadingIndex(ecgReadings, from);
 
             if (endIndex !== undefined) {
                 /** if the value it's negative, make it 0 meaning the start of the array **/
@@ -178,7 +178,7 @@ export default class ECGModel extends EventEmitter implements Model {
      * @returns {number | undefined}
      * @private
      */
-    private findReadingIndex(
+    private static findReadingIndex(
         readings: ElectrocardiogramReadings[],
         target: number
     ): number | undefined {

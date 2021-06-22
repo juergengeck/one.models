@@ -27,7 +27,7 @@ type JournalData = {[event: string]: {values: ObjectData<unknown>[]; index: numb
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
 export default class JournalModel extends EventEmitter implements Model {
-    private modelsDictionary: JournalInput[] = [];
+    private modelsDictionary: JournalInput[];
 
     private eventEmitterListeners: Map<string, () => void> = new Map();
     private oEventListeners: Map<

@@ -63,7 +63,7 @@ export enum LogoutMode {
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return Promise.all(
