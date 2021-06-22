@@ -97,13 +97,13 @@ export default class PropertyTreeStore extends PropertyTree {
         this.separator = separator;
         // register storageUpdated hook at one storage
         onVersionedObj.addListener((caughtObject: VersionedObjectResult) => {
-            if (this.isSettingsVersionedObjectResult(caughtObject)) {
+            if (PropertyTreeStore.isSettingsVersionedObjectResult(caughtObject)) {
                 this.storageUpdated(caughtObject.obj);
             }
         });
     }
 
-    private isSettingsVersionedObjectResult(
+    private static isSettingsVersionedObjectResult(
         caughtObject: VersionedObjectResult
     ): caughtObject is VersionedObjectResult<OneSettings> {
         return (caughtObject as VersionedObjectResult<OneSettings>).obj.$type$ === 'Settings';
