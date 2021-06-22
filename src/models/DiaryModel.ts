@@ -1,10 +1,10 @@
 import EventEmitter from 'events';
-import ChannelManager from './ChannelManager';
+import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
+import type {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
 import i18nModelsInstance from '../i18n';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
@@ -46,7 +46,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     /**
      * Event emitted when diary data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -140,7 +140,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');

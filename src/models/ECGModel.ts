@@ -3,12 +3,12 @@
  */
 
 import EventEmitter from 'events';
-import ChannelManager from './ChannelManager';
+import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
 import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
@@ -16,7 +16,7 @@ export default class ECGModel extends EventEmitter implements Model {
     /**
      * Event emitted when ecg data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
@@ -210,7 +210,7 @@ export default class ECGModel extends EventEmitter implements Model {
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');

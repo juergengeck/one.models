@@ -39,7 +39,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private channelManager: ChannelManager;
     private readonly channelId: string;
@@ -399,7 +399,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');

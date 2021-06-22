@@ -10,12 +10,12 @@ import type {VersionedObjectResult} from 'one.core/lib/storage';
 //@ts-ignore
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {implode} from 'one.core/lib/microdata-imploder';
-import ChannelManager from './ChannelManager';
+import type ChannelManager from './ChannelManager';
 import i18nModelsInstance from '../i18n';
-import ConsentFileModel from './ConsentFileModel';
+import type ConsentFileModel from './ConsentFileModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import AccessModel from './AccessModel';
+import type AccessModel from './AccessModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
 import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';

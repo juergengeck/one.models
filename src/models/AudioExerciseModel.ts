@@ -12,7 +12,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     /**
      * Event is emitted when audio data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -79,7 +79,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');

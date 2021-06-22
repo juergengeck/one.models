@@ -1,16 +1,16 @@
 import EventEmitter from 'events';
-import ChannelManager from './ChannelManager';
+import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import type {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
+import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -41,7 +41,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Event emitted when document data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -224,7 +224,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');

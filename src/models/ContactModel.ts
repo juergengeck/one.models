@@ -24,11 +24,11 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 import EventEmitter from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import InstancesModel from './InstancesModel';
+import type InstancesModel from './InstancesModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import {
+import type {
     CommunicationEndpointTypes,
     Contact,
     ContactApp,
@@ -295,7 +295,9 @@ export default class ContactModel extends EventEmitter {
         return await Promise.all(
             mySomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
-                    (await getObjectByIdHash(profileIdHash)).obj.personId
+                    (
+                        await getObjectByIdHash(profileIdHash)
+                    ).obj.personId
             )
         );
     }
@@ -328,7 +330,9 @@ export default class ContactModel extends EventEmitter {
         let identities = await Promise.all(
             otherPersonSomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
-                    (await getObjectByIdHash(profileIdHash)).obj.personId
+                    (
+                        await getObjectByIdHash(profileIdHash)
+                    ).obj.personId
             )
         );
 

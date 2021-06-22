@@ -8,12 +8,12 @@ import {
 } from 'one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
-import ConnectionsModel from './ConnectionsModel';
+import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
-import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
@@ -191,27 +191,28 @@ export default class RecoveryModel {
 
         // overwrite person keys with the old ones
         // for private keys we first need to encrypt them with the new password
-        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = {
-            command: 'private_person_information',
-            personId,
-            personPublicKey: this.decryptedObject.personPublicKey,
-            personPublicSignKey: this.decryptedObject.personPublicSignKey,
-            personPrivateKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.personPrivateKey
-            ),
-            personPrivateSignKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.personPrivateSignKey
-            ),
-            anonPersonId,
-            anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
-            anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
-            anonPersonPrivateKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.anonPersonPrivateKey
-            ),
-            anonPersonPrivateSignKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.anonPersonPrivateSignKey
-            )
-        };
+        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage =
+            {
+                command: 'private_person_information',
+                personId,
+                personPublicKey: this.decryptedObject.personPublicKey,
+                personPublicSignKey: this.decryptedObject.personPublicSignKey,
+                personPrivateKey: await this.encryptPersonPrivateKey(
+                    this.decryptedObject.personPrivateKey
+                ),
+                personPrivateSignKey: await this.encryptPersonPrivateKey(
+                    this.decryptedObject.personPrivateSignKey
+                ),
+                anonPersonId,
+                anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
+                anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
+                anonPersonPrivateKey: await this.encryptPersonPrivateKey(
+                    this.decryptedObject.anonPersonPrivateKey
+                ),
+                anonPersonPrivateSignKey: await this.encryptPersonPrivateKey(
+                    this.decryptedObject.anonPersonPrivateSignKey
+                )
+            };
         await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
 
         // remove from memory the decrypted person information because it's not important anymore
@@ -301,9 +302,7 @@ export default class RecoveryModel {
      * @returns {Promise<{privateKey: string, privateSignKey: string}>}
      * @private
      */
-    private async extractDecryptedPrivateKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         privateKey: string;
         privateSignKey: string;
     }> {

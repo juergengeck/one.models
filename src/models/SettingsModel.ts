@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
-import {Settings as OneSettings} from '../recipes/SettingsRecipe';
+import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {serializeWithType} from 'one.core/lib/util/promise';

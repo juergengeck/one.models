@@ -16,7 +16,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
     /**
      * Event emitted when BloodGlucose data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
@@ -138,7 +138,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
