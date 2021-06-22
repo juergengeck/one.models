@@ -35,6 +35,7 @@
     </codeStyleSettings>
     <codeStyleSettings language="JavaScript">
       <option name="RIGHT_MARGIN" value="100" />
+      <option name="WRAP_ON_TYPING" value="1" />
       <option name="SOFT_MARGINS" value="100" />
     </codeStyleSettings>
     <codeStyleSettings language="Markdown">
@@ -42,6 +43,7 @@
     </codeStyleSettings>
     <codeStyleSettings language="TypeScript">
       <option name="RIGHT_MARGIN" value="100" />
+      <option name="WRAP_ON_TYPING" value="1" />
       <option name="SOFT_MARGINS" value="100" />
     </codeStyleSettings>
     <codeStyleSettings language="XML">
