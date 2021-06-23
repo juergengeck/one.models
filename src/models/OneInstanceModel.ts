@@ -420,7 +420,10 @@ export default class OneInstanceModel extends EventEmitter {
 
         if (name && email) {
             await this.initialiseInstance(secret);
-            this.currentRegistrationState = false;
+
+            this.currentRegistrationState = true;
+            this.emit('registration_state_changed');
+            this.onRegistrationStateChange.emit();
             this.emit('authstate_changed');
             this.onAuthStateChange.emit();
         }
