@@ -50,12 +50,16 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     private rootDirectoryContent: PersistentFileSystemRoot['root'];
 
+    private storage: string | undefined;
+
     /**
      *
      * @param {SHA256Hash<PersistentFileSystemDirectory>} rootDirectory
+     * @param storage
      */
-    public constructor(rootDirectory: PersistentFileSystemRoot) {
+    public constructor(rootDirectory: PersistentFileSystemRoot, storage?: string) {
         this.rootDirectoryContent = rootDirectory.root;
+        this.storage = storage;
     }
 
     /**
@@ -1111,9 +1115,10 @@ export default class PersistentFileSystem implements IFileSystem {
         // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
         // @ts-ignore
         if (platform === PLATFORMS.NODE_JS) {
+            const storagePath = this.storage ? `${this.storage}/${getInstanceIdHash()}/objects/${hash}` : `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`
+
             const {default: fs} = await import('fs');
-            const path = `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`;
-            const stat = fs.statSync(path);
+            const stat = fs.statSync(storagePath);
             return stat.size;
         }
 

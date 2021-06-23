@@ -33,20 +33,23 @@ export default class PersistentFilerModel extends EventEmitter {
 
     private fs: PersistentFileSystem | null = null;
     private disconnect: (() => void) | undefined;
-
+    private storage: string | undefined;
 
     /**
      *
      * @param {ChannelManager} channelManager
      * @param channelId
+     * @param storage
      */
     public constructor(
         channelManager: ChannelManager,
-        channelId = 'mainFileSystemChannelId'
+        channelId = 'mainFileSystemChannelId',
+        storage?: string
     ) {
         super();
         this.channelManager = channelManager;
         this.fileSystemChannelId = channelId;
+        this.storage = storage;
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -56,7 +59,7 @@ export default class PersistentFilerModel extends EventEmitter {
      */
     public async init() {
         const root = await this.createRootDirectoryIfNotExists();
-        this.fs = new PersistentFileSystem(root);
+        this.fs = new PersistentFileSystem(root, this.storage);
 
         this.fs.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
     }
