@@ -11,7 +11,6 @@ import {
     AccessModel,
     InstancesModel,
     ECGModel,
-    ConsentFileModel,
     BodyTemperatureModel
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -84,7 +83,6 @@ export default class TestModel {
         this.directoryPath = directoryPath;
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager(this.accessModel);
-        this.consentFile = new ConsentFileModel(this.channelManager);
         this.contactModel = new ContactModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
@@ -149,12 +147,10 @@ export default class TestModel {
         await this.instancesModel.init(this.secret);
         // Setup the identities
         const {mainId, anonymousId} = await this.setupMyIds(anonymousEmail, ownerWillBeOverwritten);
-        this.consentFile.setPersonId(anonymousId);
 
         // Initialize the rest of the models
         await this.channelManager.init(anonymousId);
         await this.ecgModel.init();
-        await this.consentFile.init();
         await this.bodyTemperature.init();
     }
 
@@ -166,11 +162,6 @@ export default class TestModel {
     public async shutdown(): Promise<void> {
         try {
             await this.ecgModel.shutdown();
-        } catch (e) {
-            console.error(e);
-        }
-        try {
-            await this.consentFile.shutdown();
         } catch (e) {
             console.error(e);
         }
@@ -189,7 +180,6 @@ export default class TestModel {
         closeInstance();
     }
     ecgModel: ECGModel;
-    consentFile: ConsentFileModel;
     instancesModel: InstancesModel;
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;

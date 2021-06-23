@@ -9,7 +9,6 @@ import NewsModel from './NewsModel';
 import OneInstanceModel, {AuthenticationState} from './OneInstanceModel';
 import ChannelManager from './ChannelManager';
 import ContactModel from './ContactModel';
-import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
@@ -31,7 +30,6 @@ export {
     AuthenticationState,
     ChannelManager,
     ContactModel,
-    ConsentFileModel,
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
