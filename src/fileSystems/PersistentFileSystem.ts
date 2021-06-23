@@ -60,7 +60,6 @@ export default class PersistentFileSystem implements IFileSystem {
     public constructor(rootDirectory: PersistentFileSystemRoot, storage?: string) {
         this.rootDirectoryContent = rootDirectory.root;
         this.storage = storage;
-        console.log(storage);
     }
 
     /**
@@ -1119,8 +1118,6 @@ export default class PersistentFileSystem implements IFileSystem {
         // @ts-ignore
         if (platform === PLATFORMS.NODE_JS) {
             const storagePath = this.storage ? `${this.storage}/${getInstanceIdHash()}/objects/${hash}` : `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`
-            console.log('sssss', this.storage);
-            console.log(storagePath)
             const {default: fs} = await import('fs');
             const stat = fs.statSync(storagePath);
             return stat.size;
