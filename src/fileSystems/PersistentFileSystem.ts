@@ -216,8 +216,10 @@ export default class PersistentFileSystem implements IFileSystem {
 
         const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
 
+        const onePath = this.storage ? this.storage : path.resolve(process.cwd(), path.join('data'))
+
         const objFilePath =
-            path.resolve(process.cwd(), path.join('data')) +
+            onePath +
             path.sep +
             getInstanceIdHash() +
             path.sep +
