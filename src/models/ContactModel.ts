@@ -37,20 +37,12 @@ import {OEvent} from '../misc/OEvent';
 
 /**
  * This represents a ContactEvent
- * @enum UpdatedContactList -> this event retrieves ContactApp.obj.contacts ( a list of SHA256Hash<Someones> )
- *       UpdatedContact -> this event retrieves the updated Profile object ( an object of type VersionedObjectResult<Profile> )
- *       UpdatedProfile -> this event retrieves the updated Profile object ( an object of type VersionedObjectResult<Profile> ), when a new contact is added to an existing profile
+ * @enum UpdatedProfile -> this event retrieves the updated Profile object ( an object of type VersionedObjectResult<Profile> ), when a new contact is added to an existing profile
  *       NewCommunicationEndpointArrived -> this event retrieves the CommunicationEndpoint object from the contact object
- *       UpdatedContactApp -> this event is emitted when th ContactApp is updated
- *       NewContact -> this event retrieves the new contact object ( a object of type UnversionedObjectResult<Contact> )
  */
 export enum ContactEvent {
-    UpdatedContactList = 'UPDATED_CONTACT_LIST',
-    UpdatedContact = 'UPDATED_CONTACT',
     UpdatedProfile = 'UPDATE_PROFILE',
-    NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED',
-    UpdatedContactApp = 'UPDATED_CONTACT_APP',
-    NewContact = 'NEW_CONTACT'
+    NewCommunicationEndpointArrived = 'NEW_ENDPOINT_ARRIVED'
 }
 
 /**
@@ -89,37 +81,26 @@ export type CommunicationEndpoint = {
 };
 
 /**
- * This represents the metadata of a profile property.
+ * Profile data structure used to fetch data from the models.
  */
-export type Meta = {
-    isMain: boolean;
-};
-
-/**
- * This represents the information from a contact object.
- */
-export type Info = {
-    value: string | ArrayBuffer;
-    meta: Meta;
-};
-
-/**
- * The merged information from all contact objects of a profile.
- */
-export type MergedContact = {
-    type: string;
-    info: Info[];
-};
-
 export type ProfileInfo = {
+    profileProps: ProfileProperty[];
+    profileHash: SHA256Hash<ProfileCRDT>;
+};
+
+/**
+ * One profile property.
+ */
+export type ProfileProperty = {
     type: string;
     value: string | ArrayBuffer;
 };
 
 /**
- * Data send to update a profile object.
+ * Data needed to update a profile.
  */
 export type ProfileData = {
+    profileHash: SHA256Hash<ProfileCRDT>;
     profileName?: string;
     communicationEndpoint: CommunicationEndpoint;
     description: ContactDescription;
@@ -222,10 +203,7 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Identity management ###################### **/
 
     /**
-     * TODO: this method will overwrite the previous profile if called twice with the same email! Should it throw
-     * if identity already exists?
-     *
-     * Create a new personId and an associated profile.
+     * Create a new personId and an associated profile. A new someone object will be created if it doesn't exist.
      *
      * @param myself - flag that specifies whether the identity should be for me(if true) or another person(if false)
      * @param email - the email address
@@ -247,137 +225,31 @@ export default class ContactModel extends EventEmitter {
             takeOver
         );
 
-        await this.updateCommunicationEndpoint(createdProfile.obj.personId, 'default', {
-            emails: [personEmail]
-        });
+        // Set generated email as initial email communication endpoint
+        const profileData: ProfileData = {
+            profileHash: createdProfile.hash,
+            communicationEndpoint: {emails: [personEmail]},
+            description: {}
+        };
+        await this.updateProfile(profileData, createdProfile.obj.personId);
 
         return createdProfile.obj.personId;
     }
 
     /**
-     * Serialize profile creation wrapper for new profiles for same someone object.
-     * @param personEmail - the person email address.
-     * @param forMyself - flag specifies if the profile is for my someone object or for others.
-     * @param personId - the personId used to identify the someone object for which the profile is created.
-     * @private
-     */
-    private async serializeNewProfileCreatingByPersonEmail(
-        personEmail: string,
-        forMyself: boolean,
-        personId?: SHA256IdHash<Person>
-    ): Promise<VersionedObjectResult<ProfileCRDT>> {
-        // Create a profile for myself
-        if (forMyself) {
-            return await serializeWithType('Contacts', async () => {
-                /** create the local instance including the instance keys **/
-                const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
-                    personEmail
-                );
-
-                /** create relevant profile objects **/
-                const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createOwnProfileCRDT'},
-                    personEmail,
-                    'default',
-                    createdInstance,
-                    this.commServerUrl,
-                    false
-                )) as VersionedObjectResult<ProfileCRDT>;
-
-                /** add the profile to the someone object **/
-                await this.registerNewSelfProfile(profile);
-
-                this.onNewCommunicationEndpointArrive.emit(profile.obj.communicationEndpoints);
-                this.emit(
-                    ContactEvent.NewCommunicationEndpointArrived,
-                    profile.obj.communicationEndpoints
-                );
-                return profile;
-            });
-        } else {
-            if (personId === undefined) {
-                throw new Error('personId must be defined to create a new profile');
-            }
-
-            /** Create a profile for others **/
-            return await serializeWithType('Contacts', async () => {
-                /** Create new profile **/
-                const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createOthersProfileCRDT'},
-                    personEmail,
-                    'default'
-                )) as VersionedObjectResult<ProfileCRDT>;
-
-                const contactApp = await ContactModel.getContactAppObject();
-                const someoneObject = await this.getSomeoneObject(personId);
-
-                if (someoneObject === undefined) {
-                    throw new Error('No someone object for the given personId');
-                }
-
-                /** calculate the hash of the old someone to be removed **/
-                const someoneObjectHash = await calculateHashOfObj(someoneObject);
-
-                /** adding the new profile to someone object's profiles **/
-                someoneObject.profiles.push(profile.idHash);
-
-                /** saving the someone object updates **/
-                const updatedSomeone = await serializeWithType(
-                    await calculateHashOfObj(someoneObject),
-                    async () => {
-                        return await createSingleObjectThroughPurePlan(
-                            {
-                                module: '@one/identity',
-                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                            },
-                            someoneObject
-                        );
-                    }
-                );
-
-                /** update the contact app object to the new someone **/
-                contactApp.obj.contacts.forEach((item, index) => {
-                    if (item === someoneObjectHash) {
-                        contactApp.obj.contacts.splice(index, 1);
-                        contactApp.obj.contacts.push(updatedSomeone.hash);
-                    }
-                });
-
-                /** saving the contact app **/
-                await serializeWithType('ContactApp', async () => {
-                    return await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        contactApp.obj
-                    );
-                });
-
-                return profile;
-            });
-        }
-    }
-
-    /**
-     * Create a new profile for a someone object. A new anon identity will be created.
+     * Create a new anonymous identity and a profile for a someone object.
      * @param forMyself - if the new profile is for myself.
-     * @param personId - the person id to identify the someone object to which the profile is added
+     * @param personId - the person id to identify the someone object to which the profile is added.
      * @param profileData - the profile infos for the new profile.
      */
-    public async createNewProfileForSomeone(
+    public async createNewIdentityForSomeone(
         forMyself: boolean,
         personId?: SHA256IdHash<Person>,
         profileData?: ProfileData
-    ) {
-        // create random email
+    ): Promise<SHA256IdHash<Person>> {
         const personEmail = await createRandomString(20);
 
-        const createdProfile = await this.serializeNewProfileCreatingByPersonEmail(
-            personEmail,
-            forMyself,
-            personId
-        );
+        const createdProfile = await this.createProfileForSomeone(personEmail, forMyself, personId);
 
         if (profileData) {
             await this.updateProfile(
@@ -465,7 +337,7 @@ export default class ContactModel extends EventEmitter {
     /** ###################### Managing contacts ###################### **/
 
     /**
-     * Return the person id of all contacts.
+     * Return the person id of the main profile of all someone objects.
      *
      * @returns person id list
      */
@@ -498,54 +370,91 @@ export default class ContactModel extends EventEmitter {
             profileName: profileName
         });
 
-        // TODO why unknown type?
-        return personProfile.obj as ProfileCRDT;
+        return personProfile.obj;
     }
 
+    /**
+     * Fetch list of communication endpoints for given personId.
+     * @param personId
+     */
     public async getCommunicationEndpoints(
         personId: SHA256IdHash<Person>
     ): Promise<CommunicationEndpointTypes[]> {
         const profile = await this.getProfile(personId);
-        return await this.getContactCommunicationEndpoints(profile);
+
+        return await Promise.all(
+            profile.communicationEndpoints.map(
+                async (communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>) => {
+                    return await getObject(communicationEndpointHash);
+                }
+            )
+        );
     }
 
     /**
-     * Return the name of the profile identified by the person id.
+     * Return the person name description from a profile object identified by the person id. If there is no name in the
+     * given profile object as a parameter, it will return an empty string.
      *
      * @param personId - the person id for whom the name search is performed
      * @param profileName - the profile name
      * @returns the name or an empty string if the name description wasn't found
      */
-    public async getName(personId: SHA256IdHash<Person>, profileName?: string): Promise<string> {
+    public async getName(
+        personId: SHA256IdHash<Person>,
+        profileName: string = 'default'
+    ): Promise<string> {
         const profile = await this.getProfile(personId, profileName);
 
-        let someoneName = '';
+        // get the descriptions of profile object
+        const contactDescriptions = await this.getContactDescriptions(profile);
 
-        if (profile) {
-            someoneName = await this.getNameDescription(profile);
+        // iterate over the contact descriptions and search for name
+        for (const description of contactDescriptions) {
+            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
+                return description.name;
+            }
         }
 
-        return someoneName;
+        return '';
     }
 
-    public async getProfileInfos(personId: SHA256IdHash<Person>) {
-        const profileInfos: ProfileInfo[] = [];
-        const profile = await this.getProfile(personId);
+    /**
+     * Fetches all the informations of the profile identified by personId and profileName.
+     * @param personId
+     * @param profileName
+     */
+    public async getProfileInfos(
+        personId: SHA256IdHash<Person>,
+        profileName: string = 'default'
+    ): Promise<ProfileInfo> {
+        const profile = await this.getProfile(personId, profileName);
+        const profileHash = await calculateHashOfObj(profile);
+
+        const profileInfo = {profileProps: [], profileHash: profileHash} as ProfileInfo;
 
         const descriptions = await this.getContactDescriptions(profile);
         for (const description of descriptions) {
             switch (description.$type$) {
                 case DescriptionTypes.PERSON_NAME: {
-                    profileInfos.push({type: 'PersonName', value: description.name});
+                    profileInfo.profileProps.push({
+                        type: DescriptionTypes.PERSON_NAME,
+                        value: description.name
+                    });
                     break;
                 }
                 case DescriptionTypes.PROFILE_IMAGE: {
                     const image = await readBlobAsArrayBuffer(description.image);
-                    profileInfos.push({type: 'ProfileImage', value: image});
+                    profileInfo.profileProps.push({
+                        type: DescriptionTypes.PROFILE_IMAGE,
+                        value: image
+                    });
                     break;
                 }
                 case DescriptionTypes.PERSON_STATUS: {
-                    profileInfos.push({type: 'PersonStatus', value: description.status});
+                    profileInfo.profileProps.push({
+                        type: DescriptionTypes.PERSON_STATUS,
+                        value: description.status
+                    });
                     break;
                 }
             }
@@ -554,91 +463,14 @@ export default class ContactModel extends EventEmitter {
         const commEndpoints = await this.getCommunicationEndpoints(personId);
         for (const commEndpoint of commEndpoints) {
             if (commEndpoint.$type$ === CommunicationEndpointsTypes.EMAIL) {
-                profileInfos.push({type: 'Email', value: commEndpoint.email});
+                profileInfo.profileProps.push({
+                    type: CommunicationEndpointsTypes.EMAIL,
+                    value: commEndpoint.email
+                });
             }
         }
 
-        return profileInfos;
-    }
-
-    /**
-     * Update the profile of a person based on the contactDescription object.
-     * (e.g. if the current main contact contains just an avatar and the incoming contactDescription contains a person name
-     * then the new main contact will contains both, the avatar from previous main contact and the person name from the contactDescription object.)
-     *
-     * @param personId - the id of the person whose main contact will be updated
-     * @param contactDescription - the new values of the main contact object
-     */
-    public async updateDescription(
-        personId: SHA256IdHash<Person>,
-        profileName: string = 'default',
-        contactDescription: ContactDescription
-    ): Promise<void> {
-        let newContactDescriptions: UnversionedObjectResult<ContactDescriptionTypes>[] = [];
-
-        if (contactDescription.personName) {
-            // creates the personName object
-            newContactDescriptions.push(
-                await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {$type$: DescriptionTypes.PERSON_NAME, name: contactDescription.personName}
-                )
-            );
-        } else if (contactDescription.image) {
-            // creates the profileImage object
-            newContactDescriptions.push(
-                await createSingleObjectThroughImpurePlan(
-                    {
-                        module: '@module/createProfilePicture',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    contactDescription.image
-                )
-            );
-        } else if (contactDescription.personStatus) {
-            // creates the personStatus object
-            newContactDescriptions.push(
-                await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: DescriptionTypes.PERSON_STATUS,
-                        status: contactDescription.personStatus
-                    }
-                )
-            );
-        }
-
-        await this.updateContactContent(personId, true, newContactDescriptions, profileName);
-    }
-
-    /**
-     * Update the profile of a person based on the communication endpoint object.
-     *
-     * @param personId - the given person id
-     * @param profileName - the profile name
-     * @param communicationEndpoint - the new communication endpoints information
-     */
-    public async updateCommunicationEndpoint(
-        personId: SHA256IdHash<Person>,
-        profileName: string = 'default',
-        communicationEndpoint: CommunicationEndpoint
-    ): Promise<void> {
-        let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
-
-        for (const email of communicationEndpoint.emails) {
-            // creates the email object
-            newCommunicationEndpoints.push(
-                await createSingleObjectThroughPurePlan(
-                    {module: '@one/identity'},
-                    {
-                        $type$: CommunicationEndpointsTypes.EMAIL,
-                        email: email
-                    }
-                )
-            );
-        }
-
-        await this.updateContactContent(personId, false, newCommunicationEndpoints, profileName);
+        return profileInfo;
     }
 
     /**
@@ -652,15 +484,14 @@ export default class ContactModel extends EventEmitter {
     public async updateProfile(
         newProfileData: ProfileData,
         personId: SHA256IdHash<Person>,
-        profileName?: string
+        profileName: string = 'default'
     ) {
         let profile;
         try {
-            profile = await this.getProfile(personId, profileName ? profileName : 'default');
+            profile = await this.getProfile(personId, profileName);
         } catch (e) {
             throw new Error('The profile does not exist');
         }
-        const baseProfileHash = await calculateHashOfObj(profile);
 
         /** update communication endpoint **/
         let newCommunicationEndpoints: UnversionedObjectResult<CommunicationEndpointTypes>[] = [];
@@ -737,7 +568,7 @@ export default class ContactModel extends EventEmitter {
         profile.contactDescriptions = descriptionHashes;
 
         /** update profile **/
-        await this.updateProfileCRDT(profile, baseProfileHash);
+        await this.mergeProfile(profile, newProfileData.profileHash);
     }
 
     /**
@@ -853,7 +684,6 @@ export default class ContactModel extends EventEmitter {
         });
     }
 
-    // TODO A single profile per person in V0.0.1
     /**
      * Register the given profile to my someoneObject and update contactApp.
      * HOOK function: Serialized since it's part of an object listener or not.
@@ -911,49 +741,139 @@ export default class ContactModel extends EventEmitter {
         forMyself: boolean,
         takeOver?: boolean
     ): Promise<VersionedObjectResult<ProfileCRDT>> {
-        // Create a profile for myself
+        /** Create a profile for myself **/
         if (forMyself) {
-            return await serializeWithType('Contacts', async () => {
-                // Create the local instance including the instance keys
-                const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
-                    personEmail
-                );
-
-                // Create relevant profile objects
-                const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createOwnProfileCRDT'},
-                    personEmail,
-                    'default',
-                    createdInstance,
-                    this.commServerUrl,
-                    takeOver
-                )) as VersionedObjectResult<ProfileCRDT>;
-
-                //Add the profile to the someone object
-                await this.registerNewSelfProfile(profile);
-
-                this.onNewCommunicationEndpointArrive.emit(profile.obj.communicationEndpoints);
-                this.emit(
-                    ContactEvent.NewCommunicationEndpointArrived,
-                    profile.obj.communicationEndpoints
-                );
-                return profile;
-            });
-        } else {
-            // Create a profile for others
-            return await serializeWithType('Contacts', async () => {
-                // Just create the person id and the relevant profile objects
-                const profile = (await createSingleObjectThroughPurePlan(
-                    {module: '@module/createOthersProfileCRDT'},
-                    personEmail,
-                    'default'
-                )) as VersionedObjectResult<ProfileCRDT>;
-
-                // Add the profile to the someone object (or create a new one)
-                await this.createSomeoneObjectIfNotExists(profile);
-                return profile;
-            });
+            return this.createProfileForMyself(personEmail);
         }
+
+        /** Create a profile for others **/
+        return await serializeWithType('Contacts', async () => {
+            // Just create the person id and the relevant profile objects
+            const profile = (await createSingleObjectThroughPurePlan(
+                {module: '@module/createOthersProfileCRDT'},
+                personEmail,
+                'default'
+            )) as VersionedObjectResult<ProfileCRDT>;
+
+            await this.createSomeoneObjectIfNotExists(profile);
+            return profile;
+        });
+    }
+
+    /**
+     * Serialize profile creation wrapper for new profiles for same someone object.
+     * @param personEmail - the person email address.
+     * @param forMyself - flag specifies if the profile is for my someone object or for others.
+     * @param personId - the personId used to identify the someone object for which the profile is created. It is
+     * not needed if the profile is created for myself.
+     * @private
+     */
+    private async createProfileForSomeone(
+        personEmail: string,
+        forMyself: boolean,
+        personId?: SHA256IdHash<Person>
+    ): Promise<VersionedObjectResult<ProfileCRDT>> {
+        /** Create a profile for myself **/
+        if (forMyself) {
+            return this.createProfileForMyself(personEmail);
+        }
+
+        /** Create a profile for others **/
+        if (personId === undefined) {
+            throw new Error('personId must be defined to create a new profile');
+        }
+
+        return await serializeWithType('Contacts', async () => {
+            /** Create new profile **/
+            const profile = (await createSingleObjectThroughPurePlan(
+                {module: '@module/createOthersProfileCRDT'},
+                personEmail,
+                'default'
+            )) as VersionedObjectResult<ProfileCRDT>;
+
+            const contactApp = await ContactModel.getContactAppObject();
+            const someoneObject = await this.getSomeoneObject(personId);
+
+            if (someoneObject === undefined) {
+                throw new Error('Someone object not found for the given personId');
+            }
+
+            /** calculate the hash of the old someone to be removed **/
+            const someoneObjectHash = await calculateHashOfObj(someoneObject);
+
+            /** adding the new profile to someone object's profiles **/
+            someoneObject.profiles.push(profile.idHash);
+
+            /** saving the someone object updates **/
+            const updatedSomeone = await serializeWithType(
+                await calculateHashOfObj(someoneObject),
+                async () => {
+                    return await createSingleObjectThroughPurePlan(
+                        {
+                            module: '@one/identity',
+                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                        },
+                        someoneObject
+                    );
+                }
+            );
+
+            /** update the contact app object to the new someone **/
+            contactApp.obj.contacts.forEach((item, index) => {
+                if (item === someoneObjectHash) {
+                    contactApp.obj.contacts.splice(index, 1);
+                    contactApp.obj.contacts.push(updatedSomeone.hash);
+                }
+            });
+
+            /** saving the contact app **/
+            await serializeWithType('ContactApp', async () => {
+                return await createSingleObjectThroughPurePlan(
+                    {
+                        module: '@one/identity',
+                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                    },
+                    contactApp.obj
+                );
+            });
+
+            return profile;
+        });
+    }
+
+    /**
+     * Create a profile for myself.
+     * @param personEmail
+     * @param takeOver
+     * @private
+     */
+    private async createProfileForMyself(personEmail: string, takeOver?: boolean) {
+        return await serializeWithType('Contacts', async () => {
+            // Create the local instance including the instance keys
+            const createdInstance = await this.instancesModel.createLocalInstanceByEMail(
+                personEmail
+            );
+
+            // Create relevant profile objects
+            const profile = (await createSingleObjectThroughPurePlan(
+                {module: '@module/createOwnProfileCRDT'},
+                personEmail,
+                'default',
+                createdInstance,
+                this.commServerUrl,
+                takeOver
+            )) as VersionedObjectResult<ProfileCRDT>;
+
+            //Add the profile to the someone object
+            await this.registerNewSelfProfile(profile);
+
+            this.onNewCommunicationEndpointArrive.emit(profile.obj.communicationEndpoints);
+            this.emit(
+                ContactEvent.NewCommunicationEndpointArrived,
+                profile.obj.communicationEndpoints
+            );
+            return profile;
+        });
     }
 
     /**
@@ -976,59 +896,6 @@ export default class ContactModel extends EventEmitter {
      * @param caughtObject - the caught object
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
-        if (ContactModel.isContactAppVersionedObjectResult(caughtObject)) {
-            // TODO ContactApp might be shared for IoM, but not for version V0.0.1
-            // // Get the profiles of myself
-            // const updatedSomeoneObjectForMyself = await getObject(caughtObject.obj.me);
-            // // const myPersonId = await getObjectByIdHash(caughtObject.obj.me);
-            // const profile = await this.getProfile(caughtObject.obj.me, '', caughtObject.obj.me);
-            // const profiles = await Promise.all(
-            //     updatedSomeoneObjectForMyself.profiles.map(
-            //         async (profileIdHash: SHA256IdHash<ProfileCRDT>) => {
-            //             return await getObjectByIdHash(profileIdHash);
-            //         }
-            //     )
-            // );
-            //
-            // //Iterate over profiles and check which profile does not have a local instance -> generate them
-            // await Promise.all(
-            //     profiles.map(async (profile: VersionedObjectResult<ProfileCRDT>) => {
-            //         if (await this.instancesModel.hasPersonLocalInstance(profile.obj.personId)) {
-            //             return;
-            //         }
-            //
-            //         // Create profile for this
-            //         const personEmail = (await getObjectByIdHash(profile.obj.personId)).obj.email;
-            //         await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-            //     })
-            // );
-            //
-            // //generate local instance if the profile doesn't have one
-            // if (!(await this.instancesModel.hasPersonLocalInstance(profile.personId))) {
-            //     const personEmail = (await getObjectByIdHash(profile.personId)).obj.email;
-            //     await this.serializeProfileCreatingByPersonEmail(personEmail, true);
-            // }
-            //
-            // await serializeWithType('ContactApp', async () => {
-            //     try {
-            //         const firstPreviousContactObjectHash = await getNthVersionMapHash(
-            //             caughtObject.idHash,
-            //             -1
-            //         );
-            //         if (firstPreviousContactObjectHash !== caughtObject.hash) {
-            //             await createSingleObjectThroughImpurePlan(
-            //                 {module: '@module/mergeContactApp'},
-            //                 caughtObject.idHash
-            //             );
-            //         }
-            //     } catch (_) {
-            //         return;
-            //     }
-            // });
-            //
-            // this.emit(ContactEvent.UpdatedContactApp);
-            // this.onContactAppUpdate.emit();
-        }
         if (ContactModel.isProfileCRDTVersionedObjectResult(caughtObject)) {
             await serializeWithType('Contacts', async () => {
                 await this.createSomeoneObjectIfNotExists(caughtObject);
@@ -1045,7 +912,7 @@ export default class ContactModel extends EventEmitter {
                             caughtObject.obj
                         );
                     }
-                } catch (_) {
+                } catch {
                     // catch reached when there isn't a previous version
                     this.onNewCommunicationEndpointArrive.emit(
                         caughtObject.obj.communicationEndpoints
@@ -1056,18 +923,6 @@ export default class ContactModel extends EventEmitter {
                 }
             });
         }
-    }
-
-    /**
-     * Check if the VersionedObjectResult object given as a parameter is a ContactApp object.
-     *
-     * @param caughtObject - the caught object
-     * @returns true, if the caught object is a ContactApp object, otherwise false
-     */
-    private static isContactAppVersionedObjectResult(
-        caughtObject: VersionedObjectResult
-    ): caughtObject is VersionedObjectResult<ContactApp> {
-        return (caughtObject as VersionedObjectResult<ContactApp>).obj.$type$ === 'ContactApp';
     }
 
     /**
@@ -1083,8 +938,7 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Private utility function which creates a someone object and updates the contact app,  if the someone
-     * object doesn't exist.
+     * Creates a someone object and updates the contact app,  if the someone object doesn't exist.
      *
      * @param profile - the given profile
      */
@@ -1119,7 +973,6 @@ export default class ContactModel extends EventEmitter {
                     contactApp.obj
                 );
             });
-            this.emit(ContactEvent.UpdatedContactList, contactApp.obj.contacts);
         }
     }
 
@@ -1177,12 +1030,12 @@ export default class ContactModel extends EventEmitter {
     }
 
     /**
-     * Update the Profile object with a new Contact object.
+     * Merge the new Profile with the older version.
      *
      * @param  profile - the given profile object
      * @param baseProfileHash - the base profile object hash
      */
-    private async updateProfileCRDT(
+    private async mergeProfile(
         profile: ProfileCRDT,
         baseProfileHash: SHA256Hash<ProfileCRDT>
     ): Promise<void> {
@@ -1200,48 +1053,6 @@ export default class ContactModel extends EventEmitter {
 
         this.emit(ContactEvent.UpdatedProfile, profile);
         this.onProfileUpdate.emit(profile);
-        // TODO needed? Emit the other events?
-
-        // const existingContact = profile.obj.contactObjects.find(
-        //     (contactHash: SHA256Hash<Contact>) => contactHash === contactObject!.hash
-        // );
-        // if (existingContact === undefined) {
-        //     profile.obj.contactObjects.push(contactObject.hash);
-        // }
-        //
-        // profile.obj.mainContact = contactObject.hash;
-
-        //  this.emit(ContactEvent.NewContact, contactObject);
-        // this.onContactNew.emit(contactObject);
-
-        //  if (existingContact === undefined) {
-        //      this.emit(
-        //          ContactEvent.NewCommunicationEndpointArrived,
-        //          contactObject.obj.communicationEndpoints
-        //      );
-        //      this.onNewCommunicationEndpointArrive.emit(contactObject.obj.communicationEndpoints);
-        //  }
-    }
-
-    /**
-     * Return the person name description from a profile object.
-     * If there is no name in the given profile object as a parameter, it will return an empty string.
-     *
-     * @param profile - the given profile object
-     * @returns the name that was found or empty string
-     */
-    private async getNameDescription(profile: ProfileCRDT): Promise<string> {
-        // get the descriptions of profile object
-        const contactDescriptions = await this.getContactDescriptions(profile);
-
-        // iterate over the contact descriptions and search for name
-        for (const description of contactDescriptions) {
-            if (description.$type$ === DescriptionTypes.PERSON_NAME) {
-                return description.name;
-            }
-        }
-
-        return '';
     }
 
     /**
@@ -1258,90 +1069,6 @@ export default class ContactModel extends EventEmitter {
                 }
             )
         );
-    }
-
-    /**
-     * Return the contact communication endpoints linked to the given profile object.
-     *
-     * @param profile - the given profile object.
-     * @returns the contact communication endpoints
-     */
-    private async getContactCommunicationEndpoints(
-        profile: ProfileCRDT
-    ): Promise<CommunicationEndpointTypes[]> {
-        return await Promise.all(
-            profile.communicationEndpoints.map(
-                async (communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>) => {
-                    return await getObject(communicationEndpointHash);
-                }
-            )
-        );
-    }
-
-    /**
-     * Update the content of the Profile object.
-     *
-     * @param personId - the given person Id
-     * @param isContactDescription - flag that specifies whether the contact description needs to be updated (if true) or the contact communication points (if false)
-     * @param newProfileContent - the new content of the profile
-     */
-    private async updateContactContent(
-        personId: SHA256IdHash<Person>,
-        isContactDescription: boolean,
-        newProfileContent:
-            | UnversionedObjectResult<ContactDescriptionTypes>[]
-            | UnversionedObjectResult<CommunicationEndpointTypes>[],
-        profileName?: string
-    ): Promise<void> {
-        try {
-            // see if the profile does exist
-            const profile = await serializeWithType('Contacts', async () => {
-                return await this.getProfile(personId, profileName);
-            });
-            const baseProfileHash = await calculateHashOfObj(profile);
-            let profileContentHashes;
-            let profileContent: ContactDescriptionTypes[] | CommunicationEndpointTypes[];
-
-            if (isContactDescription) {
-                profileContent = await Promise.all(
-                    profile.contactDescriptions.map(
-                        async (descriptionHash: SHA256Hash<ContactDescriptionTypes>) => {
-                            return await getObject(descriptionHash);
-                        }
-                    )
-                );
-                profileContentHashes = profile.contactDescriptions;
-            } else {
-                profileContent = await Promise.all(
-                    profile.communicationEndpoints.map(
-                        async (
-                            communicationEndpointHash: SHA256Hash<CommunicationEndpointTypes>
-                        ) => {
-                            return await getObject(communicationEndpointHash);
-                        }
-                    )
-                );
-                profileContentHashes = profile.communicationEndpoints;
-            }
-
-            // removing the hash of the updated contact description from the list
-            for (let i = profileContentHashes.length - 1; i >= 0; i--) {
-                for (const newContent of newProfileContent) {
-                    if (newContent.obj.$type$ === profileContent[i].$type$) {
-                        profileContentHashes.splice(i, 1);
-                    }
-                }
-            }
-
-            for (const newContent of newProfileContent) {
-                // @ts-ignore
-                profileContentHashes.push(newContent.hash);
-            }
-
-            await this.updateProfileCRDT(profile, baseProfileHash);
-        } catch (e) {
-            throw new Error('The profile does not exists');
-        }
     }
 
     /**
