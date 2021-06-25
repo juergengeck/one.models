@@ -100,7 +100,7 @@ export type ProfileProperty = {
  * Data needed to update a profile.
  */
 export type ProfileData = {
-    profileHash: SHA256Hash<ProfileCRDT>;
+    profileHash?: SHA256Hash<ProfileCRDT>;
     profileName?: string;
     communicationEndpoint: CommunicationEndpoint;
     description: ContactDescription;
@@ -497,12 +497,16 @@ export default class ContactModel extends EventEmitter {
         newProfileData: ProfileData,
         personId: SHA256IdHash<Person>,
         profileName: string = 'default'
-    ) {
+    ): Promise<void> {
         let profile;
         try {
             profile = await this.getProfile(personId, profileName);
         } catch (e) {
             throw new Error('The profile does not exist');
+        }
+
+        if (!newProfileData.profileHash) {
+            throw new Error('Profile hash is undefined');
         }
 
         /** update communication endpoint **/
