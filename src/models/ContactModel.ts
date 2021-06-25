@@ -265,6 +265,8 @@ export default class ContactModel extends EventEmitter {
             profileData.communicationEndpoint.emails = [personEmail];
         }
 
+        profileData.profileHash = createdProfile.hash;
+
         await this.updateProfile(
             profileData,
             createdProfile.obj.personId,
