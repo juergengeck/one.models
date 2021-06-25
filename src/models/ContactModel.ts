@@ -253,7 +253,11 @@ export default class ContactModel extends EventEmitter {
 
         // If profile data is not provided, set the email address as the generated random one
         if (!profileData) {
-            profileData = {description: {}, communicationEndpoint: {emails: [personEmail]}};
+            profileData = {
+                description: {},
+                communicationEndpoint: {emails: [personEmail]},
+                profileHash: createdProfile.hash
+            };
         }
 
         // If email is not provided, set it as the generated random one
