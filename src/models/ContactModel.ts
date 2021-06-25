@@ -261,8 +261,8 @@ export default class ContactModel extends EventEmitter {
         }
 
         // If email is not provided, set it as the generated random one
-        if (!profileData?.communicationEndpoint) {
-            profileData.communicationEndpoint = {emails: [personEmail]};
+        if (profileData.communicationEndpoint.emails.length == 0) {
+            profileData.communicationEndpoint.emails = [personEmail];
         }
 
         await this.updateProfile(
