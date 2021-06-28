@@ -1,14 +1,17 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
 import {
     BLOB,
     DocumentInfo as DocumentInfo_1_0_0,
     DocumentInfo_1_1_0,
-    SHA256Hash
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256Hash,
+    SHA256IdHash
 } from '@OneCoreTypes';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {WriteStorageApi} from 'one.core/lib/storage';
-import * as Storage from 'one.core/lib/storage.js';
+import * as Storage from 'one.core/lib/storage';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -42,7 +45,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Event emitted when document data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -87,14 +90,16 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param {ArrayBuffer} document - The document.
      * @param {DocumentInfo['mimeType']} mimeType
      * @param {DocumentInfo['documentName']} documentName
+     * @param {string} channelId - The default is this.channelId
      */
     async addDocument(
         document: ArrayBuffer,
         mimeType: DocumentInfo['mimeType'],
-        documentName: DocumentInfo['documentName']
+        documentName: DocumentInfo['documentName'],
+        channelId: string = this.channelId
     ): Promise<void> {
         const oneDocument = await saveDocumentAsBLOB(document);
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(channelId, {
             $type$: 'DocumentInfo_1_1_0',
             mimeType: mimeType,
             documentName: documentName,
@@ -130,6 +135,34 @@ export default class DocumentModel extends EventEmitter implements Model {
                 }
             }
         ) as ObjectData<DocumentInfo_1_1_0>[];
+    }
+
+    /**
+     * returns iterator for DocumentInfo_1_1_0
+     * @param queryOptions
+     */
+    async *documentsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
+        for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            yield {
+                ...document,
+                data: {
+                    document: document.data.document,
+                    $type$: 'DocumentInfo_1_1_0',
+                    /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
+                    mimeType: AcceptedMimeType.PDF,
+                    documentName: ''
+                }
+            };
+        }
+        yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**
@@ -188,12 +221,18 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      *  Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }

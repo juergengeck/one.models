@@ -1,6 +1,11 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {
+    OneUnversionedObjectTypes,
+    Person,
+    SHA256IdHash,
+    ConsentFile as OneConsentFile
+} from '@OneCoreTypes';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
@@ -35,7 +40,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     /**
      * Event is emitted when the consent file data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -186,60 +191,91 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     }
 
     /**
-     * Used to retrieve both consent file and dropout file of an user.
-     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     * This function transforms an array of {@link ObjectData<OneConsentFile>[]} to {@link ObjectData<ConsentFile | DropoutFile>[]}
+     * @param oneConsentFiles
+     * @param filterOthersConsentFiles by enabling this, you will get only {@link this.personId}'s ConsentFiles
      */
-    async entries(): Promise<ObjectData<ConsentFile | DropoutFile>[]> {
+    public formatEntries(
+        oneConsentFiles: ObjectData<OneConsentFile>[],
+        filterOthersConsentFiles: boolean = true
+    ): ObjectData<ConsentFile | DropoutFile>[] {
         const files: ObjectData<ConsentFile | DropoutFile>[] = [];
 
-        const onConsentFileObjects = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
-        });
-
-        for (const oneObject of onConsentFileObjects) {
+        for (const oneObject of oneConsentFiles) {
             const {data, ...restObjectData} = oneObject;
             if (data.fileType === FileType.Consent) {
                 const consentInfos = data.fileData.split(' ');
-                if (consentInfos[0] === this.personId) {
-                    files.push({
-                        ...restObjectData,
-                        data: {
-                            personId: consentInfos[0] as SHA256IdHash<Person>,
-                            version: consentInfos[1]
-                        }
-                    });
+                if (filterOthersConsentFiles && consentInfos[0] !== this.personId) {
+                    continue;
                 }
+                files.push({
+                    ...restObjectData,
+                    data: {
+                        personId: consentInfos[0] as SHA256IdHash<Person>,
+                        version: consentInfos[1]
+                    }
+                });
             } else if (data.fileType === FileType.Dropout) {
                 const dropoutInfos = data.fileData.split('|');
                 if (dropoutInfos.length !== 3) {
                     throw new Error('The information of the dropout file is corrupted.');
                 }
-
-                if (dropoutInfos[0] === this.personId) {
-                    files.push({
-                        ...restObjectData,
-                        data: {
-                            personId: dropoutInfos[0] as SHA256IdHash<Person>,
-                            reason: dropoutInfos[1],
-                            date: dropoutInfos[2]
-                        }
-                    });
+                if (filterOthersConsentFiles && dropoutInfos[0] !== this.personId) {
+                    continue;
                 }
+                files.push({
+                    ...restObjectData,
+                    data: {
+                        personId: dropoutInfos[0] as SHA256IdHash<Person>,
+                        reason: dropoutInfos[1],
+                        date: dropoutInfos[2]
+                    }
+                });
             }
         }
-
         return files;
     }
 
     /**
-     * Handler function for the 'updated' event
+     * Retrieves entries
+     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     */
+    async entries(): Promise<ObjectData<OneConsentFile>[]> {
+        return await this.channelManager.getObjectsWithType('ConsentFile', {
+            channelId: this.channelId
+        });
+    }
+
+    /**
+     * returns iterator for Consent files or Dropout Files
+     * @param queryOptions
+     */
+    async *entriesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneConsentFile>> {
+        for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
+            ...queryOptions,
+            channelId: this.channelId
+        })) {
+            yield entry;
+        }
+    }
+
+    /**
+     *  Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 }

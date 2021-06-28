@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {WbcObservation} from '@OneCoreTypes';
+import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {OneUnversionedObjectTypes, Person, SHA256IdHash, WbcObservation} from '@OneCoreTypes';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
@@ -13,7 +13,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the wbc data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
+    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
     channelManager: ChannelManager;
     channelId: string;
 
@@ -49,12 +49,18 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      *  Handler function for the 'updated' event
      * @param {string} id
+     * @param {SHA256IdHash<Person>} owner
+     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(id: string): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
-            this.onUpdated.emit();
+            this.onUpdated.emit(data);
         }
     }
 
@@ -93,6 +99,19 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      */
     async observations(): Promise<ObjectData<WbcObservation>[]> {
         return await this.channelManager.getObjectsWithType('WbcObservation');
+    }
+
+    /**
+     * returns iterator for observations
+     * @param queryOptions
+     */
+    async *observationsIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<WbcObservation>> {
+        yield* this.channelManager.objectIteratorWithType('WbcObservation', {
+            ...queryOptions,
+            channelId: this.channelId
+        });
     }
 
     /**
