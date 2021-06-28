@@ -252,7 +252,7 @@ export default class ContactModel extends EventEmitter {
         const createdProfile = await this.createProfileForSomeone(personEmail, forMyself, personId);
 
         // If profile data is not provided, set the email address as the generated random one
-        if (!profileData) {
+        if (profileData === undefined) {
             profileData = {
                 description: {},
                 communicationEndpoint: {emails: [personEmail]},
@@ -507,7 +507,7 @@ export default class ContactModel extends EventEmitter {
             throw new Error('The profile does not exist');
         }
 
-        if (!newProfileData.profileHash) {
+        if (newProfileData.profileHash === undefined) {
             throw new Error('Profile hash is undefined');
         }
 
@@ -538,7 +538,7 @@ export default class ContactModel extends EventEmitter {
         /** update description **/
         let newContactDescriptions: UnversionedObjectResult<ContactDescriptionTypes>[] = [];
 
-        if (newProfileData.description.personName) {
+        if (newProfileData.description.personName !== undefined) {
             // creates the personName object
             newContactDescriptions.push(
                 await createSingleObjectThroughPurePlan(
@@ -551,7 +551,7 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
-        if (newProfileData.description.image) {
+        if (newProfileData.description.image !== undefined) {
             // creates the profileImage object
             newContactDescriptions.push(
                 await createSingleObjectThroughImpurePlan(
@@ -564,7 +564,7 @@ export default class ContactModel extends EventEmitter {
             );
         }
 
-        if (newProfileData.description.personStatus) {
+        if (newProfileData.description.personStatus !== undefined) {
             // creates the personStatus object
             newContactDescriptions.push(
                 await createSingleObjectThroughPurePlan(
