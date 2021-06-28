@@ -6,7 +6,7 @@ import EncryptedConnection from '../misc/EncryptedConnection';
 import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
+    createSingleObjectThroughPurePlan, FileCreation,
     getObject,
     getObjectByIdHash,
     getObjectWithType,
@@ -26,7 +26,7 @@ import {
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
+import {Keys, Person, SHA256IdHash, OneInstanceEndpoint, BLOB} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -37,6 +37,7 @@ import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
+import {PlanWritersPromises} from "one.core/lib/plan";
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -1469,7 +1470,12 @@ class ConnectionsModel extends EventEmitter {
         }
 
         const minimalWriteStorageApiObj = {
-            createFileWriteStream: createFileWriteStream
+            createFileWriteStream: createFileWriteStream,
+            storeArrayBufferAsBlob: function (arrayBuffer: ArrayBuffer): Promise<FileCreation<BLOB>> {
+                const stream = createFileWriteStream();
+                stream.write(arrayBuffer);
+                return stream.end();
+            }
         } as WriteStorageApi;
 
         // Core takes either the ws package or the default websocket
