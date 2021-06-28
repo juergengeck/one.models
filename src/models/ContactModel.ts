@@ -164,14 +164,15 @@ export default class ContactModel extends EventEmitter {
                 takeOver
             );
         } else {
-            const contactObjectIdHash = await calculateIdHashOfObj({
-                $type$: 'ContactApp',
-                appId: 'ContactApp'
-            });
-            await createSingleObjectThroughImpurePlan(
-                {module: '@module/mergeContactApp'},
-                contactObjectIdHash
-            );
+            // const contactObjectIdHash = await calculateIdHashOfObj({
+            //     $type$: 'ContactApp',
+            //     appId: 'ContactApp'
+            // });
+            // TODO: The merging plan must be replaced by making ContactApp object a CRDT.
+            // await createSingleObjectThroughImpurePlan(
+            //     {module: '@module/mergeContactApp'},
+            //     contactObjectIdHash
+            // );
         }
 
         // Listen for new contact app objects -> own profiles
