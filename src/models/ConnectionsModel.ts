@@ -37,7 +37,6 @@ import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
-import {PlanWritersPromises} from "one.core/lib/plan";
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -110,6 +109,9 @@ export type ConnectionsModelConfiguration = {
 
     // If true then use the anon id as local id for outgoing connections
     connectToOthersWithAnonId: boolean;
+
+    // Heart beat interval
+    heartBeatInterval: number
 };
 
 /**
@@ -273,7 +275,10 @@ class ConnectionsModel extends EventEmitter {
             connectToOthersWithAnonId:
                 config.connectToOthersWithAnonId !== undefined
                     ? config.connectToOthersWithAnonId
-                    : true
+                    : true,
+            heartBeatInterval: config.heartBeatInterval !== undefined
+                ? config.heartBeatInterval
+                : 15000
         };
 
         // Setup / init modules
@@ -1491,6 +1496,12 @@ class ConnectionsModel extends EventEmitter {
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
+        // Added by Sandru Sebastian on 28.05.2021 for preventing the closing of a connection
+        // after 60 s if no message was received
+
+        // Enable the heart beat between the instances
+        const HeartBeatInterval = this.startHeartBeat(conn);
+
         // Start the chum
         await createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
@@ -1506,6 +1517,9 @@ class ConnectionsModel extends EventEmitter {
                 maxNotificationDelay: 20
             }
         );
+
+        // Clear the interval after the chum finalised promised is returned
+        clearInterval(HeartBeatInterval);
     }
 
     /**
@@ -2119,6 +2133,29 @@ class ConnectionsModel extends EventEmitter {
         }
         throw Error("Received data does not match the data expected for command '" + command + "'");
     }
+
+    /**
+     * Enables the heart beat between two connected instances
+     *
+     * @param {EncryptedConnection} conn - the Encrypted Connection with the other instance
+     * @private
+     * @returns {ReturnType<typeof setInterval>} - the created interval
+     */
+    private startHeartBeat(conn: EncryptedConnection): ReturnType<typeof setInterval> {
+        async function heartBeatHandlerFn() {
+            try {
+                await ConnectionsModel.sendMessage(conn, {command: 'heartbeat_message'})
+            } catch (e) {
+                // If the message could not be sent, remove the interval
+                clearInterval(heartBeatInterval);
+            }
+        }
+
+        const heartBeatInterval = setInterval(heartBeatHandlerFn, this.config.heartBeatInterval);
+
+        return heartBeatInterval;
+    }
+
 }
 
 export default ConnectionsModel;

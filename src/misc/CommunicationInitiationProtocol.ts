@@ -41,6 +41,10 @@ declare module CommunicationInitiationProtocol {
         command: 'communication_ready';
     };
 
+    export type HeartBeatMessage = {
+        command: 'heartbeat_message'
+    }
+
     /**
      * Message used by one side to tell the other side that a special protocol flow with a certain version shall be started.
      */
@@ -143,6 +147,7 @@ declare module CommunicationInitiationProtocol {
         person_object: PersonObjectMessage;
         access_group_members: AccessGroupMembersMessage;
         success: SuccessMessage;
+        heartbeat: HeartBeatMessage;
     }
 
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
