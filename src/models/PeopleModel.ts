@@ -1,16 +1,10 @@
 import {
-    ContactApp,
     Person,
     SHA256Hash,
     SHA256IdHash,
-    ProfileCRDT,
     VersionedObjectResult,
-    ContactDescriptionTypes,
     UnversionedObjectResult,
-    OneInstanceEndpoint,
-    Keys,
-    CommunicationEndpointTypes,
-    Someone
+    Keys
 } from '@OneCoreTypes';
 import {
     createSingleObjectThroughPurePlan,
@@ -75,14 +69,11 @@ import {OEvent} from '../misc/OEvent';
  *    - obtain profiles
  */
 export default class PeopleModel extends EventEmitter {
+    //public onProfileUpdate = new OEvent<(profile: ProfileCRDT) => void>();
 
-    public onProfileUpdate = new OEvent<(profile: ProfileCRDT) => void>();
-
-
-
-    public onNewCommunicationEndpointArrive = new OEvent<
+    /*public onNewCommunicationEndpointArrive = new OEvent<
         (communicationEndpoints: SHA256Hash<CommunicationEndpointTypes>[]) => void
-    >();
+    >();*/
 
     /**
      * Create a new contact model for managing contacts.
