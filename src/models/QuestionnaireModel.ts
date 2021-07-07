@@ -22,10 +22,6 @@ export type QuestionnaireEnableWhenAnswer = Questionnaire_1_1_0.QuestionnaireEna
 export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
-// Export the QuestionnaireResponses types
-// @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface ApiQuestionnaireResponses extends Omit<QuestionnaireResponses, '$type$'> {}
-
 /**
  * This model represents everything related to Questionnaires.
  *
@@ -242,7 +238,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Get a list of responses.
      */
-    public async responses(): Promise<ObjectData<ApiQuestionnaireResponses>[]> {
+    public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: QuestionnaireModel.channelId
         });
@@ -266,7 +262,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      *
      * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
      */
-    public async responsesById(id: string): Promise<ObjectData<ApiQuestionnaireResponses>> {
+    public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
         return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
     }
 
@@ -339,7 +335,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     public async incompleteResponse(
         type: string,
         since?: Date
-    ): Promise<ObjectData<ApiQuestionnaireResponses> | null> {
+    ): Promise<ObjectData<QuestionnaireResponses> | null> {
         // Construct iterator
         const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             channelId: this.incompleteResponsesChannelId,
