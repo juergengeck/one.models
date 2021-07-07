@@ -1,10 +1,10 @@
+import type {Recipe} from 'one.core/lib/recipes';
+
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         HeartEvent: HeartEvent;
     }
 }
-
-import {Recipe} from 'one.core/lib/recipes';
 
 export const HEART_OCCURRING_EVENTS = {
     LowHeartRate: 'LowHeartRate',

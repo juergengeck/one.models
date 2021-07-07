@@ -1481,11 +1481,7 @@ class ConnectionsModel extends EventEmitter {
         // project we use the isomorphic-ws library for this. This is
         // why we need to ignore the below error, because after compilation
         // the types of the websockets will be the same.
-        const websocketPromisifierAPI = createWebsocketPromisifier(
-            minimalWriteStorageApiObj,
-            // @ts-ignore
-            conn
-        );
+        const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 

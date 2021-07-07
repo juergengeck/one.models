@@ -1,15 +1,18 @@
 import type {Recipe} from 'one.core/lib/recipes';
-import {DocumentInfo} from './DocumentRecipes_1_0_0';
+import type {DocumentInfo} from './DocumentRecipes_1_0_0';
+
 export enum AcceptedMimeType {
     JPEG = 'image/jpeg',
     PNG = 'image/png',
     PDF = 'application/pdf'
 }
+
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         DocumentInfo_1_1_0: DocumentInfo_1_1_0;
     }
 }
+
 export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
     $type$: 'DocumentInfo_1_1_0';
     mimeType: string;

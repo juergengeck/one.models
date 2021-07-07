@@ -1,5 +1,6 @@
 import type {OneUnversionedObjectTypes, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         CreationTime: CreationTime;
@@ -26,8 +27,6 @@ const CreationTimeRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const MetaRecipes: Recipe[] = [CreationTimeRecipe];
 

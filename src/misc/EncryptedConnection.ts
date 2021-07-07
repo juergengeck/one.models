@@ -1,5 +1,5 @@
-import WebSocketPromiseBased from './WebSocketPromiseBased';
-import WebSocket from 'isomorphic-ws';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
@@ -215,8 +215,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
         const messageObj = await this.waitForJSONMessage(timeout);
 
         // Assert that is has a 'type' member
-        if (!messageObj.hasOwnProperty(typekey)) {
-            throw new Error(`Received message without a \'${typekey}\' member.`);
+        if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
+            throw new Error(`Received message without a ""${typekey}" member.`);
         }
 
         // Assert that the type matches the requested one

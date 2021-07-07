@@ -1,5 +1,3 @@
-import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
-
 /**
  * This represents a Wbc Measurement.
  *
@@ -12,6 +10,8 @@ import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
  *    - This is medically relevant information, so try not to modify values,
  *      keep them as-is from start to end.
  */
+
+import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 
 export interface WbcMeasurement {
     value: string;
@@ -27,7 +27,7 @@ declare module '@OneObjectInterfaces' {
 
 export interface WbcObservation {
     $type$: 'WbcObservation';
-    acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
+    acquisitionTime: string; // time the measurement took place e.g. '2020-09-04T12:10:01+01:00';
     Leukocytes: WbcMeasurement;
     Neutrophils?: WbcMeasurement;
     Lymphocytes?: WbcMeasurement;

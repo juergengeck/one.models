@@ -15,8 +15,10 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased extends EventEmitter
-    implements WebSocketPromiseBasedInterface {
+export default class WebSocketPromiseBased
+    extends EventEmitter
+    implements WebSocketPromiseBasedInterface
+{
     /**
      * Event is emitted when a new message is received.
      */
@@ -309,8 +311,8 @@ export default class WebSocketPromiseBased extends EventEmitter
         const messageObj = await this.waitForJSONMessage(timeout);
 
         // Assert that is has a 'type' member
-        if (!messageObj.hasOwnProperty(typekey)) {
-            throw new Error(`Received message without a \'${typekey}\' member.`);
+        if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
+            throw new Error(`Received message without a "${typekey}" member.`);
         }
 
         // Assert that the type matches the requested one

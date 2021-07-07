@@ -1,4 +1,5 @@
 import type {Recipe} from 'one.core/lib/recipes';
+
 export interface ElectrocardiogramReadings {
     timeSinceSampleStart: number;
     leadVoltage: number;

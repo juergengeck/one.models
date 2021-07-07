@@ -6,36 +6,36 @@ declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         QuestionnaireResponses: QuestionnaireResponses;
     }
+}
 
+/**
+ * Collection of Questionnaire Responses
+ */
+interface QuestionnaireResponses {
+    $type$: 'QuestionnaireResponses';
+    name?: string;
+    type?: string;
+    response: QuestionnaireResponses.QuestionnaireResponse[];
+}
+
+module QuestionnaireResponses {
     /**
-     * Collection of Questionnaire Responses
+     * An answer item in the questionnaire response
      */
-    interface QuestionnaireResponses {
-        $type$: 'QuestionnaireResponses';
-        name?: string;
-        type?: string;
-        response: QuestionnaireResponses.QuestionnaireResponse[];
+    interface QuestionnaireResponseItem {
+        linkId: string;
+        answer: Questionnaire.QuestionnaireValue[];
+        item?: QuestionnaireResponseItem[];
     }
 
-    module QuestionnaireResponses {
-        /**
-         * An answer item in the questionnaire response
-         */
-        type QuestionnaireResponseItem = {
-            linkId: string;
-            answer: Questionnaire.QuestionnaireValue[];
-            item?: QuestionnaireResponseItem[];
-        };
-
-        /**
-         * A single FHIR Questionnaire Response
-         */
-        type QuestionnaireResponse = {
-            resourceType: 'QuestionnaireResponse';
-            questionnaire?: string;
-            status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
-            item: QuestionnaireResponseItem[];
-        };
+    /**
+     * A single FHIR Questionnaire Response
+     */
+    interface QuestionnaireResponse {
+        resourceType: 'QuestionnaireResponse';
+        questionnaire?: string;
+        status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
+        item: QuestionnaireResponseItem[];
     }
 }
 

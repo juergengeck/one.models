@@ -17,7 +17,7 @@ export function cloneRule(rules: RecipeRule[]): RecipeRule[] {
     const clonedRules: RecipeRule[] = [];
     for (const rule of rules) {
         const newRule = {...rule};
-        if (newRule.rule) {
+        if (newRule.rule !== undefined) {
             newRule.rule = cloneRule(newRule.rule);
         }
         clonedRules.push(newRule);
