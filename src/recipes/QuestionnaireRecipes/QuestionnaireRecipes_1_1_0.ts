@@ -31,7 +31,7 @@ export module Questionnaire_1_1_0 {
     /**
      * Used to specify min and max value for an answer.
      */
-    type QuestionnaireAnswerMinMaxValue = {
+    export type QuestionnaireAnswerMinMaxValue = {
         valueInteger?: string;
         valueDate?: string; // can also be 'now'
         valueTime?: string;
@@ -42,7 +42,7 @@ export module Questionnaire_1_1_0 {
     /**
      * Represents the restriction that will be applied to an answer.
      */
-    type AnswerRestriction = {
+    export type AnswerRestriction = {
         minValue?: QuestionnaireAnswerMinMaxValue;
         minInclusive?: boolean; // default = true
         maxValue?: QuestionnaireAnswerMinMaxValue;
@@ -52,7 +52,7 @@ export module Questionnaire_1_1_0 {
     /**
      * FHIR Coding type for encoding coded values.
      */
-    type Coding = Questionnaire.Coding;
+    export type Coding = Questionnaire.Coding;
 
     /**
      * Type for the enable when compare value of questionnaires.

@@ -7,6 +7,11 @@ import type {Model} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
+import type {
+    QuestionnaireResponses,
+    QuestionnaireResponse,
+    QuestionnaireResponseItem
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 
 // Export the Questionnaire types
 export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
@@ -20,9 +25,9 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 
 // Export the QuestionnaireResponses types
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface QuestionnaireResponses extends Omit<OneQuestionnaireResponses, '$type$'> {}
-export type QuestionnaireResponse = OneQuestionnaireResponses.QuestionnaireResponse;
-export type QuestionnaireResponseItem = OneQuestionnaireResponses.QuestionnaireResponseItem;
+export interface ApiQuestionnaireResponses extends Omit<QuestionnaireResponses, '$type$'> {}
+export type ApiQuestionnaireResponse = QuestionnaireResponse;
+export type ApiQuestionnaireResponseItem = QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -196,7 +201,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     public async postResponse(
-        response: QuestionnaireResponse,
+        response: ApiQuestionnaireResponse,
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
@@ -216,7 +221,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     public async postResponseCollection(
-        responses: QuestionnaireResponse[],
+        responses: ApiQuestionnaireResponse[],
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
@@ -240,7 +245,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Get a list of responses.
      */
-    public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
+    public async responses(): Promise<ObjectData<ApiQuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: QuestionnaireModel.channelId
         });
@@ -252,7 +257,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     async *responsesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneQuestionnaireResponses>> {
+    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
             channelId: QuestionnaireModel.channelId
@@ -264,7 +269,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      *
      * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
      */
-    public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
+    public async responsesById(id: string): Promise<ObjectData<ApiQuestionnaireResponses>> {
         return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
     }
 
@@ -299,7 +304,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param name - The name of the response
      */
     public async postIncompleteResponse(
-        response: QuestionnaireResponse,
+        response: ApiQuestionnaireResponse,
         type: string,
         name?: string
     ): Promise<void> {
@@ -314,7 +319,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param name - The name of the response
      */
     public async postIncompleteResponseCollection(
-        responses: QuestionnaireResponse[],
+        responses: ApiQuestionnaireResponse[],
         type: string,
         name?: string
     ): Promise<void> {
@@ -337,7 +342,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     public async incompleteResponse(
         type: string,
         since?: Date
-    ): Promise<ObjectData<QuestionnaireResponses> | null> {
+    ): Promise<ObjectData<ApiQuestionnaireResponses> | null> {
         // Construct iterator
         const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             channelId: this.incompleteResponsesChannelId,

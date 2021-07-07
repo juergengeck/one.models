@@ -1,6 +1,6 @@
 import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
-import {ValueRules} from './QuestionnaireRecipes_1_0_0';
+import {Questionnaire, ValueRules} from './QuestionnaireRecipes_1_0_0';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -11,32 +11,30 @@ declare module '@OneObjectInterfaces' {
 /**
  * Collection of Questionnaire Responses
  */
-interface QuestionnaireResponses {
+export interface QuestionnaireResponses {
     $type$: 'QuestionnaireResponses';
     name?: string;
     type?: string;
-    response: QuestionnaireResponses.QuestionnaireResponse[];
+    response: QuestionnaireResponse[];
 }
 
-module QuestionnaireResponses {
-    /**
-     * An answer item in the questionnaire response
-     */
-    interface QuestionnaireResponseItem {
-        linkId: string;
-        answer: Questionnaire.QuestionnaireValue[];
-        item?: QuestionnaireResponseItem[];
-    }
+/**
+ * An answer item in the questionnaire response
+ */
+export interface QuestionnaireResponseItem {
+    linkId: string;
+    answer: Questionnaire.QuestionnaireValue[];
+    item?: QuestionnaireResponseItem[];
+}
 
-    /**
-     * A single FHIR Questionnaire Response
-     */
-    interface QuestionnaireResponse {
-        resourceType: 'QuestionnaireResponse';
-        questionnaire?: string;
-        status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
-        item: QuestionnaireResponseItem[];
-    }
+/**
+ * A single FHIR Questionnaire Response
+ */
+export interface QuestionnaireResponse {
+    resourceType: 'QuestionnaireResponse';
+    questionnaire?: string;
+    status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
+    item: QuestionnaireResponseItem[];
 }
 
 /**
