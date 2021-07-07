@@ -16,7 +16,6 @@ import {
     getObject,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {getObjectByIdObj} from 'one.core/lib/storage-versioned-objects';
 import {RawChannelEntry} from '../src/models/ChannelManager';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 

@@ -5,27 +5,21 @@ import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {
-    createRandomBodyTemperature,
-    dbKey,
-    importModules,
-    removeDir
-} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {
     createSingleObjectThroughPurePlan,
-    VERSION_UPDATES,
-    getObjectByIdHash
+    getObjectByIdHash,
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {ChannelManager} from '../lib/models';
+import type {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {ChannelRegistry, BodyTemperature} from '@OneObjectInterfaces';
+import type {BodyTemperature, ChannelRegistry} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import rimraf from 'rimraf';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
 let channelManager: typeof ChannelManager;
-let testModel;
+let testModel: TestModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
@@ -95,7 +89,7 @@ describe('Channel Iterators test', () => {
                         $type$: 'BodyTemperature',
                         temperature: Math.random()
                     });
-                    await new Promise((resolve, rejects) => {
+                    await new Promise<void>((resolve, rejects) => {
                         setTimeout(() => resolve(), 300);
                     });
                 }
@@ -108,7 +102,7 @@ describe('Channel Iterators test', () => {
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects({channelId});
-            await new Promise((resolve, rejects) => {
+            await new Promise<void>((resolve, rejects) => {
                 setTimeout(() => resolve(), 500);
             });
             expect(objects1).to.have.length(howMany);
@@ -131,7 +125,7 @@ describe('Channel Iterators test', () => {
                         {$type$: 'BodyTemperature', temperature: Math.random()},
                         owner
                     );
-                    await new Promise((resolve, rejects) => {
+                    await new Promise<void>((resolve, rejects) => {
                         setTimeout(() => resolve(), 100);
                     });
                 }

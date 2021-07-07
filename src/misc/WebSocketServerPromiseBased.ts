@@ -1,4 +1,4 @@
-import WebSocket from 'isomorphic-ws';
+import type WebSocket from 'isomorphic-ws';
 
 /**
  * This is a wrapper for the web socket server to use it with async / await instead of having to

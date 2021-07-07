@@ -1,6 +1,7 @@
 import CommunicationServer from '../lib/misc/CommunicationServer';
-import CommunicationServerListener from '../lib/misc/CommunicationServerListener';
-import {CommunicationServerListenerState} from '../lib/misc/CommunicationServerListener';
+import CommunicationServerListener, {
+    CommunicationServerListenerState
+} from '../lib/misc/CommunicationServerListener';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';

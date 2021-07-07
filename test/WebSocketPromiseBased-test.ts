@@ -32,7 +32,7 @@ describe('websocket wait tests', () => {
     });
 
     //@todo FIX
-   /* it('tests waitForMessage: wait for message timeout', async function () {
+    /* it('tests waitForMessage: wait for message timeout', async function () {
         try {
             await connServer.waitForMessage();
             expect.fail('Should not succeed');

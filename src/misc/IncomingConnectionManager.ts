@@ -6,8 +6,8 @@ import tweetnacl from 'tweetnacl';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import EncryptedConnection_Server from './EncryptedConnection_Server';
-import EncryptedConnection from './EncryptedConnection';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import type EncryptedConnection from './EncryptedConnection';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
@@ -92,15 +92,13 @@ class IncomingConnectionManager {
 
         // Create listener for this key
         const listener = new CommunicationServerListener(2, 10000);
-        listener.onChallenge(
-            (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
-                const decryptedChallenge = decrypt(publicKey, challenge);
-                for (let i = 0; i < decryptedChallenge.length; ++i) {
-                    decryptedChallenge[i] = ~decryptedChallenge[i];
-                }
-                return encrypt(publicKey, decryptedChallenge);
+        listener.onChallenge((challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
+            const decryptedChallenge = decrypt(publicKey, challenge);
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
             }
-        );
+            return encrypt(publicKey, decryptedChallenge);
+        });
         listener.onConnection((ws: WebSocketPromiseBased) => {
             this.acceptConnection(ws, [publicKey], encrypt, decrypt);
         });

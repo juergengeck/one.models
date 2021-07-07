@@ -1,8 +1,10 @@
+import {EventEmitter} from 'events';
+
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import type WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
+import type {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');
@@ -14,7 +16,7 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptedConnection extends EncryptedConnectionInterface {
+class EncryptedConnection extends EventEmitter implements EncryptedConnectionInterface {
     /**
      * Event is emitted when an encrypted message is received. The event contains the decrypted message.
      */

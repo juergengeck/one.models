@@ -5,18 +5,19 @@ import RecipesStable from '../../lib/recipes/recipes-stable';
 import RecipesExperimental from '../../lib/recipes/recipes-experimental';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
 import {
-    ContactModel,
-    ConnectionsModel,
-    ChannelManager,
     AccessModel,
-    InstancesModel,
+    BodyTemperatureModel,
+    ChannelManager,
+    ConnectionsModel,
+    ContactModel,
     ECGModel,
-    BodyTemperatureModel
+    InstancesModel
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneObjectInterfaces';
+import type {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneObjectInterfaces';
 import oneModules from '../../lib/generated/oneModules';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+
 export const dbKey = 'testDb';
 const path = require('path');
 const fs = require('fs');

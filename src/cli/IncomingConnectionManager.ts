@@ -6,7 +6,7 @@ import * as Logger from 'one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';
 import {wslogId} from '../misc/LogUtils';
-import EncryptedConnection from '../misc/EncryptedConnection';
+import type EncryptedConnection from '../misc/EncryptedConnection';
 import IncomingConnectionManager from '../misc/IncomingConnectionManager';
 
 /**

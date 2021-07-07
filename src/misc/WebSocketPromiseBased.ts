@@ -2,7 +2,7 @@ import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
-import {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
+import type {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 

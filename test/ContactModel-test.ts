@@ -2,33 +2,24 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {
-    closeInstance,
-    getInstanceIdHash,
-    getInstanceOwnerIdHash,
-    registerRecipes
-} from 'one.core/lib/instance';
+import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
     getObjectByIdObj,
-    getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {Someone, Profile} from '@OneObjectInterfaces';
+import {Profile, Someone} from '@OneObjectInterfaces';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import TestModel, {dbKey, importModules, removeDir, TestAccessGroups} from './utils/TestModel';
-import InstancesModel from '../lib/models/InstancesModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import {AccessModel, ChannelManager} from '../lib/models';
-import rimraf from 'rimraf';
 import {MergedContact} from '../lib/src/models/ContactModel';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+
 let contactModel: ContactModel;
 let testModel;
 

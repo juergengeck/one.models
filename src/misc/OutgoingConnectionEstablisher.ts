@@ -1,5 +1,5 @@
 import EncryptedConnection_Client from './EncryptedConnection_Client';
-import EncryptedConnection from './EncryptedConnection';
+import type EncryptedConnection from './EncryptedConnection';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {OEvent} from './OEvent';
@@ -21,8 +21,16 @@ class OutgoingConnectionEstablisher {
         (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
     >();
 
-    private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    private retryTimeoutHandle: {
+        // Typescript got confused with NodeJS.Timeout as return value because lib.dom.d.ts
+        // (TypeScript builtin) and timers.d.ts (@types/node) are in conflict. Disabling that TS
+        // lib is not an option, a lot of errors appeared everywhere in the project when I tried.
+        timer: null | ReturnType<typeof setTimeout> | number;
+        reject: null | ((reason?: any) => void);
+    } = {timer: null, reject: null};
+
     private stopped: boolean = true;
+
     /**
      * Used only when calling the connectOnceSuccessfully function.
      *
@@ -90,10 +98,13 @@ class OutgoingConnectionEstablisher {
                     }
 
                     // TODO: If the timeout is canceled, this promise will not resolve!!!
-                    await new Promise(resolve => {
-                        this.retryTimeoutHandle = setTimeout(resolve, retryTimeout);
+                    await new Promise((resolve, reject) => {
+                        this.retryTimeoutHandle.timer = setTimeout(resolve, retryTimeout);
+                        this.retryTimeoutHandle.reject = reject;
                     });
-                    this.retryTimeoutHandle = null;
+
+                    this.retryTimeoutHandle.timer = null;
+                    this.retryTimeoutHandle.reject = null;
                 }
             }
         };
@@ -105,18 +116,27 @@ class OutgoingConnectionEstablisher {
     }
 
     /**
-     * Stops the attemts to establish connections.
+     * Stops the attempts to establish connections.
      *
      * @returns {Promise<void>}
      */
     public async stop() {
         MessageBus.send('log', `stop()`);
         this.stopped = true;
-        if (this.retryTimeoutHandle) {
-            clearTimeout(this.retryTimeoutHandle);
+
+        const reason = 'Stopped by the user.';
+
+        if (this.retryTimeoutHandle.timer !== null) {
+            // Typescript got confused with lib.dom.d.ts vs. timers.d.ts types
+            clearTimeout(this.retryTimeoutHandle.timer as number);
         }
-        if (this.connectOnceSuccessfullyReject) {
-            this.connectOnceSuccessfullyReject(new Error('Stopper by the user.'));
+
+        if (this.retryTimeoutHandle.reject !== null) {
+            this.retryTimeoutHandle.reject(new Error(reason));
+        }
+
+        if (this.connectOnceSuccessfullyReject !== null) {
+            this.connectOnceSuccessfullyReject(new Error(reason));
         }
     }
 
@@ -151,8 +171,9 @@ class OutgoingConnectionEstablisher {
                 // the stop function, because the connection is successful and no error should
                 // be thrown
                 this.connectOnceSuccessfullyReject = null;
-                this.stop();
-                resolve(conn);
+                this.stop()
+                    .then(() => resolve(conn))
+                    .catch(e => reject(e));
             });
 
             // On timeout reject the promise
