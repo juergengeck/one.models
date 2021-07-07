@@ -5,10 +5,7 @@ import type ContactModel from './ContactModel';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
 import type EncryptedConnection from '../misc/EncryptedConnection';
-import {
-    createWebsocketPromisifier,
-    EncryptedConnectionInterface
-} from 'one.core/lib/websocket-promisifier';
+import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
