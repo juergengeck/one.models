@@ -9,8 +9,7 @@ import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
 import type {
     QuestionnaireResponses,
-    QuestionnaireResponse,
-    QuestionnaireResponseItem
+    QuestionnaireResponse
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 
 // Export the Questionnaire types
@@ -26,8 +25,6 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
 // Export the QuestionnaireResponses types
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
 export interface ApiQuestionnaireResponses extends Omit<QuestionnaireResponses, '$type$'> {}
-export type ApiQuestionnaireResponse = QuestionnaireResponse;
-export type ApiQuestionnaireResponseItem = QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -201,7 +198,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     public async postResponse(
-        response: ApiQuestionnaireResponse,
+        response: QuestionnaireResponse,
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
@@ -221,7 +218,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param owner - Change the owner of the channel to post to. Defaults to the default channel person that is set in the channel manager.
      */
     public async postResponseCollection(
-        responses: ApiQuestionnaireResponse[],
+        responses: QuestionnaireResponse[],
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
@@ -304,7 +301,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param name - The name of the response
      */
     public async postIncompleteResponse(
-        response: ApiQuestionnaireResponse,
+        response: QuestionnaireResponse,
         type: string,
         name?: string
     ): Promise<void> {
@@ -319,7 +316,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param name - The name of the response
      */
     public async postIncompleteResponseCollection(
-        responses: ApiQuestionnaireResponse[],
+        responses: QuestionnaireResponse[],
         type: string,
         name?: string
     ): Promise<void> {
