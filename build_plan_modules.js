@@ -66,6 +66,11 @@ const additionalOnePlanModules = path.join(outputDirectory, '/oneModules.ts');
 function addFileToNameCodeMap(file, nameCodeMap, inputDirectory) {
     const filePath = path.join(inputDirectory, file);
     const fileName = file.slice(0, -3);
+
+    if (!filePath.endsWith('.ts')) {
+        return;
+    }
+
     const stat = fs.statSync(filePath);
 
     if (stat.isFile()) {

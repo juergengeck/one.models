@@ -413,7 +413,7 @@ async function run() {
     console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
 
     await deleteDirectory(targetDir);
-    // execSync('node ./build_plan_modules.js');
+    execSync('node ./build_plan_modules.js');
     await processAllFiles('src', targetDir, system);
     await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system);
