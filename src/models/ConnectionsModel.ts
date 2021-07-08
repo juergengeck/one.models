@@ -5,7 +5,10 @@ import type ContactModel from './ContactModel';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
 import type EncryptedConnection from '../misc/EncryptedConnection';
-import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
+import {
+    createWebsocketPromisifier,
+    EncryptedConnectionInterface
+} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
@@ -1481,7 +1484,11 @@ class ConnectionsModel extends EventEmitter {
         // project we use the isomorphic-ws library for this. This is
         // why we need to ignore the below error, because after compilation
         // the types of the websockets will be the same.
-        const websocketPromisifierAPI = createWebsocketPromisifier(minimalWriteStorageApiObj, conn);
+        const websocketPromisifierAPI = createWebsocketPromisifier(
+            minimalWriteStorageApiObj,
+            // TODO: Fix incompatibility of EncryptedConnectionInterface and EncryptedConnection
+            conn as EncryptedConnectionInterface
+        );
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
