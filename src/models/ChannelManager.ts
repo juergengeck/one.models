@@ -1715,31 +1715,30 @@ export default class ChannelManager extends EventEmitter {
             channelOwner = channelInfo.obj.owner;
         }
 
+        const cacheLockName = ChannelManager.cacheLockName;
+
         try {
-            await serializeWithType(
-                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
-                async () => {
-                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
-                    if (!this.channelInfoCache.has(channelInfoIdHash)) {
-                        this.channelInfoCache.set(channelInfoIdHash, {
-                            readVersion: await getObject(
-                                await getNthVersionMapHash(channelInfoIdHash, 0)
-                            ),
-                            readVersionIndex: 0,
-                            latestMergedVersionIndex: 0,
-                            mergedHandlers: []
-                        });
-                        await this.saveRegistryCacheToOne();
-                        logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
-                    } else {
-                        logWithId(
-                            channelId,
-                            channelOwner,
-                            'addChannelIfNotExist - END: already existed'
-                        );
-                    }
+            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
+                logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
+                if (!this.channelInfoCache.has(channelInfoIdHash)) {
+                    this.channelInfoCache.set(channelInfoIdHash, {
+                        readVersion: await getObject(
+                            await getNthVersionMapHash(channelInfoIdHash, 0)
+                        ),
+                        readVersionIndex: 0,
+                        latestMergedVersionIndex: 0,
+                        mergedHandlers: []
+                    });
+                    await this.saveRegistryCacheToOne();
+                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+                } else {
+                    logWithId(
+                        channelId,
+                        channelOwner,
+                        'addChannelIfNotExist - END: already existed'
+                    );
                 }
-            );
+            });
         } catch (e) {
             logWithId(channelId, channelOwner, 'addChannelIfNotExist - FAIL: ' + e.toString());
             throw e;
