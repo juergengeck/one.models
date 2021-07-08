@@ -5,7 +5,7 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime} from '@OneObjectInterfaces';
+import type {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime} from '@OneObjectInterfaces';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
@@ -16,7 +16,7 @@ import {
     getObject,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {RawChannelEntry} from '../src/models/ChannelManager';
+import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
 let channelManager: typeof ChannelManager;

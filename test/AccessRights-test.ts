@@ -14,7 +14,7 @@ import {
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import AccessModel from '../lib/models/AccessModel';
+import type AccessModel from '../lib/models/AccessModel';
 
 let accessModel: AccessModel;
 let testModel: TestModel;

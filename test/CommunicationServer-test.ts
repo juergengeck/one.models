@@ -60,6 +60,9 @@ describe('communication server tests', () => {
             }
         );
         commServerListener.onConnection(async (ws: WebSocketPromiseBased) => {
+            if (ws.webSocket === null) {
+                throw new Error('ws.webSocket is null');
+            }
             try {
                 while (ws.webSocket.readyState === WebSocket.OPEN) {
                     ws.send(await ws.waitForMessage(1000));

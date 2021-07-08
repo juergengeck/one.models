@@ -11,13 +11,13 @@ import {
     getObjectByIdObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {Profile, Someone} from '@OneObjectInterfaces';
+import type {Profile, Someone} from '@OneObjectInterfaces';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import {MergedContact} from '../lib/src/models/ContactModel';
+import type {MergedContact} from '../lib/models/ContactModel';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 let contactModel: ContactModel;
@@ -248,7 +248,7 @@ describe('Contact model test', () => {
                 contactDescriptions: []
             }
         );
-        await new Promise((resolve, rejects) => {
+        await new Promise<void>((resolve, rejects) => {
             setTimeout(() => resolve(), 500);
         });
         const someoneObject = await contactModel.getSomeoneObject(newPerson.idHash);
@@ -338,10 +338,18 @@ describe('Contact model test', () => {
 
     it('should merge contacts', async () => {
         const personIdHash = getInstanceOwnerIdHash();
+        if (personIdHash === undefined) {
+            throw new Error('Instance owner hash is undefined');
+        }
         const mergedContacts = await contactModel.getMergedContactObjects(personIdHash, true);
+
         const endpoints = mergedContacts.find(
             (mergedContact: MergedContact) => mergedContact.type === 'Email'
         );
+
+        if (endpoints === undefined) {
+            throw new Error('endpoints is undefined');
+        }
 
         expect(endpoints.info.length).to.be.equal(2);
     });
@@ -363,7 +371,7 @@ describe('Contact model test', () => {
         expect(updatedSomeone.mainProfile).to.be.equal(someoneA.mainProfile);
         expect(updatedSomeone.profiles.length).to.be.equal(2);
 
-        await new Promise((resolve, rejects) => {
+        await new Promise<void>((resolve, rejects) => {
             setTimeout(() => resolve(), 500);
         });
     });
