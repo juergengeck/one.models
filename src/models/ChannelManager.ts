@@ -260,6 +260,423 @@ export default class ChannelManager extends EventEmitter {
     }
 
     /**
+     * Init this instance.
+     *
+     * This will iterate over all channels and check whether all versions have been merged.
+     * If not it will merge the unmerged versions.
+     *
+     * Note: This has to be called after the one instance is initialized.
+     */
+    public async init(defaultOwner?: SHA256IdHash<Person>): Promise<void> {
+        // Set the default owner the the instance owner if it was not specified.
+        if (defaultOwner) {
+            this.defaultOwner = defaultOwner;
+        } else {
+            const instanceOwner = getInstanceOwnerIdHash();
+            if (!instanceOwner) {
+                throw new Error('The instance does not have an owner. Is it initialized?');
+            }
+            this.defaultOwner = instanceOwner;
+        }
+
+        // Load the cache from the registry
+        await this.loadRegistryCacheFromOne();
+
+        // Register event handlers
+        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+
+        // Merge new versions of channels that haven't been merged, yet.
+        await this.mergeAllUnmergedChannelVersions();
+    }
+
+    /**
+     * Shutdown module
+     *
+     * @returns {Promise<void>}
+     */
+    public async shutdown(): Promise<void> {
+        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+
+        // Resolve the pending promises
+        await Promise.all(this.promiseTrackers.values());
+        this.defaultOwner = null;
+        this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
+    }
+
+    /**
+     * Create a new channel.
+     *
+     * If the channel already exists, this call is a noop.
+     *
+     * @param {string} channelId - The id of the channel. See class description for more details
+     * on how ids and channels are handled.
+     * @param {SHA256IdHash<Person>} owner - The id hash of the person that should be the owner
+     * of this channel.
+     */
+    public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
+        if (!this.defaultOwner) {
+            throw Error('Not initialized');
+        }
+        if (!owner) {
+            owner = this.defaultOwner;
+        }
+
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: channelId,
+            owner: owner
+        });
+
+        logWithId(channelId, owner, `createChannel - START`);
+
+        try {
+            await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
+            logWithId(channelId, owner, `createChannel - END: Existed`);
+        } catch (ignore) {
+            // Create a new one if getting it failed
+            await createSingleObjectThroughPurePlan(
+                {module: '@module/channelCreate'},
+                channelId,
+                owner
+            );
+
+            // Create the cache entry.
+            // We cannot wait for the hook to make the entry, because following posts
+            // might be faster than the hook, so let's add the channel explicitly to
+            // the registry
+            await this.addChannelIfNotExist(channelInfoIdHash);
+
+            logWithId(channelId, owner, `createChannel - END: Created`);
+        }
+    }
+
+    /**
+     * Retrieve all channels registered at the channel registry
+     *
+     * @param {ChannelSelectionOptions} options
+     * @returns {Promise<Channel[]>}
+     */
+    public async channels(options?: ChannelSelectionOptions): Promise<Channel[]> {
+        const channelInfos = await this.getMatchingChannelInfos(options);
+        return channelInfos.map(info => {
+            return {id: info.id, owner: info.owner};
+        });
+    }
+
+    /**
+     * Post a new object to a channel.
+     *
+     * @param {string} channelId - The id of the channel to post to
+     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
+     * @param {SHA256IdHash<Person>} channelOwner
+     * @param {number} timestamp
+     */
+    public async postToChannel<T extends OneUnversionedObjectTypes>(
+        channelId: string,
+        data: T,
+        channelOwner?: SHA256IdHash<Person>,
+        timestamp?: number
+    ): Promise<void> {
+        // Determine the owner to use for posting.
+        // It is either the passed one, or the default one if none was passed.
+        let owner: SHA256IdHash<Person>;
+        if (channelOwner) {
+            owner = channelOwner;
+        } else {
+            if (!this.defaultOwner) {
+                throw new Error('Default owner is not initialized');
+            }
+            owner = this.defaultOwner;
+        }
+
+        // Post the data
+        try {
+            const channelInfoIdHash = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: channelId,
+                owner: owner
+            });
+
+            let waitForMergePromise;
+            await serializeWithType(
+                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
+                async () => {
+                    // Setup the merge handler
+                    const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
+                    if (!cacheEntry) {
+                        throw new Error('This channel does not exist, you cannot post to it.');
+                    }
+
+                    // Create the promise on which we wait after we posted the value to one
+                    waitForMergePromise = new Promise(resolve => {
+                        cacheEntry.mergedHandlers.push(resolve);
+                    });
+
+                    // Post the data
+                    await serializeWithType(ChannelManager.postLockName, async () => {
+                        logWithId(channelId, owner, `postToChannel - START`);
+
+                        await createSingleObjectThroughImpurePlan(
+                            {module: '@module/channelPost'},
+                            channelId,
+                            owner,
+                            data,
+                            timestamp
+                        );
+
+                        logWithId(channelId, owner, `postToChannel - END`);
+                    });
+                }
+            );
+
+            // Wait until the merge has completed before we resolve the promise
+            if (waitForMergePromise) {
+                await waitForMergePromise;
+            }
+        } catch (e) {
+            logWithId(channelId, owner, 'postToChannel - FAIL: ' + e.toString());
+            throw e;
+        }
+    }
+
+    /**
+     * Post a new object to a channel but only if it was not already posted to the channel
+     *
+     * Note: This will iterate over the whole tree if the object does not exist, so it might
+     *       be slow.
+     *
+     * @param {string} channelId - The id of the channel to post to
+     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
+     * @param {SHA256IdHash<Person>} channelOwner
+     */
+    public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
+        channelId: string,
+        data: T,
+        channelOwner?: SHA256IdHash<Person>
+    ): Promise<void> {
+        // Determine the owner to use for posting.
+        // It is either the passed one, or the default one if none was passed.
+        let owner: SHA256IdHash<Person>;
+        if (channelOwner) {
+            owner = channelOwner;
+        } else {
+            if (!this.defaultOwner) {
+                throw new Error('Default owner is not initialized');
+            }
+            owner = this.defaultOwner;
+        }
+
+        try {
+            // We need to serialize here, because two posts of the same item must be serialized
+            // in order for the second one to wait until the first one was inserted.
+            await serializeWithType(ChannelManager.postNELockName, async () => {
+                logWithId(channelId, owner, `postToChannelIfNotExist - START`);
+
+                // Calculate the hash of the passed object. We will compare it with existing entries
+                const dataHash = await calculateHashOfObj(data);
+
+                // Iterate over the channel to see whether the object exists.
+                let exists = false;
+                for await (const item of this.objectIterator({channelId, owner})) {
+                    if (item.dataHash === dataHash) {
+                        exists = true;
+                    }
+                }
+
+                // Post only if it does not exist
+                if (exists) {
+                    logWithId(channelId, owner, `postToChannelIfNotExist - END: existed`);
+                } else {
+                    await this.postToChannel(channelId, data, owner);
+                    logWithId(channelId, owner, `postToChannelIfNotExist - END: posted`);
+                }
+            });
+        } catch (e) {
+            logWithId(channelId, owner, 'postToChannelIfNotExist - FAIL: ' + e.toString());
+            throw e;
+        }
+    }
+
+    /**
+     * Get all data from one or multiple channels.
+     *
+     * Note the behavior when using ascending ordering (default) and count.
+     * It will return the 'count' latest elements in ascending order, not the
+     * 'count' oldest elements. It is counter intuitive and should either
+     * be fixed or the iterator interface should be the mandatory
+     *
+     * @param {QueryOptions} queryOptions
+     */
+    public async getObjects(
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+        // Use iterator interface to collect all objects
+        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+        for await (const obj of this.objectIterator(queryOptions)) {
+            objects.push(obj);
+        }
+
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
+        } else {
+            return objects.reverse();
+        }
+    }
+
+    /**
+     * Get all data from a channel.
+     *
+     * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
+     * @param {QueryOptions} queryOptions
+     */
+    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
+        type: T,
+        queryOptions?: QueryOptions
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+        // Use iterator interface to collect all objects
+        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
+            objects.push(obj);
+        }
+
+        // Decide, whether to return it reversed, or not
+        if (queryOptions && queryOptions.orderBy === Order.Descending) {
+            return objects;
+        } else {
+            return objects.reverse();
+        }
+    }
+
+    /**
+     * Obtain a specific object from a channel.
+     *
+     * @param {string} id - id of the object to extract
+     */
+    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+        const obj = (await this.objectIterator({id}).next()).value;
+        if (!obj) {
+            throw new Error('The referenced object does not exist');
+        }
+        return obj;
+    }
+
+    /**
+     * Obtain a specific object from a channel.
+     *
+     * This is a very inefficient implementation, because it iterates over the chain.
+     * In the future it would be better to just pick the object with the passed hash.
+     * But this only works when we have working reverse maps for getting the metadata.
+     * The other option would be to use the hash of the indexed metadata as id, then
+     * we don't have the reverse map problem.
+     *
+     * @param {string} id - id of the object to extract
+     * @param {T} type - Type of objects to retrieve. If type does not match an
+     *                        error is thrown.
+     * @returns {Promise<ObjectData<OneUnversionedObjectInterfaces[T]>>}
+     */
+    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
+        id: string,
+        type: T
+    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+        function hasRequestedType(
+            obj: ObjectData<OneUnversionedObjectTypes>
+        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            return obj.data.$type$ === type;
+        }
+
+        const obj = (await this.objectIterator({id}).next()).value;
+        if (!obj) {
+            throw new Error('The referenced object does not exist');
+        }
+        if (!hasRequestedType(obj)) {
+            throw new Error(`The referenced object does not have the expected type ${type}`);
+        }
+
+        return obj;
+    }
+
+    /**
+     * Obtain the latest merged ChannelInfoHash from the registry
+     *
+     * It is useful for ChannelSelectionOptions
+     *
+     * @param channel - the channel for which to get the channel info
+     */
+    public async getLatestMergedChannelInfoHash(
+        channel: Channel
+    ): Promise<SHA256Hash<ChannelInfo>> {
+        const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
+
+        const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
+
+        if (!channelEntry) {
+            throw new Error('The specified channel does not exist');
+        }
+
+        return await getNthVersionMapHash(channelInfoIdHash, channelEntry.readVersionIndex);
+    }
+
+    /**
+     * Iterate over all objects in the channels matching the query options.
+     *
+     * Note that the sort order is not supported. It is silently ignored.
+     * Items are always returned in descending order regarding time.
+     * It is a single linked list underneath, so no way of efficiently iterating
+     * in the other direction.
+     *
+     * @param {QueryOptions} queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    public async *objectIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        // The count needs to be dealt with at the top level, because it involves all returned items
+        if (queryOptions && queryOptions.count) {
+            let elementCounter = 0;
+
+            // Iterate over the merge iterator and filter unwanted elements
+            for await (const element of this.multiChannelObjectIterator(queryOptions)) {
+                if (queryOptions.count !== undefined && elementCounter >= queryOptions.count) {
+                    break;
+                }
+
+                ++elementCounter;
+                yield element;
+            }
+        } else {
+            yield* this.multiChannelObjectIterator(queryOptions);
+        }
+    }
+
+    /**
+     * Iterate over all objects in the channels matching the query options.
+     *
+     * This method also returns only the objects of a certain type.
+     *
+     * @param {T} type - The type of the elements to iterate
+     * @param {QueryOptions} queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>>}
+     */
+    public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
+        type: T,
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+        if (queryOptions) {
+            queryOptions.type = type;
+        } else {
+            queryOptions = {type};
+        }
+
+        // Iterate over all objects filtering out the ones with the wrong type
+        yield* this.objectIterator(queryOptions) as AsyncIterableIterator<
+            ObjectData<OneUnversionedObjectInterfaces[T]>
+        >;
+    }
+
+    // ######## Get data from channels - ITERATORS PRIVATE ########
+
+    /**
      * Find the differences in the chain starting from the common history
      *
      * Note: this only works when both channel infos are from the same channel.
@@ -282,6 +699,99 @@ export default class ChannelManager extends EventEmitter {
             yield* itNext;
         } else {
             yield* ChannelManager.mergeIteratorMostCurrent([itNext, itCurrent], true, false, true);
+        }
+    }
+
+    /**
+     * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
+     *
+     * @param {QueryOptions} queryOptions
+     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     */
+    private async *multiChannelObjectIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+        const channels = await this.getMatchingChannelInfos(queryOptions);
+
+        // prepare the options for the single channel iterator
+        let from: Date | undefined;
+        let to: Date | undefined;
+        let ids: string[] | undefined;
+        let types: string[] | undefined;
+
+        let omitData: boolean = false;
+
+        if (queryOptions) {
+            from = queryOptions.from;
+            to = queryOptions.to;
+            if (queryOptions.id) {
+                ids = [queryOptions.id];
+            }
+            if (queryOptions.ids) {
+                ids = queryOptions.ids;
+            }
+            if (queryOptions.type) {
+                types = [queryOptions.type];
+            }
+            if (queryOptions.types) {
+                types = queryOptions.types;
+            }
+            if (queryOptions.omitData) {
+                omitData = queryOptions.omitData;
+            }
+        }
+
+        // Create a iterator for each selected channel
+        const iterators = channels.map(channel =>
+            ChannelManager.singleChannelObjectIterator(channel, from, to, ids)
+        );
+
+        // Determine the access rights of each channel
+        const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
+        await Promise.all(
+            channels.map(async channel => {
+                const channelInfoIdHash = await calculateIdHashOfObj(channel);
+                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(
+                    channelInfoIdHash
+                );
+                sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
+            })
+        );
+
+        // Iterate over all channels and fetch the data
+        for await (const entry of ChannelManager.mergeIteratorMostCurrent(iterators, false)) {
+            // Get the shared with status from the precompiled map
+            const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash);
+            if (!sharedWith) {
+                throw new Error(
+                    `Programming Error: Shared with map didn't have entry for channel ${entry.channelInfoIdHash}`
+                );
+            }
+
+            // Load the object to compare the type
+            // AUTHORIZED HACK - casting undefined to any type because
+            // making the data field optional would cause problems
+            // in other apps.
+            const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
+
+            if (data && types && !types.includes(data.$type$)) {
+                continue;
+            }
+
+            // Build meta data object and return it
+            yield {
+                channelId: entry.channelInfo.id,
+                channelOwner: entry.channelInfo.owner,
+                channelEntryHash: entry.channelEntryHash,
+                id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
+
+                creationTime: new Date(entry.creationTime),
+                author: entry.channelInfo.owner,
+                sharedWith: sharedWith,
+
+                data: data,
+                dataHash: entry.dataHash
+            };
         }
     }
 
@@ -770,428 +1280,11 @@ export default class ChannelManager extends EventEmitter {
         return [...new Set(personsFlat)];
     }
 
-    /**
-     * Init this instance.
-     *
-     * This will iterate over all channels and check whether all versions have been merged.
-     * If not it will merge the unmerged versions.
-     *
-     * Note: This has to be called after the one instance is initialized.
-     */
-    public async init(defaultOwner?: SHA256IdHash<Person>): Promise<void> {
-        // Set the default owner the the instance owner if it was not specified.
-        if (defaultOwner) {
-            this.defaultOwner = defaultOwner;
-        } else {
-            const instanceOwner = getInstanceOwnerIdHash();
-            if (!instanceOwner) {
-                throw new Error('The instance does not have an owner. Is it initialized?');
-            }
-            this.defaultOwner = instanceOwner;
-        }
-
-        // Load the cache from the registry
-        await this.loadRegistryCacheFromOne();
-
-        // Register event handlers
-        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
-
-        // Merge new versions of channels that haven't been merged, yet.
-        await this.mergeAllUnmergedChannelVersions();
-    }
-
-    /**
-     * Shutdown module
-     *
-     * @returns {Promise<void>}
-     */
-    public async shutdown(): Promise<void> {
-        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
-
-        // Resolve the pending promises
-        await Promise.all(this.promiseTrackers.values());
-        this.defaultOwner = null;
-        this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
-    }
-
     // ######## Get data from channels - ITERATORS ########
-
-    /**
-     * Create a new channel.
-     *
-     * If the channel already exists, this call is a noop.
-     *
-     * @param {string} channelId - The id of the channel. See class description for more details
-     * on how ids and channels are handled.
-     * @param {SHA256IdHash<Person>} owner - The id hash of the person that should be the owner
-     * of this channel.
-     */
-    public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
-        if (!this.defaultOwner) {
-            throw Error('Not initialized');
-        }
-        if (!owner) {
-            owner = this.defaultOwner;
-        }
-
-        const channelInfoIdHash = await calculateIdHashOfObj({
-            $type$: 'ChannelInfo',
-            id: channelId,
-            owner: owner
-        });
-
-        logWithId(channelId, owner, `createChannel - START`);
-
-        try {
-            await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
-            logWithId(channelId, owner, `createChannel - END: Existed`);
-        } catch (ignore) {
-            // Create a new one if getting it failed
-            await createSingleObjectThroughPurePlan(
-                {module: '@module/channelCreate'},
-                channelId,
-                owner
-            );
-
-            // Create the cache entry.
-            // We cannot wait for the hook to make the entry, because following posts
-            // might be faster than the hook, so let's add the channel explicitly to
-            // the registry
-            await this.addChannelIfNotExist(channelInfoIdHash);
-
-            logWithId(channelId, owner, `createChannel - END: Created`);
-        }
-    }
-
-    /**
-     * Retrieve all channels registered at the channel registry
-     *
-     * @param {ChannelSelectionOptions} options
-     * @returns {Promise<Channel[]>}
-     */
-    public async channels(options?: ChannelSelectionOptions): Promise<Channel[]> {
-        const channelInfos = await this.getMatchingChannelInfos(options);
-        return channelInfos.map(info => {
-            return {id: info.id, owner: info.owner};
-        });
-    }
-
-    /**
-     * Post a new object to a channel.
-     *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
-     * @param {SHA256IdHash<Person>} channelOwner
-     * @param {number} timestamp
-     */
-    public async postToChannel<T extends OneUnversionedObjectTypes>(
-        channelId: string,
-        data: T,
-        channelOwner?: SHA256IdHash<Person>,
-        timestamp?: number
-    ): Promise<void> {
-        // Determine the owner to use for posting.
-        // It is either the passed one, or the default one if none was passed.
-        let owner: SHA256IdHash<Person>;
-        if (channelOwner) {
-            owner = channelOwner;
-        } else {
-            if (!this.defaultOwner) {
-                throw new Error('Default owner is not initialized');
-            }
-            owner = this.defaultOwner;
-        }
-
-        // Post the data
-        try {
-            const channelInfoIdHash = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: channelId,
-                owner: owner
-            });
-
-            let waitForMergePromise;
-            await serializeWithType(
-                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
-                async () => {
-                    // Setup the merge handler
-                    const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
-                    if (!cacheEntry) {
-                        throw new Error('This channel does not exist, you cannot post to it.');
-                    }
-
-                    // Create the promise on which we wait after we posted the value to one
-                    waitForMergePromise = new Promise(resolve => {
-                        cacheEntry.mergedHandlers.push(resolve);
-                    });
-
-                    // Post the data
-                    await serializeWithType(ChannelManager.postLockName, async () => {
-                        logWithId(channelId, owner, `postToChannel - START`);
-
-                        await createSingleObjectThroughImpurePlan(
-                            {module: '@module/channelPost'},
-                            channelId,
-                            owner,
-                            data,
-                            timestamp
-                        );
-
-                        logWithId(channelId, owner, `postToChannel - END`);
-                    });
-                }
-            );
-
-            // Wait until the merge has completed before we resolve the promise
-            if (waitForMergePromise) {
-                await waitForMergePromise;
-            }
-        } catch (e) {
-            logWithId(channelId, owner, 'postToChannel - FAIL: ' + e.toString());
-            throw e;
-        }
-    }
-
-    // ######## Get data from channels - ITERATORS PRIVATE ########
-
-    /**
-     * Post a new object to a channel but only if it was not already posted to the channel
-     *
-     * Note: This will iterate over the whole tree if the object does not exist, so it might
-     *       be slow.
-     *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
-     * @param {SHA256IdHash<Person>} channelOwner
-     */
-    public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
-        channelId: string,
-        data: T,
-        channelOwner?: SHA256IdHash<Person>
-    ): Promise<void> {
-        // Determine the owner to use for posting.
-        // It is either the passed one, or the default one if none was passed.
-        let owner: SHA256IdHash<Person>;
-        if (channelOwner) {
-            owner = channelOwner;
-        } else {
-            if (!this.defaultOwner) {
-                throw new Error('Default owner is not initialized');
-            }
-            owner = this.defaultOwner;
-        }
-
-        try {
-            // We need to serialize here, because two posts of the same item must be serialized
-            // in order for the second one to wait until the first one was inserted.
-            await serializeWithType(ChannelManager.postNELockName, async () => {
-                logWithId(channelId, owner, `postToChannelIfNotExist - START`);
-
-                // Calculate the hash of the passed object. We will compare it with existing entries
-                const dataHash = await calculateHashOfObj(data);
-
-                // Iterate over the channel to see whether the object exists.
-                let exists = false;
-                for await (const item of this.objectIterator({channelId, owner})) {
-                    if (item.dataHash === dataHash) {
-                        exists = true;
-                    }
-                }
-
-                // Post only if it does not exist
-                if (exists) {
-                    logWithId(channelId, owner, `postToChannelIfNotExist - END: existed`);
-                } else {
-                    await this.postToChannel(channelId, data, owner);
-                    logWithId(channelId, owner, `postToChannelIfNotExist - END: posted`);
-                }
-            });
-        } catch (e) {
-            logWithId(channelId, owner, 'postToChannelIfNotExist - FAIL: ' + e.toString());
-            throw e;
-        }
-    }
-
-    /**
-     * Get all data from one or multiple channels.
-     *
-     * Note the behavior when using ascending ordering (default) and count.
-     * It will return the 'count' latest elements in ascending order, not the
-     * 'count' oldest elements. It is counter intuitive and should either
-     * be fixed or the iterator interface should be the mandatory
-     *
-     * @param {QueryOptions} queryOptions
-     */
-    public async getObjects(
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-        // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
-        for await (const obj of this.objectIterator(queryOptions)) {
-            objects.push(obj);
-        }
-
-        // Decide, whether to return it reversed, or not
-        if (queryOptions && queryOptions.orderBy === Order.Descending) {
-            return objects;
-        } else {
-            return objects.reverse();
-        }
-    }
-
-    /**
-     * Get all data from a channel.
-     *
-     * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
-     * @param {QueryOptions} queryOptions
-     */
-    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
-        type: T,
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-        // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
-        for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
-            objects.push(obj);
-        }
-
-        // Decide, whether to return it reversed, or not
-        if (queryOptions && queryOptions.orderBy === Order.Descending) {
-            return objects;
-        } else {
-            return objects.reverse();
-        }
-    }
-
-    /**
-     * Obtain a specific object from a channel.
-     *
-     * @param {string} id - id of the object to extract
-     */
-    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        const obj = (await this.objectIterator({id}).next()).value;
-        if (!obj) {
-            throw new Error('The referenced object does not exist');
-        }
-        return obj;
-    }
-
-    /**
-     * Obtain a specific object from a channel.
-     *
-     * This is a very inefficient implementation, because it iterates over the chain.
-     * In the future it would be better to just pick the object with the passed hash.
-     * But this only works when we have working reverse maps for getting the metadata.
-     * The other option would be to use the hash of the indexed metadata as id, then
-     * we don't have the reverse map problem.
-     *
-     * @param {string} id - id of the object to extract
-     * @param {T} type - Type of objects to retrieve. If type does not match an
-     *                        error is thrown.
-     * @returns {Promise<ObjectData<OneUnversionedObjectInterfaces[T]>>}
-     */
-    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
-        id: string,
-        type: T
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
-            return obj.data.$type$ === type;
-        }
-
-        const obj = (await this.objectIterator({id}).next()).value;
-        if (!obj) {
-            throw new Error('The referenced object does not exist');
-        }
-        if (!hasRequestedType(obj)) {
-            throw new Error(`The referenced object does not have the expected type ${type}`);
-        }
-
-        return obj;
-    }
 
     // ######## Merge algorithm methods ########
 
-    /**
-     * Obtain the latest merged ChannelInfoHash from the registry
-     *
-     * It is useful for ChannelSelectionOptions
-     *
-     * @param channel - the channel for which to get the channel info
-     */
-    public async getLatestMergedChannelInfoHash(
-        channel: Channel
-    ): Promise<SHA256Hash<ChannelInfo>> {
-        const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
-
-        const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
-
-        if (!channelEntry) {
-            throw new Error('The specified channel does not exist');
-        }
-
-        return await getNthVersionMapHash(channelInfoIdHash, channelEntry.readVersionIndex);
-    }
-
-    /**
-     * Iterate over all objects in the channels matching the query options.
-     *
-     * Note that the sort order is not supported. It is silently ignored.
-     * Items are always returned in descending order regarding time.
-     * It is a single linked list underneath, so no way of efficiently iterating
-     * in the other direction.
-     *
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
-     */
-    public async *objectIterator(
-        queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        // The count needs to be dealt with at the top level, because it involves all returned items
-        if (queryOptions && queryOptions.count) {
-            let elementCounter = 0;
-
-            // Iterate over the merge iterator and filter unwanted elements
-            for await (const element of this.multiChannelObjectIterator(queryOptions)) {
-                if (queryOptions.count !== undefined && elementCounter >= queryOptions.count) {
-                    break;
-                }
-
-                ++elementCounter;
-                yield element;
-            }
-        } else {
-            yield* this.multiChannelObjectIterator(queryOptions);
-        }
-    }
-
     // ######## Entry id and channel selection stuff ########
-
-    /**
-     * Iterate over all objects in the channels matching the query options.
-     *
-     * This method also returns only the objects of a certain type.
-     *
-     * @param {T} type - The type of the elements to iterate
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>>}
-     */
-    public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
-        type: T,
-        queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        if (queryOptions) {
-            queryOptions.type = type;
-        } else {
-            queryOptions = {type};
-        }
-
-        // Iterate over all objects filtering out the ones with the wrong type
-        yield* this.objectIterator(queryOptions) as AsyncIterableIterator<
-            ObjectData<OneUnversionedObjectInterfaces[T]>
-        >;
-    }
 
     /**
      * Note: This function needs to be cleaned up a little! That is why it is down here with the
@@ -1248,99 +1341,6 @@ export default class ChannelManager extends EventEmitter {
             },
             accessObjects
         );
-    }
-
-    /**
-     * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
-     *
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
-     */
-    private async *multiChannelObjectIterator(
-        queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        const channels = await this.getMatchingChannelInfos(queryOptions);
-
-        // prepare the options for the single channel iterator
-        let from: Date | undefined;
-        let to: Date | undefined;
-        let ids: string[] | undefined;
-        let types: string[] | undefined;
-
-        let omitData: boolean = false;
-
-        if (queryOptions) {
-            from = queryOptions.from;
-            to = queryOptions.to;
-            if (queryOptions.id) {
-                ids = [queryOptions.id];
-            }
-            if (queryOptions.ids) {
-                ids = queryOptions.ids;
-            }
-            if (queryOptions.type) {
-                types = [queryOptions.type];
-            }
-            if (queryOptions.types) {
-                types = queryOptions.types;
-            }
-            if (queryOptions.omitData) {
-                omitData = queryOptions.omitData;
-            }
-        }
-
-        // Create a iterator for each selected channel
-        const iterators = channels.map(channel =>
-            ChannelManager.singleChannelObjectIterator(channel, from, to, ids)
-        );
-
-        // Determine the access rights of each channel
-        const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
-        await Promise.all(
-            channels.map(async channel => {
-                const channelInfoIdHash = await calculateIdHashOfObj(channel);
-                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(
-                    channelInfoIdHash
-                );
-                sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
-            })
-        );
-
-        // Iterate over all channels and fetch the data
-        for await (const entry of ChannelManager.mergeIteratorMostCurrent(iterators, false)) {
-            // Get the shared with status from the precompiled map
-            const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash);
-            if (!sharedWith) {
-                throw new Error(
-                    `Programming Error: Shared with map didn't have entry for channel ${entry.channelInfoIdHash}`
-                );
-            }
-
-            // Load the object to compare the type
-            // AUTHORIZED HACK - casting undefined to any type because
-            // making the data field optional would cause problems
-            // in other apps.
-            const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
-
-            if (data && types && !types.includes(data.$type$)) {
-                continue;
-            }
-
-            // Build meta data object and return it
-            yield {
-                channelId: entry.channelInfo.id,
-                channelOwner: entry.channelInfo.owner,
-                channelEntryHash: entry.channelEntryHash,
-                id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
-
-                creationTime: new Date(entry.creationTime),
-                author: entry.channelInfo.owner,
-                sharedWith: sharedWith,
-
-                data: data,
-                dataHash: entry.dataHash
-            };
-        }
     }
 
     // ######## Hook implementation for merging and adding channels ########
