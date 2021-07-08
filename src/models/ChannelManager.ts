@@ -1186,194 +1186,174 @@ export default class ChannelManager extends EventEmitter {
             channelOwner = channelInfo.obj.owner;
         }
 
+        const cacheLockName = ChannelManager.cacheLockName;
+
         try {
             logWithId(channelId, channelOwner, 'mergePendingVersions - START');
 
-            await serializeWithType(
-                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
-                async () => {
-                    // Load the cache entry for the latest merged version
-                    const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
-                    if (!cacheEntry) {
-                        throw new Error('The channelInfoIdHash does not exist in registry.');
+            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
+                // Load the cache entry for the latest merged version
+                const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
+                if (!cacheEntry) {
+                    throw new Error('The channelInfoIdHash does not exist in registry.');
+                }
+
+                // Determine which versions to merge and their channelInfos
+                let firstVersionToMerge: number;
+                let lastVersionToMerge: number;
+                let channelInfosToMerge: ChannelInfo[];
+                {
+                    //  Determine the first version to merge
+                    if (cacheEntry.latestMergedVersionIndex < cacheEntry.readVersionIndex) {
+                        // If the read pointer is in the future of the merge pointer, then the
+                        // read version already includes the latest merged version => merged + 1
+                        firstVersionToMerge = cacheEntry.latestMergedVersionIndex + 1;
+                    } else {
+                        // This usually means the read pointer is equal to the merge pointer, so
+                        // include this version in the merge range.
+                        firstVersionToMerge = cacheEntry.readVersionIndex;
                     }
 
-                    // Determine which versions to merge and their channelInfos
-                    let firstVersionToMerge: number;
-                    let lastVersionToMerge: number;
-                    let channelInfosToMerge: ChannelInfo[];
-                    {
-                        //  Determine the first version to merge
-                        if (cacheEntry.latestMergedVersionIndex < cacheEntry.readVersionIndex) {
-                            // If the read pointer is in the future of the merge pointer, then the
-                            // read version already includes the latest merged version => merged + 1
-                            firstVersionToMerge = cacheEntry.latestMergedVersionIndex + 1;
-                        } else {
-                            // This usually means the read pointer is equal to the merge pointer, so
-                            // include this version in the merge range.
-                            firstVersionToMerge = cacheEntry.readVersionIndex;
-                        }
+                    // Find the last version to merge based on the version map
+                    const versionMapEntries = await getAllVersionMapEntries(channelInfoIdHash);
+                    lastVersionToMerge = versionMapEntries.length - 1;
 
-                        // Find the last version to merge based on the version map
-                        const versionMapEntries = await getAllVersionMapEntries(channelInfoIdHash);
-                        lastVersionToMerge = versionMapEntries.length - 1;
+                    // Get all ChannelInfo versions in the merge range
+                    const channelInfoHashesToMerge = versionMapEntries
+                        .slice(firstVersionToMerge)
+                        .map(entry => entry.hash);
 
-                        // Get all ChannelInfo versions in the merge range
-                        const channelInfoHashesToMerge = versionMapEntries
-                            .slice(firstVersionToMerge)
-                            .map(entry => entry.hash);
+                    // Get the ChannelInfo object for all versions to merge
+                    channelInfosToMerge = await Promise.all(
+                        channelInfoHashesToMerge.map(getObject)
+                    );
 
-                        // Get the ChannelInfo object for all versions to merge
-                        channelInfosToMerge = await Promise.all(
-                            channelInfoHashesToMerge.map(getObject)
+                    // Sanity check. It should always exist at least one version (the last of the merged ones)
+                    if (channelInfosToMerge.length <= 0) {
+                        throw new Error(
+                            'Programming Error: The merge algorithm was called on a non existing channel.'
                         );
-
-                        // Sanity check. It should always exist at least one version (the last of the merged ones)
-                        if (channelInfosToMerge.length <= 0) {
-                            throw new Error(
-                                'Programming Error: The merge algorithm was called on a non existing channel.'
-                            );
-                        }
-
-                        // If we have only one version to merge, that means that this is the version that was already
-                        // merged by a previous run. In this case we don't need to do anything and just return.
-                        if (channelInfosToMerge.length === 1) {
-                            logWithId(
-                                channelId,
-                                channelOwner,
-                                `mergePendingVersions - END: all versions already merged`
-                            );
-                            return;
-                        }
                     }
 
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        `mergePendingVersions: versions ${firstVersionToMerge} to ${lastVersionToMerge}`
-                    );
-
-                    // Construct the iterators from the channelInfo representing the different versions
-                    const iterators = channelInfosToMerge.map(item =>
-                        ChannelManager.singleChannelObjectIterator(item)
-                    );
-
-                    // Iterate over all channel versions simultaneously until
-                    // 1) there is only a common history left
-                    // 2) there is only one channel left with elements
-                    let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
-                    const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
-                    for await (const elem of ChannelManager.mergeIteratorMostCurrent(
-                        iterators,
-                        true
-                    )) {
-                        commonHistoryHead = elem.channelEntryHash;
-                        unmergedElements.push(elem.creationTimeHash);
-                    }
-                    unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
-
-                    // If anything was returned, then we need to
-                    // 1) rebuild the chain (if unmerged elements exist)
-                    // 2) generate a new version with the head (if the same head is not already the latest version)
-                    // 3) advance to merge pointer to the proper location (always)
-                    if (commonHistoryHead) {
+                    // If we have only one version to merge, that means that this is the version that was already
+                    // merged by a previous run. In this case we don't need to do anything and just return.
+                    if (channelInfosToMerge.length === 1) {
                         logWithId(
                             channelId,
                             channelOwner,
-                            `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead}`
+                            `mergePendingVersions - END: all versions already merged`
                         );
+                        return;
+                    }
+                }
 
-                        // Rebuild the channel by adding the unmerged elements of the channels on top of the
-                        // common history if we have unmerged entries
-                        let rebuiltHead;
-                        if (unmergedElements.length > 0) {
-                            const result = (await createSingleObjectThroughPurePlan(
-                                {module: '@module/channelRebuildEntries'},
-                                channelId,
-                                channelOwner,
-                                commonHistoryHead,
-                                unmergedElements
-                            )) as UnversionedObjectResult<ChannelEntry>;
-                            rebuiltHead = result.hash;
-                        } else {
-                            rebuiltHead = commonHistoryHead;
-                        }
+                logWithId(
+                    channelId,
+                    channelOwner,
+                    `mergePendingVersions: versions ${firstVersionToMerge} to ${lastVersionToMerge}`
+                );
 
-                        // Write the new channel head only if it differs from the previous one
-                        if (
-                            rebuiltHead !== channelInfosToMerge[channelInfosToMerge.length - 1].head
-                        ) {
-                            const newVersion = (await createSingleObjectThroughPurePlan(
-                                {
-                                    module: '@module/channelSetHead',
-                                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                                },
-                                channelId,
-                                channelOwner,
-                                rebuiltHead
-                            )) as VersionedObjectResult<ChannelInfo>;
+                // Construct the iterators from the channelInfo representing the different versions
+                const iterators = channelInfosToMerge.map(item =>
+                    ChannelManager.singleChannelObjectIterator(item)
+                );
 
-                            // Let's calculate the position of the generated version in the version map
-                            let newVersionIndex = lastVersionToMerge;
+                // Iterate over all channel versions simultaneously until
+                // 1) there is only a common history left
+                // 2) there is only one channel left with elements
+                let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
+                const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+                for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
+                    commonHistoryHead = elem.channelEntryHash;
+                    unmergedElements.push(elem.creationTimeHash);
+                }
+                unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
+
+                // If anything was returned, then we need to
+                // 1) rebuild the chain (if unmerged elements exist)
+                // 2) generate a new version with the head (if the same head is not already the latest version)
+                // 3) advance to merge pointer to the proper location (always)
+                if (commonHistoryHead) {
+                    logWithId(
+                        channelId,
+                        channelOwner,
+                        `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead}`
+                    );
+
+                    // Rebuild the channel by adding the unmerged elements of the channels on top of the
+                    // common history if we have unmerged entries
+                    let rebuiltHead;
+                    if (unmergedElements.length > 0) {
+                        const result = (await createSingleObjectThroughPurePlan(
+                            {module: '@module/channelRebuildEntries'},
+                            channelId,
+                            channelOwner,
+                            commonHistoryHead,
+                            unmergedElements
+                        )) as UnversionedObjectResult<ChannelEntry>;
+                        rebuiltHead = result.hash;
+                    } else {
+                        rebuiltHead = commonHistoryHead;
+                    }
+
+                    // Write the new channel head only if it differs from the previous one
+                    if (rebuiltHead !== channelInfosToMerge[channelInfosToMerge.length - 1].head) {
+                        const newVersion = (await createSingleObjectThroughPurePlan(
                             {
-                                const versionMapEntries = await getAllVersionMapEntries(
-                                    channelInfoIdHash
-                                );
-                                for (
-                                    let i = lastVersionToMerge + 1;
-                                    i < versionMapEntries.length;
-                                    ++i
-                                ) {
-                                    if (versionMapEntries[i].hash === newVersion.hash) {
-                                        newVersionIndex = i;
-                                        break;
-                                    }
+                                module: '@module/channelSetHead',
+                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+                            },
+                            channelId,
+                            channelOwner,
+                            rebuiltHead
+                        )) as VersionedObjectResult<ChannelInfo>;
+
+                        // Let's calculate the position of the generated version in the version map
+                        let newVersionIndex = lastVersionToMerge;
+                        {
+                            const versionMapEntries = await getAllVersionMapEntries(
+                                channelInfoIdHash
+                            );
+                            for (
+                                let i = lastVersionToMerge + 1;
+                                i < versionMapEntries.length;
+                                ++i
+                            ) {
+                                if (versionMapEntries[i].hash === newVersion.hash) {
+                                    newVersionIndex = i;
+                                    break;
                                 }
                             }
+                        }
 
-                            // Now let's see if another version has arrived between the latest merged version and
-                            // the newly generated version
-                            if (newVersionIndex == lastVersionToMerge + 1) {
-                                // We have no intermediate version, so set the merge and read pointer to this version
-                                cacheEntry.readVersion = newVersion.obj;
-                                cacheEntry.readVersionIndex = newVersionIndex;
-                                cacheEntry.latestMergedVersionIndex = newVersionIndex;
+                        // Now let's see if another version has arrived between the latest merged version and
+                        // the newly generated version
+                        if (newVersionIndex == lastVersionToMerge + 1) {
+                            // We have no intermediate version, so set the merge and read pointer to this version
+                            cacheEntry.readVersion = newVersion.obj;
+                            cacheEntry.readVersionIndex = newVersionIndex;
+                            cacheEntry.latestMergedVersionIndex = newVersionIndex;
 
-                                logWithId(
-                                    channelId,
-                                    channelOwner,
-                                    'mergePendingVersions - END: merge successful - no intermediate version'
-                                );
-                            } else {
-                                // We have an intermediate version, so set the read pointer ahead of the merge pointer
-                                cacheEntry.readVersion = newVersion.obj;
-                                cacheEntry.readVersionIndex = newVersionIndex;
-                                cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
-
-                                logWithId(
-                                    channelId,
-                                    channelOwner,
-                                    'mergePendingVersions - END: merge successful - intermediate version detected'
-                                );
-                            }
+                            logWithId(
+                                channelId,
+                                channelOwner,
+                                'mergePendingVersions - END: merge successful - no intermediate version'
+                            );
                         } else {
-                            // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
-                            // state that the merge algorithm wants to create.
-                            cacheEntry.readVersion =
-                                channelInfosToMerge[channelInfosToMerge.length - 1];
-                            cacheEntry.readVersionIndex = lastVersionToMerge;
+                            // We have an intermediate version, so set the read pointer ahead of the merge pointer
+                            cacheEntry.readVersion = newVersion.obj;
+                            cacheEntry.readVersionIndex = newVersionIndex;
                             cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
 
                             logWithId(
                                 channelId,
                                 channelOwner,
-                                'mergePendingVersions - END: Not writing merge version: Latest version already includes everything'
+                                'mergePendingVersions - END: merge successful - intermediate version detected'
                             );
                         }
                     } else {
-                        // We have no entries in any of the channels, this  means that all versions
-                        // are empty and the merge result is also empty, so setting the merge and read
-                        // pointer to lastVersionToMerge is ok
+                        // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
+                        // state that the merge algorithm wants to create.
                         cacheEntry.readVersion =
                             channelInfosToMerge[channelInfosToMerge.length - 1];
                         cacheEntry.readVersionIndex = lastVersionToMerge;
@@ -1382,31 +1362,43 @@ export default class ChannelManager extends EventEmitter {
                         logWithId(
                             channelId,
                             channelOwner,
-                            'mergePendingVersions - END: Not writing merge version: only empty channels'
+                            'mergePendingVersions - END: Not writing merge version: Latest version already includes everything'
                         );
                     }
+                } else {
+                    // We have no entries in any of the channels, this  means that all versions
+                    // are empty and the merge result is also empty, so setting the merge and read
+                    // pointer to lastVersionToMerge is ok
+                    cacheEntry.readVersion = channelInfosToMerge[channelInfosToMerge.length - 1];
+                    cacheEntry.readVersionIndex = lastVersionToMerge;
+                    cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
 
-                    await this.saveRegistryCacheToOne();
-
-                    // notify the post calls, that their version was merged
-                    for (const handler of cacheEntry.mergedHandlers) {
-                        handler();
-                    }
-                    cacheEntry.mergedHandlers = [];
-
-                    // Emit the updated event when the read pointer changed
-                    // We wouldn't need to emit every time ... especially not if the previous
-                    // read pointer is compatible to the new one (has the same head pointer in the
-                    // channel info). But let's think about this later :-)
-                    this.emit('updated', channelId, channelOwner);
-                    const data = await ChannelManager.wrapChannelInfoWithObjectData(
-                        channelInfoIdHash
+                    logWithId(
+                        channelId,
+                        channelOwner,
+                        'mergePendingVersions - END: Not writing merge version: only empty channels'
                     );
-                    if (data !== undefined) {
-                        this.onUpdated.emit(channelId, channelOwner, data);
-                    }
                 }
-            );
+
+                await this.saveRegistryCacheToOne();
+
+                // notify the post calls, that their version was merged
+                for (const handler of cacheEntry.mergedHandlers) {
+                    handler();
+                }
+                cacheEntry.mergedHandlers = [];
+
+                // Emit the updated event when the read pointer changed
+                // We wouldn't need to emit every time ... especially not if the previous
+                // read pointer is compatible to the new one (has the same head pointer in the
+                // channel info). But let's think about this later :-)
+                this.emit('updated', channelId, channelOwner);
+                const data = await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash);
+                if (data === undefined) {
+                    throw new Error('wrapChannelInfoWithObjectData returned undefined ');
+                }
+                this.onUpdated.emit(channelId, channelOwner, data);
+            });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());
             throw e;
