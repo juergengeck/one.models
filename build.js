@@ -22,7 +22,6 @@ const {basename, dirname, join, sep} = require('path');
 const {promisify} = require('util');
 const {execSync} = require('child_process');
 
-// @ts-ignore
 const babel = require('@babel/core');
 
 /** @type {Record<string, string[]>} */
@@ -36,7 +35,7 @@ const PLATFORMS = {
 
 /**
  * One of them will be added to the BABEL_OPTS.plugin array
- * @type {{systemjs: string, commonjs: *[], umd: string}}
+ * @type {{systemjs: string, commonjs: string, umd: string}}
  */
 const BABEL_MODULE_TARGETS = {
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-commonjs.html
@@ -128,7 +127,7 @@ Options:
 
 /**
  * @param {string} dir
- * @returns {Promise<void>}
+ * @returns {Promise<void|string>}
  */
 function mkDirExistOkay(dir) {
     return mkDir(dir, {recursive: true}).catch(err => {
@@ -186,7 +185,7 @@ function transform(code, options) {
     return new Promise((resolve, reject) => {
         // See https://babeljs.io/docs/en/babel-core
         // result: {code, map, ast}
-        babel.transform(code, options, (/** @type Error*/ err, /** @type Object*/ result) => {
+        babel.transform(code, options, (/** @type {Error|null}*/ err, /** @type {any}*/ result) => {
             if (err) {
                 return reject(err);
             }
@@ -414,7 +413,7 @@ async function run() {
     console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
 
     await deleteDirectory(targetDir);
-    execSync('node ./build_plan_modules.js');
+    // execSync('node ./build_plan_modules.js');
     await processAllFiles('src', targetDir, system);
     await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system);
