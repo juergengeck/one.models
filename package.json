@@ -25,6 +25,7 @@
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
+    "jsesc": "^3.0.2",
     "one.core": "refinio/one.core",
     "ts-loader": "^8.0.2",
     "yargs": "^15.4.0"
