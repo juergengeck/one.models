@@ -1152,6 +1152,8 @@ export default class ChannelManager extends EventEmitter {
         logWithId(null, null, 'mergeIteratorMostCurrent - LEAVE');
     }
 
+    // ######## Merge algorithm methods ########
+
     /**
      * Merge unmerged channel versions.
      *
@@ -1818,8 +1820,6 @@ export default class ChannelManager extends EventEmitter {
         }
         return undefined;
     }
-
-    // ######## Merge algorithm methods ########
 
     /**
      * Load the latest channel registry version into the the cache.
