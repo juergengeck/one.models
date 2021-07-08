@@ -242,7 +242,7 @@ class CommunicationServerConnection_Server {
         }
 
         // Wait if in a ping / pong cycle, otherwise just resolve
-        await new Promise((resolve: (v?: any) => void) => {
+        await new Promise<void>(resolve => {
             // Cancel the next ping if it is scheduled
             this.isPinging = false;
             if (this.pingTimeoutHandle) {
