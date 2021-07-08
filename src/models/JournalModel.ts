@@ -27,7 +27,7 @@ type JournalData = {[event: string]: {values: ObjectData<unknown>[]; index: numb
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
 export default class JournalModel extends EventEmitter implements Model {
-    private modelsDictionary: JournalInput[];
+    private readonly modelsDictionary: JournalInput[];
 
     private eventEmitterListeners: Map<string, () => void> = new Map();
     private oEventListeners: Map<
@@ -66,10 +66,7 @@ export default class JournalModel extends EventEmitter implements Model {
      */
     async shutdown(): Promise<void> {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
-            const event = journalInput.eventType;
-            /** retrieve the function reference in order to delete it **/
-            const eventEmitterHandler = this.eventEmitterListeners.get(event);
-            const oEventHandler = this.oEventListeners.get(event);
+            const oEventHandler = this.oEventListeners.get(journalInput.eventType);
 
             if (oEventHandler && oEventHandler.disconnect) {
                 oEventHandler.disconnect();
