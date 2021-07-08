@@ -1,6 +1,16 @@
 #########
 # Project specific
 #########
+
+test/*.js
+test/**/*.js
+test/*.d.ts
+test/**/*.d.ts
+test/*.d.ts.map
+test/**/*.d.ts.map
+
+test/testDb
+
 # Generated code
 *.contact
 docs/
@@ -8,9 +18,7 @@ data/
 public.key
 src/generated
 lib/
-test/**/*.js
 .DS_Store
-test/testDb
 .nyc_output
 # ONE Database
 OneDB
