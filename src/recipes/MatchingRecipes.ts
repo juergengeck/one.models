@@ -9,6 +9,13 @@ declare module '@OneObjectInterfaces' {
         MatchResponse: MatchResponse;
     }
 
+    export interface OneIdObjectInterfaces {
+        SupplyMap: Pick<SupplyMap, '$type$' | 'name'>;
+        DemandMap: Pick<DemandMap, '$type$' | 'name'>;
+        MatchMap: Pick<MatchMap, '$type$' | 'name'>;
+        NotifiedUsers: Pick<NotifiedUsers, '$type$' | 'name'>;
+    }
+
     export interface OneVersionedObjectInterfaces {
         SupplyMap: SupplyMap;
         DemandMap: DemandMap;
