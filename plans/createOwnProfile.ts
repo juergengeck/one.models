@@ -15,7 +15,9 @@ import type {Profile} from '../src/recipes/ContactRecipes';
  *
  * @param {WriteStorageApi} WriteStorage
  * @param {string} email
- * @param {string} secret
+ * @param {SHA256IdHash<Instance>} instanceIdHash
+ * @param {string} contactObjUrl
+ * @param {boolean} [takeOver]
  * @returns {Promise<VersionedObjectResult<ContactApp>>}
  */
 export async function createObjects(

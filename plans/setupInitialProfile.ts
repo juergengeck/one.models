@@ -14,6 +14,8 @@ import type {ContactApp} from '../src/recipes/ContactRecipes';
  * of the instance
  *
  * @param {WriteStorageApi} WriteStorage
+ * @param {string} url
+ * @param {boolean} [takeOver]
  * @returns {Promise<VersionedObjectResult<ContactApp>>}
  */
 export async function createObjects(

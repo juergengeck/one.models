@@ -3,7 +3,7 @@ import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage'
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import {ChannelInfo} from '../src/recipes/ChannelRecipes';
+import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
 
 /**
  * Post a new entry in a channel.
@@ -18,6 +18,7 @@ import {ChannelInfo} from '../src/recipes/ChannelRecipes';
  * @param {string} channelId - The channel to post to
  * @param {SHA256IdHash<Person>} channelOwner - Owner of the channel to post to
  * @param {OneUnversionedObjectTypes} payload - Payload of the post
+ * @param {number} [timestamp]
  * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
  */
 export async function createObjects(
