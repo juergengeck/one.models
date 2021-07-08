@@ -29,7 +29,6 @@ const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 export default class JournalModel extends EventEmitter implements Model {
     private readonly modelsDictionary: JournalInput[];
 
-    private eventEmitterListeners: Map<string, () => void> = new Map();
     private oEventListeners: Map<
         string,
         {
