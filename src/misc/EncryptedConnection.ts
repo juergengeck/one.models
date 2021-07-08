@@ -238,13 +238,11 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      * Wait for an incoming message for a specified period of time.
      *
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<any> The promise will resolve when a value was received.
-     *                      The value will be the JSON.parse'd object
-     *                      The promise will reject when
-     *                      1) the timeout expired
-     *                      2) the connection was closed
-     *                      3) the type of the received message doe not match parameter
-     *                         'type'
+     * @return Promise<any> The promise will resolve when a value was received. The value will
+     * be the `JSON.parse` object The promise will reject when
+     * 1) the timeout expired
+     * 2) the connection was closed
+     * 3) the type of the received message doe not match parameter 'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
