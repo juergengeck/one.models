@@ -96,7 +96,10 @@ describe('Channel Iterators test', () => {
             })
         );
         const channelRegistry = Array.from((await getChannelRegistry()).obj.channels.keys());
-        expect(channelRegistry).to.have.length(channelsIdentifiers.length * 2);
+        // 3 from channelsIdentifiers.length
+        // 2 from Models which create their channel on Model.init
+        const numberOfCreatedChannels = 3 + 2;
+        expect(channelRegistry).to.have.length(numberOfCreatedChannels);
     }).timeout(20000);
 
     it('should get objects', async () => {
