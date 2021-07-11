@@ -19,8 +19,8 @@ import {
 import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
-let channelManager: typeof ChannelManager;
-let testModel;
+let channelManager: ChannelManager;
+let testModel: TestModel;
 
 // ######## SPECIALLY FORMATTED LOGGING ########
 const enableLogging = false;
@@ -410,8 +410,12 @@ describe('Channel Iterators test', () => {
         );
 
         // Check the results
-        expect(allValuesAscById.map(e => e.data.temperature)).to.be.eql([1, 2, 3, 4, 5, 6]);
-        expect(allValuesDesById.map(e => e.data.temperature)).to.be.eql([6, 5, 4, 3, 2, 1]);
+        expect(allValuesAscById.map(e => (e.data as BodyTemperature).temperature)).to.be.eql([
+            1, 2, 3, 4, 5, 6
+        ]);
+        expect(allValuesDesById.map(e => (e.data as BodyTemperature).temperature)).to.be.eql([
+            6, 5, 4, 3, 2, 1
+        ]);
     });
 
     it('should iterate differences in versions', async () => {
