@@ -139,7 +139,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-export type ObjectData<T> = {
+export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
     channelId: string; // The channel id
     channelOwner: SHA256IdHash<Person>; // The owner of the channel
     channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
@@ -151,8 +151,8 @@ export type ObjectData<T> = {
     author: SHA256IdHash<Person>; // Author of this data point (currently, this is always the owner)
     sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
 
-    data: T; // The data
-    dataHash: SHA256Hash<OneUnversionedObjectTypes>; // The hash of the data
+    data: T;
+    dataHash: SHA256Hash<T extends OneUnversionedObjectTypes ? T : OneUnversionedObjectTypes>;
 };
 
 /**
