@@ -6,17 +6,17 @@ import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/l
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {
     createSingleObjectThroughPurePlan,
-    getObject,
     getObjectByIdHash,
     getObjectByIdObj,
+    getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {MergedContact} from '../lib/models/ContactModel';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import type {MergedContact} from '../lib/models/ContactModel';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Profile, Someone} from '../lib/recipes/ContactRecipes';
 
@@ -39,17 +39,17 @@ describe('Contact model test', () => {
         const contactApp = await ContactModel.getContactAppObject();
         expect(contactApp).to.not.be.equal(undefined);
 
-        const mySomeone = await getObject(contactApp.obj.me);
+        const mySomeone = await getObjectWithType(contactApp.me, 'Someone');
         expect(mySomeone && mySomeone.mainProfile).to.not.be.undefined;
         expect(mySomeone.profiles).to.have.length(2);
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
         expect(myProfile).to.not.be.undefined;
 
-        const myContact = await getObject(myProfile.obj.mainContact);
+        const myContact = await getObjectWithType(myProfile.obj.mainContact, 'Contact');
         expect(myContact).to.not.be.undefined;
 
-        const myInstanceEndpoint = await getObject(myProfile.obj.mainContact);
+        const myInstanceEndpoint = await getObjectWithType(myProfile.obj.mainContact, 'Contact');
         expect(myInstanceEndpoint).to.not.be.undefined;
     });
 
@@ -127,7 +127,7 @@ describe('Contact model test', () => {
 
         const contactApp = await ContactModel.getContactAppObject();
 
-        const mySomeone = await getObject(contactApp.obj.me);
+        const mySomeone = await getObjectWithType(contactApp.obj.me, 'Someone');
 
         const foundSomeone = mySomeone.profiles.find(
             (profileIdHash: SHA256IdHash<Profile>) =>
@@ -146,7 +146,7 @@ describe('Contact model test', () => {
 
         const contactApp = await ContactModel.getContactAppObject();
 
-        const mySomeone = await getObject(contactApp.obj.me);
+        const mySomeone = await getObjectWithType(contactApp.obj.me, 'Someone');
 
         const foundSomeone = mySomeone.profiles.find(
             (profileIdHash: SHA256IdHash<Profile>) =>
@@ -219,7 +219,7 @@ describe('Contact model test', () => {
 
         const contactApp = await ContactModel.getContactAppObject();
 
-        const mySomeone = await getObject(contactApp.obj.me);
+        const mySomeone = await getObjectWithType(contactApp.obj.me, 'Someone');
 
         const myProfile = await getObjectByIdHash(mySomeone.mainProfile);
 
@@ -260,7 +260,11 @@ describe('Contact model test', () => {
         const profile = await getObjectByIdHash(someoneObject.mainProfile);
         expect(profile).to.not.be.equal(undefined);
 
-        const contact = await getObject(profile.obj.contactObjects[0]);
+        if (profile.obj.$type$ !== 'Profile') {
+            throw new Error('NOt a Profile object');
+        }
+
+        const contact = await getObjectWithType(profile.obj.contactObjects[0], 'Contact');
         expect(contact).to.not.be.equal(undefined);
     });
 
@@ -301,12 +305,17 @@ describe('Contact model test', () => {
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 
-        if (!someone) {
+        if (someone === undefined) {
             throw new Error('Error: someoneObject is undefined');
         }
 
         const profile = await getObjectByIdHash(someone.mainProfile);
-        const mainContact = await getObject(profile.obj.mainContact);
+
+        if (profile.obj.$type$ !== 'Profile') {
+            throw new Error('NOt a Profile object');
+        }
+
+        const mainContact = await getObjectWithType(profile.obj.mainContact, 'Contact');
         expect(mainContact).to.not.be.equal(undefined);
     });
 
