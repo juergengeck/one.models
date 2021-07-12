@@ -151,7 +151,8 @@ export default class DocumentModel extends EventEmitter implements Model {
                     /** any {@link DocumentInfo_1_0_0} was saved as a PDF in the past **/
                     mimeType: AcceptedMimeType.PDF,
                     documentName: ''
-                }
+                },
+                dataHash: document.dataHash as unknown as SHA256Hash<DocumentInfo_1_1_0>
             };
         }
         yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
