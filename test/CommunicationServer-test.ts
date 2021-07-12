@@ -33,7 +33,7 @@ describe('communication server tests', () => {
 
     after(async () => {
         if (commServer) {
-            commServer.stop();
+            await commServer.stop();
         }
     });
 
@@ -65,7 +65,7 @@ describe('communication server tests', () => {
             }
             try {
                 while (ws.webSocket.readyState === WebSocket.OPEN) {
-                    ws.send(await ws.waitForMessage(1000));
+                    await ws.send(await ws.waitForMessage(1000));
                 }
             } catch (e) {
                 // This will also fail on a closing connection, but this is okay, because the listenerFailure
@@ -94,7 +94,7 @@ describe('communication server tests', () => {
                 await clientConn.waitForOpen(1000);
 
                 // MESSAGE1 SEND: Send the communication request message that will tell the comm server where to forward the connection to
-                clientConn.send(
+                await clientConn.send(
                     JSON.stringify({
                         command: 'communication_request',
                         sourcePublicKey: fromByteArray(clientKeyPair.publicKey),
@@ -109,7 +109,7 @@ describe('communication server tests', () => {
                 expect(msg1.targetPublicKey).to.be.equal(fromByteArray(listenerKeyPair.publicKey));
 
                 // MESSAGE2 SEND:
-                clientConn.send('Hello Friend!');
+                await clientConn.send('Hello Friend!');
 
                 // MESSAGE2 RECEIVE:
                 const msg2 = await clientConn.waitForMessage();

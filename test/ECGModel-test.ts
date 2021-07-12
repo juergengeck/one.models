@@ -6,12 +6,12 @@ import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers.js';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import {Electrocardiogram} from '@OneObjectInterfaces';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import ECGModel from '../lib/models/ECGModel';
+import type ECGModel from '../lib/models/ECGModel';
+import type {Electrocardiogram} from '../lib/recipes/ECGRecipes';
 
 let ecgModel: ECGModel;
-let testModel;
+let testModel: TestModel;
 
 describe('ECG Model test', () => {
     before(async () => {
@@ -37,6 +37,7 @@ describe('ECG Model test', () => {
 
         await ecgModel.postECG(ECG);
         const electrocardiograms = await ecgModel.retrieveAllWithoutData();
+        electrocardiograms[0].dataHash;
         let result = await ecgModel.retrieveECGReadings(electrocardiograms[0].dataHash);
         expect(result.readings.length).to.be.equal(100);
         while (result.nextFrom) {

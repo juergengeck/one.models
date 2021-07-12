@@ -46,7 +46,7 @@ describe('OEvent test', () => {
                     stringVal = emittedStringVal;
                     numberVal = emittedNumberVal;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         const disconnect2 = onEvent((emittedStringVal: string, emittedNumberVal: number) => {
@@ -101,7 +101,7 @@ describe('OEvent test', () => {
                     stringVal = emitStringValue;
                     numberVal = emitNumberValue;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         const disconnect2 = onEvent((emitStringValue: string, emitNumberValue: number) => {
@@ -111,7 +111,7 @@ describe('OEvent test', () => {
                     stringVal = emitStringValue;
                     numberVal = emitNumberValue;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         expect(handlerCalled1).to.be.equal(false);
@@ -126,7 +126,7 @@ describe('OEvent test', () => {
         expect(stringVal).to.be.equal(null);
         expect(numberVal).to.be.equal(null);
 
-        await promiseTimeout(1 * 150);
+        await promiseTimeout(150);
 
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);

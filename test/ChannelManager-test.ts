@@ -1,11 +1,12 @@
-import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
+
+import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import type {BodyTemperature, ChannelEntry, ChannelInfo, CreationTime} from '@OneObjectInterfaces';
+import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
@@ -16,8 +17,10 @@ import {
     getObject,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
+import type {CreationTime} from '../lib/recipes/MetaRecipes';
+import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;

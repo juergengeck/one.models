@@ -11,7 +11,6 @@ import {
     getObjectByIdObj,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import type {Profile, Someone} from '@OneObjectInterfaces';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
@@ -19,9 +18,10 @@ import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import type {MergedContact} from '../lib/models/ContactModel';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Profile, Someone} from '../lib/recipes/ContactRecipes';
 
 let contactModel: ContactModel;
-let testModel;
+let testModel: TestModel;
 
 describe('Contact model test', () => {
     before(async () => {
@@ -213,7 +213,7 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        await contactModel.updateDescription(personIdHash, {name: 'Test'});
+        await contactModel.updateDescription(personIdHash, {personName: 'Test'});
         await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'foo@test.one'});
         await contactModel.updateCommunicationEndpoint(personIdHash, {email: 'test@test.one'});
 
@@ -297,7 +297,7 @@ describe('Contact model test', () => {
             throw new Error('Error: personIdHash is undefined');
         }
 
-        await contactModel.updateDescription(person.idHash, {name: 'test'});
+        await contactModel.updateDescription(person.idHash, {personName: 'test'});
 
         const someone = await contactModel.getSomeoneObject(person.idHash);
 

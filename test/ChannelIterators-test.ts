@@ -1,6 +1,7 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
+
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
@@ -13,12 +14,13 @@ import {
 } from 'one.core/lib/storage';
 import type {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import type {BodyTemperature, ChannelRegistry} from '@OneObjectInterfaces';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
+import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
 
-let channelManager: typeof ChannelManager;
+let channelManager: ChannelManager;
 let testModel: TestModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
@@ -67,7 +69,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await (const {} of channelManager.objectIterator(channelId, {})) {
+            for await (const {} of channelManager.objectIterator({channelId})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
@@ -76,7 +78,7 @@ describe('Channel Iterators test', () => {
 
     it('should get zero objects by getObjects', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects(channelId);
+            const objects1 = await channelManager.getObjects({channelId});
             expect(objects1).to.have.length(0);
         }
     });

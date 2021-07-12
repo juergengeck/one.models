@@ -14,9 +14,14 @@ import {
     InstancesModel
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import type {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneObjectInterfaces';
 import oneModules from '../../lib/generated/oneModules';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    VersionedObjectResult,
+    VERSION_UPDATES
+} from 'one.core/lib/storage';
+import type {Module, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 export const dbKey = 'testDb';
 const path = require('path');
@@ -57,7 +62,7 @@ export async function removeDir(dir: string) {
 export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return await Promise.all(
