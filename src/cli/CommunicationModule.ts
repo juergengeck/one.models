@@ -142,7 +142,7 @@ async function main(): Promise<void> {
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
         initialRecipes: RecipesStable
-        //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+        // initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();
 
