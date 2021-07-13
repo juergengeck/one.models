@@ -141,7 +141,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     private async resolveBlobCollection(
         blobCollection: OneBlobCollection
     ): Promise<BlobCollection> {
-        const blobDescriptors: OneBlobDescriptor[] = await Promise.all(
+        const blobDescriptors = await Promise.all(
             blobCollection.blobs.map(hash => getObject(hash))
         );
         const resolvedBlobDescriptors = await Promise.all(
