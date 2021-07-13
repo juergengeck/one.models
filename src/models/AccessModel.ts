@@ -3,7 +3,7 @@
  */
 
 import EventEmitter from 'events';
-import type {Access, Group, IdAccess, Person} from 'one.core/lib/recipes';
+import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
@@ -127,7 +127,7 @@ export default class AccessModel extends EventEmitter {
 
     async giveGroupAccessToObject(
         groupName: string,
-        objectHash: SHA256Hash
+        objectHash: SHA256Hash<OneObjectTypes>
     ): Promise<VersionedObjectResult<Access | IdAccess>> {
         const group = await this.getAccessGroupByName(groupName);
         return await createSingleObjectThroughPurePlan(
