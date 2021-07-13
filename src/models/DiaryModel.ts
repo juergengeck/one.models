@@ -47,9 +47,9 @@ export default class DiaryModel extends EventEmitter implements Model {
      * Event emitted when diary data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-    public static readonly channelId = 'diary';
 
     channelManager: ChannelManager;
+    public static readonly channelId = 'diary';
     private disconnect: (() => void) | undefined;
 
     /**

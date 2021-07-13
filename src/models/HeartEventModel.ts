@@ -14,12 +14,14 @@ import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
  * For more information, see Chapter Vital Signs in {@link https://developer.apple.com/documentation/healthkit/data_types}
  */
 export default class HeartEventModel extends EventEmitter implements Model {
-    public static readonly channelId = 'heartEvent';
     /**
      * Event emitted when HeartEvent data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+
     private readonly channelManager: ChannelManager;
+    public static readonly channelId = 'heartEvent';
+
     /**
      * Disconnect function to detach the channel manager listener
      * @private

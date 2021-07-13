@@ -1434,11 +1434,9 @@ export default class ChannelManager extends EventEmitter {
         channelEntryHash: SHA256Hash<ChannelEntry>;
     } {
         const idElements = id.split('_');
-
         if (idElements.length != 2) {
             throw new Error('Id of channel entry is not valid.');
         }
-
         return {
             channelInfoIdHash: ensureIdHash<ChannelInfo>(idElements[0]),
             channelEntryHash: ensureHash<ChannelEntry>(idElements[1])

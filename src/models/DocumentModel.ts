@@ -42,9 +42,9 @@ export default class DocumentModel extends EventEmitter implements Model {
      * Event emitted when document data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-    public static readonly channelId = 'document';
 
     channelManager: ChannelManager;
+    public static readonly channelId = 'document';
     private disconnect: (() => void) | undefined;
 
     /**

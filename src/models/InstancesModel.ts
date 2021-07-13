@@ -63,19 +63,6 @@ class InstancesModel extends EventEmitter {
     private secret: string = '';
 
     /**
-     * Obtain the local instance list.
-     * @returns {Promise<LocalInstancesList>}
-     */
-    private static async localInstanceList(): Promise<LocalInstancesList> {
-        return (
-            await getObjectByIdObj({
-                $type$: 'LocalInstancesList',
-                id: 'LocalInstancesList'
-            })
-        ).obj;
-    }
-
-    /**
      * Initialize this model.
      *
      * @param {string} secret - The secret used to manage the private instance keys. Note that
@@ -237,6 +224,8 @@ class InstancesModel extends EventEmitter {
     }
 
     /**
+     * Get the instance keys for a specific person.
+     *
      * @param {SHA256IdHash<Instance>} instanceId
      * @returns {Promise<Keys>}
      */
@@ -452,6 +441,22 @@ class InstancesModel extends EventEmitter {
                 localInstancesList
             );
         });
+    }
+
+    // ######## Private API ########
+
+    /**
+     * Obtain the local instance list.
+     *
+     * @returns {Promise<LocalInstancesList>}
+     */
+    private static async localInstanceList(): Promise<LocalInstancesList> {
+        return (
+            await getObjectByIdObj({
+                $type$: 'LocalInstancesList',
+                id: 'LocalInstancesList'
+            })
+        ).obj;
     }
 }
 

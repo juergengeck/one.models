@@ -17,10 +17,10 @@ export default class ECGModel extends EventEmitter implements Model {
      * Event emitted when ecg data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-    public static readonly channelId = 'electrocardiogram';
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
+    public static readonly channelId = 'electrocardiogram';
 
     /**
      * Construct a new instance
