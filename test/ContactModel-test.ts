@@ -116,7 +116,9 @@ describe('Contact model test', () => {
         expect(foundSomeone).to.not.be.equal(undefined);
     });
 
-    it('should create profile for my person', async () => {
+    it('should create profile for my person', async function () {
+        this.timeout(10000);
+
         const personIdHash = await contactModel.createNewIdentity(true, 'thirdProfile@refinio.net');
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
@@ -136,7 +138,9 @@ describe('Contact model test', () => {
         expect(foundSomeone).to.not.be.equal(undefined);
     });
 
-    it('should create anon profile for my person', async () => {
+    it('should create anon profile for my person', async function () {
+        this.timeout(10000);
+
         const personIdHash = await contactModel.createNewIdentity(true);
         const versionedProfileObject = await getObjectByIdObj({
             $type$: 'Profile',
@@ -206,7 +210,9 @@ describe('Contact model test', () => {
 
         expect(myProfile.obj.mainContact).to.be.equal(contactObject.hash);
     });*/
-    it('should add new contact objects in contact object list', async () => {
+    it('should add new contact objects in contact object list', async function () {
+        this.timeout(10000);
+
         const personIdHash = getInstanceOwnerIdHash();
 
         if (!personIdHash) {
@@ -227,7 +233,9 @@ describe('Contact model test', () => {
         expect(myProfile.obj.contactObjects.length).to.be.equal(3);
     });
 
-    it('should add new contact for a non existing profile', async () => {
+    it('should add new contact for a non existing profile', async function () {
+        this.timeout(10000);
+
         const newPerson = await createSingleObjectThroughPurePlan(
             {
                 module: '@one/identity',
@@ -293,7 +301,9 @@ describe('Contact model test', () => {
         expect(identities.length).to.be.equal(1);
     });
 
-    it('should add a new main contact for another person', async () => {
+    it('should add a new main contact for another person', async function () {
+        this.timeout(10000);
+
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const personIdHash = getInstanceOwnerIdHash();
 
@@ -319,7 +329,9 @@ describe('Contact model test', () => {
         expect(mainContact).to.not.be.equal(undefined);
     });
 
-    it('should add 3 equal contacts for another person and check if only one was added', async () => {
+    it('should add 3 equal contacts for another person and check if only one was added', async function () {
+        this.timeout(10000);
+
         const person = await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'});
         const personIdHash = getInstanceOwnerIdHash();
 
@@ -328,7 +340,7 @@ describe('Contact model test', () => {
         }
 
         await Promise.all(
-            await [1, 2, 3].map(async ignored => {
+            [1, 2, 3].map(async ignored => {
                 await createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
@@ -345,7 +357,9 @@ describe('Contact model test', () => {
         expect(mainContact.length).to.be.equal(1);
     });
 
-    it('should merge contacts', async () => {
+    it('should merge contacts', async function () {
+        this.timeout(10000);
+
         const personIdHash = getInstanceOwnerIdHash();
         if (personIdHash === undefined) {
             throw new Error('Instance owner hash is undefined');
@@ -363,9 +377,13 @@ describe('Contact model test', () => {
         expect(endpoints.info.length).to.be.equal(2);
     });
 
-    it('should declare same person between foo and bar', async () => {
-        const personA = (await getObjectByIdObj({$type$: 'Person', email: 'foo@refinio.net'}))
-            .idHash;
+    it('should declare same person between foo and bar', async function () {
+        this.timeout(10000);
+
+        const {idHash: personA} = await getObjectByIdObj({
+            $type$: 'Person',
+            email: 'foo@refinio.net'
+        });
         const someoneA = await contactModel.getSomeoneObject(personA);
 
         const personB = await contactModel.createNewIdentity(false, 'bar@refinio.net');
