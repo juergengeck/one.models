@@ -54,76 +54,16 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     }
 
     /**
-     * This function checks if the received object is here
-     * as an update of active status for one of existing objects
-     *
-     * The logic is next: when a new object is received with same
-     * values, but with a different active status, this means this new object
-     * was sent to replace the old one, because the 'isActive' attribute was changed
-     *
-     * @param {Map<string, (Demand | Supply)[]>} objectsMap
-     * @param {Supply | Demand} tagObject
-     * @returns {boolean}
-     */
-    protected static checkIfItIsAnUpdate(
-        objectsMap: Map<string, (Demand | Supply)[]>,
-        tagObject: Supply | Demand
-    ): boolean {
-        const objectsArray = objectsMap.get(tagObject.match);
-
-        if (objectsArray !== undefined) {
-            for (let i = 0; i < objectsArray.length; i++) {
-                if (
-                    objectsArray[i].$type$ === tagObject.$type$ &&
-                    objectsArray[i].identity === tagObject.identity &&
-                    objectsArray[i].match === tagObject.match &&
-                    objectsArray[i].isActive !== tagObject.isActive &&
-                    objectsArray[i].timestamp === tagObject.timestamp
-                ) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Verify if the Supply or Demand object received as parameter
-     * does not exist in the objects array.
-     *
-     * This function is the corespondent of Array.includes but
-     * adapted specially for Supply and Demand objects.
-     *
-     * @param {Supply[] | Demand[]} objectsArray
-     * @param {Supply | Demand} object
-     * @returns {boolean}
-     * @private
-     */
-    private static arrayIncludesObject(
-        objectsArray: Supply[] | Demand[],
-        object: Supply | Demand
-    ): boolean {
-        for (let i = 0; i < objectsArray.length; i++) {
-            if (
-                objectsArray[i].$type$ === object.$type$ &&
-                objectsArray[i].identity === object.identity &&
-                objectsArray[i].match === object.match &&
-                objectsArray[i].isActive === object.isActive &&
-                objectsArray[i].timestamp === object.timestamp
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Will be implemented in each child class.
      *
      * @returns {Promise<void>}
      */
     abstract init(): Promise<void>;
+
+    protected async startMatchingChannel(): Promise<void> {
+        await this.channelManager.createChannel(this.channelId);
+        this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
+    }
 
     /**
      * Shutdown module
@@ -132,11 +72,6 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
         if (this.disconnect) {
             this.disconnect();
         }
-    }
-
-    protected async startMatchingChannel(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
-        this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
     }
 
     /**
@@ -366,6 +301,71 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
                 }
             );
         });
+    }
+
+    /**
+     * Verify if the Supply or Demand object received as parameter
+     * does not exist in the objects array.
+     *
+     * This function is the corespondent of Array.includes but
+     * adapted specially for Supply and Demand objects.
+     *
+     * @param {Supply[] | Demand[]} objectsArray
+     * @param {Supply | Demand} object
+     * @returns {boolean}
+     * @private
+     */
+    private static arrayIncludesObject(
+        objectsArray: Supply[] | Demand[],
+        object: Supply | Demand
+    ): boolean {
+        for (let i = 0; i < objectsArray.length; i++) {
+            if (
+                objectsArray[i].$type$ === object.$type$ &&
+                objectsArray[i].identity === object.identity &&
+                objectsArray[i].match === object.match &&
+                objectsArray[i].isActive === object.isActive &&
+                objectsArray[i].timestamp === object.timestamp
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * This function checks if the received object is here
+     * as an update of active status for one of existing objects
+     *
+     * The logic is next: when a new object is received with same
+     * values, but with a different active status, this means this new object
+     * was sent to replace the old one, because the 'isActive' attribute was changed
+     *
+     * @param {Map<string, (Demand | Supply)[]>} objectsMap
+     * @param {Supply | Demand} tagObject
+     * @returns {boolean}
+     */
+    protected static checkIfItIsAnUpdate(
+        objectsMap: Map<string, (Demand | Supply)[]>,
+        tagObject: Supply | Demand
+    ): boolean {
+        const objectsArray = objectsMap.get(tagObject.match);
+
+        if (objectsArray !== undefined) {
+            for (let i = 0; i < objectsArray.length; i++) {
+                if (
+                    objectsArray[i].$type$ === tagObject.$type$ &&
+                    objectsArray[i].identity === tagObject.identity &&
+                    objectsArray[i].match === tagObject.match &&
+                    objectsArray[i].isActive !== tagObject.isActive &&
+                    objectsArray[i].timestamp === tagObject.timestamp
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
