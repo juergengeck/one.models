@@ -19,6 +19,7 @@ import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
 import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type ConsentFileModel from './ConsentFileModel';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -147,6 +148,7 @@ export default class OneInstanceModel extends EventEmitter {
     private initialRecipes: Recipe[];
 
     private channelManager: ChannelManager;
+    private consentFileModel: ConsentFileModel;
     private accessModel: AccessModel;
 
     // encrypt everything by default
@@ -156,11 +158,13 @@ export default class OneInstanceModel extends EventEmitter {
      * Construct a new model instance
      *
      * @param {ChannelManager} channelManager
+     * @param {ConsentFileModel} consentFileModel
      * @param {AccessModel} accessModel
      * @param {Recipe[]} initialRecipes
      */
     constructor(
         channelManager: ChannelManager,
+        consentFileModel: ConsentFileModel,
         accessModel: AccessModel,
         initialRecipes: Recipe[]
     ) {
@@ -174,6 +178,7 @@ export default class OneInstanceModel extends EventEmitter {
         this.currentPartnerState = false;
         this.currentPatientTypeState = '';
         this.channelManager = channelManager;
+        this.consentFileModel = consentFileModel;
         this.accessModel = accessModel;
 
         // listen for update events in access model and check for patient connections
@@ -421,9 +426,15 @@ export default class OneInstanceModel extends EventEmitter {
         if (name && email) {
             await this.initialiseInstance(secret);
 
-            this.currentRegistrationState = true;
-            this.emit('registration_state_changed');
-            this.onRegistrationStateChange.emit();
+            try {
+                await this.consentFileModel.getOwnerConsentFile();
+                this.currentRegistrationState = false;
+            } catch {
+                this.currentRegistrationState = true;
+                this.emit('registration_state_changed');
+                this.onRegistrationStateChange.emit();
+            }
+
             this.emit('authstate_changed');
             this.onAuthStateChange.emit();
         }
