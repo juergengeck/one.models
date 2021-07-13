@@ -39,6 +39,7 @@ Main models used in one built in one package
  │   │   BodyTemperatureModel.ts
  │   │   ChannelManager.ts
  │   │   ConnectionsModel.ts
+ │   │   ConsentFileModel.ts
  │   │   ContactModel.ts
  │   │   DiaryModel.ts
  │   │   DocumentModel.ts
@@ -75,6 +76,7 @@ Main models used in one built in one package
          BlobRecipes.ts
          BodyTemperatureRecipe.ts
          ChannelRecipes.ts
+         ConsentFileRecipes.ts
          ContactRecipes.ts
          DiaryRecipes.ts
          ECGRecipes.ts
@@ -99,6 +101,7 @@ All files                |   40.69 |    30.77 |   37.55 |   42.13 |
  BodyTemperatureModel.js |      36 |        0 |   16.67 |      36 | 15-19,33-59
  ChannelManager.js       |   95.02 |    90.38 |   88.89 |   96.65 | 65,235,281-290
  ConnectionsModel.js     |    7.17 |        0 |    3.13 |    7.84 | 24-26,38-433
+ ConsentFileModel.js     |   19.72 |       10 |    12.5 |   25.93 | 16-18,29-37,51-133
  ContactModel.js         |   81.99 |    71.05 |   75.47 |   81.76 | 69-76,84,87,109,220,227,279-313,346
  DiaryModel.js           |      22 |        0 |    7.69 |   33.33 | 18-30,41-81
  DocumentModel.js        |   63.64 |      100 |      20 |   63.64 | 19-29
