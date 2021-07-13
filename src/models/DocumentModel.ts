@@ -152,6 +152,8 @@ export default class DocumentModel extends EventEmitter implements Model {
                     mimeType: AcceptedMimeType.PDF,
                     documentName: ''
                 },
+                // This is already there from "...document" above, but for TypeScript we need to
+                // recast the type of this property
                 dataHash: document.dataHash as unknown as SHA256Hash<DocumentInfo_1_1_0>
             };
         }
