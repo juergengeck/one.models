@@ -4,7 +4,7 @@
         "outDir": ".",
         "isolatedModules": false,
         "moduleResolution": "node",
-        "sourceMap": false,
+        "sourceMap": true,
         "emitDeclarationOnly": true,
         "declaration": true,
         "declarationMap": true,
@@ -28,6 +28,6 @@
         "removeComments": false,
         "forceConsistentCasingInFileNames": true
     },
-    "include": ["./*.ts", "./**/*.ts", "../lib/*.ts", "../lib/**/*.ts"],
+    "include": ["./*.ts", "./**/*.ts"],
     "exclude": []
 }

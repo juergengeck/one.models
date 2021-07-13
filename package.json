@@ -34,7 +34,7 @@
     "@babel/core": "*",
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@microsoft/api-extractor": "^7.10.4",
-    "@types/babel__core": "^7.1.14",
+    "@types/babel__core": "*",
     "@types/chai": "*",
     "@types/jsesc": "^3.0.0",
     "@types/lodash": "^4.14.138",
