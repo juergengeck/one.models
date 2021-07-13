@@ -3,40 +3,49 @@
  */
 
 import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {SHA256Hash} from '@OneCoreTypes';
-import type ProfileModel from 'one.models/lib/models/PeopleModel/Profile';
+import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import type {Profile} from 'one.models/lib/recipes/PeopleModel/Profile';
+import {CommunicationEndpointTypes} from '../src/recipes/PeopleRecipes/CommunicationEndpoints';
+import {ContactDescriptionTypes} from '../src/recipes/PeopleRecipes/PersonDescriptions';
 
 /**
  * @description Pure plan for creating a profile for yourself
  *
  * @param WriteStorage
- * @param profile
- * @param baseProfileHash
+ * @param profileId
+ * @param personId
+ * @param owner
+ * @param communicationEndpoints
+ * @param contactDescriptions
+ * @param baseProfileVersion
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
-    profile: ProfileModel,
-    baseProfileHash?: SHA256Hash<Profile>
+    profileId: string,
+    personId: SHA256IdHash<Person>,
+    owner: SHA256IdHash<Person>,
+    communicationEndpoints: CommunicationEndpointTypes[],
+    contactDescriptions: ContactDescriptionTypes[],
+    baseProfileVersion?: SHA256Hash<Profile>
 ): Promise<VersionedObjectResult<Profile>> {
     // Write endpoint and description objects
     const epHashes = await Promise.all(
-        profile.communicationEndpoints.map(ep => WriteStorage.storeUnversionedObject(ep))
+        communicationEndpoints.map(ep => WriteStorage.storeUnversionedObject(ep))
     );
     const descHashes = await Promise.all(
-        profile.contactDescriptions.map(desc => WriteStorage.storeUnversionedObject(desc))
+        contactDescriptions.map(desc => WriteStorage.storeUnversionedObject(desc))
     );
 
     // Write the new profile version
     return await WriteStorage.storeVersionedObjectCRDT(
         {
             $type$: 'Profile',
-            profileId: profile.profileId,
-            personId: profile.personId,
-            owner: profile.owner,
-            communicationEndpoints: epHashes,
-            descHashes: descHashes
+            profileId,
+            personId,
+            owner,
+            communicationEndpoint: epHashes.map(ep => ep.hash),
+            contactDescription: descHashes.map(desc => desc.hash)
         },
-        baseProfileHash
+        baseProfileVersion
     );
 }
