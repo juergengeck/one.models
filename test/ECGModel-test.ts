@@ -37,7 +37,6 @@ describe('ECG Model test', () => {
 
         await ecgModel.postECG(ECG);
         const electrocardiograms = await ecgModel.retrieveAllWithoutData();
-        electrocardiograms[0].dataHash;
         let result = await ecgModel.retrieveECGReadings(electrocardiograms[0].dataHash);
         expect(result.readings.length).to.be.equal(100);
         while (result.nextFrom) {
