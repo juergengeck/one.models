@@ -38,9 +38,9 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Event is emitted when the questionnaire response data is updated.
      */
     public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-    public static readonly channelId = 'questionnaireResponse';
 
     private channelManager: ChannelManager;
+    public static readonly channelId = 'questionnaireResponse';
     private readonly availableQuestionnaires: Questionnaire[];
     private readonly incompleteResponsesChannelId: string;
     private disconnect: (() => void) | undefined;
