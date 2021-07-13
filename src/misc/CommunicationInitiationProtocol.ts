@@ -4,6 +4,7 @@
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
+// TODO No extra namespace (the module already is one)
 declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########
 
