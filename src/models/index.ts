@@ -16,11 +16,13 @@ import RecoveryModel from './RecoveryModel';
 import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
 import HeartEventModel from './HeartEventModel';
+import ConsentFileModel from './ConsentFileModel';
 /** for one line imports **/
 export {
     JournalModel,
     QuestionnaireModel,
     WbcDiffModel,
+    ConsentFileModel,
     DocumentModel,
     ConnectionsModel,
     BodyTemperatureModel,
