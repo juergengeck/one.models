@@ -17,6 +17,8 @@ import type CommunicationInitiationProtocol from '../misc/CommunicationInitiatio
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
+type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
+
 /**
  * For the recovery process the person email with the corresponding
  * person keys and the anonymous person email with the corresponding
@@ -191,28 +193,27 @@ export default class RecoveryModel {
 
         // overwrite person keys with the old ones
         // for private keys we first need to encrypt them with the new password
-        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage =
-            {
-                command: 'private_person_information',
-                personId,
-                personPublicKey: this.decryptedObject.personPublicKey,
-                personPublicSignKey: this.decryptedObject.personPublicSignKey,
-                personPrivateKey: await this.encryptPersonPrivateKey(
-                    this.decryptedObject.personPrivateKey
-                ),
-                personPrivateSignKey: await this.encryptPersonPrivateKey(
-                    this.decryptedObject.personPrivateSignKey
-                ),
-                anonPersonId,
-                anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
-                anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
-                anonPersonPrivateKey: await this.encryptPersonPrivateKey(
-                    this.decryptedObject.anonPersonPrivateKey
-                ),
-                anonPersonPrivateSignKey: await this.encryptPersonPrivateKey(
-                    this.decryptedObject.anonPersonPrivateSignKey
-                )
-            };
+        const privatePersonInformation: PPersonInformationMessage = {
+            command: 'private_person_information',
+            personId,
+            personPublicKey: this.decryptedObject.personPublicKey,
+            personPublicSignKey: this.decryptedObject.personPublicSignKey,
+            personPrivateKey: await this.encryptPersonPrivateKey(
+                this.decryptedObject.personPrivateKey
+            ),
+            personPrivateSignKey: await this.encryptPersonPrivateKey(
+                this.decryptedObject.personPrivateSignKey
+            ),
+            anonPersonId,
+            anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
+            anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
+            anonPersonPrivateKey: await this.encryptPersonPrivateKey(
+                this.decryptedObject.anonPersonPrivateKey
+            ),
+            anonPersonPrivateSignKey: await this.encryptPersonPrivateKey(
+                this.decryptedObject.anonPersonPrivateSignKey
+            )
+        };
         await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
 
         // remove from memory the decrypted person information because it's not important anymore
