@@ -151,9 +151,8 @@ class OutgoingConnectionEstablisher {
                 // the stop function, because the connection is successful and no error should
                 // be thrown
                 this.connectOnceSuccessfullyReject = null;
-                this.stop()
-                    .then(() => resolve(conn))
-                    .catch(e => reject(e));
+                this.stop();
+                resolve(conn);
             });
 
             // On timeout reject the promise
