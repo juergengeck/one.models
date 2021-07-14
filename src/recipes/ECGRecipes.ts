@@ -74,8 +74,6 @@ const ECGRecipe: Recipe = {
     ]
 };
 
-// Export recipes
-
 const ECGRecipes: Recipe[] = [ECGRecipe];
 
 export default ECGRecipes;

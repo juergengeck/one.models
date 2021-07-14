@@ -22,8 +22,6 @@ const DiaryEntryRecipe: Recipe = {
     ]
 };
 
-// Export recipes
-
 const DiaryRecipes: Recipe[] = [DiaryEntryRecipe];
 
 export default DiaryRecipes;

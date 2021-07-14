@@ -258,7 +258,6 @@ export const NotifiedUsersRecipe: Recipe = {
     ]
 };
 
-// Export recipes
 const MatchingRecipes: Recipe[] = [
     SupplyRecipe,
     DemandRecipe,

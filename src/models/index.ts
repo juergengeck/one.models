@@ -9,20 +9,23 @@ import NewsModel from './NewsModel';
 import OneInstanceModel, {AuthenticationState} from './OneInstanceModel';
 import ChannelManager from './ChannelManager';
 import ContactModel from './ContactModel';
+import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
+import MatchingModel from './matchingModels/MatchingModel';
 import RecoveryModel from './RecoveryModel';
+import ClientMatchingModel from './matchingModels/ClientMatchingModel';
+import ServerMatchingModel from './matchingModels/ServerMatchingModel';
+import ServerUserModel from './matchingModels/ServerUserModel';
 import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
 import HeartEventModel from './HeartEventModel';
-import ConsentFileModel from './ConsentFileModel';
 /** for one line imports **/
 export {
     JournalModel,
     QuestionnaireModel,
     WbcDiffModel,
-    ConsentFileModel,
     DocumentModel,
     ConnectionsModel,
     BodyTemperatureModel,
@@ -32,11 +35,16 @@ export {
     AuthenticationState,
     ChannelManager,
     ContactModel,
+    ConsentFileModel,
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
     BlobCollectionModel,
+    MatchingModel,
     RecoveryModel,
+    ClientMatchingModel,
+    ServerMatchingModel,
+    ServerUserModel,
     InstancesModel,
     ECGModel,
     HeartEventModel

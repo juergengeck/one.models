@@ -26,7 +26,6 @@ export interface BlobCollection {
 export interface BlobDescriptor {
     $type$: 'BlobDescriptor';
     data: SHA256Hash<BLOB>;
-    // unixtimestamp
     lastModified: number;
     name: string;
     size: number;
@@ -78,8 +77,6 @@ export const BlobDescriptor: Recipe = {
         }
     ]
 };
-
-// ######## Export recipes ########
 
 const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
 

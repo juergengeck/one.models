@@ -382,7 +382,7 @@ export default class JournalModel extends EventEmitter {
         objectData?: EventListEntry['data']
     ): EventListEntry {
         if (!objectData) {
-            throw new Error();
+            throw new Error('objectData is falsy');
         }
 
         switch (objectData.data.$type$) {
@@ -404,6 +404,6 @@ export default class JournalModel extends EventEmitter {
                 return {type: EventType.HeartEvent, data: objectData};
         }
 
-        throw new Error();
+        throw new Error('objectData is an unknown type');
     }
 }

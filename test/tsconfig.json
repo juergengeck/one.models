@@ -15,7 +15,7 @@
         "composite": true,
         "tsBuildInfoFile": "../tsconfig.test.tsbuildinfo",
         "lib": ["esnext", "dom"],
-        "module": "esnext",
+        "module": "CommonJS",
         "target": "esnext",
         "alwaysStrict": true,
         "noImplicitAny": true,

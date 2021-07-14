@@ -221,7 +221,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
 
         // Assert that is has a 'type' member
         if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
-            throw new Error(`Received message without a ""${typekey}" member.`);
+            throw new Error(`Received message without a "${typekey}" member.`);
         }
 
         // Assert that the type matches the requested one

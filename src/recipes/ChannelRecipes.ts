@@ -112,8 +112,6 @@ export const ChannelRegistryRecipe: Recipe = {
     ]
 };
 
-// Export recipes
-
 const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipe, ChannelRegistryRecipe];
 
 export default ChannelRecipes;

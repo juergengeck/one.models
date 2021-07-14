@@ -40,8 +40,6 @@ const LocalInstancesListRecipie: Recipe = {
     ]
 };
 
-// Export recipes
-
 const InstancesRecipes: Recipe[] = [LocalInstancesListRecipie];
 
 export default InstancesRecipes;

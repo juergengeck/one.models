@@ -40,8 +40,6 @@ declare module '@OneObjectInterfaces' {
  * - telephone number
  * - one instance with keys
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-// @ts-ignore
 export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
 export interface CommunicationEndpoint {}
 
@@ -67,8 +65,6 @@ export interface Email extends CommunicationEndpoint {
  * - name
  * - profile image
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-// @ts-ignore
 export type ContactDescriptionTypes = PersonName | ProfileImage;
 export interface ContactDescription {}
 

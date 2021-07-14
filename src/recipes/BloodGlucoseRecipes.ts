@@ -46,8 +46,6 @@ const BloodGlucoseRecipe: Recipe = {
     ]
 };
 
-// Export recipes
-
 const BloodGlucoseRecipes: Recipe[] = [BloodGlucoseRecipe];
 
 export default BloodGlucoseRecipes;
