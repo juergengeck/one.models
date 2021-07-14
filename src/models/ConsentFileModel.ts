@@ -37,7 +37,7 @@ export enum FileType {
  */
 export default class ConsentFileModel extends EventEmmiter implements Model {
     // Event is emitted when the consent file data is updated.
-    public onUpdated = new OEvent<(data?: ObjectData<unknown>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<unknown>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -268,7 +268,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');
