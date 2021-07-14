@@ -303,6 +303,8 @@ export default class ChannelManager extends EventEmitter {
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
 
+    // ######## Channel management ########
+
     /**
      * Create a new channel.
      *
@@ -362,6 +364,8 @@ export default class ChannelManager extends EventEmitter {
             return {id: info.id, owner: info.owner};
         });
     }
+
+    // ######## Put data into the channel ########
 
     /**
      * Post a new object to a channel.
@@ -496,6 +500,8 @@ export default class ChannelManager extends EventEmitter {
             throw e;
         }
     }
+
+    // ######## Get data from channels - Array based ########
 
     /**
      * Get all data from one or multiple channels.
@@ -676,8 +682,6 @@ export default class ChannelManager extends EventEmitter {
         >;
     }
 
-    // ######## Get data from channels - ITERATORS PRIVATE ########
-
     /**
      * Find the differences in the chain starting from the common history
      *
@@ -703,6 +707,8 @@ export default class ChannelManager extends EventEmitter {
             yield* ChannelManager.mergeIteratorMostCurrent([itNext, itCurrent], true, false, true);
         }
     }
+
+    // ######## Get data from channels - ITERATORS PRIVATE ########
 
     /**
      * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
@@ -832,8 +838,6 @@ export default class ChannelManager extends EventEmitter {
         );
     }
 
-    // ######## Channel management ########
-
     /**
      * This iterator just iterates the data elements of the passed channel.
      *
@@ -953,8 +957,6 @@ export default class ChannelManager extends EventEmitter {
 
         logWithId(channelInfo.id, channelInfo.owner, 'itemIterator - LEAVE: exhausted entries');
     }
-
-    // ######## Put data into the channel ########
 
     /**
      * Iterate multiple iterators by returning always the most current element of all of them.
@@ -1420,8 +1422,6 @@ export default class ChannelManager extends EventEmitter {
     ): string {
         return `${channelInfoIdHash}_${channelEntryHash}`;
     }
-
-    // ######## Get data from channels - Array based ########
 
     /**
      * Decodes the string identifying an entry.
