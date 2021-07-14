@@ -36,7 +36,7 @@ describe('Contact model test', () => {
     });
 
     it('should test init() function on a fresh instance', async () => {
-        const contactApp = await ContactModel.getContactAppObject();
+        const {obj: contactApp} = await ContactModel.getContactAppObject();
         expect(contactApp).to.not.be.equal(undefined);
 
         const mySomeone = await getObjectWithType(contactApp.me, 'Someone');
