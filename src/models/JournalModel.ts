@@ -84,11 +84,11 @@ export default class JournalModel extends EventEmitter {
         EventType,
         {
             disconnect: (() => void) | undefined;
-            listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void;
+            listener: (data: ObjectData<OneUnversionedObjectTypes>) => void;
         }
     > = new Map();
 
-    public onUpdated = new OEvent<(data?: EventListEntry) => void>();
+    public onUpdated = new OEvent<(data: EventListEntry) => void>();
 
     constructor(modelsInput: JournalInput[]) {
         super();
@@ -108,8 +108,9 @@ export default class JournalModel extends EventEmitter {
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
-            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes>) => {
-                /** It's guaranteed that incoming objects are "data" of {@link EventListEntry} because of the {@link JournalInput} **/
+            const oEventHandler = (data: ObjectData<unknown>) => {
+                // It's guaranteed that incoming objects are "data" of {@link EventListEntry}
+                // because of the {@link JournalInput}
                 this.onUpdated.emit(
                     JournalModel.mapObjectDataToEventListEntry(data as EventListEntry['data'])
                 );
@@ -379,9 +380,9 @@ export default class JournalModel extends EventEmitter {
      */
     private static mapObjectDataToEventListEntry(
         objectData?: EventListEntry['data']
-    ): EventListEntry | undefined {
+    ): EventListEntry {
         if (!objectData) {
-            return undefined;
+            throw new Error();
         }
 
         switch (objectData.data.$type$) {
@@ -402,6 +403,7 @@ export default class JournalModel extends EventEmitter {
             case 'HeartEvent':
                 return {type: EventType.HeartEvent, data: objectData};
         }
-        return undefined;
+
+        throw new Error();
     }
 }
