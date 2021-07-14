@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import type InstancesModel from '../InstancesModel';
 import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';

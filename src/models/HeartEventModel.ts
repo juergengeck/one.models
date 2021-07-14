@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 
 import type {Model} from './Model';
 import {OEvent} from '../misc/OEvent';

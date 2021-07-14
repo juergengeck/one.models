@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';

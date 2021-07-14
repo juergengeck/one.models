@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
 import type {WbcObservation} from '../recipes/WbcDiffRecipes';

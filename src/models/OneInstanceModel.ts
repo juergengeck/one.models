@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import oneModules from '../generated/oneModules';
 import {

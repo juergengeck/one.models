@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';

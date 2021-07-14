@@ -21,7 +21,7 @@ import type {VersionedObjectResult, UnversionedObjectResult} from 'one.core/lib/
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import type InstancesModel from './InstancesModel';

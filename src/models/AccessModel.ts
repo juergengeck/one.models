@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,

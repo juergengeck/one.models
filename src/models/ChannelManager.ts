@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 
 import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
 import {
