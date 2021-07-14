@@ -91,7 +91,6 @@ export default class TestModel {
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;
     contactModel: ContactModel;
-    connections: ConnectionsModel;
     accessModel: AccessModel;
 
     constructor(commServerUrl: string, directoryPath: string) {
@@ -102,13 +101,6 @@ export default class TestModel {
         this.channelManager = new ChannelManager(this.accessModel);
         this.consentFile = new ConsentFileModel(this.channelManager);
         this.contactModel = new ContactModel(this.instancesModel, commServerUrl);
-        this.connections = new ConnectionsModel(this.contactModel, this.instancesModel, {
-            commServerUrl: 'ws://localhost:8000',
-            acceptIncomingConnections: true,
-            acceptUnknownInstances: true,
-            acceptUnknownPersons: true,
-            establishOutgoingConnections: true
-        });
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }
