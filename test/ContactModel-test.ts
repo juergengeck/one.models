@@ -36,10 +36,10 @@ describe('Contact model test', () => {
     });
 
     it('should test init() function on a fresh instance', async () => {
-        const {obj: contactApp} = await ContactModel.getContactAppObject();
+        const contactApp = await ContactModel.getContactAppObject();
         expect(contactApp).to.not.be.equal(undefined);
 
-        const mySomeone = await getObjectWithType(contactApp.me, 'Someone');
+        const mySomeone = await getObjectWithType(contactApp.obj.me, 'Someone');
         expect(mySomeone && mySomeone.mainProfile).to.not.be.undefined;
         expect(mySomeone.profiles).to.have.length(2);
 
