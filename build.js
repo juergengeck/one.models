@@ -421,7 +421,7 @@ function calledForSingleFile() {
 async function run() {
     const system = getSystem();
     const targetDir = getTargetDir();
-    const moduleTarget = setModuleTarget(); // Call with side-effect
+    const moduleTarget = setModuleTarget(); // Call with side effect
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
