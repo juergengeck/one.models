@@ -48,7 +48,7 @@ const BABEL_MODULE_TARGETS = {
         '@babel/plugin-transform-modules-commonjs',
         {
             // We disallow default exports in ONE.core (eslint rule)
-            noInterop: true
+            noInterop: false
         }
     ],
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-systemjs.html
