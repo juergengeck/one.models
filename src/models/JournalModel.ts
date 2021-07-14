@@ -5,7 +5,6 @@
 import EventEmitter from 'events';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
 import type {WbcObservation} from '../recipes/WbcDiffRecipes';
 import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
