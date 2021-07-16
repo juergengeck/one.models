@@ -19,6 +19,7 @@ import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
+import {wait} from 'one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -91,9 +92,7 @@ describe('Channel Iterators test', () => {
                         $type$: 'BodyTemperature',
                         temperature: Math.random()
                     });
-                    await new Promise<void>((resolve, rejects) => {
-                        setTimeout(() => resolve(), 300);
-                    });
+                    await wait(300);
                 }
             })
         );
@@ -107,9 +106,7 @@ describe('Channel Iterators test', () => {
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects({channelId});
-            await new Promise<void>((resolve, rejects) => {
-                setTimeout(() => resolve(), 500);
-            });
+            await wait(500);
             expect(objects1).to.have.length(howMany);
         }
     });
@@ -130,9 +127,7 @@ describe('Channel Iterators test', () => {
                         {$type$: 'BodyTemperature', temperature: Math.random()},
                         owner
                     );
-                    await new Promise<void>((resolve, rejects) => {
-                        setTimeout(() => resolve(), 100);
-                    });
+                    await wait(100);
                 }
             })
         );

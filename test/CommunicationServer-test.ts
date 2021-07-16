@@ -8,6 +8,7 @@ import tweetnacl from 'tweetnacl';
 import WebSocket from 'isomorphic-ws';
 import {expect} from 'chai';
 import {fromByteArray} from 'base64-js';
+import {wait} from 'one.core/lib/util/promise';
 
 //import * as Logger from 'one.core/lib/logger';
 //Logger.start();
@@ -79,7 +80,7 @@ describe('communication server tests', () => {
             // Wait until the state changes to listening.
             let retryCount = 0;
             while (commServerListener.state != CommunicationServerListenerState.Listening) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await wait(500);
                 ++retryCount;
                 if (++retryCount >= 5) {
                     throw new Error('Registering at comm server timed out.');

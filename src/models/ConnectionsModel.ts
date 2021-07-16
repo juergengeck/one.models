@@ -17,6 +17,7 @@ import {
     getObjectWithType,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
+import {wait} from 'one.core/lib/util/promise';
 import type {WriteStorageApi} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -1394,7 +1395,7 @@ class ConnectionsModel extends EventEmitter {
             });
 
             // Wait for the other side to process the close message.
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await wait(1000);
         } finally {
             conn.close();
         }
