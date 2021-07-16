@@ -110,7 +110,7 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 
 // ######## SPECIALLY FORMATTED LOGGING - END ########
 
-describe('Channel Iterators test', () => {
+describe('Channel Manager test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
