@@ -14,6 +14,7 @@ import {
 import type {MergedContact} from '../lib/models/ContactModel';
 import ContactModel from '../lib/models/ContactModel';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
+import {wait} from 'one.core/lib/util/promise';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
@@ -158,6 +159,7 @@ describe('Contact model test', () => {
         );
         expect(foundSomeone).to.not.be.equal(undefined);
     });
+
     /*   it('should add a new contact object as a main contact', async () => {
         /!**
          * @TODO PROBLEM -> add a new function that will mutate your current main contact, otherwise it will go first in the hook and
@@ -256,9 +258,7 @@ describe('Contact model test', () => {
                 contactDescriptions: []
             }
         );
-        await new Promise<void>((resolve, rejects) => {
-            setTimeout(() => resolve(), 500);
-        });
+        await wait(500);
         const someoneObject = await contactModel.getSomeoneObject(newPerson.idHash);
         expect(someoneObject).to.not.be.equal(undefined);
 
@@ -340,8 +340,8 @@ describe('Contact model test', () => {
         }
 
         await Promise.all(
-            [1, 2, 3].map(async ignored => {
-                await createSingleObjectThroughPurePlan(
+            [1, 2, 3].map(ignored => {
+                createSingleObjectThroughPurePlan(
                     {module: '@one/identity'},
                     {
                         $type$: 'Contact',
@@ -366,9 +366,7 @@ describe('Contact model test', () => {
         }
         const mergedContacts = await contactModel.getMergedContactObjects(personIdHash, true);
 
-        const endpoints = mergedContacts.find(
-            (mergedContact: MergedContact) => mergedContact.type === 'Email'
-        );
+        const endpoints = mergedContacts.find(mergedContact => mergedContact.type === 'Email');
 
         if (endpoints === undefined) {
             throw new Error('endpoints is undefined');
@@ -398,9 +396,7 @@ describe('Contact model test', () => {
         expect(updatedSomeone.mainProfile).to.be.equal(someoneA.mainProfile);
         expect(updatedSomeone.profiles.length).to.be.equal(2);
 
-        await new Promise<void>((resolve, rejects) => {
-            setTimeout(() => resolve(), 500);
-        });
+        await wait(500);
     });
 
     after(async () => {

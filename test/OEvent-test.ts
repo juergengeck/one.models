@@ -5,18 +5,9 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {EventTypes, OEvent} from '../lib/misc/OEvent';
+import {wait} from 'one.core/lib/util/promise';
 
 let testModel: TestModel;
-
-/**
- * Promise wrapped timeout.
- * @param milis
- */
-function promiseTimeout(milis: number): Promise<void> {
-    return new Promise<void>(resolve => {
-        setTimeout(() => resolve(), milis);
-    });
-}
 
 describe('OEvent test', () => {
     before(async () => {
@@ -70,12 +61,12 @@ describe('OEvent test', () => {
         expect(handlerCalled2).to.be.equal(false);
         expect(stringVal).to.be.equal(null);
         expect(numberVal).to.be.equal(null);
-        await promiseTimeout(2 * 100);
+        await wait(200);
 
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(false);
 
-        await promiseTimeout(2 * 100);
+        await wait(200);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
 
@@ -126,7 +117,7 @@ describe('OEvent test', () => {
         expect(stringVal).to.be.equal(null);
         expect(numberVal).to.be.equal(null);
 
-        await promiseTimeout(150);
+        await wait(150);
 
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
@@ -178,19 +169,19 @@ describe('OEvent test', () => {
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseSettled).to.be.equal(false);
 
-        await promiseTimeout(3 * 100);
+        await wait(300);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(false);
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseSettled).to.be.equal(false);
 
-        await promiseTimeout(2 * 100);
+        await wait(200);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseSettled).to.be.equal(false);
 
-        await promiseTimeout(3 * 100);
+        await wait(300);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
         expect(handlerCalled3).to.be.equal(true);
@@ -237,13 +228,13 @@ describe('OEvent test', () => {
         onStringEvent.emitAll().then(() => {
             promiseSettled = true;
         });
-        await promiseTimeout(2 * 100);
+        await wait(200);
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseSettled).to.be.equal(false);
 
-        await promiseTimeout(4 * 100);
+        await wait(600);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
         expect(handlerCalled3).to.be.equal(true);
@@ -286,7 +277,7 @@ describe('OEvent test', () => {
         expect(emitPromiseSettled).to.be.equal(false);
 
         // one of the handlers finished execution
-        await promiseTimeout(3 * 100);
+        await wait(300);
 
         expect(emitPromiseSettled).to.be.equal(true);
 
@@ -326,11 +317,11 @@ describe('OEvent test', () => {
         expect(emitPromiseRejected).to.be.equal(false);
 
         // one of the handlers finished execution
-        await promiseTimeout(3 * 100);
+        await wait(300);
         expect(emitPromiseRejected).to.be.equal(true);
         expect(secondHandlerExecuted).to.be.equal(false);
 
-        await promiseTimeout(5 * 100);
+        await wait(500);
 
         disconnect1();
         disconnect2();
@@ -376,13 +367,13 @@ describe('OEvent test', () => {
                 promiseRejected = true;
             });
 
-        await promiseTimeout(100);
+        await wait(100);
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
         expect(handlerCalled3).to.be.equal(false);
         expect(promiseRejected).to.be.equal(false);
 
-        await promiseTimeout(3 * 100);
+        await wait(300);
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);
         expect(handlerCalled3).to.be.equal(true);
@@ -394,7 +385,7 @@ describe('OEvent test', () => {
     }).timeout(1000);
 
     after(async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
         await testModel.shutdown();
         closeInstance();
         await removeDir(`./test/${dbKey}`);

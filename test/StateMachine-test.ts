@@ -5,16 +5,7 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {StateMachine} from '../lib/misc/StateMachine';
-
-/**
- * Promise wrapped timeout.
- * @param milis
- */
-function promiseTimeout(milis: number): Promise<void> {
-    return new Promise<void>(resolve => {
-        setTimeout(() => resolve(), milis);
-    });
-}
+import {wait} from 'one.core/lib/util/promise';
 
 let testModel: TestModel;
 
@@ -74,7 +65,7 @@ describe('StateMachine test', () => {
         // @ts-expect-error
         sm.triggerEvent('nonexisting_event');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(triggered).to.be.false;
     }).timeout(1000);
@@ -88,7 +79,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('startListen');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(triggered).to.be.false;
     }).timeout(1000);
@@ -124,7 +115,7 @@ describe('StateMachine test', () => {
         // trigger state machine with unexisting event
         sm.triggerEvent('init');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.true;
         expect(onLeaveStateTriggered).to.be.true;
@@ -162,7 +153,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('startListen');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(2);
         expect(onLeaveStateTriggered).to.be.equal(1);
@@ -201,7 +192,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('AtoB');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
         expect(onLeaveStateTriggered).to.be.equal(1);
@@ -242,7 +233,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('BtoA');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
         expect(onLeaveStateTriggered).to.be.equal(1);
@@ -283,7 +274,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('stopListen');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
         expect(onLeaveStateTriggered).to.be.equal(2);
@@ -324,7 +315,7 @@ describe('StateMachine test', () => {
 
         sm.triggerEvent('shutdown');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(1);
         expect(onLeaveStateTriggered).to.be.equal(3);
@@ -478,7 +469,7 @@ describe('StateMachine test', () => {
         );
         sm.triggerEvent('AtoB');
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggeredSM).to.be.equal(1);
         expect(onLeaveStateTriggeredSM).to.be.equal(1);
@@ -592,7 +583,7 @@ describe('StateMachine test', () => {
 
         expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'B']);
 
-        await promiseTimeout(100);
+        await wait(100);
 
         expect(onEnterStateTriggered).to.be.equal(3);
         expect(onLeaveStateTriggered).to.be.equal(1);
@@ -601,7 +592,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     after(async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
         await testModel.shutdown();
         closeInstance();
         await removeDir(`./test/${dbKey}`);

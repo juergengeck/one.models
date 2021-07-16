@@ -21,6 +21,7 @@ import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
 import type {CreationTime} from '../lib/recipes/MetaRecipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
+import {wait} from 'one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -109,7 +110,7 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 
 // ######## SPECIALLY FORMATTED LOGGING - END ########
 
-describe('Channel Iterators test', () => {
+describe('Channel Manager test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
@@ -142,7 +143,7 @@ describe('Channel Iterators test', () => {
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 4});
         await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 6});
-        //await new Promise(resolve => setTimeout(resolve, 1000));
+        // await wait(1000);
     });
 
     // This test tries to replicate this setup, because it doesn't work right.
@@ -252,7 +253,7 @@ describe('Channel Iterators test', () => {
     // Y: A
     // Z: A -> B -> C
     /*    it('MergeBugTest', async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
 
         const owner = getInstanceOwnerIdHash();
         console.log('owner', owner);
@@ -288,7 +289,7 @@ describe('Channel Iterators test', () => {
             XChannelInfo, YChannelInfo, ZChannelInfo
         )
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
 
         console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
     });
@@ -442,7 +443,7 @@ describe('Channel Iterators test', () => {
             firstValuesAsc[1].creationTime.getTime() - 1
         );
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await wait(500);
 
         /*const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
@@ -490,7 +491,7 @@ describe('Channel Iterators test', () => {
 
     after(async () => {
         // Wait for the hooks to run to completion
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
         await testModel.shutdown();
         closeInstance();
         await removeDir(`./test/${dbKey}`);
