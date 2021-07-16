@@ -2,7 +2,7 @@ import CommunicationServerConnection_Client from './CommunicationServerConnectio
 import WebSocket from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent, EventTypes} from './OEvent';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
@@ -20,7 +20,7 @@ export enum CommunicationServerListenerState {
  * Class Listens for connections through a communication server.
  *
  * So the purpose of this class is almost the same as that of the websocket server, except
- * that is doesn't accept connections directly, but through a commserver.
+ * that is doesn't accept connections directly, but through a comm-server.
  */
 class CommunicationServerListener {
     /**
@@ -100,7 +100,7 @@ class CommunicationServerListener {
      * Stop the listener.
      *
      * This does not kill fully established connections (passed on via onConnection event). This just
-     * terminats the spare connections.
+     * terminates the spare connections.
      */
     public stop(): void {
         MessageBus.send('log', `stop()`);
@@ -281,11 +281,14 @@ class CommunicationServerListener {
      *
      * @param {string} server - Server where to register the connection.
      * @param {Uint8Array} publicKey - public key for which to accept connections.
-     * @param {(ws: CommunicationServerConnection_Client, err?: Error) => void} onConnect - Handler called when a relay is handed over. (asynchronously after this call has finished)
-     * @param {(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array} onChallenge - Callback that needs to decrypt / reencrypt the challenge for authentication. (during this call)
-     * @returns {Promise<CommunicationServerConnection_Client>} - The spare connection that is now registered, but not yet
-     *                                                            connected to a relay (this is done later by the
-     *                                                            onConnect callback).
+     * @param {(ws: CommunicationServerConnection_Client, err?: Error) => void} onConnect -
+     * Handler called when a relay is handed over. (asynchronously after this call has finished)
+     * @param {(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array} onChallengeEvent -
+     * Callback that needs to decrypt / re-encrypt the challenge for authentication. (during
+     * this call)
+     * @returns {Promise<CommunicationServerConnection_Client>} - The spare connection that is
+     * now registered, but not yet connected to a relay (this is done later by the onConnect
+     * callback).
      */
     private static async establishListeningConnection(
         server: string,
@@ -310,7 +313,7 @@ class CommunicationServerListener {
             );
             await connection.sendRegisterMessage(publicKey);
 
-            // Step2: Wait for authentication request of commserver and check parameters
+            // Step2: Wait for authentication request of comm-server and check parameters
             MessageBus.send(
                 'log',
                 `${wslogId(connection.webSocket)}: Step 2: Wait for authentication_request`

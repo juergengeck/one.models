@@ -1,4 +1,5 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
+import type {DocumentInfo} from './DocumentRecipes_1_0_0';
 
 export enum AcceptedMimeType {
     JPEG = 'image/jpeg',
@@ -6,16 +7,16 @@ export enum AcceptedMimeType {
     PDF = 'application/pdf'
 }
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         DocumentInfo_1_1_0: DocumentInfo_1_1_0;
     }
+}
 
-    export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
-        $type$: 'DocumentInfo_1_1_0';
-        mimeType: string;
-        documentName: string;
-    }
+export interface DocumentInfo_1_1_0 extends Omit<DocumentInfo, '$type$'> {
+    $type$: 'DocumentInfo_1_1_0';
+    mimeType: string;
+    documentName: string;
 }
 
 const DocumentInfoRecipe: Recipe = {

@@ -2,28 +2,25 @@
  * @author Sebastian Ganea <sebastian.ganea@refinio.net>
  */
 
-import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {EventEmitter} from 'events';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {
-    BloodGlucose,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
 
-export default class BloodGlucoseModel extends EventEmitter implements Model{
+export default class BloodGlucoseModel extends EventEmitter implements Model {
     /**
      * Event emitted when BloodGlucose data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
-    private readonly channelId: string;
+    public static readonly channelId = 'bloodGlucose';
 
     /**
      * Construct a new instance
@@ -32,7 +29,6 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
      */
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'bloodGlucose';
         this.channelManager = channelManager;
     }
 
@@ -40,7 +36,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
      * Initialize this instance
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(BloodGlucoseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
@@ -51,7 +47,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
      */
     async postBloodGlucose(BGSampleObject: BloodGlucose): Promise<void> {
         await this.channelManager.postToChannel(
-            this.channelId,
+            BloodGlucoseModel.channelId,
             BGSampleObject,
             undefined,
             BGSampleObject.startTimestamp
@@ -65,7 +61,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
     async retrieveAllWithoutData(): Promise<ObjectData<BloodGlucose>[]> {
         return await this.channelManager.getObjectsWithType('BloodGlucose', {
             omitData: true,
-            channelId: this.channelId
+            channelId: BloodGlucoseModel.channelId
         });
     }
 
@@ -74,7 +70,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
     ): Promise<ObjectData<BloodGlucose>[]> {
         return await this.channelManager.getObjectsWithType('BloodGlucose', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: BloodGlucoseModel.channelId
         });
     }
 
@@ -98,7 +94,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
     ): AsyncIterableIterator<ObjectData<BloodGlucose>> {
         yield* this.channelManager.objectIteratorWithType('BloodGlucose', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: BloodGlucoseModel.channelId
         });
     }
 
@@ -110,7 +106,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
         let lastBloodGlucoseStartimestamp = 0;
         const bloodGlucose = await this.channelManager.getObjectsWithType('BloodGlucose', {
             count: 1,
-            channelId: this.channelId
+            channelId: BloodGlucoseModel.channelId
         });
 
         if (bloodGlucose.length > 0 && bloodGlucose[0].data.startTimestamp) {
@@ -141,12 +137,11 @@ export default class BloodGlucoseModel extends EventEmitter implements Model{
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === BloodGlucoseModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }
     }
-
 }

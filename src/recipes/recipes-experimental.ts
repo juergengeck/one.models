@@ -1,4 +1,4 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 import BodyTemperatureRecipes from './BodyTemperatureRecipe';
 import BlobRecipes from './BlobRecipes';
 import MatchingRecipes from './MatchingRecipes';

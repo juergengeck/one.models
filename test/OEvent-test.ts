@@ -5,6 +5,7 @@ import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {EventTypes, OEvent} from '../lib/misc/OEvent';
+
 let testModel: TestModel;
 
 /**
@@ -45,7 +46,7 @@ describe('OEvent test', () => {
                     stringVal = emittedStringVal;
                     numberVal = emittedNumberVal;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         const disconnect2 = onEvent((emittedStringVal: string, emittedNumberVal: number) => {
@@ -86,10 +87,7 @@ describe('OEvent test', () => {
     }).timeout(1000);
 
     it('emit async - check listener handle is called in parallel ', async () => {
-        const onEvent = new OEvent<(arg1: string, arg2: number) => void>(
-            EventTypes.Default,
-            false
-        );
+        const onEvent = new OEvent<(arg1: string, arg2: number) => void>(EventTypes.Default, false);
 
         let handlerCalled1 = false;
         let handlerCalled2 = false;
@@ -103,7 +101,7 @@ describe('OEvent test', () => {
                     stringVal = emitStringValue;
                     numberVal = emitNumberValue;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         const disconnect2 = onEvent((emitStringValue: string, emitNumberValue: number) => {
@@ -113,7 +111,7 @@ describe('OEvent test', () => {
                     stringVal = emitStringValue;
                     numberVal = emitNumberValue;
                     resolve();
-                }, 1 * 100);
+                }, 100);
             });
         });
         expect(handlerCalled1).to.be.equal(false);
@@ -128,7 +126,7 @@ describe('OEvent test', () => {
         expect(stringVal).to.be.equal(null);
         expect(numberVal).to.be.equal(null);
 
-        await promiseTimeout(1 * 150);
+        await promiseTimeout(150);
 
         expect(handlerCalled1).to.be.equal(true);
         expect(handlerCalled2).to.be.equal(true);

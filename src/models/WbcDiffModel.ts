@@ -1,9 +1,12 @@
-import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash, WbcObservation} from '@OneCoreTypes';
+import {EventEmitter} from 'events';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {WbcObservation} from '../recipes/WbcDiffRecipes';
 const MessageBus = createMessageBus('WbcDiffModel');
 
 /**
@@ -13,15 +16,14 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the wbc data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
     channelManager: ChannelManager;
-    channelId: string;
+    public static readonly channelId = 'wbc';
 
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'wbc';
         this.channelManager = channelManager;
     }
 
@@ -31,7 +33,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(WbcDiffModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
@@ -56,9 +58,9 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === WbcDiffModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }
@@ -91,7 +93,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
         }
 
         // post wbc measurement to channel
-        await this.channelManager.postToChannel(this.channelId, wbcObservation);
+        await this.channelManager.postToChannel(WbcDiffModel.channelId, wbcObservation);
     }
 
     /**
@@ -110,7 +112,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<WbcObservation>> {
         yield* this.channelManager.objectIteratorWithType('WbcObservation', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: WbcDiffModel.channelId
         });
     }
 

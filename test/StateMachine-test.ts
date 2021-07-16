@@ -70,8 +70,9 @@ describe('StateMachine test', () => {
             triggered = true;
         });
 
-        // trigger state machine with unexisting event
-        sm.triggerEvent('unexisting_event');
+        // Trigger state machine with non-existing event
+        // @ts-expect-error
+        sm.triggerEvent('nonexisting_event');
 
         await promiseTimeout(100);
 

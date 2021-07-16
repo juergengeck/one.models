@@ -65,7 +65,7 @@ class WebSocketListener {
             this.webSocketServer = new WebSocket.Server({host, port});
 
             // Wait until the websocket server is either ready or stopped with an error (e.g. address in use)
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 if (!this.webSocketServer) {
                     reject(
                         new Error(
@@ -109,7 +109,7 @@ class WebSocketListener {
         this.changeCurrentState(WebSocketListenerState.ShuttingDown);
 
         // Shutdown Websocket server
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
             if (!this.webSocketServer) {
                 return;
             }

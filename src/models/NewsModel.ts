@@ -1,8 +1,9 @@
-import EventEmitter from 'events';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {News as OneNews} from '@OneCoreTypes';
+import {EventEmitter} from 'events';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData} from './ChannelManager';
+import type {News as OneNews} from '../recipes/NewsRecipes';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
 
 /**
  * This represents the model of a news for now

@@ -1,32 +1,36 @@
-import EventEmitter from 'events';
-import CommunicationModule, {ConnectionInfo} from '../misc/CommunicationModule';
-import ContactModel from './ContactModel';
-import InstancesModel, {LocalInstanceInfo} from './InstancesModel';
-import EncryptedConnection from '../misc/EncryptedConnection';
-import {createWebsocketPromisifier} from 'one.core/lib/websocket-promisifier';
+import {EventEmitter} from 'events';
+import CommunicationModule from '../misc/CommunicationModule';
+import type {ConnectionInfo} from '../misc/CommunicationModule';
+import type ContactModel from './ContactModel';
+import type InstancesModel from './InstancesModel';
+import type {LocalInstanceInfo} from './InstancesModel';
+import type EncryptedConnection from '../misc/EncryptedConnection';
+import {
+    createWebsocketPromisifier,
+    EncryptedConnectionInterface
+} from 'one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
     getObjectWithType,
-    VERSION_UPDATES,
-    WriteStorageApi
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
+import type {WriteStorageApi} from 'one.core/lib/storage';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {
-    createCrypto,
+    createCryptoAPI,
     CryptoAPI,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
-    overwritePersonKeys,
+    reloadPersonKeys,
     stringToUint8Array,
     Uint8ArrayToString
 } from 'one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {Keys, Person, SHA256IdHash, OneInstanceEndpoint} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -37,6 +41,9 @@ import {wslogId} from '../misc/LogUtils';
 import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Keys, Person} from 'one.core/lib/recipes';
+import type {OneInstanceEndpoint} from '../recipes/ContactRecipes';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -1479,8 +1486,8 @@ class ConnectionsModel extends EventEmitter {
         // the types of the websockets will be the same.
         const websocketPromisifierAPI = createWebsocketPromisifier(
             minimalWriteStorageApiObj,
-            // @ts-ignore
-            conn
+            // TODO: Fix incompatibility of EncryptedConnectionInterface and EncryptedConnection
+            conn as EncryptedConnectionInterface
         );
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
@@ -1511,9 +1518,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * @returns {Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage>}
      */
-    async extractExistingPersonKeys(): Promise<
-        CommunicationInitiationProtocol.PrivatePersonInformationMessage
-    > {
+    async extractExistingPersonKeys(): Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage> {
         if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
@@ -1653,12 +1658,12 @@ class ConnectionsModel extends EventEmitter {
             `${savedAnonOwnerKeys.hash}.owner.sign`
         );
 
-        await overwritePersonKeys(
+        await reloadPersonKeys(
             this.password,
             thisMainInstanceInfo.personId,
             thisMainInstanceInfo.instanceId
         );
-        await overwritePersonKeys(
+        await reloadPersonKeys(
             this.password,
             thisAnonInstanceInfo.personId,
             thisAnonInstanceInfo.instanceId
@@ -1816,9 +1821,7 @@ class ConnectionsModel extends EventEmitter {
      * @returns {Promise<{personPublicKeys: string, personPrivateEncryptionKey: string, personPrivateSignKey: string}>}
      * @private
      */
-    private async extractKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: string;
         personPrivateSignKey: string;
@@ -1902,7 +1905,7 @@ class ConnectionsModel extends EventEmitter {
     }> {
         // Initialize the crypto stuff
         const instanceHash = await this.instancesModel.localInstanceIdForPerson(localPersonId);
-        const crypto = createCrypto(instanceHash);
+        const crypto = createCryptoAPI(instanceHash);
 
         // Get my own person key
         const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');

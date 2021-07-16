@@ -1,14 +1,14 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         AudioExercise: AudioExercise;
     }
+}
 
-    export interface AudioExercise {
-        $type$: 'AudioExercise';
-        name: string;
-    }
+export interface AudioExercise {
+    $type$: 'AudioExercise';
+    name: string;
 }
 
 export const AudioExerciseRecipe: Recipe = {
@@ -21,8 +21,6 @@ export const AudioExerciseRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const AudioExerciseRecipes: Recipe[] = [AudioExerciseRecipe];
 

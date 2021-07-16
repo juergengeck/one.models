@@ -2,7 +2,7 @@ import CommunicationInitiationProtocol, {isClientMessage} from './CommunicationI
 import {fromByteArray, toByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
 
 /**
  * This class implements the 'server' side of an encrypted communication.

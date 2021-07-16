@@ -1,11 +1,12 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
-import {Settings as OneSettings, VersionedObjectResult} from '@OneCoreTypes';
+import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // -------- LOW LEVEL API -----------
 
@@ -25,7 +26,7 @@ export abstract class PropertyTree extends EventEmitter {
     abstract getValue(key: string): string;
     abstract getChild(key: string): PropertyTree;
     abstract hasValue(key: string): boolean;
-    abstract async init(): Promise<void>;
+    abstract init(): Promise<void>;
 }
 
 export class PropertyTreeProxy extends PropertyTree {
@@ -96,16 +97,10 @@ export default class PropertyTreeStore extends PropertyTree {
         this.separator = separator;
         // register storageUpdated hook at one storage
         onVersionedObj.addListener((caughtObject: VersionedObjectResult) => {
-            if (this.isSettingsVersionedObjectResult(caughtObject)) {
+            if (caughtObject.obj.$type$ === 'Settings') {
                 this.storageUpdated(caughtObject.obj);
             }
         });
-    }
-
-    private isSettingsVersionedObjectResult(
-        caughtObject: VersionedObjectResult
-    ): caughtObject is VersionedObjectResult<OneSettings> {
-        return (caughtObject as VersionedObjectResult<OneSettings>).obj.$type$ === 'Settings';
     }
 
     // one hook for changed settings object

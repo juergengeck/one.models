@@ -1,8 +1,10 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import {Person, SHA256IdHash} from '@OneCoreTypes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
+// TODO No extra namespace (the module already is one)
 declare module CommunicationInitiationProtocol {
     // ######## Message / command definition ########
 
@@ -176,7 +178,7 @@ export function isClientMessage<T extends keyof CommunicationInitiationProtocol.
  *
  * @param arg - The argument to check
  * @param {T} command - The command / type of the message to check against.
- * @returns {arg is EncryptionSetupProtocol.ServerMessages[T]}
+ * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
  */
 export function isServerMessage<T extends keyof CommunicationInitiationProtocol.ServerMessages>(
     arg: any,
@@ -186,10 +188,7 @@ export function isServerMessage<T extends keyof CommunicationInitiationProtocol.
         return false;
     }
 
-    if (command === 'communication_ready') {
-        return true;
-    }
-    return false;
+    return command === 'communication_ready';
 }
 
 /**
@@ -197,7 +196,7 @@ export function isServerMessage<T extends keyof CommunicationInitiationProtocol.
  *
  * @param arg - The argument to check
  * @param {T} command - The command / type of the message to check against.
- * @returns {arg is EncryptionSetupProtocol.ServerMessages[T]}
+ * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
  */
 export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
     arg: any,
@@ -247,10 +246,7 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
         }
         return false;
     }
-    if (command === 'success') {
-        return true;
-    }
-    return false;
+    return command === 'success';
 }
 
 export default CommunicationInitiationProtocol;

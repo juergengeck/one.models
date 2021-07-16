@@ -1,26 +1,22 @@
-import EventEmitter from 'events';
-import InstancesModel, {LocalInstanceInfo} from '../InstancesModel';
-import ChannelManager from '../ChannelManager';
-import {
-    Person,
-    SHA256IdHash,
-    Supply,
-    Demand,
-    VersionedObjectResult,
-    SupplyMap,
-    DemandMap
-} from '@OneCoreTypes';
+import {EventEmitter} from 'events';
+import type InstancesModel from '../InstancesModel';
+import type {LocalInstanceInfo} from '../InstancesModel';
+import type ChannelManager from '../ChannelManager';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectByIdObj,
     SET_ACCESS_MODE,
-    VERSION_UPDATES
+    VERSION_UPDATES,
+    VersionedObjectResult
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {Model} from '../Model';
+import type {Model} from '../Model';
 import {OEvent} from '../../misc/OEvent';
+import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -62,7 +58,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      *
      * @returns {Promise<void>}
      */
-    abstract async init(): Promise<void>;
+    abstract init(): Promise<void>;
 
     protected async startMatchingChannel(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
@@ -345,8 +341,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * values, but with a different active status, this means this new object
      * was sent to replace the old one, because the 'isActive' attribute was changed
      *
-     * @param {Supply[] | Demand[]} objectsArray
-     * @param {Supply | Demand} object
+     * @param {Map<string, (Demand | Supply)[]>} objectsMap
+     * @param {Supply | Demand} tagObject
      * @returns {boolean}
      */
     protected static checkIfItIsAnUpdate(
@@ -355,7 +351,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     ): boolean {
         const objectsArray = objectsMap.get(tagObject.match);
 
-        if (objectsArray) {
+        if (objectsArray !== undefined) {
             for (let i = 0; i < objectsArray.length; i++) {
                 if (
                     objectsArray[i].$type$ === tagObject.$type$ &&

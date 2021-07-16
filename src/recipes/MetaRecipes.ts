@@ -1,15 +1,16 @@
-import {Recipe} from '@OneCoreTypes';
+import type {OneUnversionedObjectTypes, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         CreationTime: CreationTime;
     }
+}
 
-    export interface CreationTime {
-        $type$: 'CreationTime';
-        timestamp: number;
-        data: SHA256Hash<OneUnversionedObjectTypes>;
-    }
+export interface CreationTime {
+    $type$: 'CreationTime';
+    timestamp: number;
+    data: SHA256Hash<OneUnversionedObjectTypes>;
 }
 
 const CreationTimeRecipe: Recipe = {
@@ -26,8 +27,6 @@ const CreationTimeRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const MetaRecipes: Recipe[] = [CreationTimeRecipe];
 

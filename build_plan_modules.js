@@ -9,7 +9,7 @@ const jsesc = require('jsesc');
 
 /**
  * @param {string} dir
- * @returns {Promise<void>}
+ * @returns {Promise<unknown>}
  */
 function mkDirExistOkay(dir) {
     return mkDir(dir, {recursive: true}).catch(err => {
@@ -46,6 +46,9 @@ const BABEL_OPTS = {
     filename: ''
 };
 
+/**
+ * @type {Record<string, string>}
+ */
 const modules = {};
 let strConstantsStr = '';
 
@@ -54,20 +57,34 @@ const outputDirectory = path.join(__dirname, 'src/generated');
 const planModuleFiles = fs.readdirSync(inputDirectory);
 const additionalOnePlanModules = path.join(outputDirectory, '/oneModules.ts');
 
+/**
+ * @param {string} file
+ * @param {Record<string, string>} nameCodeMap
+ * @param {string} inputDirectory
+ * @returns {void}
+ */
+function addFileToNameCodeMap(file, nameCodeMap, inputDirectory) {
+    const filePath = path.join(inputDirectory, file);
+    const fileName = file.slice(0, -3);
+
+    if (!filePath.endsWith('.ts') || filePath.endsWith('.d.ts')) {
+        return;
+    }
+
+    const stat = fs.statSync(filePath);
+
+    if (stat.isFile()) {
+        console.log('Building ' + file);
+        const transCode = babel.transformFileSync(filePath, BABEL_OPTS);
+        if (transCode === null) {
+            throw new Error('Failure during Babel transform');
+        }
+        nameCodeMap[fileName] = jsesc(transCode.code);
+    }
+}
+
 async function run() {
     await mkDirExistOkay(outputDirectory);
-
-    const addFileToNameCodeMap = (file, nameCodeMap, inputDirectory) => {
-        const filePath = path.join(inputDirectory, file);
-        const fileName = file.slice(0, -3);
-        const stat = fs.statSync(filePath);
-
-        if (stat.isFile()) {
-            console.log('Building ' + file);
-            const transCode = babel.transformFileSync(filePath, BABEL_OPTS).code;
-            nameCodeMap[fileName] = jsesc(transCode);
-        }
-    };
 
     for (const file of planModuleFiles) {
         if (file !== 'index.js') {
@@ -75,17 +92,18 @@ async function run() {
         }
     }
 
-    let exportStr = 'const modules: Record<string, string> = {\n';
+    let exportStr = 'const modules = {\n';
 
     for (const moduleName in modules) {
-        if (modules.hasOwnProperty(moduleName)) {
+        if (Object.prototype.hasOwnProperty.call(modules, moduleName)) {
             strConstantsStr += 'const ' + moduleName + " = '" + modules[moduleName] + "';\n";
             exportStr += '    ' + moduleName + ',\n';
         }
     }
 
     exportStr = exportStr.slice(0, -2);
-    exportStr += '\n};\n\nexport default modules;\n\n';
+    exportStr += '\n} as const;\n\nexport default modules;\n\n';
+
     fs.writeFileSync(additionalOnePlanModules, strConstantsStr + '\n' + exportStr);
 }
 

@@ -1,27 +1,12 @@
-import {Recipe} from '@OneCoreTypes';
+import type {BLOB, Recipe} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         BlobCollection: BlobCollection;
         BlobDescriptor: BlobDescriptor;
-    }
-
-    export interface BlobCollection {
-        $type$: 'BlobCollection';
-        name: string;
-        blobs: SHA256Hash<BlobDescriptor>[];
-    }
-
-    export interface BlobDescriptor {
-        $type$: 'BlobDescriptor';
-        data: SHA256Hash<BLOB>;
-        // unixtimestamp
-        lastModified: number;
-        name: string;
-        size: number;
-        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Types
-        type: string;
     }
 
     export interface PlanResultTypes {
@@ -30,6 +15,22 @@ declare module '@OneCoreTypes' {
             result: UnversionedObjectResult<BlobCollection>;
         };
     }
+}
+
+export interface BlobCollection {
+    $type$: 'BlobCollection';
+    name: string;
+    blobs: SHA256Hash<BlobDescriptor>[];
+}
+
+export interface BlobDescriptor {
+    $type$: 'BlobDescriptor';
+    data: SHA256Hash<BLOB>;
+    lastModified: number;
+    name: string;
+    size: number;
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Types
+    type: string;
 }
 
 export const BlobCollection: Recipe = {
@@ -76,8 +77,6 @@ export const BlobDescriptor: Recipe = {
         }
     ]
 };
-
-// ######## Export recipes ########
 
 const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
 

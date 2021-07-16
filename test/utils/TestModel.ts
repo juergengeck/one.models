@@ -5,19 +5,25 @@ import RecipesStable from '../../lib/recipes/recipes-stable';
 import RecipesExperimental from '../../lib/recipes/recipes-experimental';
 import {closeInstance, initInstance} from 'one.core/lib/instance';
 import {
-    ContactModel,
-    ConnectionsModel,
-    ChannelManager,
     AccessModel,
-    InstancesModel,
-    ECGModel,
+    BodyTemperatureModel,
+    ChannelManager,
+    ConnectionsModel,
     ConsentFileModel,
-    BodyTemperatureModel
+    ContactModel,
+    ECGModel,
+    InstancesModel
 } from '../../lib/models';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
 import oneModules from '../../lib/generated/oneModules';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    VersionedObjectResult,
+    VERSION_UPDATES
+} from 'one.core/lib/storage';
+import type {Module, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+
 export const dbKey = 'testDb';
 const path = require('path');
 const fs = require('fs');
@@ -57,7 +63,7 @@ export async function removeDir(dir: string) {
 export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return await Promise.all(
@@ -78,6 +84,15 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 export default class TestModel {
     private readonly secret: string;
     private readonly directoryPath: string;
+
+    ecgModel: ECGModel;
+    consentFile: ConsentFileModel;
+    instancesModel: InstancesModel;
+    channelManager: ChannelManager;
+    bodyTemperature: BodyTemperatureModel;
+    contactModel: ContactModel;
+    accessModel: AccessModel;
+
     constructor(commServerUrl: string, directoryPath: string) {
         this.secret = 'test-secret';
         this.instancesModel = new InstancesModel();
@@ -139,7 +154,7 @@ export default class TestModel {
          * keys can be ignored, because they will not be used after the overwrite
          * process is completed.
          *
-         * This is just a temporarty workaround! (only a hack!)
+         * This is just a temporary workaround! (only a hack!)
          */
         const ownerWillBeOverwritten = takeOver || recoveryState;
 
@@ -149,12 +164,10 @@ export default class TestModel {
         await this.instancesModel.init(this.secret);
         // Setup the identities
         const {mainId, anonymousId} = await this.setupMyIds(anonymousEmail, ownerWillBeOverwritten);
-        this.consentFile.setPersonId(anonymousId);
 
         // Initialize the rest of the models
         await this.channelManager.init(anonymousId);
         await this.ecgModel.init();
-        await this.consentFile.init();
         await this.bodyTemperature.init();
     }
 
@@ -166,11 +179,6 @@ export default class TestModel {
     public async shutdown(): Promise<void> {
         try {
             await this.ecgModel.shutdown();
-        } catch (e) {
-            console.error(e);
-        }
-        try {
-            await this.consentFile.shutdown();
         } catch (e) {
             console.error(e);
         }
@@ -188,12 +196,4 @@ export default class TestModel {
         }
         closeInstance();
     }
-    ecgModel: ECGModel;
-    consentFile: ConsentFileModel;
-    instancesModel: InstancesModel;
-    channelManager: ChannelManager;
-    bodyTemperature: BodyTemperatureModel;
-    contactModel: ContactModel;
-    connections: ConnectionsModel;
-    accessModel: AccessModel;
 }

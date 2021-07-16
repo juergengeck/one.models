@@ -1,14 +1,14 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         News: News;
     }
+}
 
-    export interface News {
-        $type$: 'News';
-        content: string;
-    }
+export interface News {
+    $type$: 'News';
+    content: string;
 }
 
 export const NewsRecipe: Recipe = {
@@ -21,8 +21,6 @@ export const NewsRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const NewsRecipes: Recipe[] = [NewsRecipe];
 

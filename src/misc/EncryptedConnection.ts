@@ -1,8 +1,10 @@
-import WebSocketPromiseBased from './WebSocketPromiseBased';
-import WebSocket from 'isomorphic-ws';
+import {EventEmitter} from 'events';
+
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
+import type {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');
@@ -14,9 +16,10 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptedConnection extends EncryptedConnectionInterface {
+class EncryptedConnection extends EventEmitter implements EncryptedConnectionInterface {
     /**
-     * Event is emitted when an encrypted message is received. The event contains the decrypted message.
+     * Event is emitted when an encrypted message is received. The event contains the decrypted
+     * message.
      */
     public onMessage = new OEvent<(decrypted: Uint8Array) => void>();
     /**
@@ -37,8 +40,10 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * by a derived class through some kind of key negotiation procedure before the encryption
      * actually works.
      *
-     * @param {WebSocketPromiseBased} ws - The websocket that is used to exchange encrypted messages.
-     * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
+     * @param {WebSocketPromiseBased} ws - The websocket that is used to exchange encrypted
+     * messages.
+     * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces,
+     * otherwise odd.
      */
     constructor(ws: WebSocketPromiseBased, evenLocalNonceCounter: boolean) {
         super();
@@ -112,7 +117,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
     /**
      * Closes the web socket.
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to
+     * the remote side!
      */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
@@ -121,7 +127,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
     /**
      * Switches the interface to event based processing.
      *
-     * This means that you can no longer use the waitFor*Message functions, but now you can use the on('message')
+     * This means that you can no longer use the waitFor*Message functions, but now you can use
+     * the on('message')
      * events.
      *
      * @param {boolean} value
@@ -142,8 +149,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
     /**
      * Set the request timeout.
      *
-     * This timeout specifies how long the connection will wait for new messages in the wait* methods.
-     *
+     * This timeout specifies how long the connection will wait for new messages in the wait*
+     * methods.
      * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
     set requestTimeout(timeout: number) {
@@ -197,15 +204,13 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      *
      * @param {string} type    - The type field of the message should have this type.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @param {string} typekey - The name of the member that holds the type that is checked for equality
-     *                           with the type param.
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
-     *                                                 - The value will be the JSON.parse'd object
-     *                                                 The promise will reject when
-     *                                                 1) the timeout expired
-     *                                                 2) the connection was closed
-     *                                                 3) the type of the received message doe not match parameter
-     *                                                    'type'
+     * @param {string} typekey - The name of the member that holds the type that is checked for
+     * equality with the type param.
+     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was
+     * received. The value will be the `JSON.parse' result object. The promise will reject when
+     * 1) the timeout expired
+     * 2) the connection was closed
+     * 3) the type of the received message doe not match parameter 'type'
      */
     public async waitForJSONMessageWithType(
         type: string,
@@ -215,8 +220,8 @@ class EncryptedConnection extends EncryptedConnectionInterface {
         const messageObj = await this.waitForJSONMessage(timeout);
 
         // Assert that is has a 'type' member
-        if (!messageObj.hasOwnProperty(typekey)) {
-            throw new Error(`Received message without a \'${typekey}\' member.`);
+        if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
+            throw new Error(`Received message without a "${typekey}" member.`);
         }
 
         // Assert that the type matches the requested one
@@ -233,13 +238,11 @@ class EncryptedConnection extends EncryptedConnectionInterface {
      * Wait for an incoming message for a specified period of time.
      *
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<any> The promise will resolve when a value was received.
-     *                      The value will be the JSON.parse'd object
-     *                      The promise will reject when
-     *                      1) the timeout expired
-     *                      2) the connection was closed
-     *                      3) the type of the received message doe not match parameter
-     *                         'type'
+     * @return Promise<any> The promise will resolve when a value was received. The value will
+     * be the `JSON.parse` object The promise will reject when
+     * 1) the timeout expired
+     * 2) the connection was closed
+     * 3) the type of the received message doe not match parameter 'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
