@@ -4,21 +4,6 @@
  */
 
 import {
-    Contact,
-    ContactApp,
-    Person,
-    SHA256Hash,
-    SHA256IdHash,
-    Profile,
-    Someone,
-    VersionedObjectResult,
-    ContactDescriptionTypes,
-    UnversionedObjectResult,
-    OneInstanceEndpoint,
-    Keys,
-    CommunicationEndpointTypes
-} from '@OneCoreTypes';
-import {
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
@@ -32,15 +17,27 @@ import {
     createSingleObjectThroughImpurePlan,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
+import type {VersionedObjectResult, UnversionedObjectResult} from 'one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
-import InstancesModel from './InstancesModel';
+import type InstancesModel from './InstancesModel';
 import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {
+    CommunicationEndpointTypes,
+    Contact,
+    ContactApp,
+    ContactDescriptionTypes,
+    OneInstanceEndpoint,
+    Profile,
+    Someone
+} from '../recipes/ContactRecipes';
+import type {Keys, Person} from 'one.core/lib/recipes';
 
 /**
  * This represents a ContactEvent
@@ -298,7 +295,9 @@ export default class ContactModel extends EventEmitter {
         return await Promise.all(
             mySomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
-                    (await getObjectByIdHash(profileIdHash)).obj.personId
+                    (
+                        await getObjectByIdHash(profileIdHash)
+                    ).obj.personId
             )
         );
     }
@@ -331,7 +330,9 @@ export default class ContactModel extends EventEmitter {
         let identities = await Promise.all(
             otherPersonSomeoneObject.profiles.map(
                 async (profileIdHash: SHA256IdHash<Profile>) =>
-                    (await getObjectByIdHash(profileIdHash)).obj.personId
+                    (
+                        await getObjectByIdHash(profileIdHash)
+                    ).obj.personId
             )
         );
 
@@ -1126,12 +1127,15 @@ export default class ContactModel extends EventEmitter {
             mode: SET_ACCESS_MODE.REPLACE,
             person: [personIdHash]
         };
-        await createSingleObjectThroughImpurePlan({
-            module: '@one/access',
-            versionMapPolicy: {
-                '*': VERSION_UPDATES.NONE_IF_LATEST
-            }
-        }, [setAccessParam]);
+        await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {
+                    '*': VERSION_UPDATES.NONE_IF_LATEST
+                }
+            },
+            [setAccessParam]
+        );
     }
 
     /**
@@ -1148,12 +1152,15 @@ export default class ContactModel extends EventEmitter {
             mode: SET_ACCESS_MODE.REPLACE,
             person: []
         };
-        await createSingleObjectThroughImpurePlan({
-            module: '@one/access',
-            versionMapPolicy: {
-                '*': VERSION_UPDATES.NONE_IF_LATEST
-            }
-        }, [setAccessParam]);
+        await createSingleObjectThroughImpurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {
+                    '*': VERSION_UPDATES.NONE_IF_LATEST
+                }
+            },
+            [setAccessParam]
+        );
     }
 
     /**

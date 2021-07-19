@@ -1,5 +1,5 @@
 import EncryptedConnection_Client from './EncryptedConnection_Client';
-import EncryptedConnection from './EncryptedConnection';
+import type EncryptedConnection from './EncryptedConnection';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {OEvent} from './OEvent';
@@ -105,7 +105,7 @@ class OutgoingConnectionEstablisher {
     }
 
     /**
-     * Stops the attemts to establish connections.
+     * Stops the attempts to establish connections.
      *
      * @returns {Promise<void>}
      */

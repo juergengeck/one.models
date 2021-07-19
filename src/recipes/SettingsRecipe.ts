@@ -1,6 +1,6 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {
         Settings: Pick<Settings, 'id' | '$type$'>;
     }
@@ -8,12 +8,12 @@ declare module '@OneCoreTypes' {
     export interface OneVersionedObjectInterfaces {
         Settings: Settings;
     }
+}
 
-    export interface Settings {
-        $type$: 'Settings';
-        id: string;
-        properties: Map<string, string>;
-    }
+export interface Settings {
+    $type$: 'Settings';
+    id: string;
+    properties: Map<string, string>;
 }
 
 export const ApplicationSettingsRecipe: Recipe = {
@@ -31,8 +31,6 @@ export const ApplicationSettingsRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const SettingsRecipe: Recipe[] = [ApplicationSettingsRecipe];
 

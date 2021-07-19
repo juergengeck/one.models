@@ -1,21 +1,24 @@
+import fs from 'fs';
+import * as readline from 'readline';
+import {toByteArray} from 'base64-js';
 import yargs from 'yargs';
+
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../models';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import RecipiesStable from '../recipes/recipes-stable';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import RecipesStable from '../recipes/recipes-stable';
+import type {Module, Person} from 'one.core/lib/recipes';
 import oneModules from '../generated/oneModules';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import {implode} from 'one.core/lib/microdata-imploder';
-import fs from 'fs';
-import * as readline from 'readline';
-import {toByteArray} from 'base64-js';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * Import all plan modules
@@ -23,7 +26,7 @@ import {toByteArray} from 'base64-js';
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return Promise.all(
@@ -87,19 +90,17 @@ async function main(): Promise<void> {
         console.log('ONLINE STATE IS NOW: ' + state);
     });
 
-    // Create the instance
     await initInstance({
         name: 'inst_' + argv.i,
         email: 'email_' + argv.i,
         secret: '1234',
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
-        initialRecipes: RecipiesStable
-        //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+        initialRecipes: RecipesStable
+        // initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();
 
-    // Init models
     await accessModel.init();
 
     await instancesModel.init('secret_' + argv.i);

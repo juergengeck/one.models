@@ -1,15 +1,14 @@
 import EventEmmiter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256IdHash,
-    ConsentFile as OneConsentFile
-} from '@OneCoreTypes';
+
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import i18nModelsInstance from '../i18n';
 import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {ConsentFile as OneConsentFile} from '../recipes/ConsentFileRecipes';
+import type {Model} from './Model';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
 /**
  * Represents the consent file object that will be stored in one.
@@ -37,10 +36,8 @@ export enum FileType {
  * This model implements the possibility to store and load the consent file and the dropout file of an user.
  */
 export default class ConsentFileModel extends EventEmmiter implements Model {
-    /**
-     * Event is emitted when the consent file data is updated.
-     */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    // Event is emitted when the consent file data is updated.
+    public onUpdated = new OEvent<(data: ObjectData<unknown>) => void>();
 
     channelManager: ChannelManager;
     channelId: string;
@@ -271,7 +268,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
             this.emit('updated');

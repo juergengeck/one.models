@@ -1,14 +1,12 @@
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import i18nModelsInstance from '../i18n';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    BodyTemperature as OneBodyTemperature,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
+import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * This represents the model of a body temperature measurement
@@ -24,24 +22,23 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     /**
      * Event is emitted when body temperature data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'bodyTemperature';
 
     channelManager: ChannelManager;
-    channelId: string;
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
 
         this.channelManager = channelManager;
-        this.channelId = 'bodyTemperature';
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(BodyTemperatureModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
@@ -68,7 +65,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
 
         /** store the body temperature in one **/
         await this.channelManager.postToChannel(
-            this.channelId,
+            BodyTemperatureModel.channelId,
             {$type$: 'BodyTemperature', temperature: bodyTemperature},
             undefined,
             creationTimestamp
@@ -86,10 +83,10 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
         /** if the channel id is not specified override it **/
         if (queryParams) {
             if (!queryParams.channelId) {
-                queryParams.channelId = this.channelId;
+                queryParams.channelId = BodyTemperatureModel.channelId;
             }
         } else {
-            queryParams = {channelId: this.channelId};
+            queryParams = {channelId: BodyTemperatureModel.channelId};
         }
 
         /** get all the body temperatures from one that fit the query parameters **/
@@ -105,7 +102,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     ): AsyncIterableIterator<ObjectData<OneBodyTemperature>> {
         yield* this.channelManager.objectIteratorWithType('BodyTemperature', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: BodyTemperatureModel.channelId
         });
     }
 
@@ -119,9 +116,9 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === BodyTemperatureModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

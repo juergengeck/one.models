@@ -1,4 +1,4 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 import ChannelRecipes from './ChannelRecipes';
 import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';

@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {RecipeRule} from '@OneCoreTypes';
+import type {RecipeRule} from 'one.core/lib/recipes';
 import {
     addRule,
     cloneRule,

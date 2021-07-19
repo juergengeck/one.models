@@ -36,7 +36,6 @@ describe('Questionnaire model test', () => {
         // Register a questionnaire
         await qm.registerQuestionnaires([
             {
-                $type$: 'Questionnaire',
                 resourceType: 'Questionnaire',
                 language: 'de',
                 url: 'http://refinio.one/test/questionaire/irgendetwas',

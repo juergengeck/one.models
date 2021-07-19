@@ -2,29 +2,25 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
+import {EventEmitter} from 'events';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
-import {
-    Electrocardiogram,
-    OneUnversionedObjectTypes,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
-import {ElectrocardiogramReadings} from '../recipes/ECGRecipes';
+import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
 export default class ECGModel extends EventEmitter implements Model {
     /**
      * Event emitted when ecg data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
-    private readonly channelId: string;
+    public static readonly channelId = 'electrocardiogram';
 
     /**
      * Construct a new instance
@@ -33,7 +29,6 @@ export default class ECGModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
-        this.channelId = 'electrocardiogram';
         this.channelManager = channelManager;
     }
 
@@ -41,7 +36,7 @@ export default class ECGModel extends EventEmitter implements Model {
      * Initialize this instance
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(ECGModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
@@ -52,7 +47,7 @@ export default class ECGModel extends EventEmitter implements Model {
      */
     async postECG(ECGObject: Electrocardiogram): Promise<void> {
         await this.channelManager.postToChannel(
-            this.channelId,
+            ECGModel.channelId,
             ECGObject,
             undefined,
             ECGObject.startTimestamp
@@ -66,7 +61,7 @@ export default class ECGModel extends EventEmitter implements Model {
     async retrieveAllWithoutData(): Promise<ObjectData<Electrocardiogram>[]> {
         return await this.channelManager.getObjectsWithType('Electrocardiogram', {
             omitData: true,
-            channelId: this.channelId
+            channelId: ECGModel.channelId
         });
     }
 
@@ -75,7 +70,7 @@ export default class ECGModel extends EventEmitter implements Model {
     ): Promise<ObjectData<Electrocardiogram>[]> {
         return await this.channelManager.getObjectsWithType('Electrocardiogram', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: ECGModel.channelId
         });
     }
 
@@ -99,7 +94,7 @@ export default class ECGModel extends EventEmitter implements Model {
     ): AsyncIterableIterator<ObjectData<Electrocardiogram>> {
         yield* this.channelManager.objectIteratorWithType('Electrocardiogram', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: ECGModel.channelId
         });
     }
 
@@ -123,7 +118,7 @@ export default class ECGModel extends EventEmitter implements Model {
         let lastECGStartimestamp = 0;
         const ecgs = await this.channelManager.getObjectsWithType('Electrocardiogram', {
             count: 1,
-            channelId: this.channelId
+            channelId: ECGModel.channelId
         });
 
         if (ecgs.length > 0 && ecgs[0].data.startTimestamp) {
@@ -150,7 +145,7 @@ export default class ECGModel extends EventEmitter implements Model {
         );
 
         if (from !== -1) {
-            const endIndex = this.findReadingIndex(ecgReadings, from);
+            const endIndex = ECGModel.findReadingIndex(ecgReadings, from);
 
             if (endIndex !== undefined) {
                 /** if the value it's negative, make it 0 meaning the start of the array **/
@@ -183,7 +178,7 @@ export default class ECGModel extends EventEmitter implements Model {
      * @returns {number | undefined}
      * @private
      */
-    private findReadingIndex(
+    private static findReadingIndex(
         readings: ElectrocardiogramReadings[],
         target: number
     ): number | undefined {
@@ -214,9 +209,9 @@ export default class ECGModel extends EventEmitter implements Model {
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === ECGModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

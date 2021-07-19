@@ -1,12 +1,13 @@
 import WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
+
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import WebSocketListener from './WebSocketListener';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
 
 const MessageBus = createMessageBus('CommunicationServer');
 

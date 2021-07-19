@@ -1,30 +1,33 @@
-import EventEmitter from 'events';
-import {Model} from './Model';
+import {EventEmitter} from 'events';
+
+import type {Model} from './Model';
 import {OEvent} from '../misc/OEvent';
-import ChannelManager, {ObjectData} from './ChannelManager';
-import {OneUnversionedObjectTypes, Person, SHA256IdHash, AudioExercise} from '@OneCoreTypes';
+import type ChannelManager from './ChannelManager';
+import type {ObjectData} from './ChannelManager';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 export default class AudioExerciseModel extends EventEmitter implements Model {
     /**
      * Event is emitted when audio data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public static readonly channelId = 'audioExercise';
 
     channelManager: ChannelManager;
-    channelId: string;
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
-        this.channelId = 'audioExercise';
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(AudioExerciseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
     }
 
@@ -46,7 +49,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     async addAudioExercise(audioFileName: string, startTimestamp: number): Promise<void> {
         /** store the audio exercise object in one **/
         await this.channelManager.postToChannel(
-            this.channelId,
+            AudioExerciseModel.channelId,
             {
                 $type$: 'AudioExercise',
                 name: audioFileName
@@ -61,12 +64,12 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      */
     public async audioExercises(): Promise<ObjectData<AudioExercise>[]> {
         return await this.channelManager.getObjectsWithType('AudioExercise', {
-            channelId: this.channelId
+            channelId: AudioExerciseModel.channelId
         });
     }
 
     /**
-     *  Handler function for the 'updated' event
+     * Handler-function for the 'updated' event
      * @param {string} id
      * @param {SHA256IdHash<Person>} owner
      * @param {ObjectData<OneUnversionedObjectTypes>} data
@@ -75,9 +78,9 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     private async handleChannelUpdate(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === AudioExerciseModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
         }

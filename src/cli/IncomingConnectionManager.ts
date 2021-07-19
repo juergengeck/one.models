@@ -6,7 +6,7 @@ import * as Logger from 'one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';
 import {wslogId} from '../misc/LogUtils';
-import EncryptedConnection from '../misc/EncryptedConnection';
+import type EncryptedConnection from '../misc/EncryptedConnection';
 import IncomingConnectionManager from '../misc/IncomingConnectionManager';
 
 /**
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     // Generate public / private keypair and write it to file if requested
     const keyPair = tweetnacl.box.keyPair();
     if (argv.p) {
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
             fs.writeFile('public.key', keyPair.publicKey, () => {
                 resolve();
             });

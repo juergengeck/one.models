@@ -1,12 +1,9 @@
-import {
-    getObjectByIdHash,
-    SET_ACCESS_MODE,
-    SetAccessParam,
-    VersionedObjectResult,
-    WriteStorageApi
-} from 'one.core/lib/storage';
-import {ChannelInfo, SHA256IdHash, Person} from '@OneCoreTypes';
+import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from 'one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
 import {getInstanceIdHash} from 'one.core/lib/instance';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
+import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
 
 /**
  * Create a channel by writing a ChannelInfo object with an empty head.
@@ -36,7 +33,6 @@ export async function createObjects(
     channelId: string,
     channelOwner: SHA256IdHash<Person>
 ): Promise<VersionedObjectResult<ChannelInfo>> {
-
     // Update the head of the ChannelInfo entry
     const channelInfoResult = await WriteStorage.storeVersionedObject({
         $type$: 'ChannelInfo',
@@ -54,7 +50,9 @@ export async function createObjects(
             mode: SET_ACCESS_MODE.REPLACE,
             person: [instanceResult.obj.owner]
         };
-        await WriteStorage.createSingleObjectThroughPureSubPlan({module: '@one/access'}, [setAccessParam]);
+        await WriteStorage.createSingleObjectThroughPureSubPlan({module: '@one/access'}, [
+            setAccessParam
+        ]);
     }
 
     return channelInfoResult;

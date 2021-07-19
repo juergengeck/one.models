@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/one.smiler.models.iml" filepath="$PROJECT_DIR$/.idea/one.smiler.models.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/one.models.iml" filepath="$PROJECT_DIR$/.idea/one.models.iml" />
     </modules>
   </component>
 </project>

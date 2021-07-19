@@ -21,7 +21,7 @@ module.exports = {
         node: true,
         browser: true
     },
-    plugins: ['@typescript-eslint', 'jsdoc','prettier'],
+    plugins: ['@typescript-eslint', 'jsdoc', 'prettier'],
     rules: {
         'jsdoc/check-alignment': 'error',
         'jsdoc/check-examples': 'off',
@@ -51,13 +51,14 @@ module.exports = {
         'jsdoc/valid-types': 'error',
 
         '@typescript-eslint/array-type': ['error', {default: 'array-simple'}],
-        "@typescript-eslint/brace-style": ['error', '1tbs', {allowSingleLine: false}],
+        '@typescript-eslint/brace-style': ['error', '1tbs', {allowSingleLine: false}],
         '@typescript-eslint/camelcase': ['error', {properties: 'never'}],
         '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+        '@typescript-eslint/consistent-type-imports': ['error', {prefer: 'type-imports'}],
+        '@typescript-eslint/consistent-type-assertions': 'off',
         'func-call-spacing': 'off',
         '@typescript-eslint/func-call-spacing': ['error'],
         '@typescript-eslint/no-extra-parens': 'off', // 'all',{'nestedBinaryExpressions': false}
-        '@typescript-eslint/consistent-type-assertions': 'off',
         '@typescript-eslint/explicit-function-return-type': [
             'error',
             {
@@ -226,7 +227,7 @@ module.exports = {
         // Disallow the use of object properties of the global object (Math and JSON) as functions
         'no-obj-calls': 'error',
         // Disallow reassignment of function parameters
-        'no-param-reassign':  ['error', { 'props': false }],
+        'no-param-reassign': ['error', {props: false}],
         // Disallow string concatenation when using _dirname and _filename
         'no-path-concat': 'error',
         // Disallow the unary operators ++ and --

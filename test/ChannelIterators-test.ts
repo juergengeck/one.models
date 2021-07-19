@@ -1,29 +1,28 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
+
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {
-    createRandomBodyTemperature,
-    dbKey,
-    importModules,
-    removeDir
-} from './utils/TestModel';
+import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
 import {
     createSingleObjectThroughPurePlan,
-    VERSION_UPDATES,
-    getObjectByIdHash
+    getObjectByIdHash,
+    VERSION_UPDATES
 } from 'one.core/lib/storage';
-import {ChannelManager} from '../lib/models';
+import type {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {Person, SHA256Hash, ChannelRegistry, SHA256IdHash, BodyTemperature} from '@OneCoreTypes';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import rimraf from 'rimraf';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
+import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
+import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
+import {wait} from 'one.core/lib/util/promise';
 
-let channelManager: typeof ChannelManager;
-let testModel;
+let channelManager: ChannelManager;
+let testModel: TestModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
@@ -71,7 +70,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await (const {} of channelManager.objectIterator(channelId, {})) {
+            for await (const {} of channelManager.objectIterator({channelId})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
@@ -80,7 +79,7 @@ describe('Channel Iterators test', () => {
 
     it('should get zero objects by getObjects', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects(channelId);
+            const objects1 = await channelManager.getObjects({channelId});
             expect(objects1).to.have.length(0);
         }
     });
@@ -93,22 +92,21 @@ describe('Channel Iterators test', () => {
                         $type$: 'BodyTemperature',
                         temperature: Math.random()
                     });
-                    await new Promise((resolve, rejects) => {
-                        setTimeout(() => resolve(), 300);
-                    });
+                    await wait(300);
                 }
             })
         );
         const channelRegistry = Array.from((await getChannelRegistry()).obj.channels.keys());
-        expect(channelRegistry).to.have.length(channelsIdentifiers.length * 2);
+        // 3 from channelsIdentifiers.length
+        // 2 from Models which create their channel on Model.init
+        const numberOfCreatedChannels = 3 + 2;
+        expect(channelRegistry).to.have.length(numberOfCreatedChannels);
     }).timeout(20000);
 
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
             const objects1 = await channelManager.getObjects({channelId});
-            await new Promise((resolve, rejects) => {
-                setTimeout(() => resolve(), 500);
-            });
+            await wait(500);
             expect(objects1).to.have.length(howMany);
         }
     });
@@ -129,9 +127,7 @@ describe('Channel Iterators test', () => {
                         {$type$: 'BodyTemperature', temperature: Math.random()},
                         owner
                     );
-                    await new Promise((resolve, rejects) => {
-                        setTimeout(() => resolve(), 100);
-                    });
+                    await wait(100);
                 }
             })
         );

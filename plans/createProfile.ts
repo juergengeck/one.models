@@ -2,8 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {Profile} from '@OneCoreTypes';
+import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {Profile} from '../src/recipes/ContactRecipes';
 
 /**
  * @description Pure plan for creating a profile for another person
@@ -16,7 +16,6 @@ export async function createObjects(
     WriteStorage: WriteStorageApi,
     email: string
 ): Promise<VersionedObjectResult<Profile>> {
-
     // Create the person
     const personIdHash = (
         await WriteStorage.storeVersionedObject({

@@ -20,19 +20,19 @@ describe('websocket wait tests', () => {
     });
 
     it('tests waitForMessage: no failures in 4 messages', async function () {
-        connClient.send('DATA1');
+        await connClient.send('DATA1');
         expect(await connServer.waitForMessage()).to.be.equal('DATA1');
-        connClient.send('DATA2');
+        await connClient.send('DATA2');
         expect(await connServer.waitForMessage()).to.be.equal('DATA2');
 
-        connServer.send('DATA3');
+        await connServer.send('DATA3');
         expect(await connClient.waitForMessage()).to.be.equal('DATA3');
-        connServer.send('DATA4');
+        await connServer.send('DATA4');
         expect(await connClient.waitForMessage()).to.be.equal('DATA4');
     });
 
     //@todo FIX
-   /* it('tests waitForMessage: wait for message timeout', async function () {
+    /* it('tests waitForMessage: wait for message timeout', async function () {
         try {
             await connServer.waitForMessage();
             expect.fail('Should not succeed');
@@ -46,14 +46,14 @@ describe('websocket wait tests', () => {
             type: 'mytype1',
             message: 'XYZ'
         };
-        connClient.send(JSON.stringify(message1));
+        await connClient.send(JSON.stringify(message1));
         expect(await connServer.waitForJSONMessageWithType('mytype1')).to.be.eql(message1);
 
         const message2 = {
             type: 'mytype2',
             message: 'ABC'
         };
-        connClient.send(JSON.stringify(message2));
+        await connClient.send(JSON.stringify(message2));
         expect(await connServer.waitForJSONMessageWithType('mytype2')).to.be.eql(message2);
     });
 
@@ -62,7 +62,7 @@ describe('websocket wait tests', () => {
             type: 'mytype1',
             message: 'XYZ'
         };
-        connClient.send(JSON.stringify(message1));
+        await connClient.send(JSON.stringify(message1));
 
         try {
             await connServer.waitForJSONMessageWithType('mytype2');
@@ -79,7 +79,7 @@ describe('websocket wait tests', () => {
         if (connServer.webSocket) {
             connServer.webSocket.close();
         }
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             if (webSocketServer.webSocketServer) {
                 webSocketServer.webSocketServer.close((err?: Error) => {
                     if (err) {
