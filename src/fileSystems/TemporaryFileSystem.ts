@@ -5,11 +5,12 @@
  * @version 0.0.1
  */
 
-import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {BLOB, SHA256Hash} from '@OneCoreTypes';
+import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import FileSystemHelpers from './FileSystemHelpers';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {BLOB} from 'one.core/lib/recipes';
 
 /**
  * This represents a special File System that maps the given path to the specific file system implementation

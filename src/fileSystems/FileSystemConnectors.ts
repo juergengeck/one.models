@@ -1,10 +1,12 @@
-import {ChannelManager, DocumentModel} from '../models';
-import PersistentFileSystem from './PersistentFileSystem';
-import {BLOB, OneUnversionedObjectTypes, Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {ObjectData} from '../models/ChannelManager';
+import type {ChannelManager} from '../models';
+import type PersistentFileSystem from './PersistentFileSystem';
+import type {ObjectData} from '../models/ChannelManager';
 import {platform} from 'one.core/lib/system/platform';
 import {PLATFORMS} from 'one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
+import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import {DocumentModel} from '../models';
 
 export type AllowedChannel = {channelId: string; folder?: string};
 
@@ -179,7 +181,7 @@ export class FilerConnector {
         }
 
         if (mimeType !== undefined) {
-            await this.channelManager.postToChannel(this.documentModel.channelId, {
+            await this.channelManager.postToChannel(DocumentModel.channelId, {
                 $type$: 'DocumentInfo_1_1_0',
                 mimeType: mimeType as string,
                 documentName: data.fileName,

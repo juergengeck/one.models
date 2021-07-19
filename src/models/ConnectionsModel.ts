@@ -43,7 +43,7 @@ import {scrypt} from 'one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Keys, Person} from 'one.core/lib/recipes';
+import type {BLOB, Keys, Person} from 'one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../recipes/ContactRecipes';
 
 const MessageBus = createMessageBus('ConnectionsModel');

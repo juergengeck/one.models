@@ -1,8 +1,9 @@
-import {BLOB, SHA256Hash} from '@OneCoreTypes';
-
 /**
  * This interface the main return structure for files
  */
+import type {SHA256Hash} from "one.core/lib/util/type-checks";
+import type {BLOB} from "one.core/lib/recipes";
+
 export interface FileSystemFile {
     /**
      * The file's content can be either ArrayBuffer or a reference to a BLOB

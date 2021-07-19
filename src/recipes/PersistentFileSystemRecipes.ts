@@ -1,62 +1,64 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
-import {ORDERED_BY} from "one.core/lib/recipes";
+import {BLOB, ORDERED_BY, Recipe, RecipeRule} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {BlobDescriptor} from './BlobRecipes';
 
-declare module '@OneCoreTypes' {
+/**
+ * @global
+ * Starting point in the persisted file system. Points to a root entry.
+ */
+export interface PersistentFileSystemRoot {
+    $type$: 'PersistentFileSystemRoot';
+    root: PersistentFileSystemRootEntry;
+}
+
+/**
+ * @global
+ * Directory entry structure for the Persisted File System Directory (What the directory contains)
+ */
+export interface PersistentFileSystemDirectoryEntry {
+    mode: number;
+    content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>;
+}
+
+/**
+ * @global
+ * Part of the PersistentFileSystemRoot that preservers the root's mode and his reference
+ */
+export interface PersistentFileSystemRootEntry {
+    mode: number;
+    entry: SHA256Hash<PersistentFileSystemDirectory>;
+}
+
+/**
+ * @global
+ * Persisted file system file structure
+ */
+export interface PersistentFileSystemFile {
+    $type$: 'PersistentFileSystemFile';
+    content: SHA256Hash<BLOB>;
+}
+
+export interface PersistentFileSystemChild {
+    mode: number;
+    path: string;
+    content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>
+}
+
+/**
+ * @global
+ * Persisted file system directory structure
+ */
+export interface PersistentFileSystemDirectory {
+    $type$: 'PersistentFileSystemDirectory';
+    children: PersistentFileSystemChild[];
+}
+
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         PersistentFileSystemDirectory: PersistentFileSystemDirectory;
         PersistentFileSystemFile: PersistentFileSystemFile;
         PersistentFileSystemRoot: PersistentFileSystemRoot;
-    }
-
-    /**
-     * @global
-     * Starting point in the persisted file system. Points to a root entry.
-     */
-    export interface PersistentFileSystemRoot {
-        $type$: 'PersistentFileSystemRoot';
-        root: PersistentFileSystemRootEntry;
-    }
-
-    /**
-     * @global
-     * Directory entry structure for the Persisted File System Directory (What the directory contains)
-     */
-    export interface PersistentFileSystemDirectoryEntry {
-        mode: number;
-        content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>;
-    }
-
-    /**
-     * @global
-     * Part of the PersistentFileSystemRoot that preservers the root's mode and his reference
-     */
-    export interface PersistentFileSystemRootEntry {
-        mode: number;
-        entry: SHA256Hash<PersistentFileSystemDirectory>;
-    }
-
-    /**
-     * @global
-     * Persisted file system file structure
-     */
-    export interface PersistentFileSystemFile {
-        $type$: 'PersistentFileSystemFile';
-        content: SHA256Hash<BLOB>;
-    }
-
-    export interface PersistentFileSystemChild {
-        mode: number;
-        path: string;
-        content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>
-    }
-
-    /**
-     * @global
-     * Persisted file system directory structure
-     */
-    export interface PersistentFileSystemDirectory {
-        $type$: 'PersistentFileSystemDirectory';
-        children: PersistentFileSystemChild[];
     }
 
     /**

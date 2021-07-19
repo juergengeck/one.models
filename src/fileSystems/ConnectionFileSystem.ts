@@ -1,10 +1,11 @@
-import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {BLOB, SHA256Hash} from '@OneCoreTypes';
-import {ConnectionInfo} from '../misc/CommunicationModule';
+import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
+import type {ConnectionInfo} from '../misc/CommunicationModule';
 import {readBlobAsArrayBuffer} from 'one.core/lib/storage';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import FileSystemHelpers from './FileSystemHelpers';
+import type {SHA256Hash} from "one.core/lib/util/type-checks";
+import type {BLOB} from "one.core/lib/recipes";
 
 /**
  * Json format for the connectionsFS path

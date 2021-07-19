@@ -5,17 +5,7 @@
  * @version 0.0.1
  */
 
-import {
-    BLOB,
-    PersistentFileSystemDirectory,
-    PersistentFileSystemFile,
-    PersistentFileSystemDirectoryEntry,
-    OneObjectTypes,
-    SHA256Hash,
-    PersistentFileSystemRoot,
-    HashTypes,
-    PersistentFileSystemChild
-} from '@OneCoreTypes';
+
 import {
     createSingleObjectThroughPurePlan,
     createSingleObjectThroughImpurePlan,
@@ -25,7 +15,7 @@ import {
 import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
+import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {platform} from 'one.core/lib/system/platform';
@@ -33,6 +23,13 @@ import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import {PLATFORMS} from 'one.core/lib/platforms';
 import {OEvent} from "../misc/OEvent";
+import type { SHA256Hash } from 'one.core/lib/util/type-checks';
+import type {BLOB, HashTypes, OneObjectTypes} from "one.core/lib/recipes";
+import type {
+    PersistentFileSystemChild,
+    PersistentFileSystemDirectory, PersistentFileSystemDirectoryEntry, PersistentFileSystemFile,
+    PersistentFileSystemRoot
+} from "../recipes/PersistentFileSystemRecipes";
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
