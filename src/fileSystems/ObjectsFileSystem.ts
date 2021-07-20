@@ -1,10 +1,19 @@
-import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
+import type {
+    FileDescription,
+    FileSystemDirectory,
+    FileSystemFile,
+    IFileSystem
+} from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
 import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
 import {createError} from 'one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import type {SHA256Hash} from "one.core/lib/util/type-checks";
-import type {BLOB, HashTypes} from "one.core/lib/recipes";
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BLOB, HashTypes} from 'one.core/lib/recipes';
+import type {OneObjectTypes} from 'one.core/src/recipes';
+import {getIdObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
+import {OneIdObjectInterfaces} from '@OneObjectInterfaces';
+import {OneVersionedObjectTypeNames} from 'one.core/src/recipes';
 
 /**
  * Json format for the objects parsed path
@@ -391,6 +400,11 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private async retrieveContentAboutHash(path: string): Promise<string | undefined> {
         const parsedPath = this.parsePath(path);
+
+        function promiseHandler<T extends OneObjectTypes>(promise: Promise<T>) {
+            return promise.then(data => [null, data]).catch(err => [err]);
+        }
+
         if (parsedPath.suffix === '/raw.txt') {
             return await getTextFile(parsedPath.hash as SHA256Hash);
         }
@@ -400,7 +414,15 @@ export default class ObjectsFileSystem implements IFileSystem {
         }
 
         if (parsedPath.suffix === '/json.txt') {
-            return JSON.stringify(await getObject(parsedPath.hash as SHA256Hash), null, '  ');
+            let err, obj;
+            [err, obj] = await promiseHandler(getObject(parsedPath.hash as SHA256Hash));
+            // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
+            if (err) {
+                // allowed cast since it's the hash of an idObject
+                obj = await getIdObjectByIdHash(parsedPath.hash as unknown as SHA256IdHash);
+            }
+
+            return JSON.stringify(obj, null, '  ');
         }
 
         if (parsedPath.suffix === '/type.txt') {
@@ -408,7 +430,15 @@ export default class ObjectsFileSystem implements IFileSystem {
             if (fileType === 'BLOB' || fileType === 'CBLOB') {
                 return fileType;
             } else {
-                return (await getObject(parsedPath.hash as SHA256Hash)).$type$;
+                let err, obj;
+                [err, obj] = await promiseHandler(getObject(parsedPath.hash as SHA256Hash));
+                // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
+                if (err) {
+                    // allowed cast since it's the hash of an idObject
+                    obj = await getIdObjectByIdHash(parsedPath.hash as unknown as SHA256IdHash);
+                }
+
+                return obj.$type$;
             }
         }
 
