@@ -1,15 +1,14 @@
-/**
- * @author Sebastian Șandru <sebastian@refinio.net>
- */
-
 import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import type {Profile} from 'one.models/lib/recipes/PeopleModel/Profile';
+import type {Profile} from '../src/recipes/PeopleRecipes/Profile';
 import {CommunicationEndpointTypes} from '../src/recipes/PeopleRecipes/CommunicationEndpoints';
 import {ContactDescriptionTypes} from '../src/recipes/PeopleRecipes/PersonDescriptions';
 
 /**
- * @description Pure plan for creating a profile for yourself
+ * Plan for writing a profile object.
+ *
+ * This plan writes all endpoint objects, assigns them to the profile object and then writes the
+ * profile object.
  *
  * @param WriteStorage
  * @param profileId

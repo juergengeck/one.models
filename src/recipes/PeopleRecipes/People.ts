@@ -1,7 +1,7 @@
-import {CRDTMetaData, Recipe, SHA256Hash} from "@OneCoreTypes";
-import {ORDERED_BY} from "one.core/lib/recipes";
-import {generateCrdtRecipe} from "one.core/lib/crdt-recipes";
-import {Someone} from "./Someone";
+import {CRDTMetaData, Recipe, SHA256IdHash} from '@OneCoreTypes';
+import {ORDERED_BY} from 'one.core/lib/recipes';
+import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
+import {Someone} from './Someone';
 
 // #### Typescript interfaces ####
 
@@ -11,8 +11,8 @@ import {Someone} from "./Someone";
 export interface People {
     $type$: 'People';
     appId: 'People';
-    me: SHA256Hash<Someone>;
-    other: SHA256Hash<Someone>[];
+    me: SHA256IdHash<Someone>;
+    other: SHA256IdHash<Someone>[];
 }
 
 export interface PeopleCRDTMetaData extends CRDTMetaData<People> {
@@ -32,20 +32,17 @@ export const PeopleRecipe: Recipe = {
         },
         {
             itemprop: 'me',
-            referenceToObj: new Set(['Person'])
+            referenceToObj: new Set(['Someone'])
         },
         {
             itemprop: 'other',
-            referenceToObj: new Set(['Person']),
+            referenceToObj: new Set(['Someone']),
             list: ORDERED_BY.ONE
         }
     ]
 };
 
-export const PeopleCRDTDataRecipe: Recipe = generateCrdtRecipe(
-    PeopleRecipe,
-    'PeopleCRDTMetaData'
-);
+export const PeopleCRDTDataRecipe: Recipe = generateCrdtRecipe(PeopleRecipe, 'PeopleCRDTMetaData');
 
 // #### one.core interfaces ####
 
@@ -64,5 +61,12 @@ declare module '@OneCoreTypes' {
 
     export interface OneCrdtToMetaObjectInterfaces {
         People: PeopleCRDTMetaData;
+    }
+
+    export interface PlanResultTypes {
+        '@module/profileManagerWritePeople': {
+            args: any;
+            result: VersionedObjectResult<People>;
+        };
     }
 }

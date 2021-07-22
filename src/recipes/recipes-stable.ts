@@ -1,6 +1,5 @@
 import {Recipe} from '@OneCoreTypes';
 import ChannelRecipes from './ChannelRecipes';
-import ContactRecipes from './ContactRecipes';
 import DiaryRecipes from './DiaryRecipes';
 import MetaRecipes from './MetaRecipes';
 import QuestionnaireRecipes from './QuestionnaireRecipes/QuestionnaireRecipes';
@@ -14,7 +13,6 @@ import HeartEventRecipes from './HeartEventRecipes';
 
 const RecipesStable: Recipe[] = [
     ...ChannelRecipes,
-    ...ContactRecipes,
     ...NewsRecipes,
     ...DiaryRecipes,
     ...MetaRecipes,

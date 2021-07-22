@@ -1,6 +1,6 @@
 import {SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {Profile} from '../recipes/PeopleRecipes/Profile';
-import {People} from '../recipes/PeopleRecipes/People';
+import {Profile} from '../../recipes/PeopleRecipes/Profile';
+import {People} from '../../recipes/PeopleRecipes/People';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -8,8 +8,8 @@ import {
 } from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import SomeoneModel, {createSomeone, loadSomeone} from './PeopleModel/SomeoneModel';
-import {Someone} from '../recipes/PeopleRecipes/Someone';
+import SomeoneModel, {createSomeone, loadSomeone} from './SomeoneModel';
+import {Someone} from '../../recipes/PeopleRecipes/Someone';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 

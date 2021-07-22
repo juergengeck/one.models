@@ -3,7 +3,6 @@ import {Profile} from '../../recipes/PeopleRecipes/Profile';
 import {CommunicationEndpointTypes} from '../../recipes/PeopleRecipes/CommunicationEndpoints';
 import {ContactDescriptionTypes} from '../../recipes/PeopleRecipes/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
-import {VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectWithType} from 'one.core/lib/storage-unversioned-objects';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
@@ -31,13 +30,16 @@ type Writeable<T> = {-readonly [K in keyof T]: T[K]};
  *
  * There are alternative designs. I just want to try this approach because of the reasons mentioned
  * above. This might be a start on how to represent CRDT managed types - but later in a generic way.
+ *
+ * TODO: Add convenience methods for obtaining information such as e-mail adresses, names etc. At
+ *       the moment the ui code has to iterate all endpoints in order to fid the right one.
  */
 export default class ProfileModel {
     public readonly hash: SHA256Hash<Profile>;
     public readonly idHash: SHA256IdHash<Profile>;
+    public readonly profileId: string;
     public readonly personId: SHA256IdHash<Person>;
     public readonly owner: SHA256IdHash<Person>;
-    public readonly profileId: string;
 
     public communicationEndpoints: CommunicationEndpointTypes[] = [];
     public contactDescriptions: ContactDescriptionTypes[] = [];
@@ -52,25 +54,37 @@ export default class ProfileModel {
      *
      * @param hash - The hash of the profile version that was loaded.
      * @param idHash - The id-hash of the profile that this instance manages.
-     * @param personId - The person which is described by this instance.
-     * @param owner - The owner of this data. This is the person that created the profile. This is
-     *                a namespacing mechanism, so that profiles with the same name about the same
-     *                person but from different authors are not merged together.
-     * @param profileId - An id of the profile so that we can have multiple profiles describing the
-     *                    same person.
+     * @param profile - The profile that is managed by this model
      */
-    constructor(
-        hash: SHA256Hash<Profile>,
-        idHash: SHA256IdHash<Profile>,
-        personId: SHA256IdHash<Person>,
-        owner: SHA256IdHash<Person>,
-        profileId: string
-    ) {
+    constructor(hash: SHA256Hash<Profile>, idHash: SHA256IdHash<Profile>, profile: Profile) {
         this.hash = hash;
         this.idHash = idHash;
-        this.personId = personId;
-        this.owner = owner;
-        this.profileId = profileId;
+        this.profileId = profile.profileId;
+        this.personId = profile.personId;
+        this.owner = profile.owner;
+    }
+
+    /**
+     * Load the latest profile version.
+     *
+     * Note that loading an object alters the following members:
+     * - hash
+     * - communicationEndpoints
+     * - contactDescriptions
+     *
+     * @param version - The exact version to load. If not specified, load the latest version.
+     */
+    public async load(version?: SHA256Hash<Profile>): Promise<void> {
+        const result =
+            version === undefined
+                ? await loadProfile(this.idHash)
+                : await loadProfileVersion(version);
+        if (result.idHash !== this.idHash) {
+            throw new Error('Specified profile version is not a version of the managed profile');
+        }
+        (this as Writeable<ProfileModel>).hash = result.hash;
+        this.communicationEndpoints = result.communicationEndpoints;
+        this.contactDescriptions = result.contactDescriptions;
     }
 
     /**
@@ -102,32 +116,23 @@ export default class ProfileModel {
             this.hash
         );
 
-        (this as Writeable<ProfileModel>).hash = result.hash;
-        this.communicationEndpoints = result.communicationEndpoints;
-        this.contactDescriptions = result.contactDescriptions;
+        this.copyFrom(result);
     }
 
     /**
-     * Load the latest profile version.
+     * Copy all members from the passed ProfileModel instance.
      *
-     * Note that loading an object alters the following members:
-     * - hash
-     * - communicationEndpoints
-     * - contactDescriptions
-     *
-     * @param version - The exact version to load. If not specified, load the latest version.
+     * @param profileModel
      */
-    public async load(version?: SHA256Hash<Profile>): Promise<void> {
-        const result =
-            version === undefined
-                ? await loadLatestProfile(this.idHash)
-                : await loadProfile(version);
-        if (result.idHash !== this.idHash) {
-            throw new Error('Specified profile version is not a version of the managed profile');
-        }
-        (this as Writeable<ProfileModel>).hash = result.hash;
-        this.communicationEndpoints = result.communicationEndpoints;
-        this.contactDescriptions = result.contactDescriptions;
+    private copyFrom(profileModel: ProfileModel) {
+        (this as Writeable<ProfileModel>).hash = profileModel.hash;
+        (this as Writeable<ProfileModel>).idHash = profileModel.idHash;
+        (this as Writeable<ProfileModel>).profileId = profileModel.profileId;
+        (this as Writeable<ProfileModel>).personId = profileModel.personId;
+        (this as Writeable<ProfileModel>).owner = profileModel.owner;
+
+        this.communicationEndpoints = profileModel.communicationEndpoints;
+        this.contactDescriptions = profileModel.contactDescriptions;
     }
 }
 
@@ -136,22 +141,9 @@ export default class ProfileModel {
  *
  * @param idHash - The id-hash identifying the profile to load.
  */
-export async function loadLatestProfile(idHash: SHA256IdHash<Profile>): Promise<ProfileModel> {
-    const result: VersionedObjectResult<Profile> = await getObjectByIdHash(idHash);
-    const newProfile = new ProfileModel(
-        result.hash,
-        result.idHash,
-        result.obj.personId,
-        result.obj.owner,
-        result.obj.personId
-    );
-    newProfile.communicationEndpoints = await Promise.all(
-        result.obj.communicationEndpoint.map(ep => getObjectWithType(ep))
-    );
-    newProfile.contactDescriptions = await Promise.all(
-        result.obj.contactDescription.map(ep => getObjectWithType(ep))
-    );
-    return newProfile;
+export async function loadProfile(idHash: SHA256IdHash<Profile>): Promise<ProfileModel> {
+    const result = await getObjectByIdHash(idHash);
+    return constructProfileModel(result.hash, result.idHash, result.obj);
 }
 
 /**
@@ -159,23 +151,10 @@ export async function loadLatestProfile(idHash: SHA256IdHash<Profile>): Promise<
  *
  * @param version
  */
-export async function loadProfile(version: SHA256Hash<Profile>): Promise<ProfileModel> {
-    const result: Profile = await getObject(version);
-    const idHash: SHA256IdHash<Profile> = await calculateIdHashOfObj(result);
-    const newProfile = new ProfileModel(
-        version,
-        idHash,
-        result.personId,
-        result.owner,
-        result.personId
-    );
-    newProfile.communicationEndpoints = await Promise.all(
-        result.communicationEndpoint.map(ep => getObjectWithType(ep))
-    );
-    newProfile.contactDescriptions = await Promise.all(
-        result.contactDescription.map(ep => getObjectWithType(ep))
-    );
-    return newProfile;
+export async function loadProfileVersion(version: SHA256Hash<Profile>): Promise<ProfileModel> {
+    const result = await getObject(version);
+    const idHash = await calculateIdHashOfObj(result);
+    return constructProfileModel(version, idHash, result);
 }
 
 /**
@@ -215,6 +194,7 @@ async function saveProfile(
     contactDescriptions: ContactDescriptionTypes[],
     baseProfileVersion?: SHA256Hash<Profile>
 ): Promise<ProfileModel> {
+    // Write the new profile version
     const result = await createSingleObjectThroughPurePlan(
         {module: '@module/profileManagerWriteProfile'},
         profileId,
@@ -224,18 +204,31 @@ async function saveProfile(
         contactDescriptions,
         baseProfileVersion
     );
-    const newProfile = new ProfileModel(
-        result.hash,
-        result.idHash,
-        result.obj.personId,
-        result.obj.owner,
-        result.obj.personId
-    );
+
+    // The written object might differ, so return the updated data
+    return constructProfileModel(result.hash, result.idHash, result.obj);
+}
+
+/**
+ * This constructs a new ProfileModel.
+ *
+ * This cannot be a constructor, because it is async. So it is a separate function.
+ *
+ * @param hash
+ * @param idHash
+ * @param profile
+ */
+async function constructProfileModel(
+    hash: SHA256Hash<Profile>,
+    idHash: SHA256IdHash<Profile>,
+    profile: Profile
+): Promise<ProfileModel> {
+    const newProfile = new ProfileModel(hash, idHash, profile);
     newProfile.communicationEndpoints = await Promise.all(
-        result.obj.communicationEndpoint.map(ep => getObjectWithType(ep))
+        profile.communicationEndpoint.map(ep => getObjectWithType(ep))
     );
     newProfile.contactDescriptions = await Promise.all(
-        result.obj.contactDescription.map(ep => getObjectWithType(ep))
+        profile.contactDescription.map(ep => getObjectWithType(ep))
     );
     return newProfile;
 }
