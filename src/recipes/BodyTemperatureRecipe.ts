@@ -1,14 +1,14 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Recipe} from 'one.core/lib/recipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         BodyTemperature: BodyTemperature;
     }
+}
 
-    export interface BodyTemperature {
-        $type$: 'BodyTemperature';
-        temperature: number;
-    }
+export interface BodyTemperature {
+    $type$: 'BodyTemperature';
+    temperature: number;
 }
 
 export const BodyTemperatureRecipe: Recipe = {
@@ -21,8 +21,6 @@ export const BodyTemperatureRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const BodyTemperatureRecipes: Recipe[] = [BodyTemperatureRecipe];
 

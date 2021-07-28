@@ -1,20 +1,24 @@
+import fs from 'fs';
+import * as readline from 'readline';
+import {toByteArray} from 'base64-js';
 import yargs from 'yargs';
+
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import {AccessModel, ChannelManager, ConnectionsModel, ContactModel} from '../models';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
-import RecipiesStable from '../recipes/recipes-stable';
-import {Module, Person, SHA256IdHash, VersionedObjectResult} from '@OneCoreTypes';
+import RecipesStable from '../recipes/recipes-stable';
+import type {Module, Person} from 'one.core/lib/recipes';
 import oneModules from '../generated/oneModules';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import fs from 'fs';
-import * as readline from 'readline';
-import {toByteArray} from 'base64-js';
+import {implode} from 'one.core/lib/microdata-imploder';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * Import all plan modules
@@ -22,7 +26,7 @@ import {toByteArray} from 'base64-js';
 async function importModules(): Promise<VersionedObjectResult<Module>[]> {
     const modules = Object.keys(oneModules).map(key => ({
         moduleName: key,
-        code: oneModules[key]
+        code: oneModules[key as keyof typeof oneModules]
     }));
 
     return Promise.all(
@@ -86,19 +90,17 @@ async function main(): Promise<void> {
         console.log('ONLINE STATE IS NOW: ' + state);
     });
 
-    // Create the instance
     await initInstance({
         name: 'inst_' + argv.i,
         email: 'email_' + argv.i,
         secret: '1234',
         encryptStorage: false,
         ownerName: 'name_' + argv.i,
-        initialRecipes: RecipiesStable
-        //        initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
+        initialRecipes: RecipesStable
+        // initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
     await importModules();
 
-    // Init models
     await accessModel.init();
 
     await instancesModel.init('secret_' + argv.i);
@@ -131,17 +133,18 @@ async function main(): Promise<void> {
     );
 
     // Get the contact objects for the main and anon id
-    const mainCommunicationEndpoints = await contactModel.getCommunicationEndpoints(person);
-    const anonCommunicationEndpoints = await contactModel.getCommunicationEndpoints(personAnon);
-    if (mainCommunicationEndpoints.length !== 1) {
+    const mainContactObjects = await contactModel.getContactObjectHashes(person);
+    const anonContactObjects = await contactModel.getContactObjectHashes(personAnon);
+    if (mainContactObjects.length !== 1) {
         throw new Error('There is more than one contact object for main user.');
     }
-    if (anonCommunicationEndpoints.length !== 1) {
+    if (anonContactObjects.length !== 1) {
         throw new Error('There is more than one contact object for anon user.');
     }
 
     // Write the contact objects to files, so that others can import them.
-    fs.writeFileSync(`${argv.i}_anon.contact`, anonCommunicationEndpoints[0]);
+    //fs.writeFileSync(`${argv.i}_main.contact`, await implode(mainContactObjects[0]));
+    fs.writeFileSync(`${argv.i}_anon.contact`, await implode(anonContactObjects[0]));
 
     // Wait here for user input
     await new Promise(resolve => {
@@ -175,7 +178,9 @@ async function main(): Promise<void> {
 
     // Start the communication module
     console.log('Start the comm module');
-
+    contactModel.onContactUpdate(() => {
+        console.log('ADDED a contact');
+    });
     await connectionsModel.init();
 }
 

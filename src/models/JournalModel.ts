@@ -2,28 +2,26 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    WbcObservation,
-    Electrocardiogram,
-    OneUnversionedObjectTypes,
-    DiaryEntry,
-    DocumentInfo_1_1_0,
-    ConsentFile,
-    BodyTemperature,
-    HeartEvent,
-    QuestionnaireResponses
-} from '@OneCoreTypes';
-import QuestionnaireModel from './QuestionnaireModel';
-import EventEmitter from 'events';
-import DocumentModel from './DocumentModel';
-import DiaryModel from './DiaryModel';
-import {ObjectData, QueryOptions} from './ChannelManager';
-import ConsentFileModel from './ConsentFileModel';
-import BodyTemperatureModel from './BodyTemperatureModel';
+import {EventEmitter} from 'events';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import WbcDiffModel from './WbcDiffModel';
-import ECGModel from './ECGModel';
-import HeartEventModel from './HeartEventModel';
+import type {WbcObservation} from '../recipes/WbcDiffRecipes';
+import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
+import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
+import type {DiaryEntry} from '../recipes/DiaryRecipes';
+import type {ConsentFile} from '../recipes/ConsentFileRecipes';
+import type {Electrocardiogram} from '../recipes/ECGRecipes';
+import type {BodyTemperature} from '../recipes/BodyTemperatureRecipe';
+import type {HeartEvent} from '../recipes/HeartEventRecipes';
+import type HeartEventModel from './HeartEventModel';
+import type WbcDiffModel from './WbcDiffModel';
+import type QuestionnaireModel from './QuestionnaireModel';
+import type DocumentModel from './DocumentModel';
+import type DiaryModel from './DiaryModel';
+import type ConsentFileModel from './ConsentFileModel';
+import type ECGModel from './ECGModel';
+import type BodyTemperatureModel from './BodyTemperatureModel';
+import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
 
 /**
  * !!! Add the corresponding model class name here
@@ -86,11 +84,11 @@ export default class JournalModel extends EventEmitter {
         EventType,
         {
             disconnect: (() => void) | undefined;
-            listener: (data?: ObjectData<OneUnversionedObjectTypes>) => void;
+            listener: (data: ObjectData<OneUnversionedObjectTypes>) => void;
         }
     > = new Map();
 
-    public onUpdated = new OEvent<(data?: EventListEntry) => void>();
+    public onUpdated = new OEvent<(data: EventListEntry) => void>();
 
     constructor(modelsInput: JournalInput[]) {
         super();
@@ -110,8 +108,9 @@ export default class JournalModel extends EventEmitter {
             const handlerEventEmitter = () => {
                 this.emit('updated');
             };
-            const oEventHandler = (data?: ObjectData<OneUnversionedObjectTypes>) => {
-                /** It's guaranteed that incoming objects are "data" of {@link EventListEntry} because of the {@link JournalInput} **/
+            const oEventHandler = (data: ObjectData<unknown>) => {
+                // It's guaranteed that incoming objects are "data" of {@link EventListEntry}
+                // because of the {@link JournalInput}
                 this.onUpdated.emit(
                     JournalModel.mapObjectDataToEventListEntry(data as EventListEntry['data'])
                 );
@@ -165,7 +164,7 @@ export default class JournalModel extends EventEmitter {
                     to: latestTo,
                     from: latestFrom
                 })) {
-                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                    data.push(retrievedData as unknown as EventListEntry['data']);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -280,7 +279,7 @@ export default class JournalModel extends EventEmitter {
                 const event = journalInput.eventType;
                 const data: EventListEntry['data'][] = [];
                 for await (const retrievedData of journalInput.retrieveFn()) {
-                    data.push((retrievedData as unknown) as EventListEntry['data']);
+                    data.push(retrievedData as unknown as EventListEntry['data']);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -381,9 +380,9 @@ export default class JournalModel extends EventEmitter {
      */
     private static mapObjectDataToEventListEntry(
         objectData?: EventListEntry['data']
-    ): EventListEntry | undefined {
+    ): EventListEntry {
         if (!objectData) {
-            return undefined;
+            throw new Error('objectData is falsy');
         }
 
         switch (objectData.data.$type$) {
@@ -404,6 +403,7 @@ export default class JournalModel extends EventEmitter {
             case 'HeartEvent':
                 return {type: EventType.HeartEvent, data: objectData};
         }
-        return undefined;
+
+        throw new Error('objectData is an unknown type');
     }
 }

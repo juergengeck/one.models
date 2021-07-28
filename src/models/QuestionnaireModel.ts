@@ -1,14 +1,16 @@
-import EventEmitter from 'events';
-import ChannelManager, {ObjectData, QueryOptions} from './ChannelManager';
-import {
-    OneUnversionedObjectTypes,
-    Person,
-    Questionnaire_1_1_0,
-    QuestionnaireResponses as OneQuestionnaireResponses,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import {EventEmitter} from 'events';
+
+import type ChannelManager from './ChannelManager';
+import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {Model} from './Model';
+import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
+import type {
+    QuestionnaireResponses,
+    QuestionnaireResponse
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 
 // Export the Questionnaire types
 export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
@@ -19,12 +21,6 @@ export type Coding = Questionnaire_1_1_0.Coding;
 export type QuestionnaireEnableWhenAnswer = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
-
-// Export the QuestionnaireResponses types
-// @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface QuestionnaireResponses extends Omit<OneQuestionnaireResponses, '$type$'> {}
-export type QuestionnaireResponse = OneQuestionnaireResponses.QuestionnaireResponse;
-export type QuestionnaireResponseItem = OneQuestionnaireResponses.QuestionnaireResponseItem;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -41,10 +37,10 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void>();
+    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private channelManager: ChannelManager;
-    private readonly channelId: string;
+    public static readonly channelId = 'questionnaireResponse';
     private readonly availableQuestionnaires: Questionnaire[];
     private readonly incompleteResponsesChannelId: string;
     private disconnect: (() => void) | undefined;
@@ -56,8 +52,6 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
-
-        this.channelId = 'questionnaireResponse';
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
@@ -69,7 +63,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     public async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(QuestionnaireModel.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
@@ -230,7 +224,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(
-            this.channelId,
+            QuestionnaireModel.channelId,
             {
                 $type$: 'QuestionnaireResponses',
                 name,
@@ -246,7 +240,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
     }
 
@@ -256,10 +250,10 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     async *responsesIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneQuestionnaireResponses>> {
+    ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
     }
 
@@ -280,7 +274,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
         const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
-            channelId: this.channelId
+            channelId: QuestionnaireModel.channelId
         });
         let numberOfSpecificQuestionnaires = 0;
 
@@ -401,9 +395,9 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     private async handleOnUpdated(
         id: string,
         owner: SHA256IdHash<Person>,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId || id === this.incompleteResponsesChannelId) {
+        if (id === QuestionnaireModel.channelId || id === this.incompleteResponsesChannelId) {
             this.emit('updated');
             this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {

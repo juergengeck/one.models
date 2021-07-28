@@ -1,7 +1,9 @@
-import {Recipe} from '@OneCoreTypes';
+import type {Person, Recipe} from 'one.core/lib/recipes';
 import {ORDERED_BY} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {CreationTime} from './MetaRecipes';
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         ChannelEntry: ChannelEntry;
     }
@@ -15,31 +17,31 @@ declare module '@OneCoreTypes' {
         ChannelInfo: ChannelInfo;
         ChannelRegistry: ChannelRegistry;
     }
+}
 
-    export interface ChannelEntry {
-        $type$: 'ChannelEntry';
-        data: SHA256Hash<CreationTime>;
-        previous?: SHA256Hash<ChannelEntry>;
-    }
+export interface ChannelEntry {
+    $type$: 'ChannelEntry';
+    data: SHA256Hash<CreationTime>;
+    previous?: SHA256Hash<ChannelEntry>;
+}
 
-    export interface ChannelInfo {
-        $type$: 'ChannelInfo';
-        id: string;
-        owner: SHA256IdHash<Person>;
-        head?: SHA256Hash<ChannelEntry>;
-    }
+export interface ChannelInfo {
+    $type$: 'ChannelInfo';
+    id: string;
+    owner: SHA256IdHash<Person>;
+    head?: SHA256Hash<ChannelEntry>;
+}
 
-    export interface ChannelRegistryEntry {
-        channelInfoIdHash: SHA256IdHash<ChannelInfo>; // The channel info object of the channel
-        readVersionIndex: number; // Index of the merged version suitable for reading
-        mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
-    }
+export interface ChannelRegistryEntry {
+    channelInfoIdHash: SHA256IdHash<ChannelInfo>; // The channel info object of the channel
+    readVersionIndex: number; // Index of the merged version suitable for reading
+    mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
+}
 
-    export interface ChannelRegistry {
-        $type$: 'ChannelRegistry';
-        id: 'ChannelRegistry';
-        channels: ChannelRegistryEntry[];
-    }
+export interface ChannelRegistry {
+    $type$: 'ChannelRegistry';
+    id: 'ChannelRegistry';
+    channels: ChannelRegistryEntry[];
 }
 
 export const ChannelEntryRecipie: Recipe = {
@@ -109,8 +111,6 @@ export const ChannelRegistryRecipe: Recipe = {
         }
     ]
 };
-
-// Export recipes
 
 const ChannelRecipes: Recipe[] = [ChannelEntryRecipie, ChannelInfoRecipe, ChannelRegistryRecipe];
 

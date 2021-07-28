@@ -14,7 +14,7 @@ let testModel: TestModel;
 describe('Questionnaire model test', () => {
     before(async () => {
         // TODO: clean test initialization up!
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
@@ -36,7 +36,6 @@ describe('Questionnaire model test', () => {
         // Register a questionnaire
         await qm.registerQuestionnaires([
             {
-                $type$: 'Questionnaire',
                 resourceType: 'Questionnaire',
                 language: 'de',
                 url: 'http://refinio.one/test/questionaire/irgendetwas',

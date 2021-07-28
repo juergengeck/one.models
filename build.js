@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// noinspection JSValidateTypes
+
 'use strict';
 
 /*
@@ -8,8 +10,11 @@
   no-console,
   require-jsdoc,
   no-sync,
+  jsdoc/valid-types,
+  @typescript-eslint/explicit-function-return-type,
+  @typescript-eslint/no-use-before-define,
   @typescript-eslint/no-var-requires,
-  @typescript-eslint/no-use-before-define
+  @typescript-eslint/no-unsafe-call
  */
 
 /**
@@ -19,8 +24,9 @@
 
 const fs = require('fs');
 const {basename, dirname, join, sep} = require('path');
-const {promisify} = require('util');
 const {execSync} = require('child_process');
+
+const {chmod, mkdir, rmdir, readdir, readFile, writeFile, rename, unlink} = fs.promises;
 
 // @ts-ignore
 const babel = require('@babel/core');
@@ -28,8 +34,6 @@ const babel = require('@babel/core');
 /** @type {Record<string, string[]>} */
 const PLATFORMS = {
     nodejs: ['commonjs', 'es2015'],
-    lowjs: ['es2015'],
-    moddable: ['es2015'],
     browser: ['es2015'],
     rn: ['es2015']
 };
@@ -40,7 +44,13 @@ const PLATFORMS = {
  */
 const BABEL_MODULE_TARGETS = {
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-commonjs.html
-    commonjs: '@babel/plugin-transform-modules-commonjs',
+    commonjs: [
+        '@babel/plugin-transform-modules-commonjs',
+        {
+            // We disallow default exports in ONE.core (eslint rule)
+            noInterop: false
+        }
+    ],
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-systemjs.html
     systemjs: '@babel/plugin-transform-modules-systemjs',
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-umd.html
@@ -50,7 +60,7 @@ const BABEL_MODULE_TARGETS = {
 /**
  * @type {{
  *   presets: string[],
- *   plugins: Array<any>,
+ *   plugins: any[],
  *   comments: boolean,
  *   filename: string
  * }}
@@ -67,29 +77,28 @@ const BABEL_OPTS = {
                 strictMode: true
             }
         ],
-        '@babel/proposal-class-properties',
-        '@babel/proposal-object-rest-spread',
+        '@babel/plugin-proposal-class-properties',
+        '@babel/plugin-proposal-nullish-coalescing-operator',
+        '@babel/plugin-proposal-object-rest-spread',
+        '@babel/plugin-proposal-optional-chaining',
         '@babel/plugin-transform-runtime'
     ],
     comments: false,
     filename: ''
 };
 
-const chmod = promisify(fs.chmod);
-const unlink = promisify(fs.unlink);
-const lstat = promisify(fs.lstat);
-const mkDir = promisify(fs.mkdir);
-const rmDir = promisify(fs.rmdir);
-const readDir = promisify(fs.readdir);
-const readFile = promisify(fs.readFile);
-const writeFile = promisify(fs.writeFile);
-
 /**
  * @returns {void}
  */
 function usage() {
     console.log(`
-Usage: node build.js or ./build.js [help] [node|browser|rn|low|moddable] [-m es2015|commonjs|systemjs|umd] [-t target directory] [-f script.js]
+Usage: node build.js or directly call ./build.js
+
+Options: [help]
+         [node|browser|rn|low|moddable]
+         [-m es2015|commonjs|systemjs|umd]
+         [-t target directory]
+         [-f script.js]
 
 Options:
 
@@ -98,8 +107,6 @@ Options:
   Target:
 
   nodejs     Build for node.js
-  lowjs      Build for low.js
-  moddable   Build for Moddable
   browser    Build for webbrowsers
   rn         Build for React Native
 
@@ -128,10 +135,10 @@ Options:
 
 /**
  * @param {string} dir
- * @returns {Promise<void>}
+ * @returns {Promise<void|string>}
  */
 function mkDirExistOkay(dir) {
-    return mkDir(dir, {recursive: true}).catch(err => {
+    return mkdir(dir, {recursive: true}).catch(err => {
         if (err.code !== 'EEXIST') {
             throw err;
         }
@@ -140,15 +147,14 @@ function mkDirExistOkay(dir) {
 
 /**
  * @param {string} dir
- * @param {string} file
+ * @param {fs.Dirent} dirent - A node.js `Dirent` object
  * @returns {Promise<void>}
  */
-async function deleteFile(dir, file) {
-    const filePath = join(dir, file);
-    const stats = await lstat(filePath);
+async function deleteFile(dir, dirent) {
+    const filePath = join(dir, dirent.name);
 
-    if (stats.isDirectory()) {
-        return await deleteDirectory(filePath);
+    if (dirent.isDirectory()) {
+        return deleteDirectory(filePath);
     } else {
         return unlink(filePath);
     }
@@ -159,10 +165,11 @@ async function deleteFile(dir, file) {
  * @returns {Promise<void>}
  */
 async function deleteDirectory(dir) {
+    /** @type fs.Dirent[] */
     let files;
 
     try {
-        files = await readDir(dir);
+        files = await readdir(dir, {withFileTypes: true});
     } catch (err) {
         if (err.code === 'ENOENT') {
             // Nothing to remove? That's okay!
@@ -172,9 +179,9 @@ async function deleteDirectory(dir) {
         }
     }
 
-    await Promise.all(files.map(file => deleteFile(dir, file)));
+    await Promise.all(files.map(dirent => deleteFile(dir, dirent)));
 
-    await rmDir(dir);
+    await rmdir(dir);
 }
 
 /**
@@ -186,7 +193,7 @@ function transform(code, options) {
     return new Promise((resolve, reject) => {
         // See https://babeljs.io/docs/en/babel-core
         // result: {code, map, ast}
-        babel.transform(code, options, (/** @type Error*/ err, /** @type Object*/ result) => {
+        babel.transform(code, options, (/** @type {Error|null}*/ err, /** @type {any}*/ result) => {
             if (err) {
                 return reject(err);
             }
@@ -202,10 +209,12 @@ function transform(code, options) {
  * @param {string} targetDir - Where to write the transpiled file to
  * @param {string} srcDir - Directory relative to PROJECT_ROOT
  * @param {string} file - The filename without path
+ * @param {string} system - nodejs, browser, rn
+ * @param {string} moduleTarget - commonjs, es2015, systemjs, umd
  * @returns {Promise<void>}
  */
-async function transformAndWriteJsFile(targetDir, srcDir, file) {
-    if (file.endsWith('.d.ts') || !file.endsWith('.ts')) {
+async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget) {
+    if (!file.endsWith('.ts')) {
         return;
     }
 
@@ -219,15 +228,29 @@ async function transformAndWriteJsFile(targetDir, srcDir, file) {
 
     const destination = join(targetDir, file.replace(/\.ts$/, ''));
 
-    console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}[.ts]`);
+    if (file.endsWith('.d.ts')) {
+        if (targetDir === 'test') {
+            return;
+        }
 
-    BABEL_OPTS.filename = file;
+        console.log(`Copying file ${join(srcDir, file)} ⇒ ${destination}.ts`);
+        await writeFile(destination + '.ts', code, {flag: 'w'});
+    } else {
+        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}[.ts]`);
 
-    const transformedCode = await transform(code, BABEL_OPTS);
-    await writeFile(destination + '.js', transformedCode, {flag: 'w'});
+        BABEL_OPTS.filename = file;
 
-    if (destination.endsWith(join('tools', file.replace(/\.ts$/, '')))) {
-        await chmod(destination + '.js', '755');
+        const fileExtension =
+            targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
+                ? '.mjs'
+                : '.js';
+
+        const transformedCode = await transform(code, BABEL_OPTS);
+        await writeFile(destination + fileExtension, transformedCode, {flag: 'w'});
+
+        if (destination.endsWith(join('tools', file.replace(/\.ts$/, '')))) {
+            await chmod(destination + fileExtension, '755');
+        }
     }
 }
 
@@ -235,28 +258,28 @@ async function transformAndWriteJsFile(targetDir, srcDir, file) {
  * @param {string} srcDir
  * @param {string} targetDir
  * @param {string} system
+ * @param {string} moduleTarget - One of commonjs, es2015, systemjs, umd
  * @returns {Promise<void>}
  */
-async function processAllFiles(srcDir, targetDir, system) {
+async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
     console.log(`=> Processing directory ${srcDir}...`);
 
-    const files = await readDir(join(__dirname, srcDir));
+    const files = await readdir(join(__dirname, srcDir));
 
     for (const file of files) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            if (!file.includes('system') || file.includes('system-' + system)) {
-                await processAllFiles(join(srcDir, file), join(targetDir, file), system);
+            if (file.includes('system-' + system) || !file.startsWith('system')) {
+                await processAllFiles(
+                    join(srcDir, file),
+                    join(targetDir, file),
+                    system,
+                    moduleTarget
+                );
             }
         } else {
-            await transformAndWriteJsFile(
-                srcDir.endsWith('system-' + system)
-                    ? targetDir.replace('system-' + system, 'system')
-                    : targetDir,
-                srcDir,
-                file
-            );
+            await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
         }
     }
 }
@@ -266,16 +289,32 @@ async function processAllFiles(srcDir, targetDir, system) {
  * @returns {Promise<void>}
  */
 async function createDeclarationFiles(targetDir) {
-    console.log('Calling tsc to create declaration and map files...');
+    for (const dir of ['src', 'test']) {
+        console.log(`Calling tsc for ${dir} to create declaration and map files...`);
 
-    try {
-        execSync('tsc -p tsconfig.declarations.json --outDir ' + targetDir, {stdio: 'inherit'});
-    } catch (err) {
-        console.error('tsc failed with ' + err.message);
-    } finally {
-        // Remove extraneous system folders, the target platform's code has been written to system/
-        for (const p of Object.keys(PLATFORMS)) {
-            await deleteDirectory(join(targetDir, `system-${p}`));
+        // The incremental build files can lead to unpredictable build issues for the full-build
+        // run, possibly because the target directory is deleted first.
+        try {
+            await unlink(join('.', `tsconfig.${dir}.tsbuildinfo`));
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                throw err;
+            }
+        }
+
+        try {
+            execSync(
+                `tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                {
+                    stdio: 'inherit'
+                }
+            );
+        } catch (err) {
+            console.error(
+                '\ntsc failed with ' +
+                    err.message +
+                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+            );
         }
     }
 }
@@ -288,11 +327,7 @@ async function createDeclarationFiles(targetDir) {
 function getSystem() {
     let system = 'nodejs';
 
-    if (process.argv.includes('low') || process.argv.includes('lowjs')) {
-        system = 'lowjs';
-    } else if (process.argv.includes('mod') || process.argv.includes('moddable')) {
-        system = 'moddable';
-    } else if (process.argv.includes('browser')) {
+    if (process.argv.includes('browser')) {
         system = 'browser';
     } else if (process.argv.includes('rn') || process.argv.includes('react-native')) {
         system = 'rn';
@@ -386,7 +421,7 @@ function calledForSingleFile() {
 async function run() {
     const system = getSystem();
     const targetDir = getTargetDir();
-    const moduleTarget = setModuleTarget(); // Call with side-effect
+    const moduleTarget = setModuleTarget(); // Call with side effect
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
@@ -397,28 +432,32 @@ async function run() {
         let destination = join(targetDir, dirname(singleFile).replace(/^src[\\/]?/, ''));
 
         if (singleFile.startsWith('test' + sep)) {
-            destination = 'test';
+            destination = destination.replace('lib' + sep, '');
         }
 
         if (singleFile.startsWith(`src${sep}system-${system}${sep}`)) {
             destination = join(targetDir, 'system');
         }
 
-        return await transformAndWriteJsFile(
+        return transformAndWriteJsFile(
             destination,
             dirname(singleFile),
-            basename(singleFile)
+            basename(singleFile),
+            system,
+            moduleTarget
         );
     }
 
     console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
 
-    await deleteDirectory(targetDir);
     execSync('node ./build_plan_modules.js');
-    await processAllFiles('src', targetDir, system);
+
+    await deleteDirectory(targetDir);
+    await processAllFiles('src', targetDir, system, moduleTarget);
     await createDeclarationFiles(targetDir);
-    await processAllFiles('test', 'test', system);
-    console.log(`\n========== Done building one.models (${moduleTarget}/${system}) ==========`);
+    await processAllFiles('test', 'test', system, moduleTarget);
+
+    console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
 }
 
 /**

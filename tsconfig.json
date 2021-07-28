@@ -1,44 +1,56 @@
 {
     "compilerOptions": {
-        "noEmit": false,
-        "alwaysStrict": true,
+        "noEmit": true,
         "outDir": "lib",
         "isolatedModules": false,
         "moduleResolution": "node",
-        "sourceMap": true,
+        "sourceMap": false,
         "emitDeclarationOnly": false,
-        "declaration": false,
-        "declarationMap": false,
-        "downlevelIteration": true,
+        "declaration": true,
+        "declarationMap": true,
+        "downlevelIteration": false,
+        "importHelpers": false,
         "esModuleInterop": true,
-        "lib": ["esnext", "dom"],
+        "importsNotUsedAsValues": "error",
+        "composite": true,
+        "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+        "lib": [
+            "esnext",
+            "dom"
+        ],
         "module": "esnext",
         "target": "esnext",
+        "alwaysStrict": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
         "strict": true,
         "newLine": "LF",
         "allowJs": true,
-        "checkJs": false,
-        "noUnusedLocals": true,
-        "removeComments": true,
-        "preserveConstEnums": true,
+        "checkJs": true,
+        "removeComments": false,
         "forceConsistentCasingInFileNames": true,
-        "noImplicitReturns": true,
-        "resolveJsonModule": true
+        "baseUrl": "./",
+        "paths": {
+        }
     },
+    "references": [
+        {
+            "path": "./plans"
+        },
+        {
+            "path": "./src"
+        },
+        {
+            "path": "./test"
+        }
+    ],
     "include": [
-        "node_modules/one.core/test/@OneCoreTypes.d.ts",
-        "node_modules/one.core/@OneCoreTypes.d.ts",
-        "@OneCoreTypes.d.ts",
-        "plans",
-        "src/*.ts",
-        "src/**/*.ts",
-        "test/*.ts",
-        "./*.js"
+        "*.js"
     ],
     "exclude": [
         "node_modules/one.core/src",
         ".*.js",
-        "builds",
         "doc"
     ]
 }

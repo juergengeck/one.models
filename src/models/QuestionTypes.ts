@@ -41,7 +41,7 @@ export type Question = {
     minLength?: number;
     // a regex for checking the entered values for questions whose answer is provided within an input field
     regEx?: string;
-    // a list of a subquestions
+    // a list of a sub-questions
     item?: Question[];
     // this influence the operation that is made between enableWhen conditions of a question,
     // if it's not specified will be an OR operation

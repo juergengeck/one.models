@@ -8,13 +8,16 @@ import {
 } from 'one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
-import ConnectionsModel from './ConnectionsModel';
+import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {getObjectByIdHash} from 'one.core/lib/storage';
-import {Person, SHA256IdHash} from '@OneCoreTypes';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
-import CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
+
+type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
 /**
  * For the recovery process the person email with the corresponding
@@ -190,7 +193,7 @@ export default class RecoveryModel {
 
         // overwrite person keys with the old ones
         // for private keys we first need to encrypt them with the new password
-        const privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage = {
+        const privatePersonInformation: PPersonInformationMessage = {
             command: 'private_person_information',
             personId,
             personPublicKey: this.decryptedObject.personPublicKey,
@@ -300,9 +303,7 @@ export default class RecoveryModel {
      * @returns {Promise<{privateKey: string, privateSignKey: string}>}
      * @private
      */
-    private async extractDecryptedPrivateKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         privateKey: string;
         privateSignKey: string;
     }> {

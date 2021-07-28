@@ -1,4 +1,4 @@
-import CommunicationInitiationProtocol from './CommunicationInitiationProtocol';
+import type CommunicationInitiationProtocol from './CommunicationInitiationProtocol';
 
 /**
  * Protocol that defines messages used for communication between communication server and registering clients.

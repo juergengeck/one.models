@@ -1,5 +1,4 @@
-import WebSocket from 'isomorphic-ws';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isClientMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {wslogId} from './LogUtils';
@@ -241,7 +240,7 @@ class CommunicationServerConnection_Server {
         }
 
         // Wait if in a ping / pong cycle, otherwise just resolve
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
             // Cancel the next ping if it is scheduled
             this.isPinging = false;
             if (this.pingTimeoutHandle) {

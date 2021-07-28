@@ -1,29 +1,23 @@
 import MatchingModel from './MatchingModel';
-import InstancesModel from '../InstancesModel';
-import ChannelManager from '../ChannelManager';
-import AccessModel from '../AccessModel';
-import ConnectionsModel from '../ConnectionsModel';
-import {
-    Demand,
-    MatchResponse,
-    NotifiedUsers,
-    Person,
-    SHA256Hash,
-    SHA256IdHash,
-    Supply,
-    UnversionedObjectResult,
-    VersionedObjectResult
-} from '@OneCoreTypes';
+import type InstancesModel from '../InstancesModel';
+import type ChannelManager from '../ChannelManager';
+import type AccessModel from '../AccessModel';
+import type ConnectionsModel from '../ConnectionsModel';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdObj,
     onUnversionedObj,
     SET_ACCESS_MODE,
-    VERSION_UPDATES
+    UnversionedObjectResult,
+    VERSION_UPDATES,
+    VersionedObjectResult
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this
@@ -51,6 +45,7 @@ export default class ServerMatchingModel extends MatchingModel {
         this.accessModel = accessModel;
         this.notifiedUsersObj = {} as VersionedObjectResult<NotifiedUsers>;
     }
+
     /**
      * 1. initialise application resources (all maps that are used to memorising
      * the data) and load the instance information in memory.

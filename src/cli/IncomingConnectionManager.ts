@@ -1,12 +1,12 @@
+import WebSocketWS from 'isomorphic-ws'
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
-import WebSocket from 'isomorphic-ws';
 import * as Logger from 'one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';
 import {wslogId} from '../misc/LogUtils';
-import EncryptedConnection from '../misc/EncryptedConnection';
+import type EncryptedConnection from '../misc/EncryptedConnection';
 import IncomingConnectionManager from '../misc/IncomingConnectionManager';
 
 /**
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     // Generate public / private keypair and write it to file if requested
     const keyPair = tweetnacl.box.keyPair();
     if (argv.p) {
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
             fs.writeFile('public.key', keyPair.publicKey, () => {
                 resolve();
             });
@@ -102,7 +102,8 @@ async function main(): Promise<void> {
                 );
                 consoleWs = conn;
                 consoleWs.webSocket.addEventListener('error', e => {
-                    console.log(e.message);
+                    const message = (e as unknown as { message: string | undefined }) && 'unknown error';
+                    console.log(message);
                 });
                 consoleWs.webSocket.addEventListener('close', e => {
                     if (e.reason !== 'New client connected') {
@@ -112,7 +113,7 @@ async function main(): Promise<void> {
                 });
 
                 // Wait for messages
-                while (conn.webSocket.readyState === WebSocket.OPEN) {
+                while (conn.webSocket.readyState === WebSocketWS.OPEN) {
                     console.log(await conn.waitForMessage());
                 }
             } catch (e) {
@@ -133,7 +134,7 @@ async function main(): Promise<void> {
     function sigintHandler() {
         connManager.shutdown();
         if (consoleWs) {
-            if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
+            if (consoleWs.webSocket.readyState === WebSocketWS.OPEN) {
                 consoleWs.close();
             }
         }

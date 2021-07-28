@@ -6,14 +6,14 @@ module.exports = {
         'plugin:@typescript-eslint/eslint-recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:@typescript-eslint/recommended-requiring-type-checking',
-        'prettier',
-        'prettier/@typescript-eslint'
+        'plugin:prettier/recommended',
+        'prettier'
     ],
     parser: '@typescript-eslint/parser',
     parserOptions: {
         ecmaVersion: 2018,
         ecmaFeatures: {impliedStrict: true},
-        project: './tsconfig.json'
+        project: ['./tsconfig.json', './src/tsconfig.json', './test/tsconfig.json']
     },
     env: {
         es6: true,
@@ -21,7 +21,17 @@ module.exports = {
         node: true,
         browser: true
     },
-    plugins: ['@typescript-eslint', 'jsdoc','prettier'],
+    globals: {
+        NodeJS: 'readonly',
+        name: 'off',
+        self: 'off',
+        status: 'off',
+        length: 'off',
+        history: 'off',
+        event: 'off',
+        top: 'off'
+    },
+    plugins: ['@typescript-eslint', 'jsdoc', 'prettier'],
     rules: {
         'jsdoc/check-alignment': 'error',
         'jsdoc/check-examples': 'off',
@@ -42,22 +52,23 @@ module.exports = {
         'jsdoc/require-jsdoc': ['error', {publicOnly: true}],
         'jsdoc/require-param-description': 'off',
         'jsdoc/require-param-name': 'error',
-        'jsdoc/require-param-type': 'error',
+        'jsdoc/require-param-type': 'off',
         'jsdoc/require-param': 'error',
         'jsdoc/require-returns-check': 'error',
         'jsdoc/require-returns-description': 'off',
-        'jsdoc/require-returns-type': 'error',
-        'jsdoc/require-returns': 'error',
+        'jsdoc/require-returns-type': 'off',
+        'jsdoc/require-returns': 'off',
         'jsdoc/valid-types': 'error',
 
-        '@typescript-eslint/array-type': ['error', {default: 'array-simple'}],
-        "@typescript-eslint/brace-style": ['error', '1tbs', {allowSingleLine: false}],
-        '@typescript-eslint/camelcase': ['error', {properties: 'never'}],
+        '@typescript-eslint/array-type': ['off', {default: 'array-simple'}],
+        '@typescript-eslint/brace-style': ['error', '1tbs', {allowSingleLine: false}],
+        // '@typescript-eslint/camelcase': ['error', {properties: 'never'}],
         '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+        '@typescript-eslint/consistent-type-imports': ['error', {prefer: 'type-imports'}],
+        '@typescript-eslint/consistent-type-assertions': 'off',
         'func-call-spacing': 'off',
         '@typescript-eslint/func-call-spacing': ['error'],
         '@typescript-eslint/no-extra-parens': 'off', // 'all',{'nestedBinaryExpressions': false}
-        '@typescript-eslint/consistent-type-assertions': 'off',
         '@typescript-eslint/explicit-function-return-type': [
             'error',
             {
@@ -105,10 +116,10 @@ module.exports = {
 
         'no-restricted-syntax': [
             'error',
-            {
-                selector: 'ExportDefaultDeclaration',
-                message: 'Prefer named exports'
-            },
+            // {
+            //     selector: 'ExportDefaultDeclaration',
+            //     message: 'Prefer named exports'
+            // },
             'WithStatement',
             "BinaryExpression[operator='in']"
         ],
@@ -151,7 +162,7 @@ module.exports = {
         'func-style': ['error', 'declaration'],
         // Enforce consistent line breaks inside function parentheses - off, conflicts with prettier
         'function-paren-newline': ['off'],
-        'generator-star-spacing': ['error', {before: false, after: true}],
+        'generator-star-spacing': ['error', {before: true, after: false}],
         // Disallow require() outside of the top-level module scope
         'global-require': 'error',
         'key-spacing': ['error', {beforeColon: false, afterColon: true}],
@@ -165,7 +176,7 @@ module.exports = {
         // Disallow using an async function as a Promise executor
         'no-async-promise-executor': 'error',
         // Disallow await inside of loops
-        'no-await-in-loop': 'error',
+        'no-await-in-loop': 'off',
         // disallow use of the Buffer() constructor
         'no-buffer-constructor': 'error',
         // Disallow Use of caller/callee
@@ -193,7 +204,7 @@ module.exports = {
         // Rule to disallow a duplicate case label
         'no-duplicate-case': 'error',
         // Disallow duplicate imports
-        'no-duplicate-imports': 'error',
+        'no-duplicate-imports': 'off',
         // Disallow empty block statements
         'no-empty': 'error',
         // Disallow empty character classes
@@ -226,7 +237,7 @@ module.exports = {
         // Disallow the use of object properties of the global object (Math and JSON) as functions
         'no-obj-calls': 'error',
         // Disallow reassignment of function parameters
-        'no-param-reassign':  ['error', { 'props': false }],
+        'no-param-reassign': ['error', {props: false}],
         // Disallow string concatenation when using _dirname and _filename
         'no-path-concat': 'error',
         // Disallow the unary operators ++ and --

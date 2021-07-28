@@ -1,5 +1,3 @@
-import {Recipe, RecipeRule} from '@OneCoreTypes';
-
 /**
  * This represents a Wbc Measurement.
  *
@@ -13,27 +11,29 @@ import {Recipe, RecipeRule} from '@OneCoreTypes';
  *      keep them as-is from start to end.
  */
 
+import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
+
 export interface WbcMeasurement {
     value: string;
     unit: string;
     unsafe?: boolean;
 }
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         WbcObservation: WbcObservation;
     }
+}
 
-    export interface WbcObservation {
-        $type$: 'WbcObservation';
-        acquisitionTime: string; // time the measurment took place e.g. '2020-09-04T12:10:01+01:00';
-        Leukocytes: WbcMeasurement;
-        Neutrophils?: WbcMeasurement;
-        Lymphocytes?: WbcMeasurement;
-        Monocytes?: WbcMeasurement;
-        Eosinophils?: WbcMeasurement;
-        Basophils?: WbcMeasurement;
-    }
+export interface WbcObservation {
+    $type$: 'WbcObservation';
+    acquisitionTime: string; // time the measurement took place e.g. '2020-09-04T12:10:01+01:00';
+    Leukocytes: WbcMeasurement;
+    Neutrophils?: WbcMeasurement;
+    Lymphocytes?: WbcMeasurement;
+    Monocytes?: WbcMeasurement;
+    Eosinophils?: WbcMeasurement;
+    Basophils?: WbcMeasurement;
 }
 
 const WbcMeasurementRules: RecipeRule[] = [

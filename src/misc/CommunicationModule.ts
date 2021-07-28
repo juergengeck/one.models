@@ -1,21 +1,17 @@
-import {
-    Instance,
-    Person,
-    SHA256Hash,
-    SHA256IdHash,
-    OneInstanceEndpoint,
-    CommunicationEndpointTypes
-} from '@OneCoreTypes';
-import {ContactModel} from '../models';
+import type {ContactModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
-import EncryptedConnection from './EncryptedConnection';
+import type EncryptedConnection from './EncryptedConnection';
 import {getObject} from 'one.core/lib/storage';
 import {toByteArray, fromByteArray} from 'base64-js';
-import InstancesModel, {LocalInstanceInfo} from '../models/InstancesModel';
-import {createCrypto} from 'one.core/lib/instance-crypto';
+import type InstancesModel from '../models/InstancesModel';
+import type {LocalInstanceInfo} from '../models/InstancesModel';
+import {createCryptoAPI} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Instance, Person} from 'one.core/lib/recipes';
+import type {CommunicationEndpointTypes, OneInstanceEndpoint} from '../recipes/ContactRecipes';
 
 /**
  * This type represents information about a connection.
@@ -47,7 +43,7 @@ type ConnectionContainer = {
     targetInstanceId: SHA256IdHash<Instance>;
     sourcePersonId: SHA256IdHash<Person>;
     targetPersonId: SHA256IdHash<Person>;
-    cryptoApi: ReturnType<typeof createCrypto>;
+    cryptoApi: ReturnType<typeof createCryptoAPI>;
     isInternetOfMe: boolean;
     dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,
     // otherwise they will override the current connection
@@ -715,7 +711,7 @@ export default class CommunicationModule extends EventEmitter {
         instance: SHA256IdHash<Instance>
     ): Promise<void> {
         const keys = await this.instancesModel.localInstanceKeys(instance);
-        const cryptoApi = createCrypto(instance);
+        const cryptoApi = createCryptoAPI(instance);
         await this.incomingConnectionManager.listenForCommunicationServerConnections(
             this.commServer,
             toByteArray(keys.publicKey),

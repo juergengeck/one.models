@@ -4,9 +4,8 @@ import * as Logger from 'one.core/lib/logger';
 import EncryptedConnection_Client from '../misc/EncryptedConnection_Client';
 import fs from 'fs';
 import * as readline from 'readline';
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
-import EncryptedConnection from '../misc/EncryptedConnection';
 
 /**
  * Main function. This exists to be able to use await here.
@@ -38,8 +37,8 @@ async function main(): Promise<void> {
             if (err) {
                 reject(err);
             } else {
-                var res = new Uint8Array(data.byteLength);
-                for (var i = 0; i < data.byteLength; ++i) {
+                const res = new Uint8Array(data.byteLength);
+                for (let i = 0; i < data.byteLength; ++i) {
                     res[i] = data.readInt8(i);
                 }
                 resolve(res);
@@ -82,7 +81,7 @@ async function main(): Promise<void> {
     });
 
     // From here on - raw websocket communication
-    const consoleWs: EncryptedConnection = conn;
+    const consoleWs = conn;
     conn.switchToEvents = true;
     consoleWs.onMessage(data => {
         console.log(new TextDecoder().decode(data));
@@ -98,7 +97,7 @@ async function main(): Promise<void> {
     // Stop everything at sigint
     function sigintHandler() {
         if (consoleWs) {
-            if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
+            if (consoleWs.webSocket.readyState === WebSocketWS.OPEN) {
                 consoleWs.close();
             }
         }
