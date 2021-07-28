@@ -4,7 +4,7 @@ import * as Logger from 'one.core/lib/logger';
 import EncryptedConnection_Client from '../misc/EncryptedConnection_Client';
 import fs from 'fs';
 import * as readline from 'readline';
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 
 /**
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
     // Stop everything at sigint
     function sigintHandler() {
         if (consoleWs) {
-            if (consoleWs.webSocket.readyState === WebSocket.OPEN) {
+            if (consoleWs.webSocket.readyState === WebSocketWS.OPEN) {
                 consoleWs.close();
             }
         }

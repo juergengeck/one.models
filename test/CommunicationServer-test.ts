@@ -5,10 +5,11 @@ import CommunicationServerListener, {
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
 import {fromByteArray} from 'base64-js';
 import {wait} from 'one.core/lib/util/promise';
+import {createWebSocket} from 'one.core/lib/system/websocket';
 
 //import * as Logger from 'one.core/lib/logger';
 //Logger.start();
@@ -29,7 +30,7 @@ describe('communication server tests', () => {
 
     before('Start comm server', async () => {
         commServer = new CommunicationServer();
-        await commServer.start('localhost', 10000);
+        await commServer.start('localhost', 8080);
     });
 
     after(async () => {
@@ -65,7 +66,7 @@ describe('communication server tests', () => {
                 throw new Error('ws.webSocket is null');
             }
             try {
-                while (ws.webSocket.readyState === WebSocket.OPEN) {
+                while (ws.webSocket.readyState === WebSocketWS.OPEN) {
                     await ws.send(await ws.waitForMessage(1000));
                 }
             } catch (e) {
@@ -74,7 +75,7 @@ describe('communication server tests', () => {
                 listenerFailure = e;
             }
         });
-        commServerListener.start('ws://localhost:10000', listenerKeyPair.publicKey);
+        commServerListener.start('ws://localhost:8080', listenerKeyPair.publicKey);
 
         try {
             // Wait until the state changes to listening.
@@ -89,7 +90,7 @@ describe('communication server tests', () => {
 
             // Setup outgoing connection and send something
             const clientKeyPair = tweetnacl.box.keyPair();
-            let clientConn = new WebSocketPromiseBased(new WebSocket('ws://localhost:10000'));
+            let clientConn = new WebSocketPromiseBased(createWebSocket('ws://localhost:8080'));
 
             try {
                 await clientConn.waitForOpen(1000);

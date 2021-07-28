@@ -46,7 +46,7 @@ function createStateMachineWithoutHistory(hasHistory: boolean): StateMachine<SMS
 
 describe('StateMachine test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);

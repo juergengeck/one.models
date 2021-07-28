@@ -1,4 +1,4 @@
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws'
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
@@ -22,12 +22,12 @@ export default class WebSocketPromiseBased
     /**
      * Event is emitted when a new message is received.
      */
-    public onMessage = new OEvent<(messageEvent: WebSocket.MessageEvent) => void>();
+    public onMessage = new OEvent<(messageEvent: MessageEvent) => void>();
 
     // @ts-ignore
     public webSocket: WebSocket | null;
     public defaultTimeout: number;
-    private dataQueue: WebSocket.MessageEvent[];
+    private dataQueue: MessageEvent[];
     private socketOpenFn: ((err?: Error) => void) | null;
     private dataAvailableFn: ((err?: Error) => void) | null;
     private maxDataQueueSize: number;
@@ -140,7 +140,7 @@ export default class WebSocketPromiseBased
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
         if (this.webSocket) {
-            if (this.webSocket.readyState !== WebSocket.OPEN) {
+            if (this.webSocket.readyState !== WebSocketWS.OPEN) {
                 return;
             }
             if (reason) {
@@ -167,7 +167,7 @@ export default class WebSocketPromiseBased
     public terminate(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: terminate(${reason})`);
         if (this.webSocket) {
-            if (this.webSocket.readyState !== WebSocket.OPEN) {
+            if (this.webSocket.readyState !== WebSocketWS.OPEN) {
                 return;
             }
 
@@ -214,7 +214,7 @@ export default class WebSocketPromiseBased
             }
 
             // If already open, then just return
-            if (this.webSocket.readyState === WebSocket.OPEN) {
+            if (this.webSocket.readyState === WebSocketWS.OPEN) {
                 resolve();
                 return;
             }
@@ -251,7 +251,7 @@ export default class WebSocketPromiseBased
                     }
 
                     // Resolve first element in array
-                    if (this.webSocket.readyState === WebSocket.OPEN) {
+                    if (this.webSocket.readyState === WebSocketWS.OPEN) {
                         resolve();
                     } else {
                         reject(
@@ -295,7 +295,7 @@ export default class WebSocketPromiseBased
      * @param {string} typekey - The name of the member that holds the type that is checked for equality
      *                           with the type param.
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     * @return Promise<MessageEvent['data']> The promise will resolve when a value was received.
      *                                                 - The value will be the JSON.parse'd object
      *                                                 The promise will reject when
      *                                                 1) the timeout expired
@@ -374,12 +374,12 @@ export default class WebSocketPromiseBased
      * Wait for an incoming message for a specified period of time.
      *
      * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     * @return Promise<MessageEvent['data']> The promise will resolve when a value was received.
      *                                                 The promise will reject when
      *                                                 1) the timeout expired
      *                                                 2) the connection was closed
      */
-    public async waitForMessage(timeout: number = -2): Promise<WebSocket.MessageEvent['data']> {
+    public async waitForMessage(timeout: number = -2): Promise<MessageEvent['data']> {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: waitForMessage(${timeout})`);
         if (timeout === -2) {
             timeout = this.defaultTimeout;
@@ -475,7 +475,7 @@ export default class WebSocketPromiseBased
      *
      * @param openEvent
      */
-    private handleOpen(openEvent: WebSocket.OpenEvent) {
+    private handleOpen(openEvent: Event) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleOpen()`);
 
         // Wakeup the reader in waitForOpen if somebody waits
@@ -491,7 +491,7 @@ export default class WebSocketPromiseBased
      *
      * @param messageEvent
      */
-    private handleMessage(messageEvent: WebSocket.MessageEvent) {
+    private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
 
         // Notify listeners for a new message
@@ -528,7 +528,7 @@ export default class WebSocketPromiseBased
             throw new Error('No websocket is bound to this instance.');
         }
 
-        if (this.webSocket.readyState !== WebSocket.OPEN) {
+        if (this.webSocket.readyState !== WebSocketWS.OPEN) {
             let errorMessage = 'The websocket is closed.';
             if (this.closeReason !== '') {
                 errorMessage += ` Close Reason: '${this.closeReason}'.`;
@@ -550,7 +550,7 @@ export default class WebSocketPromiseBased
      *
      * @param closeEvent
      */
-    private handleClose(closeEvent: WebSocket.CloseEvent) {
+    private handleClose(closeEvent: CloseEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleClose()`);
         this.closeReason = closeEvent.reason;
         if (this.dataAvailableFn) {
@@ -568,18 +568,22 @@ export default class WebSocketPromiseBased
      *
      * @param errorEvent
      */
-    private handleError(errorEvent: WebSocket.ErrorEvent) {
+    private handleError(errorEvent: Event) {
+        // The 'ws' package contains a .message member. we check for it even if the type itself
+        // does not contain it.
+        const message = (errorEvent as unknown as { message: string | undefined }) && '';
+
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
         if (this.firstError === '') {
-            this.firstError = errorEvent.message;
+            this.firstError = message;
         } else {
-            this.lastError = errorEvent.message;
+            this.lastError = message;
         }
         if (this.dataAvailableFn) {
-            this.dataAvailableFn(new Error(errorEvent.message));
+            this.dataAvailableFn(new Error(message));
         }
         if (this.socketOpenFn) {
-            this.socketOpenFn(new Error(errorEvent.message));
+            this.socketOpenFn(new Error(message));
         }
     }
 }

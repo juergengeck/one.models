@@ -112,7 +112,7 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 
 describe('Channel Manager test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
@@ -230,7 +230,7 @@ describe('Channel Manager test', () => {
             }
         ];
 
-        const iter = await ChannelManager.mergeIteratorMostCurrent(
+        const iter = await ChannelManager['mergeIteratorMostCurrent'] (
             [
                 valueGenerator(W as RawChannelEntry[]),
                 //valueGenerator(X as RawChannelEntry[]),

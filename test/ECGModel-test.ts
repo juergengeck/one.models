@@ -15,7 +15,7 @@ let testModel: TestModel;
 
 describe('ECG Model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
+        await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
         const model = new TestModel('ws://localhost:8000', dbKey);
