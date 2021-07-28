@@ -1,7 +1,7 @@
-import WebSocket from 'isomorphic-ws';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
+import {createWebSocket} from 'one.core/lib/system/websocket';
 
 /**
  * This class implements the client side of communication server communication
@@ -15,7 +15,7 @@ class CommunicationServerConnection_Client {
      * @param url
      */
     constructor(url: string) {
-        this.webSocketPB = new WebSocketPromiseBased(new WebSocket(url));
+        this.webSocketPB = new WebSocketPromiseBased(createWebSocket(url));
     }
 
     // ######## Socket Management & Settings ########

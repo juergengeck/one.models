@@ -1,7 +1,8 @@
 import {expect} from 'chai';
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
+import {createWebSocket} from 'one.core/lib/system/websocket';
 
 describe('websocket wait tests', () => {
     let webSocketServer: WebSocketServerPromiseBased;
@@ -10,10 +11,10 @@ describe('websocket wait tests', () => {
 
     beforeEach('Setup connections', async function () {
         // Create the server
-        webSocketServer = new WebSocketServerPromiseBased(new WebSocket.Server({port: 8080}));
+        webSocketServer = new WebSocketServerPromiseBased(new WebSocketWS.Server({port: 8080}));
 
         // Setup connections
-        connClient = new WebSocketPromiseBased(new WebSocket('ws://localhost:8080'));
+        connClient = new WebSocketPromiseBased(createWebSocket('ws://localhost:8080'));
         await connClient.waitForOpen();
         connServer = new WebSocketPromiseBased(await webSocketServer.waitForConnection());
         await connServer.waitForOpen();

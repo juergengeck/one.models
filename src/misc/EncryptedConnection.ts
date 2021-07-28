@@ -1,7 +1,5 @@
 import {EventEmitter} from 'events';
-
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
-import type WebSocket from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import type {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
@@ -67,7 +65,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
         }
 
         // Setup events
-        this.webSocketPB.onMessage((message: WebSocket.MessageEvent) => {
+        this.webSocketPB.onMessage((message: MessageEvent) => {
             // Only send events for encrypted messages and when the event interface is activated.
             // Because of nonce counting we can't have both running.
             if (this.sharedKey && this.webSocketPB.disableWaitForMessage) {

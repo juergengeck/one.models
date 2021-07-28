@@ -1,5 +1,3 @@
-import type WebSocket from 'isomorphic-ws';
-
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isClientMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';

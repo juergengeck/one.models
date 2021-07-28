@@ -28,6 +28,7 @@
     "jsesc": "^3.0.2",
     "one.core": "refinio/one.core",
     "ts-loader": "^8.0.2",
+    "ws": "*",
     "yargs": "^15.4.0"
   },
   "devDependencies": {

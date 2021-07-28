@@ -1,4 +1,4 @@
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import {wslogId} from './LogUtils';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
@@ -38,7 +38,7 @@ class WebSocketListener {
     >();
 
     public state: WebSocketListenerState; // Current connection state.
-    private webSocketServer: WebSocket.Server | null = null; // The web socket server for listening for connections
+    private webSocketServer: WebSocketWS.Server | null = null; // The web socket server for listening for connections
 
     /**
      * Creates the listener.
@@ -62,7 +62,7 @@ class WebSocketListener {
         this.changeCurrentState(WebSocketListenerState.Starting);
 
         try {
-            this.webSocketServer = new WebSocket.Server({host, port});
+            this.webSocketServer = new WebSocketWS.Server({host, port});
 
             // Wait until the websocket server is either ready or stopped with an error (e.g. address in use)
             await new Promise<void>((resolve, reject) => {
@@ -96,6 +96,7 @@ class WebSocketListener {
             MessageBus.send('log', `Successful started WebSocket server`);
         } catch (e) {
             this.changeCurrentState(WebSocketListenerState.NotListening, e.toString());
+            throw e;
         }
     }
 

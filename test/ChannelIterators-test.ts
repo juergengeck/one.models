@@ -38,7 +38,7 @@ async function getChannelRegistry() {
 
 describe('Channel Iterators test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
+        await StorageTestInit.init({dbKey: dbKey});
         // @ts-ignore
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();

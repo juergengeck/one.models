@@ -1,5 +1,5 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
@@ -172,7 +172,7 @@ class CommunicationServerListener {
 
             // Do not schedule if already stopped
             if (!this.running) {
-                if (connection.webSocket.readyState === WebSocket.OPEN) {
+                if (connection.webSocket.readyState === WebSocketWS.OPEN) {
                     connection.close();
                 }
                 return;

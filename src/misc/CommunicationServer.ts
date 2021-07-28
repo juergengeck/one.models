@@ -1,6 +1,5 @@
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
-
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
@@ -83,7 +82,7 @@ class CommunicationServer {
 
         // Close forwarded connections
         for (const ws of this.openedConnections) {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws.readyState === WebSocketWS.OPEN) {
                 ws.close();
             }
         }
