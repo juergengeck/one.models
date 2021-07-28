@@ -40,6 +40,8 @@ jobs:
               run: |
                   yarn install
                   node build
-           
+
             - name: Run tests
-              run: yarn test
+              run: |
+                  yarn test
+                  yarn doc
