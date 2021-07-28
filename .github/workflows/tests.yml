@@ -39,7 +39,7 @@ jobs:
             - name: Install and build sources
               run: |
                   yarn install
-                  node build
+                  yarn build
 
             - name: Run tests
               run: |
