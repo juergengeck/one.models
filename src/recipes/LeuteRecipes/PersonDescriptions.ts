@@ -1,4 +1,4 @@
-import {BLOB, OneObjectTypeNames, Recipe, SHA256Hash} from "@OneCoreTypes";
+import {BLOB, OneObjectTypeNames, Recipe, SHA256Hash} from '@OneCoreTypes';
 
 /**
  * This represents a description of a communication partner
@@ -9,7 +9,11 @@ import {BLOB, OneObjectTypeNames, Recipe, SHA256Hash} from "@OneCoreTypes";
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type ContactDescriptionTypes = PersonName | ProfileImage | PersonStatus;
-export const ContactDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>(['PersonName', 'ProfileImage', 'PersonStatus']);
+export const ContactDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
+    'PersonName',
+    'ProfileImage',
+    'PersonStatus'
+]);
 export interface ContactDescription {}
 
 export interface PersonName extends ContactDescription {
@@ -78,3 +82,4 @@ declare module '@OneCoreTypes' {
         };
     }
 }
+export default [PersonNameRecipe, PersonStatusRecipe, ProfileImageRecipe];

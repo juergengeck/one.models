@@ -82,3 +82,5 @@ declare module '@OneCoreTypes' {
         };
     }
 }
+
+export default [SomeoneRecipe, SomeoneCRDTDataRecipe];

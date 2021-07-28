@@ -1,6 +1,6 @@
 import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import ProfileModel, {createProfile, loadProfile} from './ProfileModel';
-import {Profile} from '../../recipes/PeopleRecipes/Profile';
+import {Profile} from '../../recipes/LeuteRecipes/Profile';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -8,7 +8,8 @@ import {
 } from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {Someone} from '../../recipes/PeopleRecipes/Someone';
+import {Someone} from '../../recipes/LeuteRecipes/Someone';
+import {OEvent} from '../../misc/OEvent';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -29,6 +30,8 @@ export default class SomeoneModel {
     public readonly hash: SHA256Hash<Someone>;
     public readonly idHash: SHA256IdHash<Someone>;
     public readonly someoneId: string;
+
+    public onUpdate: OEvent<() => void> = new OEvent();
 
     private mainProfileInternal: SHA256IdHash<Profile>;
     private identitiesInternal: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;

@@ -1,8 +1,8 @@
 import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import type {Profile} from '../src/recipes/PeopleRecipes/Profile';
-import {CommunicationEndpointTypes} from '../src/recipes/PeopleRecipes/CommunicationEndpoints';
-import {ContactDescriptionTypes} from '../src/recipes/PeopleRecipes/PersonDescriptions';
+import type {Profile} from '../src/recipes/LeuteRecipes/Profile';
+import {CommunicationEndpointTypes} from '../src/recipes/LeuteRecipes/CommunicationEndpoints';
+import {ContactDescriptionTypes} from '../src/recipes/LeuteRecipes/PersonDescriptions';
 
 /**
  * Plan for writing a profile object.

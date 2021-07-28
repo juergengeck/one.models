@@ -87,3 +87,5 @@ declare module '@OneCoreTypes' {
         };
     }
 }
+
+export default [ProfileRecipe, ProfileCRDTDataRecipe];

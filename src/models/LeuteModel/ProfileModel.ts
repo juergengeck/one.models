@@ -1,11 +1,12 @@
 import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {Profile} from '../../recipes/PeopleRecipes/Profile';
-import {CommunicationEndpointTypes} from '../../recipes/PeopleRecipes/CommunicationEndpoints';
-import {ContactDescriptionTypes} from '../../recipes/PeopleRecipes/PersonDescriptions';
+import {Profile} from '../../recipes/LeuteRecipes/Profile';
+import {CommunicationEndpointTypes} from '../../recipes/LeuteRecipes/CommunicationEndpoints';
+import {ContactDescriptionTypes} from '../../recipes/LeuteRecipes/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {getObjectWithType} from 'one.core/lib/storage-unversioned-objects';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {OEvent} from '../../misc/OEvent';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -40,6 +41,8 @@ export default class ProfileModel {
     public readonly profileId: string;
     public readonly personId: SHA256IdHash<Person>;
     public readonly owner: SHA256IdHash<Person>;
+
+    public onUpdate: OEvent<() => void> = new OEvent();
 
     public communicationEndpoints: CommunicationEndpointTypes[] = [];
     public contactDescriptions: ContactDescriptionTypes[] = [];

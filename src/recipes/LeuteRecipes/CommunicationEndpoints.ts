@@ -6,7 +6,7 @@ import {
     Recipe,
     SHA256Hash,
     SHA256IdHash
-} from "@OneCoreTypes";
+} from '@OneCoreTypes';
 
 // #### Typescript interfaces ####
 
@@ -19,7 +19,10 @@ import {
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
-export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>(['OneInstanceEndpoint', 'Email']);
+export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>([
+    'OneInstanceEndpoint',
+    'Email'
+]);
 export interface CommunicationEndpoint {}
 
 export interface OneInstanceEndpoint extends CommunicationEndpoint {
@@ -85,3 +88,5 @@ declare module '@OneCoreTypes' {
         Email: Email;
     }
 }
+
+export default [OneInstanceEndpointRecipe, EmailRecipe];

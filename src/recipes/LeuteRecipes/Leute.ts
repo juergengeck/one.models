@@ -8,26 +8,26 @@ import {Someone} from './Someone';
 /**
  * This is a global collection of all people known to the user.
  */
-export interface People {
-    $type$: 'People';
-    appId: 'People';
+export interface Leute {
+    $type$: 'Leute';
+    appId: 'Leute';
     me: SHA256IdHash<Someone>;
     other: SHA256IdHash<Someone>[];
 }
 
-export interface PeopleCRDTMetaData extends CRDTMetaData<People> {
-    $type$: 'PeopleCRDTMetaData';
+export interface LeuteCRDTMetaData extends CRDTMetaData<Leute> {
+    $type$: 'LeuteCRDTMetaData';
 }
 
 // #### Recipes ####
 
-export const PeopleRecipe: Recipe = {
+export const LeuteRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'People',
+    name: 'Leute',
     rule: [
         {
             itemprop: 'singletonId',
-            regexp: /^People$/,
+            regexp: /^Leute$/,
             isId: true
         },
         {
@@ -42,31 +42,33 @@ export const PeopleRecipe: Recipe = {
     ]
 };
 
-export const PeopleCRDTDataRecipe: Recipe = generateCrdtRecipe(PeopleRecipe, 'PeopleCRDTMetaData');
+export const LeuteCRDTDataRecipe: Recipe = generateCrdtRecipe(LeuteRecipe, 'LeuteCRDTMetaData');
 
 // #### one.core interfaces ####
 
 declare module '@OneCoreTypes' {
     export interface OneCrdtObjectInterfaces {
-        People: People;
+        Leute: Leute;
     }
 
     export interface OneCrdtIdObjectInterfaces {
-        People: Pick<People, '$type$' | 'appId'>;
+        Leute: Pick<Leute, '$type$' | 'appId'>;
     }
 
     export interface OneCrdtMetaObjectInterfaces {
-        PeopleCRDTMetaData: PeopleCRDTMetaData;
+        LeuteCRDTMetaData: LeuteCRDTMetaData;
     }
 
     export interface OneCrdtToMetaObjectInterfaces {
-        People: PeopleCRDTMetaData;
+        Leute: LeuteCRDTMetaData;
     }
 
     export interface PlanResultTypes {
-        '@module/profileManagerWritePeople': {
+        '@module/profileManagerWriteLeute': {
             args: any;
-            result: VersionedObjectResult<People>;
+            result: VersionedObjectResult<Leute>;
         };
     }
 }
+
+export default [LeuteRecipe, LeuteCRDTDataRecipe];

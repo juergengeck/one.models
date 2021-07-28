@@ -1,15 +1,11 @@
 import {SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {Profile} from '../recipes/PeopleRecipes/Profile';
-import {People} from '../recipes/PeopleRecipes/People';
-import {
-    createSingleObjectThroughPurePlan,
-    getObject,
-    VersionedObjectResult
-} from 'one.core/lib/storage';
+import {Profile} from '../recipes/LeuteRecipes/Profile';
+import {createSingleObjectThroughPurePlan, VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import SomeoneModel, {createSomeone, loadSomeone} from './PeopleModel/SomeoneModel';
-import {Someone} from '../recipes/PeopleRecipes/Someone';
+import SomeoneModel, {createSomeone, loadSomeone} from './LeuteModel/SomeoneModel';
+import {Someone} from '../recipes/LeuteRecipes/Someone';
+import {Leute} from '../recipes/LeuteRecipes/Leute';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -52,22 +48,28 @@ type Writeable<T> = {-readonly [K in keyof T]: T[K]};
  *    - share profiles with others / get sharing state
  *    - obtain profiles
  *
- * TODO: add convenience functions for locating all one endpoints, locating keys ...
+ * TODO: Add convenience functions for locating all one endpoints, locating keys ...
+ * TODO: Add events
  */
-export default class PeopleModel {
-    public readonly hash: SHA256Hash<People>;
-    public readonly idHash: SHA256IdHash<People>;
-
+export default class LeuteModel {
+    private hash: SHA256Hash<Leute>;
+    private idHash: SHA256IdHash<Leute>;
     private meInternal: SHA256IdHash<Someone>;
     private othersInternal: Set<SHA256IdHash<Someone>>;
 
-    constructor(hash: SHA256Hash<People>, idHash: SHA256IdHash<People>, people: People) {
+    constructor(hash: SHA256Hash<Leute>, idHash: SHA256IdHash<Leute>, people: Leute) {
         this.hash = hash;
         this.idHash = idHash;
 
         this.meInternal = people.me;
         this.othersInternal = new Set(people.other);
     }
+
+    async init(me: SHA256IdHash<Someone>): Promise<void> {
+        this.copyFrom(await createPeople(me));
+    }
+
+    async shutdown(): Promise<void> {}
 
     // ######## Me management ########
 
@@ -174,36 +176,25 @@ export default class PeopleModel {
      *
      * @param peopleModel
      */
-    private copyFrom(peopleModel: PeopleModel): void {
-        (this as Writeable<PeopleModel>).hash = peopleModel.hash;
-        (this as Writeable<PeopleModel>).idHash = peopleModel.idHash;
+    private copyFrom(peopleModel: LeuteModel): void {
+        (this as Writeable<LeuteModel>).hash = peopleModel.hash;
+        (this as Writeable<LeuteModel>).idHash = peopleModel.idHash;
 
         this.meInternal = peopleModel.meInternal;
         this.othersInternal = peopleModel.othersInternal;
     }
 }
 
+// ######## private functions ########
+
 /**
  * Load the latest version of a profile.
- *
- * @param idHash - The id-hash identifying the profile to load.
  */
-export async function loadPeople(idHash: SHA256IdHash<People>): Promise<PeopleModel> {
-    const result: VersionedObjectResult<People> = await getObjectByIdHash(idHash);
+async function loadPeople(): Promise<LeuteModel> {
+    const idHash = await calculateIdHashOfObj({$type$: 'People', appId: 'People'});
+    const result: VersionedObjectResult<Leute> = await getObjectByIdHash(idHash);
 
-    return new PeopleModel(result.hash, result.idHash, result.obj);
-}
-
-/**
- * Load a specific profile version.
- *
- * @param version
- */
-export async function loadPeopleVersion(version: SHA256Hash<People>): Promise<PeopleModel> {
-    const result: People = await getObject(version);
-    const idHash: SHA256IdHash<People> = await calculateIdHashOfObj(result);
-
-    return new PeopleModel(version, idHash, result);
+    return new LeuteModel(result.hash, result.idHash, result.obj);
 }
 
 /**
@@ -212,11 +203,9 @@ export async function loadPeopleVersion(version: SHA256Hash<People>): Promise<Pe
  * @returns The latest version of the profile or an empty profile.
  * @param me
  */
-export async function createPeople(me: SHA256IdHash<Someone>): Promise<PeopleModel> {
+async function createPeople(me: SHA256IdHash<Someone>): Promise<LeuteModel> {
     return savePeople(me, new Set());
 }
-
-// ######## private functions ########
 
 /**
  * Save a profile with the specified data.
@@ -229,16 +218,16 @@ export async function createPeople(me: SHA256IdHash<Someone>): Promise<PeopleMod
 async function savePeople(
     me: SHA256IdHash<Someone>,
     others: Set<SHA256IdHash<Someone>>,
-    basePeopleVersion?: SHA256Hash<People>
-): Promise<PeopleModel> {
+    basePeopleVersion?: SHA256Hash<Leute>
+): Promise<LeuteModel> {
     // Create the new version of the people object
     const result = await createSingleObjectThroughPurePlan(
-        {module: '@module/profileManagerWritePeople'},
+        {module: '@module/profileManagerWriteLeute'},
         me,
         others,
         basePeopleVersion
     );
 
     // The written object might differ, so return the updated data
-    return new PeopleModel(result.hash, result.idHash, result.obj);
+    return new LeuteModel(result.hash, result.idHash, result.obj);
 }
