@@ -21,13 +21,12 @@ module.exports = {
                     }
                 ],
                 exclude: /node_modules/
-            },
-            {test: /\.json/, loader: 'json-loader', exclude: /node_modules/}
+            }
         ]
     },
 
     resolve: {
-        extensions: ['.tsx', '.ts', '.js', '.json']
+        extensions: ['.ts', '.js']
     },
     target: 'node',
     node: {
