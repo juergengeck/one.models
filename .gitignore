@@ -24,6 +24,7 @@ lib/
 OneDB
 dist/
 ./test/testDb
+comm_server.*
 #########
 # Node.js
 #########
