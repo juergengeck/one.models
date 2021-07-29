@@ -1,19 +1,31 @@
-const path =  require('path');
+const path = require('path');
 
 module.exports = {
-    entry: ["./src/cli/CommunicationServer.ts"],
+    entry: ['./src/cli/CommunicationServer.ts'],
     output: {
         filename: 'commServer.bundle.js',
-        path: path.resolve(__dirname,"dist")
+        path: path.resolve(__dirname, 'dist')
     },
     module: {
         rules: [
-            { test: /\.tsx?$/, loader: 'ts-loader',exclude: /node_modules/,},
-            { test: /\.json/, loader: "json-loader", exclude:/node_modules/,}
+            {
+                test: /\.tsx?$/,
+                use: [
+                    {
+                        loader: 'ts-loader',
+                        options: {
+                            configFile: 'tsconfig.commServer.json'
+                        }
+                    }
+                ],
+                exclude: /node_modules/
+            },
+            {test: /\.json/, loader: 'json-loader', exclude: /node_modules/}
         ]
     },
+
     resolve: {
-        extensions: [".tsx", ".ts", ".js",".json"]
+        extensions: ['.tsx', '.ts', '.js', '.json']
     },
     target: 'node',
     node: {
