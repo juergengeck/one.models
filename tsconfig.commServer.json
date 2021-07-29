@@ -5,12 +5,8 @@
         "noImplicitAny": true,
         "module": "CommonJS",
         "target": "esnext",
-        "allowJs": true,
         "esModuleInterop": true,
-        "moduleResolution": "node",
-        "noEmit": false,
-        "tsBuildInfoFile": "../tsconfig.test.tsbuildinfo",
-        "composite": true
+        "moduleResolution": "node"
     },
     "include": [
         "src/misc/CommunicationServer.ts",
