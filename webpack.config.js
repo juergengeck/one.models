@@ -1,6 +1,7 @@
 const path = require('path');
 
 module.exports = {
+    mode: 'development',
     entry: ['./src/cli/CommunicationServer.ts'],
     output: {
         filename: 'commServer.bundle.js',
