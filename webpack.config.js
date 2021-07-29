@@ -16,7 +16,7 @@ module.exports = {
                     {
                         loader: 'ts-loader',
                         options: {
-                            configFile: 'tsconfig.commServer.json'
+                            configFile: 'tsconfig.comm_server.json'
                         }
                     }
                 ],
