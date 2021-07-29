@@ -1,11 +1,11 @@
 const path = require('path');
 
 module.exports = {
-    mode: 'development',
+    mode: 'production',
     entry: ['./src/cli/CommunicationServer.ts'],
     output: {
-        filename: 'commServer.bundle.js',
-        path: path.resolve(__dirname, 'dist')
+        filename: 'comm_server.bundle.js',
+        path: path.resolve(__dirname)
     },
     devtool: 'inline-source-map',
     module: {
