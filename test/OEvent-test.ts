@@ -384,6 +384,88 @@ describe('OEvent test', () => {
         disconnect3();
     }).timeout(1000);
 
+    it('check onConnectListeners and onDisconnectListeners are triggered', async () => {
+        const onEvent = new OEvent<() => void>(EventTypes.Default, true);
+
+        let onConnectCalled1 = 0;
+        let onConnectCalled2 = 0;
+        let onDisconnectCalled = 0;
+
+        const disconnectOnConnect1 = onEvent.onConnectListener(() => {
+            return new Promise<void>(resolve => {
+                onConnectCalled1++;
+            });
+        });
+
+        const disconnectOnConnect2 = onEvent.onConnectListener(() => {
+            return new Promise<void>(resolve => {
+                onConnectCalled2++;
+            });
+        });
+
+        const disconnectOnDisconnect = onEvent.onDisconnectListener(() => {
+            return new Promise<void>(resolve => {
+                onDisconnectCalled++;
+            });
+        });
+
+        expect(onConnectCalled1).to.be.equal(0);
+        expect(onConnectCalled2).to.be.equal(0);
+        expect(onDisconnectCalled).to.be.equal(0);
+
+        const disconnect1 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onConnectCalled1).to.be.equal(1);
+        expect(onConnectCalled2).to.be.equal(1);
+        expect(onDisconnectCalled).to.be.equal(0);
+
+        const disconnect2 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onConnectCalled1).to.be.equal(2);
+        expect(onConnectCalled2).to.be.equal(2);
+        expect(onDisconnectCalled).to.be.equal(0);
+
+        const disconnect3 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 3 * 100);
+            });
+        });
+        expect(onConnectCalled1).to.be.equal(3);
+        expect(onConnectCalled2).to.be.equal(3);
+        expect(onDisconnectCalled).to.be.equal(0);
+
+        disconnect1();
+        expect(onConnectCalled1).to.be.equal(3);
+        expect(onConnectCalled2).to.be.equal(3);
+        expect(onDisconnectCalled).to.be.equal(1);
+
+        disconnect2();
+        expect(onConnectCalled1).to.be.equal(3);
+        expect(onConnectCalled2).to.be.equal(3);
+        expect(onDisconnectCalled).to.be.equal(2);
+
+        disconnect3();
+        expect(onConnectCalled1).to.be.equal(3);
+        expect(onConnectCalled2).to.be.equal(3);
+        expect(onDisconnectCalled).to.be.equal(3);
+
+        disconnectOnConnect1();
+        disconnectOnConnect2();
+        disconnectOnDisconnect();
+    }).timeout(1000);
+
     after(async () => {
         await wait(1000);
         await testModel.shutdown();
