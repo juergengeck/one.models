@@ -35,10 +35,10 @@ export enum EventTypes {
  * handler will still be called (it already started because of being executed in parallel) - If one is connected in another event
  * handler it will not be called.
  *
- * onConnectListeners and onDisconnectListeners:
+ * onListenListeners and onStopListenListeners:
  * ---------------------------------------------
- * The onConnectListeners and the onDisconnectListeners are invoked when a new listener is
- * connected or disconnected from the event.
+ * The onListenListeners and the onStopListenListeners are invoked when a new listener is
+ * registered or deregistered from the event.
  *
  *
  * Usage:
@@ -66,13 +66,13 @@ export enum EventTypes {
  *
  *  const coffeeMachine = new CoffeeMachine();
  *
- *  // Register onConnect listener
- *  const disconnectOnConnectListener = coffeeMachine.onPowerChange.onConnectListener( () => {
+ *  // Register onListenListener
+ *  const disconnectOnListen = coffeeMachine.onPowerChange.onListen( () => {
  *      console.log('Somebody started listening for the powerChange events.')
  *  })
  *
- *  // Register onDisconnect listener
- *  const disconnectOnDisconnectListener = coffeeMachine.onPowerChange.onDisconnectListener( () => {
+ *  // Register onStopListenListener
+ *  const disconnectOnStopListen = coffeeMachine.onPowerChange.onStopListen( () => {
  *      console.log('Somebody stopped listening for the powerChange events.')
  *  })
  *
@@ -106,8 +106,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     private listeners = new Set<
         (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     >();
-    private onConnectListeners = new Set<() => Promise<void>>();
-    private onDisconnectListeners = new Set<() => Promise<void>>();
+    private onListenListeners = new Set<() => Promise<void>>();
+    private onStopListenListeners = new Set<() => Promise<void>>();
     private readonly type: EventTypes;
     private readonly executeSequentially: boolean;
 
@@ -145,14 +145,14 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
             throw new Error('There already is a listener for this event.');
         }
 
-        Promise.all(this.executeAndPromisifyVoidListeners(this.onConnectListeners));
+        Promise.all(this.executeAndPromisifyVoidListeners(this.onListenListeners));
 
         this.listeners.add(listener);
 
         return () => {
             const found = this.listeners.delete(listener);
 
-            Promise.all(this.executeAndPromisifyVoidListeners(this.onDisconnectListeners));
+            Promise.all(this.executeAndPromisifyVoidListeners(this.onStopListenListeners));
 
             if (!found) {
                 console.error('callback was not registered');
@@ -251,13 +251,13 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
 
     /**
      * Register a listener to be triggered when a new listenered is registered for this event.
-     * @param {() => Promise<void>} onConnectListenerHandler
+     * @param {() => Promise<void>} onListenListenerHandler
      * @returns {() => void}
      */
-    public onConnectListener(onConnectListenerHandler: () => Promise<void>): () => void {
-        this.onConnectListeners.add(onConnectListenerHandler);
+    public onListen(onListenListenerHandler: () => Promise<void>): () => void {
+        this.onListenListeners.add(onListenListenerHandler);
         return () => {
-            const found = this.onConnectListeners.delete(onConnectListenerHandler);
+            const found = this.onListenListeners.delete(onListenListenerHandler);
 
             if (!found) {
                 console.error('callback was not registered');
@@ -267,13 +267,13 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
 
     /**
      * Register a listener to be triggered when a listener is unregistered from this event.
-     * @param {() => Promise<void>} onConnectListenerHandler
+     * @param {() => Promise<void>} onStopListenListenerHandler
      * @returns {() => void}
      */
-    public onDisconnectListener(onDisconnectListenerHandler: () => Promise<void>): () => void {
-        this.onDisconnectListeners.add(onDisconnectListenerHandler);
+    public onStopListen(onStopListenListenerHandler: () => Promise<void>): () => void {
+        this.onStopListenListeners.add(onStopListenListenerHandler);
         return () => {
-            const found = this.onDisconnectListeners.delete(onDisconnectListenerHandler);
+            const found = this.onStopListenListeners.delete(onStopListenListenerHandler);
 
             if (!found) {
                 console.error('callback was not registered');
