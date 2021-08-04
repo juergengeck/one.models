@@ -384,34 +384,34 @@ describe('OEvent test', () => {
         disconnect3();
     }).timeout(1000);
 
-    it('check onConnectListeners and onDisconnectListeners are triggered', async () => {
+    it('check onListen and onStopListen listeners are triggered', async () => {
         const onEvent = new OEvent<() => void>(EventTypes.Default, true);
 
-        let onConnectCalled1 = 0;
-        let onConnectCalled2 = 0;
-        let onDisconnectCalled = 0;
+        let onListenListenerCalled1 = 0;
+        let onListenListenerCalled2 = 0;
+        let onStopListenListenerCalled = 0;
 
-        const disconnectOnConnect1 = onEvent.onConnectListener(() => {
+        const disconnectOnListenListener1 = onEvent.onListen(() => {
             return new Promise<void>(resolve => {
-                onConnectCalled1++;
+                onListenListenerCalled1++;
             });
         });
 
-        const disconnectOnConnect2 = onEvent.onConnectListener(() => {
+        const disconnectOnListenListener2 = onEvent.onListen(() => {
             return new Promise<void>(resolve => {
-                onConnectCalled2++;
+                onListenListenerCalled2++;
             });
         });
 
-        const disconnectOnDisconnect = onEvent.onDisconnectListener(() => {
+        const disconnectOnStopListenListener = onEvent.onStopListen(() => {
             return new Promise<void>(resolve => {
-                onDisconnectCalled++;
+                onStopListenListenerCalled++;
             });
         });
 
-        expect(onConnectCalled1).to.be.equal(0);
-        expect(onConnectCalled2).to.be.equal(0);
-        expect(onDisconnectCalled).to.be.equal(0);
+        expect(onListenListenerCalled1).to.be.equal(0);
+        expect(onListenListenerCalled2).to.be.equal(0);
+        expect(onStopListenListenerCalled).to.be.equal(0);
 
         const disconnect1 = onEvent(() => {
             return new Promise<void>(resolve => {
@@ -420,9 +420,9 @@ describe('OEvent test', () => {
                 }, 2 * 100);
             });
         });
-        expect(onConnectCalled1).to.be.equal(1);
-        expect(onConnectCalled2).to.be.equal(1);
-        expect(onDisconnectCalled).to.be.equal(0);
+        expect(onListenListenerCalled1).to.be.equal(1);
+        expect(onListenListenerCalled2).to.be.equal(1);
+        expect(onStopListenListenerCalled).to.be.equal(0);
 
         const disconnect2 = onEvent(() => {
             return new Promise<void>(resolve => {
@@ -431,9 +431,9 @@ describe('OEvent test', () => {
                 }, 2 * 100);
             });
         });
-        expect(onConnectCalled1).to.be.equal(2);
-        expect(onConnectCalled2).to.be.equal(2);
-        expect(onDisconnectCalled).to.be.equal(0);
+        expect(onListenListenerCalled1).to.be.equal(2);
+        expect(onListenListenerCalled2).to.be.equal(2);
+        expect(onStopListenListenerCalled).to.be.equal(0);
 
         const disconnect3 = onEvent(() => {
             return new Promise<void>(resolve => {
@@ -442,28 +442,28 @@ describe('OEvent test', () => {
                 }, 3 * 100);
             });
         });
-        expect(onConnectCalled1).to.be.equal(3);
-        expect(onConnectCalled2).to.be.equal(3);
-        expect(onDisconnectCalled).to.be.equal(0);
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(0);
 
         disconnect1();
-        expect(onConnectCalled1).to.be.equal(3);
-        expect(onConnectCalled2).to.be.equal(3);
-        expect(onDisconnectCalled).to.be.equal(1);
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(1);
 
         disconnect2();
-        expect(onConnectCalled1).to.be.equal(3);
-        expect(onConnectCalled2).to.be.equal(3);
-        expect(onDisconnectCalled).to.be.equal(2);
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(2);
 
         disconnect3();
-        expect(onConnectCalled1).to.be.equal(3);
-        expect(onConnectCalled2).to.be.equal(3);
-        expect(onDisconnectCalled).to.be.equal(3);
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(3);
 
-        disconnectOnConnect1();
-        disconnectOnConnect2();
-        disconnectOnDisconnect();
+        disconnectOnListenListener1();
+        disconnectOnListenListener2();
+        disconnectOnStopListenListener();
     }).timeout(1000);
 
     after(async () => {
