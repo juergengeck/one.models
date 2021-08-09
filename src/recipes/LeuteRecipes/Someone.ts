@@ -1,7 +1,8 @@
-import {CRDTMetaData, Person, Recipe, SHA256IdHash} from '@OneCoreTypes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
+import {CRDTMetaData, ORDERED_BY, Person, Recipe} from 'one.core/lib/recipes';
 import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
-import {Profile} from './Profile';
+import type {Profile} from './Profile';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // #### Typescript interfaces ####
 
@@ -58,7 +59,7 @@ export const SomeoneCRDTDataRecipe: Recipe = generateCrdtRecipe(
 
 // #### one.core interfaces ####
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneCrdtObjectInterfaces {
         Someone: Someone;
     }

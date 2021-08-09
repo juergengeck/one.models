@@ -1,4 +1,6 @@
-import {BLOB, OneObjectTypeNames, Recipe, SHA256Hash} from '@OneCoreTypes';
+import type {BLOB, OneObjectTypeNames, Recipe} from 'one.core/lib/recipes';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
 /**
  * This represents a description of a communication partner
@@ -7,7 +9,6 @@ import {BLOB, OneObjectTypeNames, Recipe, SHA256Hash} from '@OneCoreTypes';
  * - profile image
  * - status
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type ContactDescriptionTypes = PersonName | ProfileImage | PersonStatus;
 export const ContactDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
     'PersonName',
@@ -68,7 +69,7 @@ export const ProfileImageRecipe: Recipe = {
 
 // #### one.core interfaces ####
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         PersonName: PersonName;
         PersonStatus: PersonStatus;

@@ -1,11 +1,12 @@
-import {CRDTMetaData, Person, Recipe, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
+import {CRDTMetaData, ORDERED_BY, Person, Recipe} from 'one.core/lib/recipes';
 import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
 import {
     CommunicationEndpointTypeNameSet,
     CommunicationEndpointTypes
 } from './CommunicationEndpoints';
 import {ContactDescriptionTypeNameSet, ContactDescriptionTypes} from './PersonDescriptions';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // #### Typescript interfaces ####
 
@@ -63,7 +64,7 @@ export const ProfileCRDTDataRecipe: Recipe = generateCrdtRecipe(
 
 // #### one.core interfaces ####
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneCrdtObjectInterfaces {
         Profile: Profile;
     }

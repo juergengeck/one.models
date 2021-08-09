@@ -367,6 +367,8 @@ class InstancesModel extends EventEmitter {
      * then it will be generated with additional person keys. (It just forwards everything to
      * @one/instance-creator. This is only a workaround for now).
      *
+     * This also registers the instance in a list that stores whether an instance is local.
+     *
      * @param {string} email
      * @returns {Promise<void>}
      */

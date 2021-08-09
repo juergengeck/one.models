@@ -1,12 +1,5 @@
-import {
-    Instance,
-    Keys,
-    OneObjectTypeNames,
-    Person,
-    Recipe,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
+import type {Instance, Keys, OneObjectTypeNames, Person, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 // #### Typescript interfaces ####
 
@@ -17,7 +10,6 @@ import {
  * - telephone number
  * - one instance with keys
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
 export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>([
     'OneInstanceEndpoint',
@@ -82,7 +74,7 @@ export const EmailRecipe: Recipe = {
 
 // #### one.core interfaces ####
 
-declare module '@OneCoreTypes' {
+declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         OneInstanceEndpoint: OneInstanceEndpoint;
         Email: Email;
