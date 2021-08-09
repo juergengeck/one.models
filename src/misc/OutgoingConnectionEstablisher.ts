@@ -21,8 +21,15 @@ class OutgoingConnectionEstablisher {
         (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
     >();
 
-    private retryTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    private retryTimeoutHandle: {
+        // The type of `timer` is NodeJS.Timeout on node.js but since we tell Typescript to use
+        // lib.dom.d.ts it uses the type for the browser. It does not matter.
+        timer: null | number;
+        reject: null | ((reason?: any) => void);
+    } = {timer: null, reject: null};
+
     private stopped: boolean = true;
+
     /**
      * Used only when calling the connectOnceSuccessfully function.
      *
@@ -66,7 +73,6 @@ class OutgoingConnectionEstablisher {
 
             while (true) {
                 try {
-                    // Try to establish a connection
                     const conn = await OutgoingConnectionEstablisher.connectOnce(
                         url,
                         myPublicKey,
@@ -75,7 +81,6 @@ class OutgoingConnectionEstablisher {
                         decrypt
                     );
 
-                    // Notify the listener of a new connection
                     if (this.onConnection.listenerCount() > 0) {
                         this.onConnection.emit(conn, myPublicKey, targetPublicKey);
                         break;
@@ -85,15 +90,17 @@ class OutgoingConnectionEstablisher {
                         break;
                     }
                 } catch (e) {
+                    await new Promise((resolve, reject) => {
+                        this.retryTimeoutHandle.timer = setTimeout(resolve, retryTimeout);
+                        this.retryTimeoutHandle.reject = reject;
+                    });
+
+                    this.retryTimeoutHandle.timer = null;
+                    this.retryTimeoutHandle.reject = null;
+
                     if (this.stopped) {
                         break;
                     }
-
-                    // TODO: If the timeout is canceled, this promise will not resolve!!!
-                    await new Promise(resolve => {
-                        this.retryTimeoutHandle = setTimeout(resolve, retryTimeout);
-                    });
-                    this.retryTimeoutHandle = null;
                 }
             }
         };
@@ -112,11 +119,20 @@ class OutgoingConnectionEstablisher {
     public async stop() {
         MessageBus.send('log', `stop()`);
         this.stopped = true;
-        if (this.retryTimeoutHandle) {
-            clearTimeout(this.retryTimeoutHandle);
+
+        const reason = 'Stopped by the user.';
+
+        // This MUST NOT be a check "typeof timer === 'number'" - on node.js this is an object!
+        if (this.retryTimeoutHandle.timer !== null) {
+            clearTimeout(this.retryTimeoutHandle.timer);
         }
-        if (this.connectOnceSuccessfullyReject) {
-            this.connectOnceSuccessfullyReject(new Error('Stopper by the user.'));
+
+        if (this.retryTimeoutHandle.reject !== null) {
+            this.retryTimeoutHandle.reject(new Error(reason));
+        }
+
+        if (this.connectOnceSuccessfullyReject !== null) {
+            this.connectOnceSuccessfullyReject(new Error(reason));
         }
     }
 
@@ -151,8 +167,9 @@ class OutgoingConnectionEstablisher {
                 // the stop function, because the connection is successful and no error should
                 // be thrown
                 this.connectOnceSuccessfullyReject = null;
-                this.stop();
-                resolve(conn);
+                this.stop()
+                    .then(() => resolve(conn))
+                    .catch(e => reject(e));
             });
 
             // On timeout reject the promise

@@ -1,0 +1,80 @@
+name: Create package and upload to S3
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    package-development:
+        runs-on: ubuntu-20.04
+
+        # select all the node versions you want to test
+        strategy:
+            matrix:
+                node-version: [14.x]
+
+        steps:
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "::set-output name=dir::$(yarn cache dir)"
+
+            - name: Populate yarn cache
+              uses: actions/cache@v2
+              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Cache pkg cache
+              uses: actions/cache@v2
+              env:
+                  cache-name: cache-pkg-cache
+              with:
+                  path: ~/.pkg-cache
+                  key: ${{ runner.os }}-build-${{ env.cache-name }}
+
+            # Setup env
+            - uses: actions/checkout@v2
+            - uses: webfactory/ssh-agent@v0.4.1
+              with:
+                  ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+            - uses: actions/setup-node@v1
+              with:
+                  node-version: ${{ matrix.node-version }}
+
+            - uses: aws-actions/configure-aws-credentials@v1
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: eu-central-1
+
+            # Prepare the source
+            - name: Run yarn install
+              run: yarn install || true
+
+            # Create the commserver bundle
+            - name: Run yarn bundle
+              run: yarn bundle
+              env:
+                  # We first need to fix all warnings before we can enable it
+                  CI: false
+
+            - name: Set filename
+              id: release_info
+              run: echo ::set-output name=filename::one.models.comm_server-${GITHUB_REF#refs/*/}.tar.gz
+
+            - name: Package zip
+              run: |
+                  cd ..
+                  tar -czvf ${{steps.release_info.outputs.filename}} one.models/comm_server.bundle.js
+                  mv ${{steps.release_info.outputs.filename}} one.models/
+            - name: Upload to s3
+              run: >
+                  aws s3 cp ${{steps.release_info.outputs.filename}} s3://refinio-artefacts --metadata
+                  '{
+                  "github-repository":"${{ github.repository }}",
+                  "github-ref":"${{ github.ref }}",
+                  "github-sha":"${{ github.sha }}"
+                  }'

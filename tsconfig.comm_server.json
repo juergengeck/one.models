@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "module": "CommonJS",
+        "target": "esnext",
+        "esModuleInterop": true,
+        "moduleResolution": "node"
+    },
+    "include": [
+        "src/misc/CommunicationServer.ts",
+        "src/misc/CommunicationServerConnection_Server.ts",
+        "src/misc/CommunicationServerProtocol.ts",
+        "src/misc/CommunicationInitiationProtocol.ts",
+        "src/misc/LogUtils.ts",
+        "src/misc/WebSocketListener.ts",
+        "src/misc/OEvent.ts",
+        "src/misc/Functor.ts",
+        "src/misc/WebSocketPromiseBased.ts"
+    ],
+    "exclude": ["node_modules"]
+}
