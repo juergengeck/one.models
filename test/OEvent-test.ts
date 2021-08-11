@@ -384,6 +384,88 @@ describe('OEvent test', () => {
         disconnect3();
     }).timeout(1000);
 
+    it('check onListen and onStopListen listeners are triggered', async () => {
+        const onEvent = new OEvent<() => void>(EventTypes.Default, true);
+
+        let onListenListenerCalled1 = 0;
+        let onListenListenerCalled2 = 0;
+        let onStopListenListenerCalled = 0;
+
+        const disconnectOnListenListener1 = onEvent.onListen(() => {
+            return new Promise<void>(resolve => {
+                onListenListenerCalled1++;
+            });
+        });
+
+        const disconnectOnListenListener2 = onEvent.onListen(() => {
+            return new Promise<void>(resolve => {
+                onListenListenerCalled2++;
+            });
+        });
+
+        const disconnectOnStopListenListener = onEvent.onStopListen(() => {
+            return new Promise<void>(resolve => {
+                onStopListenListenerCalled++;
+            });
+        });
+
+        expect(onListenListenerCalled1).to.be.equal(0);
+        expect(onListenListenerCalled2).to.be.equal(0);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect1 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(1);
+        expect(onListenListenerCalled2).to.be.equal(1);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect2 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(2);
+        expect(onListenListenerCalled2).to.be.equal(2);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect3 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 3 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        disconnect1();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(1);
+
+        disconnect2();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(2);
+
+        disconnect3();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(3);
+
+        disconnectOnListenListener1();
+        disconnectOnListenListener2();
+        disconnectOnStopListenListener();
+    }).timeout(1000);
+
     after(async () => {
         await wait(1000);
         await testModel.shutdown();
