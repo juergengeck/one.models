@@ -35,12 +35,6 @@ export enum EventTypes {
  * handler will still be called (it already started because of being executed in parallel) - If one is connected in another event
  * handler it will not be called.
  *
- * onListenListeners and onStopListenListeners:
- * ---------------------------------------------
- * The onListenListeners and the onStopListenListeners are invoked when a new listener is
- * registered or deregistered from the event.
- *
- *
  * Usage:
  * ------
  *
@@ -250,7 +244,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     }
 
     /**
-     * Register a listener to be triggered when a new listenered is registered for this event.
+     * Register a listener to be triggered when a new listener is registered for this event.
+     *
      * @param {() => Promise<void>} onListenListenerHandler
      * @returns {() => void}
      */
@@ -267,6 +262,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
 
     /**
      * Register a listener to be triggered when a listener is unregistered from this event.
+     *
      * @param {() => Promise<void>} onStopListenListenerHandler
      * @returns {() => void}
      */
