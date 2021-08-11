@@ -33,11 +33,11 @@ export const LeuteRecipe: Recipe = {
         },
         {
             itemprop: 'me',
-            referenceToObj: new Set(['Someone'])
+            referenceToId: new Set(['Someone'])
         },
         {
             itemprop: 'other',
-            referenceToObj: new Set(['Someone']),
+            referenceToId: new Set(['Someone']),
             list: ORDERED_BY.ONE
         }
     ]

@@ -27,8 +27,8 @@ describe('LeuteModel test', () => {
         const leuteModel = new LeuteModel(instancesModel, 'localhost');
         await instancesModel.init('abc');
         await leuteModel.init();
-        console.log(await leuteModel.me());
-        console.log(await leuteModel.others());
+        //console.log(await leuteModel.me());
+        //console.log(await leuteModel.others());
         leuteModel.shutdown();
     });
 
