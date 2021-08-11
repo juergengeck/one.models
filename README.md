@@ -12,8 +12,8 @@
     -   github.com/refinio/one.core
 
 ```bash
-git clone https://github.com/refinio/one.smiler.models
-cd one.smiler.models
+git clone https://github.com/refinio/one.models
+cd one.models
 yarn install
 ```
 
@@ -27,93 +27,6 @@ Main models used in one built in one package
 -   Test files into **/test** folder.
 -   They will both be process by **build.js** and the .ts files will be transpiled into the **/lib** folder
 -   ONE plan modules into **/src/plan_modules** they are compiled with **/build_plan_modules.js**
-
-```
- src
- │   i18n.ts
- │
- ├───generated
- │       oneModules.ts
- │
- ├───models
- │   │   BodyTemperatureModel.ts
- │   │   ChannelManager.ts
- │   │   ConnectionsModel.ts
- │   │   ConsentFileModel.ts
- │   │   LeuteModel.ts
- │   │   DiaryModel.ts
- │   │   DocumentModel.ts
- │   │   HeartEventModel.ts
- │   │   index.ts
- │   │   JournalModel.ts
- │   │   NewsModel.ts
- │   │   OneInstanceModel.ts
- │   │   QuestionnaireModel.ts
- │   │   SettingsModel.ts
- │   │   WbcDiffModel.ts
- │   │
- │   └───utils
- │           QuestionnaireAEK.ts
- │           QuestionnaireAES.ts
- │           QuestionnaireEQ5D3L.ts
- │           QuestionnaireFKP.ts
- │           QuestionnaireFKV.ts
- │           QuestionnaireFSM.ts
- │           QuestionnaireFSV.ts
- │           QuestionnaireGKM.ts
- │           QuestionnaireGKV.ts
- │           QuestionnaireIKP.ts
- │           QuestionnaireIKV.ts
- │           QuestionTypes.ts
- │
- └───recipes
-         DocumentRecipes/DocumentRecipes_1_0_0.ts
-         DocumentRecipes/DocumentRecipes_1_1_0.ts
-         QuestionnaireRecipes/QuestionnaireRecipes.ts
-         QuestionnaireRecipes/QuestionnaireRecipes_1_0_0.ts
-         QuestionnaireRecipes/QuestionnaireRecipes_1_1_0.ts
-         QuestionnaireRecipes/QuestionnaireResponseRecipes.ts
-         BlobRecipes.ts
-         BodyTemperatureRecipe.ts
-         ChannelRecipes.ts
-         ConsentFileRecipes.ts
-         ContactRecipes.ts
-         DiaryRecipes.ts
-         ECGRecipes.ts
-         InstancesRecipies.ts
-         MatchingRecipes.ts
-         MetaRecipes.ts
-         NewsRecipes.ts
-         recipes-experimental.ts
-         recipes-stable.ts
-         RecipeUtils.ts
-         SettingsRecipe.ts
-         WbcDiffRecipes.ts
-```
-
-## Test coverage
-
-```
--------------------------|---------|----------|---------|---------|-------------------------------------
-File                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
--------------------------|---------|----------|---------|---------|-------------------------------------
-All files                |   40.69 |    30.77 |   37.55 |   42.13 |
- BodyTemperatureModel.js |      36 |        0 |   16.67 |      36 | 15-19,33-59
- ChannelManager.js       |   95.02 |    90.38 |   88.89 |   96.65 | 65,235,281-290
- ConnectionsModel.js     |    7.17 |        0 |    3.13 |    7.84 | 24-26,38-433
- ConsentFileModel.js     |   19.72 |       10 |    12.5 |   25.93 | 16-18,29-37,51-133
- LeuteModel.js         |   81.99 |    71.05 |   75.47 |   81.76 | 69-76,84,87,109,220,227,279-313,346
- DiaryModel.js           |      22 |        0 |    7.69 |   33.33 | 18-30,41-81
- DocumentModel.js        |   63.64 |      100 |      20 |   63.64 | 19-29
- HeartEventModel.js      |   66.67 |      100 |      40 |   66.67 | 26-33
- JournalModel.js         |   31.52 |     7.14 |      20 |   31.87 | 36,39,42,45,48,51,54-175
- NewsModel.js            |   15.52 |        0 |    8.33 |   15.79 | 22-134
- OneInstanceModel.js     |   24.34 |    11.76 |   11.76 |   25.17 | 50-54,79-288,302-309
- QuestionnaireModel.js   |   25.58 |        0 |    6.25 |   31.88 | 38-40,47-76,89-166
- SettingsModel.js        |   33.85 |     7.69 |   22.22 |   33.85 | 38-69,78-85,97,107-163
- WbcDiffModel.js         |   12.07 |        0 |      25 |   12.07 | 19-119
--------------------------|---------|----------|---------|---------|-------------------------------------
-```
 
 ## Style
 
