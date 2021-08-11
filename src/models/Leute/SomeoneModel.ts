@@ -1,5 +1,5 @@
 import ProfileModel, {createProfile, loadProfile} from './ProfileModel';
-import type {Profile} from '../../recipes/LeuteRecipes/Profile';
+import type {Profile} from '../../recipes/Leute/Profile';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -7,7 +7,7 @@ import {
 } from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import type {Someone} from '../../recipes/LeuteRecipes/Someone';
+import type {Someone} from '../../recipes/Leute/Someone';
 import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';

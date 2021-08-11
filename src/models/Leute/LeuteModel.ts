@@ -1,20 +1,20 @@
-import type {Profile} from '../recipes/LeuteRecipes/Profile';
+import type {Profile} from '../../recipes/Leute/Profile';
 import {createSingleObjectThroughPurePlan, VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import SomeoneModel, {createSomeone, loadSomeone} from './LeuteModel/SomeoneModel';
-import type {Someone} from '../recipes/LeuteRecipes/Someone';
-import type {Leute} from '../recipes/LeuteRecipes/Leute';
+import SomeoneModel, {createSomeone, loadSomeone} from './SomeoneModel';
+import type {Someone} from '../../recipes/Leute/Someone';
+import type {Leute} from '../../recipes/Leute/Leute';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import {createProfile} from './LeuteModel/ProfileModel';
+import {createProfile} from './ProfileModel';
 import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import type InstancesModel from './InstancesModel';
+import type InstancesModel from '../InstancesModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import type {Person, Plan} from 'one.core/lib/recipes';
 import type {
     CommunicationEndpointTypes,
     OneInstanceEndpoint
-} from '../recipes/LeuteRecipes/CommunicationEndpoints';
+} from '../../recipes/Leute/CommunicationEndpoints';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 

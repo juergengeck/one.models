@@ -1,6 +1,6 @@
-import type {Profile} from '../../recipes/LeuteRecipes/Profile';
-import type {CommunicationEndpointTypes} from '../../recipes/LeuteRecipes/CommunicationEndpoints';
-import type {ContactDescriptionTypes} from '../../recipes/LeuteRecipes/PersonDescriptions';
+import type {Profile} from '../../recipes/Leute/Profile';
+import type {CommunicationEndpointTypes} from '../../recipes/Leute/CommunicationEndpoints';
+import type {ContactDescriptionTypes} from '../../recipes/Leute/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {getObjectWithType} from 'one.core/lib/storage-unversioned-objects';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';

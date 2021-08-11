@@ -15,7 +15,7 @@ import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
 import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
-import LeuteModel from './LeuteModel';
+import LeuteModel from './Leute/LeuteModel';
 
 /** for one line imports **/
 export {

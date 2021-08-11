@@ -43,7 +43,7 @@ import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-b
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Keys, Person} from 'one.core/lib/recipes';
-import type LeuteModel from './LeuteModel';
+import type LeuteModel from './Leute/LeuteModel';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
