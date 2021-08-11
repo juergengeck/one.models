@@ -31,11 +31,6 @@ interface PersonInformation {
     personPublicSignKey: string;
     personPrivateKey: string;
     personPrivateSignKey: string;
-    anonPersonPublicKey: string;
-    anonPersonPublicSignKey: string;
-    anonPersonPrivateKey: string;
-    anonPersonPrivateSignKey: string;
-    anonPersonEmail: string;
 }
 
 /**
@@ -133,13 +128,13 @@ export default class RecoveryModel {
      * @param {string} recoveryKey
      * @param {string} recoveryNonce
      * @param {string} encryptedPersonInformation
-     * @returns {Promise<{personEmail: string, anonPersonEmail: string}>}
+     * @returns {Promise<string>}
      */
     async decryptReceivedRecoveryInformation(
         recoveryKey: string,
         recoveryNonce: string,
         encryptedPersonInformation: string
-    ): Promise<{personEmail: string; anonPersonEmail: string}> {
+    ): Promise<string> {
         const objectToDecrypt = toByteArray(encryptedPersonInformation);
         const derivedKey = await scrypt(
             stringToUint8Array(recoveryKey),
@@ -153,10 +148,7 @@ export default class RecoveryModel {
             throw new Error('Received recovery information could not be decrypted.');
         }
 
-        return {
-            personEmail: this.decryptedObject.personEmail,
-            anonPersonEmail: this.decryptedObject.anonPersonEmail
-        };
+        return this.decryptedObject.personEmail;
     }
 
     /**
@@ -186,10 +178,6 @@ export default class RecoveryModel {
             $type$: 'Person',
             email: this.decryptedObject.personEmail
         });
-        const anonPersonId = await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: this.decryptedObject.anonPersonEmail
-        });
 
         // overwrite person keys with the old ones
         // for private keys we first need to encrypt them with the new password
@@ -203,15 +191,6 @@ export default class RecoveryModel {
             ),
             personPrivateSignKey: await this.encryptPersonPrivateKey(
                 this.decryptedObject.personPrivateSignKey
-            ),
-            anonPersonId,
-            anonPersonPublicKey: this.decryptedObject.anonPersonPublicKey,
-            anonPersonPublicSignKey: this.decryptedObject.anonPersonPublicSignKey,
-            anonPersonPrivateKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.anonPersonPrivateKey
-            ),
-            anonPersonPrivateSignKey: await this.encryptPersonPrivateKey(
-                this.decryptedObject.anonPersonPrivateSignKey
             )
         };
         await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
@@ -266,18 +245,6 @@ export default class RecoveryModel {
         // extract the main person email
         const person = await getObjectByIdHash(privatePersonInformation.personId);
         const personEmail = person.obj.email;
-        // extract anonymous person public keys
-        const anonPersonPublicKey = privatePersonInformation.anonPersonPublicKey;
-        const anonPersonPublicSignKey = privatePersonInformation.anonPersonPublicSignKey;
-        // decrypt anonymous person private keys
-        const anonPersonPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
-            privatePersonInformation.anonPersonId
-        );
-        const anonPersonPrivateKey = anonPersonPrivateKeys.privateKey;
-        const anonPersonPrivateSignKey = anonPersonPrivateKeys.privateSignKey;
-        // extract the anonymous person email
-        const anonPerson = await getObjectByIdHash(privatePersonInformation.anonPersonId);
-        const anonPersonEmail = anonPerson.obj.email;
 
         // create the person information object which will be encrypted and added in the url
         return {
@@ -285,12 +252,7 @@ export default class RecoveryModel {
             personPublicKey: personPublicKey,
             personPublicSignKey: personPublicSignKey,
             personPrivateKey: personPrivateKey,
-            personPrivateSignKey: personPrivateSignKey,
-            anonPersonPublicKey: anonPersonPublicKey,
-            anonPersonPublicSignKey: anonPersonPublicSignKey,
-            anonPersonPrivateKey: anonPersonPrivateKey,
-            anonPersonPrivateSignKey: anonPersonPrivateSignKey,
-            anonPersonEmail: anonPersonEmail
+            personPrivateSignKey: personPrivateSignKey
         };
     }
 

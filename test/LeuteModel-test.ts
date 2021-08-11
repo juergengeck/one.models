@@ -1,11 +1,9 @@
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import {dbKey, importModules, removeDir} from './utils/TestModel';
 import {closeInstance, registerRecipes} from 'one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import {expect} from 'chai';
 import * as StorageTestInit from 'one.core/test/_helpers';
-import {EventTypes, OEvent} from '../lib/misc/OEvent';
-import {InstancesModel, LeuteModel} from '../src/models';
+import {InstancesModel, LeuteModel} from '../lib/models';
 
 /**
  * Promise wrapped timeout.
@@ -26,7 +24,7 @@ describe('LeuteModel test', () => {
 
     it('should init module', async () => {
         const instancesModel = new InstancesModel();
-        const leuteModel = new LeuteModel(instancesModel);
+        const leuteModel = new LeuteModel(instancesModel, 'localhost');
         await instancesModel.init('abc');
         await leuteModel.init();
         console.log(await leuteModel.me());

@@ -1,7 +1,7 @@
-import {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {Leute} from '../src/recipes/LeuteRecipes/People';
-import {Someone} from '../src/recipes/LeuteRecipes/Someone';
+import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {Leute} from '../lib/recipes/LeuteRecipes/Leute';
+import type {Someone} from '../lib/recipes/LeuteRecipes/Someone';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 
 /**
  * Plan for writing a profile object.
@@ -23,8 +23,8 @@ export async function createObjects(
     // Write the new people version
     return await WriteStorage.storeVersionedObjectCRDT(
         {
-            $type$: 'People',
-            appId: 'People',
+            $type$: 'Leute',
+            appId: 'one.leute',
             me,
             other: [...others]
         },

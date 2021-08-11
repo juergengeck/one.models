@@ -95,11 +95,6 @@ declare module CommunicationInitiationProtocol {
         personPublicSignKey: string;
         personPrivateKey: string;
         personPrivateSignKey: string;
-        anonPersonId: SHA256IdHash<Person>;
-        anonPersonPublicKey: string;
-        anonPersonPublicSignKey: string;
-        anonPersonPrivateKey: string;
-        anonPersonPrivateSignKey: string;
     };
 
     /**

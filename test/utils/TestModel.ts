@@ -8,9 +8,8 @@ import {
     AccessModel,
     BodyTemperatureModel,
     ChannelManager,
-    ConnectionsModel,
     ConsentFileModel,
-    ContactModel,
+    LeuteModel,
     ECGModel,
     InstancesModel
 } from '../../lib/models';
@@ -21,8 +20,7 @@ import {
     VersionedObjectResult,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
-import type {Module, Person} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Module} from 'one.core/lib/recipes';
 
 export const dbKey = 'testDb';
 const path = require('path');
@@ -90,7 +88,7 @@ export default class TestModel {
     instancesModel: InstancesModel;
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;
-    contactModel: ContactModel;
+    leuteModel: LeuteModel;
     accessModel: AccessModel;
 
     constructor(commServerUrl: string, directoryPath: string) {
@@ -100,34 +98,9 @@ export default class TestModel {
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager(this.accessModel);
         this.consentFile = new ConsentFileModel(this.channelManager);
-        this.contactModel = new ContactModel(this.instancesModel, commServerUrl);
+        this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-    }
-
-    private async setupMyIds(
-        anonymousEmail?: string,
-        takeOver?: boolean
-    ): Promise<{
-        mainId: SHA256IdHash<Person>;
-        anonymousId: SHA256IdHash<Person>;
-    }> {
-        // Setup identities if necessary
-        let anonymousId;
-        const mainId = await this.contactModel.myMainIdentity();
-        const myIdentities = await this.contactModel.myIdentities();
-        if (myIdentities.length === 2) {
-            anonymousId = myIdentities[0] === mainId ? myIdentities[1] : myIdentities[0];
-        } else if (anonymousEmail) {
-            anonymousId = await this.contactModel.createNewIdentity(true, anonymousEmail, takeOver);
-        } else {
-            anonymousId = await this.contactModel.createNewIdentity(true);
-        }
-
-        return {
-            mainId,
-            anonymousId
-        };
     }
 
     async createInstance(directory: string) {
@@ -148,25 +121,10 @@ export default class TestModel {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
-        /**
-         * In instance take over and in recovery process the main person and
-         * the anonymous person keys will be overwritten, so the first generated
-         * keys can be ignored, because they will not be used after the overwrite
-         * process is completed.
-         *
-         * This is just a temporary workaround! (only a hack!)
-         */
-        const ownerWillBeOverwritten = takeOver || recoveryState;
-
-        // Initialize contact model. This is the base for identity handling and everything
-        await this.contactModel.init(ownerWillBeOverwritten);
+        await this.leuteModel.init();
         await this.accessModel.init();
         await this.instancesModel.init(this.secret);
-        // Setup the identities
-        const {mainId, anonymousId} = await this.setupMyIds(anonymousEmail, ownerWillBeOverwritten);
-
-        // Initialize the rest of the models
-        await this.channelManager.init(anonymousId);
+        await this.channelManager.init();
         await this.ecgModel.init();
         await this.bodyTemperature.init();
     }
@@ -190,7 +148,7 @@ export default class TestModel {
         }
 
         try {
-            await this.contactModel.shutdown();
+            await this.leuteModel.shutdown();
         } catch (e) {
             console.error(e);
         }

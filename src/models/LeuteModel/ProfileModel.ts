@@ -1,12 +1,13 @@
-import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
-import {Profile} from '../../recipes/LeuteRecipes/Profile';
-import {CommunicationEndpointTypes} from '../../recipes/LeuteRecipes/CommunicationEndpoints';
-import {ContactDescriptionTypes} from '../../recipes/LeuteRecipes/PersonDescriptions';
+import type {Profile} from '../../recipes/LeuteRecipes/Profile';
+import type {CommunicationEndpointTypes} from '../../recipes/LeuteRecipes/CommunicationEndpoints';
+import type {ContactDescriptionTypes} from '../../recipes/LeuteRecipes/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {getObjectWithType} from 'one.core/lib/storage-unversioned-objects';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {OEvent} from '../../misc/OEvent';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 

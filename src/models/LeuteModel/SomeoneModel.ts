@@ -1,6 +1,5 @@
-import {Person, SHA256Hash, SHA256IdHash} from '@OneCoreTypes';
 import ProfileModel, {createProfile, loadProfile} from './ProfileModel';
-import {Profile} from '../../recipes/LeuteRecipes/Profile';
+import type {Profile} from '../../recipes/LeuteRecipes/Profile';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
@@ -8,8 +7,10 @@ import {
 } from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {Someone} from '../../recipes/LeuteRecipes/Someone';
+import type {Someone} from '../../recipes/LeuteRecipes/Someone';
 import {OEvent} from '../../misc/OEvent';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Person} from 'one.core/lib/recipes';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -105,6 +106,15 @@ export default class SomeoneModel {
         return [...this.identitiesInternal.keys()];
     }
 
+    async mainIdentity(): Promise<SHA256IdHash<Person>> {
+        return (await this.mainProfile()).personId;
+    }
+
+    async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
+        const mainIdentity = await this.mainIdentity();
+        return this.identities().filter(id => id !== mainIdentity);
+    }
+
     // ######## Main profile management ########
 
     async mainProfile(): Promise<ProfileModel> {
@@ -118,6 +128,8 @@ export default class SomeoneModel {
      *
      * TODO: Lazy loading. This function loads all profiles with all endpoints. This is a lot of
      *       objects. This prevents a fast rendering of the ui. We could load the profiles without
+     *       the endpoints and the ui decides when to get them. Or we could do the whole thing
+     *       event driven.
      *
      * @param identity - Get the profiles only for this identity. If not specified, get all profiles
      *                   for all identities managed by this someone object.

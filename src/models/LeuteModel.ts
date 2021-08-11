@@ -11,6 +11,10 @@ import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import type InstancesModel from './InstancesModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import type {Person, Plan} from 'one.core/lib/recipes';
+import type {
+    CommunicationEndpointTypes,
+    OneInstanceEndpoint
+} from '../recipes/LeuteRecipes/CommunicationEndpoints';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -62,7 +66,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 export default class LeuteModel {
     instancesModel: InstancesModel;
 
-    constructor(instancesModel: InstancesModel) {
+    constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
     }
 
@@ -72,6 +76,9 @@ export default class LeuteModel {
         // generate a new person based on whether the leute object exists - or not.
         // Until we had a more thorough look at instance creation we will keep it that way.
         const personId = getInstanceOwnerIdHash();
+        if (personId === undefined) {
+            throw new Error('The instance has no owner.');
+        }
 
         // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
         // that creation is only done if the objects don't exist.
@@ -108,7 +115,7 @@ export default class LeuteModel {
         const others = new Set(leute.obj.other);
         others.delete(me);
 
-        saveLeute(me, others, leute.hash);
+        await saveLeute(me, others, leute.hash);
     }
 
     // ######## Other people management ########
@@ -135,7 +142,7 @@ export default class LeuteModel {
 
         const others = new Set(leute.obj.other);
         others.add(other);
-        saveLeute(leute.obj.me, others, leute.hash);
+        await saveLeute(leute.obj.me, others, leute.hash);
     }
 
     /**
@@ -147,7 +154,7 @@ export default class LeuteModel {
         const leute = await loadLeute();
         const others = new Set(leute.obj.other);
         others.delete(other);
-        saveLeute(leute.obj.me, others, leute.hash);
+        await saveLeute(leute.obj.me, others, leute.hash);
     }
 
     // ######## Identity management ########
@@ -173,12 +180,12 @@ export default class LeuteModel {
     async createSomeoneWithNewIdentity(): Promise<void> {
         const newPersonId = await LeuteModel.createIdentity();
         const newProfile = await createProfile(newPersonId, newPersonId, 'default');
-        const newSomeone = await createSomeone(await createRandomString(32), newProfile);
+        const newSomeone = await createSomeone(await createRandomString(32), newProfile.idHash);
 
         const leute = await loadLeute();
         const others = new Set(leute.obj.other);
         others.add(newSomeone.idHash);
-        saveLeute(leute.obj.me, others, leute.hash);
+        await saveLeute(leute.obj.me, others, leute.hash);
     }
 
     // ######## Misc stuff ########
@@ -195,11 +202,42 @@ export default class LeuteModel {
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
             const someoneNew = await createSomeone('', profile);
-            this.addOther(someoneNew.idHash);
+            await this.addOther(someoneNew.idHash);
         } else {
             await someone.addProfile(profile);
         }
     }
+
+    /**
+     * Get my own instance endpoints.
+     *
+     * @param mainOnly - If true, then only get endpoints for your main identity.
+     */
+    public async findAllOneInstanceEndpointsForMe(mainOnly = true): Promise<OneInstanceEndpoint[]> {
+        const me = await this.me();
+        const profiles = await me.profiles(mainOnly ? await me.mainIdentity() : undefined);
+
+        const oneInstanceEndpoints = [];
+        for (const profile of profiles) {
+            for (const endpoint of profile.communicationEndpoints) {
+                if (isOneInstanceEndpoint(endpoint)) {
+                    oneInstanceEndpoints.push(endpoint);
+                }
+            }
+        }
+        return oneInstanceEndpoints;
+    }
+
+    /**
+     * Get instance endpoints from all contacts.
+     */
+    public async findAllOneInstanceEndpointsForOthers(): Promise<OneInstanceEndpoint[]> {
+        const others = await this.others();
+        const eps = await Promise.all(others.map(LeuteModel.findAllOneInstanceEndpointsForSomeone));
+        return eps.reduce((acc, curr) => acc.concat(curr), []);
+    }
+
+    // ######## Private stuff ########
 
     /**
      * Create an identity and an instance and corresponding keys
@@ -230,6 +268,30 @@ export default class LeuteModel {
             DUMMY_PLAN_HASH
         );
         return result.idHash;
+    }
+
+    /**
+     * Get all instance endpoints.
+     *
+     * Iterate over all endpoints and only getting the one instance endpoints.
+     *
+     * @param someone
+     * @private
+     */
+    private static async findAllOneInstanceEndpointsForSomeone(
+        someone: SomeoneModel
+    ): Promise<OneInstanceEndpoint[]> {
+        const profiles = await someone.profiles();
+
+        const oneInstanceEndpoints = [];
+        for (const profile of profiles) {
+            for (const endpoint of profile.communicationEndpoints) {
+                if (isOneInstanceEndpoint(endpoint)) {
+                    oneInstanceEndpoints.push(endpoint);
+                }
+            }
+        }
+        return oneInstanceEndpoints;
     }
 }
 
@@ -273,4 +335,10 @@ async function saveLeute(
         others,
         baseLeuteVersion
     );
+}
+
+function isOneInstanceEndpoint(
+    endpoint: CommunicationEndpointTypes
+): endpoint is OneInstanceEndpoint {
+    return endpoint.$type$ === 'OneInstanceEndpoint';
 }

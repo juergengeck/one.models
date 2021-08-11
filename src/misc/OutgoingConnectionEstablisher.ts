@@ -91,6 +91,7 @@ class OutgoingConnectionEstablisher {
                     }
                 } catch (e) {
                     await new Promise((resolve, reject) => {
+                        // @ts-ignore
                         this.retryTimeoutHandle.timer = setTimeout(resolve, retryTimeout);
                         this.retryTimeoutHandle.reject = reject;
                     });

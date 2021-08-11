@@ -1,9 +1,7 @@
 import MatchingModel from './MatchingModel';
 import {
-    createManyObjectsThroughPurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
-    getObjectByIdHash,
     getObjectByIdObj,
     onUnversionedObj,
     UnversionedObjectResult,
@@ -16,7 +14,6 @@ import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 import type ChannelManager from '../ChannelManager';
-import type {Contact} from '../../recipes/ContactRecipes';
 import type {Demand, MatchMap, MatchResponse, Supply} from '../../recipes/MatchingRecipes';
 
 /**
@@ -99,7 +96,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * @returns {Promise<void>}
      */
     async init() {
-        const importedMatchingContact: UnversionedObjectResult<Contact>[] =
+        /*const importedMatchingContact: UnversionedObjectResult<Contact>[] =
             await createManyObjectsThroughPurePlan(
                 {
                     module: '@module/explodeObject',
@@ -126,7 +123,7 @@ export default class ClientMatchingModel extends MatchingModel {
         const personsToGiveAccessTo = this.anonInstanceInfo
             ? [this.matchingServerPersonIdHash, this.anonInstanceInfo.personId]
             : [this.matchingServerPersonIdHash];
-        await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
+        await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
     }
 
     /**

@@ -29,5 +29,10 @@
         "forceConsistentCasingInFileNames": true
     },
     "include": ["./*.ts", "./**/*.ts"],
-    "exclude": []
+    "exclude": [],
+	"references": [
+        {
+            "path": "../src"
+        }
+    ]
 }
