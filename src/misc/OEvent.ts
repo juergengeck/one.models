@@ -139,14 +139,14 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
             throw new Error('There already is a listener for this event.');
         }
 
-        Promise.all(this.executeAndPromisifyVoidListeners(this.onListenListeners));
+        OEvent.executeAndIgnoreListeners(this.onListenListeners);
 
         this.listeners.add(listener);
 
         return () => {
             const found = this.listeners.delete(listener);
 
-            Promise.all(this.executeAndPromisifyVoidListeners(this.onStopListenListeners));
+            OEvent.executeAndIgnoreListeners(this.onStopListenListeners);
 
             if (!found) {
                 console.error('callback was not registered');
@@ -331,11 +331,14 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
 
     /**
      * Trigger all the listeners given as parameter.
+     *
+     * If a listener fails it writes the error to console.error.
+     *
      * @param {Set<() => Promise<void>>} listeners
      * @returns {Promise<void>[]}
      * @private
      */
-    private executeAndPromisifyVoidListeners(listeners: Set<() => Promise<void>>): Promise<void>[] {
+    private static executeAndIgnoreListeners(listeners: Set<() => Promise<void>>): void {
         let promises: Promise<void>[] = [];
 
         // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
@@ -350,7 +353,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
             }
         }
 
-        return promises;
+        Promise.all(promises).catch(err => console.error('A listener failed execution', err));
     }
 
     /**
