@@ -10,11 +10,6 @@ import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
  * - telephone number
  * - one instance with keys
  */
-export type CommunicationEndpointTypes = OneInstanceEndpoint | Email;
-export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>([
-    'OneInstanceEndpoint',
-    'Email'
-]);
 export interface CommunicationEndpoint {}
 
 export interface OneInstanceEndpoint extends CommunicationEndpoint {
@@ -29,6 +24,33 @@ export interface OneInstanceEndpoint extends CommunicationEndpoint {
 export interface Email extends CommunicationEndpoint {
     $type$: 'Email';
     email: string;
+}
+
+// #### type check magic ####
+
+export type CommunicationEndpointInterfaces = {
+    OneInstanceEndpoint: OneInstanceEndpoint;
+    Email: Email;
+};
+export type CommunicationEndpointTypes =
+    CommunicationEndpointInterfaces[keyof CommunicationEndpointInterfaces];
+export type CommunicationEndpointTypeNames = keyof CommunicationEndpointInterfaces;
+export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>([
+    'OneInstanceEndpoint',
+    'Email'
+]);
+
+/**
+ * Checks if the endpoint is of a specific enpoint type.
+ *
+ * @param endpoint
+ * @param type
+ */
+export function isEndpointOfType<T extends CommunicationEndpointTypeNames>(
+    endpoint: CommunicationEndpointTypes,
+    type: T
+): endpoint is CommunicationEndpointInterfaces[T] {
+    return endpoint.$type$ === type;
 }
 
 // #### Recipes ####

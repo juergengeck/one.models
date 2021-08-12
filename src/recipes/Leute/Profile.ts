@@ -4,7 +4,7 @@ import {
     CommunicationEndpointTypeNameSet,
     CommunicationEndpointTypes
 } from './CommunicationEndpoints';
-import {ContactDescriptionTypeNameSet, ContactDescriptionTypes} from './PersonDescriptions';
+import {PersonDescriptionTypeNameSet, PersonDescriptionTypes} from './PersonDescriptions';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {VersionedObjectResult} from 'one.core/lib/storage';
 
@@ -16,7 +16,7 @@ export interface Profile {
     personId: SHA256IdHash<Person>;
     owner: SHA256IdHash<Person>;
     communicationEndpoint: SHA256Hash<CommunicationEndpointTypes>[];
-    contactDescription: SHA256Hash<ContactDescriptionTypes>[];
+    contactDescription: SHA256Hash<PersonDescriptionTypes>[];
 }
 
 export interface ProfileCRDTMetaData extends CRDTMetaData<Profile> {
@@ -51,7 +51,7 @@ export const ProfileRecipe: Recipe = {
         },
         {
             itemprop: 'contactDescription',
-            referenceToObj: ContactDescriptionTypeNameSet,
+            referenceToObj: PersonDescriptionTypeNameSet,
             list: ORDERED_BY.ONE
         }
     ]

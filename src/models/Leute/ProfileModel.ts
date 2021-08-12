@@ -1,6 +1,14 @@
 import type {Profile} from '../../recipes/Leute/Profile';
-import type {CommunicationEndpointTypes} from '../../recipes/Leute/CommunicationEndpoints';
-import type {ContactDescriptionTypes} from '../../recipes/Leute/PersonDescriptions';
+import type {
+    CommunicationEndpointTypes,
+    CommunicationEndpointTypeNames,
+    CommunicationEndpointInterfaces
+} from '../../recipes/Leute/CommunicationEndpoints';
+import type {
+    PersonDescriptionInterfaces,
+    PersonDescriptionTypeNames,
+    PersonDescriptionTypes
+} from '../../recipes/Leute/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {getObjectWithType} from 'one.core/lib/storage-unversioned-objects';
 import {createSingleObjectThroughPurePlan, getObject} from 'one.core/lib/storage';
@@ -8,6 +16,8 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints';
+import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -46,7 +56,7 @@ export default class ProfileModel {
     public onUpdate: OEvent<() => void> = new OEvent();
 
     public communicationEndpoints: CommunicationEndpointTypes[] = [];
-    public contactDescriptions: ContactDescriptionTypes[] = [];
+    public personDescriptions: PersonDescriptionTypes[] = [];
 
     /**
      * Construct a new Profile wrapper on a profile identity.
@@ -69,6 +79,42 @@ export default class ProfileModel {
     }
 
     /**
+     * Return all endpoints of a specific type from this.communicationEndpoints.
+     *
+     * You can modify the returned objects in-place and then save the profile in order to update
+     * the profile.
+     */
+    public endpointsOfType<T extends CommunicationEndpointTypeNames>(
+        type: T
+    ): CommunicationEndpointInterfaces[T][] {
+        const endpoints = [];
+        for (const endpoint of this.communicationEndpoints) {
+            if (isEndpointOfType(endpoint, type)) {
+                endpoints.push(endpoint);
+            }
+        }
+        return endpoints;
+    }
+
+    /**
+     * Return all descriptions of a specific type from this.contactDescriptions.
+     *
+     * You can modify the returned objects in-place and then save the profile in order to update
+     * the profile.
+     */
+    public descriptionsOfType<T extends PersonDescriptionTypeNames>(
+        type: T
+    ): PersonDescriptionInterfaces[T][] {
+        const descriptions = [];
+        for (const endpoint of this.personDescriptions) {
+            if (isDescriptionOfType(endpoint, type)) {
+                descriptions.push(endpoint);
+            }
+        }
+        return descriptions;
+    }
+
+    /**
      * Load the latest profile version.
      *
      * Note that loading an object alters the following members:
@@ -88,7 +134,7 @@ export default class ProfileModel {
         }
         (this as Writeable<ProfileModel>).hash = result.hash;
         this.communicationEndpoints = result.communicationEndpoints;
-        this.contactDescriptions = result.contactDescriptions;
+        this.personDescriptions = result.personDescriptions;
     }
 
     /**
@@ -116,7 +162,7 @@ export default class ProfileModel {
             this.personId,
             this.owner,
             this.communicationEndpoints,
-            this.contactDescriptions,
+            this.personDescriptions,
             this.hash
         );
 
@@ -136,7 +182,7 @@ export default class ProfileModel {
         (this as Writeable<ProfileModel>).owner = profileModel.owner;
 
         this.communicationEndpoints = profileModel.communicationEndpoints;
-        this.contactDescriptions = profileModel.contactDescriptions;
+        this.personDescriptions = profileModel.personDescriptions;
     }
 }
 
@@ -195,7 +241,7 @@ async function saveProfile(
     personId: SHA256IdHash<Person>,
     owner: SHA256IdHash<Person>,
     communicationEndpoints: CommunicationEndpointTypes[],
-    contactDescriptions: ContactDescriptionTypes[],
+    contactDescriptions: PersonDescriptionTypes[],
     baseProfileVersion?: SHA256Hash<Profile>
 ): Promise<ProfileModel> {
     // Write the new profile version
@@ -231,7 +277,7 @@ async function constructProfileModel(
     newProfile.communicationEndpoints = await Promise.all(
         profile.communicationEndpoint.map(ep => getObjectWithType(ep))
     );
-    newProfile.contactDescriptions = await Promise.all(
+    newProfile.personDescriptions = await Promise.all(
         profile.contactDescription.map(ep => getObjectWithType(ep))
     );
     return newProfile;

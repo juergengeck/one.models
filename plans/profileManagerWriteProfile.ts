@@ -1,7 +1,7 @@
 import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import type {Profile} from '../lib/recipes/LeuteRecipes/Profile';
 import type {CommunicationEndpointTypes} from '../lib/recipes/LeuteRecipes/CommunicationEndpoints';
-import type {ContactDescriptionTypes} from '../lib/recipes/LeuteRecipes/PersonDescriptions';
+import type {PersonDescriptionTypes} from '../lib/recipes/LeuteRecipes/PersonDescriptions';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
@@ -25,7 +25,7 @@ export async function createObjects(
     personId: SHA256IdHash<Person>,
     owner: SHA256IdHash<Person>,
     communicationEndpoints: CommunicationEndpointTypes[],
-    contactDescriptions: ContactDescriptionTypes[],
+    contactDescriptions: PersonDescriptionTypes[],
     baseProfileVersion?: SHA256Hash<Profile>
 ): Promise<VersionedObjectResult<Profile>> {
     // Write endpoint and description objects

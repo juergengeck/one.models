@@ -9,27 +9,50 @@ import type {SHA256Hash} from 'one.core/lib/util/type-checks';
  * - profile image
  * - status
  */
-export type ContactDescriptionTypes = PersonName | ProfileImage | PersonStatus;
-export const ContactDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
-    'PersonName',
-    'ProfileImage',
-    'PersonStatus'
-]);
-export interface ContactDescription {}
+export interface PersonDescription {}
 
-export interface PersonName extends ContactDescription {
+export interface PersonName extends PersonDescription {
     $type$: 'PersonName';
     name: string;
 }
 
-export interface PersonStatus extends ContactDescription {
+export interface PersonStatus extends PersonDescription {
     $type$: 'PersonStatus';
     status: string;
 }
 
-export interface ProfileImage extends ContactDescription {
+export interface ProfileImage extends PersonDescription {
     $type$: 'ProfileImage';
     image: SHA256Hash<BLOB>;
+}
+
+// #### type check magic ####
+
+export type PersonDescriptionInterfaces = {
+    PersonName: PersonName;
+    ProfileImage: ProfileImage;
+    PersonStatus: PersonStatus;
+};
+export type PersonDescriptionTypes = PersonDescriptionInterfaces[keyof PersonDescriptionInterfaces];
+export type PersonDescriptionTypeNames = keyof PersonDescriptionInterfaces;
+
+export const PersonDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
+    'PersonName',
+    'ProfileImage',
+    'PersonStatus'
+]);
+
+/**
+ * Checks if the description is of a specific description type.
+ *
+ * @param description
+ * @param type
+ */
+export function isDescriptionOfType<T extends PersonDescriptionTypeNames>(
+    description: PersonDescriptionTypes,
+    type: T
+): description is PersonDescriptionInterfaces[T] {
+    return description.$type$ === type;
 }
 
 // #### Recipes ####

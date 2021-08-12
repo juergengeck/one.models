@@ -11,6 +11,14 @@ import type {Someone} from '../../recipes/Leute/Someone';
 import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import type {
+    CommunicationEndpointInterfaces,
+    CommunicationEndpointTypeNames
+} from '../../recipes/Leute/CommunicationEndpoints';
+import type {
+    PersonDescriptionInterfaces,
+    PersonDescriptionTypeNames
+} from '../../recipes/Leute/PersonDescriptions';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -183,6 +191,36 @@ export default class SomeoneModel {
     ): Promise<void> {
         const profile = await createProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
+    }
+
+    // ######## misc ########
+
+    /**
+     * Return all endpoints from all profiles.
+     */
+    public async collectAllEndpointsOfType<T extends CommunicationEndpointTypeNames>(
+        type: T,
+        identity?: SHA256IdHash<Person>
+    ): Promise<CommunicationEndpointInterfaces[T][]> {
+        const endpoints = [];
+        for (const profile of await this.profiles(identity)) {
+            endpoints.push(...profile.endpointsOfType(type));
+        }
+        return endpoints;
+    }
+
+    /**
+     * Return all descriptions from all profiles.
+     */
+    public async collectAllDescriptionsOfType<T extends PersonDescriptionTypeNames>(
+        type: T,
+        identity?: SHA256IdHash<Person>
+    ): Promise<PersonDescriptionInterfaces[T][]> {
+        const descriptions = [];
+        for (const profile of await this.profiles(identity)) {
+            descriptions.push(...profile.descriptionsOfType(type));
+        }
+        return descriptions;
     }
 
     // ######## Private ########

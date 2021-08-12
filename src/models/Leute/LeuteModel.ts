@@ -1,5 +1,9 @@
 import type {Profile} from '../../recipes/Leute/Profile';
-import {createSingleObjectThroughPurePlan, VersionedObjectResult} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    getObjectWithType,
+    VersionedObjectResult
+} from 'one.core/lib/storage';
 import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import SomeoneModel, {createSomeone, loadSomeone} from './SomeoneModel';
@@ -7,14 +11,12 @@ import type {Someone} from '../../recipes/Leute/Someone';
 import type {Leute} from '../../recipes/Leute/Leute';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import {createProfile} from './ProfileModel';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import type InstancesModel from '../InstancesModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import type {Person, Plan} from 'one.core/lib/recipes';
-import type {
-    CommunicationEndpointTypes,
-    OneInstanceEndpoint
-} from '../../recipes/Leute/CommunicationEndpoints';
+import type {Keys, OneVersionedObjectTypeNames, Person, Plan} from 'one.core/lib/recipes';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
+import {getAllValues} from 'one.core/lib/reverse-map-query';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -64,20 +66,35 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  * TODO: Add events
  */
 export default class LeuteModel {
-    instancesModel: InstancesModel;
+    private instancesModel: InstancesModel;
+    private boundAddProfileFromResult: (
+        versionedObjectResult: VersionedObjectResult
+    ) => Promise<void>;
+    private commserverUrl: string;
 
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
+        this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
+        this.commserverUrl = commserverUrl;
     }
 
+    /**
+     * Init the module.
+     *
+     * This will initialize the data structures for 'me' like someone, profile and a
+     * OneInstanceEndpoint for the current instance. As main identity the owner of the main one
+     * instance is used. This might change in the future!
+     */
     async init(): Promise<void> {
-        // We currently get 'me' from the instance owner, because it was already created and
-        // is constant over multiple login attempts. When using a new identity we would have to
-        // generate a new person based on whether the leute object exists - or not.
-        // Until we had a more thorough look at instance creation we will keep it that way.
+        // Reuse the instance and person from one.core
         const personId = getInstanceOwnerIdHash();
         if (personId === undefined) {
             throw new Error('The instance has no owner.');
+        }
+
+        const instanceId = await getInstanceIdHash();
+        if (instanceId === undefined) {
+            throw new Error('The instance is not initialized.');
         }
 
         // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
@@ -85,9 +102,27 @@ export default class LeuteModel {
         const profile = await createProfile(personId, personId, 'default');
         const someone = await createSomeone('me', profile.idHash);
         await createLeute(someone.idHash);
+
+        // Add the oneInstanceEndpoint to the profile
+        /*const oneInstanceEndpoint = profile.communicationEndpoints.find(
+            ep => ep.$type$ === 'OneInstanceEndpoint'
+        );
+        if (oneInstanceEndpoint === undefined) {
+            profile.communicationEndpoints.push({
+                $type$: 'OneInstanceEndpoint',
+                personId,
+                url: this.commserverUrl,
+                instanceId: instanceId,
+                instanceKeys: await this.instancesModel.localInstanceKeys(instanceId)
+            });
+        }
+
+        onVersionedObj.addListener(this.boundAddProfileFromResult);*/
     }
 
-    async shutdown(): Promise<void> {}
+    async shutdown(): Promise<void> {
+        //onVersionedObj.removeListener(this.boundAddProfileFromResult);
+    }
 
     // ######## Me management ########
 
@@ -215,17 +250,10 @@ export default class LeuteModel {
      */
     public async findAllOneInstanceEndpointsForMe(mainOnly = true): Promise<OneInstanceEndpoint[]> {
         const me = await this.me();
-        const profiles = await me.profiles(mainOnly ? await me.mainIdentity() : undefined);
-
-        const oneInstanceEndpoints = [];
-        for (const profile of profiles) {
-            for (const endpoint of profile.communicationEndpoints) {
-                if (isOneInstanceEndpoint(endpoint)) {
-                    oneInstanceEndpoints.push(endpoint);
-                }
-            }
-        }
-        return oneInstanceEndpoints;
+        return me.collectAllEndpointsOfType(
+            'OneInstanceEndpoint',
+            mainOnly ? await me.mainIdentity() : undefined
+        );
     }
 
     /**
@@ -233,11 +261,27 @@ export default class LeuteModel {
      */
     public async findAllOneInstanceEndpointsForOthers(): Promise<OneInstanceEndpoint[]> {
         const others = await this.others();
-        const eps = await Promise.all(others.map(LeuteModel.findAllOneInstanceEndpointsForSomeone));
-        return eps.reduce((acc, curr) => acc.concat(curr), []);
+        const endpoints = await Promise.all(
+            others.map(someone => someone.collectAllEndpointsOfType('OneInstanceEndpoint'))
+        );
+        return endpoints.reduce((acc, curr) => acc.concat(curr), []);
     }
 
     // ######## Private stuff ########
+
+    /**
+     * Add a profile to the respective someone object.
+     *
+     * This call is registered at one.core for listening for new profiles.
+     *
+     * @param result
+     * @private
+     */
+    private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
+        if (isVersionedResultOfType(result, 'Profile')) {
+            await this.addProfile(result.idHash);
+        }
+    }
 
     /**
      * Create an identity and an instance and corresponding keys
@@ -271,27 +315,14 @@ export default class LeuteModel {
     }
 
     /**
-     * Get all instance endpoints.
+     * Return the person keys for a specific person.
      *
-     * Iterate over all endpoints and only getting the one instance endpoints.
-     *
-     * @param someone
-     * @private
+     * @param personId - the given person id
+     * @returns the list of keys
      */
-    private static async findAllOneInstanceEndpointsForSomeone(
-        someone: SomeoneModel
-    ): Promise<OneInstanceEndpoint[]> {
-        const profiles = await someone.profiles();
-
-        const oneInstanceEndpoints = [];
-        for (const profile of profiles) {
-            for (const endpoint of profile.communicationEndpoints) {
-                if (isOneInstanceEndpoint(endpoint)) {
-                    oneInstanceEndpoints.push(endpoint);
-                }
-            }
-        }
-        return oneInstanceEndpoints;
+    public static async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
+        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        return await getObjectWithType(personKeyLink[personKeyLink.length - 1].toHash, 'Keys');
     }
 }
 
@@ -337,8 +368,9 @@ async function saveLeute(
     );
 }
 
-function isOneInstanceEndpoint(
-    endpoint: CommunicationEndpointTypes
-): endpoint is OneInstanceEndpoint {
-    return endpoint.$type$ === 'OneInstanceEndpoint';
+function isVersionedResultOfType<T extends OneVersionedObjectTypeNames>(
+    versionedObjectResult: VersionedObjectResult,
+    type: T
+): versionedObjectResult is VersionedObjectResult<Profile> {
+    return versionedObjectResult.obj.$type$ === type;
 }
