@@ -164,7 +164,14 @@ export default class SomeoneModel {
 
     // ######## Main profile management ########
 
-    public mainProfile(): ProfileModel {
+    public mainProfile(): Promise<ProfileModel> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('SomeoneModel has no data (mainProfile)');
+        }
+        return ProfileModel.constructFromLatestVersion(this.pMainProfile);
+    }
+
+    public mainProfileLazyLoad(): ProfileModel {
         if (this.pMainProfile === undefined) {
             throw new Error('SomeoneModel has no data (mainProfile)');
         }
