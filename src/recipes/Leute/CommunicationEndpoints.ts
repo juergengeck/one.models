@@ -10,9 +10,7 @@ import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
  * - telephone number
  * - one instance with keys
  */
-export interface CommunicationEndpoint {}
-
-export interface OneInstanceEndpoint extends CommunicationEndpoint {
+export interface OneInstanceEndpoint {
     $type$: 'OneInstanceEndpoint';
     personId: SHA256IdHash<Person>;
     instanceId: SHA256IdHash<Instance>;
@@ -21,7 +19,7 @@ export interface OneInstanceEndpoint extends CommunicationEndpoint {
     url: string;
 }
 
-export interface Email extends CommunicationEndpoint {
+export interface Email {
     $type$: 'Email';
     email: string;
 }

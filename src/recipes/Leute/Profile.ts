@@ -16,7 +16,7 @@ export interface Profile {
     personId: SHA256IdHash<Person>;
     owner: SHA256IdHash<Person>;
     communicationEndpoint: SHA256Hash<CommunicationEndpointTypes>[];
-    contactDescription: SHA256Hash<PersonDescriptionTypes>[];
+    personDescription: SHA256Hash<PersonDescriptionTypes>[];
 }
 
 export interface ProfileCRDTMetaData extends CRDTMetaData<Profile> {
@@ -50,7 +50,7 @@ export const ProfileRecipe: Recipe = {
             list: ORDERED_BY.ONE
         },
         {
-            itemprop: 'contactDescription',
+            itemprop: 'personDescription',
             referenceToObj: PersonDescriptionTypeNameSet,
             list: ORDERED_BY.ONE
         }

@@ -1,7 +1,7 @@
 import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import type {Profile} from '../lib/recipes/LeuteRecipes/Profile';
-import type {CommunicationEndpointTypes} from '../lib/recipes/LeuteRecipes/CommunicationEndpoints';
-import type {PersonDescriptionTypes} from '../lib/recipes/LeuteRecipes/PersonDescriptions';
+import type {Profile} from '../lib/recipes/Leute/Profile';
+import type {CommunicationEndpointTypes} from '../lib/recipes/Leute/CommunicationEndpoints';
+import type {PersonDescriptionTypes} from '../lib/recipes/Leute/PersonDescriptions';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 
@@ -16,7 +16,7 @@ import type {Person} from 'one.core/lib/recipes';
  * @param personId
  * @param owner
  * @param communicationEndpoints
- * @param contactDescriptions
+ * @param personDescriptions
  * @param baseProfileVersion
  */
 export async function createObjects(
@@ -25,7 +25,7 @@ export async function createObjects(
     personId: SHA256IdHash<Person>,
     owner: SHA256IdHash<Person>,
     communicationEndpoints: CommunicationEndpointTypes[],
-    contactDescriptions: PersonDescriptionTypes[],
+    personDescriptions: PersonDescriptionTypes[],
     baseProfileVersion?: SHA256Hash<Profile>
 ): Promise<VersionedObjectResult<Profile>> {
     // Write endpoint and description objects
@@ -33,7 +33,7 @@ export async function createObjects(
         communicationEndpoints.map(ep => WriteStorage.storeUnversionedObject(ep))
     );
     const descHashes = await Promise.all(
-        contactDescriptions.map(desc => WriteStorage.storeUnversionedObject(desc))
+        personDescriptions.map(desc => WriteStorage.storeUnversionedObject(desc))
     );
 
     // Write the new profile version
@@ -44,7 +44,7 @@ export async function createObjects(
             personId,
             owner,
             communicationEndpoint: epHashes.map(ep => ep.hash),
-            contactDescription: descHashes.map(desc => desc.hash)
+            personDescription: descHashes.map(desc => desc.hash)
         },
         baseProfileVersion
     );

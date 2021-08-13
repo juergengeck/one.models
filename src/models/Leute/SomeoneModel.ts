@@ -1,10 +1,6 @@
-import ProfileModel, {createProfile, loadProfile} from './ProfileModel';
+import ProfileModel from './ProfileModel';
 import type {Profile} from '../../recipes/Leute/Profile';
-import {
-    createSingleObjectThroughPurePlan,
-    getObject,
-    VersionedObjectResult
-} from 'one.core/lib/storage';
+import {getObject, onVersionedObj, VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import type {Someone} from '../../recipes/Leute/Someone';
@@ -19,8 +15,11 @@ import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames
 } from '../../recipes/Leute/PersonDescriptions';
+import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
+import type {Plan} from 'one.core/lib/recipes';
 
-type Writeable<T> = {-readonly [K in keyof T]: T[K]};
+const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
+    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 
 /**
  * This class is a nicer frontend for the Someone recipe.
@@ -36,47 +35,87 @@ type Writeable<T> = {-readonly [K in keyof T]: T[K]};
  *       profile)
  */
 export default class SomeoneModel {
-    public readonly hash: SHA256Hash<Someone>;
-    public readonly idHash: SHA256IdHash<Someone>;
-    public readonly someoneId: string;
-
     public onUpdate: OEvent<() => void> = new OEvent();
 
-    private mainProfileInternal: SHA256IdHash<Profile>;
-    private identitiesInternal: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;
+    public readonly idHash: SHA256IdHash<Someone>;
 
-    constructor(hash: SHA256Hash<Someone>, idHash: SHA256IdHash<Someone>, someone: Someone) {
-        this.hash = hash;
+    private pMainProfile?: SHA256IdHash<Profile>;
+    private pIdentities: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;
+    private pLoadedVersion?: SHA256Hash<Someone>;
+    private someone?: Someone;
+
+    constructor(idHash: SHA256IdHash<Someone>) {
         this.idHash = idHash;
-        this.someoneId = someone.someoneId;
-        this.mainProfileInternal = someone.mainProfile;
-        this.identitiesInternal = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
+        this.pIdentities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
 
-        for (const identity of someone.identity) {
-            this.identitiesInternal.set(identity.person, new Set(identity.profile));
-        }
+        // Setup the onUpdate event
+        const emitUpdateIfMatch = (result: VersionedObjectResult) => {
+            if (result.idHash === this.idHash) {
+                this.onUpdate.emit();
+            }
+        };
+        this.onUpdate.onListen(() => {
+            if (this.onUpdate.listenerCount() === 0) {
+                onVersionedObj.addListener(emitUpdateIfMatch);
+            }
+        });
+        this.onUpdate.onStopListen(() => {
+            if (this.onUpdate.listenerCount() === 0) {
+                onVersionedObj.removeListener(emitUpdateIfMatch);
+            }
+        });
+    }
+
+    // ######## asynchronous constructors ########
+
+    /**
+     * Construct a new SomeoneModel with a specific version loaded.
+     */
+    public static async constructFromVersion(version: SHA256Hash<Someone>): Promise<SomeoneModel> {
+        const someone = await getObject(version);
+        const idHash = await calculateIdHashOfObj(someone);
+        const newModel = new SomeoneModel(idHash);
+        await newModel.updateModelDataFromSomeone(someone, version);
+        return newModel;
     }
 
     /**
-     * Load the latest profile version.
-     *
-     * Note that loading an object alters the following members:
-     * - hash
-     * - communicationEndpoints
-     * - contactDescriptions
-     *
-     * @param version - The exact version to load. If not specified, load the latest version.
+     * Construct a new SomeoneModel with the latest version loaded.
      */
-    public async load(version?: SHA256Hash<Someone>): Promise<void> {
-        const result =
-            version === undefined
-                ? await loadSomeone(this.idHash)
-                : await loadSomeoneVersion(version);
-        if (result.idHash !== this.idHash) {
-            throw new Error('Specified someone version is not a version of the managed someone');
-        }
-        (this as Writeable<SomeoneModel>).hash = result.hash;
-        this.identitiesInternal = result.identitiesInternal;
+    public static async constructFromLatestVersion(
+        idHash: SHA256IdHash<Someone>
+    ): Promise<SomeoneModel> {
+        const newModel = new SomeoneModel(idHash);
+        await newModel.loadLatestVersion();
+        return newModel;
+    }
+
+    /**
+     * Create a someone if it does not exist.
+     *
+     * If you specify descriptions and / or endpoints here and a someone version already exists
+     * without those endpoints and / or descriptions it will add them again.
+     *
+     * @param someoneId
+     * @param mainProfile
+     * @returns The latest version of the someone or an empty someone.
+     */
+    public static async constructWithNewSomeone(
+        someoneId: string,
+        mainProfile: SHA256IdHash<Profile>
+    ): Promise<SomeoneModel> {
+        const newSomeone: Someone = {
+            $type$: 'Someone',
+            someoneId,
+            mainProfile,
+            identity: []
+        };
+        const idHash = await calculateIdHashOfObj(newSomeone);
+
+        const newModel = new SomeoneModel(idHash);
+        newModel.someone = newSomeone;
+        await newModel.saveAndLoad();
+        return newModel;
     }
 
     // ######## Identity management ########
@@ -86,11 +125,11 @@ export default class SomeoneModel {
      *
      * @param identity
      */
-    async addIdentity(identity: SHA256IdHash<Person>): Promise<void> {
-        if (this.identitiesInternal.has(identity)) {
+    public async addIdentity(identity: SHA256IdHash<Person>): Promise<void> {
+        if (this.pIdentities.has(identity)) {
             throw new Error('This identity is already managed by this someone object');
         }
-        this.identitiesInternal.set(identity, new Set());
+        this.pIdentities.set(identity, new Set());
         await this.saveAndLoad();
     }
 
@@ -99,34 +138,37 @@ export default class SomeoneModel {
      *
      * @param identity
      */
-    async removeIdentity(identity: SHA256IdHash<Person>): Promise<void> {
-        if (!this.identitiesInternal.has(identity)) {
+    public async removeIdentity(identity: SHA256IdHash<Person>): Promise<void> {
+        if (!this.pIdentities.has(identity)) {
             throw new Error('This identity is not managed by this someone object');
         }
-        this.identitiesInternal.delete(identity);
+        this.pIdentities.delete(identity);
         await this.saveAndLoad();
     }
 
     /**
      * Get all identities managed by this someone object.
      */
-    identities(): SHA256IdHash<Person>[] {
-        return [...this.identitiesInternal.keys()];
+    public identities(): SHA256IdHash<Person>[] {
+        return [...this.pIdentities.keys()];
     }
 
-    async mainIdentity(): Promise<SHA256IdHash<Person>> {
+    public async mainIdentity(): Promise<SHA256IdHash<Person>> {
         return (await this.mainProfile()).personId;
     }
 
-    async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
+    public async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
         const mainIdentity = await this.mainIdentity();
         return this.identities().filter(id => id !== mainIdentity);
     }
 
     // ######## Main profile management ########
 
-    async mainProfile(): Promise<ProfileModel> {
-        return loadProfile(this.mainProfileInternal);
+    public mainProfile(): ProfileModel {
+        if (this.pMainProfile === undefined) {
+            throw new Error('SomeoneModel has no data (mainProfile)');
+        }
+        return new ProfileModel(this.pMainProfile);
     }
 
     // ######## Profile management ########
@@ -134,24 +176,33 @@ export default class SomeoneModel {
     /**
      * Get the profiles managed by this someone object.
      *
-     * TODO: Lazy loading. This function loads all profiles with all endpoints. This is a lot of
-     *       objects. This prevents a fast rendering of the ui. We could load the profiles without
-     *       the endpoints and the ui decides when to get them. Or we could do the whole thing
-     *       event driven.
+     * @param identity
+     */
+    public async profiles(identity?: SHA256IdHash<Person>): Promise<ProfileModel[]> {
+        const profiles = this.profilesLazyLoad(identity);
+        await Promise.all(profiles.map(profile => profile.loadLatestVersion()));
+        return profiles;
+    }
+
+    /**
+     * Get the profiles managed by this someone object.
+     *
+     * Note that this will return ProfileModel instances that have no data in them. You have to use
+     * loadLatestVersion on it in order to get the data.
      *
      * @param identity - Get the profiles only for this identity. If not specified, get all profiles
      *                   for all identities managed by this someone object.
      */
-    async profiles(identity?: SHA256IdHash<Person>): Promise<ProfileModel[]> {
+    public profilesLazyLoad(identity?: SHA256IdHash<Person>): ProfileModel[] {
         const profileHashes = [];
 
         // Collect all SHA256IdHash<Profile> hashes for the picked identities (or all)
         if (identity === undefined) {
-            for (const profiles of this.identitiesInternal.values()) {
+            for (const profiles of this.pIdentities.values()) {
                 profileHashes.push(...profiles);
             }
         } else {
-            const profiles = this.identitiesInternal.get(identity);
+            const profiles = this.pIdentities.get(identity);
             if (profiles === undefined) {
                 throw new Error('This identity is not managed by this someone object');
             }
@@ -159,15 +210,15 @@ export default class SomeoneModel {
         }
 
         // Load all profile objects
-        return Promise.all(profileHashes.map(loadProfile));
+        return profileHashes.map(profileIdHash => new ProfileModel(profileIdHash));
     }
 
     /**
      * Add a profile to this someone object.
      */
-    async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+    public async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
         const profileObj = await getObjectByIdHash(profile);
-        const profileSet = this.identitiesInternal.get(profileObj.obj.personId);
+        const profileSet = this.pIdentities.get(profileObj.obj.personId);
 
         if (profileSet === undefined) {
             throw new Error('The someone object does not manage profiles for the specified person');
@@ -184,13 +235,91 @@ export default class SomeoneModel {
      * @param personId
      * @param owner
      */
-    async createProfile(
+    public async createProfile(
         profileId: string,
         personId: SHA256IdHash<Person>,
         owner: SHA256IdHash<Person>
     ): Promise<void> {
-        const profile = await createProfile(personId, owner, profileId);
+        const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
+    }
+
+    // ######## Save & Load ########
+
+    /**
+     * Returns whether this model has data loaded.
+     *
+     * If this returns false, then the 'hash', 'profileId' ... properties will throw when being
+     * accessed.
+     */
+    public hasData(): boolean {
+        return this.someone !== undefined;
+    }
+
+    /**
+     * Load a specific someone version.
+     *
+     * @param version
+     */
+    public async loadVersion(version: SHA256Hash<Someone>): Promise<void> {
+        const someone = await getObject(version);
+
+        const idHash = await calculateIdHashOfObj(someone);
+        if (idHash !== this.idHash) {
+            throw new Error('Specified someone version is not a version of the managed someone');
+        }
+
+        await this.updateModelDataFromSomeone(someone, version);
+    }
+
+    /**
+     * Load the latest someone version.
+     */
+    public async loadLatestVersion(): Promise<void> {
+        const result = await getObjectByIdHash(this.idHash);
+
+        await this.updateModelDataFromSomeone(result.obj, result.hash);
+    }
+
+    /**
+     * Save the someone to disk and load the latest version.
+     *
+     * Why is there no pure save() function? The cause are crdts. The object that is eventually
+     * written to disk might differ from the current state of this instance. This happens when new
+     * data was received via chum since the last load. This means that we don't have a hash
+     * representing the current state.
+     *
+     * TODO: It is possible to write the intermediary state and obtain a hash. So we can implement a
+     *       pure save() function. But this requires the lower levels to write the top level object
+     *       of the tree and return the corresponding hash to the caller. The
+     *       storeVersionedObjectCRDT and the plan interfaces don't support that right now in a easy
+     *       to grasp way.
+     */
+    public async saveAndLoad(): Promise<void> {
+        if (this.someone === undefined) {
+            throw new Error('No someone data that could be saved');
+        }
+
+        const identities = [];
+        for (const [personId, profileIds] of this.pIdentities.entries()) {
+            identities.push({
+                person: personId,
+                profile: [...profileIds]
+            });
+        }
+
+        const result = await storeVersionedObjectCRDT(
+            {
+                $type$: 'Someone',
+                someoneId: this.someone.someoneId,
+                mainProfile: this.someone.mainProfile,
+                identity: identities
+            },
+            this.pLoadedVersion,
+            DUMMY_PLAN_HASH
+        );
+
+        await this.updateModelDataFromSomeone(result.obj, result.hash);
     }
 
     // ######## misc ########
@@ -223,120 +352,28 @@ export default class SomeoneModel {
         return descriptions;
     }
 
-    // ######## Private ########
+    // ######## private stuff ########
 
     /**
-     * Save the someone object to disk and load the latest version.
+     * Updates the members of the model based on a loaded profile and the version hash.
      *
-     * This will alter the following members.
-     * - hash
-     * - what the getters return.
-     *
-     * Why is there no pure save() function? The cause are crdts. The object that is eventually
-     * written to disk might differ from the current state of this instance. This happens when new
-     * data was received via chum since the last load. This means that we don't have a hash
-     * representing the current state.
-     *
-     * TODO: It is possible to write the intermediary state and obtain a hash. So we can implement a
-     *       pure save() function. But this requires the lower levels to write the top level object
-     *       of the tree and return the corresponding hash to the caller. The
-     *       storeVersionedObjectCRDT and the plan interfaces don't support that right now in a easy
-     *       to grasp way.
+     * @param someone
+     * @param version
+     * @private
      */
-    private async saveAndLoad(): Promise<void> {
-        const result = await saveSomeone(
-            this.someoneId,
-            this.mainProfileInternal,
-            this.identitiesInternal,
-            this.hash
-        );
+    private async updateModelDataFromSomeone(
+        someone: Someone,
+        version: SHA256Hash<Someone>
+    ): Promise<void> {
+        const identities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
 
-        this.copyFrom(result);
+        for (const identity of someone.identity) {
+            identities.set(identity.person, new Set(identity.profile));
+        }
+
+        this.pIdentities = identities;
+        this.pMainProfile = someone.mainProfile;
+        this.pLoadedVersion = version;
+        this.someone = someone;
     }
-
-    /**
-     * Copy all members from the passed SomeoneModel instance.
-     *
-     * @param someoneModel
-     */
-    private copyFrom(someoneModel: SomeoneModel) {
-        (this as Writeable<SomeoneModel>).hash = someoneModel.hash;
-        (this as Writeable<SomeoneModel>).idHash = someoneModel.idHash;
-        (this as Writeable<SomeoneModel>).someoneId = someoneModel.someoneId;
-
-        this.mainProfileInternal = someoneModel.mainProfileInternal;
-        this.identitiesInternal = someoneModel.identitiesInternal;
-    }
-}
-
-/**
- * Load the latest version of a profile.
- *
- * @param idHash - The id-hash identifying the profile to load.
- */
-export async function loadSomeone(idHash: SHA256IdHash<Someone>): Promise<SomeoneModel> {
-    const result: VersionedObjectResult<Someone> = await getObjectByIdHash(idHash);
-
-    return new SomeoneModel(result.hash, result.idHash, result.obj);
-}
-
-/**
- * Load a specific profile version.
- *
- * @param version
- */
-export async function loadSomeoneVersion(version: SHA256Hash<Someone>): Promise<SomeoneModel> {
-    const result: Someone = await getObject(version);
-    const idHash: SHA256IdHash<Someone> = await calculateIdHashOfObj(result);
-
-    return new SomeoneModel(version, idHash, result);
-}
-
-/**
- * Create a someone object with a main profile if it does not exist.
- *
- * @returns The latest version of the profile or an empty profile.
- * @param someoneId
- * @param mainProfile
- */
-export async function createSomeone(
-    someoneId: string,
-    mainProfile: SHA256IdHash<Profile>
-): Promise<SomeoneModel> {
-    const mProfile = await getObjectByIdHash(mainProfile);
-    return saveSomeone(
-        someoneId,
-        mainProfile,
-        new Map([[mProfile.obj.personId, new Set([mainProfile])]])
-    );
-}
-
-// ######## private functions ########
-
-/**
- * Save a profile with the specified data.
- *
- * @param someoneId
- * @param mainProfile
- * @param profiles
- * @param baseSomeoneVersion - the base profile version that is used to calculate the diff for the
- *                             crdt.
- */
-async function saveSomeone(
-    someoneId: string,
-    mainProfile: SHA256IdHash<Profile>,
-    profiles: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>,
-    baseSomeoneVersion?: SHA256Hash<Someone>
-): Promise<SomeoneModel> {
-    // Create the new version of the someone object
-    const result = await createSingleObjectThroughPurePlan(
-        {module: '@module/profileManagerWriteSomeone'},
-        someoneId,
-        mainProfile,
-        profiles,
-        baseSomeoneVersion
-    );
-
-    // The written object might differ, so return the updated data
-    return new SomeoneModel(result.hash, result.idHash, result.obj);
 }

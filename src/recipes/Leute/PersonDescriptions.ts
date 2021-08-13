@@ -9,19 +9,18 @@ import type {SHA256Hash} from 'one.core/lib/util/type-checks';
  * - profile image
  * - status
  */
-export interface PersonDescription {}
 
-export interface PersonName extends PersonDescription {
+export interface PersonName {
     $type$: 'PersonName';
     name: string;
 }
 
-export interface PersonStatus extends PersonDescription {
+export interface PersonStatus {
     $type$: 'PersonStatus';
     status: string;
 }
 
-export interface ProfileImage extends PersonDescription {
+export interface ProfileImage {
     $type$: 'ProfileImage';
     image: SHA256Hash<BLOB>;
 }

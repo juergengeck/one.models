@@ -1,9 +1,5 @@
 import type {Profile} from '../../recipes/Leute/Profile';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectWithType,
-    VersionedObjectResult
-} from 'one.core/lib/storage';
+import {onVersionedObj, VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import SomeoneModel, {createSomeone, loadSomeone} from './SomeoneModel';
@@ -17,6 +13,7 @@ import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import type {Keys, OneVersionedObjectTypeNames, Person, Plan} from 'one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -104,7 +101,7 @@ export default class LeuteModel {
         await createLeute(someone.idHash);
 
         // Add the oneInstanceEndpoint to the profile
-        /*const oneInstanceEndpoint = profile.communicationEndpoints.find(
+        const oneInstanceEndpoint = profile.communicationEndpoints.find(
             ep => ep.$type$ === 'OneInstanceEndpoint'
         );
         if (oneInstanceEndpoint === undefined) {
@@ -113,15 +110,17 @@ export default class LeuteModel {
                 personId,
                 url: this.commserverUrl,
                 instanceId: instanceId,
-                instanceKeys: await this.instancesModel.localInstanceKeys(instanceId)
+                instanceKeys: await this.instancesModel.localInstanceKeysHash(instanceId),
+                personKeys: await LeuteModel.personKeysHashForPerson(personId)
             });
+            await profile.saveAndLoad();
         }
 
-        onVersionedObj.addListener(this.boundAddProfileFromResult);*/
+        onVersionedObj.addListener(this.boundAddProfileFromResult);
     }
 
     async shutdown(): Promise<void> {
-        //onVersionedObj.removeListener(this.boundAddProfileFromResult);
+        onVersionedObj.removeListener(this.boundAddProfileFromResult);
     }
 
     // ######## Me management ########
@@ -320,9 +319,11 @@ export default class LeuteModel {
      * @param personId - the given person id
      * @returns the list of keys
      */
-    public static async personKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
+    public static async personKeysHashForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<SHA256Hash<Keys>> {
         const personKeyLink = await getAllValues(personId, true, 'Keys');
-        return await getObjectWithType(personKeyLink[personKeyLink.length - 1].toHash, 'Keys');
+        return personKeyLink[personKeyLink.length - 1].toHash;
     }
 }
 
@@ -359,12 +360,15 @@ async function saveLeute(
     others: Set<SHA256IdHash<Someone>>,
     baseLeuteVersion?: SHA256Hash<Leute>
 ): Promise<VersionedObjectResult<Leute>> {
-    // Create the new version of the people object
-    return createSingleObjectThroughPurePlan(
-        {module: '@module/profileManagerWriteLeute'},
-        me,
-        others,
-        baseLeuteVersion
+    return await storeVersionedObjectCRDT(
+        {
+            $type$: 'Leute',
+            appId: 'one.leute',
+            me,
+            other: [...others]
+        },
+        baseLeuteVersion,
+        DUMMY_PLAN_HASH
     );
 }
 

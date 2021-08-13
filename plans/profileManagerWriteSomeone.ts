@@ -1,6 +1,6 @@
 import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import type {Profile} from '../lib/recipes/LeuteRecipes/Profile';
-import type {Someone} from '../lib/recipes/LeuteRecipes/Someone';
+import type {Profile} from '../lib/recipes/Leute/Profile';
+import type {Someone} from '../lib/recipes/Leute/Someone';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
 

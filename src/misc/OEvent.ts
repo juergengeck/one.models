@@ -100,8 +100,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     private listeners = new Set<
         (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     >();
-    private onListenListeners = new Set<() => Promise<void>>();
-    private onStopListenListeners = new Set<() => Promise<void>>();
+    private onListenListeners = new Set<() => Promise<void> | void>();
+    private onStopListenListeners = new Set<() => Promise<void> | void>();
     private readonly type: EventTypes;
     private readonly executeSequentially: boolean;
 
@@ -249,7 +249,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * @param {() => Promise<void>} onListenListenerHandler
      * @returns {() => void}
      */
-    public onListen(onListenListenerHandler: () => Promise<void>): () => void {
+    public onListen(onListenListenerHandler: () => Promise<void> | void): () => void {
         this.onListenListeners.add(onListenListenerHandler);
         return () => {
             const found = this.onListenListeners.delete(onListenListenerHandler);
@@ -266,7 +266,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * @param {() => Promise<void>} onStopListenListenerHandler
      * @returns {() => void}
      */
-    public onStopListen(onStopListenListenerHandler: () => Promise<void>): () => void {
+    public onStopListen(onStopListenListenerHandler: () => Promise<void> | void): () => void {
         this.onStopListenListeners.add(onStopListenListenerHandler);
         return () => {
             const found = this.onStopListenListeners.delete(onStopListenListenerHandler);
@@ -338,8 +338,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * @returns {Promise<void>[]}
      * @private
      */
-    private static executeAndIgnoreListeners(listeners: Set<() => Promise<void>>): void {
-        let promises: Promise<void>[] = [];
+    private static executeAndIgnoreListeners(listeners: Set<() => Promise<void> | void>): void {
+        let promises: (Promise<void> | void)[] = [];
 
         // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
         // parallel.

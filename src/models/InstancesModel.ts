@@ -14,7 +14,7 @@ import {serializeWithType} from 'one.core/lib/util/promise';
 import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from 'one.core/lib/instance-crypto';
 import {EventEmitter} from 'events';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
 import type {Instance, Keys, Person} from 'one.core/lib/recipes';
 
@@ -230,11 +230,23 @@ class InstancesModel extends EventEmitter {
      * @returns {Promise<Keys>}
      */
     public async localInstanceKeys(instanceId: SHA256IdHash<Instance>): Promise<Keys> {
+        return await getObjectWithType(await this.localInstanceKeysHash(instanceId), 'Keys');
+    }
+
+    /**
+     * Get the instance key hash for a specific person.
+     *
+     * @param {SHA256IdHash<Instance>} instanceId
+     * @returns {Promise<Keys>}
+     */
+    public async localInstanceKeysHash(
+        instanceId: SHA256IdHash<Instance>
+    ): Promise<SHA256Hash<Keys>> {
         if (!(await this.isLocalInstance(instanceId))) {
             throw new Error('Passed instance is not a local instance');
         }
         const instanceKeyLink = await getAllValues(instanceId, true, 'Keys');
-        return await getObjectWithType(instanceKeyLink[instanceKeyLink.length - 1].toHash, 'Keys');
+        return instanceKeyLink[instanceKeyLink.length - 1].toHash;
     }
 
     /**
