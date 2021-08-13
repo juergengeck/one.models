@@ -2,11 +2,10 @@ import type {Profile} from '../../recipes/Leute/Profile';
 import {onVersionedObj, VersionedObjectResult} from 'one.core/lib/storage';
 import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import SomeoneModel, {createSomeone, loadSomeone} from './SomeoneModel';
+import SomeoneModel from './SomeoneModel';
 import type {Someone} from '../../recipes/Leute/Someone';
 import type {Leute} from '../../recipes/Leute/Leute';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import {createProfile} from './ProfileModel';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import type InstancesModel from '../InstancesModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
@@ -14,6 +13,9 @@ import type {Keys, OneVersionedObjectTypeNames, Person, Plan} from 'one.core/lib
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
+import ProfileModel from './ProfileModel';
+import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
+import {OEvent} from '../../misc/OEvent';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -63,15 +65,25 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  * TODO: Add events
  */
 export default class LeuteModel {
-    private instancesModel: InstancesModel;
-    private boundAddProfileFromResult: (
+    public onUpdate: OEvent<() => void> = new OEvent();
+
+    private readonly instancesModel: InstancesModel;
+    private readonly commserverUrl: string;
+
+    private pLoadedVersion?: SHA256Hash<Leute>;
+    private leute?: Leute;
+
+    private readonly boundAddProfileFromResult: (
         versionedObjectResult: VersionedObjectResult
     ) => Promise<void>;
-    private commserverUrl: string;
+    private readonly boundUpdateLeuteMember: (
+        versionedObjectResult: VersionedObjectResult
+    ) => Promise<void>;
 
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
+        this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
         this.commserverUrl = commserverUrl;
     }
 
@@ -82,7 +94,7 @@ export default class LeuteModel {
      * OneInstanceEndpoint for the current instance. As main identity the owner of the main one
      * instance is used. This might change in the future!
      */
-    async init(): Promise<void> {
+    public async init(): Promise<void> {
         // Reuse the instance and person from one.core
         const personId = getInstanceOwnerIdHash();
         if (personId === undefined) {
@@ -94,33 +106,41 @@ export default class LeuteModel {
             throw new Error('The instance is not initialized.');
         }
 
+        // One Instance endpoints for main instance with keys
+        const endpoint: OneInstanceEndpoint = {
+            $type$: 'OneInstanceEndpoint',
+            personId,
+            url: this.commserverUrl,
+            instanceId: instanceId,
+            instanceKeys: await this.instancesModel.localInstanceKeysHash(instanceId),
+            personKeys: await LeuteModel.personKeysHashForPerson(personId)
+        };
+
         // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
         // that creation is only done if the objects don't exist.
-        const profile = await createProfile(personId, personId, 'default');
-        const someone = await createSomeone('me', profile.idHash);
-        await createLeute(someone.idHash);
+        const profile = await ProfileModel.constructWithNewProfile(personId, personId, 'default', [
+            endpoint
+        ]);
+        const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
 
-        // Add the oneInstanceEndpoint to the profile
-        const oneInstanceEndpoint = profile.communicationEndpoints.find(
-            ep => ep.$type$ === 'OneInstanceEndpoint'
-        );
-        if (oneInstanceEndpoint === undefined) {
-            profile.communicationEndpoints.push({
-                $type$: 'OneInstanceEndpoint',
-                personId,
-                url: this.commserverUrl,
-                instanceId: instanceId,
-                instanceKeys: await this.instancesModel.localInstanceKeysHash(instanceId),
-                personKeys: await LeuteModel.personKeysHashForPerson(personId)
-            });
-            await profile.saveAndLoad();
-        }
+        // Assign the leute object to the member for the saveAndLoad function
+        // I know this member passing around isn't ideal. We should fix this later, to make it more
+        // explicit what happens here.
+        this.leute = {
+            $type$: 'Leute',
+            appId: 'one.leute',
+            me: someone.idHash,
+            other: []
+        };
+        await this.saveAndLoad();
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
     }
 
-    async shutdown(): Promise<void> {
+    public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
+        this.leute = undefined;
+        this.pLoadedVersion = undefined;
     }
 
     // ######## Me management ########
@@ -128,28 +148,21 @@ export default class LeuteModel {
     /**
      * Get the someone object that represents me.
      */
-    async me(): Promise<SomeoneModel> {
-        const leute = await loadLeute();
-        return loadSomeone(leute.obj.me);
+    public async me(): Promise<SomeoneModel> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+        return SomeoneModel.constructFromLatestVersion(this.leute.me);
     }
 
     /**
-     * Set the someone object that represents me.
-     *
-     * Warning: this might have unintended consequences at the moment. We set it, but what will
-     * happen in applications is currently not ... known. Loots of modules rely on 'me' not to
-     * change.
-     *
-     * @param me - The 'Someone' objects hash that should be the new 'me'.
+     * Get the someone object that represents me.
      */
-    async setMe(me: SHA256IdHash<Someone>): Promise<void> {
-        const leute = await loadLeute();
-
-        // Remove me from others
-        const others = new Set(leute.obj.other);
-        others.delete(me);
-
-        await saveLeute(me, others, leute.hash);
+    public meLazyLoad(): SomeoneModel {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+        return new SomeoneModel(this.leute.me);
     }
 
     // ######## Other people management ########
@@ -157,9 +170,21 @@ export default class LeuteModel {
     /**
      * Get all other persons you know.
      */
-    async others(): Promise<SomeoneModel[]> {
-        const leute = await loadLeute();
-        return Promise.all(leute.obj.other.map(loadSomeone));
+    public async others(): Promise<SomeoneModel[]> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+        return Promise.all(this.leute.other.map(SomeoneModel.constructFromLatestVersion));
+    }
+
+    /**
+     * Get all other persons you know.
+     */
+    public othersLazyLoad(): SomeoneModel[] {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+        return this.leute.other.map(idHash => new SomeoneModel(idHash));
     }
 
     /**
@@ -168,15 +193,16 @@ export default class LeuteModel {
      * @param other
      */
     async addOther(other: SHA256IdHash<Someone>): Promise<void> {
-        const leute = await loadLeute();
-
-        if (leute.obj.me === other) {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+        if (this.leute.me === other) {
             throw new Error('You cannot add yourself as other person');
         }
 
-        const others = new Set(leute.obj.other);
+        const others = new Set(this.leute.other);
         others.add(other);
-        await saveLeute(leute.obj.me, others, leute.hash);
+        await this.saveAndLoad();
     }
 
     /**
@@ -185,10 +211,13 @@ export default class LeuteModel {
      * @param other
      */
     async removeOther(other: SHA256IdHash<Someone>): Promise<void> {
-        const leute = await loadLeute();
-        const others = new Set(leute.obj.other);
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+
+        const others = new Set(this.leute.other);
         others.delete(other);
-        await saveLeute(leute.obj.me, others, leute.hash);
+        await this.saveAndLoad();
     }
 
     // ######## Identity management ########
@@ -199,8 +228,16 @@ export default class LeuteModel {
      * @returns {Promise<void>}
      */
     async createProfileAndIdentityForMe(): Promise<void> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
+
         const newPersonId = await this.createIdentityWithInstanceAndKeys();
-        const newProfile = await createProfile(newPersonId, newPersonId, 'default');
+        const newProfile = await ProfileModel.constructWithNewProfile(
+            newPersonId,
+            newPersonId,
+            'default'
+        );
         const me = await this.me();
         await me.addIdentity(newPersonId);
         await me.addProfile(newProfile.idHash);
@@ -212,14 +249,23 @@ export default class LeuteModel {
      * @returns {Promise<void>}
      */
     async createSomeoneWithNewIdentity(): Promise<void> {
-        const newPersonId = await LeuteModel.createIdentity();
-        const newProfile = await createProfile(newPersonId, newPersonId, 'default');
-        const newSomeone = await createSomeone(await createRandomString(32), newProfile.idHash);
+        if (this.leute === undefined) {
+            throw new Error('Leute model not initialized');
+        }
 
-        const leute = await loadLeute();
-        const others = new Set(leute.obj.other);
-        others.add(newSomeone.idHash);
-        await saveLeute(leute.obj.me, others, leute.hash);
+        const myIdentity = await (await this.me()).mainIdentity();
+        const newPersonId = await LeuteModel.createIdentity();
+        const newProfile = await ProfileModel.constructWithNewProfile(
+            newPersonId,
+            myIdentity,
+            'default'
+        );
+        const newSomeone = await SomeoneModel.constructWithNewSomeone(
+            await createRandomString(32),
+            newProfile.idHash
+        );
+
+        await this.addOther(newSomeone.idHash);
     }
 
     // ######## Misc stuff ########
@@ -235,7 +281,10 @@ export default class LeuteModel {
 
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
-            const someoneNew = await createSomeone('', profile);
+            const someoneNew = await SomeoneModel.constructWithNewSomeone(
+                await createRandomString(32),
+                profile
+            );
             await this.addOther(someoneNew.idHash);
         } else {
             await someone.addProfile(profile);
@@ -266,21 +315,20 @@ export default class LeuteModel {
         return endpoints.reduce((acc, curr) => acc.concat(curr), []);
     }
 
-    // ######## Private stuff ########
-
     /**
-     * Add a profile to the respective someone object.
+     * Return the person keys for a specific person.
      *
-     * This call is registered at one.core for listening for new profiles.
-     *
-     * @param result
-     * @private
+     * @param personId - the given person id
+     * @returns the list of keys
      */
-    private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
-        if (isVersionedResultOfType(result, 'Profile')) {
-            await this.addProfile(result.idHash);
-        }
+    public static async personKeysHashForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<SHA256Hash<Keys>> {
+        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        return personKeyLink[personKeyLink.length - 1].toHash;
     }
+
+    // ######## Private stuff ########
 
     /**
      * Create an identity and an instance and corresponding keys
@@ -313,68 +361,98 @@ export default class LeuteModel {
         return result.idHash;
     }
 
+    // ######## Hooks for one.core ########
+
     /**
-     * Return the person keys for a specific person.
+     * Add a profile to the respective someone object.
      *
-     * @param personId - the given person id
-     * @returns the list of keys
+     * This call is registered at one.core for listening for new profiles.
+     *
+     * @param result
+     * @private
      */
-    public static async personKeysHashForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<SHA256Hash<Keys>> {
-        const personKeyLink = await getAllValues(personId, true, 'Keys');
-        return personKeyLink[personKeyLink.length - 1].toHash;
+    private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
+        if (isVersionedResultOfType(result, 'Profile')) {
+            await this.addProfile(result.idHash);
+        }
+    }
+
+    /**
+     * Updates the this.leute member on a new version.
+     *
+     * This call is registered at one.core for listening for new leute object versions.
+     *
+     * @param result
+     * @private
+     */
+    private async updateLeuteMember(result: VersionedObjectResult) {
+        if (isVersionedResultOfType(result, 'Leute')) {
+            this.leute = result.obj;
+            this.pLoadedVersion = result.hash;
+            this.onUpdate.emit();
+        }
+    }
+
+    // ######## private stuff - Load & Save ########
+
+    /**
+     * Load the latest leute version.
+     */
+    private async loadLatestVersion(): Promise<void> {
+        const idHash = await calculateIdHashOfObj({$type$: 'Leute', appId: 'one.leute'});
+        const result = await getObjectByIdHash(idHash);
+        await this.updateModelDataFromLeute(result.obj, result.hash);
+    }
+
+    /**
+     * Save the leute to disk and load the latest version.
+     *
+     * Why is there no pure save() function? The cause are crdts. The object that is eventually
+     * written to disk might differ from the current state of this instance. This happens when new
+     * data was received via chum since the last load. This means that we don't have a hash
+     * representing the current state.
+     *
+     * TODO: It is possible to write the intermediary state and obtain a hash. So we can implement a
+     *       pure save() function. But this requires the lower levels to write the top level object
+     *       of the tree and return the corresponding hash to the caller. The
+     *       storeVersionedObjectCRDT and the plan interfaces don't support that right now in a easy
+     *       to grasp way.
+     */
+    private async saveAndLoad(): Promise<void> {
+        if (this.leute === undefined) {
+            throw new Error('No leute data that could be saved');
+        }
+
+        const result = await storeVersionedObjectCRDT(
+            this.leute,
+            this.pLoadedVersion,
+            DUMMY_PLAN_HASH
+        );
+
+        await this.updateModelDataFromLeute(result.obj, result.hash);
+    }
+
+    /**
+     * Updates the members of the model based on a loaded profile and the version hash.
+     *
+     * @param leute
+     * @param version
+     * @private
+     */
+    private async updateModelDataFromLeute(
+        leute: Leute,
+        version: SHA256Hash<Leute>
+    ): Promise<void> {
+        this.pLoadedVersion = version;
+        this.leute = leute;
     }
 }
 
 // ######## private functions ########
 
-/**
- * Load the latest version of a profile.
- */
-async function loadLeute(): Promise<VersionedObjectResult<Leute>> {
-    const idHash = await calculateIdHashOfObj({$type$: 'Leute', appId: 'one.leute'});
-    return getObjectByIdHash(idHash);
-}
-
-/**
- * Create a people object if it does not exist.
- *
- * @returns The latest version of the profile or an empty profile.
- * @param me
- */
-async function createLeute(me: SHA256IdHash<Someone>): Promise<VersionedObjectResult<Leute>> {
-    return saveLeute(me, new Set());
-}
-
-/**
- * Save a profile with the specified data.
- *
- * @param me
- * @param others
- * @param baseLeuteVersion - the base profile version that is used to calculate the diff for the
- *                             crdt.
- */
-async function saveLeute(
-    me: SHA256IdHash<Someone>,
-    others: Set<SHA256IdHash<Someone>>,
-    baseLeuteVersion?: SHA256Hash<Leute>
-): Promise<VersionedObjectResult<Leute>> {
-    return await storeVersionedObjectCRDT(
-        {
-            $type$: 'Leute',
-            appId: 'one.leute',
-            me,
-            other: [...others]
-        },
-        baseLeuteVersion,
-        DUMMY_PLAN_HASH
-    );
-}
-
 function isVersionedResultOfType<T extends OneVersionedObjectTypeNames>(
     versionedObjectResult: VersionedObjectResult,
     type: T
-): versionedObjectResult is VersionedObjectResult<Profile> {
+): versionedObjectResult is VersionedObjectResult<OneVersionedObjectInterfaces[T]> {
     return versionedObjectResult.obj.$type$ === type;
 }

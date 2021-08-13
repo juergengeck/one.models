@@ -13,6 +13,9 @@ export async function writeMainProfile(
     filename: string
 ): Promise<void> {
     const profile = await (await leuteModel.me()).mainProfile();
+    if (profile.loadedVersion === undefined) {
+        throw new Error('The main profile was not loaded.');
+    }
 
     console.log('MAIN ID: ', profile.personId);
     printUint8Array(
@@ -21,7 +24,7 @@ export async function writeMainProfile(
     );
 
     // Write the contact objects to files, so that others can import them.
-    fs.writeFileSync(filename, await implode(profile.hash));
+    fs.writeFileSync(filename, await implode(profile.loadedVersion));
 }
 
 export async function waitForKeyPress(): Promise<void> {

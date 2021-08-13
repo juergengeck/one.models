@@ -121,9 +121,9 @@ export default class TestModel {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
-        await this.leuteModel.init();
-        await this.accessModel.init();
         await this.instancesModel.init(this.secret);
+        await this.accessModel.init();
+        await this.leuteModel.init();
         await this.channelManager.init();
         await this.ecgModel.init();
         await this.bodyTemperature.init();
