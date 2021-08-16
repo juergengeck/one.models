@@ -202,6 +202,7 @@ export default class LeuteModel {
 
         const others = new Set(this.leute.other);
         others.add(other);
+        this.leute.other = [...others];
         await this.saveAndLoad();
     }
 
