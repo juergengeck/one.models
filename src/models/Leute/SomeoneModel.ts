@@ -113,6 +113,13 @@ export default class SomeoneModel {
         const idHash = await calculateIdHashOfObj(newSomeone);
 
         const newModel = new SomeoneModel(idHash);
+
+        // add mainProfile to identities
+        const profile = await getObjectByIdHash(mainProfile);
+        const identitySet = new Set<SHA256IdHash<Profile>>();
+        identitySet.add(mainProfile);
+        newModel.pIdentities.set(profile.obj.personId, identitySet);
+
         newModel.someone = newSomeone;
         await newModel.saveAndLoad();
         return newModel;
