@@ -44,7 +44,6 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      * Used to store an audio exercise in one instance.
      * @param audioFileName - the name of the audio file that was played by the user.
      * @param startTimestamp - the time in milliseconds when the user started the audio.
-     * @returns {Promise<void>}
      */
     async addAudioExercise(audioFileName: string, startTimestamp: number): Promise<void> {
         /** store the audio exercise object in one **/
@@ -70,10 +69,9 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
 
     /**
      * Handler-function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleChannelUpdate(
         id: string,

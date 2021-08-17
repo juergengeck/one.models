@@ -4,8 +4,8 @@
  * Perfect for writing debug messages, but imperfect for privacy. We should use pseudonyms for the debugging case and
  * <redacted> for productive versions.
  *
- * @param {WebSocket | null} ws - The websocket instance for which to generate the identifier.
- * @returns {string}
+ * @param ws - The websocket instance for which to generate the identifier.
+ * @returns
  */
 export function wslogId(ws: WebSocket | null): string {
     // TODO: We should use pseudonyms based on an hashing algorithm or something, because we don't want to
@@ -29,8 +29,8 @@ export function wslogId(ws: WebSocket | null): string {
  *
  * Good for debugging stuff.
  *
- * @param {string} name - Name that is prepended
- * @param {Uint8Array} data - The data to print
+ * @param name - Name that is prepended
+ * @param data - The data to print
  */
 export function printUint8Array(name: string, data: Uint8Array): void {
     console.log(' ---- ' + name + ': ' + Buffer.from(data).toString('hex'));

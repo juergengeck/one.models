@@ -19,7 +19,7 @@ class EncryptedConnection_Client extends EncryptedConnection {
      *
      * Client side - This is the side that initiated communication.
      *
-     * @param {string} url - The url to which to open the connection.
+     * @param url - The url to which to open the connection.
      */
     constructor(url: string) {
         super(new WebSocketPromiseBased(createWebSocket(url)), false);
@@ -30,9 +30,8 @@ class EncryptedConnection_Client extends EncryptedConnection {
     /**
      * Send the communication request message
      *
-     * @param {Uint8Array} sourcePublicKey
-     * @param {Uint8Array} targetPublicKey
-     * @returns {Promise<void>}
+     * @param sourcePublicKey
+     * @param targetPublicKey
      */
     public async sendCommunicationRequestMessage(
         sourcePublicKey: Uint8Array,
@@ -51,9 +50,8 @@ class EncryptedConnection_Client extends EncryptedConnection {
      * Sending public keys encrypted prevents MITM (Man in the middle) attacks
      * Generating new keys for each connection provides PFS (Perfect forward secrecy)
      *
-     * @param {(text: Uint8Array) => Uint8Array} encrypt - Function that encrypts the data stream with the known static keys
-     * @param {(cypher: Uint8Array) => Uint8Array} decrypt - Function that dencrypts the data stream with the known static keys
-     * @returns {Promise<void>}
+     * @param encrypt - Function that encrypts the data stream with the known static keys
+     * @param decrypt - Function that dencrypts the data stream with the known static keys
      */
     public async exchangeKeys(
         encrypt: (text: Uint8Array) => Uint8Array,
@@ -75,8 +73,8 @@ class EncryptedConnection_Client extends EncryptedConnection {
     /**
      * Wait for an unencrypted message (only used for setting up the encryption)
      *
-     * @param {T} command - the command to wait for
-     * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
+     * @param command - the command to wait for
+     * @returns
      */
     public async waitForUnencryptedMessage<
         T extends keyof CommunicationInitiationProtocol.ServerMessages
@@ -97,8 +95,7 @@ class EncryptedConnection_Client extends EncryptedConnection {
     /**
      * Send an unencrypted message (only used for setting up the encryption).
      *
-     * @param {T} message - The message to send
-     * @returns {Promise<void>}
+     * @param message - The message to send
      */
     private async sendUnencryptedMessage<
         T extends CommunicationInitiationProtocol.ClientMessageTypes

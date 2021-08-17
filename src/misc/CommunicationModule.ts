@@ -56,9 +56,9 @@ type ConnectionContainer = {
 /**
  * Generate a string id for map entries based on public keys of both participants.
  *
- * @param {Uint8Array} localPublicKey
- * @param {Uint8Array} remotePublicKey
- * @returns {string}
+ * @param localPublicKey
+ * @param remotePublicKey
+ * @returns
  */
 function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): string {
     return `${Buffer.from(localPublicKey).toString('hex')} + ${Buffer.from(
@@ -169,7 +169,7 @@ export default class CommunicationModule extends EventEmitter {
      *
      * If we don't have connections to comm servers, the state will always be true.
      *
-     * @returns {boolean}
+     * @returns
      */
     get onlineState(): boolean {
         return this.incomingConnectionManager.onlineState;
@@ -178,14 +178,14 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Create instance.
      *
-     * @param {string} commServer - The comm server that is used to listen for incoming connections
+     * @param commServer - The comm server that is used to listen for incoming connections
      *                              Outgoing connections are made based on the contact objects.
-     * @param {ContactModel} contactModel - The contacts model. At the moment it is used to automatically
+     * @param contactModel - The contacts model. At the moment it is used to automatically
      *                                      establish connections to all known contacts.
-     * @param {InstancesModel} instancesModel - Instances model used for getting the local instances and keys
-     * @param {boolean} establishOutgoingConnections - If true then make outgoing connections, if false, then don't
-     * @param {boolean} connectToOthersWithAnonId - If true then use the anonymous id for connecting with others
-     * @param {number} reconnectDelay - The amount of time that needs to pass before another reconnection attempt is done when a connection is closed
+     * @param instancesModel - Instances model used for getting the local instances and keys
+     * @param establishOutgoingConnections - If true then make outgoing connections, if false, then don't
+     * @param connectToOthersWithAnonId - If true then use the anonymous id for connecting with others
+     * @param reconnectDelay - The amount of time that needs to pass before another reconnection attempt is done when a connection is closed
      */
     constructor(
         commServer: string,
@@ -365,8 +365,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Initialize the communication.
-     *
-     * @returns {Promise<void>}
      */
     public async init(): Promise<void> {
         this.initialized = true;
@@ -384,8 +382,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Shutdown process
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         this.initialized = false;
@@ -432,9 +428,9 @@ export default class CommunicationModule extends EventEmitter {
      * 2) Give this module before synchronization of contact objects the connection, so that it knows it does not have to
      *    establish a new connection. --> This is what this function is for.
      *
-     * @param {Uint8Array} localPublicKey - the local public key used to identify the connection
-     * @param {Uint8Array} remotePublicKey - the remote public key used to identify the connection
-     * @param {EncryptedConnection} conn - the connection
+     * @param localPublicKey - the local public key used to identify the connection
+     * @param remotePublicKey - the remote public key used to identify the connection
+     * @param conn - the connection
      */
     public addNewUnknownConnection(
         localPublicKey: Uint8Array,
@@ -451,7 +447,7 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Return information about all known connections.
      *
-     * @returns {ConnectionInfo[]}
+     * @returns
      */
     public connectionsInfo(): ConnectionInfo[] {
         const connectionsInfo: ConnectionInfo[] = [];
@@ -576,8 +572,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Updates all the instance info related members in the class.
-     *
-     * @returns {Promise<void>}
      */
     private async updateInstanceInfos(): Promise<void> {
         // Extract my local instance infos to build the map
@@ -606,8 +600,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Initialize outgoing connections by triggering a reconnect on all known peers.
-     *
-     * @returns {Promise<void>}
      */
     private async setupOutgoingConnections(): Promise<void> {
         for (const endpoint of this.knownPeerMap.values()) {
@@ -618,8 +610,8 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Reconnect to the target described by connContainer after a certain delay.
      *
-     * @param {ConnectionContainer} connContainer - The information about the connection
-     * @param {number} delay - the delay
+     * @param connContainer - The information about the connection
+     * @param delay - the delay
      */
     private reconnect(connContainer: ConnectionContainer, delay: number) {
         if (!this.initialized) {
@@ -691,8 +683,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Set up connection listeners for all local instances
-     *
-     * @returns {Promise<void>}
      */
     private async setupIncomingConnections(): Promise<void> {
         const localInstances = await this.instancesModel.localInstancesIds();
@@ -704,8 +694,7 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Setup incoming listener(s) for one specific local instance.
      *
-     * @param {SHA256IdHash<Instance>} instance
-     * @returns {Promise<void>}
+     * @param instance
      */
     private async setupIncomingConnectionsForInstance(
         instance: SHA256IdHash<Instance>
@@ -729,10 +718,10 @@ export default class CommunicationModule extends EventEmitter {
      *
      * This is used for incoming as well as outgoing connections.
      *
-     * @param {EncryptedConnection} conn - The encrypted connection that was accepted.
-     * @param {Uint8Array} localPublicKey - The public key of the local instance
-     * @param {Uint8Array} remotePublicKey - The public key of the remote peer
-     * @param {boolean} initiatedLocally - If outgoing connection, then this should be set to true, otherwise false
+     * @param conn - The encrypted connection that was accepted.
+     * @param localPublicKey - The public key of the local instance
+     * @param remotePublicKey - The public key of the remote peer
+     * @param initiatedLocally - If outgoing connection, then this should be set to true, otherwise false
      */
     private acceptConnection(
         conn: EncryptedConnection,

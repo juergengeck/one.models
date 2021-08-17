@@ -18,7 +18,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      *
      * Server side - This is the side that accepted the connection.
      *
-     * @param {WebSocketPromiseBased} ws - The websocket used for communication.
+     * @param ws - The websocket used for communication.
      */
     constructor(ws: WebSocketPromiseBased) {
         super(ws, true);
@@ -29,8 +29,6 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     /**
      * Send the communication_ready command in order to signal the other
      * party that the communication channel can now be used.
-     *
-     * @returns {Promise<void>}
      */
     public async sendCommunicationReadyMessage(): Promise<void> {
         await this.sendUnencryptedMessage({command: 'communication_ready'});
@@ -44,9 +42,10 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      * Sending public keys encrypted prevents MITM (Man in the middle) attacks
      * Generating new keys for each connection provides PFS (Perfect forward secrecy)
      *
-     * @param {(text: Uint8Array) => Uint8Array} encrypt - Function that encrypts the data stream with the known static keys
-     * @param {(cypher: Uint8Array) => Uint8Array} decrypt - Function that dencrypts the data stream with the known static keys
-     * @param {boolean} rejectConnection - If true kill the connection after successful authentication of the
+     * @param encrypt - Function that encrypts the data stream with the known static keys
+     * @param decrypt - Function that dencrypts the data stream with the known static keys
+     * @param rejectConnection - If true kill the connection after successful authentication
+     * of the
      *                                     keys. The reason for doing it here and not earlier is, that we would
      *                                     expose the rejection to communicate without authentification, so others
      *                                     who don't posess the private key to the specified key in communication_request
@@ -54,7 +53,6 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      *                                     Another reason why we do it here with a boolean flag is to ensure that the permission
      *                                     to communicate has been done calculated before this step
      *                                     (for timing reasons it should always be done earlier)
-     * @returns {Promise<void>}
      */
     public async exchangeKeys(
         encrypt: (text: Uint8Array) => Uint8Array,
@@ -80,8 +78,8 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     /**
      * Wait for an unencrypted message (only used for setting up the encryption)
      *
-     * @param {T} command - the command to wait for
-     * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
+     * @param command - the command to wait for
+     * @returns
      */
     public async waitForUnencryptedMessage<
         T extends keyof CommunicationInitiationProtocol.ClientMessages
@@ -100,8 +98,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     /**
      * Send an unencrypted message (only used for setting up the encryption).
      *
-     * @param {T} message - The message to send
-     * @returns {Promise<void>}
+     * @param message - The message to send
      */
     private async sendUnencryptedMessage<
         T extends CommunicationInitiationProtocol.ServerMessageTypes
@@ -121,8 +118,8 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     /**
      * Convert fields from base64 encoding to Uint8Array.
      *
-     * @param {any} message - The message to convert
-     * @returns {any} - The converted message
+     * @param message - The message to convert
+     * @returns - The converted message
      */
     private static unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {

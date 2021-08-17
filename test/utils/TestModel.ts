@@ -173,8 +173,6 @@ export default class TestModel {
 
     /**
      * Shutdown the models.
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         try {

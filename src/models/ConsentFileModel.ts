@@ -47,7 +47,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -87,8 +87,6 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -98,8 +96,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Used to store the consent file of an user in one.
-     * @param {ConsentFile} consentFile
-     * @returns {Promise<void>}
+     * @param consentFile
      */
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
         if (!consentFile) {
@@ -115,7 +112,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Used to retrieve the user consent file from one.
-     * @returns {Promise<ObjectData<ConsentFile>>}
+     * @returns
      */
     async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
         const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
@@ -142,8 +139,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Used to store the dropout file of an user in one.
-     * @param {DropoutFile} dropoutFile
-     * @returns {Promise<void>}
+     * @param dropoutFile
      */
     async addDropoutFile(dropoutFile: DropoutFile): Promise<void> {
         if (!dropoutFile) {
@@ -159,7 +155,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Used to retrieve the user dropout file from one.
-     * @returns {Promise<ObjectData<DropoutFile>>}
+     * @returns
      */
     async getOwnerDropoutFile(): Promise<ObjectData<DropoutFile>> {
         const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
@@ -235,7 +231,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      * Retrieves entries
-     * @returns {Promise<ObjectData<ConsentFile | DropoutFile>[]>}
+     * @returns
      */
     async entries(): Promise<ObjectData<OneConsentFile>[]> {
         return await this.channelManager.getObjectsWithType('ConsentFile', {
@@ -260,10 +256,9 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,

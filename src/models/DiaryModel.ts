@@ -16,8 +16,8 @@ export type DiaryEntry = string;
 /**
  * Convert from model representation to one representation.
  *
- * @param {DiaryEntry} modelObject - the model object
- * @returns {OneDiaryEntry} The corresponding one object
+ * @param modelObject - the model object
+ * @returns The corresponding one object
  */
 function convertToOne(modelObject: DiaryEntry): OneDiaryEntry {
     // Create the resulting object
@@ -30,8 +30,8 @@ function convertToOne(modelObject: DiaryEntry): OneDiaryEntry {
 /**
  * Convert from one representation to model representation.
  *
- * @param {OneDiaryEntry} oneObject - the one object
- * @returns {DiaryEntry} The corresponding model object
+ * @param oneObject - the one object
+ * @returns The corresponding model object
  */
 function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
     // Create the new ObjectData item
@@ -55,7 +55,7 @@ export default class DiaryModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -75,8 +75,6 @@ export default class DiaryModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -131,10 +129,9 @@ export default class DiaryModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,

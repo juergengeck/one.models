@@ -46,9 +46,9 @@ const MessageBus = createMessageBus('ChannelManager');
 /**
  * Logs a channel manager message.
  *
- * @param {string} channelId
- * @param {SHA256IdHash<Person>} owner
- * @param {string} message
+ * @param channelId
+ * @param owner
+ * @parammessage
  */
 function logWithId(channelId: string | null, owner: SHA256IdHash<Person> | null, message: string) {
     MessageBus.send('log', `${channelId} # ${owner} # ${message}`);
@@ -57,9 +57,9 @@ function logWithId(channelId: string | null, owner: SHA256IdHash<Person> | null,
 /**
  * Logs a channel manager message.
  *
- * @param {string} channelId
- * @param {SHA256IdHash<Person>} owner
- * @param {string} message
+ * @param channelId
+ * @param owner
+ * @param message
  */
 function logWithId_Debug(
     channelId: string | null,
@@ -186,8 +186,8 @@ type ChannelInfoCacheEntry = {
  *
  * This is required so that typescript stops displaying errors.
  *
- * @param {VersionedObjectResult} versionedObjectResult - the one object
- * @returns {VersionedObjectResult<ChannelInfo>} The same object, just casted in a safe way
+ * @param versionedObjectResult - the one object
+ * @returns The same object, just casted in a safe way
  */
 function isChannelInfoResult(
     versionedObjectResult: VersionedObjectResult
@@ -248,7 +248,7 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Create the channel manager instance.
      *
-     * @param {AccessModel} accessModel
+     * @param accessModel
      */
     constructor(accessModel: AccessModel) {
         super();
@@ -291,8 +291,6 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
@@ -310,9 +308,9 @@ export default class ChannelManager extends EventEmitter {
      *
      * If the channel already exists, this call is a noop.
      *
-     * @param {string} channelId - The id of the channel. See class description for more details
+     * @param channelId - The id of the channel. See class description for more details
      * on how ids and channels are handled.
-     * @param {SHA256IdHash<Person>} owner - The id hash of the person that should be the owner
+     * @param owner - The id hash of the person that should be the owner
      * of this channel.
      */
     public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
@@ -355,8 +353,8 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Retrieve all channels registered at the channel registry
      *
-     * @param {ChannelSelectionOptions} options
-     * @returns {Promise<Channel[]>}
+     * @param options
+     * @returns
      */
     public async channels(options?: ChannelSelectionOptions): Promise<Channel[]> {
         const channelInfos = await this.getMatchingChannelInfos(options);
@@ -370,10 +368,10 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Post a new object to a channel.
      *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
-     * @param {SHA256IdHash<Person>} channelOwner
-     * @param {number} timestamp
+     * @param channelId - The id of the channel to post to
+     * @param data - The object to post to the channel
+     * @param channelOwner
+     * @param timestamp
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
@@ -449,9 +447,9 @@ export default class ChannelManager extends EventEmitter {
      * Note: This will iterate over the whole tree if the object does not exist, so it might
      *       be slow.
      *
-     * @param {string} channelId - The id of the channel to post to
-     * @param {OneUnversionedObjectTypes} data - The object to post to the channel
-     * @param {SHA256IdHash<Person>} channelOwner
+     * @param channelId - The id of the channel to post to
+     * @param data - The object to post to the channel
+     * @param channelOwner
      */
     public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
         channelId: string,
@@ -511,7 +509,7 @@ export default class ChannelManager extends EventEmitter {
      * 'count' oldest elements. It is counter intuitive and should either
      * be fixed or the iterator interface should be the mandatory
      *
-     * @param {QueryOptions} queryOptions
+     * @param queryOptions
      */
     public async getObjects(
         queryOptions?: QueryOptions
@@ -533,8 +531,8 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Get all data from a channel.
      *
-     * @param {T}       type - Type of objects to retrieve. If type does not match the object is skipped.
-     * @param {QueryOptions} queryOptions
+     * @param type - Type of objects to retrieve. If type does not match the object is skipped.
+     * @param queryOptions
      */
     public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
         type: T,
@@ -557,7 +555,7 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Obtain a specific object from a channel.
      *
-     * @param {string} id - id of the object to extract
+     * @param id - id of the object to extract
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
         const obj = (await this.objectIterator({id}).next()).value;
@@ -576,10 +574,10 @@ export default class ChannelManager extends EventEmitter {
      * The other option would be to use the hash of the indexed metadata as id, then
      * we don't have the reverse map problem.
      *
-     * @param {string} id - id of the object to extract
-     * @param {T} type - Type of objects to retrieve. If type does not match an
+     * @param id - id of the object to extract
+     * @param type - Type of objects to retrieve. If type does not match an
      *                        error is thrown.
-     * @returns {Promise<ObjectData<OneUnversionedObjectInterfaces[T]>>}
+     * @returns
      */
     public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
         id: string,
@@ -633,8 +631,8 @@ export default class ChannelManager extends EventEmitter {
      * It is a single linked list underneath, so no way of efficiently iterating
      * in the other direction.
      *
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     * @param queryOptions
+     * @returns
      */
     public async *objectIterator(
         queryOptions?: QueryOptions
@@ -662,9 +660,9 @@ export default class ChannelManager extends EventEmitter {
      *
      * This method also returns only the objects of a certain type.
      *
-     * @param {T} type - The type of the elements to iterate
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>>}
+     * @param type - The type of the elements to iterate
+     * @param queryOptions
+     * @returns
      */
     public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
         type: T,
@@ -713,8 +711,8 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Iterate over all objects in the channels selected by the passed ChannelSelectionOptions.
      *
-     * @param {QueryOptions} queryOptions
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     * @param queryOptions
+     * @returns
      */
     private async *multiChannelObjectIterator(
         queryOptions?: QueryOptions
@@ -810,11 +808,11 @@ export default class ChannelManager extends EventEmitter {
      * and not from the start, you can just construct your own ChannelInfo object
      * and set the head to the ChannelEntry where you want to start iterating.
      *
-     * @param {ChannelInfo} channelInfo - iterate this channel
-     * @param {Date} from
-     * @param {Date} to
-     * @param {string[]} ids
-     * @returns {AsyncIterableIterator<RawChannelEntry>}
+     * @param channelInfo - iterate this channel
+     * @param from
+     * @param to
+     * @param ids
+     * @returns
      */
     private static async *singleChannelObjectIterator(
         channelInfo: ChannelInfo,
@@ -845,10 +843,10 @@ export default class ChannelManager extends EventEmitter {
      * and not from the start, you can just construct your own ChannelInfo object
      * and set the head to the ChannelEntry where you want to start iterating.
      *
-     * @param {ChannelInfo} channelInfo - iterate this channel
-     * @param {Date} from
-     * @param {Date} to
-     * @returns {AsyncIterableIterator<RawChannelEntry>}
+     * @param channelInfo - iterate this channel
+     * @param from
+     * @param to
+     * @returns
      */
     private static async *entryIterator(
         channelInfo: ChannelInfo,
@@ -902,11 +900,11 @@ export default class ChannelManager extends EventEmitter {
     /**
      * This iterator just iterates over the elements with the passed ids.
      *
-     * @param {ChannelInfo} channelInfo
-     * @param {string[]} ids
-     * @param {Date} from
-     * @param {Date} to
-     * @returns {AsyncIterableIterator<RawChannelEntry>}
+     * @param channelInfo
+     * @param ids
+     * @param from
+     * @param to
+     * @returns
      */
     private static async *itemIterator(
         channelInfo: ChannelInfo,
@@ -974,8 +972,8 @@ export default class ChannelManager extends EventEmitter {
      * Then this iterator implementation would return the items with these creation times:
      * 9, 8, 7, 6, 5, 4, 3, 2, 1
      *
-     * @param {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>[]} iterators
-     * @param {boolean} terminateOnSingleIterator - If true, then stop iteration when all but
+     * @param  iterators
+     * @param terminateOnSingleIterator - If true, then stop iteration when all but
      * one iterator reached their end. The first element of the last iterator is still returned,
      * but then iteration stops. This is very useful for merging algorithms, because they can
      * use the last item as common history for merging. Because this iteration also removes
@@ -985,7 +983,7 @@ export default class ChannelManager extends EventEmitter {
      * will be yielded as last element
      * @param onlyDifferentElements - If true (default false) only elements that are only in a
      * single channel are yielded.
-     * @returns {AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>>}
+     * @returns
      */
     private static async *mergeIteratorMostCurrent(
         iterators: AsyncIterableIterator<RawChannelEntry>[],
@@ -1158,8 +1156,6 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      * Merge unmerged channel versions.
-     *
-     * @returns {Promise<void>}
      */
     private async mergeAllUnmergedChannelVersions(): Promise<void> {
         logWithId(null, null, 'mergeAllUnmergedChannelVersions - START');
@@ -1172,9 +1168,8 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Merge all pending versions of passed channel.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash - id hash of the channel for which
+     * @param channelInfoIdHash - id hash of the channel for which
      * to merge versions
-     * @returns {Promise<void>}
      */
     private async mergePendingVersions(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>
@@ -1412,9 +1407,9 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Encodes an entry as string for referencing and loading it later.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
-     * @param {SHA256Hash<ChannelEntry>} channelEntryHash
-     * @returns {string}
+     * @param channelInfoIdHash
+     * @param channelEntryHash
+     * @returns
      */
     private static encodeEntryId(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>,
@@ -1426,8 +1421,8 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Decodes the string identifying an entry.
      *
-     * @param {string} id
-     * @returns {{channelInfoIdHash: SHA256IdHash<ChannelInfo>; channelEntryHash: SHA256Hash<ChannelEntry>}}
+     * @param id
+     * @returns
      */
     private static decodeEntryId(id: string): {
         channelInfoIdHash: SHA256IdHash<ChannelInfo>;
@@ -1449,8 +1444,8 @@ export default class ChannelManager extends EventEmitter {
      * It usually returns the channel infos of the latest merged versions, not the latest
      * version in the version maps. Only if the ChannelSelectionOptions reference a specific
      * version this version is returned instead of the latest merged one.
-     * @param {ChannelSelectionOptions} options
-     * @returns {Promise<ChannelInfo[]>}
+     * @param options
+     * @returns
      */
     private async getMatchingChannelInfos(
         options?: ChannelSelectionOptions
@@ -1647,8 +1642,7 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      * Handler function for the VersionedObj
-     * @param {VersionedObjectResult} caughtObject
-     * @return {Promise<void>}
+     * @param caughtObject
      */
     private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
         try {
@@ -1698,8 +1692,7 @@ export default class ChannelManager extends EventEmitter {
     /**
      * Add the passed channel to the cache & registry if it is not there, yet.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash - the channel to add to the registry
-     * @returns {Promise<void>}
+     * @param channelInfoIdHash - the channel to add to the registry
      */
     private async addChannelIfNotExist(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>
@@ -1747,8 +1740,6 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      * Save the cache content as new version of registry in one.
-     *
-     * @returns {Promise<void>}
      */
     private async saveRegistryCacheToOne(): Promise<void> {
         await serializeWithType(ChannelManager.registryLockName, async () => {
@@ -1780,7 +1771,7 @@ export default class ChannelManager extends EventEmitter {
      * This function wraps the given channel info into {@link ObjectData}
      * Returns undefined if the channel head is empty
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelIdHash
+     * @param channelIdHash
      * @private
      */
     private static async wrapChannelInfoWithObjectData(
@@ -1812,8 +1803,6 @@ export default class ChannelManager extends EventEmitter {
 
     /**
      * Load the latest channel registry version into the the cache.
-     *
-     * @returns {Promise<void>}
      */
     private async loadRegistryCacheFromOne(): Promise<void> {
         logWithId(null, null, 'loadRegistryCacheFromOne - START');
@@ -1866,8 +1855,8 @@ export default class ChannelManager extends EventEmitter {
      * Note: This function needs to be cleaned up a little! That is why it is down here with the
      * private methods because atm I don't encourage anybody to use it, unless he doesn't have
      * another choice.
-     * @param {string} channelId
-     * @param {string} to - group name
+     * @param channelId
+     * @param to - group name
      */
     public async giveAccessToChannelInfo(
         channelId: string,
@@ -1924,8 +1913,8 @@ export default class ChannelManager extends EventEmitter {
      *
      * This list also explodes the access groups and adds those persons to the returned list.
      *
-     * @param {SHA256IdHash<ChannelInfo>} channelInfoIdHash
-     * @returns {Promise<SHA256IdHash<Person>[]>}
+     * @param channelInfoIdHash
+     * @returns
      */
     private static async sharedWithPersonsList(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>
@@ -1933,8 +1922,8 @@ export default class ChannelManager extends EventEmitter {
         /**
          * Get the persons from the groups and persons of the passed access object.
          *
-         * @param {SHA256Hash<IdAccess>} accessHash
-         * @returns {Promise<SHA256IdHash<Person>[]>}
+         * @param accessHash
+         * @returns
          */
         async function extractPersonsFromIdAccessObject(accessHash: SHA256Hash<IdAccess>) {
             const accessObject = await getObjectWithType(accessHash, 'IdAccess');

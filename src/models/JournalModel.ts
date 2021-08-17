@@ -97,7 +97,6 @@ export default class JournalModel extends EventEmitter {
 
     /**
      * maps an handler on every provided model
-     * @returns {Promise<void>}
      */
     async init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
@@ -164,7 +163,7 @@ export default class JournalModel extends EventEmitter {
                     to: latestTo,
                     from: latestFrom
                 })) {
-                    data.push(retrievedData as unknown as EventListEntry['data']);
+                    data.push((retrievedData as unknown) as EventListEntry['data']);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -264,7 +263,7 @@ export default class JournalModel extends EventEmitter {
 
     /**
      * Get the stored events sorted by date. In Ascending order
-     * @returns {Promise<EventListEntry[]>}
+     * @returns
      */
     async retrieveAllEvents(): Promise<EventListEntry[]> {
         /** if there are no provided models, return empty list **/
@@ -279,7 +278,7 @@ export default class JournalModel extends EventEmitter {
                 const event = journalInput.eventType;
                 const data: EventListEntry['data'][] = [];
                 for await (const retrievedData of journalInput.retrieveFn()) {
-                    data.push(retrievedData as unknown as EventListEntry['data']);
+                    data.push((retrievedData as unknown) as EventListEntry['data']);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -292,7 +291,7 @@ export default class JournalModel extends EventEmitter {
 
     /**
      * This function will create & sort in ascending order the event list.
-     * @param {JournalData} dataDictionary
+     * @param dataDictionary
      * @private
      */
     private createEventList(dataDictionary: JournalData): EventListEntry[] {
@@ -346,8 +345,8 @@ export default class JournalModel extends EventEmitter {
 
     /**
      * This function queries the channels and finds the newest creation time
-     * @param {Date} from
-     * @param {Date} to
+     * @param from
+     * @param to
      * @private
      */
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {
@@ -375,7 +374,7 @@ export default class JournalModel extends EventEmitter {
 
     /**
      * Maps the given object data to the corresponding event type
-     * @param {ObjectData<OneUnversionedObjectTypes>} objectData
+     * @param objectData
      * @private
      */
     private static mapObjectDataToEventListEntry(

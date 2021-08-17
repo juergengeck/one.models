@@ -39,8 +39,6 @@ export default class WbcDiffModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -50,10 +48,9 @@ export default class WbcDiffModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,
@@ -69,7 +66,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     /**
      * Create a new response for a questionnaire.
      *
-     * @param {string} wbcObservation - The answers for the questionnaire
+     * @param wbcObservation - The answers for the questionnaire
      */
     async postObservation(wbcObservation: WbcObservation): Promise<void> {
         MessageBus.send('log', `postMeasurement()`);

@@ -25,7 +25,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -42,8 +42,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
 
     /**
      *
-     * @param {BloodGlucose} BGSampleObject
-     * @returns {Promise<void>}
+     * @param BGSampleObject
      */
     async postBloodGlucose(BGSampleObject: BloodGlucose): Promise<void> {
         await this.channelManager.postToChannel(
@@ -56,7 +55,7 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
 
     /**
      *
-     * @returns {Promise<ObjectData<BloodGlucose>[]>}
+     * @returns
      */
     async retrieveAllWithoutData(): Promise<ObjectData<BloodGlucose>[]> {
         return await this.channelManager.getObjectsWithType('BloodGlucose', {
@@ -76,8 +75,8 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
 
     /**
      *
-     * @param {SHA256Hash<BloodGlucose>} bloodGlucoseHash
-     * @returns {Promise<ObjectData<BloodGlucose>>}
+     * @param bloodGlucoseHash
+     * @returns
      */
     async retrieveBloodGlucoseByHash(
         bloodGlucoseHash: SHA256Hash<BloodGlucose>
@@ -118,8 +117,6 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -129,10 +126,9 @@ export default class BloodGlucoseModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     *  @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     *  @param id
+     * @param owner
+     * @param data
      */
     private async handleChannelUpdate(
         id: string,

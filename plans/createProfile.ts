@@ -8,9 +8,9 @@ import type {Profile} from '../src/recipes/ContactRecipes';
 /**
  * @description Pure plan for creating a profile for another person
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} email
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @param WriteStorage
+ * @param email
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

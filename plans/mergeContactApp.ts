@@ -10,9 +10,9 @@ import type {ContactApp, Someone} from '../src/recipes/ContactRecipes';
 
 /**
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {SHA256IdHash<Profile>} latestContactApp
- * @return {Promise<VersionedObjectResult<Profile>>}
+ * @param WriteStorage
+ * @param latestContactApp
+ * @return
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

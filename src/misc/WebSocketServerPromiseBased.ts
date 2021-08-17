@@ -16,7 +16,7 @@ export default class WebSocketServerPromiseBased {
 
     /**
      * Constructs the convenience wrapper around the passed websoket server instance.
-     * @param {WebSocket.Server} webSocketServer - The instance to wrap.
+     * @param webSocketServer - The instance to wrap.
      */
     public constructor(webSocketServer: WebSocketWS.Server) {
         this.acceptConnectionFn = null;
@@ -36,7 +36,7 @@ export default class WebSocketServerPromiseBased {
      * Releases the websocket server instance by deregistering all events and removing
      * any reference to it from this wrapper.
      *
-     * @returns {WebSocket.Server}
+     * @returns
      */
     public releaseWebSocketServer(): WebSocketWS.Server {
         if (!this.webSocketServer) {
@@ -52,7 +52,7 @@ export default class WebSocketServerPromiseBased {
     /**
      * Wait for a new connection.
      *
-     * @returns {Promise<WebSocket>}
+     * @returns
      */
     public async waitForConnection(): Promise<WebSocket> {
         if (this.acceptConnectionFn) {
@@ -84,7 +84,7 @@ export default class WebSocketServerPromiseBased {
      *
      * It resolves the promise of somebody waiting in the waitForConnection function.
      *
-     * @param {WebSocket} ws - The websocket that was accepted.
+     * @param ws - The websocket that was accepted.
      */
     private handleConnection(ws: WebSocket) {
         // Add connection to member, so that it can be obtained by waitForConnection
