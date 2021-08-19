@@ -431,6 +431,8 @@ export default class LeuteModel {
         );
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
+
+        this.onUpdate.emit();
     }
 
     /**
