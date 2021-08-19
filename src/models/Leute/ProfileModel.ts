@@ -287,6 +287,8 @@ export default class ProfileModel {
         );
 
         await this.updateModelDataFromProfile(result.obj, result.hash);
+
+        this.onUpdate.emit();
     }
 
     // ######## private stuff ########
