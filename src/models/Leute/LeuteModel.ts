@@ -282,11 +282,19 @@ export default class LeuteModel {
 
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
-            const someoneNew = await SomeoneModel.constructWithNewSomeone(
-                await createRandomString(32),
-                profile
-            );
-            await this.addOther(someoneNew.idHash);
+            // TODO: it might happen that it's in the process of creating the someone, but the
+            //  profile was saved first. Maybe a lock is a better solution?
+            // Current workaround: ignore the profiles written by the owner of this instance
+            const me = await this.me();
+            if (me.identities().includes(profileObj.obj.owner)) {
+                console.log('Profile skipped, as it was added by myself.');
+            } else {
+                const someoneNew = await SomeoneModel.constructWithNewSomeone(
+                    await createRandomString(32),
+                    profile
+                );
+                await this.addOther(someoneNew.idHash);
+            }
         } else {
             await someone.addProfile(profile);
         }
