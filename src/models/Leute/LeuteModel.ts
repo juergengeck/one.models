@@ -286,9 +286,7 @@ export default class LeuteModel {
             //  profile was saved first. Maybe a lock is a better solution?
             // Current workaround: ignore the profiles written by the owner of this instance
             const me = await this.me();
-            if (me.identities().includes(profileObj.obj.owner)) {
-                console.log('Profile skipped, as it was added by myself.');
-            } else {
+            if (!me.identities().includes(profileObj.obj.owner)) {
                 const someoneNew = await SomeoneModel.constructWithNewSomeone(
                     await createRandomString(32),
                     profile
