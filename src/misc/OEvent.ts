@@ -246,8 +246,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     /**
      * Register a listener to be triggered when a new listener is registered for this event.
      *
-     * @param {() => Promise<void>} onListenListenerHandler
-     * @returns {() => void}
+     * @param onListenListenerHandler
+     * @returns
      */
     public onListen(onListenListenerHandler: () => Promise<void>): () => void {
         this.onListenListeners.add(onListenListenerHandler);
@@ -263,8 +263,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     /**
      * Register a listener to be triggered when a listener is unregistered from this event.
      *
-     * @param {() => Promise<void>} onStopListenListenerHandler
-     * @returns {() => void}
+     * @param onStopListenListenerHandler
+     * @returns
      */
     public onStopListen(onStopListenListenerHandler: () => Promise<void>): () => void {
         this.onStopListenListeners.add(onStopListenListenerHandler);
@@ -334,8 +334,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      *
      * If a listener fails it writes the error to console.error.
      *
-     * @param {Set<() => Promise<void>>} listeners
-     * @returns {Promise<void>[]}
+     * @param listeners
      * @private
      */
     private static executeAndIgnoreListeners(listeners: Set<() => Promise<void>>): void {

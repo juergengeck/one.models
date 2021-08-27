@@ -50,9 +50,8 @@ class WebSocketListener {
     /**
      * Start the web socket listener.
      *
-     * @param {string} host - The host to listen on
-     * @param {number} port - The port to listen on
-     * @returns {Promise<void>}
+     * @param host - The host to listen on
+     * @param port - The port to listen on
      */
     public async start(host: string, port: number): Promise<void> {
         if (this.webSocketServer) {
@@ -102,8 +101,6 @@ class WebSocketListener {
 
     /**
      * Stops the listener
-     *
-     * @returns {Promise<void>}
      */
     public async stop(): Promise<void> {
         MessageBus.send('log', `Stopping WebSocket server`);
@@ -128,8 +125,7 @@ class WebSocketListener {
     /**
      * Notifies the user of a new connection.
      *
-     * @param {WebSocket} ws
-     * @returns {Promise<void>}
+     * @param ws
      */
     private async acceptConnection(ws: WebSocket): Promise<void> {
         MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
@@ -146,8 +142,8 @@ class WebSocketListener {
      * in order for the connector caller to be aware of the changes that happen
      * in the registration process.
      *
-     * @param {CommunicationServerListenerState} newState - The new state to set.
-     * @param {string} reason - The reason for the state change (Usually an error)
+     * @param newState - The new state to set.
+     * @param reason - The reason for the state change (Usually an error)
      */
     private changeCurrentState(newState: WebSocketListenerState, reason?: string): void {
         const oldState = this.state;

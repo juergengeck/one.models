@@ -215,7 +215,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * If we don't have connections to comm servers, the state will always be true.
      *
-     * @returns {boolean}
+     * @returns
      */
     public get onlineState(): boolean {
         return this.communicationModule.onlineState;
@@ -224,7 +224,7 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Retrieve the authentication token expiration time.
      *
-     * @returns {number}
+     * @returns
      */
     public get authTokenExpirationDuration(): number {
         return this.config.authTokenExpirationDuration;
@@ -233,7 +233,7 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Set a new value to specify how long a created invite is valid.
      *
-     * @param {number} newExpirationDuration
+     * @param newExpirationDuration
      */
     public set authTokenExpirationDuration(newExpirationDuration: number) {
         this.config.authTokenExpirationDuration = newExpirationDuration;
@@ -242,9 +242,9 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Construct a new instance
      *
-     * @param {ContactModel} contactModel
-     * @param {InstancesModel} instancesModel
-     * @param {Partial<ConnectionsModel.Configuration>} config
+     * @param contactModel
+     * @param instancesModel
+     * @param config
      */
     constructor(
         contactModel: ContactModel,
@@ -316,8 +316,6 @@ class ConnectionsModel extends EventEmitter {
 
     /**
      * Initialize this module.
-     *
-     * @returns {Promise<void>}
      */
     public async init(): Promise<void> {
         this.initialized = true;
@@ -335,8 +333,6 @@ class ConnectionsModel extends EventEmitter {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         this.initialized = false;
@@ -358,7 +354,7 @@ class ConnectionsModel extends EventEmitter {
 
     /**
      *
-     * @returns {ConnectionInfo[]}
+     * @returns
      */
     public connectionsInfo(): ConnectionInfo[] {
         return this.communicationModule.connectionsInfo();
@@ -369,7 +365,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * TODO: remove me and ask the user instead. Long term storage is a bad idea!
      *
-     * @param {string} password
+     * @param password
      */
     public setPassword(password: string) {
         this.password = password;
@@ -378,8 +374,8 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Generates the information for sharing which will be sent in the QR code.
      *
-     * @param {boolean} takeOver
-     * @returns {Promise<PairingInformation>}
+     * @param takeOver
+     * @returns
      */
     public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
         if (!this.initialized) {
@@ -522,9 +518,8 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Connect to target using pairing information with the goal to pair / being taken over
      *
-     * @param {PairingInformation} pairingInformation
-     * @param {string} password
-     * @returns {Promise<void>}
+     * @param pairingInformation
+     * @param password
      */
     public async connectUsingPairingInformation(
         pairingInformation: PairingInformation,
@@ -663,7 +658,7 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Given the pairing information as parameter, the corresponding invitation will be invalidated.
      *
-     * @param {PairingInformation} pairingInformation
+     * @param pairingInformation
      */
     public invalidateCurrentInvitation(pairingInformation: PairingInformation): void {
         if (pairingInformation.takeOver) {
@@ -676,7 +671,7 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Invalidate all existing invitations
      *
-     * @param {boolean} takeOver
+     * @param takeOver
      */
     public invalidateAllInvitations(takeOver: boolean): void {
         if (takeOver) {
@@ -689,13 +684,12 @@ class ConnectionsModel extends EventEmitter {
     /**
      * This function is called whenever a connection with a known instance was established
      *
-     * @param {EncryptedConnection} conn
-     * @param {Uint8Array} localPublicKey
-     * @param {Uint8Array} remotePublicKey
-     * @param {SHA256IdHash<Person>} localPersonId
-     * @param {SHA256IdHash<Person>} remotePersonId
-     * @param {boolean} initiatedLocally
-     * @returns {Promise<void>}
+     * @param conn
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param localPersonId
+     * @param remotePersonId
+     * @param initiatedLocally
      */
     private async onKnownConnection(
         conn: EncryptedConnection,
@@ -821,12 +815,11 @@ class ConnectionsModel extends EventEmitter {
     /**
      * This function is called whenever a connection with an unknown instance was established
      *
-     * @param {EncryptedConnection} conn
-     * @param {Uint8Array} localPublicKey
-     * @param {Uint8Array} remotePublicKey
-     * @param {SHA256IdHash<Person>} localPersonId
-     * @param {boolean} initiatedLocally
-     * @returns {Promise<void>}
+     * @param conn
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param localPersonId
+     * @param initiatedLocally
      */
     private async onUnknownConnection(
         conn: EncryptedConnection,
@@ -951,18 +944,17 @@ class ConnectionsModel extends EventEmitter {
      * Step 1: Verify / exchange the remote person id (and check the keys against the ones stored in the database)
      * Step 2: Setup the chum
      *
-     * @param {EncryptedConnection} conn - Connection to the peer.
-     * @param {SHA256IdHash<Person>} localPersonId - The local person id used to setup the chum
-     * @param {boolean} isClient - This is used to determine who sends messages first. Client should pass true,
-     *                             server false.
-     * @param {boolean} contactShouldBeKnown - If this is true, then an error is thrown if we have seen this person
-     *                                         the first time.
-     * @param {SHA256IdHash<Person>|undefined} remotePersonId - If this is passed in, then we expect this to be the
-     *                                                          person we set the chum up with. If person key / id
-     *                                                          exchange resulted in a different id, then an error
-     *                                                          is thrown
-     * @param {boolean} keepRunning
-     * @returns {Promise<void>}
+     * @param conn - Connection to the peer.
+     * @param localPersonId - The local person id used to setup the chum
+     * @param isClient - This is used to determine who sends messages first. Client should pass
+     *                   true, server false.
+     * @param contactShouldBeKnown - If this is true, then an error is thrown if we have seen this person
+     *                               the first time.
+     * @param remotePersonId - If this is passed in, then we expect this to be the person we set
+     *                         the chum up with. If person key / id exchange resulted in a
+     *                         different id, then an error
+     * is thrown
+     * @param keepRunning
      */
     private async startChumProtocol(
         conn: EncryptedConnection,
@@ -1010,9 +1002,8 @@ class ConnectionsModel extends EventEmitter {
      * Step 3: Exchange person objects (needed for setting up access rights) -> TODO: shouldn't be part of this workflow ...
      * Step 4: Setup the chum
      *
-     * @param {EncryptedConnection} conn - Connection to the peer.
-     * @param {SHA256IdHash<Person>} localPersonId - The local person id used to setup the chum
-     * @returns {Promise<void>}
+     * @param conn - Connection to the peer.
+     * @param localPersonId - The local person id used to setup the chum
      */
     private async startChumOneTimeAuthProtocol_Server(
         conn: EncryptedConnection,
@@ -1095,10 +1086,10 @@ class ConnectionsModel extends EventEmitter {
      * Step 3: Exchange person objects (needed for setting up access rights) -> TODO: shouldn't be part of this workflow ...
      * Step 4: Setup the chum
      *
-     * @param {EncryptedConnection} conn - Connection to the peer.
-     * @param {SHA256IdHash<Person>} localPersonId - The local person id used to setup the chum
-     * @param {string} authenticationToken - The authentication token received via a secure channel from the peer
-     * @returns {Promise<void>}
+     * @param conn - Connection to the peer.
+     * @param localPersonId - The local person id used to setup the chum
+     * @param authenticationToken - The authentication token received via a secure channel from
+     *                              the peer
      */
     private async startChumOneTimeAuthProtocol_Client(
         conn: EncryptedConnection,
@@ -1169,9 +1160,8 @@ class ConnectionsModel extends EventEmitter {
      * Step 4: Send the private data (keys and ids and stuff)
      * Step 5: Setup the chum
      *
-     * @param {EncryptedConnection} conn
-     * @param {SHA256IdHash<Person>} localPersonId
-     * @returns {Promise<void>}
+     * @param conn
+     * @param localPersonId
      */
     private async startChumPkExchangeProtocol_Server(
         conn: EncryptedConnection,
@@ -1268,12 +1258,11 @@ class ConnectionsModel extends EventEmitter {
      * Step 4: Wait for / apply the private data / keys
      * Step 5: Setup the chum with the new identity
      *
-     * @param {EncryptedConnection} conn
-     * @param {SHA256IdHash<Person>} localPersonId
-     * @param {string} authenticationToken
-     * @param {Uint8Array} kdfSalt
-     * @param {string} password
-     * @returns {Promise<void>}
+     * @param conn
+     * @param localPersonId
+     * @param authenticationToken
+     * @param kdfSalt
+     * @param password
      */
     private async startChumPkExchangeProtocol_Client(
         conn: EncryptedConnection,
@@ -1448,13 +1437,12 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Starts the corresponding chum connection.
      *
-     * @param {EncryptedConnection} conn
-     * @param {SHA256IdHash<Person>} localPersonId
-     * @param {SHA256IdHash<Person>} remotePersonId
-     * @param {CommunicationInitiationProtocol.Protocols} protocol
-     * @param {boolean} initiatedLocally
-     * @param {boolean} keepRunning
-     * @returns {Promise<void>}
+     * @param conn
+     * @param localPersonId
+     * @param remotePersonId
+     * @param protocol
+     * @param initiatedLocally
+     * @param keepRunning
      */
     private async startChum(
         conn: EncryptedConnection,
@@ -1517,7 +1505,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * IMPORTANT: this function is used also in RecoveryModel.
      *
-     * @returns {Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage>}
+     * @returns
      */
     async extractExistingPersonKeys(): Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage> {
         if (!this.mainInstanceInfo) {
@@ -1569,8 +1557,7 @@ class ConnectionsModel extends EventEmitter {
      * IMPORTANT: this function is used also in RecoveryModel.
      *            For using this function the password has to be set.
      *
-     * @param {CommunicationInitiationProtocol.PrivatePersonInformationMessage} privatePersonInformation
-     * @returns {Promise<void>}
+     * @param privatePersonInformation
      */
     async overwriteExistingPersonKeys(
         privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage
@@ -1687,11 +1674,9 @@ class ConnectionsModel extends EventEmitter {
      * When the chum connection is closed (the data was synchronised) the function
      * will return.
      *
-     * @param {SHA256IdHash<Person>} remotePersonId
-     * @param {number} retryTimeout
-     * @param {number} successTimeout
-     *
-     * @returns {Promise<void>}
+     * @param remotePersonId
+     * @param retryTimeout
+     * @param successTimeout
      */
     async connectOneTime(
         remotePersonId: SHA256IdHash<Person>,
@@ -1818,8 +1803,8 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Extract public ans encrypted private keys for the person received as parameter.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<{personPublicKeys: string, personPrivateEncryptionKey: string, personPrivateSignKey: string}>}
+     * @param personId
+     * @returns
      * @private
      */
     private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
@@ -1852,8 +1837,6 @@ class ConnectionsModel extends EventEmitter {
 
     /**
      * Updates all the instance info related members in the class.
-     *
-     * @returns {Promise<void>}
      */
     private async updateInstanceInfos(): Promise<void> {
         // Extract my local instance infos to build the map
@@ -1886,12 +1869,13 @@ class ConnectionsModel extends EventEmitter {
      * - Does the person id communicated by the peer match the expected person id
      *   -> Only checked if matchRemotePersonId is specified
      *
-     * @param {EncryptedConnection} conn - The connection used to exchange this data
-     * @param {SHA256IdHash<Person>} localPersonId - The local person id (used for getting keys)
-     * @param {boolean} initiatedLocally
-     * @param {SHA256IdHash<Person>} matchRemotePersonId - It is verified that the transmitted person id matches this one.
-     * @param {boolean} skipLocalKeyCompare - Skips the comparision of local keys. Defaults to false. Use with care!
-     * @returns {Promise<{isNew: boolean; personId: SHA256IdHash<Person>; personPublicKey: Uint8Array}>}
+     * @param conn - The connection used to exchange this data
+     * @param localPersonId - The local person id (used for getting keys)
+     * @param initiatedLocally
+     * @param matchRemotePersonId - It is verified that the transmitted person id matches this one.
+     * @param skipLocalKeyCompare - Skips the comparision of local keys. Defaults to false. Use
+     *                              with care!
+     * @returns
      */
     private async verifyAndExchangePersonId(
         conn: EncryptedConnection,
@@ -2020,10 +2004,9 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Challenge the remote peer for proving that he has the private key
      *
-     * @param {EncryptedConnection} conn
-     * @param {Uint8Array} remotePersonPublicKey
-     * @param {CryptoAPI} crypto
-     * @returns {Promise<void>}
+     * @param conn
+     * @param remotePersonPublicKey
+     * @param crypto
      */
     private static async challengePersonKey(
         conn: EncryptedConnection,
@@ -2056,10 +2039,9 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Wait for a challenge and prove that we have the private key.
      *
-     * @param {EncryptedConnection} conn
-     * @param {Uint8Array} remotePersonPublicKey
-     * @param {CryptoAPI} crypto
-     * @returns {Promise<void>}
+     * @param conn
+     * @param remotePersonPublicKey
+     * @param crypto
      */
     private static async challengeRespondPersonKey(
         conn: EncryptedConnection,
@@ -2087,9 +2069,8 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Send a peer message
      *
-     * @param {EncryptedConnection} conn
-     * @param {T} message - The message to send
-     * @returns {Promise<void>}
+     * @param conn
+     * @param message - The message to send
      */
     private static async sendMessage<T extends CommunicationInitiationProtocol.PeerMessageTypes>(
         conn: EncryptedConnection,
@@ -2101,9 +2082,9 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Wait for a peer message
      *
-     * @param {EncryptedConnection} conn
-     * @param {T} command - the command to wait for
-     * @returns {Promise<CommunicationInitiationProtocol.ClientMessages[T]>}
+     * @param conn
+     * @param command - the command to wait for
+     * @returns
      */
     public static async waitForMessage<
         T extends keyof CommunicationInitiationProtocol.PeerMessages

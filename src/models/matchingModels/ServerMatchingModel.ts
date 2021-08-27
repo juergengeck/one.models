@@ -56,7 +56,6 @@ export default class ServerMatchingModel extends MatchingModel {
      *
      * 3. share the channel with the matching clients
      *
-     * @returns {Promise<void>}
      */
     async init() {
         await this.updateInstanceInfo();
@@ -125,8 +124,6 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Initialising the notified users object in order to load all
      * data about the previously notified users.
-     *
-     * @returns {Promise<void>}
      */
     private async initNotifiedUsersList(): Promise<void> {
         try {
@@ -159,10 +156,9 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Search for a match in the available Supply and Demand objects.
      *
-     * @param {T} object
-     * @param {Map<string, T[]>} sourceMap
-     * @param {Map<string, Supply[] | Demand[]>} destinationMap
-     * @returns {Promise<void>}
+     * @param object
+     * @param sourceMap
+     * @param destinationMap
      * @private
      */
     private async identifyMatching<T extends Demand | Supply>(
@@ -196,9 +192,9 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Send a Match Response object to the corresponding persons.
      *
-     * @param {Supply|Demand} source
-     * @param {Supply|Demand} dest
-     * @returns {Promise<UnversionedObjectResult>}
+     * @param source
+     * @param dest
+     * @returns
      */
     private async sendMatchResponse(
         source: Supply | Demand,

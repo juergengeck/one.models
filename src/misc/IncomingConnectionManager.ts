@@ -43,7 +43,7 @@ class IncomingConnectionManager {
      *
      * If we don't have connections to comm servers, the state will always be true.
      *
-     * @returns {boolean}
+     * @returns
      */
     get onlineState(): boolean {
         for (const listeners of this.commServerListener.values()) {
@@ -73,13 +73,12 @@ class IncomingConnectionManager {
     /**
      * Listen for connections using a communication server.
      *
-     * @param {string} server - The communication server to use. (URL is passed to WebSocket)
-     * @param {Uint8Array} publicKey - The public key to use for registration
-     * @param {(pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array} encrypt - Function to encrypt stuff. This function is used for
+     * @param server - The communication server to use. (URL is passed to WebSocket)
+     * @param publicKey - The public key to use for registration
+     * @param encrypt - Function to encrypt stuff. This function is used for
      *      1) Setting up an encrypted connection to the peer (
      *      2) and authentication against the comm server. For later communication it is not used.
-     * @param {(pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array} decrypt
-     * @returns {Promise<void>}
+     * @param decrypt
      */
     public async listenForCommunicationServerConnections(
         server: string,
@@ -127,12 +126,11 @@ class IncomingConnectionManager {
     /**
      * Listen for direct connections.
      *
-     * @param {string} host
-     * @param {number} port
-     * @param {Uint8Array} publicKey
-     * @param {(pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array} encrypt
-     * @param {(pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array} decrypt
-     * @returns {Promise<void>}
+     * @param host
+     * @param port
+     * @param publicKey
+     * @param encrypt
+     * @param decrypt
      */
     public async listenForDirectConnections(
         host: string,
@@ -176,8 +174,6 @@ class IncomingConnectionManager {
      * Shutdown the listeners.
      *
      * This does not shutdown the already established encrypted connections, it just shuts doen the listeners.
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         MessageBus.send('log', `shutdown()`);

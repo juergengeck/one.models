@@ -17,8 +17,8 @@ export type DocumentInfo = DocumentInfo_1_1_0;
 /**
  * Saving the document in ONE as a BLOB and returning the reference for it.
  *
- * @param {ArrayBuffer} document - the document that is saved in ONE as a BLOB.
- * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
+ * @param document - the document that is saved in ONE as a BLOB.
+ * @returns The reference to the saved BLOB.
  */
 async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
     const minimalWriteStorageApiObj = {
@@ -50,7 +50,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -70,8 +70,6 @@ export default class DocumentModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -82,10 +80,10 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Create a new reference to a document.
      *
-     * @param {ArrayBuffer} document - The document.
-     * @param {DocumentInfo['mimeType']} mimeType
-     * @param {DocumentInfo['documentName']} documentName
-     * @param {string} channelId - The default is DocumentModel.channelId
+     * @param document - The document.
+     * @param mimeType
+     * @param documentName
+     * @param channelId - The default is DocumentModel.channelId
      */
     async addDocument(
         document: ArrayBuffer,
@@ -105,7 +103,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Getting all the documents stored in ONE.
      *
-     * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
+     * @returns an array of documents.
      */
     async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
         const documentsData = (await this.channelManager.getObjects({
@@ -154,7 +152,7 @@ export default class DocumentModel extends EventEmitter implements Model {
                 },
                 // This is already there from "...document" above, but for TypeScript we need to
                 // recast the type of this property
-                dataHash: document.dataHash as unknown as SHA256Hash<DocumentInfo_1_1_0>
+                dataHash: (document.dataHash as unknown) as SHA256Hash<DocumentInfo_1_1_0>
             };
         }
         yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
@@ -166,8 +164,8 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Getting a document with a specific id.
      *
-     * @param {string} id - the id of the document.
-     * @returns {Promise<ObjectData<ArrayBuffer>>} the document.
+     * @param id - the id of the document.
+     * @returns the document.
      */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo_1_1_0>> {
         const documentsData = await this.channelManager.getObjects({
@@ -202,8 +200,8 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Convert from one representation to model representation.
      *
-     * @param {DocumentInfo} oneObject - the one object
-     * @returns {ArrayBuffer} The corresponding model object
+     * @param oneObject - the one object
+     * @returns The corresponding model object
      */
     async blobHashToArrayBuffer(oneObject: DocumentInfo): Promise<ArrayBuffer> {
         let document: ArrayBuffer = {} as ArrayBuffer;
@@ -218,10 +216,9 @@ export default class DocumentModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,

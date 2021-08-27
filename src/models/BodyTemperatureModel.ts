@@ -53,9 +53,8 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
 
     /**
      * Used to store a body temperature in one instance.
-     * @param {number} bodyTemperature - the body temperature measurement provided by the user.
-     * @param {} creationTimestamp - the time in milliseconds when the body temperature was measured.
-     * @returns {Promise<void>}
+     * @param bodyTemperature - the body temperature measurement provided by the user.
+     * @param creationTimestamp - the time in milliseconds when the body temperature was measured.
      */
     async addBodyTemperature(bodyTemperature: number, creationTimestamp?: number): Promise<void> {
         /** make sure that the supplied body temperature fit the allowed range **/
@@ -76,7 +75,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
      * Used to retrieve the body temperatures.
      * Depending on the provided params all the body temperatures are retrieved
      * or just the body temperatures that fit the query parameters.
-     * @returns {Promise<ObjectData<BodyTemperature>[]>} - the body temperatures.
+     * @returns the body temperatures.
      * @param queryParams - used to filter the returned data.
      */
     async getBodyTemperatures(queryParams?: QueryOptions): Promise<ObjectData<BodyTemperature>[]> {
@@ -108,10 +107,9 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleChannelUpdate(
         id: string,

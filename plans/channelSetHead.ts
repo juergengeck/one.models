@@ -14,11 +14,11 @@ import type {Person} from 'one.core/lib/recipes';
  *            - the chum plan
  *            - the channelPost plan
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} channelId - Id of the channel for which to set the head
- * @param {SHA256IdHash<Person>} channelOwner - Id of the owner for which to set the head
- * @param {SHA256Hash<ChannelEntry>} head - The new head of the channel
- * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+ * @param WriteStorage
+ * @param channelId - Id of the channel for which to set the head
+ * @param channelOwner - Id of the owner for which to set the head
+ * @param head - The new head of the channel
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

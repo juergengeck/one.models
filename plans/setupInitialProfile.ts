@@ -13,10 +13,10 @@ import type {ContactApp} from '../src/recipes/ContactRecipes';
  * @description Pure plan for initialising the contact structure <-> used only on the very start
  * of the instance
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} url
- * @param {boolean} [takeOver]
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @param WriteStorage
+ * @param url
+ * @param [takeOver]
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

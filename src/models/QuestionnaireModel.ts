@@ -269,7 +269,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Getting the number of completed questionnaire by questionnaire type.
      *
-     * @param {string} questionnaireResponseId - questionnaire response identifier
+     * @param questionnaireResponseId - questionnaire response identifier
      * TODO: Why do we need this? I disabled it, because it assumes a language suffix - we should rethink this!
      */
     /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
@@ -375,7 +375,6 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Note: This simply posts an empty responses object to the incomplete channel.
      *
      * @param type - The type of the incomplete response collection.
-     * @returns
      */
     public async markIncompleteResponseAsComplete(type: string): Promise<void> {
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
@@ -386,11 +385,10 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     }
 
     /**
-     *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * Handler function for the 'updated' event
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,

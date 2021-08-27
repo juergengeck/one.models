@@ -1,4 +1,4 @@
-import WebSocketWS from 'isomorphic-ws'
+import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
@@ -85,7 +85,7 @@ export default class WebSocketPromiseBased
      *
      * This is required, if you only want to use the event based interface for retrieving messages.
      *
-     * @param {boolean} value
+     * @param value
      */
     public set disableWaitForMessage(value: boolean) {
         this.disableWaitForMessageInt = value;
@@ -99,7 +99,7 @@ export default class WebSocketPromiseBased
     /**
      * Get the waitForMessage state
      *
-     * @returns {boolean}
+     * @returns
      */
     public get disableWaitForMessage(): boolean {
         return this.disableWaitForMessageInt;
@@ -135,7 +135,7 @@ export default class WebSocketPromiseBased
      * connection was interrupted because e.g. the wirless adapter was switched
      * off.
      *
-     * @param {string} reason - Reason for timeout
+     * @param reason - Reason for timeout
      */
     public close(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: close(${reason})`);
@@ -162,7 +162,7 @@ export default class WebSocketPromiseBased
      * This also releases the websocket, because the state might still be open, but
      * we don't want anyone to do any operation on the websocket anymore.
      *
-     * @param {string} reason - Reason for timeout
+     * @param reason - Reason for timeout
      */
     public terminate(reason?: string) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: terminate(${reason})`);
@@ -291,11 +291,11 @@ export default class WebSocketPromiseBased
     /**
      * Wait for an incoming message with a specific type for a specified period of time.
      *
-     * @param {string} type    - The type field of the message should have this type.
-     * @param {string} typekey - The name of the member that holds the type that is checked for equality
+     * @param type    - The type field of the message should have this type.
+     * @param typekey - The name of the member that holds the type that is checked for equality
      *                           with the type param.
-     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<MessageEvent['data']> The promise will resolve when a value was received.
+     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return The promise will resolve when a value was received.
      *                                                 - The value will be the JSON.parse'd object
      *                                                 The promise will reject when
      *                                                 1) the timeout expired
@@ -328,8 +328,8 @@ export default class WebSocketPromiseBased
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<any> The promise will resolve when a value was received.
+     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return The promise will resolve when a value was received.
      *                      The value will be the JSON.parse'd object
      *                      The promise will reject when
      *                      1) the timeout expired
@@ -359,8 +359,8 @@ export default class WebSocketPromiseBased
     /**
      * Wait for a binary message.
      *
-     * @param {number} timeout
-     * @returns {Promise<Uint8Array>}
+     * @param timeout
+     * @returns
      */
     public async waitForBinaryMessage(timeout: number = -2): Promise<Uint8Array> {
         const message = await this.waitForMessage(timeout);
@@ -373,8 +373,8 @@ export default class WebSocketPromiseBased
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<MessageEvent['data']> The promise will resolve when a value was received.
+     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return The promise will resolve when a value was received.
      *                                                 The promise will reject when
      *                                                 1) the timeout expired
      *                                                 2) the connection was closed
@@ -520,8 +520,6 @@ export default class WebSocketPromiseBased
      * Function asserts that the connection is open.
      *
      * If it is closed it will reject the promise with a message having the close reason.
-     *
-     * @returns {Promise<void>}
      */
     private assertOpen(): void {
         if (!this.webSocket) {
@@ -571,7 +569,7 @@ export default class WebSocketPromiseBased
     private handleError(errorEvent: Event) {
         // The 'ws' package contains a .message member. we check for it even if the type itself
         // does not contain it.
-        const message = (errorEvent as unknown as { message: string | undefined }) && '';
+        const message = (errorEvent as unknown as {message: string | undefined}) && '';
 
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleError()`);
         if (this.firstError === '') {

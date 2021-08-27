@@ -59,7 +59,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * allows to set the channel owner so that not all channels of all owners will be loaded
-     * @param {SHA256IdHash<Person>} channelOwner
+     * @param channelOwner
      */
     setChannelOwner(channelOwner: SHA256IdHash<Person>): void {
         this.channelOwner = channelOwner;
@@ -75,8 +75,6 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -122,8 +120,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
+     * @param id
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === BlobCollectionModel.channelId) {
@@ -134,8 +131,8 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * Resolves the OneBlobCollection.blobs hash references to the actual ONE objects
-     * @param {OneBlobCollection} blobCollection
-     * @return {Promise<BlobCollection>}
+     * @param blobCollection
+     * @return
      * @private
      */
     private async resolveBlobCollection(
@@ -154,8 +151,8 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * Resolves the OneBlobDescriptor.data blob reference to tha actual ArrayBuffer data
-     * @param {OneBlobDescriptor} blobDescriptor
-     * @return {Promise<BlobDescriptor>}
+     * @param blobDescriptor
+     * @return
      * @private
      */
     private static async resolveBlobDescriptor(

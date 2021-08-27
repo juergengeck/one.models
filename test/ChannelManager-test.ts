@@ -38,9 +38,9 @@ let indentationMap = new Map<string, number>(); // Map that stores indention lev
  * - colors the channel owner (second value) blue
  * - indents the third value based on START / END string
  *
- * @param {string} message
- * @param {number} color
- * @returns {string[]}
+ * @param message
+ * @param color
+ * @returns
  */
 function format(message: string, color: number): string[] {
     const m = message as string;
@@ -230,7 +230,7 @@ describe('Channel Manager test', () => {
             }
         ];
 
-        const iter = await ChannelManager['mergeIteratorMostCurrent'] (
+        const iter = await ChannelManager['mergeIteratorMostCurrent'](
             [
                 valueGenerator(W as RawChannelEntry[]),
                 //valueGenerator(X as RawChannelEntry[]),

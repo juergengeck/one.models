@@ -36,7 +36,6 @@ class OutgoingConnectionEstablisher {
      * When the stop function is called will stop trying to establish a
      * connection and will reject the promise with a specific error.
      *
-     * @type {((err: Error) => void) | null}
      * @private
      */
     private connectOnceSuccessfullyReject: ((err: Error) => void) | null = null;
@@ -52,12 +51,12 @@ class OutgoingConnectionEstablisher {
      * When successful, the onConnection handle is called. When not successful
      * another connection attempt is done after retryTimeout msecs.
      *
-     * @param {string} url
-     * @param {Uint8Array} myPublicKey
-     * @param {Uint8Array} targetPublicKey
-     * @param {(text: Uint8Array) => Uint8Array} encrypt
-     * @param {(cypher: Uint8Array) => Uint8Array} decrypt
-     * @param {number} retryTimeout
+     * @param url
+     * @param myPublicKey
+     * @param targetPublicKey
+     * @param encrypt
+     * @param decrypt
+     * @param retryTimeout
      */
     public start(
         url: string,
@@ -113,8 +112,6 @@ class OutgoingConnectionEstablisher {
 
     /**
      * Stops the attempts to establish connections.
-     *
-     * @returns {Promise<void>}
      */
     public async stop() {
         MessageBus.send('log', `stop()`);
@@ -141,15 +138,13 @@ class OutgoingConnectionEstablisher {
      *
      * Note: you cannot use the onConnection callback if you use this method!
      *
-     * @param {string} url
-     * @param {Uint8Array} myPublicKey
-     * @param {Uint8Array} targetPublicKey
-     * @param {(text: Uint8Array) => Uint8Array} encrypt
-     * @param {(cypher: Uint8Array) => Uint8Array} decrypt
-     * @param {number} retryTimeout
-     * @param {number} successTimeout
-     *
-     * @returns {Promise<void>}
+     * @param url
+     * @param myPublicKey
+     * @param targetPublicKey
+     * @param encrypt
+     * @param decrypt
+     * @param retryTimeout
+     * @param successTimeout
      */
     public connectOnceSuccessfully(
         url: string,
@@ -195,12 +190,11 @@ class OutgoingConnectionEstablisher {
     /**
      * Establish a connection.
      *
-     * @param {string} url
-     * @param {Uint8Array} myPublicKey
-     * @param {Uint8Array} targetPublicKey
-     * @param {(text: Uint8Array) => Uint8Array} encrypt
-     * @param {(cypher: Uint8Array) => Uint8Array} decrypt
-     * @returns {Promise<void>}
+     * @param url
+     * @param myPublicKey
+     * @param targetPublicKey
+     * @param encrypt
+     * @param decrypt
      */
     public static async connectOnce(
         url: string,

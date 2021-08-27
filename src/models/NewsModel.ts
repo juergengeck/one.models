@@ -15,8 +15,8 @@ export type News = {
 
 /**
  * Convert from model representation to one representation.
- * @param {News} modelObject - the model object
- * @returns {OneNews} The corresponding one object
+ * @param modelObject - the model object
+ * @returns The corresponding one object
  *
  */
 
@@ -65,8 +65,6 @@ export default class NewsModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -109,8 +107,7 @@ export default class NewsModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
+     * @param id
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === 'feedbackChannel' || id === 'newsChannel') {

@@ -13,12 +13,12 @@ import type {Profile} from '../src/recipes/ContactRecipes';
 /**
  * @description Pure plan for creating a profile for yourself
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} email
- * @param {SHA256IdHash<Instance>} instanceIdHash
- * @param {string} contactObjUrl
- * @param {boolean} [takeOver]
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @param WriteStorage
+ * @param email
+ * @param instanceIdHash
+ * @param contactObjUrl
+ * @param [takeOver]
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

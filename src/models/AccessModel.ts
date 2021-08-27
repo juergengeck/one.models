@@ -44,8 +44,8 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {string | string[]}groupName
-     * @returns { Promise<SHA256IdHash<Person>[]> }
+     * @param groupName
+     * @returns
      */
     async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
@@ -71,9 +71,8 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {string}name
-     * @param {SHA256IdHash<Person>}personId
-     * @returns {Promise<void>}
+     * @param name
+     * @param personId
      */
     async removePersonFromAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
         const group = await this.getAccessGroupByName(name);
@@ -97,9 +96,8 @@ export default class AccessModel extends EventEmitter {
     }
 
     /**
-     * @param {string} name
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<void>}
+     * @param name
+     * @param personId
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
@@ -148,8 +146,8 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {string} name
-     * @returns {Promise<VersionedObjectResult<Group>>}
+     * @param name
+     * @returns
      */
     async getAccessGroupByName(name: string): Promise<VersionedObjectResult<Group>> {
         return await getObjectByIdObj({$type$: 'Group', name: name});
@@ -157,8 +155,7 @@ export default class AccessModel extends EventEmitter {
 
     /**
      *
-     * @param {string} name
-     * @returns {Promise<void>}
+     * @param name
      */
     async createAccessGroup(name: string): Promise<void> {
         try {

@@ -38,9 +38,9 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      * by a derived class through some kind of key negotiation procedure before the encryption
      * actually works.
      *
-     * @param {WebSocketPromiseBased} ws - The websocket that is used to exchange encrypted
+     * @param ws - The websocket that is used to exchange encrypted
      * messages.
-     * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces,
+     * @param evenLocalNonceCounter - If true the local instance uses even nonces,
      * otherwise odd.
      */
     constructor(ws: WebSocketPromiseBased, evenLocalNonceCounter: boolean) {
@@ -94,7 +94,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the underlying web socket instance
      *
-     * @returns {WebSocket}
+     * @returns
      */
     get webSocket(): WebSocket {
         if (!this.webSocketPB.webSocket) {
@@ -115,7 +115,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Closes the web socket.
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to
+     * @param reason - The reason for closing. If specified it is sent unencrypted to
      * the remote side!
      */
     public close(reason?: string): void {
@@ -129,7 +129,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      * the on('message')
      * events.
      *
-     * @param {boolean} value
+     * @param value
      */
     public set switchToEvents(value: boolean) {
         this.webSocketPB.disableWaitForMessage = value;
@@ -138,7 +138,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the waitForMessage state
      *
-     * @returns {boolean}
+     * @returns
      */
     public get switchToEvents(): boolean {
         return this.webSocketPB.disableWaitForMessage;
@@ -149,7 +149,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      *
      * This timeout specifies how long the connection will wait for new messages in the wait*
      * methods.
-     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     * @param timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
     set requestTimeout(timeout: number) {
         this.webSocketPB.defaultTimeout = timeout;
@@ -158,7 +158,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the current request timeout.
      *
-     * @returns {number}
+     * @returns
      */
     get requestTimeout(): number {
         return this.webSocketPB.defaultTimeout;
@@ -169,8 +169,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Send string data encrypted.
      *
-     * @param {string} data - The data to send over the encrypted channel
-     * @returns {Promise<void>}
+     * @param data - The data to send over the encrypted channel
      */
     public async sendMessage(data: string): Promise<void> {
         if (!this.sharedKey) {
@@ -184,8 +183,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Send binary data encrypted.
      *
-     * @param {Uint8Array} data - The data to send over the encrypted channel
-     * @returns {Promise<void>}
+     * @param data - The data to send over the encrypted channel
      */
     public async sendBinaryMessage(data: Uint8Array): Promise<void> {
         if (!this.sharedKey) {
@@ -200,11 +198,11 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for an incoming message with a specific type for a specified period of time.
      *
-     * @param {string} type    - The type field of the message should have this type.
-     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @param {string} typekey - The name of the member that holds the type that is checked for
+     * @param type    - The type field of the message should have this type.
+     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @param typekey - The name of the member that holds the type that is checked for
      * equality with the type param.
-     * @return Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was
+     * @return The promise will resolve when a value was
      * received. The value will be the `JSON.parse' result object. The promise will reject when
      * 1) the timeout expired
      * 2) the connection was closed
@@ -235,8 +233,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @return Promise<any> The promise will resolve when a value was received. The value will
+     * @param  timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @return The promise will resolve when a value was received. The value will
      * be the `JSON.parse` object The promise will reject when
      * 1) the timeout expired
      * 2) the connection was closed
@@ -259,7 +257,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for string message.
      *
-     * @returns {Promise<string>} The received message
+     * @returns The received message
      */
     public async waitForMessage(timeout: number = -1): Promise<string> {
         const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
@@ -269,7 +267,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for binary message.
      *
-     * @returns {Promise<string>} The received message
+     * @returns The received message
      */
     public async waitForBinaryMessage(timeout: number = -1): Promise<Uint8Array> {
         return this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
@@ -280,8 +278,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Encrypt the message using the shared key.
      *
-     * @param {Uint8Array} plainText - The text to encrypt
-     * @returns {Uint8Array} The encrypted text
+     * @param plainText - The text to encrypt
+     * @returns The encrypted text
      */
     private encryptMessage(plainText: Uint8Array): Uint8Array {
         if (!this.sharedKey) {
@@ -295,8 +293,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Decrypt the cypher text using the shared key.
      *
-     * @param {Uint8Array} cypherText - The text to decrypt
-     * @returns {Uint8Array} The decrypted text
+     * @param cypherText - The text to decrypt
+     * @returns The decrypted text
      */
     private decryptMessage(cypherText: Uint8Array): Uint8Array {
         if (!this.sharedKey) {
@@ -315,7 +313,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Returns and then increases the local nonce counter.
      *
-     * @returns {Uint8Array}
+     * @returns
      */
     private getAndIncLocalNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.localNonceCounter);
@@ -326,7 +324,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Returns and then increases the remote nonce counter.
      *
-     * @returns {Uint8Array}
+     * @returns
      */
     private getAndIncRemoteNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.remoteNonceCounter);
@@ -337,7 +335,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Converts the nonce counter from number to Uint8Array.
      *
-     * @returns {Uint8Array}
+     * @returns
      */
     private static nonceCounterToArray(nonceNumber: number): Uint8Array {
         const nonce = new Uint8Array(tweetnacl.box.nonceLength);

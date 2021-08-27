@@ -95,18 +95,17 @@ export default class ClientMatchingModel extends MatchingModel {
      * 3. start the channels and add listeners for specific objects
      *
      * 4. share the channel with the matching server
-     *
-     * @returns {Promise<void>}
      */
     async init() {
-        const importedMatchingContact: UnversionedObjectResult<Contact>[] =
-            await createManyObjectsThroughPurePlan(
-                {
-                    module: '@module/explodeObject',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                decodeURI(MATCHING_CONTACT)
-            );
+        const importedMatchingContact: UnversionedObjectResult<
+            Contact
+        >[] = await createManyObjectsThroughPurePlan(
+            {
+                module: '@module/explodeObject',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            decodeURI(MATCHING_CONTACT)
+        );
         this.matchingServerPersonIdHash = importedMatchingContact[0].obj.personId;
 
         await this.initialiseMaps();
@@ -132,8 +131,7 @@ export default class ClientMatchingModel extends MatchingModel {
     /**
      * Given the match value a Supply object is created and posted to the channel.
      *
-     * @param {string} supplyInput
-     * @returns {Promise<void>}
+     * @param supplyInput
      */
     async sendSupplyObject(supplyInput: string): Promise<void> {
         await serializeWithType('Supply', async () => {
@@ -165,8 +163,7 @@ export default class ClientMatchingModel extends MatchingModel {
     /**
      * Given the match value a Demand object is created and posted to the channel.
      *
-     * @param {string} demandInput
-     * @returns {Promise<void>}
+     * @param demandInput
      */
     async sendDemandObject(demandInput: string): Promise<void> {
         await serializeWithType('Demand', async () => {
@@ -198,7 +195,7 @@ export default class ClientMatchingModel extends MatchingModel {
     /**
      * Return all Supply objects that were created by myself.
      *
-     * @returns {Supply[]}
+     * @returns
      */
     getMySupplies(): Supply[] {
         const mySupplies: Supply[] = [];
@@ -216,7 +213,7 @@ export default class ClientMatchingModel extends MatchingModel {
     /**
      * Return all Demands objects that were created by myself.
      *
-     * @returns {Demand[]}
+     * @returns
      */
     getMyDemands(): Demand[] {
         const myDemands: Demand[] = [];
@@ -236,7 +233,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * Supply and Demand objects found (created by myself and
      * retrieved from the matching server via channels).
      *
-     * @returns {Array<string>}
+     * @returns
      */
     getAllAvailableSuppliesAndDemands(): Array<string> {
         const allObjects: string[] = [];
@@ -257,7 +254,7 @@ export default class ClientMatchingModel extends MatchingModel {
     /**
      * Returns the array with all existing matches for this instance.
      *
-     * @returns {Promise<MatchResponse[]>}
+     * @returns
      */
     async getAllMatchResponses(): Promise<MatchResponse[]> {
         let matchMap: MatchResponse[] = [];
@@ -291,8 +288,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * an object and remove it from the list, but the object
      * will still be visible in the server list.
      *
-     * @param {string} supplyValue
-     * @returns {Promise<void>}
+     * @param supplyValue
      */
     async deleteSupply(supplyValue: string): Promise<void> {
         this.suppliesMap.delete(supplyValue);
@@ -307,8 +303,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * an object and remove it from the list, but the object
      * will still be visible in the server list.
      *
-     * @param {string} demandValue
-     * @returns {Promise<void>}
+     * @param demandValue
      */
     async deleteDemand(demandValue: string): Promise<void> {
         this.demandsMap.delete(demandValue);
@@ -325,8 +320,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * The old version of the Supply object will be deleted from memory
      * and oly the new version will be remembered.
      *
-     * @param {string} supplyMatch
-     * @returns {Promise<void>}
+     * @param supplyMatch
      */
     async changeSupplyStatus(supplyMatch: string): Promise<void> {
         const supplyArray = this.suppliesMap.get(supplyMatch);
@@ -385,8 +379,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * The old version of the Demand object will be deleted from memory
      * and oly the new version will be remembered.
      *
-     * @param {string} value
-     * @returns {Promise<void>}
+     * @param value
      */
     async changeDemandStatus(value: string): Promise<void> {
         const demandArray = this.demandsMap.get(value);
@@ -495,8 +488,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * can be notified about it's latest match even after application
      * reload.
      *
-     * @param {SHA256Hash<MatchResponse>} matchResponseHash
-     * @returns {Promise<void>}
+     * @param matchResponseHash
      */
     private async memoriseMatchResponse(
         matchResponseHash: SHA256Hash<MatchResponse>
