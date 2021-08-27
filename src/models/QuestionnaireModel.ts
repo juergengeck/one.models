@@ -385,7 +385,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     }
 
     /**
-     *  Handler function for the 'updated' event
+     * Handler function for the 'updated' event
      * @param id
      * @param owner
      * @param data

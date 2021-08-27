@@ -611,7 +611,7 @@ export default class OneInstanceModel extends EventEmitter {
     }
 
     /**
-     *  Delete the unopened instance, this happens when the indexDb is not initialized
+     * Delete the unopened instance, this happens when the indexDb is not initialized
      * @return
      */
     async deleteUnopenedInstance() {

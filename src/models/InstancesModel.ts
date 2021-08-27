@@ -69,7 +69,6 @@ class InstancesModel extends EventEmitter {
      * this is bad. The key management shouldn't handle different keys on the same instance
      * differently, then we wouldn't have to do such a thing as storing the secret ... but
      * someday we will do it right ... yes we can ...
-
      */
     public async init(secret: string): Promise<void> {
         this.secret = secret;
@@ -96,7 +95,9 @@ class InstancesModel extends EventEmitter {
 
         // Authenticate owner and local instance for private keys
         await Promise.all(
-            (await this.localInstancesIds(true)).map(async instanceId => {
+            (
+                await this.localInstancesIds(true)
+            ).map(async instanceId => {
                 const instance = await getObjectByIdHash(instanceId);
                 await loadPersonAndInstanceKeys(this.secret, instance.obj.owner, instanceId);
             })
@@ -273,7 +274,7 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the local instance for a specific person.
      *
-     * @param  personId
+     * @param personId
      * @returns
      */
     public async localInstanceForPerson(personId: SHA256IdHash<Person>): Promise<Instance> {

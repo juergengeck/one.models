@@ -576,7 +576,7 @@ export default class ChannelManager extends EventEmitter {
      *
      * @param id - id of the object to extract
      * @param type - Type of objects to retrieve. If type does not match an
-     *                        error is thrown.
+     *               error is thrown.
      * @returns
      */
     public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(

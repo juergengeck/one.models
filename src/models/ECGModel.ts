@@ -198,7 +198,7 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param  id
+     * @param id
      * @param owner
      * @param data
      */

@@ -244,7 +244,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * @param contactModel
      * @param instancesModel
-     * @param  config
+     * @param config
      */
     constructor(
         contactModel: ContactModel,
@@ -947,14 +947,13 @@ class ConnectionsModel extends EventEmitter {
      * @param conn - Connection to the peer.
      * @param localPersonId - The local person id used to setup the chum
      * @param isClient - This is used to determine who sends messages first. Client should pass
-     * true,
-     *                             server false.
+     *                   true, server false.
      * @param contactShouldBeKnown - If this is true, then an error is thrown if we have seen this person
-     *                                         the first time.
-     * @param remotePersonId - If this is passed in, then we expect this to be the
-     *                                                          person we set the chum up with. If person key / id
-     *                                                          exchange resulted in a different id, then an error
-     *                                                          is thrown
+     *                               the first time.
+     * @param remotePersonId - If this is passed in, then we expect this to be the person we set
+     *                         the chum up with. If person key / id exchange resulted in a
+     *                         different id, then an error
+     * is thrown
      * @param keepRunning
      */
     private async startChumProtocol(
@@ -1090,7 +1089,7 @@ class ConnectionsModel extends EventEmitter {
      * @param conn - Connection to the peer.
      * @param localPersonId - The local person id used to setup the chum
      * @param authenticationToken - The authentication token received via a secure channel from
-     * the peer
+     *                              the peer
      */
     private async startChumOneTimeAuthProtocol_Client(
         conn: EncryptedConnection,
@@ -1508,9 +1507,7 @@ class ConnectionsModel extends EventEmitter {
      *
      * @returns
      */
-    async extractExistingPersonKeys(): Promise<
-        CommunicationInitiationProtocol.PrivatePersonInformationMessage
-    > {
+    async extractExistingPersonKeys(): Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage> {
         if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
@@ -1810,9 +1807,7 @@ class ConnectionsModel extends EventEmitter {
      * @returns
      * @private
      */
-    private async extractKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: string;
         personPrivateSignKey: string;
@@ -1879,7 +1874,7 @@ class ConnectionsModel extends EventEmitter {
      * @param initiatedLocally
      * @param matchRemotePersonId - It is verified that the transmitted person id matches this one.
      * @param skipLocalKeyCompare - Skips the comparision of local keys. Defaults to false. Use
-     * with care!
+     *                              with care!
      * @returns
      */
     private async verifyAndExchangePersonId(

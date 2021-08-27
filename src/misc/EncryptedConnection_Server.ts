@@ -44,15 +44,14 @@ class EncryptedConnetion_Server extends EncryptedConnection {
      *
      * @param encrypt - Function that encrypts the data stream with the known static keys
      * @param decrypt - Function that dencrypts the data stream with the known static keys
-     * @param rejectConnection - If true kill the connection after successful authentication
-     * of the
-     *                                     keys. The reason for doing it here and not earlier is, that we would
-     *                                     expose the rejection to communicate without authentification, so others
-     *                                     who don't posess the private key to the specified key in communication_request
-     *                                     could probe us for keys we accept / we don't accept based on timing.
-     *                                     Another reason why we do it here with a boolean flag is to ensure that the permission
-     *                                     to communicate has been done calculated before this step
-     *                                     (for timing reasons it should always be done earlier)
+     * @param rejectConnection - If true kill the connection after successful authentication of the keys.
+     *                           The reason for doing it here and not earlier is, that we would
+     *                           expose the rejection to communicate without authentification, so others
+     *                           who don't posess the private key to the specified key in communication_request
+     *                           could probe us for keys we accept / we don't accept based on timing.
+     *                           Another reason why we do it here with a boolean flag is to ensure that the permission
+     *                           to communicate has been done calculated before this step
+     *                           (for timing reasons it should always be done earlier)
      */
     public async exchangeKeys(
         encrypt: (text: Uint8Array) => Uint8Array,
