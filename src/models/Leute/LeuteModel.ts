@@ -249,7 +249,7 @@ export default class LeuteModel {
      *
      * @returns {Promise<void>}
      */
-    async createSomeoneWithNewIdentity(): Promise<void> {
+    async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
         if (this.leute === undefined) {
             throw new Error('Leute model not initialized');
         }
@@ -267,6 +267,8 @@ export default class LeuteModel {
         );
 
         await this.addOther(newSomeone.idHash);
+
+        return newSomeone.idHash;
     }
 
     // ######## Misc stuff ########
