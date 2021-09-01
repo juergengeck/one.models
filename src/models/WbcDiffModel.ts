@@ -97,16 +97,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * returns all WbcObservations from the channel
      */
     async observations(): Promise<ObjectData<WbcObservation>[]> {
-        return await this.channelManager.getObjectsWithType('WbcObservation');
-    }
-
-    /**
-     *
-     * @returns
-     */
-    async retrieveAllWithoutData(): Promise<ObjectData<WbcObservation>[]> {
         return await this.channelManager.getObjectsWithType('WbcObservation', {
-            omitData: true,
             channelId: WbcDiffModel.channelId
         });
     }
