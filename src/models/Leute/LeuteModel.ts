@@ -16,6 +16,7 @@ import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
 import ProfileModel from './ProfileModel';
 import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
 import {OEvent} from '../../misc/OEvent';
+import {serializeWithType} from 'one.core/lib/util/promise';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -385,7 +386,9 @@ export default class LeuteModel {
      */
     private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
         if (isVersionedResultOfType(result, 'Profile')) {
-            await this.addProfile(result.idHash);
+            await serializeWithType('addProfile', async () => {
+                await this.addProfile(result.idHash);
+            });
         }
     }
 
