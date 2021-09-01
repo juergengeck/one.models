@@ -67,6 +67,8 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 export default class LeuteModel {
     public onUpdate: OEvent<() => void> = new OEvent();
 
+    public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
+
     private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
 
@@ -294,9 +296,11 @@ export default class LeuteModel {
                     profile
                 );
                 await this.addOther(someoneNew.idHash);
+                this.onProfileUpdate.emit(profileObj.obj);
             }
         } else {
             await someone.addProfile(profile);
+            this.onProfileUpdate.emit(profileObj.obj);
         }
     }
 
@@ -382,6 +386,7 @@ export default class LeuteModel {
      */
     private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
         if (isVersionedResultOfType(result, 'Profile')) {
+            console.log('received new profile');
             await this.addProfile(result.idHash);
         }
     }
