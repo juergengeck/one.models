@@ -1,5 +1,10 @@
 import type {Profile} from '../../recipes/Leute/Profile';
-import {onVersionedObj, VersionedObjectResult} from 'one.core/lib/storage';
+import {
+    onUnversionedObj,
+    onVersionedObj,
+    UnversionedObjectResult,
+    VersionedObjectResult
+} from 'one.core/lib/storage';
 import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import SomeoneModel from './SomeoneModel';
@@ -9,12 +14,21 @@ import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
 import type InstancesModel from '../InstancesModel';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import type {Keys, OneVersionedObjectTypeNames, Person, Plan} from 'one.core/lib/recipes';
+import type {
+    Keys,
+    OneUnversionedObjectTypeNames,
+    OneVersionedObjectTypeNames,
+    Person,
+    Plan
+} from 'one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {getAllValues} from 'one.core/lib/reverse-map-query';
 import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
 import ProfileModel from './ProfileModel';
-import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
+import type {
+    OneUnversionedObjectInterfaces,
+    OneVersionedObjectInterfaces
+} from '@OneObjectInterfaces';
 import {OEvent} from '../../misc/OEvent';
 import {serializeWithType} from 'one.core/lib/util/promise';
 
@@ -68,6 +82,9 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 export default class LeuteModel {
     public onUpdate: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
+    public onNewCommunicationEndpointArrive = new OEvent<
+        (communicationEndpoints: OneInstanceEndpoint) => void
+    >();
 
     private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
@@ -82,10 +99,16 @@ export default class LeuteModel {
         versionedObjectResult: VersionedObjectResult
     ) => Promise<void>;
 
+    private readonly boundNewCommunicationEndpointFromResult: (
+        unversionedObjectResult: UnversionedObjectResult
+    ) => Promise<void>;
+
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
         this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
+        this.boundNewCommunicationEndpointFromResult =
+            this.emitNewCommunicationEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
     }
 
@@ -137,6 +160,8 @@ export default class LeuteModel {
         await this.saveAndLoad();
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
+
+        onUnversionedObj.addListener(this.boundNewCommunicationEndpointFromResult);
     }
 
     public async shutdown(): Promise<void> {
@@ -393,6 +418,20 @@ export default class LeuteModel {
     }
 
     /**
+     * Emit the appropiate event for the CommunicationModule. Otherwise it's not added to the
+     * list of known connections.
+     * @param result
+     * @private
+     */
+    private async emitNewCommunicationEndpointEvent(
+        result: UnversionedObjectResult
+    ): Promise<void> {
+        if (isUnversionedResultOfType(result, 'OneInstanceEndpoint')) {
+            this.onNewCommunicationEndpointArrive.emit(result.obj);
+        }
+    }
+
+    /**
      * Updates the this.leute member on a new version.
      *
      * This call is registered at one.core for listening for new leute object versions.
@@ -472,4 +511,11 @@ function isVersionedResultOfType<T extends OneVersionedObjectTypeNames>(
     type: T
 ): versionedObjectResult is VersionedObjectResult<OneVersionedObjectInterfaces[T]> {
     return versionedObjectResult.obj.$type$ === type;
+}
+
+function isUnversionedResultOfType<T extends OneUnversionedObjectTypeNames>(
+    unversionedObjectResult: UnversionedObjectResult,
+    type: T
+): unversionedObjectResult is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
+    return unversionedObjectResult.obj.$type$ === type;
 }
