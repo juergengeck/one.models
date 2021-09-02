@@ -237,7 +237,7 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for new contact objects on contact management
-        this.leuteModel.onNewCommunicationEndpointArrive(
+        this.leuteModel.onNewOneInstanceEndpointEvent(
             async (oneInstanceEndpoint: OneInstanceEndpoint) => {
                 if (!this.initialized) {
                     return;
@@ -251,22 +251,15 @@ export default class CommunicationModule extends EventEmitter {
                 const mainInstanceInfo = this.mainInstanceInfo;
                 const myIds = (await this.leuteModel.me()).identities();
 
-                // Only OneInstanceEndpoints
-                // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
+                // For my own contact objects, just use the one for the main id. We don't want to
+                // connect to our own anonymous id
                 if (
                     myIds.includes(oneInstanceEndpoint.personId) ||
                     mainInstanceInfo.personId === oneInstanceEndpoint.personId
                 ) {
                     return;
                 }
-                // const instanceEndpoints = endpoints.filter(
-                //     endpoint =>
-                //         !myIds.includes(endpoint.personId) ||
-                //         mainInstanceInfo.personId !== endpoint.personId
-                // );
 
-                // await Promise.all(
-                //     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
                 // Load endpoint sub-elements
                 const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
                 const sourceKey = toByteArray(mainInstanceInfo.instanceKeys.publicKey);
@@ -324,8 +317,6 @@ export default class CommunicationModule extends EventEmitter {
                 else {
                     this.reconnect(connContainer, reconnectDelay);
                 }
-                //     })
-                // );
             }
         );
     }

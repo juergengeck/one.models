@@ -82,7 +82,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 export default class LeuteModel {
     public onUpdate: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
-    public onNewCommunicationEndpointArrive = new OEvent<
+    public onNewOneInstanceEndpointEvent = new OEvent<
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
 
@@ -99,16 +99,16 @@ export default class LeuteModel {
         versionedObjectResult: VersionedObjectResult
     ) => Promise<void>;
 
-    private readonly boundNewCommunicationEndpointFromResult: (
+    private readonly boundNewOneInstanceEndpointFromResult: (
         unversionedObjectResult: UnversionedObjectResult
-    ) => Promise<void>;
+    ) => void;
 
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
         this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
-        this.boundNewCommunicationEndpointFromResult =
-            this.emitNewCommunicationEndpointEvent.bind(this);
+        this.boundNewOneInstanceEndpointFromResult =
+            this.emitNewOneInstanceEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
     }
 
@@ -160,12 +160,12 @@ export default class LeuteModel {
         await this.saveAndLoad();
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
-
-        onUnversionedObj.addListener(this.boundNewCommunicationEndpointFromResult);
+        onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
     }
 
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
+        onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
         this.leute = undefined;
         this.pLoadedVersion = undefined;
     }
@@ -423,11 +423,9 @@ export default class LeuteModel {
      * @param result
      * @private
      */
-    private async emitNewCommunicationEndpointEvent(
-        result: UnversionedObjectResult
-    ): Promise<void> {
+    private emitNewOneInstanceEndpointEvent(result: UnversionedObjectResult): void {
         if (isUnversionedResultOfType(result, 'OneInstanceEndpoint')) {
-            this.onNewCommunicationEndpointArrive.emit(result.obj);
+            this.onNewOneInstanceEndpointEvent.emit(result.obj);
         }
     }
 
