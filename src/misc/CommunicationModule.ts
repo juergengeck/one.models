@@ -11,6 +11,7 @@ import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Instance, Person} from 'one.core/lib/recipes';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 
 /**
  * This type represents information about a connection.
@@ -236,8 +237,8 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for new contact objects on contact management
-        /*this.leuteModel.onNewCommunicationEndpointArrive(
-            async (endpointHashes: SHA256Hash<OneInstanceEndpoint>[]) => {
+        this.leuteModel.onNewCommunicationEndpointArrive(
+            async (oneInstanceEndpoint: OneInstanceEndpoint) => {
                 if (!this.initialized) {
                     return;
                 }
@@ -250,82 +251,83 @@ export default class CommunicationModule extends EventEmitter {
                 const mainInstanceInfo = this.mainInstanceInfo;
                 const myIds = (await this.leuteModel.me()).identities();
 
-                // Load the OneInstanceEndpoint objects
-                const endpoints = await Promise.all(endpointHashes.map(getObject));
-
                 // Only OneInstanceEndpoints
                 // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
-                const instanceEndpoints = endpoints.filter(
-                    endpoint =>
-                        !myIds.includes(endpoint.personId) ||
-                        mainInstanceInfo.personId !== endpoint.personId
-                );
+                if (
+                    myIds.includes(oneInstanceEndpoint.personId) ||
+                    mainInstanceInfo.personId === oneInstanceEndpoint.personId
+                ) {
+                    return;
+                }
+                // const instanceEndpoints = endpoints.filter(
+                //     endpoint =>
+                //         !myIds.includes(endpoint.personId) ||
+                //         mainInstanceInfo.personId !== endpoint.personId
+                // );
 
-                await Promise.all(
-                    instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        // Load endpoint sub-elements
-                        const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
-                        const sourceKey = toByteArray(mainInstanceInfo.instanceKeys.publicKey);
-                        const targetKey = toByteArray(remoteInstanceKeys.publicKey);
-                        const mapKey = genMapKey(sourceKey, targetKey);
+                // await Promise.all(
+                //     instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
+                // Load endpoint sub-elements
+                const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
+                const sourceKey = toByteArray(mainInstanceInfo.instanceKeys.publicKey);
+                const targetKey = toByteArray(remoteInstanceKeys.publicKey);
+                const mapKey = genMapKey(sourceKey, targetKey);
 
-                        // Check if the desired connection it's with you
-                        if (
-                            mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey
-                        ) {
-                            return;
-                        }
+                // Check if the desired connection it's with you
+                if (mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey) {
+                    return;
+                }
 
-                        // Check if there is already a matching active connection in the unknown peer maps
-                        let activeConnection = this.unknownPeerMap.get(mapKey);
-                        if (this.knownPeerMap.has(mapKey)) {
-                            return;
-                        }
+                // Check if there is already a matching active connection in the unknown peer maps
+                let activeConnection = this.unknownPeerMap.get(mapKey);
+                if (this.knownPeerMap.has(mapKey)) {
+                    return;
+                }
 
-                        // Create the entry in the knownPeerMap
-                        const connContainer: ConnectionContainer = {
-                            activeConnection: activeConnection ? activeConnection : null,
-                            url: endpoint.url,
-                            sourcePublicKey: mainInstanceInfo.instanceKeys.publicKey,
-                            targetPublicKey: remoteInstanceKeys.publicKey,
-                            sourceInstanceId: mainInstanceInfo.instanceId,
-                            targetInstanceId: endpoint.instanceId,
-                            sourcePersonId: mainInstanceInfo.personId,
-                            targetPersonId: endpoint.personId,
-                            cryptoApi: mainInstanceInfo.cryptoApi,
-                            isInternetOfMe: myIds.includes(endpoint.personId),
-                            dropDuplicates: true,
-                            reconnectTimeoutHandle: null
-                        };
-                        this.knownPeerMap.set(mapKey, connContainer);
+                // Create the entry in the knownPeerMap
+                const connContainer: ConnectionContainer = {
+                    activeConnection: activeConnection ? activeConnection : null,
+                    url: oneInstanceEndpoint.url,
+                    sourcePublicKey: mainInstanceInfo.instanceKeys.publicKey,
+                    targetPublicKey: remoteInstanceKeys.publicKey,
+                    sourceInstanceId: mainInstanceInfo.instanceId,
+                    targetInstanceId: oneInstanceEndpoint.instanceId,
+                    sourcePersonId: mainInstanceInfo.personId,
+                    targetPersonId: oneInstanceEndpoint.personId,
+                    cryptoApi: mainInstanceInfo.cryptoApi,
+                    isInternetOfMe: myIds.includes(oneInstanceEndpoint.personId),
+                    dropDuplicates: true,
+                    reconnectTimeoutHandle: null
+                };
+                this.knownPeerMap.set(mapKey, connContainer);
+                this.emit('connectionsChange');
+                this.onConnectionsChange.emit();
+
+                // If the connection is already active, then setup the close handler so that it is reactivated on close
+                if (activeConnection) {
+                    this.unknownPeerMap.delete(mapKey);
+
+                    // Handle the close events
+                    const closeHandler = () => {
+                        connContainer.dropDuplicates = true;
+                        connContainer.activeConnection = null;
+                        delete connContainer.closeHandler;
                         this.emit('connectionsChange');
                         this.onConnectionsChange.emit();
+                        this.reconnect(connContainer, this.reconnectDelay);
+                    };
+                    activeConnection.webSocket.addEventListener('close', closeHandler);
+                    connContainer.closeHandler = closeHandler;
+                }
 
-                        // If the connection is already active, then setup the close handler so that it is reactivated on close
-                        if (activeConnection) {
-                            this.unknownPeerMap.delete(mapKey);
-
-                            // Handle the close events
-                            const closeHandler = () => {
-                                connContainer.dropDuplicates = true;
-                                connContainer.activeConnection = null;
-                                delete connContainer.closeHandler;
-                                this.emit('connectionsChange');
-                                this.onConnectionsChange.emit();
-                                this.reconnect(connContainer, this.reconnectDelay);
-                            };
-                            activeConnection.webSocket.addEventListener('close', closeHandler);
-                            connContainer.closeHandler = closeHandler;
-                        }
-
-                        // If no active connection exists for this endpoint, then we need to start outgoing connections
-                        else {
-                            this.reconnect(connContainer, reconnectDelay);
-                        }
-                    })
-                );
+                // If no active connection exists for this endpoint, then we need to start outgoing connections
+                else {
+                    this.reconnect(connContainer, reconnectDelay);
+                }
+                //     })
+                // );
             }
-        );*/
+        );
     }
 
     /**
