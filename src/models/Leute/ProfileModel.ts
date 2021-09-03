@@ -104,6 +104,26 @@ export default class ProfileModel {
         return newModel;
     }
 
+    public static async loadProfileModel(
+        personId: SHA256IdHash<Person>,
+        owner: SHA256IdHash<Person>,
+        profileId: string
+    ) {
+        const profile: Profile = {
+            $type$: 'Profile',
+            personId,
+            owner,
+            profileId,
+            communicationEndpoint: [],
+            personDescription: []
+        };
+
+        const idHash = await calculateIdHashOfObj(profile);
+        const loadedModel = new ProfileModel(idHash);
+        await loadedModel.loadLatestVersion();
+        return loadedModel;
+    }
+
     /**
      * Create a profile if it does not exist.
      *
