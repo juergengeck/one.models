@@ -274,26 +274,23 @@ export default class WebSocketPromiseBased
     private wsTimeout = 30000;
 
     private filterPingPongFromMessage(messageEvent: MessageEvent) {
-        try {
-            const msg: PingPongMessage = JSON.parse(messageEvent.data);
-            if (msg.type === 'pingPong') {
-                // handle message
-                if(msg.requestNr){
-                    // I may have to treat
-                    // how to differentiate via the comm server and
-                    // ping pong type would be nought but the websocket connection with the
-                    // commm server and the instance is the same I may need a config flag after
-                    // there is a handover after the handover
-                    // the first message flows over the spare connection try to keep commserver
-                    // as is
-                    // i could just try to start after the handover
-                    // ping pong should be after the encryption connection
-
-                }
-            }
-        } catch (ignore) {
-            console.log(ignore);
-        }
+        /*
+        Introduce a Ping/Pong-Protocol for all websocket connections.
+        Filter ping pong from the normal message flow to not interrupt it.
+        Points to consider:
+        1. The connection is established with the commserver and then handed over to the peer.
+           The client would then get multiple pongs, from the commserver and the peer.
+           The Ping/Pong protocol needs a flag, which can stop sending pongs from one side.
+           We know that when we receive the ConnectionHandoverMessage the commserver has to stop
+           sending pongs else they could keep-alive a potential broken peer connection.
+        2. To prevent 1. we could only start the Ping/Pong after the ConnectionHandoverMessage
+           has been received.
+           But this leaves potential orphans with the commserver ... or not because the
+           commserver does his own ping pong as well.
+           Ok to prevent having to edit the CommunicationSErver we actually have to start after
+           the ConnectionHandoverMessage else the commserver will throw 'Received unexpected
+           or malformed message from client.'
+         */
     }
 
     // requestNr will be uneven
