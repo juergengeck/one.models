@@ -751,8 +751,9 @@ export default class CommunicationModule extends EventEmitter {
                 // when the connection is in the unknownPeerMap the same instance is already
                 // trying to connect. This can happen when, in the first try, the connection
                 // closed e.g. due to network loss.
-                // To clean up we terminate the connection. Which will remove it from the
-                // unknownPeerMap. The next try from the client will then run trough.
+                // To clean up we terminate the current connection. Which will remove the
+                // probably orphaned connection from the unknownPeerMap.
+                // The next try from the client will then run trough.
                 conn.webSocketPB.terminate('duplicate connection');
             }
 
