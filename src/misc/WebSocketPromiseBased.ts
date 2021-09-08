@@ -63,16 +63,19 @@ export default class WebSocketPromiseBased
         // configure websocket callbacks
         const boundOpenHandler = this.handleOpen.bind(this);
         const boundMessageHandler = this.handleMessage.bind(this);
+        const boundPingPongFilter = this.filterPingPongFromMessage.bind(this);
         const boundCloseHandler = this.handleClose.bind(this);
         const boundErrorHandler = this.handleError.bind(this);
         this.webSocket.addEventListener('open', boundOpenHandler);
         this.webSocket.addEventListener('message', boundMessageHandler);
+        this.webSocket.addEventListener('message', boundPingPongFilter);
         this.webSocket.addEventListener('close', boundCloseHandler);
         this.webSocket.addEventListener('error', boundErrorHandler);
         this.deregisterHandlers = () => {
             if (this.webSocket) {
                 this.webSocket.removeEventListener('open', boundOpenHandler);
                 this.webSocket.removeEventListener('message', boundMessageHandler);
+                this.webSocket.removeEventListener('message', boundPingPongFilter);
                 this.webSocket.removeEventListener('close', boundCloseHandler);
                 this.webSocket.removeEventListener('error', boundErrorHandler);
             }
