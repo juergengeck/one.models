@@ -6,6 +6,8 @@ import type {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promis
 import {OEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
+type PingPongMessage = {type: 'pingPong'; requestNr?: number; responseNr?: number};
+
 /**
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
  * instead of using callbacks (onmessage onopen ...)
@@ -264,6 +266,43 @@ export default class WebSocketPromiseBased
             }
         });
     }
+
+    private setTimeoutId: number;
+    private wsTimeout = 30000;
+
+    private filterPingPongFromMessage(messageEvent: MessageEvent) {
+        try {
+            const msg: PingPongMessage = JSON.parse(messageEvent.data);
+            if (msg.type === 'pingPong') {
+                // handle message
+                if(msg.requestNr){
+                    // I may have to treat
+                    // how to differentiate via the comm server and
+                    // ping pong type would be nought but the websocket connection with the
+                    // commm server and the instance is the same I may need a config flag after
+                    // there is a handover after the handover
+                    // the first message flows over the spare connection try to keep commserver
+                    // as is
+                    // i could just try to start after the handover
+                    // ping pong should be after the encryption connection
+
+                }
+            }
+        } catch (ignore) {
+            console.log(ignore);
+        }
+    }
+
+    // requestNr will be uneven
+    public async sentPing(requestNr: number) {
+        return new Promise((resolve, reject) => {
+            this.setTimeoutId = setTimeout(() => {
+                this.terminate('No response for ping, reached timeout');
+            }, this.wsTimeout);
+        });
+    }
+    // responseNr will be uneven
+    public async sentPong(responseNr: number) {}
 
     // ######## Sending messages ########
 
