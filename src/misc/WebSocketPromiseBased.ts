@@ -37,19 +37,11 @@ export default class WebSocketPromiseBased
     private closeReason: string;
     private firstError: string;
     private lastError: string;
-    private clientPingInterval: number;
-    private clientPongTimeout: number;
-    private isPinngin = false;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
-    constructor(
-        webSocket: WebSocket,
-        maxDataQueueSize = 10,
-        clientPingInterval = 30000,
-        clientPongTimeout = 3000
-    ) {
+    constructor(webSocket: WebSocket, maxDataQueueSize = 10) {
         super();
         this.webSocket = webSocket;
         this.dataQueue = [];
@@ -62,8 +54,6 @@ export default class WebSocketPromiseBased
         this.closeReason = '';
         this.firstError = '';
         this.lastError = '';
-        this.clientPingInterval = clientPingInterval;
-        this.clientPongTimeout = clientPongTimeout;
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -71,19 +61,16 @@ export default class WebSocketPromiseBased
         // configure websocket callbacks
         const boundOpenHandler = this.handleOpen.bind(this);
         const boundMessageHandler = this.handleMessage.bind(this);
-        const boundPingPongFilter = this.filterPingPongFromMessage.bind(this);
         const boundCloseHandler = this.handleClose.bind(this);
         const boundErrorHandler = this.handleError.bind(this);
         this.webSocket.addEventListener('open', boundOpenHandler);
         this.webSocket.addEventListener('message', boundMessageHandler);
-        this.webSocket.addEventListener('message', boundPingPongFilter);
         this.webSocket.addEventListener('close', boundCloseHandler);
         this.webSocket.addEventListener('error', boundErrorHandler);
         this.deregisterHandlers = () => {
             if (this.webSocket) {
                 this.webSocket.removeEventListener('open', boundOpenHandler);
                 this.webSocket.removeEventListener('message', boundMessageHandler);
-                this.webSocket.removeEventListener('message', boundPingPongFilter);
                 this.webSocket.removeEventListener('close', boundCloseHandler);
                 this.webSocket.removeEventListener('error', boundErrorHandler);
             }
@@ -277,74 +264,6 @@ export default class WebSocketPromiseBased
             }
         });
     }
-
-    private setTimeoutId: number;
-    private wsTimeout = 30000;
-
-    private filterPingPongFromMessage(messageEvent: MessageEvent) {
-        /*
-        Introduce a Ping/Pong-Protocol for all websocket connections.
-        Filter ping pong from the normal message flow to not interrupt it.
-        Points to consider:
-        1. The connection is established with the commserver and then handed over to the peer.
-           The client would then get multiple pongs, from the commserver and the peer.
-           The Ping/Pong protocol needs a flag, which can stop sending pongs from one side.
-           We have to wait till after the commserver has handed over the connection and stopped
-           listening. This happens after the sendCommunicationRequestMessage is called, (shortly
-           after the ConnectionHandoverMessage has been received). Sending pongs else they could
-           keep-alive a potential broken peer connection.
-        2. To prevent 1. we could only start the Ping/Pong after the
-           sendCommunicationRequestMessage/ConnectionHandoverMessage
-           has been received.
-           But this leaves potential orphans with the commserver ... or not because the
-           commserver does his own ping pong as well.
-           To prevent having to edit the CommunicationServer.ts we actually have to start after
-           the commserver stopped listening to the connection else it will throw
-           'Received unexpected or malformed message from client.'
-
-         Resolution:
-         1. When to start pinging: In this.handleMessage filter for
-            "communication_request" this will indicate that the handover took place and the
-            commserver stopped listening.
-            * This is general WebSocketPromiseBased code which is only allowed to be called
-              after an external message has been received else it could disrupt other
-              communications. It probably should be implemented independent.
-            * When a Ping/Pong is received this.handleMessage needs to return and don't emit to
-              prevent confusing other protocols.
-            * We should probably wait 500ms after receiving "communication_request" to make it
-              highly likely the other side answered and the handover took place.
-              * If we wanted to be sure the commserver stopped the commserver would have to notify
-                the clients that he stopped now. But again if it would be independent that wouldn't
-                be needed.
-              * In the time we wait the connection could already have been closed. This
-                shouldn't present an issue the timout will occur and it will be terminated again
-                which ignores it if it has already been terminated afterwards the interval will
-                be removed like usual.
-         2. Start ping ponging once. Rremember that it was started with a class state.
-            * private isPinging = false
-         3. When to send pong:
-            * In this.handleMessage add a filter for ping and sent a pong when a ping is received
-         4. PingPong could use the same PingMessage PongMessage as defined in
-            CommunicationServerProtocol.ts
-         5. Where to set the pingInterval and pongTimeout?
-            * Introduce new class and constructor arguments with default values
-            * clientPingInterval = 30000
-            * clientPongTimeout = 3000
-         6. The naming should make clear that it is a client-client Ping/Pong
-         7. When the pongTimeout is reached the websocket will be terminated
-         */
-    }
-
-    // requestNr will be uneven
-    public async sentPing(requestNr: number) {
-        return new Promise((resolve, reject) => {
-            this.setTimeoutId = setTimeout(() => {
-                this.terminate('No response for ping, reached timeout');
-            }, this.wsTimeout);
-        });
-    }
-    // responseNr will be uneven
-    public async sentPong(responseNr: number) {}
 
     // ######## Sending messages ########
 
