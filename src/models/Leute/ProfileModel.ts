@@ -313,7 +313,7 @@ export default class ProfileModel {
         this.onUpdate.emit();
     }
 
-    private getStatus() {
+    public getStatus() {
         const statuses = this.descriptionsOfType('PersonStatus');
         const latestStatus = statuses.reduce(
             (status: PersonStatus, latestStatus: PersonStatus) =>
@@ -323,7 +323,7 @@ export default class ProfileModel {
         return latestStatus;
     }
 
-    private setStatus(statusValue: string) {
+    public setStatus(statusValue: string) {
         if (!this.isStatusModified) {
             this.personDescriptions.push({
                 $type$: 'PersonStatus',
