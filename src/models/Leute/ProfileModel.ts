@@ -7,7 +7,8 @@ import type {
 import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames,
-    PersonDescriptionTypes
+    PersonDescriptionTypes,
+    PersonStatus
 } from '../../recipes/Leute/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import {storeUnversionedObject} from 'one.core/lib/storage-unversioned-objects';
@@ -52,6 +53,7 @@ export default class ProfileModel {
     public readonly idHash: SHA256IdHash<Profile>;
     public communicationEndpoints: CommunicationEndpointTypes[] = [];
     public personDescriptions: PersonDescriptionTypes[] = [];
+    public isStatusModified = false;
 
     private pLoadedVersion?: SHA256Hash<Profile>;
     private profile?: Profile;
@@ -311,6 +313,33 @@ export default class ProfileModel {
         this.onUpdate.emit();
     }
 
+    private getStatus() {
+        const statuses = this.descriptionsOfType('PersonStatus');
+        const latestStatus = statuses.reduce(
+            (status: PersonStatus, latestStatus: PersonStatus) =>
+                status.timestamp > latestStatus.timestamp ? status : latestStatus,
+            statuses[0]
+        );
+        return latestStatus;
+    }
+
+    private setStatus(statusValue: string) {
+        if (!this.isStatusModified) {
+            this.personDescriptions.push({
+                $type$: 'PersonStatus',
+                timestamp: Date.now(),
+                value: statusValue,
+                location: ''
+            });
+            this.isStatusModified = true;
+            return;
+        }
+
+        const latestStatus = this.getStatus();
+        latestStatus.value = statusValue;
+        latestStatus.timestamp = Date.now();
+    }
+
     // ######## private stuff ########
 
     /**
@@ -336,5 +365,6 @@ export default class ProfileModel {
         this.personDescriptions = personDescriptions;
         this.pLoadedVersion = version;
         this.profile = profile;
+        this.isStatusModified = false;
     }
 }
