@@ -292,7 +292,7 @@ export default class WebSocketPromiseBased
            commserver does his own ping pong as well.
            To prevent having to edit the CommunicationServer.ts we actually have to start after
            the commserver stopped listening to the connection else it will throw
-            'Received unexpected or malformed message from client.'
+           'Received unexpected or malformed message from client.'
 
          Resolution:
          1. When to start pinging: In this.handleMessage filter for
@@ -303,6 +303,12 @@ export default class WebSocketPromiseBased
               communications. It probably should be implemented independent.
             * When a Ping/Pong is received this.handleMessage needs to return and don't emit to
               prevent confusing other protocols.
+            * We should also propably wait 1000ms after receiving
+              "communication_request" to make it highly likly the other side answered nad the
+              handover took place.
+            * If we wanted to be sure the commserver stopped the commserver would have to notify
+              the clients that he stopped now. But again if it would be independent that wouldn't
+              be needed.
          2. Start ping ponging once. Rremember that it was started with a class state.
             * private isPinging = false
          3. When to send pong:
