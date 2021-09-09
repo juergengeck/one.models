@@ -637,7 +637,7 @@ export default class WebSocketPromiseBased
     private isPong(message: MessageEvent): boolean {
         try {
             const messageObj = JSON.parse(message.data);
-            return messageObj.command === 'comm_ping';
+            return messageObj.command === 'comm_pong';
         } catch (e) {
             return false;
         }
