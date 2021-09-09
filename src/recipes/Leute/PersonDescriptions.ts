@@ -17,7 +17,11 @@ export interface PersonName {
 
 export interface PersonStatus {
     $type$: 'PersonStatus';
-    status: string;
+    value: string;
+    timestamp: number;
+    // TODO To be defined after we decide on the location data structure. It's set as
+    //  string to be visible that it exists.
+    location: string;
 }
 
 export interface ProfileImage {
@@ -72,7 +76,15 @@ export const PersonStatusRecipe: Recipe = {
     name: 'PersonStatus',
     rule: [
         {
-            itemprop: 'status',
+            itemprop: 'value',
+            valueType: 'string'
+        },
+        {
+            itemprop: 'timestamp',
+            valueType: 'number'
+        },
+        {
+            itemprop: 'location',
             valueType: 'string'
         }
     ]
