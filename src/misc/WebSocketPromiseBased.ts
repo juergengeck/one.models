@@ -295,18 +295,26 @@ export default class WebSocketPromiseBased
             'Received unexpected or malformed message from client.'
 
          Resolution:
-         1. When to start ping ponging: In this.handleMessage filter for
+         1. When to start pinging: In this.handleMessage filter for
             "communication_request" this will indicate that the handover took place and the
             commserver stopped listening.
             * This is general WebSocketPromiseBased code which is only allowed to be called
               after an external message has been received else it could disrupt other
-              communications. It probably should be implemented independent
-         2. Start ping ponging remember that ping ponging was started
-         3. PingPong could use the same PingMessage PingMessage as defined in
+              communications. It probably should be implemented independent.
+            * When a Ping/Pong is received this.handleMessage needs to return and don't emit to
+              prevent confusing other protocols.
+         2. Start ping ponging once. Rremember that it was started with a class state.
+            * private isPinging = false
+         3. When to send pong:
+            * In this.handleMessage add a filter for ping and sent a pong when a ping is received
+         4. PingPong could use the same PingMessage PongMessage as defined in
             CommunicationServerProtocol.ts
-         4. Where to set the pingInterval and pongTimeout?
-            * Introduce new constructor arguments with default values
-         5. It should be clear that it is a client-client Ping/Pong
+         5. Where to set the pingInterval and pongTimeout?
+            * Introduce new class and constructor arguments with default values
+            * clientPingInterval = 30000
+            * clientPongTimeout = 3000
+         6. The naming should make clear that it is a client-client Ping/Pong
+         7. When the pongTimeout is reached the websocket will be terminated
          */
     }
 
