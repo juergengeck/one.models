@@ -303,12 +303,15 @@ export default class WebSocketPromiseBased
               communications. It probably should be implemented independent.
             * When a Ping/Pong is received this.handleMessage needs to return and don't emit to
               prevent confusing other protocols.
-            * We should also propably wait 1000ms after receiving
-              "communication_request" to make it highly likly the other side answered nad the
-              handover took place.
-            * If we wanted to be sure the commserver stopped the commserver would have to notify
-              the clients that he stopped now. But again if it would be independent that wouldn't
-              be needed.
+            * We should probably wait 500ms after receiving "communication_request" to make it
+              highly likely the other side answered and the handover took place.
+              * If we wanted to be sure the commserver stopped the commserver would have to notify
+                the clients that he stopped now. But again if it would be independent that wouldn't
+                be needed.
+              * In the time we wait the connection could already have been closed. This
+                shouldn't present an issue the timout will occur and it will be terminated again
+                which ignores it if it has already been terminated afterwards the interval will
+                be removed like usual.
          2. Start ping ponging once. Rremember that it was started with a class state.
             * private isPinging = false
          3. When to send pong:
