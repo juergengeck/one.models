@@ -281,15 +281,32 @@ export default class WebSocketPromiseBased
         1. The connection is established with the commserver and then handed over to the peer.
            The client would then get multiple pongs, from the commserver and the peer.
            The Ping/Pong protocol needs a flag, which can stop sending pongs from one side.
-           We know that when we receive the ConnectionHandoverMessage the commserver has to stop
-           sending pongs else they could keep-alive a potential broken peer connection.
-        2. To prevent 1. we could only start the Ping/Pong after the ConnectionHandoverMessage
+           We have to wait till after the commserver has handed over the connection and stopped
+           listening. This happens after the sendCommunicationRequestMessage is called, (shortly
+           after the ConnectionHandoverMessage has been received). Sending pongs else they could
+           keep-alive a potential broken peer connection.
+        2. To prevent 1. we could only start the Ping/Pong after the
+           sendCommunicationRequestMessage/ConnectionHandoverMessage
            has been received.
            But this leaves potential orphans with the commserver ... or not because the
            commserver does his own ping pong as well.
-           Ok to prevent having to edit the CommunicationSErver we actually have to start after
-           the ConnectionHandoverMessage else the commserver will throw 'Received unexpected
-           or malformed message from client.'
+           To prevent having to edit the CommunicationServer.ts we actually have to start after
+           the commserver stopped listening to the connection else it will throw
+            'Received unexpected or malformed message from client.'
+
+         Resolution:
+         1. When to start ping ponging: In this.handleMessage filter for
+            "communication_request" this will indicate that the handover took place and the
+            commserver stopped listening.
+            * This is general WebSocketPromiseBased code which is only allowed to be called
+              after an external message has been received else it could disrupt other
+              communications. It probably should be implemented independent
+         2. Start ping ponging remember that ping ponging was started
+         3. PingPong could use the same PingMessage PingMessage as defined in
+            CommunicationServerProtocol.ts
+         4. Where to set the pingInterval and pongTimeout?
+            * Introduce new constructor arguments with default values
+         5. It should be clear that it is a client-client Ping/Pong
          */
     }
 
@@ -530,7 +547,7 @@ export default class WebSocketPromiseBased
      *
      * @param messageEvent
      */
-    private handleMessage(messageEvent: MessageEvent) {
+    pivate handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
 
         // Notify listeners for a new message
