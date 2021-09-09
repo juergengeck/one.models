@@ -40,9 +40,10 @@ export default class WebSocketPromiseBased
     private pingInterval: number;
     private pongTimeout: number;
     private isPinging: boolean = false; // State that indicates if the ping process is running
-    private isWaitingForPong: boolean = false; // Valie that is true while we wait for a pong
-    private resolveStopPing: (() => void) | null = null; // Resolve handler for stop function whil waiting for a pong
+    // while waiting for a pong
     private pingTimeoutHandle: ReturnType<typeof setTimeout> | null = null; // Ping timout handle for cancellation in stop
+    private onPong = new OEvent<() => void>();
+    private onStopPingPong = new OEvent<() => void>();
 
     /**
      * Construct a new connection - at the moment based on WebSockets
@@ -137,6 +138,7 @@ export default class WebSocketPromiseBased
         this.deregisterHandlers();
         const webSocket = this.webSocket;
         this.webSocket = null;
+        this.stopPingPong();
         return webSocket;
     }
 
@@ -204,6 +206,7 @@ export default class WebSocketPromiseBased
             // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
             // this.releaseWebSocket();
         }
+        this.stopPingPong();
     }
 
     /**
@@ -495,6 +498,7 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn();
         }
+        this.startPingPong(this.pingInterval, this.pongTimeout);
     }
 
     /**
@@ -506,6 +510,14 @@ export default class WebSocketPromiseBased
      */
     private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
+        if (this.isPing(messageEvent)) {
+            this.sendPongMessage();
+            return;
+        }
+        if (this.isPong(messageEvent)) {
+            this.onPong.emit();
+            return;
+        }
 
         // Notify listeners for a new message
         this.emit('message', messageEvent);
@@ -570,6 +582,7 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error('Connection was closed: ' + closeEvent.reason));
         }
+        this.stopPingPong();
     }
 
     /**
@@ -596,6 +609,7 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error(message));
         }
+        this.stopPingPong();
     }
 
     // ######## Ping/Pong ########
@@ -610,6 +624,36 @@ export default class WebSocketPromiseBased
      */
     private async sendPongMessage(): Promise<void> {
         await this.send({command: 'comm_pong'});
+    }
+
+    private isPing(message: MessageEvent): boolean {
+        try {
+            const messageObj = JSON.parse(message.data);
+            return messageObj.command === 'comm_ping';
+        } catch (e) {
+            return false;
+        }
+    }
+    private isPong(message: MessageEvent): boolean {
+        try {
+            const messageObj = JSON.parse(message.data);
+            return messageObj.command === 'comm_ping';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private async waitForPong(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const disconnect = this.onPong(() => {
+                resolve(true);
+                disconnect();
+            });
+            const disconnect2 = this.onStopPingPong(() => {
+                reject(new Error('Ping pong stopped'));
+                disconnect2();
+            });
+        });
     }
     /**
      * Starts pinging the client.
@@ -634,9 +678,6 @@ export default class WebSocketPromiseBased
                 // If not pinging anymore, because stopPingPing was called
                 // Then resolve the waiter in stopPingPong and don't schedule another ping
                 if (!this.isPinging) {
-                    if (this.resolveStopPing) {
-                        this.resolveStopPing();
-                    }
                     return;
                 }
 
@@ -644,36 +685,24 @@ export default class WebSocketPromiseBased
                 let pongTimeoutHandler: ReturnType<typeof setTimeout> | null = null;
                 try {
                     // Send a ping
-                    this.isWaitingForPong = true;
                     await this.sendPingMessage();
 
                     // Set a timeout for the pong
                     pongTimeoutHandler = setTimeout(() => {
-                        this.close('Pong Timeout');
+                        this.terminate('Pong Timeout');
                     }, pongTimeout);
 
                     // Wait for the message
-                    await this.waitForJSONMessageWithType('comm_pong');
+                    await this.waitForPong();
 
                     // Cancel timeout
-                    this.isWaitingForPong = false;
                     clearTimeout(pongTimeoutHandler);
-
-                    // If stop is waiting, resolve the promise
-                    if (this.resolveStopPing) {
-                        this.resolveStopPing();
-                    }
                 } catch (e) {
                     // Cancel timeout
-                    this.isWaitingForPong = false;
                     if (pongTimeoutHandler) {
                         clearTimeout(pongTimeoutHandler);
                     }
 
-                    // If stop is waiting, resolve the promise
-                    if (this.resolveStopPing) {
-                        this.resolveStopPing();
-                    }
                     throw e;
                 }
 
@@ -686,9 +715,6 @@ export default class WebSocketPromiseBased
                 }
             } catch (e) {
                 this.close();
-                if (this.resolveStopPing) {
-                    this.resolveStopPing();
-                }
             }
         };
 
@@ -698,39 +724,21 @@ export default class WebSocketPromiseBased
 
     /**
      * Stops the ping / pong process.
-     *
-     * If currently waiting for a pong, then the promise resolves
-     * 1) After the pong was received
-     * 2) After the pong timeout was reached
      */
-    private async stopPingPong(): Promise<void> {
+    private stopPingPong(): void {
         MessageBus.send('log', `${wslogId(this.webSocket)}: stopPingPong()`);
-        if (this.resolveStopPing) {
-            throw new Error('Somebody else already requested stopping ping / pong.');
-        }
+
         if (!this.isPinging) {
             return;
         }
 
-        // Wait if in a ping / pong cycle, otherwise just resolve
-        await new Promise<void>(resolve => {
-            // Cancel the next ping if it is scheduled
-            this.isPinging = false;
-            if (this.pingTimeoutHandle) {
-                clearTimeout(this.pingTimeoutHandle);
-            }
+        // Cancel the next ping if it is scheduled
+        this.isPinging = false;
 
-            // Wait for pong (or error) if currently in a ping / pong cycle
-            if (this.isWaitingForPong) {
-                this.resolveStopPing = resolve;
-            }
+        if (this.pingTimeoutHandle) {
+            clearTimeout(this.pingTimeoutHandle);
+        }
 
-            // Resolve immediately if not in a ping / pong cycle.
-            else {
-                resolve();
-            }
-        });
-
-        this.resolveStopPing = null;
+        this.onStopPingPong.emit();
     }
 }
