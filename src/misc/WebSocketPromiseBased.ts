@@ -6,8 +6,6 @@ import type {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promis
 import {OEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
-type PingPongMessage = {type: 'pingPong'; requestNr?: number; responseNr?: number};
-
 /**
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
  * instead of using callbacks (onmessage onopen ...)
@@ -39,11 +37,19 @@ export default class WebSocketPromiseBased
     private closeReason: string;
     private firstError: string;
     private lastError: string;
+    private clientPingInterval: number;
+    private clientPongTimeout: number;
+    private isPinngin = false;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
-    constructor(webSocket: WebSocket, maxDataQueueSize = 10) {
+    constructor(
+        webSocket: WebSocket,
+        maxDataQueueSize = 10,
+        clientPingInterval = 30000,
+        clientPongTimeout = 3000
+    ) {
         super();
         this.webSocket = webSocket;
         this.dataQueue = [];
@@ -56,6 +62,8 @@ export default class WebSocketPromiseBased
         this.closeReason = '';
         this.firstError = '';
         this.lastError = '';
+        this.clientPingInterval = clientPingInterval;
+        this.clientPongTimeout = clientPongTimeout;
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
