@@ -564,7 +564,7 @@ export default class WebSocketPromiseBased
      *
      * @param messageEvent
      */
-    pivate handleMessage(messageEvent: MessageEvent) {
+    private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
 
         // Notify listeners for a new message
