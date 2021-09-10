@@ -3,6 +3,9 @@ import WebSocketWS from 'isomorphic-ws';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
 import {createWebSocket} from 'one.core/lib/system/websocket';
+import {wait} from 'one.core/lib/util/promise';
+/* import {start} from 'one.core/lib/logger';
+start({includeTimestamp: true});*/
 
 describe('websocket wait tests', () => {
     let webSocketServer: WebSocketServerPromiseBased;
@@ -18,6 +21,26 @@ describe('websocket wait tests', () => {
         await connClient.waitForOpen();
         connServer = new WebSocketPromiseBased(await webSocketServer.waitForConnection());
         await connServer.waitForOpen();
+    });
+
+    afterEach('Shutdown Connections', async function () {
+        if (connClient.webSocket) {
+            connClient.webSocket.close();
+        }
+        if (connServer.webSocket) {
+            connServer.webSocket.close();
+        }
+        await new Promise<void>((resolve, reject) => {
+            if (webSocketServer.webSocketServer) {
+                webSocketServer.webSocketServer.close((err?: Error) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+        });
     });
 
     it('tests waitForMessage: no failures in 4 messages', async function () {
@@ -73,23 +96,63 @@ describe('websocket wait tests', () => {
         }
     });
 
-    afterEach('Shutdown Connections', async function () {
+    it('should close with reason "Pong Timeout"', async function () {
+        // close both current connections
         if (connClient.webSocket) {
             connClient.webSocket.close();
         }
         if (connServer.webSocket) {
             connServer.webSocket.close();
         }
-        await new Promise<void>((resolve, reject) => {
-            if (webSocketServer.webSocketServer) {
-                webSocketServer.webSocketServer.close((err?: Error) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
-                });
-            }
-        });
+
+        // setup con with 3000ms ping interval
+        connClient = new WebSocketPromiseBased(
+            createWebSocket('ws://localhost:8080'),
+            undefined,
+            500,
+            250
+        );
+        await connClient.waitForOpen();
+
+        // Force connClient into Pong Timeout because no connServer connection exists
+        await wait(1000);
+
+        expect(connClient['closeReason'] === 'Pong Timeout');
+        if (connClient.webSocket) {
+            // 3 means closed
+            expect(connClient.webSocket.readyState === 3);
+        }
+    });
+
+    it('should be alive trough Ping/Pong running', async function () {
+        // close both current connections
+        if (connClient.webSocket) {
+            connClient.webSocket.close();
+        }
+        if (connServer.webSocket) {
+            connServer.webSocket.close();
+        }
+
+        // setup con with 3000ms ping interval
+        connClient = new WebSocketPromiseBased(
+            createWebSocket('ws://localhost:8080'),
+            undefined,
+            500,
+            250
+        );
+        await connClient.waitForOpen();
+
+        /* Start a connServer connection to answer the pings.
+        This should lead to the connClient still being alive after the 5000ms wait */
+        connServer = new WebSocketPromiseBased(await webSocketServer.waitForConnection());
+        await connServer.waitForOpen();
+
+        // Would force connClient into Pong Timeout if no connServer connection existed
+        await wait(1000);
+
+        if (connClient.webSocket) {
+            // 1 means open
+            expect(connClient.webSocket.readyState === 1);
+        }
     });
 });

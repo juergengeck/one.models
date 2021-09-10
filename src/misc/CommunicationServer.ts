@@ -158,13 +158,6 @@ class CommunicationServer {
                 // Step 3: Add to spare map and return success message
                 this.pushListeningConnection(message.publicKey, conn);
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
-
-                // Step 4: Start PingPong
-                MessageBus.send(
-                    'log',
-                    `${wslogId(ws.webSocket)}: Register Step 3: Starting Ping Pong`
-                );
-                conn.startPingPong(this.pingInterval, this.pongTimeout);
             }
 
             // On communication request, let's connect it to a spare connection of the requested publicKey
@@ -178,25 +171,21 @@ class CommunicationServer {
 
                 const connOther = this.popListeningConnection(message.targetPublicKey);
 
-                // Step 1: Stop the ping ponging
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Stop ping pong`);
-                await connOther.stopPingPong();
-
-                // Step 2: Send the handover message
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 2: Send Handover`);
+                // Step 1: Send the handover message
+                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Send Handover`);
                 await connOther.sendConnectionHandoverMessage();
 
-                // Step 3: Forward the communication request
+                // Step 2: Forward the communication request
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 3: Forward connection request`
+                    `${wslogId(ws.webSocket)}: Relay Step 2: Forward connection request`
                 );
                 await connOther.sendCommunicationRequestMessage(
                     message.sourcePublicKey,
                     message.targetPublicKey
                 );
 
-                // Step 4: Forward everything
+                // Step 3: Forward everything
                 // TODO: Because we send the communicationRequestMessage on Step3 (with an await) it is theoretically
                 // possible, that the answer is received before the web socket send call returns.
                 // So it might be possible that the old websocket 'message' handler is scheduled before the new
@@ -208,7 +197,7 @@ class CommunicationServer {
                 // connection class with the current architecture. So we will do that probably later when we see problems
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 4: Connect both sides`
+                    `${wslogId(ws.webSocket)}: Relay Step 3: Connect both sides`
                 );
                 let wsThis = conn.releaseWebSocket();
                 let wsOther = connOther.releaseWebSocket();

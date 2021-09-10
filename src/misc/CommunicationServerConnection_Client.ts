@@ -105,13 +105,6 @@ class CommunicationServerConnection_Client {
         });
     }
 
-    /**
-     * Send Pong Message
-     */
-    public async sendPongMessage(): Promise<void> {
-        await this.sendMessage({command: 'comm_pong'});
-    }
-
     // ######## Message receiving ########
 
     /**
@@ -130,73 +123,6 @@ class CommunicationServerConnection_Client {
             return message;
         }
         throw Error("Received data does not match the data expected for command '" + command + "'");
-    }
-
-    /**
-     * Wait for a message with the specified command while also answering comm_pings.
-     *
-     * @param command - The expected command of the next message
-     * @param pingTimeout - Pings in the given interval are expected. If pings do not arrive in this
-     *                               time the connection is closed.
-     * @returns
-     */
-    public async waitForMessagePingPong<T extends keyof CommunicationServerProtocol.ServerMessages>(
-        command: T,
-        pingTimeout: number
-    ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
-        let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-        // Schedules a timeout at pingTimeout interval
-        const schedulePingTimeout = () => {
-            cancelPingTimeout();
-            timeoutHandle = setTimeout(() => {
-                this.webSocketPB.terminate('Ping timeout');
-            }, pingTimeout);
-        };
-
-        // Cancels the ping timeout
-        const cancelPingTimeout = () => {
-            if (timeoutHandle) {
-                clearTimeout(timeoutHandle);
-            }
-        };
-
-        // Wait while answering pings for the requested message
-        try {
-            while (true) {
-                // Schedule the ping timeout
-                schedulePingTimeout();
-
-                // Wait for new message
-                const message = this.unpackBinaryFields(
-                    await this.webSocketPB.waitForJSONMessage()
-                );
-
-                // On ping send a pong and reiterate the loop
-                if (isServerMessage(message, 'comm_ping')) {
-                    await this.sendPongMessage();
-                }
-
-                // On requested command return from this function
-                else if (isServerMessage(message, command)) {
-                    cancelPingTimeout();
-                    return message;
-                }
-
-                // On unknown message throw
-                else {
-                    throw Error(
-                        "Received data does not match the data expected for command '" +
-                            command +
-                            "'"
-                    );
-                }
-            }
-        } catch (e) {
-            // Cancel the ping timeout e.g. on error (e.g. when the connection closes)
-            cancelPingTimeout();
-            throw e;
-        }
     }
 
     // ######## Private ########

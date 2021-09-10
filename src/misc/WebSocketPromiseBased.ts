@@ -37,11 +37,23 @@ export default class WebSocketPromiseBased
     private closeReason: string;
     private firstError: string;
     private lastError: string;
+    private pingInterval: number;
+    private pongTimeout: number;
+    private isPinging: boolean = false; // State that indicates if the ping process is running
+    // while waiting for a pong
+    private pingTimeoutHandle: ReturnType<typeof setTimeout> | null = null; // Ping timout handle for cancellation in stop
+    private onPong = new OEvent<() => void>();
+    private onStopPingPong = new OEvent<() => void>();
 
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
-    constructor(webSocket: WebSocket, maxDataQueueSize = 10) {
+    constructor(
+        webSocket: WebSocket,
+        maxDataQueueSize = 10,
+        pingInterval = 30000,
+        pongTimeout = 3000
+    ) {
         super();
         this.webSocket = webSocket;
         this.dataQueue = [];
@@ -54,6 +66,8 @@ export default class WebSocketPromiseBased
         this.closeReason = '';
         this.firstError = '';
         this.lastError = '';
+        this.pingInterval = pingInterval;
+        this.pongTimeout = pongTimeout;
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -124,6 +138,7 @@ export default class WebSocketPromiseBased
         this.deregisterHandlers();
         const webSocket = this.webSocket;
         this.webSocket = null;
+        this.stopPingPong();
         return webSocket;
     }
 
@@ -191,6 +206,7 @@ export default class WebSocketPromiseBased
             // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
             // this.releaseWebSocket();
         }
+        this.stopPingPong();
     }
 
     /**
@@ -482,6 +498,7 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn();
         }
+        this.startPingPong(this.pingInterval, this.pongTimeout);
     }
 
     /**
@@ -493,6 +510,14 @@ export default class WebSocketPromiseBased
      */
     private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
+        if (WebSocketPromiseBased.isPing(messageEvent)) {
+            this.sendPongMessage();
+            return;
+        }
+        if (WebSocketPromiseBased.isPong(messageEvent)) {
+            this.onPong.emit();
+            return;
+        }
 
         // Notify listeners for a new message
         this.emit('message', messageEvent);
@@ -557,6 +582,7 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error('Connection was closed: ' + closeEvent.reason));
         }
+        this.stopPingPong();
     }
 
     /**
@@ -583,5 +609,137 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error(message));
         }
+        this.stopPingPong();
+    }
+
+    // ######## Ping/Pong ########
+    /**
+     * Send Ping Message
+     */
+    private async sendPingMessage(): Promise<void> {
+        await this.send(JSON.stringify({command: 'comm_ping'}));
+    }
+    /**
+     * Send Pong Message
+     */
+    private async sendPongMessage(): Promise<void> {
+        await this.send(JSON.stringify({command: 'comm_pong'}));
+    }
+
+    static isPing(message: MessageEvent): boolean {
+        try {
+            const messageObj = JSON.parse(message.data);
+            return messageObj.command === 'comm_ping';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    static isPong(message: MessageEvent): boolean {
+        try {
+            const messageObj = JSON.parse(message.data);
+            return messageObj.command === 'comm_pong';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private async waitForPong(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const disconnect = this.onPong(() => {
+                resolve();
+                disconnect();
+            });
+            const disconnect2 = this.onStopPingPong(() => {
+                reject(new Error('Ping pong stopped'));
+                disconnect2();
+            });
+        });
+    }
+    /**
+     * Starts pinging the client.
+     *
+     * @param pingInterval - Interval since last pong when to send another ping.
+     * @param pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
+     */
+    private startPingPong(pingInterval: number, pongTimeout: number): void {
+        MessageBus.send(
+            'debug',
+            `${wslogId(this.webSocket)}: startPingPong(${pingInterval}, ${pongTimeout})`
+        );
+
+        if (this.isPinging) {
+            throw new Error('Already ping / ponging');
+        }
+        this.isPinging = true;
+
+        // Sends the ping. This is a wrapper for async
+        const sendPing = async () => {
+            try {
+                // If not pinging anymore, because stopPingPing was called
+                // Then resolve the waiter in stopPingPong and don't schedule another ping
+                if (!this.isPinging) {
+                    return;
+                }
+
+                // Send ping and wait for pong
+                let pongTimeoutHandler: ReturnType<typeof setTimeout> | null = null;
+                try {
+                    // Send a ping
+                    await this.sendPingMessage();
+
+                    // Set a timeout for the pong
+                    pongTimeoutHandler = setTimeout(() => {
+                        this.terminate('Pong Timeout');
+                    }, pongTimeout);
+
+                    // Wait for the message
+                    await this.waitForPong();
+
+                    // Cancel timeout
+                    clearTimeout(pongTimeoutHandler);
+                } catch (e) {
+                    // Cancel timeout
+                    if (pongTimeoutHandler) {
+                        clearTimeout(pongTimeoutHandler);
+                    }
+
+                    throw e;
+                }
+
+                // Reschedule another ping
+                if (this.isPinging) {
+                    this.pingTimeoutHandle = setTimeout(() => {
+                        this.pingTimeoutHandle = null;
+                        sendPing();
+                    }, pingInterval);
+                }
+            } catch (e) {
+                this.close();
+            }
+        };
+
+        // Send the first ping
+        sendPing();
+    }
+
+    /**
+     * Stops the ping / pong process.
+     */
+    private stopPingPong(): void {
+        MessageBus.send('log', `${wslogId(this.webSocket)}: stopPingPong()`);
+
+        if (!this.isPinging) {
+            return;
+        }
+
+        // Cancel the next ping if it is scheduled
+        this.isPinging = false;
+
+        if (this.pingTimeoutHandle) {
+            clearTimeout(this.pingTimeoutHandle);
+        }
+
+        this.onStopPingPong.emit();
     }
 }

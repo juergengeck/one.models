@@ -353,7 +353,7 @@ class CommunicationServerListener {
             `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`
         );
         connection
-            .waitForMessagePingPong('connection_handover', pingTimeout)
+            .waitForMessage('connection_handover')
             .then(() => {
                 MessageBus.send(
                     'log',
