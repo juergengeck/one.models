@@ -31,6 +31,7 @@ import type {
 } from '@OneObjectInterfaces';
 import {OEvent} from '../../misc/OEvent';
 import {serializeWithType} from 'one.core/lib/util/promise';
+import type {Model} from '../Model';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -79,8 +80,8 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  * TODO: Add convenience functions for locating all one endpoints, locating keys ...
  * TODO: Add events
  */
-export default class LeuteModel {
-    public onUpdate: OEvent<() => void> = new OEvent();
+export default class LeuteModel implements Model {
+    public onUpdated: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
     public onNewOneInstanceEndpointEvent = new OEvent<
         (communicationEndpoints: OneInstanceEndpoint) => void
@@ -441,7 +442,7 @@ export default class LeuteModel {
         if (isVersionedResultOfType(result, 'Leute')) {
             this.leute = result.obj;
             this.pLoadedVersion = result.hash;
-            this.onUpdate.emit();
+            this.onUpdated.emit();
         }
     }
 
@@ -483,7 +484,7 @@ export default class LeuteModel {
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
 
-        this.onUpdate.emit();
+        this.onUpdated.emit();
     }
 
     /**
