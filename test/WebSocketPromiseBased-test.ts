@@ -4,8 +4,9 @@ import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
 import {createWebSocket} from 'one.core/lib/system/websocket';
 import {wait} from 'one.core/lib/util/promise';
-import {start} from 'one.core/lib/logger';
-start({includeTimestamp: true});
+/* import {start} from 'one.core/lib/logger';
+start({includeTimestamp: true});*/
+
 describe('websocket wait tests', () => {
     let webSocketServer: WebSocketServerPromiseBased;
     let connClient: WebSocketPromiseBased;
@@ -88,20 +89,20 @@ describe('websocket wait tests', () => {
         connClient = new WebSocketPromiseBased(
             createWebSocket('ws://localhost:8080'),
             undefined,
-            3000,
-            1000
+            500,
+            250
         );
         await connClient.waitForOpen();
 
         // Force connClient into Pong Timeout because no connServer connection exists
-        await wait(5000);
+        await wait(1000);
 
         expect(connClient['closeReason'] === 'Pong Timeout');
         if (connClient.webSocket) {
             // 3 means closed
             expect(connClient.webSocket.readyState === 3);
         }
-    }).timeout(6000);
+    });
 
     it('should be alive trough Ping/Pong running', async function () {
         // close both current connections
@@ -116,8 +117,8 @@ describe('websocket wait tests', () => {
         connClient = new WebSocketPromiseBased(
             createWebSocket('ws://localhost:8080'),
             undefined,
-            3000,
-            1000
+            500,
+            250
         );
         await connClient.waitForOpen();
 
@@ -127,13 +128,13 @@ describe('websocket wait tests', () => {
         await connServer.waitForOpen();
 
         // Would force connClient into Pong Timeout if no connServer connection existed
-        await wait(5000);
+        await wait(1000);
 
         if (connClient.webSocket) {
             // 1 means open
             expect(connClient.webSocket.readyState === 1);
         }
-    }).timeout(6000);
+    });
 
     afterEach('Shutdown Connections', async function () {
         if (connClient.webSocket) {
