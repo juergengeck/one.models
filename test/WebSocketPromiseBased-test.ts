@@ -23,6 +23,26 @@ describe('websocket wait tests', () => {
         await connServer.waitForOpen();
     });
 
+    afterEach('Shutdown Connections', async function () {
+        if (connClient.webSocket) {
+            connClient.webSocket.close();
+        }
+        if (connServer.webSocket) {
+            connServer.webSocket.close();
+        }
+        await new Promise<void>((resolve, reject) => {
+            if (webSocketServer.webSocketServer) {
+                webSocketServer.webSocketServer.close((err?: Error) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+        });
+    });
+
     it('tests waitForMessage: no failures in 4 messages', async function () {
         await connClient.send('DATA1');
         expect(await connServer.waitForMessage()).to.be.equal('DATA1');
@@ -134,25 +154,5 @@ describe('websocket wait tests', () => {
             // 1 means open
             expect(connClient.webSocket.readyState === 1);
         }
-    });
-
-    afterEach('Shutdown Connections', async function () {
-        if (connClient.webSocket) {
-            connClient.webSocket.close();
-        }
-        if (connServer.webSocket) {
-            connServer.webSocket.close();
-        }
-        await new Promise<void>((resolve, reject) => {
-            if (webSocketServer.webSocketServer) {
-                webSocketServer.webSocketServer.close((err?: Error) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
-                });
-            }
-        });
     });
 });
