@@ -3,7 +3,9 @@ import WebSocketWS from 'isomorphic-ws';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
 import {createWebSocket} from 'one.core/lib/system/websocket';
-
+import {wait} from 'one.core/lib/util/promise';
+import {start} from 'one.core/lib/logger';
+start({includeTimestamp: true});
 describe('websocket wait tests', () => {
     let webSocketServer: WebSocketServerPromiseBased;
     let connClient: WebSocketPromiseBased;
@@ -72,6 +74,30 @@ describe('websocket wait tests', () => {
             expect(e.toString()).to.be.match(/Received unexpected type/);
         }
     });
+
+    it('should close with reason "Pong Timeout"', async function () {
+        if (connClient.webSocket) {
+            connClient.webSocket.close();
+        }
+        if (connServer.webSocket) {
+            connServer.webSocket.close();
+        }
+        connClient = new WebSocketPromiseBased(
+            createWebSocket('ws://localhost:8080'),
+            undefined,
+            3000,
+            1000
+        );
+        await connClient.waitForOpen();
+
+        await wait(5000);
+
+        expect(connClient['closeReason'] === 'Pong Timeout');
+        if (connClient.webSocket) {
+            // 3 means closed
+            expect(connClient.webSocket.readyState === 3);
+        }
+    }).timeout(6000);
 
     afterEach('Shutdown Connections', async function () {
         if (connClient.webSocket) {
