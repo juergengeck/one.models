@@ -10,7 +10,7 @@ const MessageBus = createMessageBus('WebSocketPromiseBased');
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
  * instead of using callbacks (onmessage onopen ...)
  *
- * It also has a on('message') event, because sometimes you just need it.   When you solely use the
+ * It also has a on('message') event, because sometimes you just need it. When you solely use the
  * event based interface, and don't use the waitForMessage functions, then you need to set
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
@@ -510,11 +510,11 @@ export default class WebSocketPromiseBased
      */
     private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${wslogId(this.webSocket)}: handleMessage(${messageEvent.data})`);
-        if (this.isPing(messageEvent)) {
+        if (WebSocketPromiseBased.isPing(messageEvent)) {
             this.sendPongMessage();
             return;
         }
-        if (this.isPong(messageEvent)) {
+        if (WebSocketPromiseBased.isPong(messageEvent)) {
             this.onPong.emit();
             return;
         }
@@ -626,7 +626,7 @@ export default class WebSocketPromiseBased
         await this.send(JSON.stringify({command: 'comm_pong'}));
     }
 
-    private isPing(message: MessageEvent): boolean {
+    static isPing(message: MessageEvent): boolean {
         try {
             const messageObj = JSON.parse(message.data);
             return messageObj.command === 'comm_ping';
@@ -634,7 +634,8 @@ export default class WebSocketPromiseBased
             return false;
         }
     }
-    private isPong(message: MessageEvent): boolean {
+
+    static isPong(message: MessageEvent): boolean {
         try {
             const messageObj = JSON.parse(message.data);
             return messageObj.command === 'comm_pong';
@@ -643,10 +644,10 @@ export default class WebSocketPromiseBased
         }
     }
 
-    private async waitForPong(): Promise<any> {
+    private async waitForPong(): Promise<void> {
         return new Promise((resolve, reject) => {
             const disconnect = this.onPong(() => {
-                resolve(true);
+                resolve();
                 disconnect();
             });
             const disconnect2 = this.onStopPingPong(() => {
