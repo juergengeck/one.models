@@ -617,13 +617,13 @@ export default class WebSocketPromiseBased
      * Send Ping Message
      */
     private async sendPingMessage(): Promise<void> {
-        await this.send({command: 'comm_ping'});
+        await this.send(JSON.stringify({command: 'comm_ping'}));
     }
     /**
      * Send Pong Message
      */
     private async sendPongMessage(): Promise<void> {
-        await this.send({command: 'comm_pong'});
+        await this.send(JSON.stringify({command: 'comm_pong'}));
     }
 
     private isPing(message: MessageEvent): boolean {
