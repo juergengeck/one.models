@@ -13,6 +13,7 @@ export type JournalEntry = {
 };
 
 type JournalInput = {
+    // TODO why pass a model? oevent directly ?
     model: Model;
     retrieveFn: (
         queryOptions?: QueryOptions

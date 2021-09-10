@@ -32,6 +32,9 @@ import type {
 import {OEvent} from '../../misc/OEvent';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import type {Model} from '../Model';
+import type {ObjectData, QueryOptions} from '../ChannelManager';
+import type {PersonStatus} from '../../recipes/Leute/PersonDescriptions';
+import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
 
@@ -113,7 +116,52 @@ export default class LeuteModel implements Model {
         this.commserverUrl = commserverUrl;
     }
 
-    /**
+    public async *retrieveStatusesForJournal(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<PersonStatus>> {
+        const someoneModels = [await this.me(), ...(await this.others())];
+
+        const profileModels2d = await Promise.all(
+            someoneModels.map((other: SomeoneModel) => {
+                return other.profiles();
+            })
+        );
+
+        const profileModels1d = profileModels2d.reduce(function (prev, next) {
+            return prev.concat(next);
+        });
+        const statuses2d = profileModels1d.map((profile: ProfileModel) => {
+            return profile.descriptionsOfType('PersonStatus');
+        });
+
+        const statuses1d = statuses2d.reduce(function (prev, next) {
+            return prev.concat(next);
+        });
+
+        statuses1d.sort((status1: PersonStatus, status2: PersonStatus) => {
+            return status1.timestamp > status2.timestamp ? 1 : 0;
+        });
+
+        const objectDatas = statuses1d.map(status => {
+            return {
+                channelId: '',
+                channelOwner:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
+                channelEntryHash:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<ChannelEntry>,
+                id: '',
+                creationTime: new Date(status.timestamp),
+                author: '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
+                sharedWith: [],
+                data: status,
+                dataHash:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<PersonStatus>
+            };
+        });
+
+        yield* objectDatas;
+    }
+    /*
      * Init the module.
      *
      * This will initialize the data structures for 'me' like someone, profile and a
