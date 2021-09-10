@@ -748,8 +748,13 @@ export default class CommunicationModule extends EventEmitter {
             }
 
             if (this.unknownPeerMap.has(mapKey)) {
-                conn.close('duplicate connection');
-                return;
+                // when the connection is in the unknownPeerMap the same instance is already
+                // trying to connect. This can happen when, in the first try, the connection
+                // closed e.g. due to network loss.
+                // To clean up we terminate the current connection. Which will remove the
+                // probably orphaned connection from the unknownPeerMap.
+                // The next try from the client will then run trough.
+                conn.webSocketPB.terminate('duplicate connection');
             }
 
             // register this connection on an internal list, so that when a new contact object arrives we can take this
