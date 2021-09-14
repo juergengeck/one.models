@@ -7,6 +7,7 @@ import type {ObjectData} from './ChannelManager';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {QueryOptions} from './ChannelManager';
 
 export default class AudioExerciseModel extends EventEmitter implements Model {
     /**
@@ -63,6 +64,19 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
      */
     public async audioExercises(): Promise<ObjectData<AudioExercise>[]> {
         return await this.channelManager.getObjectsWithType('AudioExercise', {
+            channelId: AudioExerciseModel.channelId
+        });
+    }
+
+    /**
+     * returns iterator for audio exercises
+     * @param queryOptions
+     */
+    async *audioExercisesIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<AudioExercise>> {
+        yield* this.channelManager.objectIteratorWithType('AudioExercise', {
+            ...queryOptions,
             channelId: AudioExerciseModel.channelId
         });
     }
