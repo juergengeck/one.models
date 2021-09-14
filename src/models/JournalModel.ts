@@ -22,6 +22,8 @@ import type ConsentFileModel from './ConsentFileModel';
 import type ECGModel from './ECGModel';
 import type BodyTemperatureModel from './BodyTemperatureModel';
 import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
+import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
+import type AudioExerciseModel from './AudioExerciseModel';
 
 /**
  * !!! Add the corresponding model class name here
@@ -34,7 +36,8 @@ export enum EventType {
     DiaryEntry = 'DiaryModel',
     BodyTemperature = 'BodyTemperatureModel',
     ConsentFileEvent = 'ConsentFileModel',
-    ECGEvent = 'ECGModel'
+    ECGEvent = 'ECGModel',
+    AudioExercise = 'AudioExerciseModel'
 }
 
 /**
@@ -51,6 +54,7 @@ export type EventListEntry = {
         | Electrocardiogram
         | BodyTemperature
         | HeartEvent
+        | AudioExercise
     >;
 };
 
@@ -63,7 +67,8 @@ type JournalInput = {
         | DiaryModel
         | ConsentFileModel
         | ECGModel
-        | BodyTemperatureModel;
+        | BodyTemperatureModel
+        | AudioExerciseModel;
     retrieveFn: (
         queryOptions?: QueryOptions
     ) => AsyncIterableIterator<EventListEntry['data'] | Promise<EventListEntry['data']>>;
@@ -401,6 +406,8 @@ export default class JournalModel extends EventEmitter {
                 return {type: EventType.ECGEvent, data: objectData};
             case 'HeartEvent':
                 return {type: EventType.HeartEvent, data: objectData};
+            case 'AudioExercise':
+                return {type: EventType.AudioExercise, data: objectData};
         }
 
         throw new Error('objectData is an unknown type');
