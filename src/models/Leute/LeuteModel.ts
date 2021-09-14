@@ -139,7 +139,11 @@ export default class LeuteModel implements Model {
         });
 
         statuses1d.sort((status1: PersonStatus, status2: PersonStatus) => {
-            return status1.timestamp > status2.timestamp ? 1 : 0;
+            return status1.timestamp > status2.timestamp
+                ? 1
+                : status1.timestamp < status2.timestamp
+                ? -1
+                : 0;
         });
 
         const objectDatas = statuses1d.map(status => {
