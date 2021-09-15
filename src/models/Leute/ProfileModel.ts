@@ -323,13 +323,13 @@ export default class ProfileModel {
         return latestStatus;
     }
 
-    public setStatus(statusValue: string) {
+    public setStatus(statusValue: string, location: string) {
         if (!this.isStatusModified) {
             this.personDescriptions.push({
                 $type$: 'PersonStatus',
                 timestamp: Date.now(),
                 value: statusValue,
-                location: ''
+                location: location
             });
             this.isStatusModified = true;
             return;
@@ -337,6 +337,7 @@ export default class ProfileModel {
 
         const latestStatus = this.getStatus();
         latestStatus.value = statusValue;
+        latestStatus.location = location;
         latestStatus.timestamp = Date.now();
     }
 
