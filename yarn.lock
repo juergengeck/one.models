@@ -3828,9 +3828,9 @@ once@^1.3.0:
   dependencies:
     wrappy "1"
 
-one.core@refinio/one.core:
-  version "0.2.21"
-  resolved "git+ssh://git@github.com/refinio/one.core.git#13aad1bec9f37f0082ce24c6562f39c3540af0b2"
+one.core@refinio/one.core#v0.2.22:
+  version "0.2.22"
+  resolved "git+ssh://git@github.com/refinio/one.core.git#1e80f00ede2c8561eb9573d8c8f8171d3f5e2212"
   dependencies:
     "@babel/core" "*"
     "@babel/plugin-proposal-class-properties" "*"
