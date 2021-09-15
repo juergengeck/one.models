@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "5.5.0",
+  "version": "5.5.1",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -27,7 +27,7 @@
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
-    "one.core": "refinio/one.core",
+    "one.core": "refinio/one.core#v0.2.22",
     "ts-loader": "^8.0.2",
     "ws": "*",
     "yargs": "^15.4.0"
