@@ -384,23 +384,29 @@ export default class LeuteModel implements Model {
         const profileModels1d = profileModels2d.reduce(function (prev, next) {
             return prev.concat(next);
         });
-        const statuses2d = profileModels1d.map((profile: ProfileModel) => {
-            return profile.descriptionsOfType('PersonStatus');
+
+        type StatusWithPersonId = {
+            personId: SHA256IdHash<Person>;
+            status: PersonStatus;
+        };
+
+        const statusesWithPersonId: StatusWithPersonId[] = [];
+
+        profileModels1d.forEach((profile: ProfileModel) => {
+            profile.descriptionsOfType('PersonStatus').map(ps => {
+                statusesWithPersonId.push({personId: profile.personId, status: ps});
+            });
         });
 
-        const statuses1d = statuses2d.reduce(function (prev, next) {
-            return prev.concat(next);
-        });
-
-        statuses1d.sort((status1: PersonStatus, status2: PersonStatus) => {
-            return status1.timestamp > status2.timestamp
+        statusesWithPersonId.sort((status1: StatusWithPersonId, status2: StatusWithPersonId) => {
+            return status1.status.timestamp > status2.status.timestamp
                 ? 1
-                : status1.timestamp < status2.timestamp
+                : status1.status.timestamp < status2.status.timestamp
                 ? -1
                 : 0;
         });
 
-        const objectDatas = statuses1d.map(status => {
+        const objectDatas = statusesWithPersonId.map(statusWithPersonId => {
             return {
                 channelId: '',
                 channelOwner:
@@ -408,10 +414,10 @@ export default class LeuteModel implements Model {
                 channelEntryHash:
                     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<ChannelEntry>,
                 id: '',
-                creationTime: new Date(status.timestamp),
-                author: '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
+                creationTime: new Date(statusWithPersonId.status.timestamp),
+                author: statusWithPersonId.personId,
                 sharedWith: [],
-                data: status,
+                data: statusWithPersonId.status,
                 dataHash:
                     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<PersonStatus>
             };
