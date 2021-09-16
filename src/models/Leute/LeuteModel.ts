@@ -304,6 +304,10 @@ export default class LeuteModel implements Model {
 
     // ######## Misc stuff ########
 
+    /**
+     * Return the SomeoneModel identified by the person Id or undefined otherwise.
+     * @param personId
+     */
     async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
         const allSomeones = [await this.me(), ...(await this.others())];
 
@@ -312,6 +316,10 @@ export default class LeuteModel implements Model {
         return someone;
     }
 
+    /**
+     * Return the main ProfileModel of the SomeoneModel identified by the personId.
+     * @param personId
+     */
     async getMainProfile(personId: SHA256IdHash<Person>): Promise<ProfileModel> {
         const someone = await this.getSomeone(personId);
 
