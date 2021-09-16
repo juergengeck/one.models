@@ -304,6 +304,24 @@ export default class LeuteModel implements Model {
 
     // ######## Misc stuff ########
 
+    async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
+        const allSomeones = [await this.me(), ...(await this.others())];
+
+        const someone = allSomeones.find(someone => someone.identities().includes(personId));
+
+        return someone;
+    }
+
+    async getMainProfile(personId: SHA256IdHash<Person>): Promise<ProfileModel> {
+        const someone = await this.getSomeone(personId);
+
+        if (someone === undefined) {
+            throw new Error(`No someone found for the given personId: ${personId}`);
+        }
+
+        return someone.mainProfile();
+    }
+
     /**
      * Add a profile to a someone object already managing this persons profile.
      *
