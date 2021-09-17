@@ -13,7 +13,7 @@ export type JournalEntry = {
 };
 
 type JournalInput = {
-    model: Model;
+    event: OEvent<(data: ObjectData<unknown>) => Promise<void> | void>;
     retrieveFn: (
         queryOptions?: QueryOptions
     ) => AsyncIterableIterator<ObjectData<unknown> | Promise<ObjectData<unknown>>>;
@@ -58,7 +58,7 @@ export default class JournalModel extends EventEmitter implements Model {
                 this.onUpdated.emit(data, event);
             };
 
-            const disconnectFn = journalInput.model.onUpdated(oEventHandler.bind(this));
+            const disconnectFn = journalInput.event(oEventHandler.bind(this));
 
             // Persist the function reference in a map
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
