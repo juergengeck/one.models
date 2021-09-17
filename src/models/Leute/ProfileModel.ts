@@ -8,6 +8,7 @@ import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames,
     PersonDescriptionTypes,
+    PersonImage,
     PersonStatus
 } from '../../recipes/Leute/PersonDescriptions';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
@@ -21,6 +22,7 @@ import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints';
 import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions';
 import type {Plan} from 'one.core/lib/recipes';
 import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
+import type {BLOB} from 'one.core/lib/recipes';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -54,6 +56,7 @@ export default class ProfileModel {
     public communicationEndpoints: CommunicationEndpointTypes[] = [];
     public personDescriptions: PersonDescriptionTypes[] = [];
     public isStatusModified = false;
+    public isImageModified = false;
 
     private pLoadedVersion?: SHA256Hash<Profile>;
     private profile?: Profile;
@@ -313,7 +316,7 @@ export default class ProfileModel {
         this.onUpdate.emit();
     }
 
-    public getStatus() {
+    public getStatus(): PersonStatus {
         const statuses = this.descriptionsOfType('PersonStatus');
         const latestStatus = statuses.reduce(
             (status: PersonStatus, latestStatus: PersonStatus) =>
@@ -323,7 +326,7 @@ export default class ProfileModel {
         return latestStatus;
     }
 
-    public setStatus(statusValue: string, location: string) {
+    public setStatus(statusValue: string, location: string): void {
         if (!this.isStatusModified) {
             this.personDescriptions.push({
                 $type$: 'PersonStatus',
@@ -339,6 +342,34 @@ export default class ProfileModel {
         latestStatus.value = statusValue;
         latestStatus.location = location;
         latestStatus.timestamp = Date.now();
+    }
+
+    public getImage(): PersonImage {
+        const images = this.descriptionsOfType('PersonImage');
+        const latestImage = images.reduce(
+            (image1: PersonImage, image2: PersonImage) =>
+                image1.timestamp > image2.timestamp ? image1 : image2,
+            images[0]
+        );
+        return latestImage;
+    }
+
+    public setImage(image: SHA256Hash<BLOB>, location: string): void {
+        if (!this.isImageModified) {
+            this.personDescriptions.push({
+                $type$: 'PersonImage',
+                timestamp: Date.now(),
+                image: image,
+                location: location
+            });
+            this.isImageModified = true;
+            return;
+        }
+
+        const latestImage = this.getImage();
+        latestImage.image = image;
+        latestImage.location = location;
+        latestImage.timestamp = Date.now();
     }
 
     // ######## private stuff ########

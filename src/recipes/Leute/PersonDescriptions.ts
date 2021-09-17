@@ -24,6 +24,13 @@ export interface PersonStatus {
     location: string;
 }
 
+export interface PersonImage {
+    $type$: 'PersonImage';
+    image: SHA256Hash<BLOB>;
+    timestamp: number;
+    location: string;
+}
+
 export interface ProfileImage {
     $type$: 'ProfileImage';
     image: SHA256Hash<BLOB>;
@@ -35,6 +42,7 @@ export type PersonDescriptionInterfaces = {
     PersonName: PersonName;
     ProfileImage: ProfileImage;
     PersonStatus: PersonStatus;
+    PersonImage: PersonImage;
 };
 export type PersonDescriptionTypes = PersonDescriptionInterfaces[keyof PersonDescriptionInterfaces];
 export type PersonDescriptionTypeNames = keyof PersonDescriptionInterfaces;
@@ -90,6 +98,25 @@ export const PersonStatusRecipe: Recipe = {
     ]
 };
 
+export const PersonImageRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'PersonImage',
+    rule: [
+        {
+            itemprop: 'image',
+            referenceToBlob: true
+        },
+        {
+            itemprop: 'timestamp',
+            valueType: 'number'
+        },
+        {
+            itemprop: 'location',
+            valueType: 'string'
+        }
+    ]
+};
+
 export const ProfileImageRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ProfileImage',
@@ -108,6 +135,7 @@ declare module '@OneObjectInterfaces' {
         PersonName: PersonName;
         PersonStatus: PersonStatus;
         ProfileImage: ProfileImage;
+        PersonImage: PersonImage;
     }
 
     export interface PlanResultTypes {
@@ -117,4 +145,4 @@ declare module '@OneObjectInterfaces' {
         };
     }
 }
-export default [PersonNameRecipe, PersonStatusRecipe, ProfileImageRecipe];
+export default [PersonNameRecipe, PersonStatusRecipe, ProfileImageRecipe, PersonImageRecipe];
