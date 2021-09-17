@@ -500,6 +500,7 @@ export default class LeuteModel implements Model {
             await serializeWithType('addProfile', async () => {
                 await this.addProfile(result.idHash);
             });
+            this.onUpdated.emit();
         }
     }
 
