@@ -33,7 +33,7 @@ import {OEvent} from '../../misc/OEvent';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import type {Model} from '../Model';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
-import type {PersonStatus} from '../../recipes/Leute/PersonDescriptions';
+import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 
 type Writeable<T> = {-readonly [K in keyof T]: T[K]};
@@ -394,6 +394,67 @@ export default class LeuteModel implements Model {
     ): Promise<SHA256Hash<Keys>> {
         const personKeyLink = await getAllValues(personId, true, 'Keys');
         return personKeyLink[personKeyLink.length - 1].toHash;
+    }
+
+    public async *retrievePersonImagesForJournal(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<PersonImage>> {
+        const someoneModels = [await this.me(), ...(await this.others())];
+
+        const profileModels2d = await Promise.all(
+            someoneModels.map((other: SomeoneModel) => {
+                return other.profiles();
+            })
+        );
+
+        const profileModels1d = profileModels2d.reduce(function (prev, next) {
+            return prev.concat(next);
+        });
+
+        type PersonImageWithPersonId = {
+            personId: SHA256IdHash<Person>;
+            image: PersonImage;
+        };
+
+        const personImagesWithPersonId: PersonImageWithPersonId[] = [];
+
+        profileModels1d.forEach((profile: ProfileModel) => {
+            profile.descriptionsOfType('PersonImage').map(pi => {
+                personImagesWithPersonId.push({personId: profile.personId, image: pi});
+            });
+        });
+
+        personImagesWithPersonId.sort(
+            (
+                imageWithPersonId1: PersonImageWithPersonId,
+                imageWIthPersonId2: PersonImageWithPersonId
+            ) => {
+                return imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
+                    ? 1
+                    : imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
+                    ? -1
+                    : 0;
+            }
+        );
+
+        const objectDatas = personImagesWithPersonId.map(imageWithPersonId => {
+            return {
+                channelId: '',
+                channelOwner:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
+                channelEntryHash:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<ChannelEntry>,
+                id: '',
+                creationTime: new Date(imageWithPersonId.image.timestamp),
+                author: imageWithPersonId.personId,
+                sharedWith: [],
+                data: imageWithPersonId.image,
+                dataHash:
+                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<PersonImage>
+            };
+        });
+
+        yield* objectDatas;
     }
 
     public async *retrieveStatusesForJournal(
