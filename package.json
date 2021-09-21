@@ -11,16 +11,16 @@
     "install": "node ./install.js",
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
-    "doc": "npx typedoc && npx api-extractor run --local",
+    "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
     "start": "node lib/model/index.js",
-    "test": "mocha test/**-test.js",
-    "testcov": "nyc mocha test/**-test.js",
+    "test": "npx --no-install mocha test/**-test.js",
+    "testcov": "npx --no-install nyc npx --no-install mocha test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
     "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
     "start-uke": "node lib/cli/CommunicationServer -p 8000",
     "start-state-machine": "node lib/cli/StateMachine",
-    "bundle": "webpack"
+    "bundle": "npx --no-install webpack"
   },
   "dependencies": {
     "@types/yargs": "^15.0.5",

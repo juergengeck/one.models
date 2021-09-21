@@ -296,7 +296,7 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
