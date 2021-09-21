@@ -398,5 +398,6 @@ export default class ProfileModel {
         this.pLoadedVersion = version;
         this.profile = profile;
         this.isStatusModified = false;
+        this.isImageModified = false;
     }
 }

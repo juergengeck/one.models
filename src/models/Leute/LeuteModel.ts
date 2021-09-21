@@ -331,23 +331,6 @@ export default class LeuteModel implements Model {
     }
 
     /**
-     * Return all the profiles of all the someones, including my own profiles.
-     */
-    async getAllProfiles(): Promise<ProfileModel[]> {
-        const someoneModels = [await this.me(), ...(await this.others())];
-
-        const profileModels2d = await Promise.all(
-            someoneModels.map((other: SomeoneModel) => {
-                return other.profiles();
-            })
-        );
-
-        return profileModels2d.reduce(function (prev, next) {
-            return prev.concat(next);
-        });
-    }
-
-    /**
      * Add a profile to a someone object already managing this persons profile.
      *
      * If no such someone object exists a new one is created.
@@ -587,6 +570,23 @@ export default class LeuteModel implements Model {
         const idHash = await calculateIdHashOfObj({$type$: 'Leute', appId: 'one.leute'});
         const result = await getObjectByIdHash(idHash);
         await this.updateModelDataFromLeute(result.obj, result.hash);
+    }
+
+    /**
+     * Return all the profiles of all the someones, including my own profiles.
+     */
+    private async getAllProfiles(): Promise<ProfileModel[]> {
+        const someoneModels = [await this.me(), ...(await this.others())];
+
+        const profileModels2d = await Promise.all(
+            someoneModels.map((other: SomeoneModel) => {
+                return other.profiles();
+            })
+        );
+
+        return profileModels2d.reduce(function (prev, next) {
+            return prev.concat(next);
+        });
     }
 
     /**
