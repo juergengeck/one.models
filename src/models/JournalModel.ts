@@ -406,6 +406,8 @@ export default class JournalModel extends EventEmitter {
                 return {type: EventType.ECGEvent, data: objectData};
             case 'HeartEvent':
                 return {type: EventType.HeartEvent, data: objectData};
+            case 'AudioExercise':
+                return {type: EventType.AudioExercise, data: objectData};
         }
 
         throw new Error('objectData is an unknown type');
