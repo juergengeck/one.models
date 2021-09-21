@@ -17,7 +17,7 @@ const DiaryEntryRecipe: Recipe = {
     rule: [
         {
             itemprop: 'entry',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

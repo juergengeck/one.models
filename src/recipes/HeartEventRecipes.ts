@@ -26,7 +26,7 @@ const HeartEventRecipe: Recipe = {
     rule: [
         {
             itemprop: 'occurredHeartEvent',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

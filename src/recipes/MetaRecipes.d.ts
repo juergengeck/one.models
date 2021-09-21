@@ -1,5 +1,5 @@
-import type { OneUnversionedObjectTypes, Recipe } from 'one.core/lib/recipes';
-import type { SHA256Hash } from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 declare module '@OneObjectInterfaces' {
     interface OneUnversionedObjectInterfaces {
         CreationTime: CreationTime;

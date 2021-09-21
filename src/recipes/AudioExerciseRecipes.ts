@@ -17,7 +17,7 @@ export const AudioExerciseRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

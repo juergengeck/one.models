@@ -19,12 +19,22 @@ describe('RulesTest', () => {
             {itemprop: 'two1'},
             {
                 itemprop: 'three1',
-                rule: [
-                    {itemprop: 'one2'},
-                    {itemprop: 'two2', rule: [{itemprop: 'one3'}, {itemprop: 'two3'}]},
-                    {itemprop: 'three2'},
-                    {itemprop: 'four2'}
-                ]
+                itemtype: {
+                    type: 'object',
+                    rules: [
+                        {itemprop: 'one2'},
+                        {
+                            itemprop: 'two2',
+                            itemtype: {
+                                type: 'object',
+                                rules: [{itemprop: 'one3'}, {itemprop: 'two3'}]
+                            }
+                        },
+
+                        {itemprop: 'three2'},
+                        {itemprop: 'four2'}
+                    ]
+                }
             },
             {itemprop: 'four1'}
         ];
@@ -64,12 +74,22 @@ describe('RulesTest', () => {
             {itemprop: 'two1'},
             {
                 itemprop: 'three1',
-                rule: [
-                    {itemprop: 'one2'},
-                    {itemprop: 'two2', rule: [{itemprop: 'one3'}, {itemprop: 'two3'}]},
-                    {itemprop: 'three2'},
-                    {itemprop: 'four2'}
-                ]
+                itemtype: {
+                    type: 'object',
+                    rules: [
+                        {itemprop: 'one2'},
+                        {
+                            itemprop: 'two2',
+                            itemtype: {
+                                type: 'object',
+                                rules: [{itemprop: 'one3'}, {itemprop: 'two3'}]
+                            }
+                        },
+
+                        {itemprop: 'three2'},
+                        {itemprop: 'four2'}
+                    ]
+                }
             },
             {itemprop: 'four1'}
         ];
@@ -95,12 +115,22 @@ describe('RulesTest', () => {
             {itemprop: 'two1'},
             {
                 itemprop: 'three1',
-                rule: [
-                    {itemprop: 'one2'},
-                    {itemprop: 'two2', rule: [{itemprop: 'one3'}, {itemprop: 'two3'}]},
-                    {itemprop: 'three2'},
-                    {itemprop: 'four2'}
-                ]
+                itemtype: {
+                    type: 'object',
+                    rules: [
+                        {itemprop: 'one2'},
+                        {
+                            itemprop: 'two2',
+                            itemtype: {
+                                type: 'object',
+                                rules: [{itemprop: 'one3'}, {itemprop: 'two3'}]
+                            }
+                        },
+
+                        {itemprop: 'three2'},
+                        {itemprop: 'four2'}
+                    ]
+                }
             },
             {itemprop: 'four1'}
         ];

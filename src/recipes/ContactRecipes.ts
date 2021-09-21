@@ -152,17 +152,22 @@ export const ProfileRecipe: Recipe = {
     rule: [
         {
             itemprop: 'personId',
-            referenceToId: new Set(['Person']),
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])},
             isId: true
         },
         {
             itemprop: 'mainContact',
-            referenceToObj: new Set(['Contact'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Contact'])}
         },
         {
             itemprop: 'contactObjects',
-            referenceToObj: new Set(['Contact']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['Contact'])
+                }
+            }
         }
     ]
 };
@@ -173,17 +178,27 @@ export const ContactRecipe: Recipe = {
     rule: [
         {
             itemprop: 'personId',
-            referenceToId: new Set(['Person'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
             itemprop: 'communicationEndpoints',
-            referenceToObj: new Set(['OneInstanceEndpoint', 'Email']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['OneInstanceEndpoint', 'Email'])
+                }
+            }
         },
         {
             itemprop: 'contactDescriptions',
-            referenceToObj: new Set(['PersonName', 'ProfileImage']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['PersonName', 'ProfileImage'])
+                }
+            }
         }
     ]
 };
@@ -206,17 +221,22 @@ export const ContactAppRecipe: Recipe = {
     rule: [
         {
             itemprop: 'appId',
-            regexp: /^ContactApp$/,
+            itemtype: {type: 'string', regexp: /^ContactApp$/},
             isId: true
         },
         {
             itemprop: 'me',
-            referenceToObj: new Set(['Someone'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Someone'])}
         },
         {
             itemprop: 'contacts',
-            referenceToObj: new Set(['Someone']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['Someone'])
+                }
+            }
         }
     ]
 };
@@ -227,12 +247,14 @@ export const SomeoneRecipe: Recipe = {
     rule: [
         {
             itemprop: 'mainProfile',
-            referenceToId: new Set(['Profile'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
         },
         {
             itemprop: 'profiles',
-            referenceToId: new Set(['Profile']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
+            }
         }
     ]
 };
@@ -243,24 +265,24 @@ export const OneInstanceEndpointRecipe: Recipe = {
     rule: [
         {
             itemprop: 'personId',
-            referenceToId: new Set(['Person'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
             itemprop: 'instanceId',
-            referenceToId: new Set(['Instance'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Instance'])}
         },
         {
             itemprop: 'personKeys',
-            referenceToObj: new Set(['Keys']),
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Keys'])},
             optional: true
         },
         {
             itemprop: 'instanceKeys',
-            referenceToObj: new Set(['Keys'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Keys'])}
         },
         {
             itemprop: 'url',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -271,7 +293,7 @@ export const PersonNameRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -282,7 +304,7 @@ export const ProfileImageRecipe: Recipe = {
     rule: [
         {
             itemprop: 'image',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         }
     ]
 };
@@ -293,7 +315,7 @@ export const EmailRecipe: Recipe = {
     rule: [
         {
             itemprop: 'email',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

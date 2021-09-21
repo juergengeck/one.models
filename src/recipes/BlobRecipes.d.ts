@@ -1,6 +1,6 @@
-import type { BLOB, Recipe } from 'one.core/lib/recipes';
-import type { SHA256Hash } from 'one.core/lib/util/type-checks';
-import type { UnversionedObjectResult } from 'one.core/lib/storage';
+import type {BLOB, Recipe} from 'one.core/lib/recipes';
+import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
 declare module '@OneObjectInterfaces' {
     interface OneUnversionedObjectInterfaces {
         BlobCollection: BlobCollection;

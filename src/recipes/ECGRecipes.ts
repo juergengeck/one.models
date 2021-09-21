@@ -30,46 +30,46 @@ const ECGRecipe: Recipe = {
     rule: [
         {
             itemprop: 'typeDescription',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             optional: true
         },
         {
             itemprop: 'voltageMeasurements',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'startTimestamp',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         },
         {
             itemprop: 'samplingFrequencyHz',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         },
         {
             itemprop: 'endTimestamp',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         },
         {
             itemprop: 'classification',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             optional: true
         },
         {
             itemprop: 'averageHeartRateBPM',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         },
         {
             itemprop: 'symptoms',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             optional: true
         },
         {
             itemprop: 'readings',
-            valueType: 'object'
+            itemtype: {type: 'stringifiable'}
         }
     ]
 };

@@ -19,11 +19,11 @@ const CreationTimeRecipe: Recipe = {
     rule: [
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'data',
-            referenceToObj: new Set(['*'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
         }
     ]
 };
