@@ -16,7 +16,7 @@ const DocumentInfoRecipe: Recipe = {
     rule: [
         {
             itemprop: 'document',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         }
     ]
 };
