@@ -331,6 +331,23 @@ export default class LeuteModel implements Model {
     }
 
     /**
+     * Return all the profiles of all the someones, including my own profiles.
+     */
+    async getAllProfiles(): Promise<ProfileModel[]> {
+        const someoneModels = [await this.me(), ...(await this.others())];
+
+        const profileModels2d = await Promise.all(
+            someoneModels.map((other: SomeoneModel) => {
+                return other.profiles();
+            })
+        );
+
+        return profileModels2d.reduce(function (prev, next) {
+            return prev.concat(next);
+        });
+    }
+
+    /**
      * Add a profile to a someone object already managing this persons profile.
      *
      * If no such someone object exists a new one is created.
@@ -399,45 +416,25 @@ export default class LeuteModel implements Model {
     public async *retrievePersonImagesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonImage>> {
-        const someoneModels = [await this.me(), ...(await this.others())];
+        const allProfiles = await this.getAllProfiles();
 
-        const profileModels2d = await Promise.all(
-            someoneModels.map((other: SomeoneModel) => {
-                return other.profiles();
-            })
-        );
+        const imagesWithPersonId: {personId: SHA256IdHash<Person>; image: PersonImage}[] = [];
 
-        const profileModels1d = profileModels2d.reduce(function (prev, next) {
-            return prev.concat(next);
-        });
-
-        type PersonImageWithPersonId = {
-            personId: SHA256IdHash<Person>;
-            image: PersonImage;
-        };
-
-        const personImagesWithPersonId: PersonImageWithPersonId[] = [];
-
-        profileModels1d.forEach((profile: ProfileModel) => {
-            profile.descriptionsOfType('PersonImage').map(pi => {
-                personImagesWithPersonId.push({personId: profile.personId, image: pi});
+        allProfiles.forEach((profile: ProfileModel) => {
+            profile.descriptionsOfType('PersonImage').forEach(pi => {
+                imagesWithPersonId.push({personId: profile.personId, image: pi});
             });
         });
 
-        personImagesWithPersonId.sort(
-            (
-                imageWithPersonId1: PersonImageWithPersonId,
-                imageWIthPersonId2: PersonImageWithPersonId
-            ) => {
-                return imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
-                    ? 1
-                    : imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
-                    ? -1
-                    : 0;
-            }
-        );
+        imagesWithPersonId.sort((imageWithPersonId1, imageWIthPersonId2) => {
+            return imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
+                ? 1
+                : imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
+                ? -1
+                : 0;
+        });
 
-        const objectDatas = personImagesWithPersonId.map(imageWithPersonId => {
+        const objectDatas = imagesWithPersonId.map(imageWithPersonId => {
             return {
                 channelId: '',
                 channelOwner:
@@ -460,32 +457,20 @@ export default class LeuteModel implements Model {
     public async *retrieveStatusesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonStatus>> {
-        const someoneModels = [await this.me(), ...(await this.others())];
+        const allProfiles = await this.getAllProfiles();
 
-        const profileModels2d = await Promise.all(
-            someoneModels.map((other: SomeoneModel) => {
-                return other.profiles();
-            })
-        );
-
-        const profileModels1d = profileModels2d.reduce(function (prev, next) {
-            return prev.concat(next);
-        });
-
-        type StatusWithPersonId = {
+        const statusesWithPersonId: {
             personId: SHA256IdHash<Person>;
             status: PersonStatus;
-        };
+        }[] = [];
 
-        const statusesWithPersonId: StatusWithPersonId[] = [];
-
-        profileModels1d.forEach((profile: ProfileModel) => {
-            profile.descriptionsOfType('PersonStatus').map(ps => {
+        allProfiles.forEach((profile: ProfileModel) => {
+            profile.descriptionsOfType('PersonStatus').forEach(ps => {
                 statusesWithPersonId.push({personId: profile.personId, status: ps});
             });
         });
 
-        statusesWithPersonId.sort((status1: StatusWithPersonId, status2: StatusWithPersonId) => {
+        statusesWithPersonId.sort((status1, status2) => {
             return status1.status.timestamp > status2.status.timestamp
                 ? 1
                 : status1.status.timestamp < status2.status.timestamp
