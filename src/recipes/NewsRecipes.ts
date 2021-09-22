@@ -17,7 +17,7 @@ export const NewsRecipe: Recipe = {
     rule: [
         {
             itemprop: 'content',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

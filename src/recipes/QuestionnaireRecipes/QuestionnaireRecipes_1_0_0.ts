@@ -139,7 +139,7 @@ export const CodingRules: RecipeRule[] = [
     },
     {
         itemprop: 'userSelected',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     }
 ];
@@ -153,42 +153,51 @@ export const AnswerRules: RecipeRule[] = [
     // FHIR Type: boolean
     {
         itemprop: 'answerBoolean',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     },
 
     // FHIR Type: decimal
     {
         itemprop: 'answerDecimal',
-        regexp: /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/,
+        itemtype: {type: 'string', regexp: /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/},
         optional: true
     },
 
     // FHIR Type: integer
     {
         itemprop: 'answerInteger',
-        regexp: /[0]|[-+]?[1-9][0-9]*/,
+        itemtype: {type: 'string', regexp: /[0]|[-+]?[1-9][0-9]*/},
         optional: true
     },
 
     // FHIR Type: date
     {
         itemprop: 'answerDate',
-        regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?/
+        },
         optional: true
     },
 
     // FHIR Type: dateTime
     {
         itemprop: 'answerDateTime',
-        regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?(Z|(\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?)?)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?(Z|(\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?)?)?/
+        },
         optional: true
     },
 
     // FHIR Type: time
     {
         itemprop: 'answerTime',
-        regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/
+        },
         optional: true
     },
 
@@ -201,7 +210,7 @@ export const AnswerRules: RecipeRule[] = [
     // FHIR Type: Coding
     {
         itemprop: 'answerCoding',
-        rule: CodingRules,
+        itemtype: {type: 'object', rules: CodingRules},
         optional: true
     }
 
@@ -229,21 +238,27 @@ export const OptionValueRules: RecipeRule[] = [
     // FHIR Type: integer
     {
         itemprop: 'valueInteger',
-        regexp: /[0]|[-+]?[1-9][0-9]*/,
+        itemtype: {type: 'string', regexp: /[0]|[-+]?[1-9][0-9]*/},
         optional: true
     },
 
     // FHIR Type: date
     {
         itemprop: 'valueDate',
-        regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?/
+        },
         optional: true
     },
 
     // FHIR Type: time
     {
         itemprop: 'valueTime',
-        regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/
+        },
         optional: true
     },
 
@@ -256,7 +271,7 @@ export const OptionValueRules: RecipeRule[] = [
     // FHIR Type: Coding
     {
         itemprop: 'valueCoding',
-        rule: CodingRules,
+        itemtype: {type: 'object', rules: CodingRules},
         optional: true
     }
 
@@ -278,21 +293,24 @@ export const ValueRules: RecipeRule[] = [
     // FHIR Type: boolean
     {
         itemprop: 'valueBoolean',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     },
 
     // FHIR Type: decimal
     {
         itemprop: 'valueDecimal',
-        regexp: /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/,
+        itemtype: {type: 'string', regexp: /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/},
         optional: true
     },
 
     // FHIR Type: dateTime
     {
         itemprop: 'valueDateTime',
-        regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?(Z|(\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?)?)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?(Z|(\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?)?)?/
+        },
         optional: true
     },
 
@@ -324,7 +342,7 @@ export const QuestionnaireRules: RecipeRule[] = [
     // FHIR ressource type
     {
         itemprop: 'resourceType',
-        regexp: /Questionnaire/
+        itemtype: {type: 'string', regexp: /Questionnaire/}
     },
 
     // FHIR(Resource): Language of the resource content - Common Languages (Preferred but limited to AllLanguages)
@@ -359,7 +377,7 @@ export const QuestionnaireRules: RecipeRule[] = [
     // FHIR(Questionnaire): draft | active | retired | unknown - PublicationStatus (Required)
     {
         itemprop: 'status',
-        regexp: /draft|active|retired|unknown/
+        itemtype: {type: 'string', regexp: /draft|active|retired|unknown/}
     },
 
     // FHIR(Questionnaire): Questions and sections within the Questionnaire
@@ -376,127 +394,150 @@ export const QuestionnaireRules: RecipeRule[] = [
     // + Rule: Can only have multiple initial values for repeating items
     {
         itemprop: 'item',
-        list: ORDERED_BY.APP,
-        rule: [
-            // FHIR(Questionnaire): Unique id for item in questionnaire
-            // Note: This is used for the questionnaire responses to link to the correct answer.
-            {
-                itemprop: 'linkId'
-            },
-
-            // FHIR(Questionnaire): E.g. "1(a)", "2.5.3"
-            // Note: This is shown as prefix in questions, so that users can reference it easily
-            {
-                itemprop: 'prefix',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Primary text for the item
-            // Note: This is the question to display
-            {
-                itemprop: 'text',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): group | display | boolean | decimal | integer | date | dateTime + - QuestionnaireItemType (Required)
-            {
-                itemprop: 'type',
-                regexp: /group|display|question|boolean|decimal|integer|date|dateTime|time|string|text|url|choice|open-choice|attachment|reference|quantity|slider/
-            },
-
-            // FHIR(Questionnaire): Only allow data when
-            // + Rule: If the operator is 'exists', the value must be a boolean
-            {
-                itemprop: 'enableWhen',
-                list: ORDERED_BY.APP,
-                rule: [
-                    // FHIR(Questionnaire): Question that determines whether item is enabled
+        itemtype: {
+            type: 'array',
+            item: {
+                type: 'object',
+                rules: [
+                    // FHIR(Questionnaire): Unique id for item in questionnaire
+                    // Note: This is used for the questionnaire responses to link to the correct answer.
                     {
-                        itemprop: 'question'
+                        itemprop: 'linkId'
                     },
 
-                    // FHIR(Questionnaire): exists | = | != | > | < | >= | <=
+                    // FHIR(Questionnaire): E.g. "1(a)", "2.5.3"
+                    // Note: This is shown as prefix in questions, so that users can reference it easily
                     {
-                        itemprop: 'operator',
-                        regexp: /exists|=|!=|>|<|>=|<=/
+                        itemprop: 'prefix',
+                        optional: true
                     },
 
-                    // FHIR(Questionnaire): Value for question comparison based on operator - Questionnaire Answer Codes (Example)
-                    ...AnswerRules
-                ],
-                optional: true
-            },
-
-            // FHIR(Questionnaire): all | any - EnableWhenBehavior (Required)
-            {
-                itemprop: 'enableBehavior',
-                regexp: /all|any/,
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Whether the item must be included in data results
-            {
-                itemprop: 'required',
-                valueType: 'boolean',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Whether the item may repeat
-            {
-                itemprop: 'repeats',
-                valueType: 'boolean',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Don't allow human editing
-            {
-                itemprop: 'readOnly',
-                valueType: 'boolean',
-                optional: true
-            },
-
-            // Extension: At least more than this many characters
-            {
-                itemprop: 'minLength',
-                valueType: 'number',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): No more than this many characters
-            {
-                itemprop: 'maxLength',
-                valueType: 'number',
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Initial value(s) when item is first rendered
-            {
-                itemprop: 'answerOption',
-                list: ORDERED_BY.APP,
-                rule: [
-                    ...OptionValueRules,
+                    // FHIR(Questionnaire): Primary text for the item
+                    // Note: This is the question to display
                     {
-                        itemprop: 'initialSelected',
-                        valueType: 'boolean',
+                        itemprop: 'text',
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): group | display | boolean | decimal | integer | date | dateTime + - QuestionnaireItemType (Required)
+                    {
+                        itemprop: 'type',
+                        itemtype: {
+                            type: 'string',
+                            regexp: /group|display|question|boolean|decimal|integer|date|dateTime|time|string|text|url|choice|open-choice|attachment|reference|quantity|slider/
+                        }
+                    },
+
+                    // FHIR(Questionnaire): Only allow data when
+                    // + Rule: If the operator is 'exists', the value must be a boolean
+                    {
+                        itemprop: 'enableWhen',
+                        itemtype: {
+                            type: 'array',
+                            item: {
+                                type: 'object',
+                                rules: [
+                                    // FHIR(Questionnaire): Question that determines whether item is enabled
+                                    {
+                                        itemprop: 'question'
+                                    },
+
+                                    // FHIR(Questionnaire): exists | = | != | > | < | >= | <=
+                                    {
+                                        itemprop: 'operator',
+                                        itemtype: {type: 'string', regexp: /exists|=|!=|>|<|>=|<=/}
+                                    },
+
+                                    // FHIR(Questionnaire): Value for question comparison based on operator - Questionnaire Answer Codes (Example)
+                                    ...AnswerRules
+                                ]
+                            }
+                        },
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): all | any - EnableWhenBehavior (Required)
+                    {
+                        itemprop: 'enableBehavior',
+                        itemtype: {type: 'string', regexp: /all|any/},
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): Whether the item must be included in data results
+                    {
+                        itemprop: 'required',
+                        itemtype: {type: 'boolean'},
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): Whether the item may repeat
+                    {
+                        itemprop: 'repeats',
+                        itemtype: {type: 'boolean'},
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): Don't allow human editing
+                    {
+                        itemprop: 'readOnly',
+                        itemtype: {type: 'boolean'},
+                        optional: true
+                    },
+
+                    // Extension: At least more than this many characters
+                    {
+                        itemprop: 'minLength',
+                        itemtype: {type: 'number'},
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): No more than this many characters
+                    {
+                        itemprop: 'maxLength',
+                        itemtype: {type: 'number'},
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): Initial value(s) when item is first rendered
+                    {
+                        itemprop: 'answerOption',
+                        itemtype: {
+                            type: 'array',
+                            item: {
+                                type: 'object',
+                                rules: [
+                                    ...OptionValueRules,
+                                    {
+                                        itemprop: 'initialSelected',
+                                        itemtype: {type: 'boolean'},
+                                        optional: true
+                                    }
+                                ]
+                            }
+                        },
+                        optional: true
+                    },
+
+                    // FHIR(Questionnaire): Initial value(s) when item is first rendered
+                    {
+                        itemprop: 'initial',
+                        itemtype: {
+                            type: 'bag',
+                            item: {
+                                type: 'object',
+                                rules: ValueRules
+                            }
+                        },
+                        optional: true
+                    },
+                    {
+                        itemprop: 'item',
+                        inheritFrom: 'Questionnaire.item',
                         optional: true
                     }
-                ],
-                optional: true
-            },
-
-            // FHIR(Questionnaire): Initial value(s) when item is first rendered
-            {
-                itemprop: 'initial',
-                list: ORDERED_BY.ONE,
-                rule: ValueRules,
-                optional: true
-            },
-            {
-                itemprop: 'item',
-                inheritFrom: 'Questionnaire.item',
-                optional: true
+                ]
             }
-        ]
+        }
     }
 ];
 

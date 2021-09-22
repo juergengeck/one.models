@@ -125,19 +125,19 @@ export const SupplyRecipe: Recipe = {
     rule: [
         {
             itemprop: 'identity',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'match',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'isActive',
-            valueType: 'boolean'
+            itemtype: {type: 'boolean'}
         },
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         }
     ]
 };
@@ -148,19 +148,19 @@ export const DemandRecipe: Recipe = {
     rule: [
         {
             itemprop: 'identity',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'match',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'isActive',
-            valueType: 'boolean'
+            itemtype: {type: 'boolean'}
         },
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         }
     ]
 };
@@ -171,12 +171,12 @@ export const SupplyMapRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'map',
-            valueType: 'Map'
+            itemtype: {type: 'map', key: {type: 'string'}, value: {type: 'stringifiable'}}
         }
     ]
 };
@@ -187,12 +187,12 @@ export const DemandMapRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'map',
-            valueType: 'Map'
+            itemtype: {type: 'map', key: {type: 'string'}, value: {type: 'stringifiable'}}
         }
     ]
 };
@@ -203,21 +203,21 @@ export const MatchingResponseRecipe: Recipe = {
     rule: [
         {
             itemprop: 'identity',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'match',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             // will be true if the above identity belongs to
             // the person who has send the Demand object
             itemprop: 'identityOfDemand',
-            valueType: 'boolean'
+            itemtype: {type: 'boolean'}
         },
         {
             itemprop: 'creationTimestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         }
     ]
 };
@@ -228,13 +228,15 @@ export const MatchMapRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'array',
-            referenceToObj: new Set(['MatchResponse']),
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {type: 'referenceToObj', allowedTypes: new Set(['MatchResponse'])}
+            }
         }
     ]
 };
@@ -245,14 +247,14 @@ export const NotifiedUsersRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             // map with destination person id hash as key and set
             // with hashes of sent MatchResponse objects as value
             itemprop: 'existingMatches',
-            valueType: 'Map',
+            itemtype: {type: 'map', key: {type: 'string'}, value: {type: 'stringifiable'}},
             optional: true
         }
     ]
