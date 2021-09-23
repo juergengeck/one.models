@@ -8,7 +8,6 @@
     "registry": "https://npm.pkg.github.com/"
   },
   "scripts": {
-    "install": "node ./install.js",
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
     "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
