@@ -27,7 +27,7 @@
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
-    "one.core": "refinio/one.core#1ce56a5bedc286b598784237839b87e62854f4b9",
+    "one.core": "refinio/one.core#CORE-39-Patch/StrictCheckReferenceToObjInCRDT_SS",
     "ts-loader": "^8.0.2",
     "ws": "*",
     "yargs": "^15.4.0"
