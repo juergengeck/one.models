@@ -318,7 +318,8 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
+                    (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
@@ -326,8 +327,8 @@ async function createDeclarationFiles(targetDir) {
         } catch (/** @type any */ err) {
             console.error(
                 '\ntsc failed with ' +
-                err.message +
-                '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+                    err.message +
+                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
             );
         }
     }
@@ -399,7 +400,7 @@ async function getSystem() {
         } else {
             throw new Error(
                 `ONE_TARGET_PLATFORM is set to ${process.env.ONE_TARGET_PLATFORM}, but it must ` +
-                `be one of ${Object.keys(PLATFORMS).join(', ')}`
+                    `be one of ${Object.keys(PLATFORMS).join(', ')}`
             );
         }
     } else {
