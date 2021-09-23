@@ -44,7 +44,7 @@ export const QuestionnaireResponseRules: RecipeRule[] = [
     // FHIR ressource type
     {
         itemprop: 'resourceType',
-        regexp: /QuestionnaireResponse/
+        itemtype: {type: 'string', regexp: /QuestionnaireResponse/}
     },
 
     // FHIR(QuestionnaireResponse): Form being answered
@@ -57,35 +57,39 @@ export const QuestionnaireResponseRules: RecipeRule[] = [
     // FHIR(QuestionnaireResponse): in-progress | completed | amended | entered-in-error | stopped - QuestionnaireResponseStatus (Required)
     {
         itemprop: 'status',
-        regexp: /in-progress|completed|amended|entered-in-error|stopped/
+        itemtype: {type: 'string', regexp: /in-progress|completed|amended|entered-in-error|stopped/}
     },
 
     // FHIR(QuestionnaireResponse): Groups and questions
     // + Rule: Nested item can't be beneath both item and answer
     {
         itemprop: 'item',
-        list: ORDERED_BY.APP,
-        rule: [
-            // FHIR(QuestionnaireResponse): Pointer to specific item from Questionnaire
-            // Note: This links to the linkId of the specified questionnaire.
-            {
-                itemprop: 'linkId'
-            },
+        itemtype: {
+            type: 'array',
+            item: {
+                type: 'object',
+                rules: [
+                    // FHIR(QuestionnaireResponse): Pointer to specific item from Questionnaire
+                    // Note: This links to the linkId of the specified questionnaire.
+                    {
+                        itemprop: 'linkId'
+                    },
 
-            // FHIR(QuestionnaireResponse): The response(s) to the question
-            {
-                itemprop: 'answer',
-                list: ORDERED_BY.APP,
-                rule: ValueRules
-            },
+                    // FHIR(QuestionnaireResponse): The response(s) to the question
+                    {
+                        itemprop: 'answer',
+                        itemtype: {type: 'array', item: {type: 'object', rules: ValueRules}}
+                    },
 
-            // FHIR(QuestionnaireResponse): Nested questionnaire response items
-            {
-                itemprop: 'item',
-                inheritFrom: 'QuestionnaireResponses.response.item',
-                optional: true
+                    // FHIR(QuestionnaireResponse): Nested questionnaire response items
+                    {
+                        itemprop: 'item',
+                        inheritFrom: 'QuestionnaireResponses.response.item',
+                        optional: true
+                    }
+                ]
             }
-        ]
+        }
     }
 ];
 
@@ -112,8 +116,7 @@ export const QuestionnaireResponsesRecipe: Recipe = {
         // The responses
         {
             itemprop: 'response',
-            list: ORDERED_BY.APP,
-            rule: QuestionnaireResponseRules
+            itemtype: {type: 'array', item: {type: 'object', rules: QuestionnaireResponseRules}}
         }
     ]
 };

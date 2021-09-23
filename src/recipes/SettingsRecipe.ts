@@ -22,12 +22,12 @@ export const ApplicationSettingsRecipe: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'properties',
-            valueType: 'Map'
+            itemtype: {type: 'map', key: {type: 'string'}, value: {type: 'stringifiable'}}
         }
     ]
 };

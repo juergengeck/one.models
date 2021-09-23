@@ -24,18 +24,23 @@ const LocalInstancesListRecipie: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            regexp: /^LocalInstancesList$/,
+            itemtype: {type: 'string', regexp: /^LocalInstancesList$/},
             isId: true
         },
         {
             itemprop: 'instances',
-            list: ORDERED_BY.APP,
-            rule: [
-                {
-                    itemprop: 'instance',
-                    referenceToId: new Set(['Instance'])
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'object',
+                    rules: [
+                        {
+                            itemprop: 'instance',
+                            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Instance'])}
+                        }
+                    ]
                 }
-            ]
+            }
         }
     ]
 };

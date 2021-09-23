@@ -151,8 +151,8 @@ declare module CommunicationInitiationProtocol {
  * Check whether the argument is a client message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ClientMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isClientMessage<T extends keyof CommunicationInitiationProtocol.ClientMessages>(
     arg: any,
@@ -172,8 +172,8 @@ export function isClientMessage<T extends keyof CommunicationInitiationProtocol.
  * Check whether the argument is a server message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isServerMessage<T extends keyof CommunicationInitiationProtocol.ServerMessages>(
     arg: any,
@@ -190,8 +190,8 @@ export function isServerMessage<T extends keyof CommunicationInitiationProtocol.
  * Check whether the argument is a peer message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
     arg: any,

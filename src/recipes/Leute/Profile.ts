@@ -1,4 +1,4 @@
-import {CRDTMetaData, ORDERED_BY, Person, Recipe} from 'one.core/lib/recipes';
+import type {CRDTMetaData, Person, Recipe} from 'one.core/lib/recipes';
 import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
 import {
     CommunicationEndpointTypeNameSet,
@@ -31,28 +31,32 @@ export const ProfileRecipe: Recipe = {
     rule: [
         {
             itemprop: 'profileId',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'personId',
-            referenceToId: new Set(['Person']),
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])},
             isId: true
         },
         {
             itemprop: 'owner',
-            referenceToId: new Set(['Person']),
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])},
             isId: true
         },
         {
             itemprop: 'communicationEndpoint',
-            referenceToObj: CommunicationEndpointTypeNameSet,
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {type: 'referenceToObj', allowedTypes: CommunicationEndpointTypeNameSet}
+            }
         },
         {
             itemprop: 'personDescription',
-            referenceToObj: PersonDescriptionTypeNameSet,
-            list: ORDERED_BY.ONE
+            itemtype: {
+                type: 'bag',
+                item: {type: 'referenceToObj', allowedTypes: PersonDescriptionTypeNameSet}
+            }
         }
     ]
 };

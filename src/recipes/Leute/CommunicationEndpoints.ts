@@ -59,24 +59,24 @@ export const OneInstanceEndpointRecipe: Recipe = {
     rule: [
         {
             itemprop: 'personId',
-            referenceToId: new Set(['Person'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
             itemprop: 'instanceId',
-            referenceToId: new Set(['Instance'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Instance'])}
         },
         {
             itemprop: 'personKeys',
-            referenceToObj: new Set(['Keys']),
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Keys'])},
             optional: true
         },
         {
             itemprop: 'instanceKeys',
-            referenceToObj: new Set(['Keys'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Keys'])}
         },
         {
             itemprop: 'url',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -87,7 +87,7 @@ export const EmailRecipe: Recipe = {
     rule: [
         {
             itemprop: 'email',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

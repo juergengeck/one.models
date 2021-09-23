@@ -23,7 +23,7 @@ class CommunicationServerConnection_Client {
     /**
      * Get the underlying web socket instance
      *
-     * @returns {WebSocket}
+     * @returns
      */
     get webSocket(): WebSocket {
         if (!this.webSocketPB.webSocket) {
@@ -44,17 +44,16 @@ class CommunicationServerConnection_Client {
     /**
      * Closes the websocket
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
     }
 
-
     /**
      * Terminates the web socket.
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public terminate(reason?: string): void {
         return this.webSocketPB.terminate(reason);
@@ -65,7 +64,7 @@ class CommunicationServerConnection_Client {
      *
      * This timeout specifies how long the connection will wait for new messages in the wait* methods.
      *
-     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     * @param timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
     set requestTimeout(timeout: number) {
         this.webSocketPB.defaultTimeout = timeout;
@@ -74,7 +73,7 @@ class CommunicationServerConnection_Client {
     /**
      * Get the current request timeout.
      *
-     * @returns {number}
+     * @returns
      */
     get requestTimeout(): number {
         return this.webSocketPB.defaultTimeout;
@@ -85,8 +84,7 @@ class CommunicationServerConnection_Client {
     /**
      * Send a register message to the communication server.
      *
-     * @param {Uint8Array} publicKey
-     * @returns {Promise<void>}
+     * @param publicKey
      */
     public async sendRegisterMessage(publicKey: Uint8Array): Promise<void> {
         await this.sendMessage({
@@ -98,8 +96,7 @@ class CommunicationServerConnection_Client {
     /**
      * Send response to authentication request message.
      *
-     * @param {Uint8Array} response
-     * @returns {Promise<void>}
+     * @param response
      */
     public async sendAuthenticationResponseMessage(response: Uint8Array): Promise<void> {
         await this.sendMessage({
@@ -108,20 +105,13 @@ class CommunicationServerConnection_Client {
         });
     }
 
-    /**
-     * Send Pong Message
-     */
-    public async sendPongMessage(): Promise<void> {
-        await this.sendMessage({command: 'comm_pong'});
-    }
-
     // ######## Message receiving ########
 
     /**
      * Wait for a message with the specified command.
      *
-     * @param {T} command - The expected command of the next message
-     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
+     * @param  command - The expected command of the next message
+     * @returns
      */
     public async waitForMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
         command: T
@@ -135,80 +125,12 @@ class CommunicationServerConnection_Client {
         throw Error("Received data does not match the data expected for command '" + command + "'");
     }
 
-    /**
-     * Wait for a message with the specified command while also answering comm_pings.
-     *
-     * @param {T} command - The expected command of the next message
-     * @param {number} pingTimeout - Pings in the given interval are expected. If pings do not arrive in this
-     *                               time the connection is closed.
-     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
-     */
-    public async waitForMessagePingPong<T extends keyof CommunicationServerProtocol.ServerMessages>(
-        command: T,
-        pingTimeout: number
-    ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
-        let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-        // Schedules a timeout at pingTimeout interval
-        const schedulePingTimeout = () => {
-            cancelPingTimeout();
-            timeoutHandle = setTimeout(() => {
-                this.webSocketPB.terminate('Ping timeout');
-            }, pingTimeout);
-        };
-
-        // Cancels the ping timeout
-        const cancelPingTimeout = () => {
-            if (timeoutHandle) {
-                clearTimeout(timeoutHandle);
-            }
-        };
-
-        // Wait while answering pings for the requested message
-        try {
-            while (true) {
-                // Schedule the ping timeout
-                schedulePingTimeout();
-
-                // Wait for new message
-                const message = this.unpackBinaryFields(
-                    await this.webSocketPB.waitForJSONMessage()
-                );
-
-                // On ping send a pong and reiterate the loop
-                if (isServerMessage(message, 'comm_ping')) {
-                    await this.sendPongMessage();
-                }
-
-                // On requested command return from this function
-                else if (isServerMessage(message, command)) {
-                    cancelPingTimeout();
-                    return message;
-                }
-
-                // On unknown message throw
-                else {
-                    throw Error(
-                        "Received data does not match the data expected for command '" +
-                            command +
-                            "'"
-                    );
-                }
-            }
-        } catch (e) {
-            // Cancel the ping timeout e.g. on error (e.g. when the connection closes)
-            cancelPingTimeout();
-            throw e;
-        }
-    }
-
     // ######## Private ########
 
     /**
      * Send a message to the communication server.
      *
-     * @param {T} message - The message to send
-     * @returns {Promise<void>}
+     * @param message - The message to send
      */
     private async sendMessage<T extends CommunicationServerProtocol.ClientMessageTypes>(
         message: T
@@ -228,8 +150,8 @@ class CommunicationServerConnection_Client {
     /**
      * Convert fields from base64 encoding to Uint8Array.
      *
-     * @param {any} message - The message to convert
-     * @returns {any} - The converted message
+     * @param message - The message to convert
+     * @returns The converted message
      */
     public unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {

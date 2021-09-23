@@ -1,4 +1,4 @@
-import {CRDTMetaData, ORDERED_BY, Person, Recipe} from 'one.core/lib/recipes';
+import type {CRDTMetaData, Person, Recipe} from 'one.core/lib/recipes';
 import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
 import type {Profile} from './Profile';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
@@ -32,22 +32,26 @@ export const SomeoneRecipe: Recipe = {
         },
         {
             itemprop: 'mainProfile',
-            referenceToId: new Set(['Profile'])
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
         },
         {
             itemprop: 'identity',
-            list: ORDERED_BY.ONE,
-            rule: [
-                {
-                    itemprop: 'person',
-                    referenceToId: new Set(['Person'])
-                },
-                {
-                    itemprop: 'profile',
-                    referenceToId: new Set(['Profile']),
-                    list: ORDERED_BY.ONE
-                }
-            ]
+            itemtype: {
+                type: 'object',
+                rules: [
+                    {
+                        itemprop: 'person',
+                        itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+                    },
+                    {
+                        itemprop: 'profile',
+                        itemtype: {
+                            type: 'bag',
+                            item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
+                        }
+                    }
+                ]
+            }
         }
     ]
 };

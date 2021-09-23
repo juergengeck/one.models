@@ -76,17 +76,23 @@ export module Questionnaire_1_1_0 {
 export const QuestionnaireAnswerMinMaxValueRule: RecipeRule[] = [
     {
         itemprop: 'valueInteger',
-        regexp: /[0]|[-+]?[1-9][0-9]*/,
+        itemtype: {type: 'string', regexp: /[0]|[-+]?[1-9][0-9]*/},
         optional: true
     },
     {
         itemprop: 'valueDate',
-        regexp: /(([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?)|(^now$)/,
+        itemtype: {
+            type: 'string',
+            regexp: /(([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?)|(^now$)/
+        },
         optional: true
     },
     {
         itemprop: 'valueTime',
-        regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/,
+        itemtype: {
+            type: 'string',
+            regexp: /([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?/
+        },
         optional: true
     },
     {
@@ -95,7 +101,7 @@ export const QuestionnaireAnswerMinMaxValueRule: RecipeRule[] = [
     },
     {
         itemprop: 'valueCoding',
-        rule: CodingRules,
+        itemtype: {type: 'object', rules: CodingRules},
         optional: true
     }
 ];
@@ -106,22 +112,22 @@ export const QuestionnaireAnswerMinMaxValueRule: RecipeRule[] = [
 export const AnswerRestrictionRule: RecipeRule[] = [
     {
         itemprop: 'minValue',
-        rule: QuestionnaireAnswerMinMaxValueRule,
+        itemtype: {type: 'object', rules: QuestionnaireAnswerMinMaxValueRule},
         optional: true
     },
     {
         itemprop: 'minInclusive',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     },
     {
         itemprop: 'maxValue',
-        rule: QuestionnaireAnswerMinMaxValueRule,
+        itemtype: {type: 'object', rules: QuestionnaireAnswerMinMaxValueRule},
         optional: true
     },
     {
         itemprop: 'maxInclusive',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     }
 ];
@@ -138,7 +144,7 @@ overwriteRule(QuestionnaireRules, 'item', {
 
 addRule(QuestionnaireRules, 'item', {
     itemprop: 'answerRestriction',
-    rule: AnswerRestrictionRule,
+    itemtype: {type: 'object', rules: AnswerRestrictionRule},
     optional: true
 });
 

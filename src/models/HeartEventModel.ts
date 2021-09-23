@@ -29,7 +29,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
     private disconnect: (() => void) | undefined;
 
     /**
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -46,8 +46,6 @@ export default class HeartEventModel extends EventEmitter implements Model {
 
     /**
      * Shutdown the model
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -57,7 +55,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
 
     /**
      * Adds a HeartEvent
-     * @param {HeartEvent} heartEvent
+     * @param heartEvent
      */
     public async addHeartEvent(heartEvent: HeartEvent): Promise<void> {
         await this.channelManager.postToChannel(HeartEventModel.channelId, heartEvent);
@@ -89,10 +87,9 @@ export default class HeartEventModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleOnUpdated(
         id: string,

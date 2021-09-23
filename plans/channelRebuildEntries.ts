@@ -1,8 +1,8 @@
 import type {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {ChannelEntry} from '../lib/recipes/ChannelRecipes';
+import type {ChannelEntry} from '../src/recipes/ChannelRecipes';
 import type {Person} from 'one.core/lib/recipes';
-import type {CreationTime} from '../lib/recipes/MetaRecipes';
+import type {CreationTime} from '../src/recipes/MetaRecipes';
 
 /**
  * Creates a new channel version by rebuilding the channel.

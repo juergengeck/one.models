@@ -74,7 +74,7 @@ export const PersonNameRecipe: Recipe = {
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -85,15 +85,15 @@ export const PersonStatusRecipe: Recipe = {
     rule: [
         {
             itemprop: 'value',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'location',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -104,15 +104,15 @@ export const PersonImageRecipe: Recipe = {
     rule: [
         {
             itemprop: 'image',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         },
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'location',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
@@ -123,7 +123,7 @@ export const ProfileImageRecipe: Recipe = {
     rule: [
         {
             itemprop: 'image',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         }
     ]
 };

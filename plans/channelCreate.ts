@@ -23,10 +23,10 @@ import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
  *            then take care of this. This might happen if the chum was started before a channel was
  *            created and other instances sync their channel versions.
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} channelId - Name of the channel
- * @param {SHA256IdHash<Person>} channelOwner - Owner of the channel
- * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+ * @param WriteStorage
+ * @param channelId - Name of the channel
+ * @param channelOwner - Owner of the channel
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

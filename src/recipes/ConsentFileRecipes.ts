@@ -18,11 +18,11 @@ const ConsentFileRecipe: Recipe = {
     rule: [
         {
             itemprop: 'fileData',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'fileType',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

@@ -50,12 +50,12 @@ export const ChannelEntryRecipie: Recipe = {
     rule: [
         {
             itemprop: 'data',
-            referenceToObj: new Set(['CreationTime'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['CreationTime'])}
         },
         {
             itemprop: 'previous',
             optional: true,
-            referenceToObj: new Set(['ChannelEntry'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['ChannelEntry'])}
         }
     ]
 };
@@ -66,18 +66,18 @@ export const ChannelInfoRecipe: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'owner',
-            referenceToId: new Set(['Person']),
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])},
             isId: true
         },
         {
             itemprop: 'head',
             optional: true,
-            referenceToObj: new Set(['ChannelEntry'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['ChannelEntry'])}
         }
     ]
 };
@@ -88,26 +88,34 @@ export const ChannelRegistryRecipe: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            regexp: /^ChannelRegistry$/,
+            itemtype: {type: 'string', regexp: /^ChannelRegistry$/},
             isId: true
         },
         {
             itemprop: 'channels',
-            list: ORDERED_BY.ONE,
-            rule: [
-                {
-                    itemprop: 'channelInfoIdHash',
-                    referenceToId: new Set(['ChannelInfo'])
-                },
-                {
-                    itemprop: 'readVersionIndex',
-                    valueType: 'number'
-                },
-                {
-                    itemprop: 'mergedVersionIndex',
-                    valueType: 'number'
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'object',
+                    rules: [
+                        {
+                            itemprop: 'channelInfoIdHash',
+                            itemtype: {
+                                type: 'referenceToId',
+                                allowedTypes: new Set(['ChannelInfo'])
+                            }
+                        },
+                        {
+                            itemprop: 'readVersionIndex',
+                            itemtype: {type: 'number'}
+                        },
+                        {
+                            itemprop: 'mergedVersionIndex',
+                            itemtype: {type: 'number'}
+                        }
+                    ]
                 }
-            ]
+            }
         }
     ]
 };

@@ -49,7 +49,6 @@ export default class JournalModel extends EventEmitter implements Model {
 
     /**
      * maps an handler on every provided model
-     * @returns {Promise<void>}
      */
     async init() {
         this.modelsDictionary.forEach((journalInput: JournalInput) => {

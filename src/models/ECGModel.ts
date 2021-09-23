@@ -25,7 +25,7 @@ export default class ECGModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -42,8 +42,7 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *
-     * @param {Electrocardiogram} ECGObject
-     * @returns {Promise<void>}
+     * @param ECGObject
      */
     async postECG(ECGObject: Electrocardiogram): Promise<void> {
         await this.channelManager.postToChannel(
@@ -56,7 +55,7 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *
-     * @returns {Promise<ObjectData<Electrocardiogram>[]>}
+     * @returns
      */
     async retrieveAllWithoutData(): Promise<ObjectData<Electrocardiogram>[]> {
         return await this.channelManager.getObjectsWithType('Electrocardiogram', {
@@ -76,8 +75,8 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @returns {Promise<ObjectData<Electrocardiogram>>}
+     * @param electrocardiogramHash
+     * @returns
      */
     async retrieveElectrocardiogramByHash(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
@@ -100,8 +99,8 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Retrieve all the readings from an ECG
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @returns {Promise<ElectrocardiogramReadings[]>}
+     * @param electrocardiogramHash
+     * @returns
      */
     async retrieveAllECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
@@ -130,10 +129,10 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Paginated
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @param {number} pageSize - DEFAULT = 100
-     * @param {number} from - (Returned by this function) use only the returned value of nextFrom field for this parameter
-     * @returns {Promise<{readings: ElectrocardiogramReadings[], nextFrom?: number}>}
+     * @param electrocardiogramHash
+     * @param pageSize - DEFAULT = 100
+     * @param from - (Returned by this function) use only the returned value of nextFrom field for this parameter
+     * @returns
      */
     async retrieveECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>,
@@ -162,8 +161,6 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         if (this.disconnect) {
@@ -173,9 +170,9 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Binary Search since elements in the readings are sorted
-     * @param {ElectrocardiogramReadings[]} readings
-     * @param {number} target
-     * @returns {number | undefined}
+     * @param readings
+     * @param target
+     * @returns
      * @private
      */
     private static findReadingIndex(
@@ -201,10 +198,9 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     *  @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param owner
+     * @param data
      */
     private async handleChannelUpdate(
         id: string,

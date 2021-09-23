@@ -157,10 +157,10 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Construct a new model instance
      *
-     * @param {ChannelManager} channelManager
-     * @param {ConsentFileModel} consentFileModel
-     * @param {AccessModel} accessModel
-     * @param {Recipe[]} initialRecipes
+     * @param channelManager
+     * @param consentFileModel
+     * @param accessModel
+     * @param initialRecipes
      */
     constructor(
         channelManager: ChannelManager,
@@ -213,7 +213,7 @@ export default class OneInstanceModel extends EventEmitter {
      * if the user has login before on this device, the instance name will be available
      * in local storage.
      *
-     * @returns {boolean}
+     * @returns
      */
     private static checkIfInstanceExists(): boolean {
         return !!localStorage.getItem('instance');
@@ -227,11 +227,10 @@ export default class OneInstanceModel extends EventEmitter {
      * After the instance is created, the person keys are overwritten with the old ones read from
      * the qr code, because the person is the same, just the password has to change on recovery process.
      *
-     * @param {string} email
-     * @param {string} secret
-     * @param {string} patientType
-     * @param {string} anonymousEmail
-     * @returns {Promise<void>}
+     * @param email
+     * @param secret
+     * @param patientType
+     * @param anonymousEmail
      */
     async recoverInstance(
         email: string,
@@ -274,10 +273,10 @@ export default class OneInstanceModel extends EventEmitter {
      * In instance take over case, the new instance will receive the user email
      * via qr code and the new instance will be created using that email.
      *
-     * @param {string} email
-     * @param {boolean} takeOver
-     * @param {string} anonymousEmail
-     * @param {boolean} recoveryState
+     * @param email
+     * @param takeOver
+     * @param anonymousEmail
+     * @param recoveryState
      */
     async createNewInstanceWithReceivedEmail(
         email: string,
@@ -312,7 +311,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Open an existing instance or create a new one if the instance does not exist.
      *
-     * @param {string} secret - Secret for decryption
+     * @param secret - Secret for decryption
      */
     async initialiseInstance(secret: string): Promise<void> {
         this.currentAuthenticationState = AuthenticationState.Authenticating;
@@ -393,9 +392,9 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Login into the one instance using an existing instance.
      *
-     * @param {string} secret - Secret for decryption
-     * @param {string} patientType - type of the patient or of the partner
-     * @param {string} isPersonalCloudInvite - if the url contains an invite
+     * @param secret - Secret for decryption
+     * @param patientType - type of the patient or of the partner
+     * @param isPersonalCloudInvite - if the url contains an invite
      * for personal cloud, the instance should not be initialised yet
      */
     async login(
@@ -443,7 +442,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Depending on the logoutMode user will logout or the instance will be deleted.
      *
-     * @param {logout} logoutMode
+     * @param logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
         // Signal the application that we are no longer authenticated
@@ -474,8 +473,8 @@ export default class OneInstanceModel extends EventEmitter {
 
     /**
      * Register into the one instance by creating a new one.
-     * @param {string} secret - Secret for decryption
-     * @param {string} patientType
+     * @param secret - Secret for decryption
+     * @param patientType
      */
     async register(secret: string, patientType: string): Promise<void> {
         if (!OneInstanceModel.checkIfInstanceExists()) {
@@ -508,7 +507,7 @@ export default class OneInstanceModel extends EventEmitter {
      *
      * TODO: fix the bug that not the latest merged version, but the latest version is saved
      *
-     * @returns {Promise<Blob>} The exported content
+     * @returns The exported content
      */
     async backupInstance(): Promise<Blob> {
         const hashesToImplode: SHA256Hash[] = [];
@@ -542,7 +541,7 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Restore an instance from an export
      *
-     * @param {Blob} data - The data from which to restore the instance
+     * @param data - The data from which to restore the instance
      */
     async restoreInstance(data: Blob): Promise<void> {
         const dataText = await new Promise((resolve, reject) => {
@@ -581,8 +580,8 @@ export default class OneInstanceModel extends EventEmitter {
     /**
      * Deletes the instance db which name is given as argument.
      *
-     * @param {string} dbInstanceName
-     * @returns {Promise<void>}
+     * @param dbInstanceName
+     * @returns
      */
     async deleteInstance(dbInstanceName: string): Promise<void> {
         localStorage.clear();
@@ -612,8 +611,8 @@ export default class OneInstanceModel extends EventEmitter {
     }
 
     /**
-     *  Delete the unopened instance, this happens when the indexDb is not initialized
-     * @return {Promise<void>}
+     * Delete the unopened instance, this happens when the indexDb is not initialized
+     * @return
      */
     async deleteUnopenedInstance() {
         const instance = localStorage.getItem('instance');

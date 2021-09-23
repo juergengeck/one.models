@@ -46,11 +46,10 @@ class CommunicationServer {
     /**
      * Start the communication server.
      *
-     * @param {string} host - The host to bind to.
-     * @param {number} port - The port to bind to.
-     * @param {number} pingInterval - The interfval in which pings are sent for spare connections.
-     * @param {number} pongTimeout - The timeout used to wait for pongs.
-     * @returns {Promise<void>}
+     * @param host - The host to bind to.
+     * @param port - The port to bind to.
+     * @param pingInterval - The interfval in which pings are sent for spare connections.
+     * @param pongTimeout - The timeout used to wait for pongs.
      */
     public async start(
         host: string,
@@ -65,8 +64,6 @@ class CommunicationServer {
 
     /**
      * Stop the communication server.
-     *
-     * @returns {Promise<void>}
      */
     public async stop(): Promise<void> {
         await this.webSocketListener.stop();
@@ -97,8 +94,7 @@ class CommunicationServer {
      * 1) a client wants to register
      * 2) somebody wants a relay to a registered client
      *
-     * @param {WebSocket} ws - The accepted websocket
-     * @returns {Promise<void>}
+     * @param ws - The accepted websocket
      */
     private async acceptConnection(ws: WebSocketPromiseBased): Promise<void> {
         MessageBus.send(
@@ -162,13 +158,6 @@ class CommunicationServer {
                 // Step 3: Add to spare map and return success message
                 this.pushListeningConnection(message.publicKey, conn);
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
-
-                // Step 4: Start PingPong
-                MessageBus.send(
-                    'log',
-                    `${wslogId(ws.webSocket)}: Register Step 3: Starting Ping Pong`
-                );
-                conn.startPingPong(this.pingInterval, this.pongTimeout);
             }
 
             // On communication request, let's connect it to a spare connection of the requested publicKey
@@ -182,25 +171,21 @@ class CommunicationServer {
 
                 const connOther = this.popListeningConnection(message.targetPublicKey);
 
-                // Step 1: Stop the ping ponging
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Stop ping pong`);
-                await connOther.stopPingPong();
-
-                // Step 2: Send the handover message
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 2: Send Handover`);
+                // Step 1: Send the handover message
+                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Send Handover`);
                 await connOther.sendConnectionHandoverMessage();
 
-                // Step 3: Forward the communication request
+                // Step 2: Forward the communication request
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 3: Forward connection request`
+                    `${wslogId(ws.webSocket)}: Relay Step 2: Forward connection request`
                 );
                 await connOther.sendCommunicationRequestMessage(
                     message.sourcePublicKey,
                     message.targetPublicKey
                 );
 
-                // Step 4: Forward everything
+                // Step 3: Forward everything
                 // TODO: Because we send the communicationRequestMessage on Step3 (with an await) it is theoretically
                 // possible, that the answer is received before the web socket send call returns.
                 // So it might be possible that the old websocket 'message' handler is scheduled before the new
@@ -212,7 +197,7 @@ class CommunicationServer {
                 // connection class with the current architecture. So we will do that probably later when we see problems
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 4: Connect both sides`
+                    `${wslogId(ws.webSocket)}: Relay Step 3: Connect both sides`
                 );
                 let wsThis = conn.releaseWebSocket();
                 let wsOther = connOther.releaseWebSocket();
@@ -261,8 +246,8 @@ class CommunicationServer {
      * This also adds an event listener to the 'close' event, so that the connection is automatically
      * removed from the listeningConnections list when the websocket is closed.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client.
-     * @param {CommunicationServerConnection_Server} conn - The connection that is registered.
+     * @param publicKey - The public key of the registering client.
+     * @param conn - The connection that is registered.
      */
     private pushListeningConnection(
         publicKey: Uint8Array,
@@ -301,8 +286,8 @@ class CommunicationServer {
      *
      * This is used to remove it when the websocket is closed before a relay with it has been established.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client.
-     * @param {CommunicationServerConnection_Server} conn - The connection that is removed.
+     * @param publicKey - The public key of the registering client.
+     * @param conn - The connection that is removed.
      */
     private removeListeningConnection(
         publicKey: Uint8Array,
@@ -327,8 +312,8 @@ class CommunicationServer {
      * Pops one listening / spare connection from the listenningConnections list that matches the
      * public key. This is used to find a relay match.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client / the target of the requested relay.
-     * @returns {CommunicationServerConnection_Server} The found connection.
+     * @param publicKey - The public key of the registering client / the target of the requested relay.
+     * @returns The found connection.
      */
     private popListeningConnection(publicKey: Uint8Array): CommunicationServerConnection_Server {
         const strPublicKey = Buffer.from(publicKey).toString('hex');

@@ -25,15 +25,15 @@ const DocumentInfoRecipe: Recipe = {
     rule: [
         {
             itemprop: 'document',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         },
         {
             itemprop: 'mimeType',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'documentName',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

@@ -59,7 +59,7 @@ export default class RecoveryModel {
      *
      * TODO: remove me and ask the user instead. Long term storage is a bad idea!
      *
-     * @param {string} password
+     * @param password
      */
     public setPassword(password: string) {
         this.password = password;
@@ -72,7 +72,7 @@ export default class RecoveryModel {
      * The person private keys are decrypted before creating the
      * person information object.
      *
-     * @returns {Promise<string>}
+     * @returns
      */
     async extractEncryptedPersonInformation(): Promise<{
         recoveryKey: string;
@@ -166,8 +166,6 @@ export default class RecoveryModel {
      * we first need to encrypt the received private keys with the new password.
      *
      * The password must be set before this function is called.
-     *
-     * @returns {Promise<void>}
      */
     async overwritePersonKeyWithReceivedEncryptedOnes(): Promise<void> {
         if (!this.decryptedObject) {
@@ -207,7 +205,7 @@ export default class RecoveryModel {
      *
      * A user friendly string or a readable string can not contain o, O and 0, I and l.
      *
-     * @returns {string}
+     * @returns
      * @private
      */
     private generateRandomReadableString(): string {
@@ -227,7 +225,7 @@ export default class RecoveryModel {
      * The private keys are decrypted before being added to the person information
      * object.
      *
-     * @returns {Promise<PersonInformation>}
+     * @returns
      * @private
      */
     private async extractPersonInformation(): Promise<PersonInformation> {
@@ -261,11 +259,13 @@ export default class RecoveryModel {
      *
      * The password must be set before this function is called.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<{privateKey: string, privateSignKey: string}>}
+     * @param personId
+     * @returns
      * @private
      */
-    private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
+    private async extractDecryptedPrivateKeysForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<{
         privateKey: string;
         privateSignKey: string;
     }> {
@@ -305,8 +305,8 @@ export default class RecoveryModel {
      *
      * The password must be set before this function is called.
      *
-     * @param {string} keyAsString
-     * @returns {Promise<string>}
+     * @param keyAsString
+     * @returns
      * @private
      */
     private async encryptPersonPrivateKey(keyAsString: string): Promise<string> {

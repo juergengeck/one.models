@@ -19,7 +19,7 @@ export default class ServerUserModel extends ClientMatchingModel {
      * information about them (match value, active status, and many more)
      * in case this information is required.
      *
-     * @returns {Array<Supply | Demand>}
+     * @returns
      */
     getAllAvailableTagsObjects(): Array<Supply | Demand> {
         const allobjects: (Supply | Demand)[] = [];
@@ -44,8 +44,7 @@ export default class ServerUserModel extends ClientMatchingModel {
      * more exactly, if this function is called for a tag, that tag will be
      * active or inactive for all user who ever sent this tag
      *
-     * @param {string} supplyMatch
-     * @returns {Promise<void>}
+     * @param supplyMatch
      */
     async changeSupplyCategoryStatus(supplyMatch: string): Promise<void> {
         // get all supplies
@@ -93,8 +92,7 @@ export default class ServerUserModel extends ClientMatchingModel {
      * more exactly, if this function is called for a tag, that tag will be
      * active or inactive for all user who ever sent this tag
      *
-     * @param {string} demandMatch - demand value
-     * @returns {Promise<void>}
+     * @param demandMatch - demand value
      */
     async changeDemandCategoryStatus(demandMatch: string): Promise<void> {
         // get all supplies

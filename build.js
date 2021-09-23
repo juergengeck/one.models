@@ -87,9 +87,6 @@ const BABEL_OPTS = {
     filename: ''
 };
 
-/**
- * @returns {void}
- */
 function usage() {
     console.log(`
 Usage: node build.js or directly call ./build.js
@@ -134,8 +131,8 @@ Options:
 }
 
 /**
- * @param {string} dir
- * @returns {Promise<void|string>}
+ * @param dir
+ * @returns
  */
 function mkDirExistOkay(dir) {
     return mkdir(dir, {recursive: true}).catch(err => {
@@ -146,9 +143,8 @@ function mkDirExistOkay(dir) {
 }
 
 /**
- * @param {string} dir
- * @param {fs.Dirent} dirent - A node.js `Dirent` object
- * @returns {Promise<void>}
+ * @param dir
+ * @param dirent - A node.js `Dirent` object
  */
 async function deleteFile(dir, dirent) {
     const filePath = join(dir, dirent.name);
@@ -161,8 +157,7 @@ async function deleteFile(dir, dirent) {
 }
 
 /**
- * @param {string} dir
- * @returns {Promise<void>}
+ * @param dir
  */
 async function deleteDirectory(dir) {
     /** @type fs.Dirent[] */
@@ -185,9 +180,9 @@ async function deleteDirectory(dir) {
 }
 
 /**
- * @param {string} code
- * @param {object} options - See https://babeljs.io/docs/en/options
- * @returns {Promise<string>} Returns the transformed code string
+ * @param code
+ * @param options - See https://babeljs.io/docs/en/options
+ * @returns Returns the transformed code string
  */
 function transform(code, options) {
     return new Promise((resolve, reject) => {
@@ -206,12 +201,11 @@ function transform(code, options) {
 }
 
 /**
- * @param {string} targetDir - Where to write the transpiled file to
- * @param {string} srcDir - Directory relative to PROJECT_ROOT
- * @param {string} file - The filename without path
- * @param {string} system - nodejs, browser, rn
- * @param {string} moduleTarget - commonjs, es2015, systemjs, umd
- * @returns {Promise<void>}
+ * @param targetDir - Where to write the transpiled file to
+ * @param srcDir - Directory relative to PROJECT_ROOT
+ * @param file - The filename without path
+ * @param system - nodejs, browser, rn
+ * @param moduleTarget - commonjs, es2015, systemjs, umd
  */
 async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget) {
     if (!file.endsWith('.ts')) {
@@ -255,11 +249,10 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
 }
 
 /**
- * @param {string} srcDir
- * @param {string} targetDir
- * @param {string} system
- * @param {string} moduleTarget - One of commonjs, es2015, systemjs, umd
- * @returns {Promise<void>}
+ * @param srcDir
+ * @param targetDir
+ * @param system
+ * @param moduleTarget - One of commonjs, es2015, systemjs, umd
  */
 async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
     console.log(`=> Processing directory ${srcDir}...`);
@@ -285,8 +278,7 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 }
 
 /**
- * @param {string} targetDir
- * @returns {Promise<void>}
+ * @param targetDir
  */
 async function createDeclarationFiles(targetDir) {
     for (const dir of ['src', 'test']) {
@@ -304,7 +296,7 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
@@ -322,7 +314,7 @@ async function createDeclarationFiles(targetDir) {
 /**
  * The target platform. This determines which src/system-* folder is used and becomes
  * targetDir/system/
- * @returns {string}
+ * @returns
  */
 function getSystem() {
     let system = 'nodejs';
@@ -348,7 +340,7 @@ function getSystem() {
 /**
  * If "-m" option is found a target system is set, otherwise the default of "commonjs" is used.
  * GLOBAL SIDE EFFECT: Possibly mutates BABEL_OPTS
- * @returns {string}
+ * @returns
  */
 function setModuleTarget() {
     const mIndex = process.argv.findIndex(arg => arg.startsWith('-m'));
@@ -377,7 +369,7 @@ function setModuleTarget() {
 
 /**
  * If "-t" option is found a target directory is set, otherwise the default of "lib" is used.
- * @returns {string}
+ * @returns
  */
 function getTargetDir() {
     const tIndex = process.argv.findIndex(arg => arg.startsWith('-t'));
@@ -397,7 +389,7 @@ function getTargetDir() {
 
 /**
  * Called e.g. by a watcher process for a single file? If so option "-f filename" will be found.
- * @returns {string} Returns the filename or an empty string if no "-f" option was detected
+ * @returns Returns the filename or an empty string if no "-f" option was detected
  */
 function calledForSingleFile() {
     const fIndex = process.argv.findIndex(arg => arg.startsWith('-f'));
@@ -415,9 +407,6 @@ function calledForSingleFile() {
     return '';
 }
 
-/**
- * @returns {Promise<void>}
- */
 async function run() {
     const system = getSystem();
     const targetDir = getTargetDir();
@@ -460,9 +449,6 @@ async function run() {
     console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
 }
 
-/**
- * @returns {void}
- */
 function runBuilForAllTargets() {
     for (const platform of Object.keys(PLATFORMS)) {
         for (const moduleSystem of PLATFORMS[platform]) {

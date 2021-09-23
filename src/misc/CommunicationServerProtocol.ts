@@ -93,8 +93,8 @@ declare module CommunicationServerProtocol {
  * Check whether the argument is a client message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationServerProtocol.ClientMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isClientMessage<T extends keyof CommunicationServerProtocol.ClientMessages>(
     arg: any,
@@ -123,8 +123,8 @@ export function isClientMessage<T extends keyof CommunicationServerProtocol.Clie
  * Check whether the argument is a server message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationServerProtocol.ServerMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isServerMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
     arg: any,

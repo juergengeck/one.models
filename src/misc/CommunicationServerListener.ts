@@ -66,8 +66,8 @@ class CommunicationServerListener {
     /**
      * Creates a new listener.
      *
-     * @param {number} spareConnectionLimit - Number of spare connections to use simultaneously.
-     * @param {number} reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
+     * @param spareConnectionLimit - Number of spare connections to use simultaneously.
+     * @param reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
      */
     constructor(spareConnectionLimit: number, reconnectTimeout = 5000) {
         this.spareConnectionLimit = spareConnectionLimit;
@@ -81,9 +81,8 @@ class CommunicationServerListener {
     /**
      * Start the listener through the specified comm server.
      *
-     * @param {string} server - The communication server to use.
-     * @param {string} publicKey - The public key via which this instance can be reached.
-     * @returns {Promise<void>}
+     * @param server - The communication server to use.
+     * @param publicKey - The public key via which this instance can be reached.
      */
     public start(server: string, publicKey: Uint8Array): void {
         MessageBus.send('log', `start(${server})`);
@@ -215,7 +214,7 @@ class CommunicationServerListener {
     /**
      * Adds a spare connection to the spareConnection list and updates the connection state.
      *
-     * @param {CommunicationServerConnection_Client} connection
+     * @param connection
      */
     private addSpareConnection(connection: CommunicationServerConnection_Client): void {
         MessageBus.send('debug', `addSpareConnection(${wslogId(connection.webSocket)})`);
@@ -226,7 +225,7 @@ class CommunicationServerListener {
     /**
      * Removes a spare connection from the spareConnection list and updates the connection state.
      *
-     * @param {CommunicationServerConnection_Client} connection
+     * @param connection
      */
     private removeSpareConnection(connection: CommunicationServerConnection_Client): void {
         MessageBus.send('debug', `removeSpareConnection(${wslogId(connection.webSocket)})`);
@@ -255,8 +254,8 @@ class CommunicationServerListener {
      * in order for the connector caller to be aware of the changes that happen
      * in the registration process.
      *
-     * @param {CommunicationServerListenerState} newState
-     * @param {string} reason
+     * @param newState
+     * @param reason
      */
     private changeCurrentState(newState: CommunicationServerListenerState, reason?: string): void {
         const oldState = this.state;
@@ -279,14 +278,14 @@ class CommunicationServerListener {
      * - <- authentication_success
      * - <- connection_handover
      *
-     * @param {string} server - Server where to register the connection.
-     * @param {Uint8Array} publicKey - public key for which to accept connections.
-     * @param {(ws: CommunicationServerConnection_Client, err?: Error) => void} onConnect -
+     * @param server - Server where to register the connection.
+     * @param publicKey - public key for which to accept connections.
+     * @param onConnect -
      * Handler called when a relay is handed over. (asynchronously after this call has finished)
-     * @param {(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array} onChallengeEvent -
+     * @param onChallengeEvent -
      * Callback that needs to decrypt / re-encrypt the challenge for authentication. (during
      * this call)
-     * @returns {Promise<CommunicationServerConnection_Client>} - The spare connection that is
+     * @returns The spare connection that is
      * now registered, but not yet connected to a relay (this is done later by the onConnect
      * callback).
      */
@@ -354,7 +353,7 @@ class CommunicationServerListener {
             `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`
         );
         connection
-            .waitForMessagePingPong('connection_handover', pingTimeout)
+            .waitForMessage('connection_handover')
             .then(() => {
                 MessageBus.send(
                     'log',

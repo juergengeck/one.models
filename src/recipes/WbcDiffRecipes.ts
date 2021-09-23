@@ -39,15 +39,15 @@ export interface WbcObservation {
 const WbcMeasurementRules: RecipeRule[] = [
     {
         itemprop: 'value',
-        valueType: 'string'
+        itemtype: {type: 'string'}
     },
     {
         itemprop: 'unit',
-        valueType: 'string'
+        itemtype: {type: 'string'}
     },
     {
         itemprop: 'unsafe',
-        valueType: 'boolean',
+        itemtype: {type: 'boolean'},
         optional: true
     }
 ];
@@ -58,35 +58,35 @@ const WbcObservation: Recipe = {
     rule: [
         {
             itemprop: 'acquisitionTime',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'Leukocytes',
-            rule: WbcMeasurementRules
+            itemtype: {type: 'object', rules: WbcMeasurementRules}
         },
         {
             itemprop: 'Neutrophils',
-            rule: WbcMeasurementRules,
+            itemtype: {type: 'object', rules: WbcMeasurementRules},
             optional: true
         },
         {
             itemprop: 'Lymphocytes',
-            rule: WbcMeasurementRules,
+            itemtype: {type: 'object', rules: WbcMeasurementRules},
             optional: true
         },
         {
             itemprop: 'Monocytes',
-            rule: WbcMeasurementRules,
+            itemtype: {type: 'object', rules: WbcMeasurementRules},
             optional: true
         },
         {
             itemprop: 'Eosinophils',
-            rule: WbcMeasurementRules,
+            itemtype: {type: 'object', rules: WbcMeasurementRules},
             optional: true
         },
         {
             itemprop: 'Basophils',
-            rule: WbcMeasurementRules,
+            itemtype: {type: 'object', rules: WbcMeasurementRules},
             optional: true
         }
     ]
