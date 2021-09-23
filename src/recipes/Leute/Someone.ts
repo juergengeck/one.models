@@ -37,20 +37,23 @@ export const SomeoneRecipe: Recipe = {
         {
             itemprop: 'identity',
             itemtype: {
-                type: 'object',
-                rules: [
-                    {
-                        itemprop: 'person',
-                        itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
-                    },
-                    {
-                        itemprop: 'profile',
-                        itemtype: {
-                            type: 'bag',
-                            item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
+                type: 'bag',
+                item: {
+                    type: 'object',
+                    rules: [
+                        {
+                            itemprop: 'person',
+                            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+                        },
+                        {
+                            itemprop: 'profile',
+                            itemtype: {
+                                type: 'bag',
+                                item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
+                            }
                         }
-                    }
-                ]
+                    ]
+                }
             }
         }
     ]
