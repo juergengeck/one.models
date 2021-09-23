@@ -285,14 +285,12 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            if (file.includes('system-' + system) || !file.startsWith('system')) {
-                await processAllFiles(
-                    join(srcDir, file),
-                    join(targetDir, file),
-                    system,
-                    moduleTarget
-                );
-            }
+            await processAllFiles(
+                join(srcDir, file),
+                join(targetDir, file),
+                system,
+                moduleTarget
+            );
         } else {
             await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
         }
@@ -332,14 +330,6 @@ async function createDeclarationFiles(targetDir) {
                 '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
             );
         }
-    }
-
-    await deleteDirectory(join(targetDir, 'system'));
-    await rename(join(targetDir, `system-${system}`), join(targetDir, 'system'));
-
-    // Remove extraneous system folders
-    for (const p of Object.keys(PLATFORMS)) {
-        await deleteDirectory(join(targetDir, `system-${p}`));
     }
 }
 
@@ -499,18 +489,10 @@ async function run() {
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
-        if (singleFile.startsWith('src/system') && !singleFile.startsWith(`src/system-${system}`)) {
-            return;
-        }
-
         let destination = join(targetDir, dirname(singleFile).replace(/^src[\\/]?/, ''));
 
         if (singleFile.startsWith('test' + sep)) {
             destination = destination.replace('lib' + sep, '');
-        }
-
-        if (singleFile.startsWith(`src${sep}system-${system}${sep}`)) {
-            destination = join(targetDir, 'system');
         }
 
         return transformAndWriteJsFile(
