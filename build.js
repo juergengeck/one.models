@@ -47,8 +47,7 @@ const BABEL_MODULE_TARGETS = {
     commonjs: [
         '@babel/plugin-transform-modules-commonjs',
         {
-            // We disallow default exports in ONE.core (eslint rule)
-            noInterop: true
+            noInterop: false
         }
     ],
     // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-systemjs.html
@@ -305,7 +304,7 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
  * @param {string} system
  * @returns {Promise<void>}
  */
-async function createDeclarationFiles(targetDir, system) {
+async function createDeclarationFiles(targetDir) {
     for (const dir of ['src', 'test']) {
         console.log(`Calling tsc for ${dir} to create declaration and map files...`);
 
@@ -321,8 +320,7 @@ async function createDeclarationFiles(targetDir, system) {
 
         try {
             execSync(
-                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
-                (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
@@ -524,14 +522,16 @@ async function run() {
         );
     }
 
-    console.log(`\n========== Begin building one.core (${moduleTarget}/${system}) ==========`);
+    console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
+
+    execSync('node ./build_plan_modules.js');
 
     await deleteDirectory(targetDir);
     await processAllFiles('src', targetDir, system, moduleTarget);
-    await createDeclarationFiles(targetDir, system);
+    await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system, moduleTarget);
 
-    console.log(`========== Done building one.core (${moduleTarget}/${system}) ==========\n`);
+    console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
 }
 
 /**
