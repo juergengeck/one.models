@@ -1,4 +1,4 @@
-import type {ContactModel} from '../models';
+import type {LeuteModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import type EncryptedConnection from './EncryptedConnection';
 import {getObject} from 'one.core/lib/storage';
@@ -9,9 +9,9 @@ import {createCryptoAPI} from 'one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Instance, Person} from 'one.core/lib/recipes';
-import type {CommunicationEndpointTypes, OneInstanceEndpoint} from '../recipes/ContactRecipes';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 
 /**
  * This type represents information about a connection.
@@ -142,7 +142,7 @@ export default class CommunicationModule extends EventEmitter {
     >();
 
     // Other models
-    private readonly contactModel: ContactModel; // Contact model for getting contact objects
+    private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
     private readonly instancesModel: InstancesModel; // Instance model for getting local instances
     private readonly incomingConnectionManager: IncomingConnectionManager; // Manager for incoming connections
 
@@ -152,14 +152,12 @@ export default class CommunicationModule extends EventEmitter {
 
     // Internal maps and lists (precomputed on init)
     private mainInstanceInfo: LocalInstanceInfo | null; // My person info
-    private anonInstanceInfo: LocalInstanceInfo | null; // My person info - anonymous id -> TODO: should be removed in the future
     private myPublicKeyToInstanceInfoMap: Map<string, LocalInstanceInfo>; // A map from my public keys to my id - used to map the public key of the new connection to my ids
 
     // Global settings
     private readonly commServer: string; // The comm server to use for incoming listening connections. This will be replaced by a instance based config.
     private readonly reconnectDelay: number; // The amount of time that should pass after a connection was closed before retrying to open it again
     private readonly establishOutgoingConnections: boolean; // Flag that stores whether outgoing connections should be established
-    private readonly connectToOthersWithAnonId: boolean; // Flag that stores whether connections to others should be done via the anonymous id
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -180,25 +178,23 @@ export default class CommunicationModule extends EventEmitter {
      *
      * @param commServer - The comm server that is used to listen for incoming connections
      *                              Outgoing connections are made based on the contact objects.
-     * @param contactModel - The contacts model. At the moment it is used to automatically
-     *                                      establish connections to all known contacts.
+     * @param leuteModel - The model managing all contacts. Used for deciding which
+     *                                  connections to establish.
      * @param instancesModel - Instances model used for getting the local instances and keys
      * @param establishOutgoingConnections - If true then make outgoing connections, if false, then don't
-     * @param connectToOthersWithAnonId - If true then use the anonymous id for connecting with others
      * @param reconnectDelay - The amount of time that needs to pass before another reconnection attempt is done when a connection is closed
      */
     constructor(
         commServer: string,
-        contactModel: ContactModel,
+        leuteModel: LeuteModel,
         instancesModel: InstancesModel,
         establishOutgoingConnections: boolean = true,
-        connectToOthersWithAnonId: boolean = true,
         reconnectDelay: number = 5000
     ) {
         super();
 
         // Initialize members
-        this.contactModel = contactModel;
+        this.leuteModel = leuteModel;
         this.instancesModel = instancesModel;
         this.incomingConnectionManager = new IncomingConnectionManager();
 
@@ -206,13 +202,11 @@ export default class CommunicationModule extends EventEmitter {
         this.unknownPeerMap = new Map<string, EncryptedConnection>();
 
         this.mainInstanceInfo = null;
-        this.anonInstanceInfo = null;
         this.myPublicKeyToInstanceInfoMap = new Map<string, LocalInstanceInfo>();
 
         this.commServer = commServer;
         this.reconnectDelay = reconnectDelay;
         this.establishOutgoingConnections = establishOutgoingConnections;
-        this.connectToOthersWithAnonId = connectToOthersWithAnonId;
 
         this.initialized = false;
 
@@ -243,8 +237,8 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for new contact objects on contact management
-        this.contactModel.onNewCommunicationEndpointArrive(
-            async (endpointHashes: SHA256Hash<CommunicationEndpointTypes>[]) => {
+        this.leuteModel.onNewOneInstanceEndpointEvent(
+            async (oneInstanceEndpoint: OneInstanceEndpoint) => {
                 if (!this.initialized) {
                     return;
                 }
@@ -254,111 +248,75 @@ export default class CommunicationModule extends EventEmitter {
                     );
                     return;
                 }
-                if (!this.anonInstanceInfo) {
-                    console.log(
-                        'AN ERROR HAPPENED HERE. ME-ANON IS NOT INITIALIZED, SHOULD NEVER HAPPEN!!!'
-                    );
+                const mainInstanceInfo = this.mainInstanceInfo;
+                const myIds = (await this.leuteModel.me()).identities();
+
+                // For my own contact objects, just use the one for the main id. We don't want to
+                // connect to our own anonymous id
+                if (
+                    myIds.includes(oneInstanceEndpoint.personId) ||
+                    mainInstanceInfo.personId === oneInstanceEndpoint.personId
+                ) {
                     return;
                 }
-                const mainInstanceInfo = this.mainInstanceInfo;
-                const anonInstanceInfo = this.anonInstanceInfo;
-                const myIds = await this.contactModel.myIdentities();
 
-                // Load the OneInstanceEndpoint objects
-                const endpoints = await Promise.all(
-                    endpointHashes.map((endpointHash: SHA256Hash<CommunicationEndpointTypes>) =>
-                        getObject(endpointHash)
-                    )
-                );
+                // Load endpoint sub-elements
+                const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
+                const sourceKey = toByteArray(mainInstanceInfo.instanceKeys.publicKey);
+                const targetKey = toByteArray(remoteInstanceKeys.publicKey);
+                const mapKey = genMapKey(sourceKey, targetKey);
 
-                // Only OneInstanceEndpoints
-                // For my own contact objects, just use the one for the main id. We don't want to connect to our own anonymous id
-                const instanceEndpoints = endpoints.filter(
-                    (endpoint: CommunicationEndpointTypes) => {
-                        return (
-                            endpoint.$type$ === 'OneInstanceEndpoint' &&
-                            endpoint.personId !== anonInstanceInfo.personId
-                        );
-                    }
-                ) as OneInstanceEndpoint[];
+                // Check if the desired connection it's with you
+                if (mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey) {
+                    return;
+                }
 
-                await Promise.all(
-                    instanceEndpoints.map(async (endpoint: OneInstanceEndpoint) => {
-                        const isMyEndpoint = myIds.includes(endpoint.personId);
-                        const useMainId = isMyEndpoint || !this.connectToOthersWithAnonId;
+                // Check if there is already a matching active connection in the unknown peer maps
+                let activeConnection = this.unknownPeerMap.get(mapKey);
+                if (this.knownPeerMap.has(mapKey)) {
+                    return;
+                }
 
-                        // Load endpoint sub-elements
-                        const remoteInstanceKeys = await getObject(endpoint.instanceKeys);
-                        const sourceKey = toByteArray(
-                            useMainId
-                                ? mainInstanceInfo.instanceKeys.publicKey
-                                : anonInstanceInfo.instanceKeys.publicKey
-                        );
-                        const targetKey = toByteArray(remoteInstanceKeys.publicKey);
-                        const mapKey = genMapKey(sourceKey, targetKey);
+                // Create the entry in the knownPeerMap
+                const connContainer: ConnectionContainer = {
+                    activeConnection: activeConnection ? activeConnection : null,
+                    url: oneInstanceEndpoint.url,
+                    sourcePublicKey: mainInstanceInfo.instanceKeys.publicKey,
+                    targetPublicKey: remoteInstanceKeys.publicKey,
+                    sourceInstanceId: mainInstanceInfo.instanceId,
+                    targetInstanceId: oneInstanceEndpoint.instanceId,
+                    sourcePersonId: mainInstanceInfo.personId,
+                    targetPersonId: oneInstanceEndpoint.personId,
+                    cryptoApi: mainInstanceInfo.cryptoApi,
+                    isInternetOfMe: myIds.includes(oneInstanceEndpoint.personId),
+                    dropDuplicates: true,
+                    reconnectTimeoutHandle: null
+                };
+                this.knownPeerMap.set(mapKey, connContainer);
+                this.emit('connectionsChange');
+                this.onConnectionsChange.emit();
 
-                        // Check if the desired connection it's with you
-                        if (
-                            mainInstanceInfo.instanceKeys.publicKey === remoteInstanceKeys.publicKey
-                        ) {
-                            return;
-                        }
-                        // Check if there is already a matching active connection in the unknown peer maps
-                        let activeConnection = this.unknownPeerMap.get(mapKey);
-                        if (this.knownPeerMap.has(mapKey)) {
-                            return;
-                        }
+                // If the connection is already active, then setup the close handler so that it is reactivated on close
+                if (activeConnection) {
+                    this.unknownPeerMap.delete(mapKey);
 
-                        // Create the entry in the knownPeerMap
-                        const connContainer: ConnectionContainer = {
-                            activeConnection: activeConnection ? activeConnection : null,
-                            url: endpoint.url,
-                            sourcePublicKey: useMainId
-                                ? mainInstanceInfo.instanceKeys.publicKey
-                                : anonInstanceInfo.instanceKeys.publicKey,
-                            targetPublicKey: remoteInstanceKeys.publicKey,
-                            sourceInstanceId: useMainId
-                                ? mainInstanceInfo.instanceId
-                                : anonInstanceInfo.instanceId,
-                            targetInstanceId: endpoint.instanceId,
-                            sourcePersonId: useMainId
-                                ? mainInstanceInfo.personId
-                                : anonInstanceInfo.personId,
-                            targetPersonId: endpoint.personId,
-                            cryptoApi: useMainId
-                                ? mainInstanceInfo.cryptoApi
-                                : anonInstanceInfo.cryptoApi,
-                            isInternetOfMe: isMyEndpoint,
-                            dropDuplicates: true,
-                            reconnectTimeoutHandle: null
-                        };
-                        this.knownPeerMap.set(mapKey, connContainer);
+                    // Handle the close events
+                    const closeHandler = () => {
+                        connContainer.dropDuplicates = true;
+                        connContainer.activeConnection = null;
+                        delete connContainer.closeHandler;
                         this.emit('connectionsChange');
                         this.onConnectionsChange.emit();
+                        this.reconnect(connContainer, this.reconnectDelay);
+                    };
+                    activeConnection.webSocket.addEventListener('close', closeHandler);
+                    connContainer.closeHandler = closeHandler;
+                }
 
-                        // If the connection is already active, then setup the close handler so that it is reactivated on close
-                        if (activeConnection) {
-                            this.unknownPeerMap.delete(mapKey);
-
-                            // Handle the close events
-                            const closeHandler = () => {
-                                connContainer.dropDuplicates = true;
-                                connContainer.activeConnection = null;
-                                delete connContainer.closeHandler;
-                                this.emit('connectionsChange');
-                                this.onConnectionsChange.emit();
-                                this.reconnect(connContainer, this.reconnectDelay);
-                            };
-                            activeConnection.webSocket.addEventListener('close', closeHandler);
-                            connContainer.closeHandler = closeHandler;
-                        }
-
-                        // If no active connection exists for this endpoint, then we need to start outgoing connections
-                        else {
-                            this.reconnect(connContainer, reconnectDelay);
-                        }
-                    })
-                );
+                // If no active connection exists for this endpoint, then we need to start outgoing connections
+                else {
+                    this.reconnect(connContainer, reconnectDelay);
+                }
             }
         );
     }
@@ -412,7 +370,6 @@ export default class CommunicationModule extends EventEmitter {
         this.unknownPeerMap.clear();
         this.knownPeerMap.clear();
         this.mainInstanceInfo = null;
-        this.anonInstanceInfo = null;
         this.myPublicKeyToInstanceInfoMap.clear();
     }
 
@@ -483,17 +440,10 @@ export default class CommunicationModule extends EventEmitter {
             );
             return;
         }
-        if (!this.anonInstanceInfo) {
-            console.log(
-                'setupPeerMap: AN ERROR HAPPENED HERE. ME-ANON IS NOT INITIALIZED, SHOULD NEVER HAPPEN!!!'
-            );
-            return;
-        }
         const mainInstanceInfo = this.mainInstanceInfo;
-        const anonInstanceInfo = this.anonInstanceInfo;
 
         // Iterate over all personal contact objects and connect with all of them (real ID)
-        const myEndpoints = await this.contactModel.findAllOneInstanceEndpoints(true, true);
+        const myEndpoints = await this.leuteModel.findAllOneInstanceEndpointsForMe(true);
         const myOutgoingConnInfo = (
             await Promise.all(
                 myEndpoints.map(async endpoint => {
@@ -517,41 +467,24 @@ export default class CommunicationModule extends EventEmitter {
         ).filter(info => info.targetInstanceId !== mainInstanceInfo.instanceId);
 
         // Iterate over all contacts and connect with them (anonymous IDs)
-        const otherEndpoints = await this.contactModel.findAllOneInstanceEndpoints(false);
+        const otherEndpoints = await this.leuteModel.findAllOneInstanceEndpointsForOthers();
         const otherOutgoingConnInfo = await Promise.all(
             otherEndpoints.map(async endpoint => {
                 const instanceKeys = await getObject(endpoint.instanceKeys);
-                if (this.connectToOthersWithAnonId) {
-                    return {
-                        activeConnection: null,
-                        url: endpoint.url,
-                        sourcePublicKey: anonInstanceInfo.instanceKeys.publicKey,
-                        targetPublicKey: instanceKeys.publicKey,
-                        sourceInstanceId: anonInstanceInfo.instanceId,
-                        targetInstanceId: endpoint.instanceId,
-                        sourcePersonId: anonInstanceInfo.personId,
-                        targetPersonId: endpoint.personId,
-                        cryptoApi: anonInstanceInfo.cryptoApi,
-                        isInternetOfMe: false,
-                        dropDuplicates: true,
-                        reconnectTimeoutHandle: null
-                    };
-                } else {
-                    return {
-                        activeConnection: null,
-                        url: endpoint.url,
-                        sourcePublicKey: mainInstanceInfo.instanceKeys.publicKey,
-                        targetPublicKey: instanceKeys.publicKey,
-                        sourceInstanceId: mainInstanceInfo.instanceId,
-                        targetInstanceId: endpoint.instanceId,
-                        sourcePersonId: mainInstanceInfo.personId,
-                        targetPersonId: endpoint.personId,
-                        cryptoApi: mainInstanceInfo.cryptoApi,
-                        isInternetOfMe: false,
-                        dropDuplicates: true,
-                        reconnectTimeoutHandle: null
-                    };
-                }
+                return {
+                    activeConnection: null,
+                    url: endpoint.url,
+                    sourcePublicKey: mainInstanceInfo.instanceKeys.publicKey,
+                    targetPublicKey: instanceKeys.publicKey,
+                    sourceInstanceId: mainInstanceInfo.instanceId,
+                    targetInstanceId: endpoint.instanceId,
+                    sourcePersonId: mainInstanceInfo.personId,
+                    targetPersonId: endpoint.personId,
+                    cryptoApi: mainInstanceInfo.cryptoApi,
+                    isInternetOfMe: false,
+                    dropDuplicates: true,
+                    reconnectTimeoutHandle: null
+                };
             })
         );
 
@@ -576,9 +509,6 @@ export default class CommunicationModule extends EventEmitter {
     private async updateInstanceInfos(): Promise<void> {
         // Extract my local instance infos to build the map
         const infos = await this.instancesModel.localInstancesInfo();
-        if (infos.length !== 2) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
 
         // Setup the public key to instanceInfo map
         await Promise.all(
@@ -589,8 +519,6 @@ export default class CommunicationModule extends EventEmitter {
                 );
                 if (instanceInfo.isMain) {
                     this.mainInstanceInfo = instanceInfo;
-                } else {
-                    this.anonInstanceInfo = instanceInfo;
                 }
             })
         );
@@ -818,6 +746,7 @@ export default class CommunicationModule extends EventEmitter {
             clearTimeout(endpoint.reconnectTimeoutHandle);
             endpoint.reconnectTimeoutHandle = null;
         }
+
         this.emit('connectionsChange');
         this.onConnectionsChange.emit();
 

@@ -1,5 +1,5 @@
 import type {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import type {ProfileImage} from '../src/recipes/ContactRecipes';
+import type {ProfileImage} from '../lib/recipes/LeuteRecipes/PersonDescriptions';
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,

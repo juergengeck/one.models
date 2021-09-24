@@ -5,13 +5,10 @@ import {clone} from 'one.core/lib/util/clone-object';
 /**
  *
  * @param object
- * @param {string} key
- * @returns {any}
+ * @param key
+ * @returns
  */
-function deepSearchKeyInObject(
-    object: any,
-    key: string,
-): any {
+function deepSearchKeyInObject(object: any, key: string): any {
     if (Object.prototype.hasOwnProperty.call(object, key)) {
         return object;
     }
@@ -19,11 +16,8 @@ function deepSearchKeyInObject(
     for (const objectKey of Object.keys(object)) {
         const value = object[objectKey];
         if (typeof value === 'object' && value !== null) {
-            const foundObj = deepSearchKeyInObject(
-                value,
-                key
-            );
-            if(foundObj !== undefined){
+            const foundObj = deepSearchKeyInObject(value, key);
+            if (foundObj !== undefined) {
                 return foundObj;
             }
         }
@@ -153,7 +147,7 @@ export function hasRule(rules: RecipeRule[], path: string): boolean {
     if (pathStack.length === 1) {
         return true;
     }
-    const foundObjectDefinition: ObjectValue = deepSearchKeyInObject(foundRule, 'rules')
+    const foundObjectDefinition: ObjectValue = deepSearchKeyInObject(foundRule, 'rules');
     // If the path stack has more than one element we assume that
     // the picked rule itself has a rule as child. So we follow that
     if (foundObjectDefinition === undefined) {
@@ -181,7 +175,7 @@ export function getRuleRules(rules: RecipeRule[], path: string): RecipeRule[] {
     }
 
     const rule = getRule(rules, path);
-    const foundObjectType = deepSearchKeyInObject(rule, 'rules')
+    const foundObjectType = deepSearchKeyInObject(rule, 'rules');
     if (foundObjectType === undefined) {
         throw new Error('Rule element does not have a nested rule.');
     }
