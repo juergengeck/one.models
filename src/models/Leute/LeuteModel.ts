@@ -257,7 +257,7 @@ export default class LeuteModel implements Model {
     /**
      * Create a new identity an a 'default' profile.
      *
-     * @returns {Promise<void>}
+     * @returns
      */
     async createProfileAndIdentityForMe(): Promise<void> {
         if (this.leute === undefined) {
@@ -278,7 +278,7 @@ export default class LeuteModel implements Model {
     /**
      * Create a new identity for me and also create a profile.
      *
-     * @returns {Promise<void>}
+     * @returns
      */
     async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
         if (this.leute === undefined) {

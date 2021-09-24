@@ -235,8 +235,8 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the instance key hash for a specific person.
      *
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<Keys>}
+     * @param instanceId
+     * @returns
      */
     public async localInstanceKeysHash(
         instanceId: SHA256IdHash<Instance>
@@ -380,8 +380,8 @@ class InstancesModel extends EventEmitter {
      *
      * This also registers the instance in a list that stores whether an instance is local.
      *
-     * @param {string} email
-     * @returns {Promise<void>}
+     * @param email
+     * @returns
      */
     public async createLocalInstanceByEMail(email: string): Promise<SHA256IdHash<Instance>> {
         // Check that the person does not yet have a instance
