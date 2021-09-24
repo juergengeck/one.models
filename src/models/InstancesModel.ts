@@ -381,7 +381,6 @@ class InstancesModel extends EventEmitter {
      * This also registers the instance in a list that stores whether an instance is local.
      *
      * @param email
-     * @returns
      */
     public async createLocalInstanceByEMail(email: string): Promise<SHA256IdHash<Instance>> {
         // Check that the person does not yet have a instance

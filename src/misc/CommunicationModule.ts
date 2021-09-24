@@ -323,8 +323,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Initialize the communication.
-     *
-     * @returns
      */
     public async init(): Promise<void> {
         this.initialized = true;
@@ -342,8 +340,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Shutdown process
-     *
-     * @returns
      */
     async shutdown(): Promise<void> {
         this.initialized = false;
@@ -532,8 +528,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Initialize outgoing connections by triggering a reconnect on all known peers.
-     *
-     * @returns
      */
     private async setupOutgoingConnections(): Promise<void> {
         for (const endpoint of this.knownPeerMap.values()) {
@@ -617,8 +611,6 @@ export default class CommunicationModule extends EventEmitter {
 
     /**
      * Set up connection listeners for all local instances
-     *
-     * @returns
      */
     private async setupIncomingConnections(): Promise<void> {
         const localInstances = await this.instancesModel.localInstancesIds();
@@ -631,7 +623,6 @@ export default class CommunicationModule extends EventEmitter {
      * Setup incoming listener(s) for one specific local instance.
      *
      * @param instance
-     * @returns
      */
     private async setupIncomingConnectionsForInstance(
         instance: SHA256IdHash<Instance>
