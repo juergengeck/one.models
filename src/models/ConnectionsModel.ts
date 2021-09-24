@@ -236,9 +236,9 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Construct a new instance
      *
-     * @param {LeuteModel} leuteModel
-     * @param {InstancesModel} instancesModel
-     * @param {Partial<ConnectionsModel.Configuration>} config
+     * @param leuteModel
+     * @param instancesModel
+     * @param config
      */
     constructor(
         leuteModel: LeuteModel,

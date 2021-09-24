@@ -14,12 +14,12 @@ import type {CreationTime} from '../src/recipes/MetaRecipes';
  *            the same list of channel entries. It is okay that it then just returns the new head instead
  *            of running the plan again, because the chain it is supposed to build already exists.
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} channelId
- * @param {SHA256IdHash<Person>} channelOwner
- * @param {SHA256Hash<ChannelEntry>} oldHead - The old head that the new elements will be based on
- * @param {SHA256Hash<CreationTime>[]} newElementsReversed - the new elements, but in reversed order
- * @returns {Promise<UnversionedObjectResult<ChannelEntry>>}
+ * @param  WriteStorage
+ * @param  channelId
+ * @param  channelOwner
+ * @param  oldHead - The old head that the new elements will be based on
+ * @param  newElementsReversed - the new elements, but in reversed order
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

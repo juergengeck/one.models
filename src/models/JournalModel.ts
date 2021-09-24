@@ -194,7 +194,7 @@ export default class JournalModel extends EventEmitter implements Model {
 
     /**
      * Get the stored events sorted by date. In Ascending order
-     * @returns {Promise<JournalEntry[]>}
+     * @returns
      */
     async retrieveAllEvents(): Promise<JournalEntry[]> {
         // If there are no provided models, return empty list
@@ -225,7 +225,7 @@ export default class JournalModel extends EventEmitter implements Model {
 
     /**
      * This function will create & sort in ascending order the event list.
-     * @param {JournalData} dataDictionary
+     * @param dataDictionary
      * @private
      */
     private createEventList(dataDictionary: JournalData): JournalEntry[] {
@@ -280,8 +280,8 @@ export default class JournalModel extends EventEmitter implements Model {
 
     /**
      * This function queries the channels and finds the newest creation time
-     * @param {Date} from
-     * @param {Date} to
+     * @param from
+     * @param to
      * @private
      */
     private async findLatestTimeFrame(from?: Date, to?: Date): Promise<number> {

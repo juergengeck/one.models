@@ -125,10 +125,10 @@ export default class RecoveryModel {
      * The decrypted data will be saved in memory until the next step in the
      * recovery process (overwritePersonKeyWithReceivedEncryptedOnes function).
      *
-     * @param {string} recoveryKey
-     * @param {string} recoveryNonce
-     * @param {string} encryptedPersonInformation
-     * @returns {Promise<string>}
+     * @param recoveryKey
+     * @param recoveryNonce
+     * @param encryptedPersonInformation
+     * @returns
      */
     async decryptReceivedRecoveryInformation(
         recoveryKey: string,
@@ -263,9 +263,7 @@ export default class RecoveryModel {
      * @returns
      * @private
      */
-    private async extractDecryptedPrivateKeysForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<{
+    private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         privateKey: string;
         privateSignKey: string;
     }> {
