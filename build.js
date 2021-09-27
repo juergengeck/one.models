@@ -285,12 +285,7 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            await processAllFiles(
-                join(srcDir, file),
-                join(targetDir, file),
-                system,
-                moduleTarget
-            );
+            await processAllFiles(join(srcDir, file), join(targetDir, file), system, moduleTarget);
         } else {
             await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
         }
@@ -363,9 +358,7 @@ async function findHighestPkgJsonRefinioPlatform() {
     let system;
     let dir = __dirname;
 
-    do {
-        dir = join(dir, '..');
-
+    while (true) {
         const refinio = await readPkgJsonRefinio(dir);
 
         if (isObject(refinio)) {
@@ -377,7 +370,12 @@ async function findHighestPkgJsonRefinioPlatform() {
                 );
             }
         }
-    } while (dir !== sep);
+
+        if (dir === sep) {
+            break;
+        }
+        dir = join(dir, '..');
+    }
 
     return system;
 }
