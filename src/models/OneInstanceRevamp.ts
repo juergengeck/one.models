@@ -1,40 +1,11 @@
 import {StateMachine} from '../misc/StateMachine';
 import {createMessageBus} from 'one.core/lib/message-bus';
+import {LightStorage} from '../misc/lightStorage';
 const MessageBus = createMessageBus('OneInstanceRevamp');
 
 type ValueOf<T> = T[keyof T];
-type AuthEvent = ValueOf<typeof INIT_EVENTS & typeof LOGOUT_EVENTS>;
-type AuthState = ValueOf<typeof AUTH_STATES>;
-
-/**
- * All the current states.
- * @type {{Authenticated: "authenticated", Unauthenticated: "unauthenticated", AccountCreation: "account-creation", Register: "register", InternetOfMe: "internet-of-me", InputCredentials: "input-credentials", Recovery: "recovery"}}
- */
-const AUTH_STATES = {
-    Uninitilized: 'uninitilized',
-    Initializing: 'initializing',
-    Initialized: 'initialized'
-} as const;
-
-/**
- * All the current events for init.
- * @type {{InitStarted: "@AUTH / AUTH_STARTED", InitSucceeded: "AUTH / AUTH_SUCCEEDED", InitFailed: "@AUTH / AUTH_FAILED"}}
- */
-const INIT_EVENTS = {
-    InitStarted: '@INIT / INIT_STARTED',
-    InitFailed: '@INIT / INIT_FAILED',
-    InitSucceeded: 'INIT / INIT_SUCCEEDED'
-} as const;
-
-/**
- * All the current events for logout.
- * @type {{InitStarted: "@AUTH / AUTH_STARTED", InitSucceeded: "AUTH / AUTH_SUCCEEDED", InitFailed: "@AUTH / AUTH_FAILED"}}
- */
-const LOGOUT_EVENTS = {
-    LogoutStarted: '@LOGOUT /   LOGOUT_STARTED',
-    LogoutFailed: '@LOGOUT /    LOGOUT_FAILED',
-    LogoutSucceeded: 'LOGOUT /  LOGOUT_SUCCEEDED'
-} as const;
+type AuthEvent = 'init-started' | 'init-failed' | 'init-succeeded' | 'logout-started' | 'logout-failed' | 'logout-succeeded';
+type AuthState = 'uninitialized' | 'initializing' | 'initialized';
 
 /**
  * Configuration parameters for the OneInstanceModel
@@ -55,39 +26,40 @@ export default class OneInstanceRevamp {
     private config: OneInstanceConfiguration;
 
     /**
+     *
+     * @type {Storage}
+     * @private
+     */
+    private storage: Storage = LightStorage;
+
+    /**
      * IIFE Function. It will return the state machine with the registered states, events &
      * transitions.
      * @type {StateMachine<AuthState, AuthEvent>}
      * @private
      */
-    private state: StateMachine<AuthState, AuthEvent> = (() => {
-        const stateMachine = new StateMachine<AuthState, AuthEvent>();
+    private stateMachine: StateMachine<AuthState, AuthEvent> = (() => {
+        const sm = new StateMachine<AuthState, AuthEvent>();
         // Add the states
-        stateMachine.addState(AUTH_STATES.Initialized);
-        stateMachine.addState(AUTH_STATES.Initializing);
-        stateMachine.addState(AUTH_STATES.Uninitilized);
+        sm.addState('initialized');
+        sm.addState('initializing');
+        sm.addState('uninitialized');
+
         // Add the events
-        stateMachine.addEvent(INIT_EVENTS.InitStarted);
-        stateMachine.addEvent(INIT_EVENTS.InitFailed);
-        stateMachine.addEvent(INIT_EVENTS.InitSucceeded);
+        sm.addEvent('init-started');
+        sm.addEvent('init-failed');
+        sm.addEvent('init-succeeded');
 
         // Add the transitions
-        // prettier-ignore
-        stateMachine.addTransition(INIT_EVENTS.InitStarted, AUTH_STATES.Uninitilized, AUTH_STATES.Initializing);
-        // prettier-ignore
-        stateMachine.addTransition(INIT_EVENTS.InitSucceeded, AUTH_STATES.Initializing, AUTH_STATES.Initialized);
-        // prettier-ignore
-        stateMachine.addTransition(INIT_EVENTS.InitFailed, AUTH_STATES.Initializing, AUTH_STATES.Uninitilized);
+        sm.addTransition('init-started', 'uninitialized', 'initializing');
+        sm.addTransition('init-succeeded', 'initializing', 'initialized');
+        sm.addTransition('init-failed', 'initializing', 'uninitialized');
+        sm.addTransition('logout-started', 'uninitialized', 'initializing');
+        sm.addTransition('logout-succeeded', 'initializing', 'initialized');
+        sm.addTransition('logout-failed', 'initializing', 'uninitialized');
 
-        // prettier-ignore
-        stateMachine.addTransition(LOGOUT_EVENTS.LogoutStarted, AUTH_STATES.Uninitilized, AUTH_STATES.Initializing);
-        // prettier-ignore
-        stateMachine.addTransition(LOGOUT_EVENTS.LogoutSucceeded, AUTH_STATES.Initializing, AUTH_STATES.Initialized);
-        // prettier-ignore
-        stateMachine.addTransition(LOGOUT_EVENTS.LogoutFailed, AUTH_STATES.Initializing, AUTH_STATES.Uninitilized);
-
-        stateMachine.setInitialState(AUTH_STATES.Uninitilized);
-        return stateMachine;
+        sm.setInitialState('uninitialized');
+        return sm;
     })();
 
     constructor(config: Partial<OneInstanceConfiguration>) {
@@ -99,41 +71,26 @@ export default class OneInstanceRevamp {
     }
 
     init(): void {
-        this.state.triggerEvent(INIT_EVENTS.InitStarted);
+        this.stateMachine.triggerEvent('init-started');
         try {
-            this.state.triggerEvent(INIT_EVENTS.InitSucceeded);
+            this.stateMachine.triggerEvent('init-succeeded');
         } catch (e) {
-            this.state.triggerEvent(INIT_EVENTS.InitFailed);
+            this.stateMachine.triggerEvent('init-failed');
         }
     }
 
     shutdown(): void {}
 
     login(): void {
-        this.state.triggerEvent(INIT_EVENTS.InitStarted);
-        try {
-            this.state.triggerEvent(INIT_EVENTS.InitSucceeded);
-        } catch (e) {
-            this.state.triggerEvent(INIT_EVENTS.InitFailed);
-        }
+
     }
 
     registerWithInternetOfMe(): void {
-        this.state.triggerEvent(INIT_EVENTS.InitStarted);
-        try {
-            this.state.triggerEvent(INIT_EVENTS.InitSucceeded);
-        } catch (e) {
-            this.state.triggerEvent(INIT_EVENTS.InitFailed);
-        }
+
     }
 
     register(): void {
-        this.state.triggerEvent(INIT_EVENTS.InitStarted);
-        try {
-            this.state.triggerEvent(INIT_EVENTS.InitSucceeded);
-        } catch (e) {
-            this.state.triggerEvent(INIT_EVENTS.InitFailed);
-        }
+
     }
 
     logout(): void {}
