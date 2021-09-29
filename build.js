@@ -47,7 +47,6 @@ const BABEL_MODULE_TARGETS = {
     commonjs: [
         '@babel/plugin-transform-modules-commonjs',
         {
-            // We disallow default exports in ONE.core (eslint rule)
             noInterop: false
         }
     ],
@@ -87,6 +86,25 @@ const BABEL_OPTS = {
     filename: ''
 };
 
+/**
+ * @param {unknown} thing
+ * @returns {thing is Record<string, any>}
+ */
+function isObject(thing) {
+    return typeof thing === 'object' && thing !== null;
+}
+
+/**
+ * @param {string} s
+ * @returns {s is 'nodejs'|'browser'|'rn'}
+ */
+function isValidPlatformString(s) {
+    return s === 'nodejs' || s === 'browser' || s === 'rn';
+}
+
+/**
+ * @returns {void}
+ */
 function usage() {
     console.log(`
 Usage: node build.js or directly call ./build.js
@@ -131,8 +149,8 @@ Options:
 }
 
 /**
- * @param dir
- * @returns
+ * @param {string} dir
+ * @returns {Promise<void|string>}
  */
 function mkDirExistOkay(dir) {
     return mkdir(dir, {recursive: true}).catch(err => {
@@ -143,8 +161,9 @@ function mkDirExistOkay(dir) {
 }
 
 /**
- * @param dir
- * @param dirent - A node.js `Dirent` object
+ * @param {string} dir
+ * @param {fs.Dirent} dirent - A node.js `Dirent` object
+ * @returns {Promise<void>}
  */
 async function deleteFile(dir, dirent) {
     const filePath = join(dir, dirent.name);
@@ -157,7 +176,8 @@ async function deleteFile(dir, dirent) {
 }
 
 /**
- * @param dir
+ * @param {string} dir
+ * @returns {Promise<void>}
  */
 async function deleteDirectory(dir) {
     /** @type fs.Dirent[] */
@@ -165,7 +185,7 @@ async function deleteDirectory(dir) {
 
     try {
         files = await readdir(dir, {withFileTypes: true});
-    } catch (err) {
+    } catch (/** @type any */ err) {
         if (err.code === 'ENOENT') {
             // Nothing to remove? That's okay!
             return;
@@ -180,9 +200,9 @@ async function deleteDirectory(dir) {
 }
 
 /**
- * @param code
- * @param options - See https://babeljs.io/docs/en/options
- * @returns Returns the transformed code string
+ * @param {string} code
+ * @param {object} options - See https://babeljs.io/docs/en/options
+ * @returns {Promise<string>} Returns the transformed code string
  */
 function transform(code, options) {
     return new Promise((resolve, reject) => {
@@ -201,11 +221,12 @@ function transform(code, options) {
 }
 
 /**
- * @param targetDir - Where to write the transpiled file to
- * @param srcDir - Directory relative to PROJECT_ROOT
- * @param file - The filename without path
- * @param system - nodejs, browser, rn
- * @param moduleTarget - commonjs, es2015, systemjs, umd
+ * @param {string} targetDir - Where to write the transpiled file to
+ * @param {string} srcDir - Directory relative to PROJECT_ROOT
+ * @param {string} file - The filename without path
+ * @param {string} system - nodejs, browser, rn
+ * @param {string} moduleTarget - commonjs, es2015, systemjs, umd
+ * @returns {Promise<void>}
  */
 async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget) {
     if (!file.endsWith('.ts')) {
@@ -249,10 +270,11 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
 }
 
 /**
- * @param srcDir
- * @param targetDir
- * @param system
- * @param moduleTarget - One of commonjs, es2015, systemjs, umd
+ * @param {string} srcDir
+ * @param {string} targetDir
+ * @param {string} system
+ * @param {string} moduleTarget - One of commonjs, es2015, systemjs, umd
+ * @returns {Promise<void>}
  */
 async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
     console.log(`=> Processing directory ${srcDir}...`);
@@ -263,14 +285,7 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            if (file.includes('system-' + system) || !file.startsWith('system')) {
-                await processAllFiles(
-                    join(srcDir, file),
-                    join(targetDir, file),
-                    system,
-                    moduleTarget
-                );
-            }
+            await processAllFiles(join(srcDir, file), join(targetDir, file), system, moduleTarget);
         } else {
             await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
         }
@@ -278,7 +293,9 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 }
 
 /**
- * @param targetDir
+ * @param {string} targetDir
+ * @param {string} system
+ * @returns {Promise<void>}
  */
 async function createDeclarationFiles(targetDir) {
     for (const dir of ['src', 'test']) {
@@ -288,7 +305,7 @@ async function createDeclarationFiles(targetDir) {
         // run, possibly because the target directory is deleted first.
         try {
             await unlink(join('.', `tsconfig.${dir}.tsbuildinfo`));
-        } catch (err) {
+        } catch (/** @type any */ err) {
             if (err.code !== 'ENOENT') {
                 throw err;
             }
@@ -296,12 +313,13 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
+                    (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
             );
-        } catch (err) {
+        } catch (/** @type any */ err) {
             console.error(
                 '\ntsc failed with ' +
                     err.message +
@@ -312,11 +330,62 @@ async function createDeclarationFiles(targetDir) {
 }
 
 /**
+ * @param {string} dir
+ * @returns {Promise<Record<string, any>|undefined>}
+ */
+async function readPkgJsonRefinio(dir) {
+    const file = join(dir, 'package.json');
+
+    try {
+        const pJson = await readFile(file, 'utf8');
+        const pkgJson = JSON.parse(pJson);
+        return isObject(pkgJson) && isObject(pkgJson.refinio) ? pkgJson.refinio : undefined;
+    } catch (_err) {
+        // It is not a task of this build script to check for errors in package.json, and not
+        // finding the file is not an error to begin with.
+        return;
+    }
+}
+
+/**
+ * Iterare directories starting with the project directory and then upwards all the was to "/".
+ * Check for a `package.json` file. Check for `refinio.platform` (string property). Remember the
+ * last find. Sop iterating at the top and return the last find or undefined.
+ * @returns {Promise<string|undefined>}
+ */
+async function findHighestPkgJsonRefinioPlatform() {
+    /** @type {('nodejs' | 'browser' | 'rn' | undefined)} */
+    let system;
+    let dir = __dirname;
+
+    while (true) {
+        const refinio = await readPkgJsonRefinio(dir);
+
+        if (isObject(refinio)) {
+            if (isValidPlatformString(refinio.platform)) {
+                system = refinio.platform;
+            } else {
+                console.log(
+                    `Invalid refinio.platform string "${refinio.platform}" in ${dir}/package.json`
+                );
+            }
+        }
+
+        if (dir === sep) {
+            break;
+        }
+        dir = join(dir, '..');
+    }
+
+    return system;
+}
+
+/**
  * The target platform. This determines which src/system-* folder is used and becomes
  * targetDir/system/
- * @returns
+ * @returns {Promise<string>}
  */
-function getSystem() {
+async function getSystem() {
     let system = 'nodejs';
 
     if (process.argv.includes('browser')) {
@@ -332,6 +401,8 @@ function getSystem() {
                     `be one of ${Object.keys(PLATFORMS).join(', ')}`
             );
         }
+    } else {
+        system = (await findHighestPkgJsonRefinioPlatform()) || system;
     }
 
     return system;
@@ -340,7 +411,7 @@ function getSystem() {
 /**
  * If "-m" option is found a target system is set, otherwise the default of "commonjs" is used.
  * GLOBAL SIDE EFFECT: Possibly mutates BABEL_OPTS
- * @returns
+ * @returns {string}
  */
 function setModuleTarget() {
     const mIndex = process.argv.findIndex(arg => arg.startsWith('-m'));
@@ -369,7 +440,7 @@ function setModuleTarget() {
 
 /**
  * If "-t" option is found a target directory is set, otherwise the default of "lib" is used.
- * @returns
+ * @returns {string}
  */
 function getTargetDir() {
     const tIndex = process.argv.findIndex(arg => arg.startsWith('-t'));
@@ -389,7 +460,7 @@ function getTargetDir() {
 
 /**
  * Called e.g. by a watcher process for a single file? If so option "-f filename" will be found.
- * @returns Returns the filename or an empty string if no "-f" option was detected
+ * @returns {string} Returns the filename or an empty string if no "-f" option was detected
  */
 function calledForSingleFile() {
     const fIndex = process.argv.findIndex(arg => arg.startsWith('-f'));
@@ -407,25 +478,20 @@ function calledForSingleFile() {
     return '';
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function run() {
-    const system = getSystem();
+    const system = await getSystem();
     const targetDir = getTargetDir();
     const moduleTarget = setModuleTarget(); // Call with side effect
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
-        if (singleFile.startsWith('src/system') && !singleFile.startsWith(`src/system-${system}`)) {
-            return;
-        }
-
         let destination = join(targetDir, dirname(singleFile).replace(/^src[\\/]?/, ''));
 
         if (singleFile.startsWith('test' + sep)) {
             destination = destination.replace('lib' + sep, '');
-        }
-
-        if (singleFile.startsWith(`src${sep}system-${system}${sep}`)) {
-            destination = join(targetDir, 'system');
         }
 
         return transformAndWriteJsFile(
@@ -449,6 +515,9 @@ async function run() {
     console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
 }
 
+/**
+ * @returns {void}
+ */
 function runBuilForAllTargets() {
     for (const platform of Object.keys(PLATFORMS)) {
         for (const moduleSystem of PLATFORMS[platform]) {

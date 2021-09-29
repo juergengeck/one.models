@@ -1,7 +1,6 @@
 import {EventEmitter} from 'events';
 import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
-import type ContactModel from './ContactModel';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
 import type EncryptedConnection from '../misc/EncryptedConnection';
@@ -44,7 +43,7 @@ import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-b
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Keys, Person} from 'one.core/lib/recipes';
-import type {OneInstanceEndpoint} from '../recipes/ContactRecipes';
+import type LeuteModel from './Leute/LeuteModel';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -67,7 +66,6 @@ export type PairingInformation = {
 export type TakeOverInformation = {
     nonce: string;
     email: string;
-    anonymousEmail: string;
 };
 
 /**
@@ -114,9 +112,6 @@ export type ConnectionsModelConfiguration = {
     // If true automatically establish outgoing connections
     // Default: true
     establishOutgoingConnections: boolean;
-
-    // If true then use the anon id as local id for outgoing connections
-    connectToOthersWithAnonId: boolean;
 };
 
 /**
@@ -191,7 +186,7 @@ class ConnectionsModel extends EventEmitter {
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
-    private readonly contactModel: ContactModel;
+    private readonly leuteModel: LeuteModel;
 
     // Global settings
     private readonly config: ConnectionsModelConfiguration;
@@ -201,7 +196,6 @@ class ConnectionsModel extends EventEmitter {
 
     // Internal maps and lists (precomputed on init)
     private mainInstanceInfo: LocalInstanceInfo | null; // My person info
-    private anonInstanceInfo: LocalInstanceInfo | null; // My person info - anonymous id -> TODO: should be removed in the future
 
     // Other stuff
     private oneTimeAuthenticationTokens: Map<string, AuthenticationTokenInfo>;
@@ -242,12 +236,12 @@ class ConnectionsModel extends EventEmitter {
     /**
      * Construct a new instance
      *
-     * @param contactModel
+     * @param leuteModel
      * @param instancesModel
      * @param config
      */
     constructor(
-        contactModel: ContactModel,
+        leuteModel: LeuteModel,
         instancesModel: InstancesModel,
         config: Partial<ConnectionsModelConfiguration>
     ) {
@@ -276,22 +270,17 @@ class ConnectionsModel extends EventEmitter {
             establishOutgoingConnections:
                 config.establishOutgoingConnections !== undefined
                     ? config.establishOutgoingConnections
-                    : true,
-            connectToOthersWithAnonId:
-                config.connectToOthersWithAnonId !== undefined
-                    ? config.connectToOthersWithAnonId
                     : true
         };
 
         // Setup / init modules
         this.instancesModel = instancesModel;
-        this.contactModel = contactModel;
+        this.leuteModel = leuteModel;
         this.communicationModule = new CommunicationModule(
             this.config.commServerUrl,
-            contactModel,
+            leuteModel,
             instancesModel,
-            this.config.establishOutgoingConnections,
-            this.config.connectToOthersWithAnonId
+            this.config.establishOutgoingConnections
         );
         this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
         this.communicationModule.onUnknownConnection(this.onUnknownConnection.bind(this));
@@ -307,7 +296,6 @@ class ConnectionsModel extends EventEmitter {
         // Changed by init
         this.initialized = false;
         this.mainInstanceInfo = null;
-        this.anonInstanceInfo = null;
         this.oneTimeAuthenticationTokens = new Map<string, AuthenticationTokenInfo>();
         this.pkOneTimeAuthenticationTokens = new Map<string, PkAuthenticationTokenInfo>();
 
@@ -325,9 +313,6 @@ class ConnectionsModel extends EventEmitter {
 
         if (!this.mainInstanceInfo) {
             throw new Error('Programming error: mainInstanceInfo is not initialized');
-        }
-        if (!this.anonInstanceInfo) {
-            throw new Error('Programming error: anonInstanceInfo is not initialized');
         }
     }
 
@@ -349,7 +334,6 @@ class ConnectionsModel extends EventEmitter {
         this.pkOneTimeAuthenticationTokens.clear();
 
         this.mainInstanceInfo = null;
-        this.anonInstanceInfo = null;
     }
 
     /**
@@ -384,15 +368,11 @@ class ConnectionsModel extends EventEmitter {
         if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
-        if (!this.anonInstanceInfo) {
-            throw new Error('anonInstanceInfo not initialized.');
-        }
 
         const authenticationToken = await createRandomString();
 
         if (takeOver) {
             const myEmail = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj.email;
-            const myAnonEmail = (await getObjectByIdHash(this.anonInstanceInfo.personId)).obj.email;
             const salt = tweetnacl.randomBytes(64);
 
             // Set up the expiration of the token
@@ -417,8 +397,7 @@ class ConnectionsModel extends EventEmitter {
                 takeOver: true,
                 takeOverDetails: {
                     nonce: fromByteArray(salt),
-                    email: myEmail,
-                    anonymousEmail: myAnonEmail
+                    email: myEmail
                 }
             };
         } else {
@@ -431,14 +410,14 @@ class ConnectionsModel extends EventEmitter {
             // Add the token to the list of valid tokens
             this.oneTimeAuthenticationTokens.set(authenticationToken, {
                 token: authenticationToken,
-                localPersonId: this.anonInstanceInfo.personId,
+                localPersonId: this.mainInstanceInfo.personId,
                 expirationTimeoutHandle
             });
 
             // Build and return the pairing information that is transferred to the other instance e.g. by qr code
             return {
                 authenticationTag: authenticationToken,
-                publicKeyLocal: this.anonInstanceInfo.instanceKeys.publicKey,
+                publicKeyLocal: this.mainInstanceInfo.instanceKeys.publicKey,
                 url: this.config.commServerUrl,
                 takeOver: false
             };
@@ -446,7 +425,7 @@ class ConnectionsModel extends EventEmitter {
     }
 
     /**
-     * Cpnect to the target and transmmit the setAccessGroup command
+     * Connect to the target and transmit the setAccessGroup command
      *
      * @param remotePerson
      * @param accessGroupMembers
@@ -455,21 +434,21 @@ class ConnectionsModel extends EventEmitter {
         remotePerson: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
     ): Promise<void> {
-        const endpoints = await this.contactModel.findAllOneInstanceEndpoints();
+        const endpoints = await this.leuteModel.findAllOneInstanceEndpointsForOthers();
         const remoteEndpoint = endpoints.find(
             endpoint => endpoint.personId === remotePerson && endpoint.personKeys
         );
         if (!remoteEndpoint) {
             throw new Error('Could not find pairing information.');
         }
-        if (!this.anonInstanceInfo) {
+        if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
         if (!remoteEndpoint.personKeys) {
             throw new Error('Endpoint does not have a person key.');
         }
 
-        const anonInstanceInfo = this.anonInstanceInfo;
+        const mainInstanceInfo = this.mainInstanceInfo;
         const remoteInstanceKey = toByteArray(
             (await getObject(remoteEndpoint.instanceKeys)).publicKey
         );
@@ -477,16 +456,16 @@ class ConnectionsModel extends EventEmitter {
         // Connect to target
         const conn = await OutgoingConnectionEstablisher.connectOnce(
             remoteEndpoint.url,
-            toByteArray(this.anonInstanceInfo.instanceKeys.publicKey),
+            toByteArray(mainInstanceInfo.instanceKeys.publicKey),
             remoteInstanceKey,
             text => {
-                return anonInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                return mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
                     remoteInstanceKey,
                     text
                 );
             },
             cypherText => {
-                return anonInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                return mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
                     remoteInstanceKey,
                     cypherText
                 );
@@ -505,7 +484,7 @@ class ConnectionsModel extends EventEmitter {
             // Start the selected protocol
             await this.startSetAccessGroup_Client(
                 conn,
-                anonInstanceInfo.personId,
+                mainInstanceInfo.personId,
                 remotePerson,
                 accessGroupMembers
             );
@@ -597,29 +576,29 @@ class ConnectionsModel extends EventEmitter {
 
         // Case for normal pairing
         else {
-            if (!this.anonInstanceInfo) {
-                throw new Error('anonInstanceInfo not initialized.');
+            if (!this.mainInstanceInfo) {
+                throw new Error('mainInstanceInfo not initialized.');
             }
 
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
                 this.config.commServerUrl,
-                toByteArray(this.anonInstanceInfo.instanceKeys.publicKey),
+                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
                 toByteArray(pairingInformation.publicKeyLocal),
                 text => {
-                    if (!this.anonInstanceInfo) {
-                        throw new Error('anonInstanceInfo not initialized.');
+                    if (!this.mainInstanceInfo) {
+                        throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.anonInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                    return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
                         remotePublicKey,
                         text
                     );
                 },
                 cypherText => {
-                    if (!this.anonInstanceInfo) {
-                        throw new Error('anonInstanceInfo not initialized.');
+                    if (!this.mainInstanceInfo) {
+                        throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.anonInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                    return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
                         remotePublicKey,
                         cypherText
                     );
@@ -628,7 +607,7 @@ class ConnectionsModel extends EventEmitter {
 
             // Add this connection to the communication module, so that it becomes the known connection
             this.communicationModule.addNewUnknownConnection(
-                toByteArray(this.anonInstanceInfo.instanceKeys.publicKey),
+                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
                 remotePublicKey,
                 conn
             );
@@ -645,7 +624,7 @@ class ConnectionsModel extends EventEmitter {
                 // Start the selected protocol
                 await this.startChumOneTimeAuthProtocol_Client(
                     conn,
-                    this.anonInstanceInfo.personId,
+                    this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag
                 );
             } catch (e) {
@@ -1009,7 +988,7 @@ class ConnectionsModel extends EventEmitter {
         conn: EncryptedConnection,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
-        if (!this.anonInstanceInfo) {
+        if (!this.mainInstanceInfo) {
             throw new Error('Identities were not initialized correctly.');
         }
 
@@ -1032,7 +1011,7 @@ class ConnectionsModel extends EventEmitter {
         }
 
         // Step 3: Exchange person objects (first send, second receive)
-        const localPersonObj = (await getObjectByIdHash(this.anonInstanceInfo.personId)).obj;
+        const localPersonObj = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj;
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
             obj: localPersonObj
@@ -1334,7 +1313,7 @@ class ConnectionsModel extends EventEmitter {
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         try {
-            if (!this.anonInstanceInfo) {
+            if (!this.mainInstanceInfo) {
                 throw new Error('Identities were not initialized correctly.');
             }
 
@@ -1511,7 +1490,7 @@ class ConnectionsModel extends EventEmitter {
         if (!this.mainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
         }
-        if (!this.anonInstanceInfo) {
+        if (!this.mainInstanceInfo) {
             throw new Error('anonInstanceInfo not initialized.');
         }
 
@@ -1521,17 +1500,9 @@ class ConnectionsModel extends EventEmitter {
         const mainPrivateEncryptionKey = mainPersonKeys.personPrivateEncryptionKey;
         const mainPrivateSignKey = mainPersonKeys.personPrivateSignKey;
 
-        // Obtain the anon keys
-        const anonPersonKeys = await this.extractKeysForPerson(this.anonInstanceInfo.personId);
-        const anonPublicKeys = anonPersonKeys.personPublicKeys;
-        const anonPrivateEncryptionKey = anonPersonKeys.personPrivateEncryptionKey;
-        const anonPrivateSignKey = anonPersonKeys.personPrivateSignKey;
         // Check for the existence of sign keys
         if (!mainPublicKeys.publicSignKey) {
             throw new Error('Main person does not have a sign key');
-        }
-        if (!anonPublicKeys.publicSignKey) {
-            throw new Error('Anon person does not have a sign key');
         }
 
         return {
@@ -1540,12 +1511,7 @@ class ConnectionsModel extends EventEmitter {
             personPublicKey: mainPublicKeys.publicKey,
             personPublicSignKey: mainPublicKeys.publicSignKey,
             personPrivateKey: mainPrivateEncryptionKey,
-            personPrivateSignKey: mainPrivateSignKey,
-            anonPersonId: this.anonInstanceInfo.personId,
-            anonPersonPublicKey: anonPublicKeys.publicKey,
-            anonPersonPublicSignKey: anonPublicKeys.publicSignKey,
-            anonPersonPrivateKey: anonPrivateEncryptionKey,
-            anonPersonPrivateSignKey: anonPrivateSignKey
+            personPrivateSignKey: mainPrivateSignKey
         };
     }
 
@@ -1563,29 +1529,19 @@ class ConnectionsModel extends EventEmitter {
         privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage
     ): Promise<void> {
         let thisMainInstanceInfo: LocalInstanceInfo | undefined;
-        let thisAnonInstanceInfo: LocalInstanceInfo | undefined;
-        // Extract my local instance infos to build the map
-        const infos = await this.instancesModel.localInstancesInfo();
-        if (infos.length !== 2) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
 
         // Setup the public key to instanceInfo map
+        const infos = await this.instancesModel.localInstancesInfo();
         await Promise.all(
             infos.map(async instanceInfo => {
                 if (instanceInfo.isMain) {
                     thisMainInstanceInfo = instanceInfo;
-                } else {
-                    thisAnonInstanceInfo = instanceInfo;
                 }
             })
         );
 
         if (!thisMainInstanceInfo) {
             throw new Error('mainInstanceInfo not initialized.');
-        }
-        if (!thisAnonInstanceInfo) {
-            throw new Error('anonInstanceInfo not initialized.');
         }
 
         const overwritePrivateKeys = async (
@@ -1595,10 +1551,7 @@ class ConnectionsModel extends EventEmitter {
             await writeUTF8TextFile(encryptedBase64Key, filename, 'private');
         };
 
-        if (
-            thisMainInstanceInfo.personId !== privatePersonInformation.personId ||
-            thisAnonInstanceInfo.personId !== privatePersonInformation.anonPersonId
-        ) {
+        if (thisMainInstanceInfo.personId !== privatePersonInformation.personId) {
             throw new Error('Users not match from one instance to the other!');
         }
 
@@ -1624,177 +1577,10 @@ class ConnectionsModel extends EventEmitter {
             `${savedOwnerKeys.hash}.owner.sign`
         );
 
-        // Save the keys of the anonymous id
-        const savedAnonOwnerKeys = await createSingleObjectThroughImpurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Keys',
-                owner: privatePersonInformation.anonPersonId,
-                publicKey: privatePersonInformation.anonPersonPublicKey,
-                publicSignKey: privatePersonInformation.anonPersonPublicSignKey
-            }
-        );
-        await overwritePrivateKeys(
-            privatePersonInformation.anonPersonPrivateKey,
-            `${savedAnonOwnerKeys.hash}.owner.encrypt`
-        );
-        await overwritePrivateKeys(
-            privatePersonInformation.anonPersonPrivateSignKey,
-            `${savedAnonOwnerKeys.hash}.owner.sign`
-        );
-
         await reloadPersonKeys(
             this.password,
             thisMainInstanceInfo.personId,
             thisMainInstanceInfo.instanceId
-        );
-        await reloadPersonKeys(
-            this.password,
-            thisAnonInstanceInfo.personId,
-            thisAnonInstanceInfo.instanceId
-        );
-    }
-
-    /**
-     * IMPORTANT: this function needs to be called before the init function.
-     *
-     * Establish a short-running chum with the person received as argument.
-     *
-     * It tries to establish a connection with all endpoints founded for the
-     * person received as a parameter and if the connection is not established
-     * with at least one of the communication endpoints until the timeout expires
-     * an error will be thrown and all connections will be closed.
-     *
-     * After a connection was established a short-running chum connection is started
-     * with that instance.
-     *
-     * When the chum connection is closed (the data was synchronised) the function
-     * will return.
-     *
-     * @param remotePersonId
-     * @param retryTimeout
-     * @param successTimeout
-     */
-    async connectOneTime(
-        remotePersonId: SHA256IdHash<Person>,
-        retryTimeout: number = 5000,
-        successTimeout: number = 10000
-    ): Promise<void> {
-        // Extract my local anonymous instance info
-        let thisAnonInstanceInfo: LocalInstanceInfo | undefined;
-        const infos = await this.instancesModel.localInstancesInfo();
-        if (infos.length !== 2) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                if (!instanceInfo.isMain) {
-                    thisAnonInstanceInfo = instanceInfo;
-                }
-            })
-        );
-
-        if (!thisAnonInstanceInfo) {
-            throw new Error('Unknown anonymous identity!');
-        }
-
-        // Get all contact objects for the person received as parameter
-        const allContactObjects = await this.contactModel.getContactObjects(remotePersonId);
-
-        // Read al known endpoints for the person received as argument
-        const endpointHashes = allContactObjects
-            .map(contact => {
-                return contact.communicationEndpoints;
-            })
-            .flat();
-
-        // Get all the communication endpoint objects
-        const endpoints = await Promise.all(
-            endpointHashes.map(endpointHash => getObject(endpointHash))
-        );
-        const instanceEndpoints: OneInstanceEndpoint[] = [];
-
-        // Filter only the OneInstanceEndpoint objects
-        for (const endpoint of endpoints) {
-            if (!thisAnonInstanceInfo) {
-                throw new Error('Unknown anonymous identity!');
-            }
-            if (
-                endpoint.$type$ === 'OneInstanceEndpoint' &&
-                endpoint.personId !== thisAnonInstanceInfo.personId
-            ) {
-                instanceEndpoints.push(endpoint);
-            }
-        }
-
-        // Get all instance keys from the received endpoints
-        const allInstanceKeys = await Promise.all(
-            instanceEndpoints.map(async endpoint => {
-                return await getObject(endpoint.instanceKeys);
-            })
-        );
-
-        const openedOce: OutgoingConnectionEstablisher[] = [];
-
-        // establish a connection for one of the received endpoints
-        const encryptedConnection: EncryptedConnection = await Promise.race(
-            allInstanceKeys.map(async instanceKeys => {
-                if (!thisAnonInstanceInfo) {
-                    throw new Error('This case was already covered above, so should never happen!');
-                }
-
-                const remotePublicKey = toByteArray(instanceKeys.publicKey);
-                const oce = new OutgoingConnectionEstablisher();
-                openedOce.push(oce);
-                return await oce.connectOnceSuccessfully(
-                    this.config.commServerUrl,
-                    toByteArray(thisAnonInstanceInfo.instanceKeys.publicKey),
-                    remotePublicKey,
-                    text => {
-                        if (!thisAnonInstanceInfo) {
-                            throw new Error('anonInstanceInfo not initialized.');
-                        }
-                        return thisAnonInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                            remotePublicKey,
-                            text
-                        );
-                    },
-                    cypherText => {
-                        if (!thisAnonInstanceInfo) {
-                            throw new Error('anonInstanceInfo not initialized.');
-                        }
-                        return thisAnonInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                            remotePublicKey,
-                            cypherText
-                        );
-                    },
-                    retryTimeout,
-                    successTimeout
-                );
-            })
-        );
-
-        // Stop all outgoing connection establisher that were started by this function
-        openedOce.forEach(oce => oce.stop());
-
-        // Specify the protocol that will be used
-        await ConnectionsModel.sendMessage(encryptedConnection, {
-            command: 'start_protocol',
-            protocol: 'chum_one_time',
-            version: '1.0'
-        });
-
-        // Start a short-running chum (keepRunning = false)
-        await this.startChumProtocol(
-            encryptedConnection,
-            thisAnonInstanceInfo.personId,
-            true,
-            true,
-            false,
-            remotePersonId
         );
     }
 
@@ -1841,17 +1627,12 @@ class ConnectionsModel extends EventEmitter {
     private async updateInstanceInfos(): Promise<void> {
         // Extract my local instance infos to build the map
         const infos = await this.instancesModel.localInstancesInfo();
-        if (infos.length !== 2) {
-            throw new Error('This applications needs exactly one alternate identity!');
-        }
 
         // Setup the public key to instanceInfo map
         await Promise.all(
             infos.map(async instanceInfo => {
                 if (instanceInfo.isMain) {
                     this.mainInstanceInfo = instanceInfo;
-                } else {
-                    this.anonInstanceInfo = instanceInfo;
                 }
             })
         );
