@@ -2,24 +2,18 @@ import yargs from 'yargs';
 import * as Logger from 'one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import type EncryptedConnection from '../misc/EncryptedConnection';
-import {AccessModel, ChannelManager, ContactModel} from '../models';
+import {AccessModel, ChannelManager, LeuteModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
 import {initInstance} from 'one.core/lib/instance';
 import RecipesStable from '../recipes/recipes-stable';
 import oneModules from '../generated/oneModules';
-import {
-    createManyObjectsThroughPurePlan,
-    createSingleObjectThroughPurePlan,
-    VERSION_UPDATES
-} from 'one.core/lib/storage';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
 import type {VersionedObjectResult} from 'one.core/lib/storage';
-import {implode} from 'one.core/lib/microdata-imploder';
-import fs from 'fs';
 import * as readline from 'readline';
-import {toByteArray} from 'base64-js';
 import type {Module, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
 
 /**
  * Import all plan modules
@@ -74,8 +68,8 @@ async function main(): Promise<void> {
     const instancesModel = new InstancesModel();
     const accessModel = new AccessModel();
     const channelManager = new ChannelManager(accessModel);
-    const contactModel = new ContactModel(instancesModel, argv.u);
-    const communicationModule = new CommunicationModule(argv.u, contactModel, instancesModel);
+    const leuteModel = new LeuteModel(instancesModel, argv.u);
+    const communicationModule = new CommunicationModule(argv.u, leuteModel, instancesModel);
     communicationModule.onKnownConnection(
         (
             conn: EncryptedConnection,
@@ -130,7 +124,7 @@ async function main(): Promise<void> {
                 contactDescriptions: []
             }
         );
-        contactModel.addNewContactObject(contactObject);*/
+        leuteModel.addNewContactObject(contactObject);*/
         }
     );
 
@@ -149,86 +143,23 @@ async function main(): Promise<void> {
     // Init models
     await accessModel.init();
     await instancesModel.init('secret_' + argv.i);
-    await contactModel.init();
+    await leuteModel.init();
     await channelManager.init();
-    const person = await contactModel.myMainIdentity();
 
-    // Find the anonymous id
-    let personAnon: SHA256IdHash<Person>;
-    let alternateIds = await contactModel.myIdentities();
-    alternateIds = alternateIds.filter(id => id !== person);
-    if (alternateIds.length > 1) {
-        throw new Error('Application expects exactly one alternate identity.');
-    } else if (alternateIds.length < 1) {
-        personAnon = await contactModel.createNewIdentity(true);
-    } else {
-        personAnon = alternateIds[0];
-    }
-
-    console.log('MAIN ID: ', person);
-    console.log('ANON ID: ', personAnon);
-    printUint8Array(
-        'MAIN pubkey',
-        toByteArray((await instancesModel.localInstanceKeysForPerson(person)).publicKey)
-    );
-    printUint8Array(
-        'ANON pubkey',
-        toByteArray((await instancesModel.localInstanceKeysForPerson(personAnon)).publicKey)
-    );
-
-    // Get the contact objects for the main and anon id
-    const mainContactObjects = await contactModel.getContactObjectHashes(person);
-    const anonContactObjects = await contactModel.getContactObjectHashes(personAnon);
-    if (mainContactObjects.length !== 1) {
-        throw new Error('There is more than one contact object for main user.');
-    }
-    if (anonContactObjects.length !== 1) {
-        throw new Error('There is more than one contact object for anon user.');
-    }
-
-    // Write the contact objects to files, so that others can import them.
-    //fs.writeFileSync(`${argv.i}_main.contact`, await implode(mainContactObjects[0]));
-    fs.writeFileSync(`${argv.i}_anon.contact`, await implode(anonContactObjects[0]));
-
-    // Wait here for user input
-    await new Promise(resolve => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        rl.question('Press a key', answer => resolve(answer));
-    });
-
-    // Read all key files except our own
-    console.log('Wait Read .contact files');
-    const filter = '.contact';
-    const files = fs.readdirSync('.');
-    const keyFiles = files
-        .filter(file => file.endsWith(filter))
-        .filter(file => !file.startsWith(`${argv.i}_`));
-    const contactObjects = keyFiles.map(file => fs.readFileSync(file, {encoding: 'utf-8'}));
-    console.log(contactObjects);
-
-    // Import all contact objs into instance
-    console.log('Import contact objects:', contactObjects.length);
-    if (contactObjects.length > 0) {
-        console.log(
-            await createManyObjectsThroughPurePlan(
-                {
-                    module: '@module/explodeObject',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                contactObjects
-            )
-        );
-    }
+    const myProfileFile = `${argv.i}_main.profile`;
+    await writeMainProfile(leuteModel, instancesModel, myProfileFile);
+    await waitForKeyPress();
+    await importProfiles(myProfileFile);
 
     // Start the communication module
     console.log('Start the comm module');
 
-    contactModel.onContactUpdate(() => {
+    /**
+     * TODO: Register leute callback for new updates?
+     */
+    /*leuteModel.onContactUpdate(() => {
         console.log('ADDED a contact');
-    });
+    });*/
     await new Promise(resolve => {
         const rl = readline.createInterface({
             input: process.stdin,

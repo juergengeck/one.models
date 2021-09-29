@@ -1,6 +1,6 @@
 import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {ChannelEntry, ChannelInfo} from '../src/recipes/ChannelRecipes';
+import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
 import type {Person} from 'one.core/lib/recipes';
 
 /**

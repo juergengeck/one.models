@@ -3,7 +3,7 @@ import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage'
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
-import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
+import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
 
 /**
  * Create a channel by writing a ChannelInfo object with an empty head.

@@ -6,6 +6,7 @@ import WbcRecipes from './WbcDiffRecipes';
 import ECGRecipes from './ECGRecipes';
 import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
+import LeuteRecipes from './Leute/recipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -14,7 +15,8 @@ const RecipesExperimental: Recipe[] = [
     ...WbcRecipes,
     ...ECGRecipes,
     ...BloodGlucoseRecipes,
-    ...AudioExerciseRecipes
+    ...AudioExerciseRecipes,
+    ...LeuteRecipes
 ];
 
 export default RecipesExperimental;
