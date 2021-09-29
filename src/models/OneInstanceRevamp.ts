@@ -2,7 +2,7 @@ import {StateMachine} from '../misc/StateMachine';
 import {createMessageBus} from 'one.core/lib/message-bus';
 import {KeyValueStore} from '../misc/stores';
 import type {Module, Recipe} from 'one.core/lib/recipes';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {getDbInstance} from 'one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
@@ -94,6 +94,8 @@ export default class OneInstanceRevamp {
      */
     public beforeLogout = new OEvent<() => void>();
 
+    public afterInternetOfMe = new OEvent<(annonymousEmail: string) => void>();
+
     private config: OneInstanceConfiguration;
 
     /**
@@ -160,6 +162,7 @@ export default class OneInstanceRevamp {
                 initialRecipes: this.config.recipes
             });
             await this.importModules();
+            await registerRecipes(this.config.recipes);
 
             this.stateMachine.triggerEvent('init-succeeded');
         } catch (e) {
@@ -168,11 +171,19 @@ export default class OneInstanceRevamp {
         }
     }
 
-    public registerWithInternetOfMe(
+    /**
+     *
+     * @param {string} email
+     * @param {string | null} secret
+     * @param {string} anonEmail
+     * @returns {Promise<void>}
+     */
+    public async registerWithInternetOfMe(
         email: string,
-        anonymousEmail?: string,
-    ): void {
-        // wip
+        secret: string | null = null,
+        anonEmail: string
+    ): Promise<void> {
+        // WIP
     }
 
     /**
@@ -198,6 +209,7 @@ export default class OneInstanceRevamp {
                 initialRecipes: this.config.recipes
             });
             await this.importModules();
+            await registerRecipes(this.config.recipes);
             // persist the credentials
             this.storage.setItem('name', name);
             this.storage.setItem('email', email);
