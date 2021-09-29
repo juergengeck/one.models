@@ -346,7 +346,7 @@ export const QuestionnaireRules: RecipeRule[] = [
     },
 
     // FHIR(Resource): Language of the resource content - Common Languages (Preferred but limited to AllLanguages)
-    // Note: We use this to store in which language this questionnaire is formulated.
+    // Note: We use this to stores in which language this questionnaire is formulated.
     {
         itemprop: 'language',
         optional: true

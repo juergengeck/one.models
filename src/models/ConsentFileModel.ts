@@ -33,7 +33,7 @@ export enum FileType {
 }
 
 /**
- * This model implements the possibility to store and load the consent file and the dropout file of an user.
+ * This model implements the possibility to stores and load the consent file and the dropout file of an user.
  */
 export default class ConsentFileModel extends EventEmmiter implements Model {
     // Event is emitted when the consent file data is updated.
@@ -95,7 +95,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     }
 
     /**
-     * Used to store the consent file of an user in one.
+     * Used to stores the consent file of an user in one.
      * @param consentFile
      */
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
@@ -138,7 +138,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     }
 
     /**
-     * Used to store the dropout file of an user in one.
+     * Used to stores the dropout file of an user in one.
      * @param dropoutFile
      */
     async addDropoutFile(dropoutFile: DropoutFile): Promise<void> {

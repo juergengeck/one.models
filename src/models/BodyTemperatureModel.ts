@@ -52,7 +52,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     }
 
     /**
-     * Used to store a body temperature in one instance.
+     * Used to stores a body temperature in one instance.
      * @param bodyTemperature - the body temperature measurement provided by the user.
      * @param creationTimestamp - the time in milliseconds when the body temperature was measured.
      */
@@ -62,7 +62,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
             throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.entryError'));
         }
 
-        /** store the body temperature in one **/
+        /** stores the body temperature in one **/
         await this.channelManager.postToChannel(
             BodyTemperatureModel.channelId,
             {$type$: 'BodyTemperature', temperature: bodyTemperature},

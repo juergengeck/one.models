@@ -59,8 +59,8 @@ export enum ContactEvent {
 
 /**
  * This represents the object types of the contact description
- * @enum PERSON_NAME -> the type of object that will store the person's name
- *       PROFILE_IMAGE -> the type of object that will store the person's profile image
+ * @enum PERSON_NAME -> the type of object that will stores the person's name
+ *       PROFILE_IMAGE -> the type of object that will stores the person's profile image
  */
 export enum DescriptionTypes {
     PERSON_NAME = 'PersonName',
@@ -69,7 +69,7 @@ export enum DescriptionTypes {
 
 /**
  * This represents the object types of the communication endpoints
- * @enum EMAIL -> the type of object that will store the person's email
+ * @enum EMAIL -> the type of object that will stores the person's email
  */
 export enum CommunicationEndpointsTypes {
     EMAIL = 'Email'
