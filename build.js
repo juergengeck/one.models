@@ -109,33 +109,35 @@ function usage() {
     console.log(`
 Usage: node build.js or directly call ./build.js
 
-Options: [help]
+Options: [h | help | -h | --help]
          [node|browser|rn|low|moddable]
          [-m es2015|commonjs|systemjs|umd]
          [-t target directory]
-         [-f script.js]
+         [-f script.ts]
 
 Options:
 
-  h | help | -h | --help   Show this usage text.
-
-  Target:
+  Platform target:
 
   nodejs     Build for node.js
   browser    Build for webbrowsers
   rn         Build for React Native
 
-  NOTE: The target can also be given in environment variable ONE_TARGET_PLATFORM
-        Specifying a target platform as command line argument overrides the environment variable.
+  The target can also be given in package.json's refinio.platform.
+  All package.json starting from the current project root to the highest
+  (root) directory are searched for refinio.platform. The highest pakage.json
+  that contains this setting is used.
+  Specifying a target platform as command line argument takes precedence.
+  If no platform is provided "nodejs" will be the default.
 
-  -m Choose the target module system. Default is CommonJS, other options are ES2015,
+  -m Choose the target module system. Default is CommonJS. Other options are ES2015,
      SystemJS and UMD (all names need to be without any capitalization).
 
   -t target directory Default is ./lib/
 
   The -f option is for processing source files individually, usually by a watcher process:
 
-  -f relative/path/script.js
+  -f relative/path/script.ts
 
   Example for how to use it to build for the "node.js" target in a WebStorm watcher process that
   watches source files for changes and calls build.js when it detects a change:
@@ -251,14 +253,14 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         console.log(`Copying file ${join(srcDir, file)} ⇒ ${destination}.ts`);
         await writeFile(destination + '.ts', code, {flag: 'w'});
     } else {
-        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}[.ts]`);
-
         BABEL_OPTS.filename = file;
 
         const fileExtension =
             targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
                 ? '.mjs'
                 : '.js';
+
+        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
 
         const transformedCode = await transform(code, BABEL_OPTS);
         await writeFile(destination + fileExtension, transformedCode, {flag: 'w'});
@@ -357,23 +359,25 @@ async function findHighestPkgJsonRefinioPlatform() {
     /** @type {('nodejs' | 'browser' | 'rn' | undefined)} */
     let system;
     let dir = __dirname;
+    let prevDir = '';
 
-    while (true) {
+    while (dir !== prevDir) {
         const refinio = await readPkgJsonRefinio(dir);
 
         if (isObject(refinio)) {
             if (isValidPlatformString(refinio.platform)) {
                 system = refinio.platform;
+                console.log(
+                    `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                );
             } else {
                 console.log(
-                    `Invalid refinio.platform string "${refinio.platform}" in ${dir}/package.json`
+                    `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
                 );
             }
         }
 
-        if (dir === sep) {
-            break;
-        }
+        prevDir = dir;
         dir = join(dir, '..');
     }
 
@@ -386,23 +390,16 @@ async function findHighestPkgJsonRefinioPlatform() {
  * @returns {Promise<string>}
  */
 async function getSystem() {
-    let system = 'nodejs';
+    let system;
 
-    if (process.argv.includes('browser')) {
+    if (process.argv.includes('nodejs')) {
+        system = 'nodejs';
+    } else if (process.argv.includes('browser')) {
         system = 'browser';
     } else if (process.argv.includes('rn') || process.argv.includes('react-native')) {
         system = 'rn';
-    } else if (typeof process.env.ONE_TARGET_PLATFORM === 'string') {
-        if (Object.keys(PLATFORMS).includes(process.env.ONE_TARGET_PLATFORM)) {
-            system = process.env.ONE_TARGET_PLATFORM;
-        } else {
-            throw new Error(
-                `ONE_TARGET_PLATFORM is set to ${process.env.ONE_TARGET_PLATFORM}, but it must ` +
-                    `be one of ${Object.keys(PLATFORMS).join(', ')}`
-            );
-        }
     } else {
-        system = (await findHighestPkgJsonRefinioPlatform()) || system;
+        system = (await findHighestPkgJsonRefinioPlatform()) || 'nodejs';
     }
 
     return system;
