@@ -1,5 +1,5 @@
 import type {CRDTMetaData, Person, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
+import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
 import {
     CommunicationEndpointTypeNameSet,
     CommunicationEndpointTypes
@@ -61,7 +61,7 @@ export const ProfileRecipe: Recipe = {
     ]
 };
 
-export const ProfileCRDTDataRecipe: Recipe = generateCrdtRecipe(
+export const ProfileCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(
     ProfileRecipe,
     'ProfileCRDTMetaData'
 );
