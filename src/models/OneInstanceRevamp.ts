@@ -20,12 +20,9 @@ type AuthEvent =
     | 'init-succeeded'
     | 'logout-started'
     | 'logout-failed'
-    | 'logout-succeeded'
-    | 'iom-init-started'
-    | 'iom-init-failed'
-    | 'iom-init-succeeded';
+    | 'logout-succeeded';
 
-type AuthState = 'uninitialized' | 'initializing' | 'initialized';
+type AuthState = 'uninitialized' | 'initializing' | 'initialized' | 'shutting-down';
 
 /**
  * Configuration parameters for the OneInstanceModel
@@ -35,8 +32,6 @@ export type OneInstanceConfiguration = {
     encryptStorage: boolean;
     // desired recipes
     recipes: Recipe[];
-    // creates a fresh new random instance if the user does not want to create an account
-    starterAccount: boolean;
 };
 
 /**
@@ -49,12 +44,13 @@ export default class OneInstanceRevamp {
      * @type {StateMachine<AuthState, AuthEvent>}
      * @private
      */
-    protected stateMachine: StateMachine<AuthState, AuthEvent> = (() => {
+    public stateMachine: StateMachine<AuthState, AuthEvent> = (() => {
         const sm = new StateMachine<AuthState, AuthEvent>();
         // Add the states
         sm.addState('initialized');
         sm.addState('initializing');
         sm.addState('uninitialized');
+        sm.addState('shutting-down');
 
         // Add the events
         sm.addEvent('init-started');
@@ -63,38 +59,28 @@ export default class OneInstanceRevamp {
         sm.addEvent('logout-started');
         sm.addEvent('logout-failed');
         sm.addEvent('logout-succeeded');
-        sm.addEvent('iom-init-started');
-        sm.addEvent('iom-init-failed');
-        sm.addEvent('iom-init-succeeded');
 
         // Add the transitions
         sm.addTransition('init-started', 'uninitialized', 'initializing');
         sm.addTransition('init-succeeded', 'initializing', 'initialized');
         sm.addTransition('init-failed', 'initializing', 'uninitialized');
-        sm.addTransition('logout-started', 'uninitialized', 'initializing');
-        sm.addTransition('logout-succeeded', 'initializing', 'initialized');
-        sm.addTransition('logout-failed', 'initializing', 'uninitialized');
-        sm.addTransition('iom-init-started', 'uninitialized', 'initializing');
-        sm.addTransition('iom-init-succeeded', 'initializing', 'initialized');
-        sm.addTransition('iom-init-failed', 'initializing', 'uninitialized');
+
+        sm.addTransition('logout-started', 'initialized', 'shutting-down');
+        sm.addTransition('logout-succeeded', 'shutting-down', 'uninitialized');
+        sm.addTransition('logout-failed', 'shutting-down', 'initialized');
 
         sm.setInitialState('uninitialized');
         return sm;
     })();
 
     /**
-     * Listening interface for external modules
-     * @type {OEvent<(enteredState: StateT) => void>}
-     */
-    public onEnterState = this.stateMachine.onEnterState;
-
-    /**
      * This event is emitted just before the logout finishes and before the instance is
      * closed so that you can shutdown the models.
      */
-    public beforeLogout = new OEvent<() => void>();
+    public onInstanceClosed = new OEvent<() => void>();
 
-    public afterInternetOfMe = new OEvent<(annonymousEmail: string) => void>();
+    public onInstanceStarted = new OEvent<() => void>();
+
 
     private config: OneInstanceConfiguration;
 
@@ -112,35 +98,8 @@ export default class OneInstanceRevamp {
     public constructor(config: Partial<OneInstanceConfiguration>) {
         this.config = {
             encryptStorage: config.encryptStorage !== undefined ? config.encryptStorage : false,
-            recipes: config.recipes !== undefined ? config.recipes : [],
-            starterAccount: config.starterAccount !== undefined ? config.starterAccount : false
+            recipes: config.recipes !== undefined ? config.recipes : []
         };
-    }
-
-    /**
-     *
-     */
-    public init(): void {
-        const creds = this.retrieveStoredCredentials();
-        if (this.config.starterAccount) {
-            // you don't need to know when this promise gets resolved, because the needed event
-            // will be emitted already by calling login() or register()
-            new Promise<void>(async (resolve, rejected) => {
-                if (creds !== null) {
-                    const {name, email} = creds;
-                    await this.login(name, email);
-                } else {
-                    const randomEmail = await createRandomString(64);
-                    const randomInstanceName = await createRandomString(64);
-                    await this.register(randomInstanceName, randomEmail);
-                }
-                resolve();
-            })
-                .then(_ => {})
-                .catch(err => {
-                    throw new Error(err);
-                });
-        }
     }
 
     /**
@@ -152,6 +111,7 @@ export default class OneInstanceRevamp {
      */
     public async login(name: string, email: string, secret: string | null = null): Promise<void> {
         this.stateMachine.triggerEvent('init-started');
+
         try {
             await initInstance({
                 name: name,
@@ -164,26 +124,13 @@ export default class OneInstanceRevamp {
             await this.importModules();
             await registerRecipes(this.config.recipes);
 
+            await this.onInstanceStarted.emitAll();
+
             this.stateMachine.triggerEvent('init-succeeded');
         } catch (e) {
             this.stateMachine.triggerEvent('init-failed');
             throw new Error(e.toString());
         }
-    }
-
-    /**
-     *
-     * @param {string} email
-     * @param {string | null} secret
-     * @param {string} anonEmail
-     * @returns {Promise<void>}
-     */
-    public async registerWithInternetOfMe(
-        email: string,
-        secret: string | null = null,
-        anonEmail: string
-    ): Promise<void> {
-        // WIP
     }
 
     /**
@@ -214,6 +161,9 @@ export default class OneInstanceRevamp {
             this.storage.setItem('name', name);
             this.storage.setItem('email', email);
             this.storage.setItem('deviceID', await createRandomString(64));
+
+            await this.onInstanceStarted.emitAll();
+
             // trigger the succeeded event
             this.stateMachine.triggerEvent('init-succeeded');
         } catch (e) {
@@ -232,7 +182,7 @@ export default class OneInstanceRevamp {
         try {
             // Signal the application that it should shutdown one dependent models
             // and wait for them to shut down
-            await this.beforeLogout.emitAll();
+            await this.onInstanceClosed.emitAll();
             getDbInstance().close();
             closeInstance();
             this.stateMachine.triggerEvent('logout-succeeded');
@@ -240,6 +190,22 @@ export default class OneInstanceRevamp {
             this.stateMachine.triggerEvent('logout-failed');
             throw new Error(e);
         }
+    }
+
+
+    /**
+     *
+     * @param {string} email
+     * @param {string | null} secret
+     * @param {string} anonEmail
+     * @returns {Promise<void>}
+     */
+    public async registerWithInternetOfMe(
+        email: string,
+        secret: string | null = null,
+        anonEmail: string
+    ): Promise<void> {
+        // WIP
     }
 
     public erase(): void {
@@ -252,8 +218,6 @@ export default class OneInstanceRevamp {
 
     /**
      * Retrieves the credentials from the store.
-     * @returns {{name: string, deviceID: string, email: string} | null}
-     * @private
      */
     private retrieveStoredCredentials(): {name: string; deviceID: string; email: string} | null {
         const name = this.storage.get('name');
@@ -269,8 +233,6 @@ export default class OneInstanceRevamp {
 
     /**
      * Import all plan modules.
-     * @returns {Promise<VersionedObjectResult<Module>[]>}
-     * @private
      */
     private async importModules(): Promise<VersionedObjectResult<Module>[]> {
         const modules = Object.keys(oneModules).map(key => ({
