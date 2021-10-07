@@ -108,29 +108,40 @@ function isValidPlatformString(s) {
 function usage() {
     console.log(`
 Usage: node build.js or directly call ./build.js
+
 Options: [h | help | -h | --help]
          [node|browser|rn|low|moddable]
          [-m es2015|commonjs|systemjs|umd]
          [-t target directory]
          [-f script.ts]
+
 Options:
+
   Platform target:
+
   nodejs     Build for node.js
   browser    Build for webbrowsers
   rn         Build for React Native
+
   The target can also be given in package.json's refinio.platform.
   All package.json starting from the current project root to the highest
   (root) directory are searched for refinio.platform. The highest pakage.json
   that contains this setting is used.
   Specifying a target platform as command line argument takes precedence.
   If no platform is provided "nodejs" will be the default.
+
   -m Choose the target module system. Default is CommonJS. Other options are ES2015,
      SystemJS and UMD (all names need to be without any capitalization).
+
   -t target directory Default is ./lib/
+
   The -f option is for processing source files individually, usually by a watcher process:
+
   -f relative/path/script.ts
+
   Example for how to use it to build for the "node.js" target in a WebStorm watcher process that
   watches source files for changes and calls build.js when it detects a change:
+
   Program:   build.js
   Arguments: -f $/FilePathRelativeToProjectRoot$ node
   File Type: "Javascript"
@@ -305,7 +316,7 @@ async function createDeclarationFiles(targetDir) {
         try {
             execSync(
                 `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
-                (dir === 'test' ? 'test' : targetDir),
+                    (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
@@ -313,8 +324,8 @@ async function createDeclarationFiles(targetDir) {
         } catch (/** @type any */ err) {
             console.error(
                 '\ntsc failed with ' +
-                err.message +
-                '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+                    err.message +
+                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
             );
         }
     }

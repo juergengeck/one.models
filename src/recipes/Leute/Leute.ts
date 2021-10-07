@@ -1,5 +1,5 @@
 import type {CRDTMetaData, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtRecipe} from 'one.core/lib/crdt-recipes';
+import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
 import type {Someone} from './Someone';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {VersionedObjectResult} from 'one.core/lib/storage';
@@ -45,7 +45,7 @@ export const LeuteRecipe: Recipe = {
     ]
 };
 
-export const LeuteCRDTDataRecipe: Recipe = generateCrdtRecipe(LeuteRecipe, 'LeuteCRDTMetaData');
+export const LeuteCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(LeuteRecipe, 'LeuteCRDTMetaData');
 
 // #### one.core interfaces ####
 
