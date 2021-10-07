@@ -19,7 +19,26 @@ export default class MultiUser extends Authenticater {
             throw new Error('Could not register user. User already exists.');
         }
 
-        await this.login(email, secret, instanceName);
+        this.authState.triggerEvent('login');
+
+        try {
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: 'name' + email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll();
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
     }
 
     /**
@@ -46,13 +65,13 @@ export default class MultiUser extends Authenticater {
                     email: email,
                     secret: secret,
                     ownerName: 'name' + email,
-                    directory: super.config.directory,
-                    initialRecipes: super.config.recipes,
-                    initiallyEnabledReverseMapTypes: super.config.reverseMaps
+                    directory: this.config.directory,
+                    initialRecipes: this.config.recipes,
+                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
                 });
-                await super.importModules();
+                await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await super.onLogin.emitAll();
+                await this.onLogin.emitAll();
                 this.authState.triggerEvent('login_success');
             } catch (error) {
                 this.authState.triggerEvent('login_failure');

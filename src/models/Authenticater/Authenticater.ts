@@ -1,5 +1,4 @@
 import {StateMachine} from '../../misc/StateMachine';
-import {KeyValueStore} from 'one.core/lib/system/key-value-store';
 import {OEvent} from '../../misc/OEvent';
 import {
     createSingleObjectThroughPurePlan,
@@ -13,6 +12,7 @@ import {DEFAULT_STORAGE_DIRECTORY} from 'one.core/lib/system/storage-base';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
 import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
+import {KeyValueStore} from 'one.core/lib/system/key-value-store';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
@@ -66,7 +66,7 @@ export default abstract class Authenticater {
         sm.addEvent('logout_done');
 
         // Add the transitions
-        sm.addTransition('login', 'logging_out', 'logging_in');
+        sm.addTransition('login', 'logged_out', 'logging_in');
         sm.addTransition('login_failure', 'logging_in', 'logged_out');
         sm.addTransition('login_success', 'logging_in', 'logged_in');
         sm.addTransition('logout', 'logged_in', 'logging_out');

@@ -1,5 +1,5 @@
-import MultiUser from "./MultiUser";
-import SingleUser from "./SingleUser";
-import SingleUserNoAuth from "./SingleUserNoAuth";
+import MultiUser from './MultiUser';
+import SingleUser from './SingleUser';
+import SingleUserNoAuth from './SingleUserNoAuth';
 
-export {MultiUser, SingleUser, SingleUserNoAuth}
+export {MultiUser, SingleUser, SingleUserNoAuth};

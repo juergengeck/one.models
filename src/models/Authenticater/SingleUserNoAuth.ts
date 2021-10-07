@@ -25,29 +25,42 @@ export default class SingleUserNoAuth extends Authenticater {
      * This function will:
      *  - will check if there are any stored credentials
      *      - if no, it will persist the generated email, instance name & secret
-     *      - if yes, it will check if the storage exist
-     *          - if yes, it will throw error
-     *          - if no, it will login the user
+     *      - if yes, continue
+     *  - will trigger the 'login' event
+     *  - will init the instance
+     *  - if successful
+     *      - if yes, it will trigger the 'login_success' event
+     *      - if no, it will throw error and trigger 'login_failure' event
      */
     async register(): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
+        const {name, email, secret} = await this.generateCredentialsIfNotExist();
 
-        if (credentials === null) {
-            this.persistCredentialsToStore({
-                email: await createRandomString(64),
-                name: await createRandomString(64),
-                secret: await createRandomString(64)
-            });
-        } else {
-            const {email, name} = credentials;
-            const storage = await doesStorageExist(name, email);
+        const storage = await doesStorageExist(name, email, this.config.directory);
 
-            if (storage) {
-                throw new Error('Could not register user. The single user already exists.');
-            }
+        if (storage) {
+            throw new Error('Could not register user. The single user already exists.');
         }
 
-        await this.login();
+        this.authState.triggerEvent('login');
+
+        try {
+            await initInstance({
+                name: name,
+                email: email,
+                secret: secret === undefined ? null : secret,
+                ownerName: 'name' + email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll();
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
     }
 
     /**
@@ -71,7 +84,7 @@ export default class SingleUserNoAuth extends Authenticater {
             throw new Error('Error while trying to login. User does not exists.');
         } else {
             const {email, name, secret} = credentials;
-            const storage = await doesStorageExist(name, email);
+            const storage = await doesStorageExist(name, email, this.config.directory);
 
             if (!storage) {
                 this.authState.triggerEvent('login_failure');
@@ -84,13 +97,13 @@ export default class SingleUserNoAuth extends Authenticater {
                     email: email,
                     secret: secret === undefined ? null : secret,
                     ownerName: 'name' + email,
-                    directory: super.config.directory,
-                    initialRecipes: super.config.recipes,
-                    initiallyEnabledReverseMapTypes: super.config.reverseMaps
+                    directory: this.config.directory,
+                    initialRecipes: this.config.recipes,
+                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
                 });
-                await super.importModules();
+                await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await super.onLogin.emitAll();
+                await this.onLogin.emitAll();
 
                 this.authState.triggerEvent('login_success');
             } catch (error) {
@@ -123,10 +136,9 @@ export default class SingleUserNoAuth extends Authenticater {
     }
 
     private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = super.store.getItem(
+        const storeCredentials = this.store.getItem(
             SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE
         );
-
         if (storeCredentials === null) {
             return null;
         }
@@ -135,9 +147,20 @@ export default class SingleUserNoAuth extends Authenticater {
     }
 
     private persistCredentialsToStore(credentials: Credentials): void {
-        super.store.setItem(
-            SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE,
-            stringify(credentials)
-        );
+        this.store.setItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+    }
+
+    private async generateCredentialsIfNotExist(): Promise<Credentials> {
+        const credentialsFromStore = this.retrieveCredentialsFromStore();
+        if (credentialsFromStore === null) {
+            const generatedCredentials = {
+                email: await createRandomString(64),
+                name: await createRandomString(64),
+                secret: await createRandomString(64)
+            };
+            this.persistCredentialsToStore(generatedCredentials);
+            return generatedCredentials;
+        }
+        return credentialsFromStore;
     }
 }

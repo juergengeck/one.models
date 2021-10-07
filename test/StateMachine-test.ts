@@ -54,6 +54,8 @@ describe('StateMachine test', () => {
         testModel = model;
     });
 
+    // @todo implement test case where transition doesn't exist for the triggered event.
+
     it('Trigger invalid event ', async () => {
         let sm = createStateMachineWithoutHistory(false);
         let triggered = false;

@@ -266,15 +266,16 @@ export class StateMachine<StateT, EventT> {
         if (!transitionsForEvent) {
             // propagate event to sub state machines
             const subStateMachine = this.subStateMachines.get(this.crtState);
-            if (subStateMachine) {
-                const srcStates = this.currentStates;
 
-                subStateMachine.triggerEvent(event);
-
-                this.notifyListeners(srcStates, this.currentStates, event);
-
-                return;
+            if(!subStateMachine){
+                throw new Error('Event is not valid in the current state.')
             }
+
+            const srcStates = this.currentStates;
+
+            subStateMachine.triggerEvent(event);
+
+            this.notifyListeners(srcStates, this.currentStates, event);
 
             return;
         }
