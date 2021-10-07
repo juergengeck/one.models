@@ -1,5 +1,5 @@
-import type MultiUser from "./MultiUser";
-import type SingleUser from "./SingleUser";
-import type SingleUserNoAuth from "./SingleUserNoAuth";
+import MultiUser from "./MultiUser";
+import SingleUser from "./SingleUser";
+import SingleUserNoAuth from "./SingleUserNoAuth";
 
 export {MultiUser, SingleUser, SingleUserNoAuth}
