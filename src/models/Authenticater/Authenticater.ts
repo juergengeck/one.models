@@ -6,24 +6,47 @@ import {
     VERSION_UPDATES,
     VersionedObjectResult
 } from 'one.core/lib/storage';
-import type {Module} from 'one.core/lib/recipes';
+import type {Module, Recipe, OneObjectTypeNames} from 'one.core/lib/recipes';
 import oneModules from '../../generated/oneModules';
 import {closeInstance} from 'one.core/lib/instance';
+import {DEFAULT_STORAGE_DIRECTORY} from 'one.core/lib/system/storage-base';
+import RecipesStable from '../../recipes/recipes-stable';
+import RecipesExperimental from '../../recipes/recipes-experimental';
+import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
 export type AuthState = 'logged_out' | 'logging_in' | 'logged_in' | 'logging_out';
 
-export abstract class Authenticater {
-    protected store: Storage = KeyValueStore;
+export type AuthenticaterOptions = {
+    /** the desired storage directory - default is {@link DEFAULT_STORAGE_DIRECTORY} **/
+    directory: string;
+    /**  One recipes - use all recipes if not specified **/
+    recipes: Recipe[];
+    /**  Reverse Maps - default is undefined  **/
+    reverseMaps?: Map<OneObjectTypeNames, null | Set<string>>;
+};
 
+/**
+ *
+ * Base model class for future authentication workflows/scenarios. This class contains
+ * the authentication state {@link authState} and the key-value store {@link store}, exposes events
+ * to external sources, and implements some common functionality you might find in any workflow/scenario.
+ */
+export default abstract class Authenticater {
+    /**
+     * This event will be triggered right AFTER the instance was initialised
+     */
     public onLogin = new OEvent<() => void>();
 
+    /**
+     * This event will be triggered right BEFORE the instance was closed
+     */
     public onLogout = new OEvent<() => void>();
 
     /**
-     * IIFE Function. It will return the state machine with the registered states, events &
-     * transitions.
+     * JavaScript Immediately-invoked Function Expressions.
+     * It returns the state machine with the registered states, events and transitions.
      * @type {StateMachine<AuthState, AuthEvent>}
      * @private
      */
@@ -53,31 +76,39 @@ export abstract class Authenticater {
         return sm;
     })();
 
+    /**
+     * Class configuration
+     * @protected
+     */
+    protected config: AuthenticaterOptions;
+
+    /**
+     * Key-Value Store
+     * @protected
+     */
+    protected store: Storage = KeyValueStore;
+
+    constructor(options: Partial<AuthenticaterOptions>) {
+        this.config = {
+            directory:
+                options.directory === undefined ? DEFAULT_STORAGE_DIRECTORY : options.directory,
+            recipes:
+                options.recipes === undefined
+                    ? [...RecipesStable, ...RecipesExperimental]
+                    : options.recipes,
+            reverseMaps: options.reverseMaps === undefined ? undefined : options.reverseMaps
+        };
+    }
+
     abstract register(email: string, secret: string, instanceName: string): Promise<void>;
     abstract login(email: string, secret: string, instanceName: string): Promise<void>;
     abstract loginOrRegister(email: string, secret: string, instanceName: string): Promise<void>;
     abstract isRegistered(email: string, instanceName: string): Promise<boolean>;
 
-    async logout(): Promise<void> {
-        this.authState.triggerEvent('logout');
-
-        try {
-            // Signal the application that it should shutdown one dependent models
-            // and wait for them to shut down
-            await this.onLogout.emitAll();
-            closeInstance();
-            this.authState.triggerEvent('logout_done');
-        } catch (e) {
-            throw new Error(e);
-        }
-    }
-
-    erase(): Promise<void> {
-        this.store.clear();
-        // @todo implement delete instance in core for multi platform use
-        throw new Error('Not implemented.');
-    }
-
+    /**
+     * This function will import generated modules.
+     * @protected
+     */
     protected async importModules(): Promise<VersionedObjectResult<Module>[]> {
         const modules = Object.keys(oneModules).map(key => ({
             moduleName: key,
@@ -96,5 +127,42 @@ export abstract class Authenticater {
                 )
             )
         );
+    }
+
+    /**
+     * Logouts the user. This function will:
+     *  - trigger the 'logout' event
+     *  - trigger onLogout and wait for all the listeners to finish
+     *  - close the instance
+     *  - trigger the 'logout_done' event if it is successfully
+     */
+    async logout(): Promise<void> {
+        this.authState.triggerEvent('logout');
+
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+        // @todo there might be some issues with unfinished db transactions - we will see
+        closeInstance();
+        this.authState.triggerEvent('logout_done');
+    }
+
+    /**
+     * Erases the current instance's database. This function will:
+     *  - completely clear the store
+     *  - trigger the 'logout' event
+     *  - trigger onLogout and wait for all the listeners to finish
+     *  - delete the database (this will call {@link closeInstance})
+     *  - trigger the 'logout_done' event if it is successfully
+     */
+    async erase(): Promise<void> {
+        this.store.clear();
+        this.authState.triggerEvent('logout');
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+        // deleteDatabase will automatically close the instance before deleting the db
+        await deleteDatabase();
+        this.authState.triggerEvent('logout_done');
     }
 }

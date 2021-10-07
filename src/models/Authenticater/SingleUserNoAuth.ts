@@ -1,5 +1,5 @@
-import {Authenticater} from './Authenticater';
-import {initInstance} from 'one.core/lib/instance';
+import Authenticater from './Authenticater';
+import {initInstance, registerRecipes} from 'one.core/lib/instance';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
 import {stringify} from 'one.core/lib/util/sorted-stringify';
@@ -10,9 +10,25 @@ type Credentials = {
     secret: string | null;
 };
 
+/**
+ * This class represents an 'Single User API without Credentials' authentication workflow.
+ */
 export default class SingleUserNoAuth extends Authenticater {
-    private static readonly CREDENTIAL_CONTAINER_KEY_STORE = 'credentials';
+    /**
+     * The store key to the credentials container for SingleUserNoAuth
+     * @private
+     */
+    private static readonly CREDENTIAL_CONTAINER_KEY_STORE = 'credentials-single-user-no-auth';
 
+    /**
+     * Registers the user with generated credentials.
+     * This function will:
+     *  - will check if there are any stored credentials
+     *      - if no, it will persist the generated email, instance name & secret
+     *      - if yes, it will check if the storage exist
+     *          - if yes, it will throw error
+     *          - if no, it will login the user
+     */
     async register(): Promise<void> {
         const credentials = this.retrieveCredentialsFromStore();
 
@@ -34,6 +50,17 @@ export default class SingleUserNoAuth extends Authenticater {
         await this.login();
     }
 
+    /**
+     * Logins the user. This function will:
+     *  - trigger the 'login' event
+     *  - will check if there are any stored credentials
+     *      - if no, it will throw an error and trigger 'login_failure' event
+     *      - if yes, it will check if the storage exist
+     *          - if no, it will throw an error and trigger 'login_failure' event
+     *          - if yes, it will initialize the instance, import modules, register recipes
+     *            trigger onLogin and wait for all the listeners to finish and trigger
+     *            'login_success' event
+     */
     async login(): Promise<void> {
         this.authState.triggerEvent('login');
 
@@ -56,10 +83,13 @@ export default class SingleUserNoAuth extends Authenticater {
                     name: name,
                     email: email,
                     secret: secret === undefined ? null : secret,
-                    ownerName: 'name' + email
+                    ownerName: 'name' + email,
+                    directory: super.config.directory,
+                    initialRecipes: super.config.recipes,
+                    initiallyEnabledReverseMapTypes: super.config.reverseMaps
                 });
-                // await super.importModules();
-                // await registerRecipes(this.config.recipes);
+                await super.importModules();
+                await registerRecipes(this.config.recipes);
                 await super.onLogin.emitAll();
 
                 this.authState.triggerEvent('login_success');
@@ -70,6 +100,9 @@ export default class SingleUserNoAuth extends Authenticater {
         }
     }
 
+    /**
+     * This function will login or register based on the credentials existence in store.
+     */
     async loginOrRegister(): Promise<void> {
         const credentials = this.retrieveCredentialsFromStore();
 
@@ -80,6 +113,9 @@ export default class SingleUserNoAuth extends Authenticater {
         }
     }
 
+    /**
+     * Checks if the user exists or not by checking the credentials in the store.
+     */
     async isRegistered(): Promise<boolean> {
         const credentials = this.retrieveCredentialsFromStore();
 
