@@ -144,6 +144,7 @@ export default abstract class Authenticater {
         await this.onLogout.emitAll();
         // @todo there might be some issues with unfinished db transactions - we will see
         closeInstance();
+
         this.authState.triggerEvent('logout_done');
     }
 

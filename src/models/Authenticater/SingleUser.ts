@@ -135,7 +135,11 @@ export default class SingleUser extends Authenticater {
     async isRegistered(): Promise<boolean> {
         const credentials = this.retrieveCredentialsFromStore();
 
-        return credentials === null;
+        if(credentials === null){
+            return false;
+        }
+
+        return true;
     }
 
     private retrieveCredentialsFromStore(): Credentials | null {

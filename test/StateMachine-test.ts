@@ -94,6 +94,60 @@ describe('StateMachine test', () => {
         }
     }).timeout(1000);
 
+    it('Trigger an invalid transition that its not related to the current state', async (done) => {
+        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        subSm.addState('state3');
+        subSm.addState('state4');
+        subSm.addEvent('ev1');
+        subSm.addTransition('ev1', 'state3', 'state4');
+        subSm.setInitialState('state3');
+
+        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm)
+        sm.addState('state2')
+        sm.addEvent('ev1');
+        sm.addEvent('ev2');
+        sm.addTransition('ev2', 'state1', 'state2');
+        sm.addTransition('ev1', 'state2', 'state1');
+        sm.setInitialState('state1');
+
+        sm.triggerEvent('ev2')
+
+        try {
+            sm.triggerEvent('ev2')
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'The transition does not exists from the current state with the' +
+                ' specified event'
+            );
+            done();
+        }
+
+        throw new Error('should throw error')
+    })
+
+    it('Trigger an event that its relevant to the sub state machine only', async () => {
+        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        subSm.addState('state3');
+        subSm.addState('state4');
+        subSm.addEvent('ev1');
+        subSm.addTransition('ev1', 'state3', 'state4');
+        subSm.setInitialState('state3');
+
+        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm)
+        sm.addState('state2')
+        sm.addEvent('ev1');
+        sm.addEvent('ev2');
+        sm.addTransition('ev2', 'state1', 'state2');
+        sm.addTransition('ev1', 'state2', 'state1');
+
+        sm.setInitialState('state1');
+
+        sm.triggerEvent('ev1')
+    })
+
     it('Check events for init', async () => {
         let sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = false;

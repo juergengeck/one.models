@@ -267,8 +267,8 @@ export class StateMachine<StateT, EventT> {
             // propagate event to sub state machines
             const subStateMachine = this.subStateMachines.get(this.crtState);
 
-            if(!subStateMachine){
-                throw new Error('Event is not valid in the current state.')
+            if (!subStateMachine) {
+                throw new Error('Event is not valid in the current state.');
             }
 
             const srcStates = this.currentStates;
@@ -278,6 +278,19 @@ export class StateMachine<StateT, EventT> {
             this.notifyListeners(srcStates, this.currentStates, event);
 
             return;
+        }
+
+        const sourceStatesForEvent = Array.from(transitionsForEvent.keys());
+
+        // make sure the transition exists from the current state
+        if (
+            !this.subStateMachines.get(this.crtState) &&
+            sourceStatesForEvent.find(key => key !== this.crtState) !== undefined
+        ) {
+            throw new Error(
+                'The transition does not exists from the current state with the' +
+                    ' specified event'
+            );
         }
 
         this.currentStates.forEach(state => {
