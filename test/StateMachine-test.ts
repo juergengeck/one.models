@@ -63,13 +63,17 @@ describe('StateMachine test', () => {
             triggered = true;
         });
 
-        // Trigger state machine with non-existing event
-        // @ts-expect-error
-        sm.triggerEvent('nonexisting_event');
-
-        await wait(100);
-
-        expect(triggered).to.be.false;
+        try {
+            // Trigger state machine with non-existing event
+            // @ts-expect-error
+            sm.triggerEvent('nonexisting_event');
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'Event is not valid in the current state.'
+            );
+            expect(triggered).to.be.false;
+        }
     }).timeout(1000);
 
     it('Trigger valid event with missing transition for current state ', async () => {
@@ -79,11 +83,15 @@ describe('StateMachine test', () => {
             triggered = true;
         });
 
-        sm.triggerEvent('startListen');
-
-        await wait(100);
-
-        expect(triggered).to.be.false;
+        try {
+            sm.triggerEvent('startListen');
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'Event is not valid in the current state.'
+            );
+            expect(triggered).to.be.false;
+        }
     }).timeout(1000);
 
     it('Check events for init', async () => {
