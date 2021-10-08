@@ -37,7 +37,7 @@ describe('Authenticater test', () => {
             await singleUserWorkflow.erase();
             await loggedOutState;
         });
-        it.only('should test if erase() throws an error when it is called twice', async () => {
+        it('should test if erase() throws an error when it is called twice', async () => {
             let hadError = false;
             const loggedInState = waitForState('logged_in', singleUserWorkflow);
             await singleUserWorkflow.register();
@@ -57,7 +57,6 @@ describe('Authenticater test', () => {
                 hadError = true;
             }
 
-            console.log('here')
             expect(hadError).to.be.equal(true);
         })
         it('should test if register() throws an error when user already exist', async () => {
@@ -231,18 +230,5 @@ describe('Authenticater test', () => {
         it('should test if isRegistered() returns false when the user is not registered', async () => {
             expect(await singleUserWorkflow.isRegistered()).to.be.equal(false)
         });
-    });
-
-    describe('SingleUser Test', () => {
-        const Workflow = new SingleUser({});
-
-        after('f', async () => {});
-
-        it('should test register', () => {});
-        it('should test login', () => {});
-        it('should test logout', () => {});
-        it('should test loginOrRegister', () => {});
-        it('should test if user can be registered', () => {});
-        it('should test if user can be registered', () => {});
     });
 });
