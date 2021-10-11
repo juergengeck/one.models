@@ -1,39 +1,40 @@
-import Authenticater from './Authenticater';
+import Authenticator from './Authenticator';
+import {initInstance, registerRecipes} from 'one.core/lib/instance';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
-import {initInstance, registerRecipes} from 'one.core/lib/instance';
 import {stringify} from 'one.core/lib/util/sorted-stringify';
+import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
 
 type Credentials = {
     email: string;
     name: string;
+    secret: string | null;
 };
 
 /**
- * This class represents an 'Single User API With Credentials' authentication workflow.
+ * This class represents an 'Single User API without Credentials' authentication workflow.
  */
-export default class SingleUser extends Authenticater {
+export default class SingleUserNoAuth extends Authenticator {
     /**
-     * The store key to the credentials container for SingleUser
+     * The store key to the credentials container for SingleUserNoAuth
      * @private
      */
-    private static readonly CREDENTIAL_CONTAINER_KEY_STORE = 'credentials-single-user';
+    private static readonly CREDENTIAL_CONTAINER_KEY_STORE = 'credentials-single-user-no-auth';
 
     /**
-     * Registers the user with secret and generated instance name & email.
+     * Registers the user with generated credentials.
      * This function will:
      *  - will check if there are any stored credentials
-     *      - if no, it will persist the generated instance name & email
+     *      - if no, it will persist the generated email, instance name & secret
      *      - if yes, continue
      *  - will trigger the 'login' event
      *  - will init the instance
      *  - if successful
      *      - if yes, it will trigger the 'login_success' event
      *      - if no, it will throw error and trigger 'login_failure' event
-     * @param secret
      */
-    async register(secret: string): Promise<void> {
-        const {name, email} = await this.generateCredentialsIfNotExist();
+    async register(): Promise<void> {
+        const {name, email, secret} = await this.generateCredentialsIfNotExist();
 
         const storage = await doesStorageExist(name, email, this.config.directory);
 
@@ -56,7 +57,6 @@ export default class SingleUser extends Authenticater {
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll();
-
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
@@ -70,13 +70,12 @@ export default class SingleUser extends Authenticater {
      *  - will check if there are any stored credentials
      *      - if no, it will throw an error and trigger 'login_failure' event
      *      - if yes, it will check if the storage exist
+     *          - if no, it will throw an error and trigger 'login_failure' event
      *          - if yes, it will initialize the instance, import modules, register recipes
      *            trigger onLogin and wait for all the listeners to finish and trigger
      *            'login_success' event
-     *          - if no, it will throw an error and trigger 'login_failure' event
-     * @param secret
      */
-    async login(secret: string): Promise<void> {
+    async login(): Promise<void> {
         this.authState.triggerEvent('login');
 
         const credentials = this.retrieveCredentialsFromStore();
@@ -85,7 +84,7 @@ export default class SingleUser extends Authenticater {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
-            const {email, name} = credentials;
+            const {email, name, secret} = credentials;
             const storage = await doesStorageExist(name, email, this.config.directory);
 
             if (!storage) {
@@ -117,15 +116,14 @@ export default class SingleUser extends Authenticater {
 
     /**
      * This function will login or register based on the credentials existence in store.
-     * @param secret
      */
-    async loginOrRegister(secret: string): Promise<void> {
+    async loginOrRegister(): Promise<void> {
         const credentials = this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
-            await this.register(secret);
+            await this.register();
         } else {
-            await this.login(secret);
+            await this.login();
         }
     }
 
@@ -142,9 +140,22 @@ export default class SingleUser extends Authenticater {
         return true;
     }
 
-    private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = this.store.getItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+    /**
+     * Erases the current instance's database. This function will:
+     *  - calls logout()
+     *  - deletes the database
+     *  - removes (if present) only workflow related store
+     */
+    async erase(): Promise<void> {
+        await this.logout();
+        await deleteDatabase();
+        this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+    }
 
+    private retrieveCredentialsFromStore(): Credentials | null {
+        const storeCredentials = this.store.getItem(
+            SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE
+        );
         if (storeCredentials === null) {
             return null;
         }
@@ -153,7 +164,7 @@ export default class SingleUser extends Authenticater {
     }
 
     private persistCredentialsToStore(credentials: Credentials): void {
-        this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+        this.store.setItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
@@ -161,7 +172,8 @@ export default class SingleUser extends Authenticater {
         if (credentialsFromStore === null) {
             const generatedCredentials = {
                 email: await createRandomString(64),
-                name: await createRandomString(64)
+                name: await createRandomString(64),
+                secret: await createRandomString(64)
             };
             this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;

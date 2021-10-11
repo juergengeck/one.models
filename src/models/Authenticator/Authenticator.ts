@@ -11,7 +11,6 @@ import {closeInstance} from 'one.core/lib/instance';
 import {DEFAULT_STORAGE_DIRECTORY} from 'one.core/lib/system/storage-base';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
-import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
 import {KeyValueStore} from 'one.core/lib/system/key-value-store';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
@@ -33,7 +32,7 @@ export type AuthenticaterOptions = {
  * the authentication state {@link authState} and the key-value store {@link store}, exposes events
  * to external sources, and implements some common functionality you might find in any workflow/scenario.
  */
-export default abstract class Authenticater {
+export default abstract class Authenticator {
     /**
      * This event will be triggered right AFTER the instance was initialised
      */
@@ -78,13 +77,11 @@ export default abstract class Authenticater {
 
     /**
      * Class configuration
-     * @protected
      */
     protected config: AuthenticaterOptions;
 
     /**
      * Key-Value Store
-     * @protected
      */
     protected store: Storage = KeyValueStore;
 
@@ -100,14 +97,8 @@ export default abstract class Authenticater {
         };
     }
 
-    abstract register(email: string, secret: string, instanceName: string): Promise<void>;
-    abstract login(email: string, secret: string, instanceName: string): Promise<void>;
-    abstract loginOrRegister(email: string, secret: string, instanceName: string): Promise<void>;
-    abstract isRegistered(email: string, instanceName: string): Promise<boolean>;
-
     /**
      * This function will import generated modules.
-     * @protected
      */
     protected async importModules(): Promise<VersionedObjectResult<Module>[]> {
         const modules = Object.keys(oneModules).map(key => ({
@@ -145,25 +136,6 @@ export default abstract class Authenticater {
         // @todo there might be some issues with unfinished db transactions - we will see
         closeInstance();
 
-        this.authState.triggerEvent('logout_done');
-    }
-
-    /**
-     * Erases the current instance's database. This function will:
-     *  - completely clear the store
-     *  - trigger the 'logout' event
-     *  - trigger onLogout and wait for all the listeners to finish
-     *  - delete the database (this will call {@link closeInstance})
-     *  - trigger the 'logout_done' event if it is successfully
-     */
-    async erase(): Promise<void> {
-        this.store.clear();
-        this.authState.triggerEvent('logout');
-        // Signal the application that it should shutdown one dependent models
-        // and wait for them to shut down
-        await this.onLogout.emitAll();
-        // deleteDatabase will automatically close the instance before deleting the db
-        await deleteDatabase();
         this.authState.triggerEvent('logout_done');
     }
 }

@@ -1,11 +1,12 @@
-import Authenticater from './Authenticater';
+import Authenticator from './Authenticator';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
 import {initInstance, registerRecipes} from 'one.core/lib/instance';
+import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.
  */
-export default class MultiUser extends Authenticater {
+export default class MultiUser extends Authenticator {
     /**
      * Registers the user. Register acts as a login if the storage does not exists yet.
      * @param email
@@ -106,5 +107,17 @@ export default class MultiUser extends Authenticater {
      */
     async isRegistered(email: string, instanceName: string): Promise<boolean> {
         return await doesStorageExist(instanceName, email);
+    }
+
+
+    /**
+     * Erases the current instance's database. This function will:
+     *  - calls logout()
+     *  - deletes the database
+     *  - removes (if present) only workflow related store
+     */
+    async erase(): Promise<void> {
+        await this.logout();
+        await deleteDatabase();
     }
 }
