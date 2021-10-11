@@ -17,7 +17,7 @@ export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' |
 
 export type AuthState = 'logged_out' | 'logging_in' | 'logged_in' | 'logging_out';
 
-export type AuthenticaterOptions = {
+export type AuthenticatorOptions = {
     /** the desired storage directory - default is {@link DEFAULT_STORAGE_DIRECTORY} **/
     directory: string;
     /**  One recipes - use all recipes if not specified **/
@@ -78,14 +78,14 @@ export default abstract class Authenticator {
     /**
      * Class configuration
      */
-    protected config: AuthenticaterOptions;
+    protected config: AuthenticatorOptions;
 
     /**
      * Key-Value Store
      */
     protected store: Storage = KeyValueStore;
 
-    constructor(options: Partial<AuthenticaterOptions>) {
+    constructor(options: Partial<AuthenticatorOptions>) {
         this.config = {
             directory:
                 options.directory === undefined ? DEFAULT_STORAGE_DIRECTORY : options.directory,

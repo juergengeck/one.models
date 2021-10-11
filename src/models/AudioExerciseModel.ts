@@ -42,12 +42,12 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     }
 
     /**
-     * Used to stores an audio exercise in one instance.
+     * Used to store an audio exercise in one instance.
      * @param audioFileName - the name of the audio file that was played by the user.
      * @param startTimestamp - the time in milliseconds when the user started the audio.
      */
     async addAudioExercise(audioFileName: string, startTimestamp: number): Promise<void> {
-        /** stores the audio exercise object in one **/
+        /** store the audio exercise object in one **/
         await this.channelManager.postToChannel(
             AudioExerciseModel.channelId,
             {

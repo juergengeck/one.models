@@ -138,7 +138,7 @@ export default class PropertyTreeStore extends PropertyTree {
             );
             // change the value
             keyValueStoreCopy.set(key, value);
-            // stores the object in instance
+            // store the object in instance
             await createSingleObjectThroughPurePlan(
                 {
                     module: '@one/identity',
