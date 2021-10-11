@@ -14,7 +14,7 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async register(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email);
+        const storage = await doesStorageExist(instanceName, email, this.config.directory);
 
         if (storage) {
             throw new Error('Could not register user. User already exists.');
@@ -32,6 +32,7 @@ export default class MultiUser extends Authenticator {
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
+
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll();
@@ -57,7 +58,7 @@ export default class MultiUser extends Authenticator {
     async login(email: string, secret: string, instanceName: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const storage = await doesStorageExist(instanceName, email);
+        const storage = await doesStorageExist(instanceName, email, this.config.directory);
 
         if (storage) {
             try {
@@ -91,7 +92,7 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async loginOrRegister(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email);
+        const storage = await doesStorageExist(instanceName, email, this.config.directory);
 
         if (storage) {
             await this.login(email, secret, instanceName);
@@ -106,9 +107,8 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async isRegistered(email: string, instanceName: string): Promise<boolean> {
-        return await doesStorageExist(instanceName, email);
+        return await doesStorageExist(instanceName, email, this.config.directory);
     }
-
 
     /**
      * Erases the current instance's database. This function will:
