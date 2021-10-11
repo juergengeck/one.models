@@ -34,12 +34,6 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async register(secret: string): Promise<void> {
-
-        // Otherwise you could technically instantiate the instance without a provided secret
-        if(secret === undefined){
-            throw new Error('Could not register user. The provided secret is undefined.')
-        }
-
         const {name, email} = await this.generateCredentialsIfNotExist();
 
         const storage = await doesStorageExist(name, email, this.config.directory);
@@ -104,12 +98,13 @@ export default class SingleUser extends Authenticator {
                 await initInstance({
                     name: name,
                     email: email,
-                    secret: secret === undefined ? null : secret,
+                    secret: secret,
                     ownerName: 'name' + email,
                     directory: this.config.directory,
                     initialRecipes: this.config.recipes,
                     initiallyEnabledReverseMapTypes: this.config.reverseMaps
                 });
+
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
                 await this.onLogin.emitAll();
