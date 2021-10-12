@@ -5,47 +5,79 @@ import {MultiUser} from '../lib/models/Authenticator';
 describe('MultiUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
-            multiUserWorkflow.authState.onEnterState(newState => {
-                if (newState === state) {
-                    resolve();
-                }
-                setTimeout(() => {
-                    rejected();
-                }, delay);
-            });
+            if(multiUserWorkflow.authState.currentState === state){
+                resolve();
+            } else {
+                multiUserWorkflow.authState.onEnterState(newState => {
+                    if (newState === state) {
+                        resolve();
+                    }
+                    setTimeout(() => {
+                        rejected();
+                    }, delay);
+                });
+            }
         });
     }
+
+    const [user1, user2] = [
+        {email: 'test$email_1', secret: 'test$secret_1', instance: 'test$instanceName_1'},
+        {email: 'test$email_2', secret: 'test$secret_2', instance: 'test$instanceName_2'}
+    ];
 
     const STORAGE_TEST_DIR = 'test/testStorage';
     const multiUserWorkflow = new MultiUser({directory: STORAGE_TEST_DIR});
-    const test$secret = 'secret';
-    const test$email = 'email';
-    const test$instanceName = 'iName';
 
-    async function eraseThroughWorkflow() {
-        const loggedOutState = waitForState('logged_out');
-        await multiUserWorkflow.erase();
-        await loggedOutState;
-    }
+    /**
+     * After each test case login & erase user1, followed by login & erase user2
+     */
+    afterEach(done => {
+        multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
+            multiUserWorkflow.erase().finally(() => {
+                multiUserWorkflow.login(user2.email, user2.secret, user2.instance).finally(() => {
+                    multiUserWorkflow.erase().finally(done);
+                });
+            });
+        });
+    });
+
+    /**
+     * Before each test case register & logout the user2, followed by register the user1 & logout
+     */
+    beforeEach(done => {
+        multiUserWorkflow
+            .register(user2.email, user2.secret, user2.instance)
+            .then(() => {
+                multiUserWorkflow.logout();
+                multiUserWorkflow
+                    .register(user1.email, user1.secret, user1.instance)
+                    .then(() => {
+                        multiUserWorkflow.logout();
+                        done();
+                    })
+                    .catch(err => {
+                        throw err;
+                    });
+            })
+            .catch(err => {
+                throw err;
+            });
+    });
 
     describe('Register & Erase', () => {
         it('should test if register(email, secret, instanceName) & erase() are successfully', async () => {
-            const loggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await loggedInState;
+            await multiUserWorkflow.register('test$email', 'test$secret', 'test$instanceName');
+            await waitForState('logged_in');
 
-            const loggedOutState = waitForState('logged_out');
             await multiUserWorkflow.erase();
-            await loggedOutState;
+            await waitForState('logged_out');
         });
         it('should test if erase() throws an error when it is called twice', async () => {
-            const loggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await loggedInState;
+            await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+            await  waitForState('logged_in');
 
-            const loggedOutState = waitForState('logged_out');
             await multiUserWorkflow.erase();
-            await loggedOutState;
+            await waitForState('logged_out');
 
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
@@ -53,7 +85,7 @@ describe('MultiUser Test', () => {
                     .then(res => {
                         rejected('Call should have thrown error.');
                     })
-                    .catch(async error => {
+                    .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
                             'The transition does not exists from the current state with the specified event'
@@ -65,125 +97,78 @@ describe('MultiUser Test', () => {
         it(
             'should test if register(email, secret, instanceName) throws an error when user' +
                 ' already exist',
-            async () => {
-                const loggedInState = waitForState('logged_in');
-                await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-                await loggedInState;
-
-                const firstLoggedOutState = waitForState('logged_out');
-                await multiUserWorkflow.logout();
-                await firstLoggedOutState;
-
-                await new Promise<void>((resolve, rejected) => {
-                    multiUserWorkflow
-                        .register(test$email, test$secret, test$instanceName)
-                        .then(async _ => {
-                            await multiUserWorkflow.login(
-                                test$email,
-                                test$secret,
-                                test$instanceName
-                            );
-                            await eraseThroughWorkflow();
-                            rejected('Call should have thrown error.');
-                        })
-                        .catch(async error => {
-                            await multiUserWorkflow.login(
-                                test$email,
-                                test$secret,
-                                test$instanceName
-                            );
-                            await eraseThroughWorkflow();
-
-                            // @todo it gets stucked in the include, for a very unknown reason
-                            resolve();
-                            expect(error, error).to.be.instanceof(Error);
-                            expect(error.message).to.include(
-                                'Could not register user. The single user already exists.'
-                            );
-                        });
-                });
+            done => {
+                multiUserWorkflow
+                    .register(user1.email, user1.secret, user1.instance)
+                    .then(_ => {
+                        done('Call should have thrown error.');
+                    })
+                    .catch(error => {
+                        done()
+                        // code gets stucked in the .to.include for some unknown reason
+                        expect(error, error).to.be.instanceof(Error);
+                        expect(error.message).to.include(
+                            'Could not register user. The single user already exists.'
+                        );
+                    });
             }
         );
         it(
             'should test if register can create multiple users and erase each one of them' +
                 ' successfully',
             async () => {
-                const loggedInState = waitForState('logged_in');
-                await multiUserWorkflow.register(
-                    'test$email_1',
-                    'test$secret_1',
-                    'test$instanceName_1'
-                );
-                await loggedInState;
-
-                const firstLoggedOutState = waitForState('logged_out');
-                await multiUserWorkflow.erase();
-                await firstLoggedOutState;
-
-                const secondLoggedInState = waitForState('logged_in');
-                await multiUserWorkflow.register(
-                    'test$email_2',
-                    'test$secret_2',
-                    'test$instanceName_2'
-                );
-                await secondLoggedInState;
-
-                const secondLoggedOutState = waitForState('logged_out');
-                await multiUserWorkflow.erase();
-                await secondLoggedOutState;
-
-                const thirdLoggedInState = waitForState('logged_in');
                 await multiUserWorkflow.register(
                     'test$email_3',
                     'test$secret_3',
                     'test$instanceName_3'
                 );
-                await thirdLoggedInState;
+                await waitForState('logged_in');
 
-                const thirdLoggedOutState = waitForState('logged_out');
                 await multiUserWorkflow.erase();
-                await thirdLoggedOutState;
+                await waitForState('logged_out');
+
+                await multiUserWorkflow.register(
+                    'test$email_4',
+                    'test$secret_4',
+                    'test$instanceName_4'
+                );
+                await waitForState('logged_in');
+
+                await multiUserWorkflow.erase();
+                await waitForState('logged_out');
             }
         );
     });
     describe('Login & Logout', () => {
         it('should test if login(email, secret, instanceName) & logout() are successfully', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
+            await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
-            const firstLoggedOutState = waitForState('logged_out');
             await multiUserWorkflow.logout();
-            await firstLoggedOutState;
+            await waitForState('logged_out');
 
-            const secondLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-            await secondLoggedInState;
+            await multiUserWorkflow.login(user2.email, user2.secret, user2.instance);
+            await waitForState('logged_in');
 
-            const secondLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await secondLoggedOutState;
+            await multiUserWorkflow.logout();
+            await waitForState('logged_out');
         });
         it('should test if logout() throws an error when it is called twice', async () => {
             let hadError = false;
 
-            const loggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await loggedInState;
+            await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
             await multiUserWorkflow.logout();
+            await waitForState('logged_out');
 
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
                     .logout()
-                    .then(async _ => {
-                        await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-                        await eraseThroughWorkflow();
+                    .then(_ => {
                         rejected('Call should have thrown error.');
                     })
-                    .catch(async error => {
-                        await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-                        await eraseThroughWorkflow();
+                    .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
                             'The transition does not exists from the current state with the specified event'
@@ -194,7 +179,11 @@ describe('MultiUser Test', () => {
         });
         it('should test if login(email, secret, instanceName) throws an error when the user was not registered', async () => {
             try {
-                await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
+                await multiUserWorkflow.login(
+                    'test$email_5',
+                    'test$secret_5',
+                    'test$instanceName_5'
+                );
             } catch (error) {
                 expect(error, error).to.be.instanceof(Error);
                 expect(error.message).to.include(
@@ -203,27 +192,16 @@ describe('MultiUser Test', () => {
             }
         });
         it('should test if login(email, secret, instanceName) throws an error when the user double logins', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
-
-            const firstLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.logout();
-            await firstLoggedOutState;
-
-            const secondLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-            await secondLoggedInState;
+            await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
-                    .login(test$email, test$secret, test$instanceName)
-                    .then(async _ => {
-                        await eraseThroughWorkflow();
+                    .login(user1.email, user1.secret, user1.instance)
+                    .then(_ => {
                         rejected('Call should have thrown error.');
                     })
-                    .catch(async error => {
-                        await eraseThroughWorkflow();
+                    .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
                             'The transition does not exists from the current state with the specified event'
@@ -233,27 +211,13 @@ describe('MultiUser Test', () => {
             });
         });
         it('should test if login(email, secret, instanceName) throws an error when the user inputs the wrong secret', async () => {
-            let hadError = false;
-
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
-
-            const firstLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.logout();
-            await firstLoggedOutState;
-
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
-                    .login(test$email, 'wrong-secret', test$instanceName)
+                    .login(user1.email, 'wrong-secret', user1.instance)
                     .then(async () => {
-                        await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-                        await eraseThroughWorkflow();
                         rejected('Call should have thrown error.');
                     })
-                    .catch(async error => {
-                        await multiUserWorkflow.login(test$email, test$secret, test$instanceName);
-                        await eraseThroughWorkflow();
+                    .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
                             'Error while trying to initialise instance due to Error: IC-AUTH'
@@ -262,109 +226,56 @@ describe('MultiUser Test', () => {
                     });
             });
         });
-        it('should test if it can login into new created users', async () => {
-            const loggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(
-                'test$email_1',
-                'test$secret_1',
-                'test$instanceName_1'
-            );
-            await loggedInState;
+        it('should test if it can login & logout into new created users', async () => {
+            await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
-            const firstLoggedOutState = waitForState('logged_out');
             await multiUserWorkflow.logout();
-            await firstLoggedOutState;
+            await waitForState('logged_out');
 
-            const secondLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(
-                'test$email_2',
-                'test$secret_2',
-                'test$instanceName_2'
-            );
-            await secondLoggedInState;
+            await multiUserWorkflow.login(user2.email, user2.secret, user2.instance);
+            await waitForState('logged_in');
 
-            const secondLoggedOutState = waitForState('logged_out');
             await multiUserWorkflow.logout();
-            await secondLoggedOutState;
-
-            const thirdLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(
-                'test$email_3',
-                'test$secret_3',
-                'test$instanceName_3'
-            );
-            await thirdLoggedInState;
-
-            const thirdLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.logout();
-            await thirdLoggedOutState;
-
-            const firstUserLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.login('test$email_1', 'test$secret_1', 'test$instanceName_1');
-            await firstUserLoggedInState;
-
-            const firstUserLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await firstUserLoggedOutState;
-
-            const secondUserLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.login('test$email_2', 'test$secret_2', 'test$instanceName_2');
-            await secondUserLoggedInState;
-
-            const secondUserLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await secondUserLoggedOutState;
-
-            const thirdUserLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.login('test$email_3', 'test$secret_3', 'test$instanceName_3');
-            await thirdUserLoggedInState;
-
-            const thirdUserLoggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await thirdUserLoggedOutState;
+            await waitForState('logged_out');
         });
     });
     describe('LoginOrRegister', () => {
         it('should test if loginOrregister(email, secret, instanceName) is successfuly when no user was registered', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.loginOrRegister(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
+            await multiUserWorkflow.loginOrRegister(
+                'test$email_6',
+                'test$secret_6',
+                'test$instanceName_6'
+            );
+            await waitForState('logged_in');
 
-            const loggedOutState = waitForState('logged_out');
             await multiUserWorkflow.erase();
-            await loggedOutState;
+            await waitForState('logged_out');
         });
         it('should test if loginOrregister(email, secret, instanceName) is successfuly when user was registered', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
+            await multiUserWorkflow.loginOrRegister(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
-            const firstLoggedOutState = waitForState('logged_out');
             await multiUserWorkflow.logout();
-            await firstLoggedOutState;
+            await waitForState('logged_out');
 
-            const secondLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.loginOrRegister(test$email, test$secret, test$instanceName);
-            await secondLoggedInState;
+            await multiUserWorkflow.loginOrRegister(user2.email, user2.secret, user2.instance);
+            await waitForState('logged_in');
 
-            const loggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await loggedOutState;
+            await multiUserWorkflow.logout();
+            await waitForState('logged_out');
         });
         it('should test if loginOrregister(email, secret, instanceName) throws an error when the user double loginOrRegister', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.loginOrRegister(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
+            await multiUserWorkflow.loginOrRegister(user1.email, user1.secret, user1.instance);
+            await waitForState('logged_in');
 
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
-                    .loginOrRegister(test$email, test$secret, test$instanceName)
-                    .then(async _ => {
-                        await eraseThroughWorkflow();
+                    .loginOrRegister(user1.email, user1.secret, user1.instance)
+                    .then(_ => {
                         rejected('Call should have thrown error.');
                     })
-                    .catch(async error => {
-                        await eraseThroughWorkflow();
+                    .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
                             'The transition does not exists from the current state with the specified event'
@@ -377,33 +288,13 @@ describe('MultiUser Test', () => {
             'should test if loginOrregister(email, secret, instanceName) throws an error when the user was' +
                 ' already registered and it calls the function with the wrong secret',
             async () => {
-                const firstLoggedInState = waitForState('logged_in');
-                await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-                await firstLoggedInState;
-
-                const firstLoggedOutState = waitForState('logged_out');
-                await multiUserWorkflow.logout();
-                await firstLoggedOutState;
-
                 await new Promise<void>((resolve, rejected) => {
                     multiUserWorkflow
-                        .loginOrRegister(test$email, 'wrong-secret', test$instanceName)
+                        .loginOrRegister(user1.email, 'wrong-secret', user1.instance)
                         .then(async () => {
-                            await multiUserWorkflow.login(
-                                test$email,
-                                test$secret,
-                                test$instanceName
-                            );
-                            await eraseThroughWorkflow();
                             rejected('Call should have thrown error.');
                         })
-                        .catch(async error => {
-                            await multiUserWorkflow.login(
-                                test$email,
-                                test$secret,
-                                test$instanceName
-                            );
-                            await eraseThroughWorkflow();
+                        .catch(error => {
                             expect(error, error).to.be.instanceof(Error);
                             expect(error.message).to.include(
                                 'Error while trying to initialise instance due to Error: IC-AUTH'
@@ -416,22 +307,14 @@ describe('MultiUser Test', () => {
     });
     describe('isRegistered', () => {
         it('should test if isRegistered() returns true when the user is registered', async () => {
-            const firstLoggedInState = waitForState('logged_in');
-            await multiUserWorkflow.register(test$email, test$secret, test$instanceName);
-            await firstLoggedInState;
-
-            expect(await multiUserWorkflow.isRegistered(test$email, test$instanceName)).to.be.equal(
+            expect(await multiUserWorkflow.isRegistered(user1.email, user1.instance)).to.be.equal(
                 true
             );
-
-            const loggedOutState = waitForState('logged_out');
-            await multiUserWorkflow.erase();
-            await loggedOutState;
         });
         it('should test if isRegistered() returns false when the user is not registered', async () => {
-            expect(await multiUserWorkflow.isRegistered(test$email, test$instanceName)).to.be.equal(
-                false
-            );
+            expect(
+                await multiUserWorkflow.isRegistered('test$email_5', 'test$instanceName_5')
+            ).to.be.equal(false);
         });
     });
 });
