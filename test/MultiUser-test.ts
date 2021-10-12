@@ -33,9 +33,9 @@ describe('MultiUser Test', () => {
      */
     afterEach(done => {
         multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
-            multiUserWorkflow.erase().finally(() => {
+            multiUserWorkflow.eraseCurrentInstance().finally(() => {
                 multiUserWorkflow.login(user2.email, user2.secret, user2.instance).finally(() => {
-                    multiUserWorkflow.erase().finally(done);
+                    multiUserWorkflow.eraseCurrentInstance().finally(done);
                 });
             });
         });
@@ -65,23 +65,23 @@ describe('MultiUser Test', () => {
     });
 
     describe('Register & Erase', () => {
-        it('should test if register(email, secret, instanceName) & erase() are successfully', async () => {
+        it('should test if register(email, secret, instanceName) & eraseCurrentInstance() are successfully', async () => {
             await multiUserWorkflow.register('test$email', 'test$secret', 'test$instanceName');
             await waitForState('logged_in');
 
-            await multiUserWorkflow.erase();
+            await multiUserWorkflow.eraseCurrentInstance();
             await waitForState('logged_out');
         });
-        it('should test if erase() throws an error when it is called twice', async () => {
+        it('should test if eraseCurrentInstance() throws an error when it is called twice', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
             await  waitForState('logged_in');
 
-            await multiUserWorkflow.erase();
+            await multiUserWorkflow.eraseCurrentInstance();
             await waitForState('logged_out');
 
             await new Promise<void>((resolve, rejected) => {
                 multiUserWorkflow
-                    .erase()
+                    .eraseCurrentInstance()
                     .then(res => {
                         rejected('Call should have thrown error.');
                     })
@@ -94,6 +94,9 @@ describe('MultiUser Test', () => {
                     });
             });
         });
+        it('should test if erase is successfully', async () => {
+            await multiUserWorkflow.erase(user1.instance, user1.email);
+        })
         it(
             'should test if register(email, secret, instanceName) throws an error when user' +
                 ' already exist',
@@ -124,7 +127,7 @@ describe('MultiUser Test', () => {
                 );
                 await waitForState('logged_in');
 
-                await multiUserWorkflow.erase();
+                await multiUserWorkflow.eraseCurrentInstance();
                 await waitForState('logged_out');
 
                 await multiUserWorkflow.register(
@@ -134,7 +137,7 @@ describe('MultiUser Test', () => {
                 );
                 await waitForState('logged_in');
 
-                await multiUserWorkflow.erase();
+                await multiUserWorkflow.eraseCurrentInstance();
                 await waitForState('logged_out');
             }
         );
@@ -249,7 +252,7 @@ describe('MultiUser Test', () => {
             );
             await waitForState('logged_in');
 
-            await multiUserWorkflow.erase();
+            await multiUserWorkflow.eraseCurrentInstance();
             await waitForState('logged_out');
         });
         it('should test if loginOrregister(email, secret, instanceName) is successfuly when user was registered', async () => {

@@ -1,9 +1,8 @@
 import Authenticator from './Authenticator';
-import {initInstance, registerRecipes} from 'one.core/lib/instance';
+import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
 import {stringify} from 'one.core/lib/util/sorted-stringify';
-import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
 
 type Credentials = {
     email: string;
@@ -148,7 +147,7 @@ export default class SingleUserNoAuth extends Authenticator {
      */
     async erase(): Promise<void> {
         await this.logout();
-        await deleteDatabase();
+        await closeAndDeleteCurrentInstance();
         this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
     }
 

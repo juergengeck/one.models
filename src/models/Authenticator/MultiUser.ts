@@ -1,7 +1,11 @@
 import Authenticator from './Authenticator';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
-import {initInstance, registerRecipes} from 'one.core/lib/instance';
-import {deleteDatabase} from 'one.core/lib/system/storage-base-delete-db';
+import {
+    closeAndDeleteCurrentInstance,
+    deleteInstance,
+    initInstance,
+    registerRecipes
+} from 'one.core/lib/instance';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.
@@ -111,13 +115,29 @@ export default class MultiUser extends Authenticator {
     }
 
     /**
-     * Erases the current instance's database. This function will:
-     *  - calls logout()
+     * Erases the current instance. This function will:
+     *  - triggers 'logout' event
+     *  - triggers 'onLogout' event
      *  - deletes the database
-     *  - removes (if present) only workflow related store
+     *  - triggers 'logout_done' event
      */
-    async erase(): Promise<void> {
-        await this.logout();
-        await deleteDatabase();
+    async eraseCurrentInstance(): Promise<void>{
+        this.authState.triggerEvent('logout');
+
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+
+        await closeAndDeleteCurrentInstance();
+
+        this.authState.triggerEvent('logout_done');
+    }
+
+    /**
+     * Erases the instance. This function will:
+     *  - deletes the database
+     */
+    async erase(instanceName: string, email: string, dbName: string = this.config.directory): Promise<void> {
+        await deleteInstance(instanceName, email, dbName);
     }
 }
