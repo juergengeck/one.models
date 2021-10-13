@@ -145,14 +145,22 @@ export default class SingleUser extends Authenticator {
 
     /**
      * Erases the current instance's database. This function will:
-     *  - calls logout()
+     *  - triggers 'logout' event
+     *  - triggers onLogout event
      *  - deletes the database
      *  - removes (if present) only workflow related store
+     *  - trigger 'logout_done' event
      */
     async erase(): Promise<void> {
-        await this.logout();
+        this.authState.triggerEvent('logout');
+
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+
         await closeAndDeleteCurrentInstance();
         this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        this.authState.triggerEvent('logout_done');
     }
 
     private retrieveCredentialsFromStore(): Credentials | null {

@@ -133,7 +133,6 @@ export default abstract class Authenticator {
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
         await this.onLogout.emitAll();
-        // @todo there might be some issues with unfinished db transactions - we will see
         closeInstance();
 
         this.authState.triggerEvent('logout_done');

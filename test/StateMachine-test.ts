@@ -94,7 +94,7 @@ describe('StateMachine test', () => {
         }
     }).timeout(1000);
 
-    it('Trigger an invalid transition that its not related to the current state', async (done) => {
+    it('Trigger an invalid transition that it is not related to the current state', async (done) => {
         const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
         subSm.addState('state3');
         subSm.addState('state4');
@@ -127,7 +127,7 @@ describe('StateMachine test', () => {
         throw new Error('should throw error')
     })
 
-    it('Trigger an event that its relevant to the sub state machine only', async () => {
+    it('Trigger an event that it is relevant only to the sub state machine', async () => {
         const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
         subSm.addState('state3');
         subSm.addState('state4');
@@ -146,6 +146,26 @@ describe('StateMachine test', () => {
         sm.setInitialState('state1');
 
         sm.triggerEvent('ev1')
+    })
+
+    it('Trigger an event twice', async () => {
+        const sm = createStateMachineWithoutHistory(false);
+        sm.triggerEvent('init')
+
+        let triggered = false;
+        sm.onStateChange((state: SMStates, newState: SMStates, event: SMEvents) => {
+            triggered = true;
+        });
+
+        try {
+        sm.triggerEvent('init')
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'The transition does not exists from the current state with the specified event'
+            );
+            expect(triggered).to.be.false;
+        }
     })
 
     it('Check events for init', async () => {
@@ -582,7 +602,6 @@ describe('StateMachine test', () => {
         sm.triggerEvent('startListen');
         sm.triggerEvent('AtoB');
         expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'B']);
-
         sm.triggerEvent('shutdown');
 
         expect(sm.currentStates).to.be.eql(['not initialized']);
