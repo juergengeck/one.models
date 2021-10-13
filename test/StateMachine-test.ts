@@ -54,6 +54,8 @@ describe('StateMachine test', () => {
         testModel = model;
     });
 
+    // @todo implement test case where transition doesn't exist for the triggered event.
+
     it('Trigger invalid event ', async () => {
         let sm = createStateMachineWithoutHistory(false);
         let triggered = false;
@@ -61,13 +63,17 @@ describe('StateMachine test', () => {
             triggered = true;
         });
 
-        // Trigger state machine with non-existing event
-        // @ts-expect-error
-        sm.triggerEvent('nonexisting_event');
-
-        await wait(100);
-
-        expect(triggered).to.be.false;
+        try {
+            // Trigger state machine with non-existing event
+            // @ts-expect-error
+            sm.triggerEvent('nonexisting_event');
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'Event is not valid in the current state.'
+            );
+            expect(triggered).to.be.false;
+        }
     }).timeout(1000);
 
     it('Trigger valid event with missing transition for current state ', async () => {
@@ -77,12 +83,90 @@ describe('StateMachine test', () => {
             triggered = true;
         });
 
-        sm.triggerEvent('startListen');
-
-        await wait(100);
-
-        expect(triggered).to.be.false;
+        try {
+            sm.triggerEvent('startListen');
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'Event is not valid in the current state.'
+            );
+            expect(triggered).to.be.false;
+        }
     }).timeout(1000);
+
+    it('Trigger an invalid transition that it is not related to the current state', async (done) => {
+        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        subSm.addState('state3');
+        subSm.addState('state4');
+        subSm.addEvent('ev1');
+        subSm.addTransition('ev1', 'state3', 'state4');
+        subSm.setInitialState('state3');
+
+        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm)
+        sm.addState('state2')
+        sm.addEvent('ev1');
+        sm.addEvent('ev2');
+        sm.addTransition('ev2', 'state1', 'state2');
+        sm.addTransition('ev1', 'state2', 'state1');
+        sm.setInitialState('state1');
+
+        sm.triggerEvent('ev2')
+
+        try {
+            sm.triggerEvent('ev2')
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'The transition does not exists from the current state with the' +
+                ' specified event'
+            );
+            done();
+        }
+
+        throw new Error('should throw error')
+    })
+
+    it('Trigger an event that it is relevant only to the sub state machine', async () => {
+        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        subSm.addState('state3');
+        subSm.addState('state4');
+        subSm.addEvent('ev1');
+        subSm.addTransition('ev1', 'state3', 'state4');
+        subSm.setInitialState('state3');
+
+        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm)
+        sm.addState('state2')
+        sm.addEvent('ev1');
+        sm.addEvent('ev2');
+        sm.addTransition('ev2', 'state1', 'state2');
+        sm.addTransition('ev1', 'state2', 'state1');
+
+        sm.setInitialState('state1');
+
+        sm.triggerEvent('ev1')
+    })
+
+    it('Trigger an event twice', async () => {
+        const sm = createStateMachineWithoutHistory(false);
+        sm.triggerEvent('init')
+
+        let triggered = false;
+        sm.onStateChange((state: SMStates, newState: SMStates, event: SMEvents) => {
+            triggered = true;
+        });
+
+        try {
+        sm.triggerEvent('init')
+        } catch (error) {
+            expect(error, error).to.be.instanceof(Error);
+            expect(error.message).to.include(
+                'The transition does not exists from the current state with the specified event'
+            );
+            expect(triggered).to.be.false;
+        }
+    })
 
     it('Check events for init', async () => {
         let sm = createStateMachineWithoutHistory(false);
@@ -518,7 +602,6 @@ describe('StateMachine test', () => {
         sm.triggerEvent('startListen');
         sm.triggerEvent('AtoB');
         expect(sm.currentStates).to.be.eql(['initialized', 'listening', 'B']);
-
         sm.triggerEvent('shutdown');
 
         expect(sm.currentStates).to.be.eql(['not initialized']);
