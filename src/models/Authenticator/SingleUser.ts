@@ -55,7 +55,7 @@ export default class SingleUser extends Authenticator {
             });
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll();
+            await this.onLogin.emitAll(name, secret, email);
 
             this.authState.triggerEvent('login_success');
         } catch (error) {
@@ -106,7 +106,7 @@ export default class SingleUser extends Authenticator {
 
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll();
+                await this.onLogin.emitAll(name, secret, email);
 
                 this.authState.triggerEvent('login_success');
             } catch (error) {

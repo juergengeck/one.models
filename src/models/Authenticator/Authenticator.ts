@@ -36,7 +36,7 @@ export default abstract class Authenticator {
     /**
      * This event will be triggered right AFTER the instance was initialised
      */
-    public onLogin = new OEvent<() => void>();
+    public onLogin = new OEvent<(instanceName: string, secret: string, email: string) => void>();
 
     /**
      * This event will be triggered right BEFORE the instance was closed

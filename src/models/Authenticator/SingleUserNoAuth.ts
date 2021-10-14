@@ -7,7 +7,7 @@ import {stringify} from 'one.core/lib/util/sorted-stringify';
 type Credentials = {
     email: string;
     name: string;
-    secret: string | null;
+    secret: string;
 };
 
 /**
@@ -55,7 +55,7 @@ export default class SingleUserNoAuth extends Authenticator {
             });
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll();
+            await this.onLogin.emitAll(name, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
@@ -103,7 +103,7 @@ export default class SingleUserNoAuth extends Authenticator {
                 });
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll();
+                await this.onLogin.emitAll(name, secret, email);
 
                 this.authState.triggerEvent('login_success');
             } catch (error) {
