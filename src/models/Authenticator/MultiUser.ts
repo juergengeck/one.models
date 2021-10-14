@@ -39,7 +39,7 @@ export default class MultiUser extends Authenticator {
 
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll();
+            await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
@@ -77,7 +77,7 @@ export default class MultiUser extends Authenticator {
                 });
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll();
+                await this.onLogin.emitAll(instanceName, secret, email);
                 this.authState.triggerEvent('login_success');
             } catch (error) {
                 this.authState.triggerEvent('login_failure');
