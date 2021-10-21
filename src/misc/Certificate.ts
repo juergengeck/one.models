@@ -64,7 +64,7 @@ export async function createCertificate(
 
     const licenseText = (await getObject(licenseHash)).text;
     const signature = await createCertificateSignature(
-        `${licenseText}${subject}${issuer}${target}`
+        createSignatureMsg(licenseText, subject, issuer, target)
     );
 
     return await createSingleObjectThroughPurePlan(
