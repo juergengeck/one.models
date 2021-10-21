@@ -20,7 +20,7 @@ export type DocumentInfo = DocumentInfo_1_1_0;
  * @param document - the document that is saved in ONE as a BLOB.
  * @returns The reference to the saved BLOB.
  */
-export async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
+async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
     const minimalWriteStorageApiObj = {
         createFileWriteStream: createFileWriteStream
     } as WriteStorageApi;

@@ -3,7 +3,7 @@ import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
-    SET_ACCESS_MODE,
+    SET_ACCESS_MODE, UnversionedObjectResult,
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import type {Certificate, LicenseType} from '../recipes/CertificateRecipes';
@@ -31,7 +31,7 @@ export async function giveAccess(
     const certificate = await createCertificate('access', subject, issuer, target);
     await createSingleObjectThroughPurePlan({module: '@one/access'}, [
         {
-            object: await calculateHashOfObj(certificate),
+            object: await calculateHashOfObj(certificate.obj),
             person: target,
             group: [],
             mode: SET_ACCESS_MODE.REPLACE
@@ -55,7 +55,7 @@ export async function createCertificate(
     subject: SHA256Hash<OneUnversionedObjectTypes>,
     issuer: SHA256IdHash<Person>,
     target: SHA256IdHash<Person>
-): Promise<Certificate> {
+): Promise<UnversionedObjectResult<Certificate>> {
     const licenseHash = getLicenseHashByType(licenseType);
 
     if (licenseHash === undefined) {

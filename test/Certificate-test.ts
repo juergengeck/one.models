@@ -93,7 +93,6 @@ describe('Certificate test', () => {
 
     it('Should create a certificate and validate it successfully', async () => {
         const cert = await createCertificate('access', subject, issuer, target);
-        // @ts-ignore
         await validateCertificate(cert.hash, issuerPublicSingKey);
     });
     it('Should revoked a certificate successfully', async () => {
@@ -102,7 +101,6 @@ describe('Certificate test', () => {
         await revokeCertificate('access', subject, issuer);
 
         try {
-            // @ts-ignore
             await validateCertificate(cert.hash, issuerPublicSingKey);
         } catch (e) {
             error = true;
