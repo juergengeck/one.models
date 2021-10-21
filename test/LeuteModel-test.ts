@@ -4,35 +4,48 @@ import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import * as StorageTestInit from 'one.core/test/_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
+import {expect} from "chai";
 
-/**
- * Promise wrapped timeout.
- * @param milis
- */
-function promiseTimeout(milis: number): Promise<void> {
-    return new Promise<void>(resolve => {
-        setTimeout(() => resolve(), milis);
-    });
-}
+describe('LeuteModel test', function () {
+    let instancesModel: InstancesModel;
+    let leuteModel: LeuteModel;
 
-describe('LeuteModel test', () => {
-    before(async () => {
+    beforeEach(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
-    });
 
-    it('should init module', async () => {
-        const instancesModel = new InstancesModel();
-        const leuteModel = new LeuteModel(instancesModel, 'localhost');
+        instancesModel = new InstancesModel();
+        leuteModel = new LeuteModel(instancesModel, 'localhost');
         await instancesModel.init('abc');
         await leuteModel.init();
-        //console.log(await leuteModel.me());
-        //console.log(await leuteModel.others());
-        leuteModel.shutdown();
     });
 
-    after(async () => {
+    it('should create groups module', async function () {
+        expect((await leuteModel.groups()).length).to.be.equal(0);
+
+        // Test with one empty group
+        await leuteModel.createGroup('devs');
+        const groups = await leuteModel.groups();
+        expect(groups.length).to.be.equal(1);
+        expect(groups[0].name).to.be.equal('devs');
+        expect(groups[0].persons.length).to.be.equal(0);
+
+        // Add a person to the group and set the name
+        groups[0].name = 'sissis';
+        groups[0].persons.push((await leuteModel.me()).identities()[0]);
+        await groups[0].saveAndLoad();
+
+        // Test if name and persons are correct
+        const groups2 = await leuteModel.groups();
+        expect(groups2[0].persons.length).to.be.equal(1);
+        expect(groups2[0].name).to.be.equal('sissis');
+        expect(groups2[0].picture).to.be.undefined;
+    });
+
+    afterEach(async function () {
+        await leuteModel.shutdown();
+        //await instancesModel.shutdown();
         await new Promise(resolve => setTimeout(resolve, 1000));
         closeInstance();
         await removeDir(`./test/${dbKey}`);

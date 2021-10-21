@@ -39,14 +39,14 @@ export const LeuteRecipe: Recipe = {
         {
             itemprop: 'other',
             itemtype: {
-                type: 'set',
+                type: 'bag',
                 item: {type: 'referenceToId', allowedTypes: new Set(['Someone'])}
             }
         },
         {
             itemprop: 'group',
             itemtype: {
-                type: 'set',
+                type: 'bag',
                 item: {type: 'referenceToId', allowedTypes: new Set(['GroupProfile'])}
             }
         },

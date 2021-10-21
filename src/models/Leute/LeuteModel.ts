@@ -257,8 +257,7 @@ export default class LeuteModel implements Model {
             throw new Error('Leute model is not initialized');
         }
 
-        const others = new Set(this.leute.other);
-        others.delete(other);
+        this.leute.other = this.leute.other.filter(o => o != other);
         await this.saveAndLoad();
     }
 
@@ -317,7 +316,14 @@ export default class LeuteModel implements Model {
      * @returns the id of the generated group.
      */
     public async createGroup(name?: string): Promise<GroupModel> {
-        return GroupModel.constructWithNewGroup(name);
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const group = await GroupModel.constructWithNewGroup(name);
+        this.leute.group.push(group.groupIdHash);
+        await this.saveAndLoad();
+        return group;
     }
 
     /**

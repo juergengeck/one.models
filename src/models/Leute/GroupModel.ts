@@ -1,5 +1,5 @@
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Group, Person} from 'one.core/lib/recipes';
+import type {BLOB, Group, Person} from 'one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {
     getObject,
@@ -17,6 +17,9 @@ import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
+// Todo: This is a hack, because CRDT objects don't support optionals
+const DUMMY_BLOB_HASH: SHA256Hash<BLOB> =
+    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
 
 export default class GroupModel {
     public onUpdate: OEvent<() => void> = new OEvent();
@@ -24,7 +27,7 @@ export default class GroupModel {
     public readonly groupIdHash: SHA256IdHash<Group>;
     public readonly profileIdHash: SHA256IdHash<GroupProfile>;
 
-    public name?: string;
+    public name: string = 'unnamed group';
     public picture?: ArrayBuffer;
     public persons: SHA256IdHash<Person>[] = [];
 
@@ -125,7 +128,8 @@ export default class GroupModel {
         const newGroupProfile: GroupProfile = {
             $type$: 'GroupProfile',
             group: groupResult.idHash,
-            name: groupName || 'unnamed group'
+            name: groupName || 'unnamed group',
+            picture: DUMMY_BLOB_HASH
         };
         const groupProfileResult = await storeVersionedObjectCRDT(
             newGroupProfile,
@@ -222,11 +226,11 @@ export default class GroupModel {
         }
 
         // Write image blob
-        let blob;
+        let blobHash: SHA256Hash<BLOB> = DUMMY_BLOB_HASH;
         if (this.picture) {
             const stream = createFileWriteStream();
             stream.write(this.picture);
-            blob = await stream.end();
+            blobHash = (await stream.end()).hash;
         }
 
         // Write the new profile version
@@ -235,7 +239,7 @@ export default class GroupModel {
                 $type$: 'GroupProfile',
                 group: this.groupIdHash,
                 name: this.name,
-                picture: blob ? blob.hash : undefined
+                picture: blobHash
             },
             this.pLoadedVersion,
             DUMMY_PLAN_HASH
@@ -244,7 +248,7 @@ export default class GroupModel {
         const groupResult = await storeVersionedObject(
             {
                 $type$: 'Group',
-                name: '',
+                name: this.internalGroupName,
                 person: this.persons
             },
             DUMMY_PLAN_HASH
@@ -274,7 +278,13 @@ export default class GroupModel {
         version: SHA256Hash<GroupProfile>
     ): Promise<void> {
         this.name = profile.name;
-        this.picture = profile.picture ? await readBlobAsArrayBuffer(profile.picture) : undefined;
+        this.picture =
+            profile.picture !== DUMMY_BLOB_HASH
+                ? await readBlobAsArrayBuffer(profile.picture)
+                : undefined;
         this.persons = group.person;
+        this.profile = profile;
+        this.group = group;
+        this.pLoadedVersion = version;
     }
 }

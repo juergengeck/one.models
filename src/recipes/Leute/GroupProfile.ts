@@ -8,8 +8,8 @@ import type {VersionedObjectResult} from "one.core/lib/storage";
 export interface GroupProfile {
     $type$: 'GroupProfile';
     group: SHA256IdHash<Group>;
-    name?: string;
-    picture?: SHA256Hash<BLOB>;
+    name: string;
+    picture: SHA256Hash<BLOB>;
 }
 
 export interface GroupProfileCRDTMetaData extends CRDTMetaData<GroupProfile> {
@@ -29,13 +29,11 @@ export const GroupProfileRecipe: Recipe = {
         },
         {
             itemprop: 'name',
-            itemtype: {type: 'string'},
-            optional: true
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'picture',
-            itemtype: {type: 'referenceToBlob'},
-            optional: true
+            itemtype: {type: 'referenceToBlob'}
         }
     ]
 };
