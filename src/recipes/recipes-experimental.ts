@@ -7,6 +7,7 @@ import ECGRecipes from './ECGRecipes';
 import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
+import CertificateRecipes from './CertificateRecipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -16,6 +17,7 @@ const RecipesExperimental: Recipe[] = [
     ...ECGRecipes,
     ...BloodGlucoseRecipes,
     ...AudioExerciseRecipes,
+    ...CertificateRecipes,
     ...LeuteRecipes
 ];
 
