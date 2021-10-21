@@ -19,7 +19,6 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 
 /**
  *
- * @param licenseType
  * @param subject
  * @param issuer
  * @param target
