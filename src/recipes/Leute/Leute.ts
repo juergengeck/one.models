@@ -1,4 +1,4 @@
-import type {CRDTMetaData, Recipe} from 'one.core/lib/recipes';
+import type {CRDTMetaData, Group, Recipe} from 'one.core/lib/recipes';
 import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
 import type {Someone} from './Someone';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
@@ -14,6 +14,7 @@ export interface Leute {
     appId: 'one.leute';
     me: SHA256IdHash<Someone>;
     other: SHA256IdHash<Someone>[];
+    group: SHA256IdHash<Group>[];
 }
 
 export interface LeuteCRDTMetaData extends CRDTMetaData<Leute> {
@@ -38,10 +39,17 @@ export const LeuteRecipe: Recipe = {
         {
             itemprop: 'other',
             itemtype: {
-                type: 'bag',
+                type: 'set',
                 item: {type: 'referenceToId', allowedTypes: new Set(['Someone'])}
             }
-        }
+        },
+        {
+            itemprop: 'group',
+            itemtype: {
+                type: 'set',
+                item: {type: 'referenceToId', allowedTypes: new Set(['GroupProfile'])}
+            }
+        },
     ]
 };
 

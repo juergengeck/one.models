@@ -35,8 +35,7 @@ import type {Model} from '../Model';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
-
-type Writeable<T> = {-readonly [K in keyof T]: T[K]};
+import GroupModel from "./GroupModel";
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -79,9 +78,6 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  *    - create / update / delete profiles
  *    - share profiles with others / get sharing state
  *    - obtain profiles
- *
- * TODO: Add convenience functions for locating all one endpoints, locating keys ...
- * TODO: Add events
  */
 export default class LeuteModel implements Model {
     public onUpdated: OEvent<() => void> = new OEvent();
@@ -107,6 +103,12 @@ export default class LeuteModel implements Model {
         unversionedObjectResult: UnversionedObjectResult
     ) => void;
 
+    /**
+     * Constructor
+     *
+     * @param instancesModel - The instances model used to create new local instances for a new 'me' identity
+     * @param commserverUrl - when creating the default oneInstanceEndpoint this url is used
+     */
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
         this.instancesModel = instancesModel;
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
@@ -116,12 +118,12 @@ export default class LeuteModel implements Model {
         this.commserverUrl = commserverUrl;
     }
 
-    /*
+    /**
      * Init the module.
      *
-     * This will initialize the data structures for 'me' like someone, profile and a
-     * OneInstanceEndpoint for the current instance. As main identity the owner of the main one
-     * instance is used. This might change in the future!
+     * This will initialize the data structures for 'me': someone, profile and a
+     * OneInstanceEndpoint for the current instance.
+     * As main identity the owner of the main one instance is used. This might change in the future!
      */
     public async init(): Promise<void> {
         // Reuse the instance and person from one.core
@@ -159,7 +161,8 @@ export default class LeuteModel implements Model {
             $type$: 'Leute',
             appId: 'one.leute',
             me: someone.idHash,
-            other: []
+            other: [],
+            group: []
         };
         await this.saveAndLoad();
 
@@ -167,6 +170,9 @@ export default class LeuteModel implements Model {
         onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
     }
 
+    /**
+     * Shutdown the leute model
+     */
     public async shutdown(): Promise<void> {
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
         onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
@@ -177,21 +183,23 @@ export default class LeuteModel implements Model {
     // ######## Me management ########
 
     /**
-     * Get the someone object that represents me.
+     * Get the someone that represents me.
      */
     public async me(): Promise<SomeoneModel> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
         return SomeoneModel.constructFromLatestVersion(this.leute.me);
     }
 
     /**
-     * Get the someone object that represents me.
+     * Get the someone that represents me, but don't load the data, yet.
+     *
+     * In order to use the returned model you have to call one of its load functions first.
      */
     public meLazyLoad(): SomeoneModel {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
         return new SomeoneModel(this.leute.me);
     }
@@ -203,17 +211,19 @@ export default class LeuteModel implements Model {
      */
     public async others(): Promise<SomeoneModel[]> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
         return Promise.all(this.leute.other.map(SomeoneModel.constructFromLatestVersion));
     }
 
     /**
-     * Get all other persons you know.
+     * Get all other persons you know, but don't grab the data, yet.
+     *
+     * In order to use the returned models you have to call one of its load functions first.
      */
     public othersLazyLoad(): SomeoneModel[] {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
         return this.leute.other.map(idHash => new SomeoneModel(idHash));
     }
@@ -223,9 +233,9 @@ export default class LeuteModel implements Model {
      *
      * @param other
      */
-    async addOther(other: SHA256IdHash<Someone>): Promise<void> {
+    public async addSomeoneElse(other: SHA256IdHash<Someone>): Promise<void> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
         if (this.leute.me === other) {
             throw new Error('You cannot add yourself as other person');
@@ -242,9 +252,9 @@ export default class LeuteModel implements Model {
      *
      * @param other
      */
-    async removeOther(other: SHA256IdHash<Someone>): Promise<void> {
+    public async removeSomeoneElse(other: SHA256IdHash<Someone>): Promise<void> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
 
         const others = new Set(this.leute.other);
@@ -255,13 +265,11 @@ export default class LeuteModel implements Model {
     // ######## Identity management ########
 
     /**
-     * Create a new identity an a 'default' profile.
-     *
-     * @returns
+     * Create a new identity and a 'default' profile for myself.
      */
-    async createProfileAndIdentityForMe(): Promise<void> {
+    public async createProfileAndIdentityForMe(): Promise<void> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
 
         const newPersonId = await this.createIdentityWithInstanceAndKeys();
@@ -276,13 +284,11 @@ export default class LeuteModel implements Model {
     }
 
     /**
-     * Create a new identity for me and also create a profile.
-     *
-     * @returns
+     * Create someone with a completely new identity.
      */
-    async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
+    public async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
         if (this.leute === undefined) {
-            throw new Error('Leute model not initialized');
+            throw new Error('Leute model is not initialized');
         }
 
         const myIdentity = await (await this.me()).mainIdentity();
@@ -297,9 +303,32 @@ export default class LeuteModel implements Model {
             newProfile.idHash
         );
 
-        await this.addOther(newSomeone.idHash);
+        await this.addSomeoneElse(newSomeone.idHash);
 
         return newSomeone.idHash;
+    }
+
+    // ######## Group management ########
+
+    /**
+     * Create a new group.
+     *
+     * @param name - If specified use this name, otherwise create a group with a random id.
+     * @returns the id of the generated group.
+     */
+    public async createGroup(name?: string): Promise<GroupModel> {
+        return GroupModel.constructWithNewGroup(name);
+    }
+
+    /**
+     * Get a list of groups.
+     */
+    public async groups(): Promise<GroupModel[]> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        return Promise.all(this.leute.group.map(GroupModel.constructFromLatestProfileVersion));
     }
 
     // ######## Misc stuff ########
@@ -308,19 +337,16 @@ export default class LeuteModel implements Model {
      * Return the SomeoneModel identified by the person Id or undefined otherwise.
      * @param personId
      */
-    async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
+    public async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
         const allSomeones = [await this.me(), ...(await this.others())];
-
-        const someone = allSomeones.find(someone => someone.identities().includes(personId));
-
-        return someone;
+        return allSomeones.find(someone => someone.identities().includes(personId));
     }
 
     /**
      * Return the main ProfileModel of the SomeoneModel identified by the personId.
      * @param personId
      */
-    async getMainProfile(personId: SHA256IdHash<Person>): Promise<ProfileModel> {
+    public async getMainProfile(personId: SHA256IdHash<Person>): Promise<ProfileModel> {
         const someone = await this.getSomeone(personId);
 
         if (someone === undefined) {
@@ -335,7 +361,7 @@ export default class LeuteModel implements Model {
      *
      * If no such someone object exists a new one is created.
      */
-    async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+    public async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
         const profileObj = await getObjectByIdHash(profile);
         const others = await this.others();
 
@@ -350,7 +376,7 @@ export default class LeuteModel implements Model {
                     await createRandomString(32),
                     profile
                 );
-                await this.addOther(someoneNew.idHash);
+                await this.addSomeoneElse(someoneNew.idHash);
                 this.onProfileUpdate.emit(profileObj.obj);
             }
         } else {
@@ -396,6 +422,11 @@ export default class LeuteModel implements Model {
         return personKeyLink[personKeyLink.length - 1].toHash;
     }
 
+    /**
+     * Returns items for pictures that were updated.
+     *
+     * @param queryOptions
+     */
     public async *retrievePersonImagesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonImage>> {
@@ -437,6 +468,11 @@ export default class LeuteModel implements Model {
         yield* objectDatas;
     }
 
+    /**
+     * Returns items for statuses that were updated.
+     *
+     * @param queryOptions
+     */
     public async *retrieveStatusesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonStatus>> {
@@ -562,15 +598,6 @@ export default class LeuteModel implements Model {
     }
 
     // ######## private stuff - Load & Save ########
-
-    /**
-     * Load the latest leute version.
-     */
-    private async loadLatestVersion(): Promise<void> {
-        const idHash = await calculateIdHashOfObj({$type$: 'Leute', appId: 'one.leute'});
-        const result = await getObjectByIdHash(idHash);
-        await this.updateModelDataFromLeute(result.obj, result.hash);
-    }
 
     /**
      * Return all the profiles of all the someones, including my own profiles.

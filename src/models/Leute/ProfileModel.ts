@@ -109,21 +109,17 @@ export default class ProfileModel {
         return newModel;
     }
 
-    public static async loadProfileModel(
+    public static async constructFromLatestVersionByIdFields(
         personId: SHA256IdHash<Person>,
         owner: SHA256IdHash<Person>,
         profileId: string
     ) {
-        const profile: Profile = {
+        const idHash = await calculateIdHashOfObj({
             $type$: 'Profile',
             personId,
             owner,
-            profileId,
-            communicationEndpoint: [],
-            personDescription: []
-        };
-
-        const idHash = await calculateIdHashOfObj(profile);
+            profileId
+        });
         const loadedModel = new ProfileModel(idHash);
         await loadedModel.loadLatestVersion();
         return loadedModel;
@@ -232,6 +228,62 @@ export default class ProfileModel {
         return descriptions;
     }
 
+    public getStatus(): PersonStatus {
+        const statuses = this.descriptionsOfType('PersonStatus');
+        const latestStatus = statuses.reduce(
+            (status: PersonStatus, latestStatus: PersonStatus) =>
+                status.timestamp > latestStatus.timestamp ? status : latestStatus,
+            statuses[0]
+        );
+        return latestStatus;
+    }
+
+    public setStatus(statusValue: string, location: string): void {
+        if (!this.isStatusModified) {
+            this.personDescriptions.push({
+                $type$: 'PersonStatus',
+                timestamp: Date.now(),
+                value: statusValue,
+                location: location
+            });
+            this.isStatusModified = true;
+            return;
+        }
+
+        const latestStatus = this.getStatus();
+        latestStatus.value = statusValue;
+        latestStatus.location = location;
+        latestStatus.timestamp = Date.now();
+    }
+
+    public getImage(): PersonImage {
+        const images = this.descriptionsOfType('PersonImage');
+        const latestImage = images.reduce(
+            (image1: PersonImage, image2: PersonImage) =>
+                image1.timestamp > image2.timestamp ? image1 : image2,
+            images[0]
+        );
+        return latestImage;
+    }
+
+    public setImage(image: SHA256Hash<BLOB>, location: string): void {
+        if (!this.isImageModified) {
+            this.personDescriptions.push({
+                $type$: 'PersonImage',
+                timestamp: Date.now(),
+                image: image,
+                location: location
+            });
+            this.isImageModified = true;
+            return;
+        }
+
+        const latestImage = this.getImage();
+        latestImage.image = image;
+        latestImage.location = location;
+        latestImage.timestamp = Date.now();
+    }
+
     // ######## Save & Load ########
 
     /**
@@ -314,62 +366,6 @@ export default class ProfileModel {
         await this.updateModelDataFromProfile(result.obj, result.hash);
 
         this.onUpdate.emit();
-    }
-
-    public getStatus(): PersonStatus {
-        const statuses = this.descriptionsOfType('PersonStatus');
-        const latestStatus = statuses.reduce(
-            (status: PersonStatus, latestStatus: PersonStatus) =>
-                status.timestamp > latestStatus.timestamp ? status : latestStatus,
-            statuses[0]
-        );
-        return latestStatus;
-    }
-
-    public setStatus(statusValue: string, location: string): void {
-        if (!this.isStatusModified) {
-            this.personDescriptions.push({
-                $type$: 'PersonStatus',
-                timestamp: Date.now(),
-                value: statusValue,
-                location: location
-            });
-            this.isStatusModified = true;
-            return;
-        }
-
-        const latestStatus = this.getStatus();
-        latestStatus.value = statusValue;
-        latestStatus.location = location;
-        latestStatus.timestamp = Date.now();
-    }
-
-    public getImage(): PersonImage {
-        const images = this.descriptionsOfType('PersonImage');
-        const latestImage = images.reduce(
-            (image1: PersonImage, image2: PersonImage) =>
-                image1.timestamp > image2.timestamp ? image1 : image2,
-            images[0]
-        );
-        return latestImage;
-    }
-
-    public setImage(image: SHA256Hash<BLOB>, location: string): void {
-        if (!this.isImageModified) {
-            this.personDescriptions.push({
-                $type$: 'PersonImage',
-                timestamp: Date.now(),
-                image: image,
-                location: location
-            });
-            this.isImageModified = true;
-            return;
-        }
-
-        const latestImage = this.getImage();
-        latestImage.image = image;
-        latestImage.location = location;
-        latestImage.timestamp = Date.now();
     }
 
     // ######## private stuff ########
