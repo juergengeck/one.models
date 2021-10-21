@@ -25,12 +25,11 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
  * @param target
  */
 export async function giveAccess(
-    licenseType: LicenseType,
     subject: SHA256Hash<OneUnversionedObjectTypes>,
     issuer: SHA256IdHash<Person>,
     target: SHA256IdHash<Person>
 ) {
-    const certificate = await createCertificate(licenseType, subject, issuer, target);
+    const certificate = await createCertificate('access', subject, issuer, target);
     await createSingleObjectThroughPurePlan({module: '@one/access'}, [
         {
             object: await calculateHashOfObj(certificate),
