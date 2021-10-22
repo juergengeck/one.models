@@ -8,7 +8,7 @@ import {
 } from 'one.core/lib/storage';
 import type {Certificate, LicenseType} from '../recipes/CertificateRecipes';
 import {createCryptoAPI, stringToUint8Array} from 'one.core/lib/instance-crypto';
-import {sign} from 'tweetnacl';
+import {sign, verify} from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getLicenseHashByType} from './License';
@@ -113,22 +113,10 @@ export async function validateCertificate(
 
     // Decoding the base64 is platform dependent
 
-    if (platform === PLATFORMS.NODE_JS) {
-        if (
-            Buffer.from(fromByteArray(result), 'base64').toString() !==
-            createSignatureMsg(licenseText, subject, issuer, target)
-        ) {
-            throw new Error("The certificate's signature is not valid.");
-        }
-    }
-
-    // @ts-ignore
-    if (platform === PLATFORMS.BROWSER) {
-        if (
-            atob(fromByteArray(result)) !== createSignatureMsg(licenseText, subject, issuer, target)
-        ) {
-            throw new Error("The certificate's signature is not valid.");
-        }
+    if (
+        !verify(result, stringToUint8Array(createSignatureMsg(licenseText, subject, issuer, target)))
+    ) {
+        throw new Error("The certificate's signature is not valid.");
     }
 }
 
