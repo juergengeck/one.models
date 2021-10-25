@@ -215,9 +215,7 @@ function transform(code, options) {
                 return reject(err);
             }
 
-            return resolve(
-                result.code.replace(/(\nimport [^"']+["'])([^"']+).[tj]s(["'];)/gm, '$1$2$3')
-            );
+            return resolve(result.code);
         });
     });
 }
@@ -296,7 +294,6 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 
 /**
  * @param {string} targetDir
- * @param {string} system
  * @returns {Promise<void>}
  */
 async function createDeclarationFiles(targetDir) {
