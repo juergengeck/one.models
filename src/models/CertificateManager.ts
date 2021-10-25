@@ -2,7 +2,7 @@ import {getLicenseHashByType, initLicenses} from '../misc/License';
 import type {Certificate} from '../recipes/CertificateRecipes';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import {createCertificate, isCertificateValid, validateCertificate} from '../misc/Certificate';
+import {createCertificate, revokeCertificate, validateCertificate} from '../misc/Certificate';
 import {LeuteModel} from './index';
 import {createSingleObjectThroughPurePlan, getObject, SET_ACCESS_MODE} from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
@@ -10,6 +10,7 @@ import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import type {OneObjectTypeNames} from 'one.core/src/recipes';
+import type {LicenseType} from '../recipes/CertificateRecipes';
 
 /**
  * Manages the creation & validation of certificates
@@ -48,6 +49,20 @@ export default class CertificateManager {
                 mode: SET_ACCESS_MODE.REPLACE
             }
         ]);
+    }
+
+    /**
+     * Revokes a certificate.
+     * @param licenseType - the type indicating which kind of certificate it was
+     * @param subject - the object you want the certificate to be revoked
+     * @param target - the person for whom the certificate is intended to be revoked
+     */
+    public async revokeCertificate(
+        licenseType: LicenseType,
+        subject: SHA256Hash<OneUnversionedObjectTypes>,
+        target: SHA256IdHash<Person>
+    ): Promise<void> {
+        return await revokeCertificate(licenseType, subject, target)
     }
 
     /**
@@ -112,7 +127,6 @@ export default class CertificateManager {
             const certificate = await getObject(certificateHash);
             if (
                 certificate.subject === subject &&
-                isCertificateValid(certificateHash) &&
                 (await this.validate(certificateHash, certificate.issuer))
             ) {
                 foundPersons.push(certificate.target);
@@ -121,8 +135,6 @@ export default class CertificateManager {
 
         return foundPersons;
     }
-
-
 
     /**
      * Finds what objects the given person has through a valid certificate. Only valid
@@ -150,7 +162,6 @@ export default class CertificateManager {
             const certificate = await getObject(certificateHash);
             if (
                 certificate.target === target &&
-                isCertificateValid(certificateHash) &&
                 (await this.validate(certificateHash, certificate.issuer))
             ) {
                 foundObjects.push(certificate.subject);

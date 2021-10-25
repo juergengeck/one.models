@@ -9,10 +9,12 @@ import {
 import type {Certificate, LicenseType} from '../recipes/CertificateRecipes';
 import {createCryptoAPI, stringToUint8Array} from 'one.core/lib/instance-crypto';
 import {sign, verify} from 'tweetnacl';
-import {fromByteArray, toByteArray} from 'base64-js';
+import {toByteArray} from 'base64-js';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getLicenseHashByType} from './License';
 import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
+import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
+import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
 
 const CertificateRevocationList: SHA256Hash<Certificate>[] = [];
 
@@ -51,7 +53,7 @@ export async function createCertificate(
             issuer: issuer,
             subject: subject,
             target: target,
-            signature: fromByteArray(signature)
+            signature: arrayBufferToHex(signature)
         }
     );
 }
@@ -78,14 +80,20 @@ export async function validateCertificate(
         createSignatureMsg(licenseText, subject, issuer, target)
     );
 
-    const result = sign.open(toByteArray(signature), toByteArray(issuerPublicKey));
+    const signatureAb = hexToArrayBuffer(signature);
+
+    // issuerPublicKey is Base64 - toByteArray is needed
+    const result = sign.open(new Uint8Array(signatureAb), toByteArray(issuerPublicKey));
 
     if (result === null) {
         throw new Error("The certificate's signature is not valid.");
     }
 
     if (
-        !verify(result, stringToUint8Array(createSignatureMsg(licenseText, subject, issuer, target)))
+        !verify(
+            result,
+            stringToUint8Array(createSignatureMsg(licenseText, subject, issuer, target))
+        )
     ) {
         throw new Error("The certificate's signature is not valid.");
     }
@@ -111,14 +119,6 @@ export async function revokeCertificate(
     CertificateRevocationList.push(foundCertificate);
 }
 
-/**
- *
- * @param certificateHash
- */
-export function isCertificateValid(certificateHash: SHA256Hash<Certificate>): boolean {
-    return !CertificateRevocationList.includes(certificateHash);
-}
-
 // ----------------------------------------- PRIVATE -----------------------------------------
 
 /**
@@ -132,6 +132,23 @@ async function findCertificate(
     subject: SHA256Hash<OneUnversionedObjectTypes>,
     target: SHA256IdHash<Person>
 ) {
+    const instanceIdHash = await getInstanceIdHash();
+
+    if (instanceIdHash === undefined) {
+        throw new Error('The instance id hash could be found. Init instance first.');
+    }
+
+    const instanceObject = await getObjectByIdHash(instanceIdHash);
+
+    if (
+        !instanceObject.obj.enabledReverseMapTypes.has('License') ||
+        !instanceObject.obj.enabledReverseMapTypes.has('Person')
+    ) {
+        throw new Error(`The reverse maps needs to be added in order to use 
+              findCertificate(). Add [[\'Person\', null],[\'License\']] to
+              the reverse maps`);
+    }
+
     const licenseHash = getLicenseHashByType(licenseType);
 
     if (licenseHash === undefined) {

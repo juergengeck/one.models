@@ -95,7 +95,7 @@ describe('Certificate test', () => {
         const cert = await createCertificate('access', subject, issuer, target);
         await validateCertificate(cert.hash, issuerPublicSingKey);
     });
-    it('Should revoked a certificate successfully', async () => {
+    it('Should revoke a certificate successfully', async () => {
         const cert = await createCertificate('access', subject, issuer, target);
         let error = false;
         await revokeCertificate('access', subject, issuer);
