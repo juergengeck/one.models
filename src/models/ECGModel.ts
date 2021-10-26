@@ -2,7 +2,6 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
@@ -12,7 +11,7 @@ import type {Model} from './Model';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 
-export default class ECGModel extends EventEmitter implements Model {
+export default class ECGModel  implements Model {
     /**
      * Event emitted when ecg data is updated.
      */
@@ -28,7 +27,6 @@ export default class ECGModel extends EventEmitter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
     }
 
@@ -208,7 +206,7 @@ export default class ECGModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === ECGModel.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

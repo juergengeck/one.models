@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
@@ -28,7 +27,7 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
  * At the moment this model is just managing questionnaire responses.
  * In the future this will most probably also manage questionnaires.
  */
-export default class QuestionnaireModel extends EventEmitter implements Model {
+export default class QuestionnaireModel  implements Model {
     /**
      * Event is emitted when the incomplete questionnaire response data is updated.
      */
@@ -51,7 +50,6 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
@@ -396,10 +394,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === QuestionnaireModel.channelId || id === this.incompleteResponsesChannelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {
-                this.emit('updatedIncomplete');
                 this.onIncompleteResponse.emit();
             }
         }

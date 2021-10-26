@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 
 import type {
     BlobCollection as OneBlobCollection,
@@ -40,7 +39,7 @@ export interface BlobCollection {
  * Storing: call addCollections with an array of files containing one element and a name.
  * Loading: call getCollection(name)[0]
  */
-export default class BlobCollectionModel extends EventEmitter implements Model {
+export default class BlobCollectionModel  implements Model {
     /**
      * Event is emitted when blob collection data is updated.
      */
@@ -52,8 +51,6 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
-        super();
-
         this.channelManager = channelManager;
     }
 
@@ -124,7 +121,6 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === BlobCollectionModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }

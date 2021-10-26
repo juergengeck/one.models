@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 
 import type {Model} from './Model';
 import {OEvent} from '../misc/OEvent';
@@ -13,7 +12,7 @@ import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
  * Those Events can be {@link HEART_OCCURRING_EVENTS}
  * For more information, see Chapter Vital Signs in {@link https://developer.apple.com/documentation/healthkit/data_types}
  */
-export default class HeartEventModel extends EventEmitter implements Model {
+export default class HeartEventModel  implements Model {
     /**
      * Event emitted when HeartEvent data is updated.
      */
@@ -32,7 +31,6 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
     }
 
@@ -97,7 +95,6 @@ export default class HeartEventModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === HeartEventModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }

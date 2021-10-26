@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 
 import type {Model} from './Model';
 import {OEvent} from '../misc/OEvent';
@@ -9,7 +8,7 @@ import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {QueryOptions} from './ChannelManager';
 
-export default class AudioExerciseModel extends EventEmitter implements Model {
+export default class AudioExerciseModel  implements Model {
     /**
      * Event is emitted when audio data is updated.
      */
@@ -20,7 +19,6 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
     }
 
@@ -93,7 +91,7 @@ export default class AudioExerciseModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === AudioExerciseModel.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

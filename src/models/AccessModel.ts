@@ -2,7 +2,6 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {EventEmitter} from 'events';
 import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
@@ -24,7 +23,7 @@ const ACCESS_LOCKS = {
  * @description Access Model class
  * @augments EventEmitter
  */
-export default class AccessModel extends EventEmitter {
+export default class AccessModel  {
     /**
      * Event is emitted when:
      * - a access group is created
@@ -32,10 +31,6 @@ export default class AccessModel extends EventEmitter {
      * - persons are removed from the access group
      */
     public onGroupsUpdated = new OEvent<() => void>();
-
-    constructor() {
-        super();
-    }
 
     /**
      *
@@ -90,7 +85,6 @@ export default class AccessModel extends EventEmitter {
                 },
                 group.obj
             );
-            this.emit('groups_updated');
             this.onGroupsUpdated.emit();
         }
     }
@@ -117,7 +111,6 @@ export default class AccessModel extends EventEmitter {
                     group.obj
                 );
 
-                this.emit('groups_updated');
                 this.onGroupsUpdated.emit();
             }
         });
@@ -172,7 +165,6 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
-            this.emit('groups_updated');
             this.onGroupsUpdated.emit();
         }
     }

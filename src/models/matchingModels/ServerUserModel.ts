@@ -82,8 +82,6 @@ export default class ServerUserModel extends ClientMatchingModel {
 
                 await this.channelManager.postToChannel(this.channelId, newSupply.obj);
             }
-
-            this.emit(MatchingEvents.SupplyUpdate);
         });
     }
 
@@ -130,8 +128,6 @@ export default class ServerUserModel extends ClientMatchingModel {
 
                 await this.channelManager.postToChannel(this.channelId, newDemand.obj);
             }
-
-            this.emit(MatchingEvents.DemandUpdate);
         });
     }
 }

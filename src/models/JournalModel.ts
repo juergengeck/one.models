@@ -29,7 +29,7 @@ type JournalData = {
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
-export default class JournalModel extends EventEmitter implements Model {
+export default class JournalModel  implements Model {
     private readonly modelsDictionary: JournalInput[];
 
     private oEventListeners: Map<
@@ -43,7 +43,6 @@ export default class JournalModel extends EventEmitter implements Model {
     public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
 
     constructor(modelsInput: JournalInput[]) {
-        super();
         this.modelsDictionary = modelsInput;
     }
 

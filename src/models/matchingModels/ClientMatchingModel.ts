@@ -151,7 +151,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(this.channelId, supply.obj);
 
-            this.emit(MatchingEvents.SupplyUpdate);
             this.onSupplyUpdate.emit();
         });
     }
@@ -183,7 +182,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(this.channelId, demand.obj);
 
-            this.emit(MatchingEvents.DemandUpdate);
             this.onDemandUpdate.emit();
         });
     }
@@ -289,7 +287,6 @@ export default class ClientMatchingModel extends MatchingModel {
     async deleteSupply(supplyValue: string): Promise<void> {
         this.suppliesMap.delete(supplyValue);
         await this.memoriseLatestVersionOfSupplyMap();
-        this.emit(MatchingEvents.SupplyUpdate);
         this.onSupplyUpdate.emit();
     }
 
@@ -304,7 +301,6 @@ export default class ClientMatchingModel extends MatchingModel {
     async deleteDemand(demandValue: string): Promise<void> {
         this.demandsMap.delete(demandValue);
         await this.memoriseLatestVersionOfDemandMap();
-        this.emit(MatchingEvents.DemandUpdate);
         this.onDemandUpdate.emit();
     }
 
@@ -362,7 +358,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(this.channelId, newSupply.obj);
 
-            this.emit(MatchingEvents.SupplyUpdate);
             this.onSupplyUpdate.emit();
         });
     }
@@ -421,7 +416,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(this.channelId, newDemand.obj);
 
-            this.emit(MatchingEvents.DemandUpdate);
             this.onDemandUpdate.emit();
         });
     }
@@ -448,7 +442,6 @@ export default class ClientMatchingModel extends MatchingModel {
                         }
 
                         await this.memoriseLatestVersionOfSupplyMap();
-                        this.emit(MatchingEvents.CatalogUpdate);
                         this.onCatalogUpdate.emit();
                     } else if (receivedObject.$type$ === 'Demand') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
@@ -458,7 +451,6 @@ export default class ClientMatchingModel extends MatchingModel {
                         }
 
                         await this.memoriseLatestVersionOfDemandMap();
-                        this.emit(MatchingEvents.CatalogUpdate);
                         this.onCatalogUpdate.emit();
                     }
                 } catch (err) {
@@ -530,7 +522,6 @@ export default class ClientMatchingModel extends MatchingModel {
                     }
                 );
             }
-            this.emit(MatchingEvents.MatchUpdate);
             this.onMatchUpdate.emit();
         });
     }

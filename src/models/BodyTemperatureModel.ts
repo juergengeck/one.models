@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import i18nModelsInstance from '../i18n';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
@@ -18,7 +17,7 @@ export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
  * This model implements the possibility of adding a body temperature measurement into a journal and
  * keeping track of the list of the body temperature measurements
  */
-export default class BodyTemperatureModel extends EventEmitter implements Model {
+export default class BodyTemperatureModel  implements Model {
     /**
      * Event is emitted when body temperature data is updated.
      */
@@ -29,8 +28,6 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
-        super();
-
         this.channelManager = channelManager;
     }
 
@@ -117,7 +114,7 @@ export default class BodyTemperatureModel extends EventEmitter implements Model 
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === BodyTemperatureModel.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

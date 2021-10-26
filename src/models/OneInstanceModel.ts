@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import oneModules from '../generated/oneModules';
 import {
@@ -84,7 +83,7 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
 /**
  * Model that exposes functionality closely related to one.core
  */
-export default class OneInstanceModel extends EventEmitter {
+export default class OneInstanceModel  {
     /**
      * Event emitted:
      * - when a new instance is created with takeOver
@@ -168,7 +167,6 @@ export default class OneInstanceModel extends EventEmitter {
         accessModel: AccessModel,
         initialRecipes: Recipe[]
     ) {
-        super();
         this.password = '';
         this.randomEmail = '';
         this.randomInstanceName = '';
@@ -304,7 +302,6 @@ export default class OneInstanceModel extends EventEmitter {
         await importModules();
         this.unregister();
         await this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
-        this.emit('authstate_changed');
         this.onAuthStateChange.emit();
     }
 
@@ -380,11 +377,9 @@ export default class OneInstanceModel extends EventEmitter {
 
         if (availablePatientConnections.length > 0) {
             this.currentPartnerState = false;
-            this.emit('partner_state_changed');
             this.onPartnerStateChange.emit();
         } else {
             this.currentPartnerState = true;
-            this.emit('partner_state_changed');
             this.onPartnerStateChange.emit();
         }
     }
@@ -408,9 +403,7 @@ export default class OneInstanceModel extends EventEmitter {
             this.password = secret;
             this.currentRegistrationState = true;
             this.currentAuthenticationState = AuthenticationState.Authenticated;
-            this.emit('registration_state_changed');
             this.onRegistrationStateChange.emit();
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
             return;
         }
@@ -430,11 +423,9 @@ export default class OneInstanceModel extends EventEmitter {
                 this.currentRegistrationState = false;
             } catch {
                 this.currentRegistrationState = true;
-                this.emit('registration_state_changed');
                 this.onRegistrationStateChange.emit();
             }
 
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
         }
     }
@@ -449,7 +440,6 @@ export default class OneInstanceModel extends EventEmitter {
         // This is done before everything else, so that the UI is updated and
         // you won't see clitches, because of the indivdual models shutting down
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.emit('authstate_changed');
         this.onAuthStateChange.emit();
 
         // Signal the application that it should shutdown one dependent models
@@ -481,9 +471,7 @@ export default class OneInstanceModel extends EventEmitter {
             this.currentRegistrationState = true;
             this.currentPatientTypeState = patientType;
             await this.initialiseInstance(secret);
-            this.emit('registration_state_changed');
             this.onRegistrationStateChange.emit();
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
             return;
         }
@@ -498,7 +486,6 @@ export default class OneInstanceModel extends EventEmitter {
      */
     unregister(): void {
         this.currentRegistrationState = false;
-        this.emit('registration_state_changed');
         this.onRegistrationStateChange.emit();
     }
 

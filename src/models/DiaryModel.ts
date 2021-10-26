@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
@@ -42,7 +41,7 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
  * This model implements the possibility of adding a diary entry into a journal and
  * keeping track of the list of the diary entries
  */
-export default class DiaryModel extends EventEmitter implements Model {
+export default class DiaryModel  implements Model {
     /**
      * Event emitted when diary data is updated.
      */
@@ -58,8 +57,6 @@ export default class DiaryModel extends EventEmitter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
-
         this.channelManager = channelManager;
     }
 
@@ -139,7 +136,7 @@ export default class DiaryModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DiaryModel.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

@@ -266,7 +266,7 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

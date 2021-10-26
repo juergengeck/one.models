@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 
 import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
 import {
@@ -215,7 +214,7 @@ function isChannelInfoResult(
  *       We don't use a singleton, because it makes it harder to track where
  *       channels are used.
  */
-export default class ChannelManager extends EventEmitter {
+export default class ChannelManager  {
     // Serialize locks
     private static readonly postLockName = 'ChannelManager_postLock';
     private static readonly postNELockName = 'ChannelManager_postNELock';
@@ -251,7 +250,6 @@ export default class ChannelManager extends EventEmitter {
      * @param accessModel
      */
     constructor(accessModel: AccessModel) {
-        super();
         this.accessModel = accessModel;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
@@ -1389,7 +1387,6 @@ export default class ChannelManager extends EventEmitter {
                 // We wouldn't need to emit every time ... especially not if the previous
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
-                this.emit('updated', channelId, channelOwner);
                 const data = await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash);
                 if (data === undefined) {
                     throw new Error('wrapChannelInfoWithObjectData returned undefined ');

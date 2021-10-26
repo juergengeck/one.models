@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
@@ -37,7 +36,7 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
-export default class DocumentModel extends EventEmitter implements Model {
+export default class DocumentModel  implements Model {
     /**
      * Event emitted when document data is updated.
      */
@@ -53,8 +52,6 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
-
         this.channelManager = channelManager;
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
@@ -226,7 +223,7 @@ export default class DocumentModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DocumentModel.channelId) {
-            this.emit('updated');
+
             this.onUpdated.emit(data);
         }
     }

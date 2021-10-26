@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type InstancesModel from '../InstancesModel';
 import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
@@ -25,7 +24,7 @@ import type {Person} from 'one.core/lib/recipes';
  * @description Matching Model class
  * @augments EventEmitter
  */
-export default abstract class MatchingModel extends EventEmitter implements Model {
+export default abstract class MatchingModel implements Model {
     /**
      * Event emitted when matching data is updated.
      */
@@ -45,7 +44,6 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     private disconnect: (() => void) | undefined;
 
     protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
-        super();
         this.instancesModel = instancesModel;
         this.channelManager = channelManager;
         this.anonInstanceInfo = null;
@@ -366,7 +364,6 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      */
     private async handleUpdate(id: string): Promise<void> {
         if (id === this.channelId) {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }

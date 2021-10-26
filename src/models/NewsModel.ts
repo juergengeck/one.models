@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';
@@ -34,7 +33,7 @@ function convertFromOne(oneObject: OneNews): News {
 /**
  * This model implements a broadcast channel.
  */
-export default class NewsModel extends EventEmitter implements Model {
+export default class NewsModel  implements Model {
     /**
      * Event emitted when news data is updated.
      */
@@ -49,7 +48,6 @@ export default class NewsModel extends EventEmitter implements Model {
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
     }
 
@@ -82,7 +80,6 @@ export default class NewsModel extends EventEmitter implements Model {
 
     private async postContent(channelId: string, content: string): Promise<void> {
         await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
-        this.emit('news');
         this.onNewsEvent.emit();
     }
 
@@ -111,7 +108,6 @@ export default class NewsModel extends EventEmitter implements Model {
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === 'feedbackChannel' || id === 'newsChannel') {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }

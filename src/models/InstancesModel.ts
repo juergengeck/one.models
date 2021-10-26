@@ -12,7 +12,6 @@ import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from 'one.core/lib/instance-crypto';
-import {EventEmitter} from 'events';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
@@ -54,7 +53,7 @@ export type LocalInstanceInfo = {
  * - Keys: Returns Key object(s)
  * - Info: Returns LocalInstanceInfo object(s)
  */
-class InstancesModel extends EventEmitter {
+class InstancesModel  {
     /**
      * Event emitted when a local instance is created.
      */
@@ -366,7 +365,6 @@ class InstancesModel extends EventEmitter {
     public async createLocalInstance(owner: SHA256IdHash<Person>): Promise<SHA256IdHash<Instance>> {
         const person = await getObjectByIdHash(owner);
         const instance = await this.createLocalInstanceByEMail(person.obj.email);
-        this.emit('instance_created', instance);
         this.onInstanceCreated.emit(instance);
         return instance;
     }

@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
@@ -12,7 +11,7 @@ const MessageBus = createMessageBus('WbcDiffModel');
 /**
  * This model implements methods related to differential blood counts of white blood cells.
  */
-export default class WbcDiffModel extends EventEmitter implements Model {
+export default class WbcDiffModel  implements Model {
     /**
      * Event is emitted when the wbc data is updated.
      */
@@ -23,7 +22,6 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
-        super();
         this.channelManager = channelManager;
     }
 
@@ -58,7 +56,6 @@ export default class WbcDiffModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === WbcDiffModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }
