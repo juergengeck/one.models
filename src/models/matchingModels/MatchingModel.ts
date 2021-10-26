@@ -34,7 +34,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
     protected anonInstanceInfo: LocalInstanceInfo | null;
-    protected channelId = 'matching';
+    public static readonly channelId = 'matching';
 
     protected suppliesMap: Map<string, Supply[]>;
     protected demandsMap: Map<string, Demand[]>;
@@ -59,7 +59,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     abstract init(): Promise<void>;
 
     protected async startMatchingChannel(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(MatchingModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
     }
 
@@ -112,7 +112,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
             const setAccessParam = {
                 id: await calculateIdHashOfObj({
                     $type$: 'ChannelInfo',
-                    id: this.channelId,
+                    id: MatchingModel.channelId,
                     owner: this.anonInstanceInfo.personId
                 }),
                 person,
@@ -365,7 +365,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      *  @param id
      */
     private async handleUpdate(id: string): Promise<void> {
-        if (id === this.channelId) {
+        if (id === MatchingModel.channelId) {
             this.emit('updated');
             this.onUpdated.emit();
         }
