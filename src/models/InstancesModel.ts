@@ -16,8 +16,7 @@ import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
 import type {Instance, Keys, Person} from 'one.core/lib/recipes';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
 
 /**
  * This type stores information about an instance.
@@ -55,8 +54,7 @@ export type LocalInstanceInfo = {
  * - Keys: Returns Key object(s)
  * - Info: Returns LocalInstanceInfo object(s)
  */
-class InstancesModel {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+class InstancesModel extends Model {
     /**
      * Event emitted when a local instance is created.
      */
@@ -65,7 +63,7 @@ class InstancesModel {
     private secret: string = '';
 
     constructor() {
-        this.state = createModelStateMachine();
+        super();
     }
 
     /**
@@ -77,10 +75,8 @@ class InstancesModel {
      * someday we will do it right ... yes we can ...
      */
     public async init(secret: string): Promise<void> {
-        this.secret = secret;
-        // this is the only place the init event is called here because this function uses class
-        // functions in order to get initialised.
         this.state.triggerEvent('init');
+        this.secret = secret;
 
         // Create the top level LocalInstancesList if it does not exist
         // Note: Using exceptions for normal program flow is a bad habit
@@ -116,7 +112,7 @@ class InstancesModel {
     /**
      * Shutdown the model
      */
-    public shutdown() {
+    public async shutdown() {
         this.state.triggerEvent('shutdown');
     }
 

@@ -43,8 +43,7 @@ import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Keys, Person} from 'one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -151,8 +150,7 @@ type PkAuthenticationTokenInfo = {
  * - The chum is then used to exchange contact information
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
-class ConnectionsModel {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+class ConnectionsModel extends Model {
     /**
      * Event is emitted when state of the connector changes. The emitted value represents the updated state.
      */
@@ -247,6 +245,7 @@ class ConnectionsModel {
         instancesModel: InstancesModel,
         config: Partial<ConnectionsModelConfiguration>
     ) {
+        super();
         // Build configuration object by using default values
         this.config = {
             commServerUrl:
@@ -298,14 +297,14 @@ class ConnectionsModel {
         this.pkOneTimeAuthenticationTokens = new Map<string, PkAuthenticationTokenInfo>();
 
         this.password = '';
-
-        this.state = createModelStateMachine();
     }
 
     /**
      * Initialize this module.
      */
     public async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         this.initialized = true;
 
         await this.updateInstanceInfos();
@@ -314,7 +313,6 @@ class ConnectionsModel {
         if (!this.mainInstanceInfo) {
             throw new Error('Programming error: mainInstanceInfo is not initialized');
         }
-        this.state.triggerEvent('init');
     }
 
     /**

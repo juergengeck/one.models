@@ -13,17 +13,18 @@ import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import {Model} from './Model';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
 } as const;
 
 /**
- *
+ * @deprecated
  * @description Access Model class
  * @augments EventEmitter
  */
-export default class AccessModel {
+export default class AccessModel extends Model {
     /**
      * Event is emitted when:
      * - a access group is created
@@ -32,10 +33,17 @@ export default class AccessModel {
      */
     public onGroupsUpdated = new OEvent<() => void>();
 
-    /**
-     *
-     */
-    async init() {}
+    constructor() {
+        super();
+    }
+
+    async init() {
+        this.state.triggerEvent('init')
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.triggerEvent('shutdown')
+    }
 
     /**
      *
@@ -43,6 +51,7 @@ export default class AccessModel {
      * @returns
      */
     async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
+        this.state.assertCurrentState('Initialised');
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
             if (Array.isArray(groupName)) {
                 return [
@@ -70,6 +79,8 @@ export default class AccessModel {
      * @param personId
      */
     async removePersonFromAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const group = await this.getAccessGroupByName(name);
         /** add the person only if it does not exist and prevent unnecessary one updates **/
 
@@ -94,6 +105,8 @@ export default class AccessModel {
      * @param personId
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
             const group = await this.getAccessGroupByName(name);
             /** add the person only if it does not exist and prevent unnecessary one updates **/
@@ -120,6 +133,8 @@ export default class AccessModel {
         groupName: string,
         objectHash: SHA256Hash<OneObjectTypes>
     ): Promise<VersionedObjectResult<Access | IdAccess>> {
+        this.state.assertCurrentState('Initialised');
+
         const group = await this.getAccessGroupByName(groupName);
         return await createSingleObjectThroughPurePlan(
             {
@@ -143,6 +158,8 @@ export default class AccessModel {
      * @returns
      */
     async getAccessGroupByName(name: string): Promise<VersionedObjectResult<Group>> {
+        this.state.assertCurrentState('Initialised');
+
         return await getObjectByIdObj({$type$: 'Group', name: name});
     }
 
@@ -151,6 +168,8 @@ export default class AccessModel {
      * @param name
      */
     async createAccessGroup(name: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {

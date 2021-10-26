@@ -6,20 +6,12 @@ import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {getObject} from 'one.core/lib/storage';
 import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {StateMachine} from '../misc/StateMachine';
 
-export default class ECGModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event emitted when ecg data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class ECGModel extends Model {
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
     public static readonly channelId = 'electrocardiogram';
@@ -30,17 +22,19 @@ export default class ECGModel implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(ECGModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**

@@ -1,8 +1,8 @@
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
@@ -10,7 +10,6 @@ import type {
     QuestionnaireResponses,
     QuestionnaireResponse
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
-import type {StateMachine} from '../misc/StateMachine';
 
 // Export the Questionnaire types
 export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
@@ -28,8 +27,7 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
  * At the moment this model is just managing questionnaire responses.
  * In the future this will most probably also manage questionnaires.
  */
-export default class QuestionnaireModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class QuestionnaireModel extends Model {
     /**
      * Event is emitted when the incomplete questionnaire response data is updated.
      */
@@ -38,7 +36,7 @@ export default class QuestionnaireModel implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+
 
     private channelManager: ChannelManager;
     public static readonly channelId = 'questionnaireResponse';
@@ -52,10 +50,11 @@ export default class QuestionnaireModel implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -64,10 +63,11 @@ export default class QuestionnaireModel implements Model {
      * This must be done after the one instance was initialized.
      */
     public async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(QuestionnaireModel.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**

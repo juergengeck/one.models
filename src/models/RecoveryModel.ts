@@ -16,8 +16,7 @@ import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
@@ -40,19 +39,19 @@ interface PersonInformation {
  * be added in the recovery url and for extracting the data from the
  * recovery url.
  */
-export default class RecoveryModel {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class RecoveryModel extends Model {
     private readonly recoveryKeyLength: number;
     private connectionsModel: ConnectionsModel;
     private decryptedObject: PersonInformation | undefined;
     private password: string;
 
     constructor(connectionsModel: ConnectionsModel) {
+        super();
         // default length for the recovery key
         this.recoveryKeyLength = 19;
         this.connectionsModel = connectionsModel;
         this.password = '';
-        this.state = createModelStateMachine();
+
         this.state.triggerEvent('init');
     }
 
@@ -70,6 +69,10 @@ export default class RecoveryModel {
         this.state.assertCurrentState('Initialised');
 
         this.password = password;
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.triggerEvent('shutdown');
     }
 
     /**

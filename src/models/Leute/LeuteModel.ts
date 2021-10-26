@@ -31,13 +31,12 @@ import type {
 } from '@OneObjectInterfaces';
 import {OEvent} from '../../misc/OEvent';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import type {Model} from '../Model';
+
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import GroupModel from './GroupModel';
-import type {StateMachine} from '../../misc/StateMachine';
-import {createModelStateMachine} from '../Model';
+import {Model} from '../Model';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -81,8 +80,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  *    - share profiles with others / get sharing state
  *    - obtain profiles
  */
-export default class LeuteModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class LeuteModel extends Model {
     public onUpdated: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
     public onNewOneInstanceEndpointEvent = new OEvent<
@@ -113,14 +111,13 @@ export default class LeuteModel implements Model {
      * @param commserverUrl - when creating the default oneInstanceEndpoint this url is used
      */
     constructor(instancesModel: InstancesModel, commserverUrl: string) {
+        super();
         this.instancesModel = instancesModel;
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
         this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
         this.boundNewOneInstanceEndpointFromResult =
             this.emitNewOneInstanceEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
-
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -131,6 +128,8 @@ export default class LeuteModel implements Model {
      * As main identity the owner of the main one instance is used. This might change in the future!
      */
     public async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         // Reuse the instance and person from one.core
         const personId = getInstanceOwnerIdHash();
         if (personId === undefined) {
@@ -174,7 +173,6 @@ export default class LeuteModel implements Model {
         onVersionedObj.addListener(this.boundAddProfileFromResult);
         onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
 
-        this.state.triggerEvent('init');
     }
 
     /**

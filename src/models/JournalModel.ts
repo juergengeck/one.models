@@ -2,12 +2,9 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import EventEmitter from 'events';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
-import type {StateMachine} from '../misc/StateMachine';
+import {Model} from './Model';
 
 export type JournalEntry = {
     type: string;
@@ -31,8 +28,7 @@ type JournalData = {
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
-export default class JournalModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class JournalModel extends Model {
     private readonly modelsDictionary: JournalInput[];
 
     private oEventListeners: Map<
@@ -43,21 +39,24 @@ export default class JournalModel implements Model {
         }
     > = new Map();
 
-    public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
+    public onJournalUpdate = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
 
     constructor(modelsInput: JournalInput[]) {
+        super();
+
         this.modelsDictionary = modelsInput;
-        this.state = createModelStateMachine();
     }
 
     /**
      * maps an handler on every provided model
      */
     async init() {
+        this.state.triggerEvent('init');
+
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
             const oEventHandler = (data: ObjectData<unknown>) => {
-                this.onUpdated.emit(data, event);
+                this.onJournalUpdate.emit(data, event);
             };
 
             const disconnectFn = journalInput.event(oEventHandler.bind(this));
@@ -65,7 +64,6 @@ export default class JournalModel implements Model {
             // Persist the function reference in a map
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
-        this.state.triggerEvent('init');
     }
 
     /**

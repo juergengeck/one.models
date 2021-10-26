@@ -19,8 +19,7 @@ import {OEvent} from '../misc/OEvent';
 import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 import type ConsentFileModel from './ConsentFileModel';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -85,8 +84,7 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
 /**
  * Model that exposes functionality closely related to one.core
  */
-export default class OneInstanceModel {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class OneInstanceModel extends Model {
     /**
      * Event emitted:
      * - when a new instance is created with takeOver
@@ -170,6 +168,7 @@ export default class OneInstanceModel {
         accessModel: AccessModel,
         initialRecipes: Recipe[]
     ) {
+        super();
         this.password = '';
         this.randomEmail = '';
         this.randomInstanceName = '';
@@ -192,7 +191,6 @@ export default class OneInstanceModel {
             }
         });
 
-        this.state = createModelStateMachine();
         this.state.triggerEvent('init');
     }
 
@@ -663,5 +661,9 @@ export default class OneInstanceModel {
         } as Instance);
 
         await this.deleteInstance(`data#${instanceIdHash}`);
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.triggerEvent('shutdown');
     }
 }

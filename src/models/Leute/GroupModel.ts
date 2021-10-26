@@ -14,9 +14,7 @@ import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-vers
 import type {Plan} from 'one.core/lib/recipes';
 import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import type {StateMachine} from '../../misc/StateMachine';
-import type {Model} from '../Model';
-import {createModelStateMachine} from '../Model';
+import {Model} from '../Model';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -24,8 +22,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 const DUMMY_BLOB_HASH: SHA256Hash<BLOB> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
 
-export default class GroupModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class GroupModel extends Model {
     public onUpdated: OEvent<() => void> = new OEvent();
 
     public readonly groupIdHash: SHA256IdHash<Group>;
@@ -40,6 +37,7 @@ export default class GroupModel implements Model {
     private profile?: GroupProfile;
 
     constructor(groupIdHash: SHA256IdHash<Group>, profileIdHash: SHA256IdHash<GroupProfile>) {
+        super();
         this.profileIdHash = profileIdHash;
         this.groupIdHash = groupIdHash;
 
@@ -60,7 +58,6 @@ export default class GroupModel implements Model {
             }
         });
 
-        this.state = createModelStateMachine();
         this.state.triggerEvent('init');
     }
 

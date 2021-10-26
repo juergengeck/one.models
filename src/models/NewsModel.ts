@@ -1,10 +1,7 @@
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
-import type {StateMachine} from '../misc/StateMachine';
+import {Model} from './Model';
 
 /**
  * This represents the model of a news for now
@@ -35,24 +32,19 @@ function convertFromOne(oneObject: OneNews): News {
 /**
  * This model implements a broadcast channel.
  */
-export default class NewsModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event emitted when news data is updated.
-     */
-    public onNewsEvent = new OEvent<() => void>();
+export default class NewsModel extends Model {
     /**
      * Event emitted when news or feedback data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
 
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -60,10 +52,11 @@ export default class NewsModel implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**
@@ -113,7 +106,7 @@ export default class NewsModel implements Model {
 
     private async postContent(channelId: string, content: string): Promise<void> {
         await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
-        this.onNewsEvent.emit();
+        this.onUpdated.emit();
     }
 
     /**

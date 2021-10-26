@@ -3,15 +3,13 @@ import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import type {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
-import type {StateMachine} from '../misc/StateMachine';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -38,13 +36,7 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
-export default class DocumentModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event emitted when document data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
     private disconnect: (() => void) | undefined;
@@ -55,9 +47,10 @@ export default class DocumentModel implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -66,8 +59,9 @@ export default class DocumentModel implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(DocumentModel.channelId);
         this.state.triggerEvent('init');
+
+        await this.channelManager.createChannel(DocumentModel.channelId);
     }
 
     /**

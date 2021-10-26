@@ -2,12 +2,10 @@ import i18nModelsInstance from '../i18n';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {StateMachine} from '../misc/StateMachine';
 
 /**
  * This represents the model of a body temperature measurement
@@ -19,29 +17,30 @@ export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
  * This model implements the possibility of adding a body temperature measurement into a journal and
  * keeping track of the list of the body temperature measurements
  */
-export default class BodyTemperatureModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default class BodyTemperatureModel extends Model {
     /**
      * Event is emitted when body temperature data is updated.
      */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+
     public static readonly channelId = 'bodyTemperature';
 
     channelManager: ChannelManager;
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(BodyTemperatureModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**

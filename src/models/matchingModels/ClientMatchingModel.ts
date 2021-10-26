@@ -94,6 +94,8 @@ export default class ClientMatchingModel extends MatchingModel {
      * 4. share the channel with the matching server
      */
     async init() {
+        this.state.triggerEvent('init');
+
         /*const importedMatchingContact: UnversionedObjectResult<Contact>[] =
             await createManyObjectsThroughPurePlan(
                 {
@@ -122,7 +124,6 @@ export default class ClientMatchingModel extends MatchingModel {
             ? [this.matchingServerPersonIdHash, this.anonInstanceInfo.personId]
             : [this.matchingServerPersonIdHash];
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
-        this.state.triggerEvent('init');
     }
 
     /**
@@ -357,7 +358,10 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToSupplyMap(newSupply.obj);
             await this.memoriseLatestVersionOfSupplyMap();
 
-            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newSupply.obj);
+            await this.channelManager.postToChannelIfNotExist(
+                MatchingModel.channelId,
+                newSupply.obj
+            );
 
             this.onSupplyUpdate.emit();
         });
@@ -415,7 +419,10 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToDemandMap(newDemand.obj);
             await this.memoriseLatestVersionOfDemandMap();
 
-            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newDemand.obj);
+            await this.channelManager.postToChannelIfNotExist(
+                MatchingModel.channelId,
+                newDemand.obj
+            );
 
             this.onDemandUpdate.emit();
         });

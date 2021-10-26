@@ -9,11 +9,10 @@ import {
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
-import type {StateMachine} from '../misc/StateMachine';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -40,21 +39,16 @@ export interface BlobCollection {
  * Storing: call addCollections with an array of files containing one element and a name.
  * Loading: call getCollection(name)[0]
  */
-export default class BlobCollectionModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event is emitted when blob collection data is updated.
-     */
-    public onUpdated = new OEvent<() => void>();
-
+export default class BlobCollectionModel extends Model {
     private channelManager: ChannelManager;
     private channelOwner: SHA256IdHash<Person> | undefined;
     public static readonly channelId = 'blobCollections';
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -69,9 +63,10 @@ export default class BlobCollectionModel implements Model {
      * Used to init the model to receive the updates.
      */
     async init() {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(BlobCollectionModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**

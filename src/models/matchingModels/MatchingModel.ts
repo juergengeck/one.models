@@ -11,13 +11,12 @@ import {
     VersionedObjectResult
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import type {Model} from '../Model';
+
 import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
-import type {StateMachine} from '../../misc/StateMachine';
-import {createModelStateMachine} from '../Model';
+import {Model} from '../Model';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -26,12 +25,10 @@ import {createModelStateMachine} from '../Model';
  * @description Matching Model class
  * @augments EventEmitter
  */
-export default abstract class MatchingModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+export default abstract class MatchingModel extends Model {
     /**
      * Event emitted when matching data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
 
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
@@ -47,13 +44,13 @@ export default abstract class MatchingModel implements Model {
     private disconnect: (() => void) | undefined;
 
     protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
+        super();
+
         this.instancesModel = instancesModel;
         this.channelManager = channelManager;
         this.anonInstanceInfo = null;
         this.suppliesMap = new Map<string, Supply[]>();
         this.demandsMap = new Map<string, Demand[]>();
-
-        this.state = createModelStateMachine();
     }
 
     /**

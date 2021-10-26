@@ -11,31 +11,30 @@ import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import type {OneObjectTypeNames} from 'one.core/src/recipes';
 import type {LicenseType} from '../recipes/CertificateRecipes';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
 
 /**
  * Manages the creation & validation of certificates
  */
-export default class CertificateManager {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-
+export default class CertificateManager extends Model {
     private leuteModel: LeuteModel;
 
     constructor(leuteModel: LeuteModel) {
+        super();
+
         this.leuteModel = leuteModel;
-        this.state = createModelStateMachine();
     }
 
     /**
      * This will initialise the present Licenses
      */
     public async init(): Promise<void> {
-        await initLicenses();
         this.state.triggerEvent('init');
+
+        await initLicenses();
     }
 
-    public shutdown(): void {
+    public async shutdown(): Promise<void> {
         this.state.triggerEvent('shutdown');
     }
 
@@ -76,7 +75,7 @@ export default class CertificateManager {
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        return await revokeCertificate(licenseType, subject, target)
+        return await revokeCertificate(licenseType, subject, target);
     }
 
     /**

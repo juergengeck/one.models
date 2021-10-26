@@ -38,8 +38,6 @@ import type {
 } from '../recipes/ChannelRecipes';
 import type {CreationTime} from '../recipes/MetaRecipes';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import type {StateMachine} from '../misc/StateMachine';
-import {createModelStateMachine} from './Model';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -216,7 +214,6 @@ function isChannelInfoResult(
  *       channels are used.
  */
 export default class ChannelManager {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     // Serialize locks
     private static readonly postLockName = 'ChannelManager_postLock';
     private static readonly postNELockName = 'ChannelManager_postNELock';
@@ -257,7 +254,6 @@ export default class ChannelManager {
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
         this.promiseTrackers = new Set<Promise<void>>();
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -288,23 +284,18 @@ export default class ChannelManager {
 
         // Merge new versions of channels that haven't been merged, yet.
         await this.mergeAllUnmergedChannelVersions();
-
-        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        this.state.assertCurrentState('Initialised');
-
         onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
 
         // Resolve the pending promises
         await Promise.all(this.promiseTrackers.values());
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
-        this.state.triggerEvent('shutdown');
     }
 
     // ######## Channel management ########
@@ -320,8 +311,6 @@ export default class ChannelManager {
      * of this channel.
      */
     public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
-        this.state.assertCurrentState('Initialised');
-
         if (!this.defaultOwner) {
             throw Error('Not initialized');
         }
@@ -365,8 +354,6 @@ export default class ChannelManager {
      * @returns
      */
     public async channels(options?: ChannelSelectionOptions): Promise<Channel[]> {
-        this.state.assertCurrentState('Initialised');
-
         const channelInfos = await this.getMatchingChannelInfos(options);
         return channelInfos.map(info => {
             return {id: info.id, owner: info.owner};
@@ -389,8 +376,6 @@ export default class ChannelManager {
         channelOwner?: SHA256IdHash<Person>,
         timestamp?: number
     ): Promise<void> {
-        this.state.assertCurrentState('Initialised');
-
         // Determine the owner to use for posting.
         // It is either the passed one, or the default one if none was passed.
         let owner: SHA256IdHash<Person>;
@@ -468,7 +453,7 @@ export default class ChannelManager {
         data: T,
         channelOwner?: SHA256IdHash<Person>
     ): Promise<void> {
-        this.state.assertCurrentState('Initialised');
+
 
         // Determine the owner to use for posting.
         // It is either the passed one, or the default one if none was passed.
@@ -528,7 +513,7 @@ export default class ChannelManager {
     public async getObjects(
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-        this.state.assertCurrentState('Initialised');
+
 
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
@@ -554,7 +539,7 @@ export default class ChannelManager {
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-        this.state.assertCurrentState('Initialised');
+
 
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
@@ -576,7 +561,7 @@ export default class ChannelManager {
      * @param id - id of the object to extract
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-        this.state.assertCurrentState('Initialised');
+
 
         const obj = (await this.objectIterator({id}).next()).value;
         if (!obj) {
@@ -603,7 +588,7 @@ export default class ChannelManager {
         id: string,
         type: T
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        this.state.assertCurrentState('Initialised');
+
 
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
@@ -632,7 +617,7 @@ export default class ChannelManager {
     public async getLatestMergedChannelInfoHash(
         channel: Channel
     ): Promise<SHA256Hash<ChannelInfo>> {
-        this.state.assertCurrentState('Initialised');
+
 
         const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
 
@@ -661,7 +646,7 @@ export default class ChannelManager {
     public async *objectIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-        this.state.assertCurrentState('Initialised');
+
 
         // The count needs to be dealt with at the top level, because it involves all returned items
         if (queryOptions && queryOptions.count) {
@@ -694,7 +679,7 @@ export default class ChannelManager {
         type: T,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-        this.state.assertCurrentState('Initialised');
+
 
         if (queryOptions) {
             queryOptions.type = type;

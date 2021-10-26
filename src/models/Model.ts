@@ -1,36 +1,28 @@
-import type {OEvent} from '../misc/OEvent';
 import type {ObjectData} from './ChannelManager';
 import {StateMachine} from '../misc/StateMachine';
+import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
+import {OEvent} from '../misc/OEvent';
 
 /**
- * Creates the basic model's state machine.
- * The states are:
- *  - Uninitialised
- *  - Initialised
- * The events are
- *  - shutdown (Initialised -> Uninitialised)
- *  - init (Uninitialised -> Initialised)
+ * Models Base Class.
  */
-export function createModelStateMachine(): StateMachine<
-    'Uninitialised' | 'Initialised',
-    'shutdown' | 'init'
-> {
-    const sm = new StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>();
-    sm.addState('Initialised');
-    sm.addState('Uninitialised');
-    sm.addEvent('init');
-    sm.addEvent('shutdown');
-    sm.addTransition('shutdown', 'Initialised', 'Uninitialised');
-    sm.addTransition('init', 'Uninitialised', 'Initialised');
-    sm.setInitialState('Uninitialised');
-    return sm;
-}
+export abstract class Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
 
-/**
- * Models interface.
- */
-export interface Model {
-    state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    onUpdated: OEvent<(data: ObjectData<unknown>) => void>;
-    shutdown(): Promise<void>;
+    public onUpdated: OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void> = new OEvent<
+        (data?: ObjectData<OneUnversionedObjectTypes>) => void
+        >();
+
+    constructor() {
+        this.state = new StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>();
+        this.state.addState('Initialised');
+        this.state.addState('Uninitialised');
+        this.state.addEvent('init');
+        this.state.addEvent('shutdown');
+        this.state.addTransition('shutdown', 'Initialised', 'Uninitialised');
+        this.state.addTransition('init', 'Uninitialised', 'Initialised');
+        this.state.setInitialState('Uninitialised');
+    }
+
+    abstract shutdown(): Promise<void>;
 }

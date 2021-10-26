@@ -2,12 +2,10 @@ import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
 import i18nModelsInstance from '../i18n';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
+import {Model} from './Model';
+
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {StateMachine} from '../misc/StateMachine';
 
 /**
  * This represents the model of a diary entry
@@ -43,13 +41,7 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
  * This model implements the possibility of adding a diary entry into a journal and
  * keeping track of the list of the diary entries
  */
-export default class DiaryModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event emitted when diary data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class DiaryModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'diary';
     private disconnect: (() => void) | undefined;
@@ -60,8 +52,9 @@ export default class DiaryModel implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
+        super();
+
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
@@ -70,9 +63,10 @@ export default class DiaryModel implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(DiaryModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**

@@ -1,37 +1,30 @@
-import type {Model} from './Model';
-import {createModelStateMachine} from './Model';
-import {OEvent} from '../misc/OEvent';
+import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {QueryOptions} from './ChannelManager';
-import type {StateMachine} from '../misc/StateMachine';
 
-export default class AudioExerciseModel implements Model {
-    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
-    /**
-     * Event is emitted when audio data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+export default class AudioExerciseModel extends Model {
     public static readonly channelId = 'audioExercise';
 
     channelManager: ChannelManager;
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
+        super();
         this.channelManager = channelManager;
-        this.state = createModelStateMachine();
     }
 
     /**
      * Initialize this instance
      */
     async init(): Promise<void> {
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(AudioExerciseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
-        this.state.triggerEvent('init');
     }
 
     /**
