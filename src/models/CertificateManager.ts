@@ -11,15 +11,20 @@ import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import type {OneObjectTypeNames} from 'one.core/src/recipes';
 import type {LicenseType} from '../recipes/CertificateRecipes';
+import type {StateMachine} from '../misc/StateMachine';
+import {createModelStateMachine} from './Model';
 
 /**
  * Manages the creation & validation of certificates
  */
 export default class CertificateManager {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+
     private leuteModel: LeuteModel;
 
     constructor(leuteModel: LeuteModel) {
         this.leuteModel = leuteModel;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -27,6 +32,11 @@ export default class CertificateManager {
      */
     public async init(): Promise<void> {
         await initLicenses();
+        this.state.triggerEvent('init');
+    }
+
+    public shutdown(): void {
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -40,6 +50,8 @@ export default class CertificateManager {
         issuer: SHA256IdHash<Person>,
         target: SHA256IdHash<Person>
     ) {
+        this.state.assertCurrentState('Initialised');
+
         const certificate = await createCertificate('access', subject, issuer, target);
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [
             {
@@ -62,6 +74,8 @@ export default class CertificateManager {
         subject: SHA256Hash<OneUnversionedObjectTypes>,
         target: SHA256IdHash<Person>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         return await revokeCertificate(licenseType, subject, target)
     }
 
@@ -75,6 +89,8 @@ export default class CertificateManager {
         certificateHash: SHA256Hash<Certificate>,
         issuerIdHash: SHA256IdHash<Person>
     ): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         const issuerPublicSignKey = await CertificateManager.retrievePersonPublicSignKey(
             issuerIdHash
         );
@@ -94,6 +110,8 @@ export default class CertificateManager {
         certificateHash: SHA256Hash<Certificate>,
         issuerIdHash: SHA256IdHash<Person>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const issuerPublicSignKey = await CertificateManager.retrievePersonPublicSignKey(
             issuerIdHash
         );
@@ -109,6 +127,8 @@ export default class CertificateManager {
     public async findWithWhomTheObjectWasSharedByValidCertificate(
         subject: SHA256Hash<OneUnversionedObjectTypes>
     ): Promise<SHA256IdHash<Person>[]> {
+        this.state.assertCurrentState('Initialised');
+
         await this.checkIfReverseMapsAreEnabledForType('License');
 
         const licenseHash = getLicenseHashByType('access');
@@ -144,6 +164,8 @@ export default class CertificateManager {
     public async findWhatObjectsPersonHasThoughValidCertificate(
         target: SHA256IdHash<Person>
     ): Promise<SHA256Hash<OneUnversionedObjectTypes>[]> {
+        this.state.assertCurrentState('Initialised');
+
         await this.checkIfReverseMapsAreEnabledForType('Person');
 
         const licenseHash = getLicenseHashByType('access');
