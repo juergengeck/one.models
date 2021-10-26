@@ -150,7 +150,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToSupplyMap(supply.obj);
             await this.memoriseLatestVersionOfSupplyMap();
 
-            await this.channelManager.postToChannelIfNotExist(this.channelId, supply.obj);
+            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, supply.obj);
 
             this.onSupplyUpdate.emit();
         });
@@ -181,7 +181,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToDemandMap(demand.obj);
             await this.memoriseLatestVersionOfDemandMap();
 
-            await this.channelManager.postToChannelIfNotExist(this.channelId, demand.obj);
+            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, demand.obj);
 
             this.onDemandUpdate.emit();
         });
@@ -357,7 +357,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToSupplyMap(newSupply.obj);
             await this.memoriseLatestVersionOfSupplyMap();
 
-            await this.channelManager.postToChannelIfNotExist(this.channelId, newSupply.obj);
+            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newSupply.obj);
 
             this.onSupplyUpdate.emit();
         });
@@ -415,7 +415,7 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToDemandMap(newDemand.obj);
             await this.memoriseLatestVersionOfDemandMap();
 
-            await this.channelManager.postToChannelIfNotExist(this.channelId, newDemand.obj);
+            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newDemand.obj);
 
             this.onDemandUpdate.emit();
         });

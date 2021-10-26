@@ -43,7 +43,7 @@ export default class ConsentFileModel implements Model {
     public onUpdated = new OEvent<(data: ObjectData<unknown>) => void>();
 
     channelManager: ChannelManager;
-    channelId: string;
+    public static readonly channelId = 'consentFile';
     private personId: SHA256IdHash<Person> | undefined;
     private disconnect: (() => void) | undefined;
 
@@ -53,7 +53,6 @@ export default class ConsentFileModel implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
         this.state = createModelStateMachine();
@@ -65,7 +64,7 @@ export default class ConsentFileModel implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(ConsentFileModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
         this.state.triggerEvent('init');
     }
@@ -114,7 +113,7 @@ export default class ConsentFileModel implements Model {
             throw new Error('The file is empty.');
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(ConsentFileModel.channelId, {
             $type$: 'ConsentFile',
             fileData: consentFile.personId + ' ' + consentFile.version,
             fileType: FileType.Consent
@@ -129,7 +128,7 @@ export default class ConsentFileModel implements Model {
         this.state.assertCurrentState('Initialised');
 
         const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
 
         for (const consentFile of oneConsentFiles) {
@@ -161,7 +160,7 @@ export default class ConsentFileModel implements Model {
             throw new Error('The file is empty.');
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(ConsentFileModel.channelId, {
             $type$: 'ConsentFile',
             fileData: dropoutFile.personId + '|' + dropoutFile.reason + '|' + dropoutFile.date,
             fileType: FileType.Dropout
@@ -176,7 +175,7 @@ export default class ConsentFileModel implements Model {
         this.state.assertCurrentState('Initialised');
 
         const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
 
         for (const dropoutFile of oneDropoutFiles) {
@@ -256,7 +255,7 @@ export default class ConsentFileModel implements Model {
         this.state.assertCurrentState('Initialised');
 
         return await this.channelManager.getObjectsWithType('ConsentFile', {
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         });
     }
 
@@ -271,7 +270,7 @@ export default class ConsentFileModel implements Model {
 
         for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
             ...queryOptions,
-            channelId: this.channelId
+            channelId: ConsentFileModel.channelId
         })) {
             yield entry;
         }
@@ -288,7 +287,7 @@ export default class ConsentFileModel implements Model {
         owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
-        if (id === this.channelId) {
+        if (id === ConsentFileModel.channelId) {
             this.onUpdated.emit(data);
         }
     }

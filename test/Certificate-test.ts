@@ -12,7 +12,7 @@ import type {Keys, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes
 import { expect } from 'chai';
 import {initLicenses} from '../lib/misc/License';
 import {revokeCertificate} from '../lib/misc/Certificate';
-import {findCertificatesForObject, findObjectsSharedWithPerson} from '../lib/misc/Certificate';
+import {CertificateManager} from '../lib/models';
 
 describe('Certificate test', () => {
     const instancesModel = new InstancesModel();
@@ -96,7 +96,7 @@ describe('Certificate test', () => {
         const cert = await createCertificate('access', subject, issuer, target);
         await validateCertificate(cert.hash, issuerPublicSingKey);
     });
-    it('Should revoked a certificate successfully', async () => {
+    it('Should revoke a certificate successfully', async () => {
         const cert = await createCertificate('access', subject, issuer, target);
         let error = false;
         await revokeCertificate('access', subject, issuer);
@@ -125,13 +125,19 @@ describe('Certificate test', () => {
         });
     })
     it('Should find certificates for a specific object', async () => {
+        const certificateManager = new CertificateManager(leuteModel);
+        await certificateManager.init();
+
         const cert = await createCertificate('access', subject, issuer, target);
-        const targets = await findCertificatesForObject(subject);
+        const targets = await certificateManager.findWithWhomTheObjectWasSharedByValidCertificate(subject);
         expect(targets).to.deep.equal([target]);
     });
     it('Should find shared objects with a person', async () => {
+        const certificateManager = new CertificateManager(leuteModel);
+        await certificateManager.init();
+
         const cert = await createCertificate('access', subject, issuer, target);
-        const subjects = await findObjectsSharedWithPerson(target);
+        const subjects = await certificateManager.findWhatObjectsPersonHasThoughValidCertificate(target);
         expect(subjects).to.deep.equal([subject]);
     });
 });

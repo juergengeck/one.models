@@ -36,7 +36,7 @@ export default abstract class MatchingModel implements Model {
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
     protected anonInstanceInfo: LocalInstanceInfo | null;
-    protected channelId = 'matching';
+    public static readonly channelId = 'matching';
 
     protected suppliesMap: Map<string, Supply[]>;
     protected demandsMap: Map<string, Demand[]>;
@@ -62,7 +62,7 @@ export default abstract class MatchingModel implements Model {
     abstract init(): Promise<void>;
 
     protected async startMatchingChannel(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(MatchingModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
     }
 
@@ -122,7 +122,7 @@ export default abstract class MatchingModel implements Model {
             const setAccessParam = {
                 id: await calculateIdHashOfObj({
                     $type$: 'ChannelInfo',
-                    id: this.channelId,
+                    id: MatchingModel.channelId,
                     owner: this.anonInstanceInfo.personId
                 }),
                 person,
@@ -389,7 +389,7 @@ export default abstract class MatchingModel implements Model {
      *  @param id
      */
     private async handleUpdate(id: string): Promise<void> {
-        if (id === this.channelId) {
+        if (id === MatchingModel.channelId) {
             this.onUpdated.emit();
         }
     }

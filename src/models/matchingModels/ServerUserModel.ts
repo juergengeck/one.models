@@ -8,6 +8,7 @@ import {
     VERSION_UPDATES
 } from 'one.core/lib/storage';
 import type {Demand, Supply} from '../../recipes/MatchingRecipes';
+import MatchingModel from './MatchingModel';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(instanceModel: InstancesModel, channelManager: ChannelManager) {
@@ -84,7 +85,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 await this.addNewValueToSupplyMap(newSupply.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
-                await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+                await this.channelManager.postToChannel(MatchingModel.channelId, newSupply.obj);
             }
         });
     }
@@ -132,7 +133,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 await this.addNewValueToDemandMap(newDemand.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
-                await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+                await this.channelManager.postToChannel(MatchingModel.channelId, newDemand.obj);
             }
         });
     }

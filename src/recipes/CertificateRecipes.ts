@@ -46,10 +46,7 @@ export const CertificateRecipe: Recipe = {
         },
         {
             itemprop: 'signature',
-            //  check for the characters A to Z, a to z, 0 to 9, plus (+), and forward-slash (/)
-            //  combined in a multiple of 4. If the number of characters is not an exact multiple
-            //  of 4, the expression must search for the equal sign (=) as padding at the end.
-            itemtype: {type: 'string', regexp: /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{3}=|[A-Za-z\d+/]{2}==)?$/}
+            itemtype: {type: 'string', regexp: /^[A-Fa-f0-9]+$/}
         }
     ]
 };
