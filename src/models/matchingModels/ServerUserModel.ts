@@ -22,6 +22,8 @@ export default class ServerUserModel extends ClientMatchingModel {
      * @returns
      */
     getAllAvailableTagsObjects(): Array<Supply | Demand> {
+        this.state.assertCurrentState('Initialised');
+
         const allobjects: (Supply | Demand)[] = [];
 
         this.demandsMap.forEach(allDemands => {
@@ -47,6 +49,8 @@ export default class ServerUserModel extends ClientMatchingModel {
      * @param supplyMatch
      */
     async changeSupplyCategoryStatus(supplyMatch: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // get all supplies
         const supplyArray = this.suppliesMap.get(supplyMatch);
 
@@ -93,6 +97,8 @@ export default class ServerUserModel extends ClientMatchingModel {
      * @param demandMatch - demand value
      */
     async changeDemandCategoryStatus(demandMatch: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // get all supplies
         const demandArray = this.demandsMap.get(demandMatch);
 

@@ -16,6 +16,8 @@ import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import type {StateMachine} from '../misc/StateMachine';
+import {createModelStateMachine} from './Model';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
@@ -39,6 +41,7 @@ interface PersonInformation {
  * recovery url.
  */
 export default class RecoveryModel {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     private readonly recoveryKeyLength: number;
     private connectionsModel: ConnectionsModel;
     private decryptedObject: PersonInformation | undefined;
@@ -49,6 +52,8 @@ export default class RecoveryModel {
         this.recoveryKeyLength = 19;
         this.connectionsModel = connectionsModel;
         this.password = '';
+        this.state = createModelStateMachine();
+        this.state.triggerEvent('init');
     }
 
     /**
@@ -62,6 +67,8 @@ export default class RecoveryModel {
      * @param password
      */
     public setPassword(password: string) {
+        this.state.assertCurrentState('Initialised');
+
         this.password = password;
     }
 
@@ -79,6 +86,8 @@ export default class RecoveryModel {
         recoveryNonce: string;
         encryptedPersonInformation: string;
     }> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.password === '') {
             throw new Error(
                 'Can not generate recovery file without knowing the instance password!'
@@ -135,6 +144,8 @@ export default class RecoveryModel {
         recoveryNonce: string,
         encryptedPersonInformation: string
     ): Promise<string> {
+        this.state.assertCurrentState('Initialised');
+
         const objectToDecrypt = toByteArray(encryptedPersonInformation);
         const derivedKey = await scrypt(
             stringToUint8Array(recoveryKey),
@@ -168,6 +179,8 @@ export default class RecoveryModel {
      * The password must be set before this function is called.
      */
     async overwritePersonKeyWithReceivedEncryptedOnes(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!this.decryptedObject) {
             throw new Error('Received recovery information not found.');
         }

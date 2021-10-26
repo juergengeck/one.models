@@ -16,6 +16,8 @@ import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import type {StateMachine} from '../../misc/StateMachine';
+import {createModelStateMachine} from '../Model';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -25,6 +27,7 @@ import type {Person} from 'one.core/lib/recipes';
  * @augments EventEmitter
  */
 export default abstract class MatchingModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event emitted when matching data is updated.
      */
@@ -49,6 +52,8 @@ export default abstract class MatchingModel implements Model {
         this.anonInstanceInfo = null;
         this.suppliesMap = new Map<string, Supply[]>();
         this.demandsMap = new Map<string, Demand[]>();
+
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -65,9 +70,12 @@ export default abstract class MatchingModel implements Model {
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -79,6 +87,8 @@ export default abstract class MatchingModel implements Model {
      * @protected
      */
     protected async updateInstanceInfo(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const infos = await this.instancesModel.localInstancesInfo();
 
         if (infos.length !== 2) {
@@ -102,6 +112,8 @@ export default abstract class MatchingModel implements Model {
      * @protected
      */
     protected async giveAccessToMatchingChannel(person: SHA256IdHash<Person>[]): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             if (!this.anonInstanceInfo) {
                 throw new Error('Anon instance info is not initialized!');
@@ -146,6 +158,8 @@ export default abstract class MatchingModel implements Model {
      * @protected
      */
     protected async initialiseMaps(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             const supplyMapObj = (await getObjectByIdObj({
                 $type$: 'SupplyMap',
@@ -180,6 +194,8 @@ export default abstract class MatchingModel implements Model {
      * @protected
      */
     protected addNewValueToSupplyMap(supply: Supply): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(supply.match);
 
         if (!availableSupplies) {
@@ -201,6 +217,8 @@ export default abstract class MatchingModel implements Model {
      * @protected
      */
     protected addNewValueToDemandMap(demand: Demand): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(demand.match);
 
         if (!availableDemands) {
@@ -221,6 +239,8 @@ export default abstract class MatchingModel implements Model {
      * @param newSupply
      */
     protected updateSupplyInSupplyMap(newSupply: Supply) {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(newSupply.match);
 
         if (availableSupplies) {
@@ -240,6 +260,8 @@ export default abstract class MatchingModel implements Model {
      * @param newDemand
      */
     protected updateDemandInDemandMap(newDemand: Demand) {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(newDemand.match);
 
         if (availableDemands) {
@@ -258,6 +280,8 @@ export default abstract class MatchingModel implements Model {
      * @private
      */
     protected async memoriseLatestVersionOfSupplyMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('SupplyMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -278,6 +302,8 @@ export default abstract class MatchingModel implements Model {
      * @private
      */
     protected async memoriseLatestVersionOfDemandMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('DemandMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -291,36 +317,6 @@ export default abstract class MatchingModel implements Model {
                 }
             );
         });
-    }
-
-    /**
-     * Verify if the Supply or Demand object received as parameter
-     * does not exist in the objects array.
-     *
-     * This function is the corespondent of Array.includes but
-     * adapted specially for Supply and Demand objects.
-     *
-     * @param objectsArray
-     * @param object
-     * @returns
-     * @private
-     */
-    private static arrayIncludesObject(
-        objectsArray: Supply[] | Demand[],
-        object: Supply | Demand
-    ): boolean {
-        for (let i = 0; i < objectsArray.length; i++) {
-            if (
-                objectsArray[i].$type$ === object.$type$ &&
-                objectsArray[i].identity === object.identity &&
-                objectsArray[i].match === object.match &&
-                objectsArray[i].isActive === object.isActive &&
-                objectsArray[i].timestamp === object.timestamp
-            ) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -355,6 +351,36 @@ export default abstract class MatchingModel implements Model {
             }
         }
 
+        return false;
+    }
+
+    /**
+     * Verify if the Supply or Demand object received as parameter
+     * does not exist in the objects array.
+     *
+     * This function is the corespondent of Array.includes but
+     * adapted specially for Supply and Demand objects.
+     *
+     * @param objectsArray
+     * @param object
+     * @returns
+     * @private
+     */
+    private static arrayIncludesObject(
+        objectsArray: Supply[] | Demand[],
+        object: Supply | Demand
+    ): boolean {
+        for (let i = 0; i < objectsArray.length; i++) {
+            if (
+                objectsArray[i].$type$ === object.$type$ &&
+                objectsArray[i].identity === object.identity &&
+                objectsArray[i].match === object.match &&
+                objectsArray[i].isActive === object.isActive &&
+                objectsArray[i].timestamp === object.timestamp
+            ) {
+                return true;
+            }
+        }
         return false;
     }
 

@@ -122,6 +122,7 @@ export default class ClientMatchingModel extends MatchingModel {
             ? [this.matchingServerPersonIdHash, this.anonInstanceInfo.personId]
             : [this.matchingServerPersonIdHash];
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
+        this.state.triggerEvent('init');
     }
 
     /**

@@ -81,6 +81,8 @@ export default class ServerMatchingModel extends MatchingModel {
 
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
         });
+
+        this.state.triggerEvent('init');
     }
 
     // ################ PRIVATE API ################

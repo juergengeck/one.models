@@ -14,6 +14,9 @@ import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-vers
 import type {Plan} from 'one.core/lib/recipes';
 import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import type {StateMachine} from '../../misc/StateMachine';
+import type {Model} from '../Model';
+import {createModelStateMachine} from '../Model';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -21,8 +24,9 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
 const DUMMY_BLOB_HASH: SHA256Hash<BLOB> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
 
-export default class GroupModel {
-    public onUpdate: OEvent<() => void> = new OEvent();
+export default class GroupModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
+    public onUpdated: OEvent<() => void> = new OEvent();
 
     public readonly groupIdHash: SHA256IdHash<Group>;
     public readonly profileIdHash: SHA256IdHash<GroupProfile>;
@@ -42,19 +46,28 @@ export default class GroupModel {
         // Setup the onUpdate event
         const emitUpdateIfMatch = (result: VersionedObjectResult) => {
             if (result.idHash === this.groupIdHash || result.idHash === this.profileIdHash) {
-                this.onUpdate.emit();
+                this.onUpdated.emit();
             }
         };
-        this.onUpdate.onListen(() => {
-            if (this.onUpdate.listenerCount() === 0) {
+        this.onUpdated.onListen(() => {
+            if (this.onUpdated.listenerCount() === 0) {
                 onVersionedObj.addListener(emitUpdateIfMatch);
             }
         });
-        this.onUpdate.onStopListen(() => {
-            if (this.onUpdate.listenerCount() === 0) {
+        this.onUpdated.onStopListen(() => {
+            if (this.onUpdated.listenerCount() === 0) {
                 onVersionedObj.removeListener(emitUpdateIfMatch);
             }
         });
+
+        this.state = createModelStateMachine();
+        this.state.triggerEvent('init');
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
+        this.state.triggerEvent('shutdown');
     }
 
     // ######## asynchronous constructors ########
@@ -148,6 +161,8 @@ export default class GroupModel {
      * Returns the profile version that was loaded.
      */
     get loadedVersion(): SHA256Hash<GroupProfile> | undefined {
+        this.state.assertCurrentState('Initialised');
+
         return this.pLoadedVersion;
     }
 
@@ -157,6 +172,8 @@ export default class GroupModel {
      * @throws if nothing was loaded
      */
     get internalGroupName(): string {
+        this.state.assertCurrentState('Initialised');
+
         if (this.group === undefined) {
             throw new Error('GroupModel has no data (internalGroupName)');
         }
@@ -172,6 +189,8 @@ export default class GroupModel {
      * picture will be empty / undefined.
      */
     public hasData(): boolean {
+        this.state.assertCurrentState('Initialised');
+
         return this.profile !== undefined;
     }
 
@@ -181,6 +200,8 @@ export default class GroupModel {
      * @param version
      */
     public async loadVersion(version: SHA256Hash<GroupProfile>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const profile = await getObject(version);
         const group = await getObjectByIdHash(profile.group);
 
@@ -196,6 +217,8 @@ export default class GroupModel {
      * Load the latest profile version.
      */
     public async loadLatestVersion(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const groupResult = await getObjectByIdHash(this.groupIdHash);
         const profileResult = await getObjectByIdHash(this.profileIdHash);
 
@@ -221,6 +244,8 @@ export default class GroupModel {
      *       to grasp way.
      */
     public async saveAndLoad(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.group === undefined || this.profile === undefined) {
             throw new Error('No profile data that could be saved');
         }
@@ -259,7 +284,7 @@ export default class GroupModel {
             profileResult.obj,
             profileResult.hash
         );
-        this.onUpdate.emit();
+        this.onUpdated.emit();
     }
 
     // ######## private stuff ########

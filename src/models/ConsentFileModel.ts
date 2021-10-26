@@ -7,8 +7,10 @@ import {getObjectByIdHash} from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
 import type {ConsentFile as OneConsentFile} from '../recipes/ConsentFileRecipes';
 import type {Model} from './Model';
+import {createModelStateMachine} from './Model';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {StateMachine} from '../misc/StateMachine';
 
 /**
  * Represents the consent file object that will be stored in one.
@@ -35,7 +37,8 @@ export enum FileType {
 /**
  * This model implements the possibility to store and load the consent file and the dropout file of an user.
  */
-export default class ConsentFileModel extends EventEmmiter implements Model {
+export default class ConsentFileModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     // Event is emitted when the consent file data is updated.
     public onUpdated = new OEvent<(data: ObjectData<unknown>) => void>();
 
@@ -50,29 +53,10 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
-        super();
-
         this.channelId = 'consentFile';
         this.channelManager = channelManager;
         this.personId = undefined;
-    }
-
-    setPersonId(id: SHA256IdHash<Person>): void {
-        this.personId = id;
-    }
-
-    getOwnerId(): SHA256IdHash<Person> | undefined {
-        return this.personId;
-    }
-
-    async getAnonymousEmail(): Promise<string> {
-        if (this.personId === undefined) {
-            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
-        }
-
-        const anonymousPerson = await getObjectByIdHash(this.personId);
-
-        return anonymousPerson.obj.email;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -83,15 +67,40 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     async init(): Promise<void> {
         await this.channelManager.createChannel(this.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+        this.state.triggerEvent('init');
+    }
+
+    setPersonId(id: SHA256IdHash<Person>): void {
+        this.state.assertCurrentState('Initialised');
+        this.personId = id;
+    }
+
+    getOwnerId(): SHA256IdHash<Person> | undefined {
+        this.state.assertCurrentState('Initialised');
+        return this.personId;
+    }
+
+    async getAnonymousEmail(): Promise<string> {
+        this.state.assertCurrentState('Initialised');
+        if (this.personId === undefined) {
+            throw new Error(i18nModelsInstance.t('errors:connectionModel.noInstance'));
+        }
+
+        const anonymousPerson = await getObjectByIdHash(this.personId);
+
+        return anonymousPerson.obj.email;
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -99,6 +108,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @param consentFile
      */
     async addConsentFile(consentFile: ConsentFile): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!consentFile) {
             throw new Error('The file is empty.');
         }
@@ -115,6 +126,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @returns
      */
     async getOwnerConsentFile(): Promise<ObjectData<ConsentFile>> {
+        this.state.assertCurrentState('Initialised');
+
         const oneConsentFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
@@ -142,6 +155,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @param dropoutFile
      */
     async addDropoutFile(dropoutFile: DropoutFile): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!dropoutFile) {
             throw new Error('The file is empty.');
         }
@@ -158,6 +173,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @returns
      */
     async getOwnerDropoutFile(): Promise<ObjectData<DropoutFile>> {
+        this.state.assertCurrentState('Initialised');
+
         const oneDropoutFiles = await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
@@ -192,6 +209,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
         oneConsentFiles: ObjectData<OneConsentFile>[],
         filterOthersConsentFiles: boolean = true
     ): ObjectData<ConsentFile | DropoutFile>[] {
+        this.state.assertCurrentState('Initialised');
+
         const files: ObjectData<ConsentFile | DropoutFile>[] = [];
 
         for (const oneObject of oneConsentFiles) {
@@ -234,6 +253,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
      * @returns
      */
     async entries(): Promise<ObjectData<OneConsentFile>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('ConsentFile', {
             channelId: this.channelId
         });
@@ -246,6 +267,8 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
     async *entriesIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneConsentFile>> {
+        this.state.assertCurrentState('Initialised');
+
         for await (const entry of this.channelManager.objectIteratorWithType('ConsentFile', {
             ...queryOptions,
             channelId: this.channelId
@@ -266,7 +289,6 @@ export default class ConsentFileModel extends EventEmmiter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === this.channelId) {
-
             this.onUpdated.emit(data);
         }
     }

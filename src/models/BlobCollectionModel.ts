@@ -1,4 +1,3 @@
-
 import type {
     BlobCollection as OneBlobCollection,
     BlobDescriptor as OneBlobDescriptor
@@ -11,8 +10,10 @@ import {
 } from 'one.core/lib/storage';
 import {OEvent} from '../misc/OEvent';
 import type {Model} from './Model';
+import {createModelStateMachine} from './Model';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import type {StateMachine} from '../misc/StateMachine';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -39,7 +40,8 @@ export interface BlobCollection {
  * Storing: call addCollections with an array of files containing one element and a name.
  * Loading: call getCollection(name)[0]
  */
-export default class BlobCollectionModel  implements Model {
+export default class BlobCollectionModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event is emitted when blob collection data is updated.
      */
@@ -52,6 +54,7 @@ export default class BlobCollectionModel  implements Model {
 
     constructor(channelManager: ChannelManager) {
         this.channelManager = channelManager;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -68,18 +71,24 @@ export default class BlobCollectionModel  implements Model {
     async init() {
         await this.channelManager.createChannel(BlobCollectionModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const blobCollection = await createSingleObjectThroughPurePlan(
             {module: '@module/createBlobCollection'},
             files,
@@ -90,6 +99,8 @@ export default class BlobCollectionModel  implements Model {
     }
 
     async getCollection(name: OneBlobCollection['name']): Promise<BlobCollection> {
+        this.state.assertCurrentState('Initialised');
+
         const collections = await this.channelManager.getObjectsWithType('BlobCollection', {
             owner: this.channelOwner,
             channelId: BlobCollectionModel.channelId
@@ -103,6 +114,8 @@ export default class BlobCollectionModel  implements Model {
     }
 
     async getLatestCollection(): Promise<BlobCollection> {
+        this.state.assertCurrentState('Initialised');
+
         const collection = await this.channelManager.getObjectsWithType('BlobCollection', {
             channelId: BlobCollectionModel.channelId,
             count: 1,

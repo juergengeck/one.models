@@ -6,6 +6,8 @@ import EventEmitter from 'events';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
 import type {Model} from './Model';
+import {createModelStateMachine} from './Model';
+import type {StateMachine} from '../misc/StateMachine';
 
 export type JournalEntry = {
     type: string;
@@ -29,7 +31,8 @@ type JournalData = {
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
-export default class JournalModel  implements Model {
+export default class JournalModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     private readonly modelsDictionary: JournalInput[];
 
     private oEventListeners: Map<
@@ -44,6 +47,7 @@ export default class JournalModel  implements Model {
 
     constructor(modelsInput: JournalInput[]) {
         this.modelsDictionary = modelsInput;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -61,12 +65,15 @@ export default class JournalModel  implements Model {
             // Persist the function reference in a map
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
+        this.state.triggerEvent('init');
     }
 
     /**
      * removes the handler for every provided model
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const oEventHandler = this.oEventListeners.get(journalInput.eventType);
 
@@ -74,12 +81,15 @@ export default class JournalModel  implements Model {
                 oEventHandler.disconnect();
             }
         });
+        this.state.triggerEvent('shutdown');
     }
 
     /**
      * Get the latest day stored events sorted by date. In Ascending order
      */
     async retrieveLatestDayEvents(): Promise<JournalEntry[]> {
+        this.state.assertCurrentState('Initialised');
+
         // If there are no provided models, return empty list
         if (this.modelsDictionary.length === 0) {
             return [];
@@ -119,6 +129,8 @@ export default class JournalModel  implements Model {
     async *retrieveEventsByDayIterator(
         pageSize: number = 25
     ): AsyncIterableIterator<JournalEntry[]> {
+        this.state.assertCurrentState('Initialised');
+
         // Find the highest timestamp and set the currentTimeFrame to it.
         // The "from" field will be one day behind the "to" field.
         const to = new Date(await this.findLatestTimeFrame());
@@ -196,6 +208,8 @@ export default class JournalModel  implements Model {
      * @returns
      */
     async retrieveAllEvents(): Promise<JournalEntry[]> {
+        this.state.assertCurrentState('Initialised');
+
         // If there are no provided models, return empty list
         if (this.modelsDictionary.length === 0) {
             return [];

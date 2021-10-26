@@ -19,6 +19,8 @@ import {OEvent} from '../misc/OEvent';
 import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 import type ConsentFileModel from './ConsentFileModel';
+import type {StateMachine} from '../misc/StateMachine';
+import {createModelStateMachine} from './Model';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -83,7 +85,8 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
 /**
  * Model that exposes functionality closely related to one.core
  */
-export default class OneInstanceModel  {
+export default class OneInstanceModel {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event emitted:
      * - when a new instance is created with takeOver
@@ -188,21 +191,32 @@ export default class OneInstanceModel  {
                 this.updatePartnerState().catch(e => console.error(e));
             }
         });
+
+        this.state = createModelStateMachine();
+        this.state.triggerEvent('init');
     }
 
     authenticationState(): AuthenticationState {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentAuthenticationState;
     }
 
     registrationState(): boolean {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentRegistrationState;
     }
 
     patientTypeState(): string {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentPatientTypeState;
     }
 
     partnerState(): boolean {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentPartnerState;
     }
 
@@ -236,6 +250,8 @@ export default class OneInstanceModel  {
         patientType: string,
         anonymousEmail: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentPatientTypeState = patientType;
 
         try {
@@ -282,6 +298,8 @@ export default class OneInstanceModel  {
         anonymousEmail?: string,
         recoveryState?: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -311,6 +329,8 @@ export default class OneInstanceModel  {
      * @param secret - Secret for decryption
      */
     async initialiseInstance(secret: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentAuthenticationState = AuthenticationState.Authenticating;
         this.password = secret;
         this.randomEmail = localStorage.getItem('email');
@@ -351,6 +371,8 @@ export default class OneInstanceModel  {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
@@ -368,6 +390,8 @@ export default class OneInstanceModel  {
     }
 
     async updatePartnerState(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // if a partner has no patients associated, then he enters in a
         // partner state, where the application is not available until a
         // patient is being associated with this partner
@@ -397,6 +421,8 @@ export default class OneInstanceModel  {
         patientType: string,
         isPersonalCloudInvite: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentPatientTypeState = patientType;
 
         if (isPersonalCloudInvite) {
@@ -436,6 +462,8 @@ export default class OneInstanceModel  {
      * @param logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // Signal the application that we are no longer authenticated
         // This is done before everything else, so that the UI is updated and
         // you won't see clitches, because of the indivdual models shutting down
@@ -467,6 +495,8 @@ export default class OneInstanceModel  {
      * @param patientType
      */
     async register(secret: string, patientType: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!OneInstanceModel.checkIfInstanceExists()) {
             this.currentRegistrationState = true;
             this.currentPatientTypeState = patientType;
@@ -485,6 +515,8 @@ export default class OneInstanceModel  {
      * and the application will be displayed.
      */
     unregister(): void {
+        this.state.assertCurrentState('Initialised');
+
         this.currentRegistrationState = false;
         this.onRegistrationStateChange.emit();
     }
@@ -497,6 +529,8 @@ export default class OneInstanceModel  {
      * @returns The exported content
      */
     async backupInstance(): Promise<Blob> {
+        this.state.assertCurrentState('Initialised');
+
         const hashesToImplode: SHA256Hash[] = [];
         const channelsInfo = await this.channelManager.channels();
         await Promise.all(
@@ -531,6 +565,8 @@ export default class OneInstanceModel  {
      * @param data - The data from which to restore the instance
      */
     async restoreInstance(data: Blob): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const dataText = await new Promise((resolve, reject) => {
             const fr = new FileReader();
 
@@ -561,6 +597,8 @@ export default class OneInstanceModel  {
     }
 
     getSecret(): string {
+        this.state.assertCurrentState('Initialised');
+
         return this.password;
     }
 
@@ -571,6 +609,8 @@ export default class OneInstanceModel  {
      * @returns
      */
     async deleteInstance(dbInstanceName: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         localStorage.clear();
         sessionStorage.clear();
         return new Promise((resolve, reject) => {
@@ -588,6 +628,8 @@ export default class OneInstanceModel  {
      * Erase the instance while the user is logged out.
      */
     async eraseWhileLoggedOut(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const dbInstance = getDbInstance();
 
         setTimeout(() => {
@@ -602,6 +644,8 @@ export default class OneInstanceModel  {
      * @return
      */
     async deleteUnopenedInstance() {
+        this.state.assertCurrentState('Initialised');
+
         const instance = localStorage.getItem('instance');
         const email = localStorage.getItem('email');
 

@@ -25,6 +25,7 @@ describe('Certificate test', () => {
 
     afterEach(async () => {
         await leuteModel.shutdown();
+        instancesModel.shutdown();
         await new Promise(resolve => setTimeout(resolve, 1000));
         closeInstance();
         await removeDir(`./test/${dbKey}`);

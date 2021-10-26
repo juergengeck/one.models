@@ -121,7 +121,7 @@ export default class MultiUser extends Authenticator {
      *  - deletes the database
      *  - triggers 'logout_done' event
      */
-    async eraseCurrentInstance(): Promise<void>{
+    async eraseCurrentInstance(): Promise<void> {
         this.authState.triggerEvent('logout');
 
         // Signal the application that it should shutdown one dependent models
@@ -137,7 +137,11 @@ export default class MultiUser extends Authenticator {
      * Erases the instance. This function will:
      *  - deletes the database
      */
-    async erase(instanceName: string, email: string, dbName: string = this.config.directory): Promise<void> {
+    async erase(
+        instanceName: string,
+        email: string,
+        dbName: string = this.config.directory
+    ): Promise<void> {
         await deleteInstance(instanceName, email, dbName);
     }
 }

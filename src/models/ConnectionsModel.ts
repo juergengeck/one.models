@@ -43,6 +43,8 @@ import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Keys, Person} from 'one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
+import type {StateMachine} from '../misc/StateMachine';
+import {createModelStateMachine} from './Model';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -149,7 +151,8 @@ type PkAuthenticationTokenInfo = {
  * - The chum is then used to exchange contact information
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
-class ConnectionsModel  {
+class ConnectionsModel {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event is emitted when state of the connector changes. The emitted value represents the updated state.
      */
@@ -295,6 +298,8 @@ class ConnectionsModel  {
         this.pkOneTimeAuthenticationTokens = new Map<string, PkAuthenticationTokenInfo>();
 
         this.password = '';
+
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -309,12 +314,15 @@ class ConnectionsModel  {
         if (!this.mainInstanceInfo) {
             throw new Error('Programming error: mainInstanceInfo is not initialized');
         }
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.initialized = false;
         await this.communicationModule.shutdown();
 
@@ -329,6 +337,7 @@ class ConnectionsModel  {
         this.pkOneTimeAuthenticationTokens.clear();
 
         this.mainInstanceInfo = null;
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -336,6 +345,8 @@ class ConnectionsModel  {
      * @returns
      */
     public connectionsInfo(): ConnectionInfo[] {
+        this.state.assertCurrentState('Initialised');
+
         return this.communicationModule.connectionsInfo();
     }
 
@@ -347,6 +358,8 @@ class ConnectionsModel  {
      * @param password
      */
     public setPassword(password: string) {
+        this.state.assertCurrentState('Initialised');
+
         this.password = password;
     }
 
@@ -357,6 +370,8 @@ class ConnectionsModel  {
      * @returns
      */
     public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+        this.state.assertCurrentState('Initialised');
+
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -429,6 +444,8 @@ class ConnectionsModel  {
         remotePerson: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const endpoints = await this.leuteModel.findAllOneInstanceEndpointsForOthers();
         const remoteEndpoint = endpoints.find(
             endpoint => endpoint.personId === remotePerson && endpoint.personKeys
@@ -499,6 +516,8 @@ class ConnectionsModel  {
         pairingInformation: PairingInformation,
         password: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -635,6 +654,8 @@ class ConnectionsModel  {
      * @param pairingInformation
      */
     public invalidateCurrentInvitation(pairingInformation: PairingInformation): void {
+        this.state.assertCurrentState('Initialised');
+
         if (pairingInformation.takeOver) {
             this.pkOneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
         } else {
@@ -648,6 +669,8 @@ class ConnectionsModel  {
      * @param takeOver
      */
     public invalidateAllInvitations(takeOver: boolean): void {
+        this.state.assertCurrentState('Initialised');
+
         if (takeOver) {
             this.pkOneTimeAuthenticationTokens.clear();
         } else {
@@ -1023,7 +1046,6 @@ class ConnectionsModel  {
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
         this.oneTimeAuthenticationTokens.delete(authToken.token);
-
 
         this.onOneTimeAuthSuccess.emit(
             authToken.token,

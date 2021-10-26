@@ -4,8 +4,10 @@ import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
 import {OEvent} from '../misc/OEvent';
 import type {Model} from './Model';
+import {createModelStateMachine} from './Model';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {StateMachine} from '../misc/StateMachine';
 
 /**
  * This represents the model of a body temperature measurement
@@ -17,7 +19,8 @@ export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
  * This model implements the possibility of adding a body temperature measurement into a journal and
  * keeping track of the list of the body temperature measurements
  */
-export default class BodyTemperatureModel  implements Model {
+export default class BodyTemperatureModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event is emitted when body temperature data is updated.
      */
@@ -29,6 +32,7 @@ export default class BodyTemperatureModel  implements Model {
 
     constructor(channelManager: ChannelManager) {
         this.channelManager = channelManager;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -37,15 +41,19 @@ export default class BodyTemperatureModel  implements Model {
     async init(): Promise<void> {
         await this.channelManager.createChannel(BodyTemperatureModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -54,6 +62,8 @@ export default class BodyTemperatureModel  implements Model {
      * @param creationTimestamp - the time in milliseconds when the body temperature was measured.
      */
     async addBodyTemperature(bodyTemperature: number, creationTimestamp?: number): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         /** make sure that the supplied body temperature fit the allowed range **/
         if (bodyTemperature < 35 || bodyTemperature > 45) {
             throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.entryError'));
@@ -76,6 +86,8 @@ export default class BodyTemperatureModel  implements Model {
      * @param queryParams - used to filter the returned data.
      */
     async getBodyTemperatures(queryParams?: QueryOptions): Promise<ObjectData<BodyTemperature>[]> {
+        this.state.assertCurrentState('Initialised');
+
         /** if the channel id is not specified override it **/
         if (queryParams) {
             if (!queryParams.channelId) {
@@ -96,6 +108,8 @@ export default class BodyTemperatureModel  implements Model {
     async *bodyTemperaturesIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneBodyTemperature>> {
+        this.state.assertCurrentState('Initialised');
+
         yield* this.channelManager.objectIteratorWithType('BodyTemperature', {
             ...queryOptions,
             channelId: BodyTemperatureModel.channelId
@@ -114,7 +128,6 @@ export default class BodyTemperatureModel  implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === BodyTemperatureModel.channelId) {
-
             this.onUpdated.emit(data);
         }
     }

@@ -3,6 +3,8 @@ import type {ObjectData} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';
 import {OEvent} from '../misc/OEvent';
 import type {Model} from './Model';
+import {createModelStateMachine} from './Model';
+import type {StateMachine} from '../misc/StateMachine';
 
 /**
  * This represents the model of a news for now
@@ -33,7 +35,8 @@ function convertFromOne(oneObject: OneNews): News {
 /**
  * This model implements a broadcast channel.
  */
-export default class NewsModel  implements Model {
+export default class NewsModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     /**
      * Event emitted when news data is updated.
      */
@@ -49,6 +52,7 @@ export default class NewsModel  implements Model {
 
     constructor(channelManager: ChannelManager) {
         this.channelManager = channelManager;
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -59,28 +63,31 @@ export default class NewsModel  implements Model {
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     async addNews(content: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.postContent('newsChannel', content);
     }
 
     async addFeedback(content: string): Promise<void> {
-        await this.postContent('feedbackChannel', content);
-    }
+        this.state.assertCurrentState('Initialised');
 
-    private async postContent(channelId: string, content: string): Promise<void> {
-        await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
-        this.onNewsEvent.emit();
+        await this.postContent('feedbackChannel', content);
     }
 
     /**
@@ -88,6 +95,8 @@ export default class NewsModel  implements Model {
      * retrieve the news or feedback depending on the channel id provided
      */
     async entries(channelId: string): Promise<ObjectData<News>[]> {
+        this.state.assertCurrentState('Initialised');
+
         const objects: ObjectData<News>[] = [];
 
         const oneObjects = await this.channelManager.getObjectsWithType('News', {
@@ -100,6 +109,11 @@ export default class NewsModel  implements Model {
         }
 
         return objects;
+    }
+
+    private async postContent(channelId: string, content: string): Promise<void> {
+        await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
+        this.onNewsEvent.emit();
     }
 
     /**

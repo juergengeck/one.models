@@ -14,7 +14,7 @@ export type Settings = {
     properties: Map<string, string>;
 };
 
-export abstract class PropertyTree  {
+export abstract class PropertyTree {
     /**
      * Event is emitted when the settings are updated.
      */

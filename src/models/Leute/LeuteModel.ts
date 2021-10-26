@@ -35,7 +35,9 @@ import type {Model} from '../Model';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
-import GroupModel from "./GroupModel";
+import GroupModel from './GroupModel';
+import type {StateMachine} from '../../misc/StateMachine';
+import {createModelStateMachine} from '../Model';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -80,6 +82,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  *    - obtain profiles
  */
 export default class LeuteModel implements Model {
+    public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
     public onUpdated: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
     public onNewOneInstanceEndpointEvent = new OEvent<
@@ -116,6 +119,8 @@ export default class LeuteModel implements Model {
         this.boundNewOneInstanceEndpointFromResult =
             this.emitNewOneInstanceEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
+
+        this.state = createModelStateMachine();
     }
 
     /**
@@ -168,16 +173,22 @@ export default class LeuteModel implements Model {
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
         onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown the leute model
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
         onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
         this.leute = undefined;
         this.pLoadedVersion = undefined;
+
+        this.state.triggerEvent('shutdown');
     }
 
     // ######## Me management ########
@@ -186,6 +197,8 @@ export default class LeuteModel implements Model {
      * Get the someone that represents me.
      */
     public async me(): Promise<SomeoneModel> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -198,6 +211,8 @@ export default class LeuteModel implements Model {
      * In order to use the returned model you have to call one of its load functions first.
      */
     public meLazyLoad(): SomeoneModel {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -210,6 +225,8 @@ export default class LeuteModel implements Model {
      * Get all other persons you know.
      */
     public async others(): Promise<SomeoneModel[]> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -222,6 +239,8 @@ export default class LeuteModel implements Model {
      * In order to use the returned models you have to call one of its load functions first.
      */
     public othersLazyLoad(): SomeoneModel[] {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -234,6 +253,8 @@ export default class LeuteModel implements Model {
      * @param other
      */
     public async addSomeoneElse(other: SHA256IdHash<Someone>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -253,6 +274,8 @@ export default class LeuteModel implements Model {
      * @param other
      */
     public async removeSomeoneElse(other: SHA256IdHash<Someone>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -267,6 +290,8 @@ export default class LeuteModel implements Model {
      * Create a new identity and a 'default' profile for myself.
      */
     public async createProfileAndIdentityForMe(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -286,6 +311,8 @@ export default class LeuteModel implements Model {
      * Create someone with a completely new identity.
      */
     public async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -316,6 +343,8 @@ export default class LeuteModel implements Model {
      * @returns the id of the generated group.
      */
     public async createGroup(name?: string): Promise<GroupModel> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -330,6 +359,8 @@ export default class LeuteModel implements Model {
      * Get a list of groups.
      */
     public async groups(): Promise<GroupModel[]> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -344,6 +375,8 @@ export default class LeuteModel implements Model {
      * @param personId
      */
     public async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
+        this.state.assertCurrentState('Initialised');
+
         const allSomeones = [await this.me(), ...(await this.others())];
         return allSomeones.find(someone => someone.identities().includes(personId));
     }
@@ -353,6 +386,8 @@ export default class LeuteModel implements Model {
      * @param personId
      */
     public async getMainProfile(personId: SHA256IdHash<Person>): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
         const someone = await this.getSomeone(personId);
 
         if (someone === undefined) {
@@ -368,6 +403,8 @@ export default class LeuteModel implements Model {
      * If no such someone object exists a new one is created.
      */
     public async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const profileObj = await getObjectByIdHash(profile);
         const others = await this.others();
 
@@ -397,6 +434,8 @@ export default class LeuteModel implements Model {
      * @param mainOnly - If true, then only get endpoints for your main identity.
      */
     public async findAllOneInstanceEndpointsForMe(mainOnly = true): Promise<OneInstanceEndpoint[]> {
+        this.state.assertCurrentState('Initialised');
+
         const me = await this.me();
         return me.collectAllEndpointsOfType(
             'OneInstanceEndpoint',
@@ -408,6 +447,8 @@ export default class LeuteModel implements Model {
      * Get instance endpoints from all contacts.
      */
     public async findAllOneInstanceEndpointsForOthers(): Promise<OneInstanceEndpoint[]> {
+        this.state.assertCurrentState('Initialised');
+
         const others = await this.others();
         const endpoints = await Promise.all(
             others.map(someone => someone.collectAllEndpointsOfType('OneInstanceEndpoint'))
@@ -436,6 +477,8 @@ export default class LeuteModel implements Model {
     public async *retrievePersonImagesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonImage>> {
+        this.state.assertCurrentState('Initialised');
+
         const allProfiles = await this.getAllProfiles();
 
         const imagesWithPersonId: {personId: SHA256IdHash<Person>; image: PersonImage}[] = [];
@@ -482,6 +525,8 @@ export default class LeuteModel implements Model {
     public async *retrieveStatusesForJournal(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonStatus>> {
+        this.state.assertCurrentState('Initialised');
+
         const allProfiles = await this.getAllProfiles();
 
         const statusesWithPersonId: {

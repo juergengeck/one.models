@@ -23,7 +23,7 @@ const ACCESS_LOCKS = {
  * @description Access Model class
  * @augments EventEmitter
  */
-export default class AccessModel  {
+export default class AccessModel {
     /**
      * Event is emitted when:
      * - a access group is created
