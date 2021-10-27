@@ -52,6 +52,7 @@ export default class RecoveryModel extends Model {
         this.connectionsModel = connectionsModel;
         this.password = '';
 
+        this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
     }
 

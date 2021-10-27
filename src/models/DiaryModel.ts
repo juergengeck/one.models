@@ -63,10 +63,12 @@ export default class DiaryModel extends Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(DiaryModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**

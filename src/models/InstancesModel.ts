@@ -75,6 +75,10 @@ class InstancesModel extends Model {
      * someday we will do it right ... yes we can ...
      */
     public async init(secret: string): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
+        // Init must be triggered here, the init function of this model uses his own function in
+        // order to get initialised
         this.state.triggerEvent('init');
         this.secret = secret;
 

@@ -31,10 +31,11 @@ export default class BloodGlucoseModel extends Model {
      * Initialize this instance
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(BloodGlucoseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
+        this.state.triggerEvent('init');
     }
 
     /**

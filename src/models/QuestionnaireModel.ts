@@ -63,6 +63,7 @@ export default class QuestionnaireModel extends Model {
      * This must be done after the one instance was initialized.
      */
     public async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
 
         await this.channelManager.createChannel(QuestionnaireModel.channelId);

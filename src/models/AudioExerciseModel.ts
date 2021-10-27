@@ -21,10 +21,12 @@ export default class AudioExerciseModel extends Model {
      * Initialize this instance
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(AudioExerciseModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**

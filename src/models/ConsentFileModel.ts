@@ -57,10 +57,12 @@ export default class ConsentFileModel extends Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(ConsentFileModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     setPersonId(id: SHA256IdHash<Person>): void {

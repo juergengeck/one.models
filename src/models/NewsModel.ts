@@ -52,11 +52,13 @@ export default class NewsModel extends Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**

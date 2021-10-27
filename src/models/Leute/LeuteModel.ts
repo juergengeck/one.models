@@ -81,7 +81,6 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  *    - obtain profiles
  */
 export default class LeuteModel extends Model {
-    public onUpdated: OEvent<() => void> = new OEvent();
     public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
     public onNewOneInstanceEndpointEvent = new OEvent<
         (communicationEndpoints: OneInstanceEndpoint) => void
@@ -128,7 +127,7 @@ export default class LeuteModel extends Model {
      * As main identity the owner of the main one instance is used. This might change in the future!
      */
     public async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         // Reuse the instance and person from one.core
         const personId = getInstanceOwnerIdHash();
@@ -172,7 +171,7 @@ export default class LeuteModel extends Model {
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
         onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
-
+        this.state.triggerEvent('init');
     }
 
     /**

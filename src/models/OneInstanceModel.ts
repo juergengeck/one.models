@@ -191,6 +191,7 @@ export default class OneInstanceModel extends Model {
             }
         });
 
+        this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
     }
 

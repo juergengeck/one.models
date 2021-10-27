@@ -23,8 +23,6 @@ const DUMMY_BLOB_HASH: SHA256Hash<BLOB> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
 
 export default class GroupModel extends Model {
-    public onUpdated: OEvent<() => void> = new OEvent();
-
     public readonly groupIdHash: SHA256IdHash<Group>;
     public readonly profileIdHash: SHA256IdHash<GroupProfile>;
 
@@ -58,12 +56,12 @@ export default class GroupModel extends Model {
             }
         });
 
+        this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
     }
 
     async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
-
         this.state.triggerEvent('shutdown');
     }
 

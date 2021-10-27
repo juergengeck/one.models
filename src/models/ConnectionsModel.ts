@@ -303,7 +303,7 @@ class ConnectionsModel extends Model {
      * Initialize this module.
      */
     public async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         this.initialized = true;
 
@@ -313,6 +313,8 @@ class ConnectionsModel extends Model {
         if (!this.mainInstanceInfo) {
             throw new Error('Programming error: mainInstanceInfo is not initialized');
         }
+
+        this.state.triggerEvent('init');
     }
 
     /**

@@ -58,7 +58,7 @@ export default class ServerMatchingModel extends MatchingModel {
      *
      */
     async init() {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.updateInstanceInfo();
         await this.initialiseMaps();
@@ -84,6 +84,7 @@ export default class ServerMatchingModel extends MatchingModel {
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
         });
 
+        this.state.triggerEvent('init');
     }
 
     // ################ PRIVATE API ################

@@ -29,9 +29,11 @@ export default class CertificateManager extends Model {
      * This will initialise the present Licenses
      */
     public async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await initLicenses();
+
+        this.state.triggerEvent('init');
     }
 
     public async shutdown(): Promise<void> {

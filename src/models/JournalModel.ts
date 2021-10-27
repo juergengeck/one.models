@@ -39,7 +39,8 @@ export default class JournalModel extends Model {
         }
     > = new Map();
 
-    public onJournalUpdate = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
+    // @Override base class event
+    public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
 
     constructor(modelsInput: JournalInput[]) {
         super();
@@ -51,12 +52,12 @@ export default class JournalModel extends Model {
      * maps an handler on every provided model
      */
     async init() {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
             const oEventHandler = (data: ObjectData<unknown>) => {
-                this.onJournalUpdate.emit(data, event);
+                this.onUpdated.emit(data, event);
             };
 
             const disconnectFn = journalInput.event(oEventHandler.bind(this));
@@ -64,6 +65,8 @@ export default class JournalModel extends Model {
             // Persist the function reference in a map
             this.oEventListeners.set(event, {listener: oEventHandler, disconnect: disconnectFn});
         });
+
+        this.state.triggerEvent('init');
     }
 
     /**

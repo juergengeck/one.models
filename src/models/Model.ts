@@ -1,16 +1,14 @@
-import type {ObjectData} from './ChannelManager';
 import {StateMachine} from '../misc/StateMachine';
-import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
 import {OEvent} from '../misc/OEvent';
 
 /**
- * Models Base Class.
+ * Model's Base Class.
  */
 export abstract class Model {
     public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
 
-    public onUpdated: OEvent<(data?: ObjectData<OneUnversionedObjectTypes>) => void> = new OEvent<
-        (data?: ObjectData<OneUnversionedObjectTypes>) => void
+    public onUpdated: OEvent<(...data: any) => void> = new OEvent<
+        (...data: any) => void
         >();
 
     constructor() {

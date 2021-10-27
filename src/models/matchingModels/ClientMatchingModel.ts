@@ -94,7 +94,7 @@ export default class ClientMatchingModel extends MatchingModel {
      * 4. share the channel with the matching server
      */
     async init() {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         /*const importedMatchingContact: UnversionedObjectResult<Contact>[] =
             await createManyObjectsThroughPurePlan(
@@ -124,6 +124,8 @@ export default class ClientMatchingModel extends MatchingModel {
             ? [this.matchingServerPersonIdHash, this.anonInstanceInfo.personId]
             : [this.matchingServerPersonIdHash];
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
+        this.state.triggerEvent('init');
+
     }
 
     /**

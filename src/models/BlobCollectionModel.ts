@@ -8,7 +8,6 @@ import {
     getObject,
     readBlobAsArrayBuffer
 } from 'one.core/lib/storage';
-import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
@@ -63,10 +62,12 @@ export default class BlobCollectionModel extends Model {
      * Used to init the model to receive the updates.
      */
     async init() {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(BlobCollectionModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**

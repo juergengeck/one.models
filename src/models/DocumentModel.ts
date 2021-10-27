@@ -59,9 +59,11 @@ export default class DocumentModel extends Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
-        this.state.triggerEvent('init');
+        this.state.assertCurrentState('Uninitialised');
 
         await this.channelManager.createChannel(DocumentModel.channelId);
+
+        this.state.triggerEvent('init');
     }
 
     /**

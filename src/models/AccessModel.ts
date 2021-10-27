@@ -38,6 +38,7 @@ export default class AccessModel extends Model {
     }
 
     async init() {
+        this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init')
     }
 
