@@ -54,11 +54,9 @@ export default class CertificateManager {
     /**
      * Create access certificates for all other persons you know
      * @param subject - the object the certificate was created for
-     * @param issuer - the person who creates the certificate
      */
     public async createAccessCertificatesForOthers(
         subject: SHA256Hash<OneUnversionedObjectTypes>,
-        issuer: SHA256IdHash<Person>
     ): Promise<void> {
         const currentPersonId = await (await this.leuteModel.me()).mainIdentity();
 
