@@ -39,7 +39,7 @@ export default class CertificateManager {
         subject: SHA256Hash<OneUnversionedObjectTypes>,
         issuer: SHA256IdHash<Person>,
         target: SHA256IdHash<Person>
-    ) {
+    ): Promise<void> {
         const certificate = await createCertificate('access', subject, issuer, target);
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [
             {
@@ -49,6 +49,27 @@ export default class CertificateManager {
                 mode: SET_ACCESS_MODE.REPLACE
             }
         ]);
+    }
+
+    /**
+     * Create access certificates for all other persons you know
+     * @param subject - the object the certificate was created for
+     * @param issuer - the person who creates the certificate
+     */
+    public async createAccessCertificatesForOthers(
+        subject: SHA256Hash<OneUnversionedObjectTypes>,
+        issuer: SHA256IdHash<Person>
+    ): Promise<void> {
+        const currentPersonId = await (await this.leuteModel.me()).mainIdentity();
+
+        const someoneModels = await this.leuteModel.others();
+
+        await Promise.all(
+            someoneModels.map(async someone => {
+                const profile = await someone.mainProfile();
+                await this.createAccessCertificate(subject, currentPersonId, profile.personId);
+            })
+        );
     }
 
     /**
@@ -62,7 +83,7 @@ export default class CertificateManager {
         subject: SHA256Hash<OneUnversionedObjectTypes>,
         target: SHA256IdHash<Person>
     ): Promise<void> {
-        return await revokeCertificate(licenseType, subject, target)
+        return await revokeCertificate(licenseType, subject, target);
     }
 
     /**
@@ -99,6 +120,41 @@ export default class CertificateManager {
         );
 
         await validateCertificate(certificateHash, issuerPublicSignKey);
+    }
+
+    /**
+     * Finds if the current person signed a certificate for the current object or not
+     * @param subject - the object in cause
+     */
+    public async haveISignedCertificateForObject(
+        subject: SHA256Hash<OneUnversionedObjectTypes>
+    ): Promise<boolean> {
+        await this.checkIfReverseMapsAreEnabledForType('Certificate');
+
+        const currentPersonId = await (await this.leuteModel.me()).mainIdentity();
+
+        const licenseHash = getLicenseHashByType('access');
+
+        if (licenseHash === undefined) {
+            throw new Error(`The License for access does not exist.`);
+        }
+
+        const foundCertificatesHashes = (
+            await ReverseMapQuery.getAllValues(licenseHash, false, 'Certificate')
+        ).map(revMap => revMap.toHash);
+
+        for (const certificateHash of foundCertificatesHashes) {
+            const certificate = await getObject(certificateHash);
+            if (
+                certificate.subject === subject &&
+                certificate.issuer === currentPersonId &&
+                (await this.validate(certificateHash, certificate.issuer))
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
