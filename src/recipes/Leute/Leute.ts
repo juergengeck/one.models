@@ -73,13 +73,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtToMetaObjectInterfaces {
         Leute: LeuteCRDTMetaData;
     }
-
-    export interface PlanResultTypes {
-        '@module/profileManagerWriteLeute': {
-            args: any;
-            result: VersionedObjectResult<Leute>;
-        };
-    }
 }
 
 export default [LeuteRecipe, LeuteCRDTDataRecipe];
