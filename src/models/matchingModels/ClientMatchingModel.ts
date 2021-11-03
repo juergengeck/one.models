@@ -94,6 +94,8 @@ export default class ClientMatchingModel extends MatchingModel {
      * 4. share the channel with the matching server
      */
     async init() {
+        this.state.assertCurrentState('Uninitialised');
+
         /*const importedMatchingContact: UnversionedObjectResult<Contact>[] =
             await createManyObjectsThroughPurePlan(
                 {
@@ -122,6 +124,8 @@ export default class ClientMatchingModel extends MatchingModel {
             ? [this.matchingServerPersonIdHash, this.anonInstanceInfo.personId]
             : [this.matchingServerPersonIdHash];
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
+        this.state.triggerEvent('init');
+
     }
 
     /**
@@ -151,7 +155,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, supply.obj);
 
-            this.emit(MatchingEvents.SupplyUpdate);
             this.onSupplyUpdate.emit();
         });
     }
@@ -183,7 +186,6 @@ export default class ClientMatchingModel extends MatchingModel {
 
             await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, demand.obj);
 
-            this.emit(MatchingEvents.DemandUpdate);
             this.onDemandUpdate.emit();
         });
     }
@@ -289,7 +291,6 @@ export default class ClientMatchingModel extends MatchingModel {
     async deleteSupply(supplyValue: string): Promise<void> {
         this.suppliesMap.delete(supplyValue);
         await this.memoriseLatestVersionOfSupplyMap();
-        this.emit(MatchingEvents.SupplyUpdate);
         this.onSupplyUpdate.emit();
     }
 
@@ -304,7 +305,6 @@ export default class ClientMatchingModel extends MatchingModel {
     async deleteDemand(demandValue: string): Promise<void> {
         this.demandsMap.delete(demandValue);
         await this.memoriseLatestVersionOfDemandMap();
-        this.emit(MatchingEvents.DemandUpdate);
         this.onDemandUpdate.emit();
     }
 
@@ -360,9 +360,11 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToSupplyMap(newSupply.obj);
             await this.memoriseLatestVersionOfSupplyMap();
 
-            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newSupply.obj);
+            await this.channelManager.postToChannelIfNotExist(
+                MatchingModel.channelId,
+                newSupply.obj
+            );
 
-            this.emit(MatchingEvents.SupplyUpdate);
             this.onSupplyUpdate.emit();
         });
     }
@@ -419,9 +421,11 @@ export default class ClientMatchingModel extends MatchingModel {
             this.addNewValueToDemandMap(newDemand.obj);
             await this.memoriseLatestVersionOfDemandMap();
 
-            await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, newDemand.obj);
+            await this.channelManager.postToChannelIfNotExist(
+                MatchingModel.channelId,
+                newDemand.obj
+            );
 
-            this.emit(MatchingEvents.DemandUpdate);
             this.onDemandUpdate.emit();
         });
     }
@@ -448,7 +452,6 @@ export default class ClientMatchingModel extends MatchingModel {
                         }
 
                         await this.memoriseLatestVersionOfSupplyMap();
-                        this.emit(MatchingEvents.CatalogUpdate);
                         this.onCatalogUpdate.emit();
                     } else if (receivedObject.$type$ === 'Demand') {
                         if (MatchingModel.checkIfItIsAnUpdate(this.demandsMap, receivedObject)) {
@@ -458,7 +461,6 @@ export default class ClientMatchingModel extends MatchingModel {
                         }
 
                         await this.memoriseLatestVersionOfDemandMap();
-                        this.emit(MatchingEvents.CatalogUpdate);
                         this.onCatalogUpdate.emit();
                     }
                 } catch (err) {
@@ -530,7 +532,6 @@ export default class ClientMatchingModel extends MatchingModel {
                     }
                 );
             }
-            this.emit(MatchingEvents.MatchUpdate);
             this.onMatchUpdate.emit();
         });
     }

@@ -1,10 +1,9 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
 import i18nModelsInstance from '../i18n';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
+import {Model} from './Model';
+
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 
@@ -42,12 +41,7 @@ function convertFromOne(oneObject: OneDiaryEntry): DiaryEntry {
  * This model implements the possibility of adding a diary entry into a journal and
  * keeping track of the list of the diary entries
  */
-export default class DiaryModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when diary data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class DiaryModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'diary';
     private disconnect: (() => void) | undefined;
@@ -69,20 +63,29 @@ export default class DiaryModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(DiaryModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     async addEntry(diaryEntry: DiaryEntry): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!diaryEntry) {
             throw Error(i18nModelsInstance.t('errors:diaryModel.notEmptyField'));
         }
@@ -90,6 +93,8 @@ export default class DiaryModel extends EventEmitter implements Model {
     }
 
     async entries(): Promise<ObjectData<DiaryEntry>[]> {
+        this.state.assertCurrentState('Initialised');
+
         const objects: ObjectData<DiaryEntry>[] = [];
         const oneObjects = await this.channelManager.getObjectsWithType('DiaryEntry', {
             channelId: DiaryModel.channelId
@@ -111,6 +116,8 @@ export default class DiaryModel extends EventEmitter implements Model {
     async *entriesIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneDiaryEntry>> {
+        this.state.assertCurrentState('Initialised');
+
         for await (const entry of this.channelManager.objectIteratorWithType('DiaryEntry', {
             ...queryOptions,
             channelId: DiaryModel.channelId
@@ -120,6 +127,8 @@ export default class DiaryModel extends EventEmitter implements Model {
     }
 
     async getEntryById(id: string): Promise<ObjectData<DiaryEntry>> {
+        this.state.assertCurrentState('Initialised');
+
         const {data, ...restObjectData} = await this.channelManager.getObjectWithTypeById(
             id,
             'DiaryEntry'
@@ -139,7 +148,6 @@ export default class DiaryModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DiaryModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }

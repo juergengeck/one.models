@@ -1,22 +1,18 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from 'one.core/lib/message-bus';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
+import {Model} from './Model';
+
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {WbcObservation} from '../recipes/WbcDiffRecipes';
+
 const MessageBus = createMessageBus('WbcDiffModel');
 
 /**
  * This model implements methods related to differential blood counts of white blood cells.
  */
-export default class WbcDiffModel extends EventEmitter implements Model {
-    /**
-     * Event is emitted when the wbc data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+export default class WbcDiffModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'wbc';
 
@@ -24,6 +20,7 @@ export default class WbcDiffModel extends EventEmitter implements Model {
 
     constructor(channelManager: ChannelManager) {
         super();
+
         this.channelManager = channelManager;
     }
 
@@ -33,34 +30,24 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(WbcDiffModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
-    }
-
-    /**
-     *  Handler function for the 'updated' event
-     * @param id
-     * @param owner
-     * @param data
-     */
-    private async handleOnUpdated(
-        id: string,
-        owner: SHA256IdHash<Person>,
-        data: ObjectData<OneUnversionedObjectTypes>
-    ): Promise<void> {
-        if (id === WbcDiffModel.channelId) {
-            this.emit('updated');
-            this.onUpdated.emit(data);
-        }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -69,6 +56,8 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * @param wbcObservation - The answers for the questionnaire
      */
     async postObservation(wbcObservation: WbcObservation): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         MessageBus.send('log', `postMeasurement()`);
 
         // Verify number format of *Count fields
@@ -97,6 +86,8 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * returns all WbcObservations from the channel
      */
     async observations(): Promise<ObjectData<WbcObservation>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('WbcObservation', {
             channelId: WbcDiffModel.channelId
         });
@@ -109,6 +100,8 @@ export default class WbcDiffModel extends EventEmitter implements Model {
     async *observationsIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<WbcObservation>> {
+        this.state.assertCurrentState('Initialised');
+
         yield* this.channelManager.objectIteratorWithType('WbcObservation', {
             ...queryOptions,
             channelId: WbcDiffModel.channelId
@@ -119,6 +112,24 @@ export default class WbcDiffModel extends EventEmitter implements Model {
      * returns the WbcObservation with that specific id provided by the ObjectData type
      */
     async observationById(id: string): Promise<ObjectData<WbcObservation>> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectWithTypeById(id, 'WbcObservation');
+    }
+
+    /**
+     *  Handler function for the 'updated' event
+     * @param id
+     * @param owner
+     * @param data
+     */
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
+        if (id === WbcDiffModel.channelId) {
+            this.onUpdated.emit(data);
+        }
     }
 }

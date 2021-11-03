@@ -1,7 +1,5 @@
-import {EventEmitter} from 'events';
+import {Model} from './Model';
 
-import type {Model} from './Model';
-import {OEvent} from '../misc/OEvent';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
@@ -13,12 +11,7 @@ import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
  * Those Events can be {@link HEART_OCCURRING_EVENTS}
  * For more information, see Chapter Vital Signs in {@link https://developer.apple.com/documentation/healthkit/data_types}
  */
-export default class HeartEventModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when HeartEvent data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class HeartEventModel extends Model {
     private readonly channelManager: ChannelManager;
     public static readonly channelId = 'heartEvent';
 
@@ -33,6 +26,7 @@ export default class HeartEventModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
+
         this.channelManager = channelManager;
     }
 
@@ -40,17 +34,24 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * Initialize the model
      */
     public async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(HeartEventModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown the model
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -58,6 +59,8 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * @param heartEvent
      */
     public async addHeartEvent(heartEvent: HeartEvent): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.channelManager.postToChannel(HeartEventModel.channelId, heartEvent);
     }
 
@@ -65,6 +68,8 @@ export default class HeartEventModel extends EventEmitter implements Model {
      * Get all the heartEvents
      */
     public async heartEvents(): Promise<ObjectData<HeartEvent>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('HeartEvent', {
             channelId: HeartEventModel.channelId
         });
@@ -77,6 +82,8 @@ export default class HeartEventModel extends EventEmitter implements Model {
     public async *heartEventsIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<HeartEvent>> {
+        this.state.assertCurrentState('Initialised');
+
         for await (const entry of this.channelManager.objectIteratorWithType('HeartEvent', {
             ...queryOptions,
             channelId: HeartEventModel.channelId
@@ -97,7 +104,6 @@ export default class HeartEventModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === HeartEventModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }

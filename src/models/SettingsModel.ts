@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
@@ -15,7 +14,7 @@ export type Settings = {
     properties: Map<string, string>;
 };
 
-export abstract class PropertyTree extends EventEmitter {
+export abstract class PropertyTree {
     /**
      * Event is emitted when the settings are updated.
      */
@@ -108,7 +107,6 @@ export default class PropertyTreeStore extends PropertyTree {
         // or: if map was empty then emit only a single event with empty key
         if (this.keyValueStore.size === 0) {
             this.keyValueStore = new Map<string, string>(oneSettings.properties);
-            this.emit('update', '');
             this.onSettingChange.emit('', undefined);
         } else {
             // diff the oneSettings with the keyValueStore
@@ -117,7 +115,6 @@ export default class PropertyTreeStore extends PropertyTree {
                     // update the keyValueStore with changes
                     this.keyValueStore.set(key, value);
                     // emit only the remembered changes
-                    this.emit('update', key, value);
                     this.onSettingChange.emit(key, value);
                 }
             }

@@ -58,6 +58,8 @@ export default class ServerMatchingModel extends MatchingModel {
      *
      */
     async init() {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.updateInstanceInfo();
         await this.initialiseMaps();
         await this.initNotifiedUsersList();
@@ -81,6 +83,8 @@ export default class ServerMatchingModel extends MatchingModel {
 
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
         });
+
+        this.state.triggerEvent('init');
     }
 
     // ################ PRIVATE API ################
@@ -97,7 +101,10 @@ export default class ServerMatchingModel extends MatchingModel {
                     const receivedObject = await getObject(res.obj.data);
                     if (receivedObject.$type$ === 'Supply') {
                         console.log('Supply Obj Received:', receivedObject);
-                        await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, res.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            MatchingModel.channelId,
+                            res.obj
+                        );
                         await this.identifyMatching(
                             receivedObject,
                             this.suppliesMap,
@@ -105,7 +112,10 @@ export default class ServerMatchingModel extends MatchingModel {
                         );
                     } else if (receivedObject.$type$ === 'Demand') {
                         console.log('Demand Obj Received:', receivedObject);
-                        await this.channelManager.postToChannelIfNotExist(MatchingModel.channelId, res.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            MatchingModel.channelId,
+                            res.obj
+                        );
                         await this.identifyMatching(
                             receivedObject,
                             this.demandsMap,

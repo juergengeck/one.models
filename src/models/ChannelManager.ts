@@ -1,5 +1,3 @@
-import {EventEmitter} from 'events';
-
 import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
 import {
     createManyObjectsThroughPurePlan,
@@ -215,7 +213,7 @@ function isChannelInfoResult(
  *       We don't use a singleton, because it makes it harder to track where
  *       channels are used.
  */
-export default class ChannelManager extends EventEmitter {
+export default class ChannelManager {
     // Serialize locks
     private static readonly postLockName = 'ChannelManager_postLock';
     private static readonly postNELockName = 'ChannelManager_postNELock';
@@ -251,7 +249,6 @@ export default class ChannelManager extends EventEmitter {
      * @param accessModel
      */
     constructor(accessModel: AccessModel) {
-        super();
         this.accessModel = accessModel;
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
@@ -456,6 +453,8 @@ export default class ChannelManager extends EventEmitter {
         data: T,
         channelOwner?: SHA256IdHash<Person>
     ): Promise<void> {
+
+
         // Determine the owner to use for posting.
         // It is either the passed one, or the default one if none was passed.
         let owner: SHA256IdHash<Person>;
@@ -514,6 +513,8 @@ export default class ChannelManager extends EventEmitter {
     public async getObjects(
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+
+
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
         for await (const obj of this.objectIterator(queryOptions)) {
@@ -538,6 +539,8 @@ export default class ChannelManager extends EventEmitter {
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+
+
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
         for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
@@ -558,6 +561,8 @@ export default class ChannelManager extends EventEmitter {
      * @param id - id of the object to extract
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+
+
         const obj = (await this.objectIterator({id}).next()).value;
         if (!obj) {
             throw new Error('The referenced object does not exist');
@@ -583,6 +588,8 @@ export default class ChannelManager extends EventEmitter {
         id: string,
         type: T
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+
+
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
@@ -610,6 +617,8 @@ export default class ChannelManager extends EventEmitter {
     public async getLatestMergedChannelInfoHash(
         channel: Channel
     ): Promise<SHA256Hash<ChannelInfo>> {
+
+
         const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
 
         const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
@@ -637,6 +646,8 @@ export default class ChannelManager extends EventEmitter {
     public async *objectIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+
+
         // The count needs to be dealt with at the top level, because it involves all returned items
         if (queryOptions && queryOptions.count) {
             let elementCounter = 0;
@@ -668,6 +679,8 @@ export default class ChannelManager extends EventEmitter {
         type: T,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+
+
         if (queryOptions) {
             queryOptions.type = type;
         } else {
@@ -1389,7 +1402,6 @@ export default class ChannelManager extends EventEmitter {
                 // We wouldn't need to emit every time ... especially not if the previous
                 // read pointer is compatible to the new one (has the same head pointer in the
                 // channel info). But let's think about this later :-)
-                this.emit('updated', channelId, channelOwner);
                 const data = await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash);
                 if (data === undefined) {
                     throw new Error('wrapChannelInfoWithObjectData returned undefined ');

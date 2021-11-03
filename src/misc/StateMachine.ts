@@ -360,6 +360,18 @@ export class StateMachine<StateT, EventT> {
         return localState.reverse();
     }
 
+    /**
+     * Checks if the current state is the one passed, if not, throws an error.
+     *
+     * @param state - The state to check the current state.
+     */
+    assertCurrentState(state: StateT): void {
+        const currentStates = this.getCurrentStates();
+        if(!currentStates.includes(state)){
+            throw new Error(`The current state of the state machine is not ${state}`)
+        }
+    }
+
     // ------------------------------- PRIVATE API -------------------------------
 
     /**

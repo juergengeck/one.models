@@ -2,7 +2,6 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {EventEmitter} from 'events';
 import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
@@ -14,17 +13,18 @@ import type {VersionedObjectResult} from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import {Model} from './Model';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
 } as const;
 
 /**
- *
+ * @deprecated
  * @description Access Model class
  * @augments EventEmitter
  */
-export default class AccessModel extends EventEmitter {
+export default class AccessModel extends Model {
     /**
      * Event is emitted when:
      * - a access group is created
@@ -37,10 +37,14 @@ export default class AccessModel extends EventEmitter {
         super();
     }
 
-    /**
-     *
-     */
-    async init() {}
+    async init() {
+        this.state.assertCurrentState('Uninitialised');
+        this.state.triggerEvent('init')
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.triggerEvent('shutdown')
+    }
 
     /**
      *
@@ -48,6 +52,7 @@ export default class AccessModel extends EventEmitter {
      * @returns
      */
     async getAccessGroupPersons(groupName: string | string[]): Promise<SHA256IdHash<Person>[]> {
+        this.state.assertCurrentState('Initialised');
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
             if (Array.isArray(groupName)) {
                 return [
@@ -75,6 +80,8 @@ export default class AccessModel extends EventEmitter {
      * @param personId
      */
     async removePersonFromAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const group = await this.getAccessGroupByName(name);
         /** add the person only if it does not exist and prevent unnecessary one updates **/
 
@@ -90,7 +97,6 @@ export default class AccessModel extends EventEmitter {
                 },
                 group.obj
             );
-            this.emit('groups_updated');
             this.onGroupsUpdated.emit();
         }
     }
@@ -100,6 +106,8 @@ export default class AccessModel extends EventEmitter {
      * @param personId
      */
     async addPersonToAccessGroup(name: string, personId: SHA256IdHash<Person>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         return await serializeWithType(ACCESS_LOCKS.GROUP_LOCK, async () => {
             const group = await this.getAccessGroupByName(name);
             /** add the person only if it does not exist and prevent unnecessary one updates **/
@@ -117,7 +125,6 @@ export default class AccessModel extends EventEmitter {
                     group.obj
                 );
 
-                this.emit('groups_updated');
                 this.onGroupsUpdated.emit();
             }
         });
@@ -127,6 +134,8 @@ export default class AccessModel extends EventEmitter {
         groupName: string,
         objectHash: SHA256Hash<OneObjectTypes>
     ): Promise<VersionedObjectResult<Access | IdAccess>> {
+        this.state.assertCurrentState('Initialised');
+
         const group = await this.getAccessGroupByName(groupName);
         return await createSingleObjectThroughPurePlan(
             {
@@ -150,6 +159,8 @@ export default class AccessModel extends EventEmitter {
      * @returns
      */
     async getAccessGroupByName(name: string): Promise<VersionedObjectResult<Group>> {
+        this.state.assertCurrentState('Initialised');
+
         return await getObjectByIdObj({$type$: 'Group', name: name});
     }
 
@@ -158,6 +169,8 @@ export default class AccessModel extends EventEmitter {
      * @param name
      */
     async createAccessGroup(name: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
@@ -172,7 +185,6 @@ export default class AccessModel extends EventEmitter {
                     person: []
                 }
             );
-            this.emit('groups_updated');
             this.onGroupsUpdated.emit();
         }
     }

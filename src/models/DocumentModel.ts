@@ -1,11 +1,10 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
 import type {WriteStorageApi} from 'one.core/lib/storage';
 import * as Storage from 'one.core/lib/storage';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
+import {Model} from './Model';
+
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
@@ -37,12 +36,7 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
-export default class DocumentModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when document data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
     private disconnect: (() => void) | undefined;
@@ -65,16 +59,23 @@ export default class DocumentModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(DocumentModel.channelId);
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -91,6 +92,8 @@ export default class DocumentModel extends EventEmitter implements Model {
         documentName: DocumentInfo['documentName'],
         channelId: string = DocumentModel.channelId
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const oneDocument = await saveDocumentAsBLOB(document);
         await this.channelManager.postToChannel(channelId, {
             $type$: 'DocumentInfo_1_1_0',
@@ -106,6 +109,8 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @returns an array of documents.
      */
     async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
+        this.state.assertCurrentState('Initialised');
+
         const documentsData = (await this.channelManager.getObjects({
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
             channelId: DocumentModel.channelId
@@ -137,6 +142,8 @@ export default class DocumentModel extends EventEmitter implements Model {
     async *documentsIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
+        this.state.assertCurrentState('Initialised');
+
         for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
             ...queryOptions,
             channelId: DocumentModel.channelId
@@ -152,7 +159,7 @@ export default class DocumentModel extends EventEmitter implements Model {
                 },
                 // This is already there from "...document" above, but for TypeScript we need to
                 // recast the type of this property
-                dataHash: (document.dataHash as unknown) as SHA256Hash<DocumentInfo_1_1_0>
+                dataHash: document.dataHash as unknown as SHA256Hash<DocumentInfo_1_1_0>
             };
         }
         yield* this.channelManager.objectIteratorWithType('DocumentInfo_1_1_0', {
@@ -168,6 +175,8 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @returns the document.
      */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo_1_1_0>> {
+        this.state.assertCurrentState('Initialised');
+
         const documentsData = await this.channelManager.getObjects({
             id: id,
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
@@ -204,6 +213,8 @@ export default class DocumentModel extends EventEmitter implements Model {
      * @returns The corresponding model object
      */
     async blobHashToArrayBuffer(oneObject: DocumentInfo): Promise<ArrayBuffer> {
+        this.state.assertCurrentState('Initialised');
+
         let document: ArrayBuffer = {} as ArrayBuffer;
         const stream = Storage.createFileReadStream(oneObject.document);
         stream.onData.addListener((data: ArrayBuffer) => {
@@ -226,7 +237,6 @@ export default class DocumentModel extends EventEmitter implements Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DocumentModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }
