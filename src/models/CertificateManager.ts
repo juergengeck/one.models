@@ -9,7 +9,7 @@ import {calculateHashOfObj} from 'one.core/lib/util/object';
 import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
-import type {OneObjectTypeNames} from 'one.core/src/recipes';
+import type {OneObjectTypeNames} from 'one.core/lib/recipes';
 import type {LicenseType} from '../recipes/CertificateRecipes';
 
 /**
