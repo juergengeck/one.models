@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import type InstancesModel from './InstancesModel';
@@ -44,6 +43,7 @@ import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Keys, Person} from 'one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
+import {Model} from './Model';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -150,7 +150,7 @@ type PkAuthenticationTokenInfo = {
  * - The chum is then used to exchange contact information
  *   => the next connection attempt will then be a known connection, so pairing is done
  */
-class ConnectionsModel extends EventEmitter {
+class ConnectionsModel extends Model {
     /**
      * Event is emitted when state of the connector changes. The emitted value represents the updated state.
      */
@@ -246,7 +246,6 @@ class ConnectionsModel extends EventEmitter {
         config: Partial<ConnectionsModelConfiguration>
     ) {
         super();
-
         // Build configuration object by using default values
         this.config = {
             commServerUrl:
@@ -285,11 +284,9 @@ class ConnectionsModel extends EventEmitter {
         this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
         this.communicationModule.onUnknownConnection(this.onUnknownConnection.bind(this));
         this.communicationModule.onOnlineStateChange(state => {
-            this.emit('onlineStateChange', state);
             this.onOnlineStateChange.emit(state);
         });
         this.communicationModule.onConnectionsChange(() => {
-            this.emit('connectionsChange');
             this.onConnectionsChange.emit();
         });
 
@@ -306,6 +303,8 @@ class ConnectionsModel extends EventEmitter {
      * Initialize this module.
      */
     public async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         this.initialized = true;
 
         await this.updateInstanceInfos();
@@ -314,12 +313,16 @@ class ConnectionsModel extends EventEmitter {
         if (!this.mainInstanceInfo) {
             throw new Error('Programming error: mainInstanceInfo is not initialized');
         }
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.initialized = false;
         await this.communicationModule.shutdown();
 
@@ -334,6 +337,7 @@ class ConnectionsModel extends EventEmitter {
         this.pkOneTimeAuthenticationTokens.clear();
 
         this.mainInstanceInfo = null;
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -341,6 +345,8 @@ class ConnectionsModel extends EventEmitter {
      * @returns
      */
     public connectionsInfo(): ConnectionInfo[] {
+        this.state.assertCurrentState('Initialised');
+
         return this.communicationModule.connectionsInfo();
     }
 
@@ -352,6 +358,8 @@ class ConnectionsModel extends EventEmitter {
      * @param password
      */
     public setPassword(password: string) {
+        this.state.assertCurrentState('Initialised');
+
         this.password = password;
     }
 
@@ -362,6 +370,8 @@ class ConnectionsModel extends EventEmitter {
      * @returns
      */
     public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+        this.state.assertCurrentState('Initialised');
+
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -434,6 +444,8 @@ class ConnectionsModel extends EventEmitter {
         remotePerson: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const endpoints = await this.leuteModel.findAllOneInstanceEndpointsForOthers();
         const remoteEndpoint = endpoints.find(
             endpoint => endpoint.personId === remotePerson && endpoint.personKeys
@@ -504,6 +516,8 @@ class ConnectionsModel extends EventEmitter {
         pairingInformation: PairingInformation,
         password: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
@@ -640,6 +654,8 @@ class ConnectionsModel extends EventEmitter {
      * @param pairingInformation
      */
     public invalidateCurrentInvitation(pairingInformation: PairingInformation): void {
+        this.state.assertCurrentState('Initialised');
+
         if (pairingInformation.takeOver) {
             this.pkOneTimeAuthenticationTokens.delete(pairingInformation.authenticationTag);
         } else {
@@ -653,6 +669,8 @@ class ConnectionsModel extends EventEmitter {
      * @param takeOver
      */
     public invalidateAllInvitations(takeOver: boolean): void {
+        this.state.assertCurrentState('Initialised');
+
         if (takeOver) {
             this.pkOneTimeAuthenticationTokens.clear();
         } else {
@@ -1029,14 +1047,6 @@ class ConnectionsModel extends EventEmitter {
         clearTimeout(authData.expirationTimeoutHandle);
         this.oneTimeAuthenticationTokens.delete(authToken.token);
 
-        // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit(
-            'one_time_auth_success',
-            authToken.token,
-            true,
-            localPersonId,
-            remotePersonInfo.personId
-        );
         this.onOneTimeAuthSuccess.emit(
             authToken.token,
             true,
@@ -1100,13 +1110,6 @@ class ConnectionsModel extends EventEmitter {
         });
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit(
-            'one_time_auth_success',
-            authenticationToken,
-            false,
-            localPersonId,
-            personInfo.personId
-        );
         this.onOneTimeAuthSuccess.emit(
             authenticationToken,
             false,
@@ -1200,13 +1203,6 @@ class ConnectionsModel extends EventEmitter {
         this.pkOneTimeAuthenticationTokens.delete(authToken.token);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit(
-            'one_time_auth_success',
-            authToken.token,
-            true,
-            localPersonId,
-            remotePersonInfo.personId
-        );
         this.onOneTimeAuthSuccess.emit(
             authToken.token,
             true,
@@ -1281,13 +1277,6 @@ class ConnectionsModel extends EventEmitter {
         await this.overwriteExistingPersonKeys(privatePersonInfo);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.emit(
-            'one_time_auth_success',
-            authenticationToken,
-            false,
-            localPersonId,
-            personInfo.personId
-        );
         this.onOneTimeAuthSuccess.emit(
             authenticationToken,
             true,
@@ -1431,7 +1420,6 @@ class ConnectionsModel extends EventEmitter {
         initiatedLocally: boolean,
         keepRunning: boolean = true
     ): Promise<void> {
-        this.emit('chum_start', localPersonId, remotePersonId, protocol, initiatedLocally);
         this.onChumStart.emit(localPersonId, remotePersonId, protocol, initiatedLocally);
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.

@@ -31,7 +31,6 @@ describe('AccessRights model test', () => {
     });
 
     it('should see if the access groups were created on init', async () => {
-        await accessModel.init();
         await accessModel.createAccessGroup('partners');
         await accessModel.createAccessGroup('clinic');
 

@@ -82,13 +82,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtToMetaObjectInterfaces {
         Someone: SomeoneCRDTMetaData;
     }
-
-    export interface PlanResultTypes {
-        '@module/profileManagerWriteSomeone': {
-            args: any;
-            result: VersionedObjectResult<Someone>;
-        };
-    }
 }
 
 export default [SomeoneRecipe, SomeoneCRDTDataRecipe];

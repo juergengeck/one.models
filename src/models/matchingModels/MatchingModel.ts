@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import type InstancesModel from '../InstancesModel';
 import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
@@ -12,11 +11,12 @@ import {
     VersionedObjectResult
 } from 'one.core/lib/storage';
 import {serializeWithType} from 'one.core/lib/util/promise';
-import type {Model} from '../Model';
+
 import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Person} from 'one.core/lib/recipes';
+import {Model} from '../Model';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -25,11 +25,10 @@ import type {Person} from 'one.core/lib/recipes';
  * @description Matching Model class
  * @augments EventEmitter
  */
-export default abstract class MatchingModel extends EventEmitter implements Model {
+export default abstract class MatchingModel extends Model {
     /**
      * Event emitted when matching data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
 
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
@@ -46,6 +45,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
 
     protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
         super();
+
         this.instancesModel = instancesModel;
         this.channelManager = channelManager;
         this.anonInstanceInfo = null;
@@ -67,9 +67,12 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -81,6 +84,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @protected
      */
     protected async updateInstanceInfo(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const infos = await this.instancesModel.localInstancesInfo();
 
         if (infos.length !== 2) {
@@ -104,6 +109,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @protected
      */
     protected async giveAccessToMatchingChannel(person: SHA256IdHash<Person>[]): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             if (!this.anonInstanceInfo) {
                 throw new Error('Anon instance info is not initialized!');
@@ -148,6 +155,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @protected
      */
     protected async initialiseMaps(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             const supplyMapObj = (await getObjectByIdObj({
                 $type$: 'SupplyMap',
@@ -182,6 +191,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @protected
      */
     protected addNewValueToSupplyMap(supply: Supply): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(supply.match);
 
         if (!availableSupplies) {
@@ -203,6 +214,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @protected
      */
     protected addNewValueToDemandMap(demand: Demand): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(demand.match);
 
         if (!availableDemands) {
@@ -223,6 +236,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @param newSupply
      */
     protected updateSupplyInSupplyMap(newSupply: Supply) {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(newSupply.match);
 
         if (availableSupplies) {
@@ -242,6 +257,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @param newDemand
      */
     protected updateDemandInDemandMap(newDemand: Demand) {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(newDemand.match);
 
         if (availableDemands) {
@@ -260,6 +277,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @private
      */
     protected async memoriseLatestVersionOfSupplyMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('SupplyMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -280,6 +299,8 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * @private
      */
     protected async memoriseLatestVersionOfDemandMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('DemandMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -293,36 +314,6 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
                 }
             );
         });
-    }
-
-    /**
-     * Verify if the Supply or Demand object received as parameter
-     * does not exist in the objects array.
-     *
-     * This function is the corespondent of Array.includes but
-     * adapted specially for Supply and Demand objects.
-     *
-     * @param objectsArray
-     * @param object
-     * @returns
-     * @private
-     */
-    private static arrayIncludesObject(
-        objectsArray: Supply[] | Demand[],
-        object: Supply | Demand
-    ): boolean {
-        for (let i = 0; i < objectsArray.length; i++) {
-            if (
-                objectsArray[i].$type$ === object.$type$ &&
-                objectsArray[i].identity === object.identity &&
-                objectsArray[i].match === object.match &&
-                objectsArray[i].isActive === object.isActive &&
-                objectsArray[i].timestamp === object.timestamp
-            ) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -361,12 +352,41 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     }
 
     /**
+     * Verify if the Supply or Demand object received as parameter
+     * does not exist in the objects array.
+     *
+     * This function is the corespondent of Array.includes but
+     * adapted specially for Supply and Demand objects.
+     *
+     * @param objectsArray
+     * @param object
+     * @returns
+     * @private
+     */
+    private static arrayIncludesObject(
+        objectsArray: Supply[] | Demand[],
+        object: Supply | Demand
+    ): boolean {
+        for (let i = 0; i < objectsArray.length; i++) {
+            if (
+                objectsArray[i].$type$ === object.$type$ &&
+                objectsArray[i].identity === object.identity &&
+                objectsArray[i].match === object.match &&
+                objectsArray[i].isActive === object.isActive &&
+                objectsArray[i].timestamp === object.timestamp
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      *  Handler function for the 'updated' event
      *  @param id
      */
     private async handleUpdate(id: string): Promise<void> {
         if (id === MatchingModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }

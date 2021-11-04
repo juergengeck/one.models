@@ -1,4 +1,3 @@
-import {EventEmitter} from 'events';
 import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
 import oneModules from '../generated/oneModules';
 import {
@@ -20,6 +19,7 @@ import {OEvent} from '../misc/OEvent';
 import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 import type ConsentFileModel from './ConsentFileModel';
+import {Model} from './Model';
 
 /**
  * This is only a temporary solution, until all Freeda group stuff is moved out from this model
@@ -84,7 +84,7 @@ async function importModules(): Promise<VersionedObjectResult<Module>[]> {
 /**
  * Model that exposes functionality closely related to one.core
  */
-export default class OneInstanceModel extends EventEmitter {
+export default class OneInstanceModel extends Model {
     /**
      * Event emitted:
      * - when a new instance is created with takeOver
@@ -190,21 +190,32 @@ export default class OneInstanceModel extends EventEmitter {
                 this.updatePartnerState().catch(e => console.error(e));
             }
         });
+
+        this.state.assertCurrentState('Uninitialised');
+        this.state.triggerEvent('init');
     }
 
     authenticationState(): AuthenticationState {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentAuthenticationState;
     }
 
     registrationState(): boolean {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentRegistrationState;
     }
 
     patientTypeState(): string {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentPatientTypeState;
     }
 
     partnerState(): boolean {
+        this.state.assertCurrentState('Initialised');
+
         return this.currentPartnerState;
     }
 
@@ -238,6 +249,8 @@ export default class OneInstanceModel extends EventEmitter {
         patientType: string,
         anonymousEmail: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentPatientTypeState = patientType;
 
         try {
@@ -284,6 +297,8 @@ export default class OneInstanceModel extends EventEmitter {
         anonymousEmail?: string,
         recoveryState?: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.randomEmail = email;
         this.randomInstanceName = await createRandomString(64);
         localStorage.setItem('device_id', await createRandomString(64));
@@ -304,7 +319,6 @@ export default class OneInstanceModel extends EventEmitter {
         await importModules();
         this.unregister();
         await this.initialisingApplication(anonymousEmail, takeOver, recoveryState);
-        this.emit('authstate_changed');
         this.onAuthStateChange.emit();
     }
 
@@ -314,6 +328,8 @@ export default class OneInstanceModel extends EventEmitter {
      * @param secret - Secret for decryption
      */
     async initialiseInstance(secret: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentAuthenticationState = AuthenticationState.Authenticating;
         this.password = secret;
         this.randomEmail = localStorage.getItem('email');
@@ -354,6 +370,8 @@ export default class OneInstanceModel extends EventEmitter {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // The AuthenticationState is needed to be on Authenticated so that
         // the models can be initialised (see Model.ts init method).
         this.currentAuthenticationState = AuthenticationState.Authenticated;
@@ -371,6 +389,8 @@ export default class OneInstanceModel extends EventEmitter {
     }
 
     async updatePartnerState(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // if a partner has no patients associated, then he enters in a
         // partner state, where the application is not available until a
         // patient is being associated with this partner
@@ -380,11 +400,9 @@ export default class OneInstanceModel extends EventEmitter {
 
         if (availablePatientConnections.length > 0) {
             this.currentPartnerState = false;
-            this.emit('partner_state_changed');
             this.onPartnerStateChange.emit();
         } else {
             this.currentPartnerState = true;
-            this.emit('partner_state_changed');
             this.onPartnerStateChange.emit();
         }
     }
@@ -402,15 +420,15 @@ export default class OneInstanceModel extends EventEmitter {
         patientType: string,
         isPersonalCloudInvite: boolean
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         this.currentPatientTypeState = patientType;
 
         if (isPersonalCloudInvite) {
             this.password = secret;
             this.currentRegistrationState = true;
             this.currentAuthenticationState = AuthenticationState.Authenticated;
-            this.emit('registration_state_changed');
             this.onRegistrationStateChange.emit();
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
             return;
         }
@@ -430,11 +448,9 @@ export default class OneInstanceModel extends EventEmitter {
                 this.currentRegistrationState = false;
             } catch {
                 this.currentRegistrationState = true;
-                this.emit('registration_state_changed');
                 this.onRegistrationStateChange.emit();
             }
 
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
         }
     }
@@ -445,11 +461,12 @@ export default class OneInstanceModel extends EventEmitter {
      * @param logoutMode
      */
     async logout(logoutMode: LogoutMode): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // Signal the application that we are no longer authenticated
         // This is done before everything else, so that the UI is updated and
         // you won't see clitches, because of the indivdual models shutting down
         this.currentAuthenticationState = AuthenticationState.NotAuthenticated;
-        this.emit('authstate_changed');
         this.onAuthStateChange.emit();
 
         // Signal the application that it should shutdown one dependent models
@@ -477,13 +494,13 @@ export default class OneInstanceModel extends EventEmitter {
      * @param patientType
      */
     async register(secret: string, patientType: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (!OneInstanceModel.checkIfInstanceExists()) {
             this.currentRegistrationState = true;
             this.currentPatientTypeState = patientType;
             await this.initialiseInstance(secret);
-            this.emit('registration_state_changed');
             this.onRegistrationStateChange.emit();
-            this.emit('authstate_changed');
             this.onAuthStateChange.emit();
             return;
         }
@@ -497,8 +514,9 @@ export default class OneInstanceModel extends EventEmitter {
      * and the application will be displayed.
      */
     unregister(): void {
+        this.state.assertCurrentState('Initialised');
+
         this.currentRegistrationState = false;
-        this.emit('registration_state_changed');
         this.onRegistrationStateChange.emit();
     }
 
@@ -510,6 +528,8 @@ export default class OneInstanceModel extends EventEmitter {
      * @returns The exported content
      */
     async backupInstance(): Promise<Blob> {
+        this.state.assertCurrentState('Initialised');
+
         const hashesToImplode: SHA256Hash[] = [];
         const channelsInfo = await this.channelManager.channels();
         await Promise.all(
@@ -544,6 +564,8 @@ export default class OneInstanceModel extends EventEmitter {
      * @param data - The data from which to restore the instance
      */
     async restoreInstance(data: Blob): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const dataText = await new Promise((resolve, reject) => {
             const fr = new FileReader();
 
@@ -574,6 +596,8 @@ export default class OneInstanceModel extends EventEmitter {
     }
 
     getSecret(): string {
+        this.state.assertCurrentState('Initialised');
+
         return this.password;
     }
 
@@ -584,6 +608,8 @@ export default class OneInstanceModel extends EventEmitter {
      * @returns
      */
     async deleteInstance(dbInstanceName: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         localStorage.clear();
         sessionStorage.clear();
         return new Promise((resolve, reject) => {
@@ -601,6 +627,8 @@ export default class OneInstanceModel extends EventEmitter {
      * Erase the instance while the user is logged out.
      */
     async eraseWhileLoggedOut(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const dbInstance = getDbInstance();
 
         setTimeout(() => {
@@ -615,6 +643,8 @@ export default class OneInstanceModel extends EventEmitter {
      * @return
      */
     async deleteUnopenedInstance() {
+        this.state.assertCurrentState('Initialised');
+
         const instance = localStorage.getItem('instance');
         const email = localStorage.getItem('email');
 
@@ -632,5 +662,9 @@ export default class OneInstanceModel extends EventEmitter {
         } as Instance);
 
         await this.deleteInstance(`data#${instanceIdHash}`);
+    }
+
+    async shutdown(): Promise<void> {
+        this.state.triggerEvent('shutdown');
     }
 }

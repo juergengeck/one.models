@@ -61,13 +61,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtToMetaObjectInterfaces {
         GroupProfile: GroupProfileCRDTMetaData;
     }
-
-    export interface PlanResultTypes {
-        '@module/profileManagerWriteGroupProfile': {
-            args: any;
-            result: VersionedObjectResult<GroupProfile>;
-        };
-    }
 }
 
 export default [GroupProfileRecipe, GroupProfileCRDTDataRecipe];
