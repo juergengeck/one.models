@@ -1,16 +1,27 @@
 import {getLicenseHashByType, initLicenses} from '../misc/License';
 import type {Certificate} from '../recipes/CertificateRecipes';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {
+    OneUnversionedObjectTypeNames,
+    OneUnversionedObjectTypes,
+    Person
+} from 'one.core/lib/recipes';
 import {createCertificate, revokeCertificate, validateCertificate} from '../misc/Certificate';
 import {LeuteModel} from './index';
-import {createSingleObjectThroughPurePlan, getObject, SET_ACCESS_MODE} from 'one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    getObject,
+    onUnversionedObj,
+    SET_ACCESS_MODE,
+    UnversionedObjectResult
+} from 'one.core/lib/storage';
 import {calculateHashOfObj} from 'one.core/lib/util/object';
 import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
 import {getInstanceIdHash} from 'one.core/lib/instance';
 import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 import type {OneObjectTypeNames} from 'one.core/src/recipes';
 import type {LicenseType} from '../recipes/CertificateRecipes';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * Manages the creation & validation of certificates
@@ -44,7 +55,7 @@ export default class CertificateManager {
         await createSingleObjectThroughPurePlan({module: '@one/access'}, [
             {
                 object: await calculateHashOfObj(certificate.obj),
-                person: target,
+                person: [target],
                 group: [],
                 mode: SET_ACCESS_MODE.REPLACE
             }
@@ -56,7 +67,7 @@ export default class CertificateManager {
      * @param subject - the object the certificate was created for
      */
     public async createAccessCertificatesForOthers(
-        subject: SHA256Hash<OneUnversionedObjectTypes>,
+        subject: SHA256Hash<OneUnversionedObjectTypes>
     ): Promise<void> {
         const currentPersonId = await (await this.leuteModel.me()).mainIdentity();
 
@@ -118,6 +129,37 @@ export default class CertificateManager {
         );
 
         await validateCertificate(certificateHash, issuerPublicSignKey);
+    }
+
+    /**
+     * Listen for object's certificate by type. Returns the disconnect function.
+     * @param type
+     * @param listener
+     */
+    public async addListenerForObjectCertificateByType<T extends OneUnversionedObjectTypeNames>(
+        type: T,
+        listener: (data: OneUnversionedObjectTypes) => Promise<void>
+    ): Promise<() => void> {
+        const onUpdate = new OEvent<(data: OneUnversionedObjectTypes) => void>();
+        const OEventDisconnect = onUpdate(listener);
+
+        async function onUnversionedObjectListener(
+            caughtObject: UnversionedObjectResult<OneUnversionedObjectTypes>
+        ) {
+            if (caughtObject.status === 'new' && caughtObject.obj.$type$ === 'Certificate') {
+                const subject = await getObject(caughtObject.obj.subject);
+                if (subject.$type$ === type) {
+                    onUpdate.emit(subject);
+                }
+            }
+        }
+
+        onUnversionedObj.addListener(onUnversionedObjectListener);
+
+        return () => {
+            OEventDisconnect();
+            onUnversionedObj.removeListener(onUnversionedObjectListener);
+        };
     }
 
     /**
