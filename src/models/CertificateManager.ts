@@ -82,6 +82,8 @@ export default class CertificateManager extends Model {
     public async createAccessCertificatesForOthers(
         subject: SHA256Hash<OneUnversionedObjectTypes>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const currentPersonId = await (await this.leuteModel.me()).mainIdentity();
 
         const someoneModels = await this.leuteModel.others();
@@ -159,6 +161,8 @@ export default class CertificateManager extends Model {
         type: T,
         listener: (data: OneUnversionedObjectTypes) => Promise<void>
     ) {
+        this.state.assertCurrentState('Initialised');
+
         const onUpdate = new OEvent<(data: OneUnversionedObjectTypes) => void>();
         const OEventDisconnect = onUpdate(listener);
 
