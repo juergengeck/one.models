@@ -128,7 +128,7 @@ describe('Certificate test', () => {
         await certificateManager.init();
 
         const cert = await createCertificate('access', subject, issuer, target);
-        const targets = await certificateManager.findWithWhomTheObjectWasSharedByValidCertificate(subject);
+        const targets = await certificateManager.findPersonsWhoSignedThisObject(subject);
         expect(targets).to.deep.equal([target]);
     });
     it('Should find shared objects with a person', async () => {

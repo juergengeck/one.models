@@ -202,7 +202,7 @@ export default class CertificateManager {
      * certificates will be taken in consideration
      * @param subject - the object in cause
      */
-    public async findWithWhomTheObjectWasSharedByValidCertificate(
+    public async findPersonsWhoSignedThisObject(
         subject: SHA256Hash<OneUnversionedObjectTypes>
     ): Promise<SHA256IdHash<Person>[]> {
         await this.checkIfReverseMapsAreEnabledForType('License');
@@ -225,7 +225,7 @@ export default class CertificateManager {
                 certificate.subject === subject &&
                 (await this.validate(certificateHash, certificate.issuer))
             ) {
-                foundPersons.push(certificate.target);
+                foundPersons.push(certificate.issuer);
             }
         }
 
