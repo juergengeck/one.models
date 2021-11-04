@@ -136,10 +136,10 @@ export default class CertificateManager {
      * @param type
      * @param listener
      */
-    public async addListenerForObjectCertificateByType<T extends OneUnversionedObjectTypeNames>(
+    public addListenerForObjectCertificateByType<T extends OneUnversionedObjectTypeNames>(
         type: T,
         listener: (data: OneUnversionedObjectTypes) => Promise<void>
-    ): Promise<() => void> {
+    ) {
         const onUpdate = new OEvent<(data: OneUnversionedObjectTypes) => void>();
         const OEventDisconnect = onUpdate(listener);
 
