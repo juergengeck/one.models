@@ -111,7 +111,8 @@ async function main(): Promise<void> {
                 );
                 consoleWs = conn;
                 consoleWs.webSocket.addEventListener('error', e => {
-                    const message = (e as unknown as { message: string | undefined }) && 'unknown error';
+                    const message =
+                        (e as unknown as {message: string | undefined}) && 'unknown error';
                     console.log(message);
                 });
                 consoleWs.webSocket.addEventListener('close', e => {

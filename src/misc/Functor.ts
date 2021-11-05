@@ -36,8 +36,7 @@ export interface Functor<T extends (...arg: any) => any> {
  * **A**: That the interface is directly callable
  * - https://www.typescriptlang.org/docs/handbook/interfaces.html#hybrid-types<br>
  */
-export class Functor<T extends (...arg: any) => any> extends Function  {
-
+export class Functor<T extends (...arg: any) => any> extends Function {
     /**
      * Constructs the callable class.
      *
@@ -49,4 +48,3 @@ export class Functor<T extends (...arg: any) => any> extends Function  {
         return Object.setPrototypeOf(f, new.target.prototype);
     }
 }
-

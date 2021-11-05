@@ -125,7 +125,6 @@ export default class ClientMatchingModel extends MatchingModel {
             : [this.matchingServerPersonIdHash];
         await this.giveAccessToMatchingChannel(personsToGiveAccessTo);*/
         this.state.triggerEvent('init');
-
     }
 
     /**

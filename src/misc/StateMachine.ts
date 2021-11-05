@@ -367,8 +367,8 @@ export class StateMachine<StateT, EventT> {
      */
     assertCurrentState(state: StateT): void {
         const currentStates = this.getCurrentStates();
-        if(!currentStates.includes(state)){
-            throw new Error(`The current state of the state machine is not ${state}`)
+        if (!currentStates.includes(state)) {
+            throw new Error(`The current state of the state machine is not ${state}`);
         }
     }
 
@@ -459,7 +459,6 @@ export class StateMachine<StateT, EventT> {
 
         return null;
     }
-
 
     /**
      * Search recursively for transition for the given event in the sub state machines.
