@@ -9,6 +9,7 @@ import EncryptedConnection_Server from './EncryptedConnection_Server';
 import type EncryptedConnection from './EncryptedConnection';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
+import {arrayBufferToHex} from './ArrayBufferHexConvertor';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -87,7 +88,7 @@ class IncomingConnectionManager {
         decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array
     ): Promise<void> {
         // String representation of public string
-        const strPublicKey = Buffer.from(publicKey).toString('hex');
+        const strPublicKey = arrayBufferToHex(publicKey);
 
         // Create listener for this key
         const listener = new CommunicationServerListener(2, 10000);

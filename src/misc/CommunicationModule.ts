@@ -12,6 +12,7 @@ import {OEvent} from './OEvent';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
 import type {Instance, Person} from 'one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
+import {arrayBufferToHex} from './ArrayBufferHexConvertor';
 
 /**
  * This type represents information about a connection.
@@ -61,9 +62,7 @@ type ConnectionContainer = {
  * @returns
  */
 function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): string {
-    return `${Buffer.from(localPublicKey).toString('hex')} + ${Buffer.from(
-        remotePublicKey
-    ).toString('hex')}`;
+    return `${arrayBufferToHex(localPublicKey)} + ${arrayBufferToHex(remotePublicKey)}`
 }
 
 /**
@@ -412,12 +411,8 @@ export default class CommunicationModule extends EventEmitter {
             connectionsInfo.push({
                 isConnected: container.activeConnection !== null,
                 url: container.url,
-                sourcePublicKey: Buffer.from(toByteArray(container.sourcePublicKey)).toString(
-                    'hex'
-                ),
-                targetPublicKey: Buffer.from(toByteArray(container.targetPublicKey)).toString(
-                    'hex'
-                ),
+                sourcePublicKey: arrayBufferToHex(toByteArray(container.sourcePublicKey)),
+                targetPublicKey: arrayBufferToHex(toByteArray(container.targetPublicKey)),
                 sourceInstanceId: container.sourceInstanceId,
                 targetInstanceId: container.targetInstanceId,
                 sourcePersonId: container.sourcePersonId,
