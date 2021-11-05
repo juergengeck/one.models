@@ -453,8 +453,6 @@ export default class ChannelManager {
         data: T,
         channelOwner?: SHA256IdHash<Person>
     ): Promise<void> {
-
-
         // Determine the owner to use for posting.
         // It is either the passed one, or the default one if none was passed.
         let owner: SHA256IdHash<Person>;
@@ -513,8 +511,6 @@ export default class ChannelManager {
     public async getObjects(
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
-
-
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
         for await (const obj of this.objectIterator(queryOptions)) {
@@ -539,8 +535,6 @@ export default class ChannelManager {
         type: T,
         queryOptions?: QueryOptions
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
-
-
         // Use iterator interface to collect all objects
         const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
         for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
@@ -561,8 +555,6 @@ export default class ChannelManager {
      * @param id - id of the object to extract
      */
     public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
-
-
         const obj = (await this.objectIterator({id}).next()).value;
         if (!obj) {
             throw new Error('The referenced object does not exist');
@@ -588,8 +580,6 @@ export default class ChannelManager {
         id: string,
         type: T
     ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-
-
         function hasRequestedType(
             obj: ObjectData<OneUnversionedObjectTypes>
         ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
@@ -617,8 +607,6 @@ export default class ChannelManager {
     public async getLatestMergedChannelInfoHash(
         channel: Channel
     ): Promise<SHA256Hash<ChannelInfo>> {
-
-
         const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
 
         const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
@@ -646,8 +634,6 @@ export default class ChannelManager {
     public async *objectIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
-
-
         // The count needs to be dealt with at the top level, because it involves all returned items
         if (queryOptions && queryOptions.count) {
             let elementCounter = 0;
@@ -679,8 +665,6 @@ export default class ChannelManager {
         type: T,
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
-
-
         if (queryOptions) {
             queryOptions.type = type;
         } else {

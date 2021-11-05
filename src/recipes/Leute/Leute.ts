@@ -49,7 +49,7 @@ export const LeuteRecipe: Recipe = {
                 type: 'bag',
                 item: {type: 'referenceToId', allowedTypes: new Set(['GroupProfile'])}
             }
-        },
+        }
     ]
 };
 

@@ -62,7 +62,7 @@ type ConnectionContainer = {
  * @returns
  */
 function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): string {
-    return `${arrayBufferToHex(localPublicKey)} + ${arrayBufferToHex(remotePublicKey)}`
+    return `${arrayBufferToHex(localPublicKey)} + ${arrayBufferToHex(remotePublicKey)}`;
 }
 
 /**
