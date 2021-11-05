@@ -1,8 +1,6 @@
-import type {CRDTMetaData, Person, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
+import type {Person, Recipe} from 'one.core/lib/recipes';
 import type {Profile} from './Profile';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // #### Typescript interfaces ####
 
@@ -16,15 +14,12 @@ export interface Someone {
     }[];
 }
 
-export interface SomeoneCRDTMetaData extends CRDTMetaData<Someone> {
-    $type$: 'SomeoneCRDTMetaData';
-}
-
 // #### Recipes ####
 
 export const SomeoneRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Someone',
+    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'someoneId',
@@ -59,11 +54,6 @@ export const SomeoneRecipe: Recipe = {
     ]
 };
 
-export const SomeoneCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(
-    SomeoneRecipe,
-    'SomeoneCRDTMetaData'
-);
-
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
@@ -74,14 +64,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtIdObjectInterfaces {
         Someone: Pick<Someone, '$type$' | 'someoneId'>;
     }
-
-    export interface OneCrdtMetaObjectInterfaces {
-        SomeoneCRDTMetaData: SomeoneCRDTMetaData;
-    }
-
-    export interface OneCrdtToMetaObjectInterfaces {
-        Someone: SomeoneCRDTMetaData;
-    }
 }
 
-export default [SomeoneRecipe, SomeoneCRDTDataRecipe];
+export default [SomeoneRecipe];

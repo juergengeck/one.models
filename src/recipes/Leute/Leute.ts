@@ -1,8 +1,6 @@
-import type {CRDTMetaData, Group, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
+import type {Group, Recipe} from 'one.core/lib/recipes';
 import type {Someone} from './Someone';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
 
 // #### Typescript interfaces ####
 
@@ -17,15 +15,12 @@ export interface Leute {
     group: SHA256IdHash<Group>[];
 }
 
-export interface LeuteCRDTMetaData extends CRDTMetaData<Leute> {
-    $type$: 'LeuteCRDTMetaData';
-}
-
 // #### Recipes ####
 
 export const LeuteRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Leute',
+    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'appId',
@@ -53,8 +48,6 @@ export const LeuteRecipe: Recipe = {
     ]
 };
 
-export const LeuteCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(LeuteRecipe, 'LeuteCRDTMetaData');
-
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
@@ -65,14 +58,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtIdObjectInterfaces {
         Leute: Pick<Leute, '$type$' | 'appId'>;
     }
-
-    export interface OneCrdtMetaObjectInterfaces {
-        LeuteCRDTMetaData: LeuteCRDTMetaData;
-    }
-
-    export interface OneCrdtToMetaObjectInterfaces {
-        Leute: LeuteCRDTMetaData;
-    }
 }
 
-export default [LeuteRecipe, LeuteCRDTDataRecipe];
+export default [LeuteRecipe];

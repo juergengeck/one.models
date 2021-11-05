@@ -12,15 +12,12 @@ export interface GroupProfile {
     picture: SHA256Hash<BLOB>;
 }
 
-export interface GroupProfileCRDTMetaData extends CRDTMetaData<GroupProfile> {
-    $type$: 'GroupProfileCRDTMetaData';
-}
-
 // #### Recipes ####
 
 export const GroupProfileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'GroupProfile',
+    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'group',
@@ -38,11 +35,6 @@ export const GroupProfileRecipe: Recipe = {
     ]
 };
 
-export const GroupProfileCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(
-    GroupProfileRecipe,
-    'GroupProfileCRDTMetaData'
-);
-
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
@@ -53,14 +45,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtIdObjectInterfaces {
         GroupProfile: Pick<GroupProfile, '$type$' | 'group'>;
     }
-
-    export interface OneCrdtMetaObjectInterfaces {
-        GroupProfileCRDTMetaData: GroupProfileCRDTMetaData;
-    }
-
-    export interface OneCrdtToMetaObjectInterfaces {
-        GroupProfile: GroupProfileCRDTMetaData;
-    }
 }
 
-export default [GroupProfileRecipe, GroupProfileCRDTDataRecipe];
+export default [GroupProfileRecipe];
