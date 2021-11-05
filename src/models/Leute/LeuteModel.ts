@@ -1,10 +1,8 @@
 import type {Profile} from '../../recipes/Leute/Profile';
 import {
-    createSingleObjectThroughPurePlan,
     onUnversionedObj,
     onVersionedObj,
     UnversionedObjectResult,
-    VERSION_UPDATES,
     VersionedObjectResult
 } from 'one.core/lib/storage';
 import {
