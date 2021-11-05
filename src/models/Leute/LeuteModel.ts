@@ -90,7 +90,7 @@ export default class LeuteModel extends Model {
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
 
-    private static readonly EVERYONE_GROUP_NAME = 'EVERYONE_GROUP';
+    public static readonly EVERYONE_GROUP_NAME = 'EVERYONE_GROUP';
 
     private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
@@ -206,8 +206,11 @@ export default class LeuteModel extends Model {
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
+        if(this.createEveryoneGroup) {
+            onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
+        }
+
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
-        onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
         onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
         this.leute = undefined;
         this.pLoadedVersion = undefined;
