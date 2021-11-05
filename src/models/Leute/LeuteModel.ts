@@ -1,11 +1,17 @@
 import type {Profile} from '../../recipes/Leute/Profile';
 import {
+    createSingleObjectThroughPurePlan,
     onUnversionedObj,
     onVersionedObj,
     UnversionedObjectResult,
+    VERSION_UPDATES,
     VersionedObjectResult
 } from 'one.core/lib/storage';
-import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdHash,
+    getObjectByIdObj,
+    storeVersionedObject
+} from 'one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import SomeoneModel from './SomeoneModel';
 import type {Someone} from '../../recipes/Leute/Someone';
@@ -86,11 +92,18 @@ export default class LeuteModel extends Model {
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
 
+    private static readonly EVERYONE_GROUP_NAME = 'EVERYONE_GROUP';
+
     private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
 
     private pLoadedVersion?: SHA256Hash<Leute>;
     private leute?: Leute;
+    private createEveryoneGroup: boolean;
+
+    private readonly boundAddPersonToEveryoneGroup: (
+        versionedObjectResult: VersionedObjectResult
+    ) => Promise<void>;
 
     private readonly boundAddProfileFromResult: (
         versionedObjectResult: VersionedObjectResult
@@ -108,15 +121,24 @@ export default class LeuteModel extends Model {
      *
      * @param instancesModel - The instances model used to create new local instances for a new 'me' identity
      * @param commserverUrl - when creating the default oneInstanceEndpoint this url is used
+     * @param createEveryoneGroup -  If true then init() should create an everyone group and add
+     * listeners for new 'Person' objects and add them if they are not in the everyone group.
+     * (default: false)
      */
-    constructor(instancesModel: InstancesModel, commserverUrl: string) {
+    constructor(
+        instancesModel: InstancesModel,
+        commserverUrl: string,
+        createEveryoneGroup: boolean = false
+    ) {
         super();
         this.instancesModel = instancesModel;
+        this.boundAddPersonToEveryoneGroup = this.addPersonToEveryoneGroup.bind(this);
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
         this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
         this.boundNewOneInstanceEndpointFromResult =
             this.emitNewOneInstanceEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
+        this.createEveryoneGroup = createEveryoneGroup;
     }
 
     /**
@@ -171,7 +193,13 @@ export default class LeuteModel extends Model {
 
         onVersionedObj.addListener(this.boundAddProfileFromResult);
         onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
+
         this.state.triggerEvent('init');
+
+        if (this.createEveryoneGroup) {
+            const group = await this.createGroupIfNotExist(LeuteModel.EVERYONE_GROUP_NAME);
+            onVersionedObj.addListener(this.boundAddPersonToEveryoneGroup);
+        }
     }
 
     /**
@@ -181,6 +209,7 @@ export default class LeuteModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
+        onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
         onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
         this.leute = undefined;
         this.pLoadedVersion = undefined;
@@ -350,6 +379,21 @@ export default class LeuteModel extends Model {
         this.leute.group.push(group.groupIdHash);
         await this.saveAndLoad();
         return group;
+    }
+
+    /**
+     * Creates a new group if it doesn't exist yet, otherwise, return the present one
+     * @param name
+     */
+    public async createGroupIfNotExist(name: string): Promise<GroupModel> {
+        this.state.assertCurrentState('Initialised');
+
+        try {
+            await getObjectByIdObj({$type$: 'Group', name: name});
+            return await GroupModel.constructFromLoadedVersionByName(name);
+        } catch (e) {
+            return await this.createGroup(name);
+        }
     }
 
     /**
@@ -614,6 +658,28 @@ export default class LeuteModel extends Model {
                 await this.addProfile(result.idHash);
             });
             this.onUpdated.emit();
+        }
+    }
+
+    /**
+     * Add a person to the respective {@link LeuteModel.EVERYONE_GROUP_NAME} group.
+     *
+     * This call is registered at one.core for listening for new persons.
+     *
+     * @param result
+     * @private
+     */
+    private async addPersonToEveryoneGroup(result: VersionedObjectResult): Promise<void> {
+        if (isVersionedResultOfType(result, 'Person')) {
+            await serializeWithType('addPerson', async () => {
+                const group = await GroupModel.constructFromLoadedVersionByName(
+                    LeuteModel.EVERYONE_GROUP_NAME
+                );
+                if (group.persons.find(person => person === result.idHash) === undefined) {
+                    group.persons.push(result.idHash);
+                    await group.saveAndLoad();
+                }
+            });
         }
     }
 
