@@ -645,14 +645,18 @@ export default class WebSocketPromiseBased
     }
 
     private async waitForPong(): Promise<void> {
+        let disconnectPong: () => void;
+        let disconnectStopPingPong: () => void;
         return new Promise((resolve, reject) => {
-            const disconnect = this.onPong(() => {
+            disconnectPong = this.onPong(() => {
                 resolve();
-                disconnect();
+                disconnectPong();
+                disconnectStopPingPong();
             });
-            const disconnect2 = this.onStopPingPong(() => {
+            disconnectStopPingPong = this.onStopPingPong(() => {
                 reject(new Error('Ping pong stopped'));
-                disconnect2();
+                disconnectPong();
+                disconnectStopPingPong();
             });
         });
     }
