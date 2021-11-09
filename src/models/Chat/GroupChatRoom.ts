@@ -11,6 +11,10 @@ import {
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import ChatRoom from './ChatRoom';
 
+/**
+ * This class extends the {@link ChatRoom} functionality by giving access rights to the chat room &
+ * having the group model in it.
+ */
 export default class GroupChatRoom extends ChatRoom {
     private groupModel: GroupModel;
 
@@ -19,11 +23,20 @@ export default class GroupChatRoom extends ChatRoom {
         this.groupModel = groupModel;
     }
 
+    /**
+     * Adds a new participant in the group.
+     * @param participants
+     */
     async addNewParticipants(participants: SHA256IdHash<Person>[]): Promise<void> {
         this.groupModel.persons = this.groupModel.persons.concat(participants);
         await this.groupModel.saveAndLoad();
+        await this.load();
     }
 
+    /**
+     * Loads the base class and the latest version of the group model. Gives access to the chat
+     * room.
+     */
     async load() {
         await this.loadBaseClass();
         await this.groupModel.loadLatestVersion();

@@ -7,11 +7,18 @@ import type LeuteModel from '../Leute/LeuteModel';
 import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 
+/**
+ * Base chat room class that provides common functionality for other types of chat rooms
+ */
 export default class ChatRoom {
+    // participants id hashes
     public participants: SHA256IdHash<Person>[];
+
+    // the conversation id, usually built from the participants id hashes
     public conversationId: string;
     public onUpdated: OEvent<(...data: any) => void> = new OEvent<(...data: any) => void>();
 
+    // cache the last timestamp for queried messages
     private lastQueriedChatMessageTimestamp: Date | undefined = undefined;
 
     private channelDisconnect: (() => void) | undefined;
@@ -37,18 +44,29 @@ export default class ChatRoom {
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
     }
 
+    /**
+     * Creates and register listeners.
+     * @protected
+     */
     protected async loadBaseClass(): Promise<void> {
         await this.channelManager.createChannel(this.conversationId);
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
     }
 
+    /**
+     * De-register listeners.
+     */
     async exit(): Promise<void> {
         if (this.channelDisconnect !== undefined) {
             this.channelDisconnect();
         }
     }
 
-    async *retrieveMessages(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>> {
+    /**
+     * Iterator to retrieved page-sized messages.
+     * @param count
+     */
+    async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>> {
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
             count,
             to: this.lastQueriedChatMessageTimestamp,
@@ -59,6 +77,11 @@ export default class ChatRoom {
         }
     }
 
+    /**
+     * Sends the message in the chat room.
+     * @param message
+     * @param attachments
+     */
     async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
         await this.channelManager.postToChannel(this.conversationId, {
             $type$: 'ChatMessage',
@@ -68,6 +91,9 @@ export default class ChatRoom {
         });
     }
 
+    /**
+     * Retrieves participants excepts the ones that are already present in the chat room.
+     */
     async retrievePossibleParticipants(): Promise<SHA256IdHash[]> {
         const others = await this.leuteModel.others();
         return (
@@ -83,7 +109,7 @@ export default class ChatRoom {
 
     /**
      * Notify the client to update the conversation list (there might be a new last message for
-     * a conversation)
+     * a conversation).
      * @param channelId
      * @param channelOwner
      * @param data

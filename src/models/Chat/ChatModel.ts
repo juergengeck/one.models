@@ -13,17 +13,29 @@ import GroupChatRoom from './GroupChatRoom';
 import DirectChatRoom from './DirectChatRoom';
 
 export type ChatRoomContainer = {
+    // the conversation id
     id: string;
-    participantsNames: string;
+    // name of the conversation participants without yours
+    otherParticipantsNames: string;
+    // all the participants ids
     participantsIds: SHA256IdHash<Person>[];
+    // if the given chat room is a group chat room
     groupName?: string;
+    // image of the chat room
     image?: PersonImage;
+    // the last message of the conversation with date
     latestConversation?: {
         text: string;
         date: Date;
     };
 };
 
+/**
+ * Chat Model class that takes care of chat managing:
+ *  - list chat rooms
+ *  - creates chat rooms
+ *  - listens on changes
+ */
 export default class ChatModel extends Model {
     private readonly leuteModel: LeuteModel;
     private readonly channelManager: ChannelManager;
@@ -44,6 +56,9 @@ export default class ChatModel extends Model {
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
     }
 
+    /**
+     * Register listeners.
+     */
     async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
 
@@ -52,6 +67,9 @@ export default class ChatModel extends Model {
         this.state.triggerEvent('init');
     }
 
+    /**
+     * De-register the listeners.
+     */
     async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
@@ -95,6 +113,12 @@ export default class ChatModel extends Model {
         return new DirectChatRoom(participantsIds, this.channelManager, this.leuteModel);
     }
 
+    /**
+     * Creates a new Chat Room. If no chatRoomName is provided, a default one is going to be created
+     * in the createGroup function.
+     * @param participants
+     * @param chatRoomName
+     */
     async createChatRoom(
         participants: SHA256IdHash<Person>[],
         chatRoomName?: string
@@ -127,7 +151,7 @@ export default class ChatModel extends Model {
                 const channelConversationId = personIds.join('<->');
                 return {
                     id: channelConversationId,
-                    participantsNames: names.join(','),
+                    otherParticipantsNames: names.join(','),
                     participantsIds: personIds,
                     groupName: groupModel.name,
                     lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
@@ -160,7 +184,7 @@ export default class ChatModel extends Model {
                 const chatRoomId = `${participantsIds.join('<->')}`;
                 return {
                     id: chatRoomId,
-                    participantsNames: profile.descriptionsOfType('PersonName')[0].name,
+                    otherParticipantsNames: profile.descriptionsOfType('PersonName')[0].name,
                     participantsIds: participantsIds,
                     image: profile.getImage(),
                     lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(

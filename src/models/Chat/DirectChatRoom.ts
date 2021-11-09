@@ -10,6 +10,9 @@ import {
 import {calculateIdHashOfObj} from 'one.core/lib/util/object';
 import ChatRoom from './ChatRoom';
 
+/**
+ * This class extends the {@link ChatRoom} functionality by giving access rights to the chat room.
+ */
 export default class DirectChatRoom extends ChatRoom {
     constructor(
         participants: SHA256IdHash<Person>[],
@@ -19,6 +22,9 @@ export default class DirectChatRoom extends ChatRoom {
         super(participants, channelManager, leuteModel);
     }
 
+    /**
+     * Loads the base class and gives access to the chatroom
+     */
     async load() {
         await this.loadBaseClass();
         await this.giveDirectChatAccess();
