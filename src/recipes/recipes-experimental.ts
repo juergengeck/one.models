@@ -8,6 +8,7 @@ import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
+import ChatRecipes from './ChatRecipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -18,7 +19,8 @@ const RecipesExperimental: Recipe[] = [
     ...BloodGlucoseRecipes,
     ...AudioExerciseRecipes,
     ...CertificateRecipes,
-    ...LeuteRecipes
+    ...LeuteRecipes,
+    ...ChatRecipes
 ];
 
 export default RecipesExperimental;

@@ -13,11 +13,10 @@ import ChatRoom from './ChatRoom';
 export default class DirectChatRoom extends ChatRoom {
     constructor(
         participants: SHA256IdHash<Person>[],
-        conversationId: string,
         channelManager: ChannelManager,
         leuteModel: LeuteModel
     ) {
-        super(participants, conversationId, channelManager, leuteModel);
+        super(participants, channelManager, leuteModel);
     }
 
     async load() {

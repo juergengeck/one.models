@@ -26,12 +26,11 @@ export default class ChatRoom {
 
     protected constructor(
         participants: SHA256IdHash<Person>[],
-        conversationId: string,
         channelManager: ChannelManager,
         leuteModel: LeuteModel
     ) {
         this.participants = participants;
-        this.conversationId = conversationId;
+        this.conversationId = participants.sort().join('<->');
         this.channelManager = channelManager;
         this.leuteModel = leuteModel;
 
@@ -69,7 +68,7 @@ export default class ChatRoom {
         });
     }
 
-    async retrievePossibleParticipants(): Promise<string[]> {
+    async retrievePossibleParticipants(): Promise<SHA256IdHash[]> {
         const others = await this.leuteModel.others();
         return (
             await Promise.all(

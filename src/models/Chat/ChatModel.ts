@@ -89,21 +89,10 @@ export default class ChatModel extends Model {
         if (groupName !== undefined) {
             const groupModel = await GroupModel.constructFromLoadedVersionByName(groupName);
 
-            return new GroupChatRoom(
-                participantsIds,
-                participantsIds.join('<->'),
-                this.channelManager,
-                this.leuteModel,
-                groupModel
-            );
+            return new GroupChatRoom(groupModel, this.channelManager, this.leuteModel);
         }
 
-        return new DirectChatRoom(
-            participantsIds,
-            participantsIds.join('<->'),
-            this.channelManager,
-            this.leuteModel
-        );
+        return new DirectChatRoom(participantsIds, this.channelManager, this.leuteModel);
     }
 
     async createChatRoom(
@@ -126,7 +115,7 @@ export default class ChatModel extends Model {
         const groupsModel = await this.leuteModel.groups();
         return await Promise.all(
             groupsModel.map(async groupModel => {
-                const personIds = groupModel.persons;
+                const personIds = groupModel.persons.sort();
 
                 const names = await Promise.all(
                     personIds.map(async personid => {
@@ -163,15 +152,16 @@ export default class ChatModel extends Model {
             )
         ).flat(1);
 
+        const mePersonId = await (await this.leuteModel.me()).mainIdentity();
+
         return await Promise.all(
             profiles.map(async profile => {
-                const chatRoomId = `${await (await this.leuteModel.me()).mainIdentity()}<->${
-                    profile.personId
-                }`;
+                const participantsIds = [mePersonId, profile.personId].sort();
+                const chatRoomId = `${participantsIds.join('<->')}`;
                 return {
                     id: chatRoomId,
                     participantsNames: profile.descriptionsOfType('PersonName')[0].name,
-                    participantsIds: [profile.personId],
+                    participantsIds: participantsIds,
                     image: profile.getImage(),
                     lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
                         chatRoomId

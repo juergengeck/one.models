@@ -14,14 +14,8 @@ import ChatRoom from './ChatRoom';
 export default class GroupChatRoom extends ChatRoom {
     private groupModel: GroupModel;
 
-    constructor(
-        participants: SHA256IdHash<Person>[],
-        conversationId: string,
-        channelManager: ChannelManager,
-        leuteModel: LeuteModel,
-        groupModel: GroupModel
-    ) {
-        super(participants, conversationId, channelManager, leuteModel);
+    constructor(groupModel: GroupModel, channelManager: ChannelManager, leuteModel: LeuteModel) {
+        super(groupModel.persons, channelManager, leuteModel);
         this.groupModel = groupModel;
     }
 

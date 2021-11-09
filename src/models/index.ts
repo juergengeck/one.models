@@ -17,6 +17,7 @@ import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
 import CertificateManager from './CertificateManager';
+import ChatModel from './Chat/ChatModel';
 
 /** for one line imports **/
 export {
@@ -40,5 +41,6 @@ export {
     HeartEventModel,
     ConnectionsModel,
     LeuteModel,
-    CertificateManager
+    CertificateManager,
+    ChatModel
 };

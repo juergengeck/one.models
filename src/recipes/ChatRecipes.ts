@@ -14,11 +14,6 @@ export interface ChatMessage {
     sender: SHA256IdHash<Person>;
 }
 
-export interface ChatHub {
-    $type$: 'ChatHub';
-    participants: SHA256IdHash<Person>;
-}
-
 export const ChatMessageRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ChatMessage',
