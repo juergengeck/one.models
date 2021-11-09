@@ -203,7 +203,7 @@ export default class WebSocketPromiseBased
             }
 
             // for now releasing websocket becomes null and throws and error no websocket assigned to connection
-            // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
+            // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
             // this.releaseWebSocket();
         }
         this.stopPingPong();
