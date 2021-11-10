@@ -1,9 +1,9 @@
-import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from 'one.core/lib/storage';
-import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
-import {getInstanceIdHash} from 'one.core/lib/instance';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
-import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
+import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from '@refinio/one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
 
 /**
  * Create a channel by writing a ChannelInfo object with an empty head.

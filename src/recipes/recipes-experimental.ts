@@ -1,4 +1,4 @@
-import type {Recipe} from 'one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes';
 import BodyTemperatureRecipes from './BodyTemperatureRecipe';
 import BlobRecipes from './BlobRecipes';
 import MatchingRecipes from './MatchingRecipes';

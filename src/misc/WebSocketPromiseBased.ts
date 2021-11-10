@@ -1,8 +1,8 @@
 import WebSocketWS from 'isomorphic-ws';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {EventEmitter} from 'events';
-import type {WebSocketPromiseBasedInterface} from 'one.core/lib/websocket-promisifier';
+import type {WebSocketPromiseBasedInterface} from '@refinio/one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 

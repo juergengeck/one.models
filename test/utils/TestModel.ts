@@ -3,7 +3,7 @@
  */
 import RecipesStable from '../../lib/recipes/recipes-stable';
 import RecipesExperimental from '../../lib/recipes/recipes-experimental';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
@@ -13,14 +13,14 @@ import {
     ECGModel,
     InstancesModel
 } from '../../lib/models';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import oneModules from '../../lib/generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
     VersionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {Module} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import type {Module} from '@refinio/one.core/lib/recipes';
 
 export const dbKey = 'testDb';
 const path = require('path');

@@ -1,6 +1,6 @@
 import WebSocketWS from 'isomorphic-ws';
 import {wslogId} from './LogUtils';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
 

@@ -1,7 +1,7 @@
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, CRDTMetaData, Group, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, CRDTMetaData, Group, Recipe} from '@refinio/one.core/lib/recipes';
+import {generateCrdtMetaRecipe} from '@refinio/one.core/lib/crdt-recipes';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 
 // #### Typescript interfaces ####
 

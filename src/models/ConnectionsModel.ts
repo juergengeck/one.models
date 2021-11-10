@@ -6,7 +6,7 @@ import type EncryptedConnection from '../misc/EncryptedConnection';
 import {
     createWebsocketPromisifier,
     EncryptedConnectionInterface
-} from 'one.core/lib/websocket-promisifier';
+} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
@@ -14,11 +14,11 @@ import {
     getObjectByIdHash,
     getObjectWithType,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import {wait} from 'one.core/lib/util/promise';
-import type {WriteStorageApi} from 'one.core/lib/storage';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+} from '@refinio/one.core/lib/storage';
+import {wait} from '@refinio/one.core/lib/util/promise';
+import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {
     createCryptoAPI,
     CryptoAPI,
@@ -27,21 +27,21 @@ import {
     reloadPersonKeys,
     stringToUint8Array,
     Uint8ArrayToString
-} from 'one.core/lib/instance-crypto';
+} from '@refinio/one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
     isPeerMessage
 } from '../misc/CommunicationInitiationProtocol';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from '../misc/LogUtils';
-import {scrypt} from 'one.core/lib/system/crypto-scrypt';
-import {readUTF8TextFile, writeUTF8TextFile} from 'one.core/lib/system/storage-base';
+import {scrypt} from '@refinio/one.core/lib/system/crypto-scrypt';
+import {readUTF8TextFile, writeUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Keys, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
 

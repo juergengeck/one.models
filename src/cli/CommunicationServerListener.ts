@@ -1,11 +1,11 @@
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
-import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import WebSocketWS from 'isomorphic-ws';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from '../misc/CommunicationServerListener';
-import * as Logger from 'one.core/lib/logger';
+import * as Logger from '@refinio/one.core/lib/logger';
 import fs from 'fs';
 import readline from 'readline';
 import EncryptedConnetion_Server from '../misc/EncryptedConnection_Server';

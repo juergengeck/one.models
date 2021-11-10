@@ -1,7 +1,7 @@
-import type {BLOB, Recipe} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {BLOB, Recipe} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

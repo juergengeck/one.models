@@ -1,5 +1,5 @@
-import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
 import {Questionnaire, ValueRules} from './QuestionnaireRecipes_1_0_0';
 
 declare module '@OneObjectInterfaces' {

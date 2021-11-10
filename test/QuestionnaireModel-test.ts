@@ -2,8 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from '@refinio/one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';

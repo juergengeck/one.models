@@ -2,8 +2,8 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from '@refinio/one.core/test/_helpers';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
@@ -11,15 +11,15 @@ import {
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import type {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
-import {wait} from 'one.core/lib/util/promise';
+import {wait} from '@refinio/one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;

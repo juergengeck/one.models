@@ -1,12 +1,12 @@
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import type {WriteStorageApi} from 'one.core/lib/storage';
-import * as Storage from 'one.core/lib/storage';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
+import * as Storage from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';

@@ -3,7 +3,7 @@ import {fromByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
-import {createWebSocket} from 'one.core/lib/system/websocket';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 
 /**
  * This class implements the 'client' side of an encrypted communication.

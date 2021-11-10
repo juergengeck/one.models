@@ -1,8 +1,8 @@
 import Authenticator from './Authenticator';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from 'one.core/lib/system/storage-base';
-import {stringify} from 'one.core/lib/util/sorted-stringify';
+import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
+import {stringify} from '@refinio/one.core/lib/util/sorted-stringify';
 
 type Credentials = {
     email: string;

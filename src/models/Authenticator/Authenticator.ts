@@ -4,14 +4,14 @@ import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import type {Module, Recipe, OneObjectTypeNames} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import type {Module, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import oneModules from '../../generated/oneModules';
-import {closeInstance} from 'one.core/lib/instance';
-import {DEFAULT_STORAGE_DIRECTORY} from 'one.core/lib/system/storage-base';
+import {closeInstance} from '@refinio/one.core/lib/instance';
+import {DEFAULT_STORAGE_DIRECTORY} from '@refinio/one.core/lib/system/storage-base';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
-import {KeyValueStore} from 'one.core/lib/system/key-value-store';
+import {KeyValueStore} from '@refinio/one.core/lib/system/key-value-store';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 

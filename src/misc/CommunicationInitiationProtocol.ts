@@ -1,8 +1,8 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 // TODO No extra namespace (the module already is one)
 declare module CommunicationInitiationProtocol {

@@ -1,4 +1,4 @@
-import type {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
 import type {BlobCollection, BlobDescriptor} from '../lib/recipes/BlobRecipes';
 
 export async function createObjects(

@@ -1,4 +1,4 @@
-import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
 import {
     CodingRules,
     QuestionnaireRules as QuestionnaireRules_1_0_0

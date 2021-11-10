@@ -1,7 +1,7 @@
 import type InstancesModel from '../InstancesModel';
 import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
@@ -9,13 +9,13 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
+} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 
 import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from '../Model';
 
 /**
