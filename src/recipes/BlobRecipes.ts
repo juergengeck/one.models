@@ -33,7 +33,7 @@ export interface BlobDescriptor {
     type: string;
 }
 
-export const BlobCollection: Recipe = {
+export const BlobCollectionRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobCollection',
     rule: [
@@ -51,7 +51,7 @@ export const BlobCollection: Recipe = {
     ]
 };
 
-export const BlobDescriptor: Recipe = {
+export const BlobDescriptorRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobDescriptor',
     rule: [
@@ -80,6 +80,6 @@ export const BlobDescriptor: Recipe = {
     ]
 };
 
-const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
+const BlobRecipes: Recipe[] = [BlobCollectionRecipe, BlobDescriptorRecipe];
 
 export default BlobRecipes;
