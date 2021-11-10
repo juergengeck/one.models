@@ -172,9 +172,9 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     /**
      * Invokes all event listeners and returns the results of all listeners.
      *
-     * Even if the listeners ha a return value of void / Promise<void> this function is useful. The returned promise of
-     * emitAll resolves after all event listeners have been executed, so this method can be used to wait for the
-     * execution of all event handlers.
+     * Even if the listeners have a return value of void / Promise<void> this function is useful.
+     * The returned promise of emitAll resolves after all event listeners have been executed,
+     * so this method can be used to wait for the execution of all event handlers.
      *
      * It behaves like Promise.all() over all event listeners.
      *

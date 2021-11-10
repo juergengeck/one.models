@@ -203,7 +203,7 @@ export default class WebSocketPromiseBased
             }
 
             // for now releasing websocket becomes null and throws and error no websocket assigned to connection
-            // // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
+            // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
             // this.releaseWebSocket();
         }
         this.stopPingPong();
@@ -644,15 +644,19 @@ export default class WebSocketPromiseBased
         }
     }
 
-    private async waitForPong(): Promise<void> {
+    private async waitForPong(): Promise<void> {        
         return new Promise((resolve, reject) => {
-            const disconnect = this.onPong(() => {
+            let disconnectPong: () => void;
+            let disconnectStopPingPong: () => void;
+            disconnectPong = this.onPong(() => {
                 resolve();
-                disconnect();
+                disconnectPong();
+                disconnectStopPingPong();
             });
-            const disconnect2 = this.onStopPingPong(() => {
+            disconnectStopPingPong = this.onStopPingPong(() => {
                 reject(new Error('Ping pong stopped'));
-                disconnect2();
+                disconnectPong();
+                disconnectStopPingPong();
             });
         });
     }
