@@ -1,3 +1,5 @@
+import {arrayBufferToHex} from './ArrayBufferHexConvertor';
+
 /**
  * Creates a string that identifies the websocket.
  *
@@ -33,5 +35,5 @@ export function wslogId(ws: WebSocket | null): string {
  * @param data - The data to print
  */
 export function printUint8Array(name: string, data: Uint8Array): void {
-    console.log(' ---- ' + name + ': ' + Buffer.from(data).toString('hex'));
+    console.log(' ---- ' + name + ': ' + arrayBufferToHex(data));
 }

@@ -1,4 +1,4 @@
-import WebSocketWS from 'isomorphic-ws'
+import WebSocketWS from 'isomorphic-ws';
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
 import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
@@ -102,7 +102,8 @@ async function main(): Promise<void> {
                 );
                 consoleWs = conn;
                 consoleWs.webSocket.addEventListener('error', e => {
-                    const message = (e as unknown as { message: string | undefined }) && 'unknown error';
+                    const message =
+                        (e as unknown as {message: string | undefined}) && 'unknown error';
                     console.log(message);
                 });
                 consoleWs.webSocket.addEventListener('close', e => {

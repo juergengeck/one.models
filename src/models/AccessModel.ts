@@ -39,11 +39,11 @@ export default class AccessModel extends Model {
 
     async init() {
         this.state.assertCurrentState('Uninitialised');
-        this.state.triggerEvent('init')
+        this.state.triggerEvent('init');
     }
 
     async shutdown(): Promise<void> {
-        this.state.triggerEvent('shutdown')
+        this.state.triggerEvent('shutdown');
     }
 
     /**

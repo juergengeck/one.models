@@ -37,7 +37,6 @@ export default class QuestionnaireModel extends Model {
      * Event is emitted when the questionnaire response data is updated.
      */
 
-
     private channelManager: ChannelManager;
     public static readonly channelId = 'questionnaireResponse';
     private readonly availableQuestionnaires: Questionnaire[];

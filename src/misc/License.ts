@@ -2,7 +2,7 @@ import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/s
 import type {License, LicenseType} from '../recipes/CertificateRecipes';
 import type {SHA256Hash} from 'one.core/lib/util/type-checks';
 
-const LICENSES: Map<LicenseType, SHA256Hash<License>> = new Map()
+const LICENSES: Map<LicenseType, SHA256Hash<License>> = new Map();
 
 export async function initLicenses() {
     const accessLicense = await createSingleObjectThroughPurePlan(
