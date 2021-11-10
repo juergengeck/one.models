@@ -90,7 +90,7 @@ export default class LeuteModel extends Model {
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
 
-    public static readonly EVERYONE_GROUP_NAME = 'EVERYONE_GROUP';
+    public static readonly EVERYONE_GROUP_NAME = 'everyone';
 
     private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
