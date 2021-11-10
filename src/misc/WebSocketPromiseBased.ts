@@ -644,10 +644,10 @@ export default class WebSocketPromiseBased
         }
     }
 
-    private async waitForPong(): Promise<void> {
-        let disconnectPong: () => void;
-        let disconnectStopPingPong: () => void;
+    private async waitForPong(): Promise<void> {        
         return new Promise((resolve, reject) => {
+            let disconnectPong: () => void;
+            let disconnectStopPingPong: () => void;
             disconnectPong = this.onPong(() => {
                 resolve();
                 disconnectPong();
