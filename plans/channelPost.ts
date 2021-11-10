@@ -3,7 +3,7 @@ import type {WriteStorageApi, VersionedObjectResult} from '@refinio/one.core/lib
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
+import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
 
 /**
  * Post a new entry in a channel.
