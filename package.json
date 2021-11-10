@@ -27,7 +27,7 @@
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
-    "one.core": "refinio/one.core#v0.2.24",
+    "@refinio/one.core": "0.2.26",
     "ts-loader": "^8.0.2",
     "ws": "*",
     "yargs": "^15.4.0"
