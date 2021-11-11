@@ -1,5 +1,4 @@
 import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
-import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {CreationTime} from './MetaRecipes';
 

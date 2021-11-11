@@ -1,5 +1,4 @@
 import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
-import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
