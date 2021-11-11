@@ -80,6 +80,13 @@ export default abstract class ChatRoom {
     }
 
     /**
+     * Retrieve all the messages in the chat.
+     */
+    async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
+        return await this.channelManager.getObjectsWithType('ChatMessage', {channelId: this.conversationId})
+    }
+
+    /**
      * Sends the message in the chat room.
      * @param message
      * @param attachments

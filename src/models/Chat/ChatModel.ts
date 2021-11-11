@@ -137,13 +137,16 @@ export default class ChatModel extends Model {
      */
     private async retrieveGroupChatRoomsContainers(): Promise<ChatRoomContainer[]> {
         const groupsModel = await this.leuteModel.groups();
+
+        const mePersonId = await (await this.leuteModel.me()).mainIdentity();
+
         return await Promise.all(
             groupsModel.map(async groupModel => {
-                const personIds = groupModel.persons.sort();
+                const personIds = [mePersonId, ...groupModel.persons].sort();
 
                 const names = await Promise.all(
-                    personIds.map(async personid => {
-                        const profile = await this.leuteModel.getMainProfile(personid);
+                    groupModel.persons.map(async personId => {
+                        const profile = await this.leuteModel.getMainProfile(personId);
                         return profile.descriptionsOfType('PersonName')[0].name;
                     })
                 );
