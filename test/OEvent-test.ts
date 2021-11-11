@@ -3,7 +3,7 @@ import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {EventTypes, OEvent} from '../lib/misc/OEvent';
 import {wait} from '@refinio/one.core/lib/util/promise';
 

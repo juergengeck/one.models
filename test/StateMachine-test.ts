@@ -3,7 +3,7 @@ import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {StateMachine} from '../lib/misc/StateMachine';
 import {wait} from '@refinio/one.core/lib/util/promise';
 
@@ -69,9 +69,7 @@ describe('StateMachine test', () => {
             sm.triggerEvent('nonexisting_event');
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
-            expect(error.message).to.include(
-                'Event is not valid in the current state.'
-            );
+            expect(error.message).to.include('Event is not valid in the current state.');
             expect(triggered).to.be.false;
         }
     }).timeout(1000);
@@ -87,57 +85,55 @@ describe('StateMachine test', () => {
             sm.triggerEvent('startListen');
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
-            expect(error.message).to.include(
-                'Event is not valid in the current state.'
-            );
+            expect(error.message).to.include('Event is not valid in the current state.');
             expect(triggered).to.be.false;
         }
     }).timeout(1000);
 
-    it('Trigger an invalid transition that it is not related to the current state', async (done) => {
-        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+    it('Trigger an invalid transition that it is not related to the current state', async done => {
+        const subSm = new StateMachine<'state1' | 'state2' | 'state3' | 'state4', 'ev1' | 'ev2'>();
         subSm.addState('state3');
         subSm.addState('state4');
         subSm.addEvent('ev1');
         subSm.addTransition('ev1', 'state3', 'state4');
         subSm.setInitialState('state3');
 
-        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
-        sm.addState('state1', subSm)
-        sm.addState('state2')
+        const sm = new StateMachine<'state1' | 'state2' | 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm);
+        sm.addState('state2');
         sm.addEvent('ev1');
         sm.addEvent('ev2');
         sm.addTransition('ev2', 'state1', 'state2');
         sm.addTransition('ev1', 'state2', 'state1');
         sm.setInitialState('state1');
 
-        sm.triggerEvent('ev2')
+        sm.triggerEvent('ev2');
 
         try {
-            sm.triggerEvent('ev2')
+            sm.triggerEvent('ev2');
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
             expect(error.message).to.include(
                 'The transition does not exists from the current state with the' +
-                ' specified event'
+                    ' specified event'
             );
             done();
         }
 
-        throw new Error('should throw error')
-    })
+        throw new Error('should throw error');
+    });
 
     it('Trigger an event that it is relevant only to the sub state machine', async () => {
-        const subSm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
+        const subSm = new StateMachine<'state1' | 'state2' | 'state3' | 'state4', 'ev1' | 'ev2'>();
         subSm.addState('state3');
         subSm.addState('state4');
         subSm.addEvent('ev1');
         subSm.addTransition('ev1', 'state3', 'state4');
         subSm.setInitialState('state3');
 
-        const sm = new StateMachine<'state1' | 'state2'| 'state3' | 'state4', 'ev1' | 'ev2'>();
-        sm.addState('state1', subSm)
-        sm.addState('state2')
+        const sm = new StateMachine<'state1' | 'state2' | 'state3' | 'state4', 'ev1' | 'ev2'>();
+        sm.addState('state1', subSm);
+        sm.addState('state2');
         sm.addEvent('ev1');
         sm.addEvent('ev2');
         sm.addTransition('ev2', 'state1', 'state2');
@@ -145,12 +141,12 @@ describe('StateMachine test', () => {
 
         sm.setInitialState('state1');
 
-        sm.triggerEvent('ev1')
-    })
+        sm.triggerEvent('ev1');
+    });
 
     it('Trigger an event twice', async () => {
         const sm = createStateMachineWithoutHistory(false);
-        sm.triggerEvent('init')
+        sm.triggerEvent('init');
 
         let triggered = false;
         sm.onStateChange((state: SMStates, newState: SMStates, event: SMEvents) => {
@@ -158,7 +154,7 @@ describe('StateMachine test', () => {
         });
 
         try {
-        sm.triggerEvent('init')
+            sm.triggerEvent('init');
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
             expect(error.message).to.include(
@@ -166,7 +162,7 @@ describe('StateMachine test', () => {
             );
             expect(triggered).to.be.false;
         }
-    })
+    });
 
     it('Check events for init', async () => {
         let sm = createStateMachineWithoutHistory(false);

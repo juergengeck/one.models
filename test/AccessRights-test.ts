@@ -5,7 +5,7 @@
 import {expect} from 'chai';
 
 import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,

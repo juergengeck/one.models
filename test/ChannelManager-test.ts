@@ -1,6 +1,10 @@
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 
-import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from '@refinio/one.core/lib/instance';
+import {
+    closeInstance,
+    getInstanceOwnerIdHash,
+    registerRecipes
+} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';

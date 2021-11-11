@@ -2,14 +2,18 @@ import {dbKey, importModules, removeDir} from './utils/TestModel';
 import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
-import {createSingleObjectThroughPurePlan, getObject, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
+import {
+    createSingleObjectThroughPurePlan,
+    getObject,
+    VERSION_UPDATES
+} from '@refinio/one.core/lib/storage';
 import {createCertificate} from '../lib/misc/Certificate';
 import {validateCertificate} from '../lib/misc/Certificate';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {initLicenses} from '../lib/misc/License';
 import {revokeCertificate} from '../lib/misc/Certificate';
 import {CertificateManager} from '../lib/models';
@@ -33,12 +37,14 @@ describe('Certificate test', () => {
 
     beforeEach(async () => {
         // Initialise Test Storage
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false, initiallyEnabledReverseMapTypes:
-                [
-                    ['License', null],
-                    ['Person', null],
-                    ['Certificate', null]
-                ]
+        await StorageTestInit.init({
+            dbKey: dbKey,
+            deleteDb: false,
+            initiallyEnabledReverseMapTypes: [
+                ['License', null],
+                ['Person', null],
+                ['Certificate', null]
+            ]
         });
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
@@ -58,7 +64,9 @@ describe('Certificate test', () => {
             throw new Error('Person profile does not contain personKeys.');
         }
 
-        const {publicSignKey} = await getObject(communicationEndpoints[0].personKeys as SHA256Hash<Keys>);
+        const {publicSignKey} = await getObject(
+            communicationEndpoints[0].personKeys as SHA256Hash<Keys>
+        );
 
         if (publicSignKey === undefined) {
             throw new Error('Personkeys.publicSignKey got undefined.');
@@ -105,25 +113,27 @@ describe('Certificate test', () => {
             await validateCertificate(cert.hash, issuerPublicSingKey);
         } catch (e) {
             error = true;
-            expect(e.message).to.be.equal('The certificate has been revoked.')
+            expect(e.message).to.be.equal('The certificate has been revoked.');
         }
 
         expect(error).to.be.equal(true);
-    })
-    it('Should throw error if the license for the subject does not exist when creating a' +
-        ' certificate', (done) => {
-        // @ts-ignore
-        createCertificate('wrong', subject, issuer, target).then(_ => done(new Error('Should have' +
-            ' thrown' +
-            ' error'))).catch((err)=>{
-            if(err.message === 'The License for wrong does not exist.'){
-                done();
-            } else {
-                done(new Error('Expected a different kind of error message: ' + err))
-            }
-
-        });
-    })
+    });
+    it(
+        'Should throw error if the license for the subject does not exist when creating a' +
+            ' certificate',
+        done => {
+            // @ts-ignore
+            createCertificate('wrong', subject, issuer, target)
+                .then(_ => done(new Error('Should have' + ' thrown' + ' error')))
+                .catch(err => {
+                    if (err.message === 'The License for wrong does not exist.') {
+                        done();
+                    } else {
+                        done(new Error('Expected a different kind of error message: ' + err));
+                    }
+                });
+        }
+    );
     it('Should find certificates for a specific object', async () => {
         const certificateManager = new CertificateManager(leuteModel);
         await certificateManager.init();
@@ -137,7 +147,9 @@ describe('Certificate test', () => {
         await certificateManager.init();
 
         const cert = await createCertificate('access', subject, issuer, target);
-        const subjects = await certificateManager.findWhatObjectsPersonHasThoughValidCertificate(target);
+        const subjects = await certificateManager.findWhatObjectsPersonHasThoughValidCertificate(
+            target
+        );
         expect(subjects).to.deep.equal([subject]);
     });
 });

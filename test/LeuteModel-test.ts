@@ -2,9 +2,9 @@ import {dbKey, importModules, removeDir} from './utils/TestModel';
 import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import * as StorageTestInit from '@refinio/one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
-import {expect} from "chai";
+import {expect} from 'chai';
 
 describe('LeuteModel test', function () {
     let instancesModel: InstancesModel;
