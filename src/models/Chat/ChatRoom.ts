@@ -10,7 +10,7 @@ import {OEvent} from '../../misc/OEvent';
 /**
  * Base chat room class that provides common functionality for other types of chat rooms
  */
-export default class ChatRoom {
+export default abstract class ChatRoom {
     // participants id hashes
     public participants: SHA256IdHash<Person>[];
 
@@ -43,6 +43,8 @@ export default class ChatRoom {
 
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
     }
+
+    abstract load(): Promise<void>;
 
     /**
      * Creates and register listeners.
