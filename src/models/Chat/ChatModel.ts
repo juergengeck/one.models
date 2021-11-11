@@ -48,12 +48,14 @@ export default class ChatModel extends Model {
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) => Promise<void>;
+    private readonly boundOnProfileUpdated: () => Promise<void>;
 
     constructor(leuteModel: LeuteModel, channelManager: ChannelManager) {
         super();
         this.leuteModel = leuteModel;
         this.channelManager = channelManager;
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
+        this.boundOnProfileUpdated = this.onProfileUpdated.bind(this);
     }
 
     /**
@@ -63,7 +65,7 @@ export default class ChatModel extends Model {
         this.state.assertCurrentState('Uninitialised');
 
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
-        this.profileDisconnect = this.leuteModel.onProfileUpdate(this.onUpdated.emit);
+        this.profileDisconnect = this.leuteModel.onProfileUpdate(this.boundOnProfileUpdated);
         this.state.triggerEvent('init');
     }
 
@@ -107,7 +109,7 @@ export default class ChatModel extends Model {
         if (groupName !== undefined) {
             const groupModel = await GroupModel.constructFromLoadedVersionByName(groupName);
 
-            return new GroupChatRoom(groupModel, this.channelManager, this.leuteModel);
+            return new GroupChatRoom(participantsIds, this.channelManager, this.leuteModel, groupModel);
         }
 
         return new DirectChatRoom(participantsIds, this.channelManager, this.leuteModel);
@@ -135,7 +137,7 @@ export default class ChatModel extends Model {
      * Retrieves conversations you can have with groups of people.
      * @private
      */
-    private async retrieveGroupChatRoomsContainers(): Promise<ChatRoomContainer[]> {
+    public async retrieveGroupChatRoomsContainers(): Promise<ChatRoomContainer[]> {
         const groupsModel = await this.leuteModel.groups();
 
         const mePersonId = await (await this.leuteModel.me()).mainIdentity();
@@ -169,7 +171,7 @@ export default class ChatModel extends Model {
      * Retrieves the conversations you can have with only one person.
      * @private
      */
-    private async retrieveDirectChatRoomsContainers(): Promise<ChatRoomContainer[]> {
+    public async retrieveDirectChatRoomsContainers(): Promise<ChatRoomContainer[]> {
         const others = await this.leuteModel.others();
         const profiles = (
             await Promise.all(
@@ -189,7 +191,7 @@ export default class ChatModel extends Model {
                     id: chatRoomId,
                     otherParticipantsNames: profile.descriptionsOfType('PersonName')[0].name,
                     participantsIds: participantsIds,
-                    image: profile.getImage(),
+                    image: profile.descriptionsOfType('PersonImage')[0],
                     lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
                         chatRoomId
                     )
@@ -237,5 +239,16 @@ export default class ChatModel extends Model {
         if (data.data.$type$ === 'ChatMessage') {
             this.onUpdated.emit();
         }
+    }
+
+    /**
+     * Notify the client to update the conversation list (there might be a profile change)
+     * @param channelId
+     * @param channelOwner
+     * @param data
+     * @private
+     */
+    private async onProfileUpdated() {
+        this.onUpdated.emit();
     }
 }

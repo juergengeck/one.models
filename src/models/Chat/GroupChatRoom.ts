@@ -18,8 +18,9 @@ import ChatRoom from './ChatRoom';
 export default class GroupChatRoom extends ChatRoom {
     private groupModel: GroupModel;
 
-    constructor(groupModel: GroupModel, channelManager: ChannelManager, leuteModel: LeuteModel) {
-        super(groupModel.persons, channelManager, leuteModel);
+    constructor(        participants: SHA256IdHash<Person>[], channelManager: ChannelManager, leuteModel: LeuteModel,
+                        groupModel: GroupModel) {
+        super(participants, channelManager, leuteModel);
         this.groupModel = groupModel;
     }
 
@@ -40,7 +41,7 @@ export default class GroupChatRoom extends ChatRoom {
     async load() {
         await this.loadBaseClass();
         await this.groupModel.loadLatestVersion();
-        this.participants = this.groupModel.persons;
+        this.participants = [...new Set([...this.groupModel.persons, ...this.participants])]
         await this.giveGroupChatAccess();
     }
 
