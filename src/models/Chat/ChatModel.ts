@@ -1,7 +1,7 @@
 import {Model} from '../Model';
 import type LeuteModel from '../Leute/LeuteModel';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {Group, Person} from 'one.core/lib/recipes';
 import type {PersonImage} from '../../recipes/Leute/PersonDescriptions';
 import type ChannelManager from '../ChannelManager';
 import type {ChatMessage} from '../../recipes/ChatRecipes';
@@ -11,19 +11,19 @@ import GroupModel from '../Leute/GroupModel';
 import type ChatRoom from './ChatRoom';
 import GroupChatRoom from './GroupChatRoom';
 import DirectChatRoom from './DirectChatRoom';
+import {getObjectByIdHash} from 'one.core/lib/storage';
 
-export type ChatRoomContainer = {
+export type WrappedChatRoom = {
     // the conversation id
     id: string;
-    // name of the conversation participants without yours
-    otherParticipantsNames: string;
-    // all the participants ids
-    participantsIds: SHA256IdHash<Person>[];
-    // if the given chat room is a group chat room
-    groupName?: string;
-    // image of the chat room
+    with: SHA256IdHash<Person | Group>;
+};
+
+export type UnwrappedChatRoom = {
+    id: string;
+    with: SHA256IdHash<Person | Group>;
+    conversationName: string;
     image?: PersonImage;
-    // the last message of the conversation with date
     latestConversation?: {
         text: string;
         date: Date;
@@ -89,7 +89,7 @@ export default class ChatModel extends Model {
     /**
      * Retrieves all the conversations (direct + groups)
      */
-    async retrieveChatRoomContainers(): Promise<ChatRoomContainer[]> {
+    async retrieveChatRoomContainers(): Promise<WrappedChatRoom[]> {
         this.state.assertCurrentState('Initialised');
 
         const groupConversations = await this.retrieveGroupChatRoomsContainers();
@@ -100,44 +100,40 @@ export default class ChatModel extends Model {
 
     /**
      * Enter a chat room. A chat room object will be created.
-     * @param chatRoomContainer
+     * @param wrappedChatRoom
      */
-    async enterChatRoom(chatRoomContainer: ChatRoomContainer): Promise<ChatRoom> {
+    async enterChatRoom(wrappedChatRoom: WrappedChatRoom): Promise<ChatRoom> {
         this.state.assertCurrentState('Initialised');
-
-        const {participantsIds, groupName} = chatRoomContainer;
-        if (groupName !== undefined) {
-            const groupModel = await GroupModel.constructFromLoadedVersionByName(groupName);
-
-            return new GroupChatRoom(participantsIds, this.channelManager, this.leuteModel, groupModel);
+        const withObj = await getObjectByIdHash(wrappedChatRoom.with);
+        if (withObj.obj.$type$ === 'Group') {
+            const groupModel = await GroupModel.constructFromLatestProfileVersion(
+                wrappedChatRoom.with as SHA256IdHash<Group>
+            );
+            return new GroupChatRoom(
+                wrappedChatRoom.id,
+                this.channelManager,
+                this.leuteModel,
+                groupModel
+            );
         }
 
-        return new DirectChatRoom(participantsIds, this.channelManager, this.leuteModel);
-    }
+        if (withObj.obj.$type$ === 'Person') {
+            return new DirectChatRoom(
+                wrappedChatRoom.id,
+                [wrappedChatRoom.with as SHA256IdHash<Person>],
+                this.channelManager,
+                this.leuteModel
+            );
+        }
 
-    /**
-     * Creates a new Chat Room. If no chatRoomName is provided, a default one is going to be created
-     * in the createGroup function.
-     * @param participants
-     * @param chatRoomName
-     */
-    async createChatRoom(
-        participants: SHA256IdHash<Person>[],
-        chatRoomName?: string
-    ): Promise<void> {
-        this.state.assertCurrentState('Initialised');
-
-        const groupdModel = await this.leuteModel.createGroup(chatRoomName);
-        groupdModel.persons = participants;
-        await groupdModel.saveAndLoad();
-        this.onUpdated.emit();
+        throw new Error('The given object in wrappedChatRoom.with is not a Group, nor a Person.');
     }
 
     /**
      * Retrieves conversations you can have with groups of people.
      * @private
      */
-    public async retrieveGroupChatRoomsContainers(): Promise<ChatRoomContainer[]> {
+    public async retrieveGroupChatRoomsContainers(): Promise<WrappedChatRoom[]> {
         const groupsModel = await this.leuteModel.groups();
 
         const mePersonId = await (await this.leuteModel.me()).mainIdentity();
@@ -153,15 +149,17 @@ export default class ChatModel extends Model {
                     })
                 );
 
-                const channelConversationId = personIds.join('<->');
+                const channelConversationId = [
+                    mePersonId,
+                    ...groupModel.persons,
+                    groupModel.groupIdHash
+                ]
+                    .sort()
+                    .join('#');
+
                 return {
                     id: channelConversationId,
-                    otherParticipantsNames: names.join(','),
-                    participantsIds: personIds,
-                    groupName: groupModel.name,
-                    lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
-                        channelConversationId
-                    )
+                    with: groupModel.groupIdHash
                 };
             })
         );
@@ -171,7 +169,7 @@ export default class ChatModel extends Model {
      * Retrieves the conversations you can have with only one person.
      * @private
      */
-    public async retrieveDirectChatRoomsContainers(): Promise<ChatRoomContainer[]> {
+    public async retrieveDirectChatRoomsContainers(): Promise<WrappedChatRoom[]> {
         const others = await this.leuteModel.others();
         const profiles = (
             await Promise.all(
@@ -189,15 +187,50 @@ export default class ChatModel extends Model {
                 const chatRoomId = `${participantsIds.join('<->')}`;
                 return {
                     id: chatRoomId,
-                    otherParticipantsNames: profile.descriptionsOfType('PersonName')[0].name,
-                    participantsIds: participantsIds,
-                    image: profile.descriptionsOfType('PersonImage')[0],
-                    lastestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
-                        chatRoomId
-                    )
+                    with: profile.personId
                 };
             })
         );
+    }
+
+    /**
+     * Un wraps the chat room = give more details
+     * @param wrappedChatRoom
+     */
+    public async unwrapChatRoom(wrappedChatRoom: WrappedChatRoom): Promise<UnwrappedChatRoom> {
+        const withObj = await getObjectByIdHash(wrappedChatRoom.with);
+        if (withObj.obj.$type$ === 'Group') {
+            const groupModel = await GroupModel.constructFromLatestProfileVersion(
+                wrappedChatRoom.with as SHA256IdHash<Group>
+            );
+
+            return {
+                id: wrappedChatRoom.id,
+                with: wrappedChatRoom.with,
+                conversationName: groupModel.name,
+                latestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
+                    wrappedChatRoom.id
+                )
+            };
+        }
+
+        if (withObj.obj.$type$ === 'Person') {
+            const profile = await this.leuteModel.getMainProfile(
+                wrappedChatRoom.with as SHA256IdHash<Person>
+            );
+
+            return {
+                id: wrappedChatRoom.id,
+                with: wrappedChatRoom.with,
+                conversationName: profile.descriptionsOfType('PersonName')[0].name,
+                latestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
+                    wrappedChatRoom.id
+                ),
+                image: profile.getImage()
+            };
+        }
+
+        throw new Error('The given object in wrappedChatRoom.with is not a Group, nor a Person.');
     }
 
     /**
@@ -207,7 +240,7 @@ export default class ChatModel extends Model {
      */
     private async findLastMessageOfChatRoomByChatRoomID(
         chatRoomId: string
-    ): Promise<ChatRoomContainer['latestConversation'] | undefined> {
+    ): Promise<UnwrappedChatRoom['latestConversation'] | undefined> {
         const foundEntries = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: chatRoomId,
             count: 1
@@ -243,9 +276,6 @@ export default class ChatModel extends Model {
 
     /**
      * Notify the client to update the conversation list (there might be a profile change)
-     * @param channelId
-     * @param channelOwner
-     * @param data
      * @private
      */
     private async onProfileUpdated() {

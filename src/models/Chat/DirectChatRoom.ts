@@ -15,11 +15,12 @@ import ChatRoom from './ChatRoom';
  */
 export default class DirectChatRoom extends ChatRoom {
     constructor(
+        chatRoomId: string,
         participants: SHA256IdHash<Person>[],
         channelManager: ChannelManager,
         leuteModel: LeuteModel
     ) {
-        super(participants, channelManager, leuteModel);
+        super(chatRoomId, participants, channelManager, leuteModel);
     }
 
     /**
@@ -40,7 +41,7 @@ export default class DirectChatRoom extends ChatRoom {
                 {
                     id: await calculateIdHashOfObj({
                         $type$: 'ChannelInfo',
-                        id: this.conversationId,
+                        id: this.chatRoomId,
                         owner: await (await this.leuteModel.me()).mainIdentity()
                     }),
                     person: this.participants,

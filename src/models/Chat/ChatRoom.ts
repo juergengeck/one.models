@@ -15,7 +15,7 @@ export default abstract class ChatRoom {
     public participants: SHA256IdHash<Person>[];
 
     // the conversation id, usually built from the participants id hashes
-    public conversationId: string;
+    public chatRoomId: string;
     public onUpdated: OEvent<(...data: any) => void> = new OEvent<(...data: any) => void>();
 
     // cache the last timestamp for queried messages
@@ -32,12 +32,13 @@ export default abstract class ChatRoom {
     protected leuteModel: LeuteModel;
 
     protected constructor(
+        chatRoomId: string,
         participants: SHA256IdHash<Person>[],
         channelManager: ChannelManager,
         leuteModel: LeuteModel
     ) {
         this.participants = participants;
-        this.conversationId = participants.sort().join('<->');
+        this.chatRoomId = chatRoomId;
         this.channelManager = channelManager;
         this.leuteModel = leuteModel;
 
@@ -51,7 +52,7 @@ export default abstract class ChatRoom {
      * @protected
      */
     protected async loadBaseClass(): Promise<void> {
-        await this.channelManager.createChannel(this.conversationId);
+        await this.channelManager.createChannel(this.chatRoomId);
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
     }
 
@@ -72,7 +73,7 @@ export default abstract class ChatRoom {
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
             count,
             to: this.lastQueriedChatMessageTimestamp,
-            channelId: this.conversationId
+            channelId: this.chatRoomId
         })) {
             yield entry;
             this.lastQueriedChatMessageTimestamp = entry.creationTime;
@@ -83,7 +84,9 @@ export default abstract class ChatRoom {
      * Retrieve all the messages in the chat.
      */
     async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
-        return await this.channelManager.getObjectsWithType('ChatMessage', {channelId: this.conversationId})
+        return await this.channelManager.getObjectsWithType('ChatMessage', {
+            channelId: this.chatRoomId
+        });
     }
 
     /**
@@ -92,28 +95,12 @@ export default abstract class ChatRoom {
      * @param attachments
      */
     async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
-        await this.channelManager.postToChannel(this.conversationId, {
+        await this.channelManager.postToChannel(this.chatRoomId, {
             $type$: 'ChatMessage',
             text: message,
             sender: await (await this.leuteModel.me()).mainIdentity(),
             attachments: attachments
         });
-    }
-
-    /**
-     * Retrieves participants excepts the ones that are already present in the chat room.
-     */
-    async retrievePossibleParticipants(): Promise<SHA256IdHash[]> {
-        const others = await this.leuteModel.others();
-        return (
-            await Promise.all(
-                others.map(async someone => {
-                    return (await someone.profiles())
-                        .map(profile => profile.personId)
-                        .filter(personId => !this.participants.includes(personId));
-                })
-            )
-        ).flat(1);
     }
 
     /**
@@ -129,7 +116,7 @@ export default abstract class ChatRoom {
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
-        if (channelId === this.conversationId) {
+        if (channelId === this.chatRoomId) {
             this.onUpdated.emit(data);
         }
     }

@@ -18,20 +18,14 @@ import ChatRoom from './ChatRoom';
 export default class GroupChatRoom extends ChatRoom {
     private groupModel: GroupModel;
 
-    constructor(        participants: SHA256IdHash<Person>[], channelManager: ChannelManager, leuteModel: LeuteModel,
-                        groupModel: GroupModel) {
-        super(participants, channelManager, leuteModel);
+    constructor(
+        chatRoomId: string,
+        channelManager: ChannelManager,
+        leuteModel: LeuteModel,
+        groupModel: GroupModel
+    ) {
+        super(chatRoomId, groupModel.persons, channelManager, leuteModel);
         this.groupModel = groupModel;
-    }
-
-    /**
-     * Adds a new participant in the group.
-     * @param participants
-     */
-    async addNewParticipants(participants: SHA256IdHash<Person>[]): Promise<void> {
-        this.groupModel.persons = this.groupModel.persons.concat(participants);
-        await this.groupModel.saveAndLoad();
-        await this.load();
     }
 
     /**
@@ -41,7 +35,7 @@ export default class GroupChatRoom extends ChatRoom {
     async load() {
         await this.loadBaseClass();
         await this.groupModel.loadLatestVersion();
-        this.participants = [...new Set([...this.groupModel.persons, ...this.participants])]
+        this.participants = this.groupModel.persons;
         await this.giveGroupChatAccess();
     }
 
@@ -55,7 +49,7 @@ export default class GroupChatRoom extends ChatRoom {
                 {
                     id: await calculateIdHashOfObj({
                         $type$: 'ChannelInfo',
-                        id: this.conversationId,
+                        id: this.chatRoomId,
                         owner: await (await this.leuteModel.me()).mainIdentity()
                     }),
                     person: this.participants,
