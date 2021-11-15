@@ -5,7 +5,11 @@ import {
     UnversionedObjectResult,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
-import {getObjectByIdHash, storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdHash,
+    getObjectByIdObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import SomeoneModel from './SomeoneModel';
 import type {Someone} from '../../recipes/Leute/Someone';
@@ -202,7 +206,7 @@ export default class LeuteModel extends Model {
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        if(this.createEveryoneGroup) {
+        if (this.createEveryoneGroup) {
             onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
         }
 
