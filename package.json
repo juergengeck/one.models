@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "0.2.26",
+    "@refinio/one.core": "0.2.26-RC5",
     "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
