@@ -1,19 +1,7 @@
-/*
-  eslint-disable global-require,
-  @typescript-eslint/no-var-requires,
-  @typescript-eslint/no-use-before-define,
-  @typescript-eslint/no-unsafe-call
- */
-
 import {initInstance, closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import type {Instance, Module, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {platform} from '@refinio/one.core/lib/system/platform';
-import * as StorageBase from '@refinio/one.core/lib/system/storage-base';
-import type {AnyObject} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {isNumber, isString} from '@refinio/one.core/lib/util/type-checks-basic';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
@@ -30,28 +18,6 @@ declare var WorkerGlobalScope: any;
 const isBrowser = platform === PLATFORMS.BROWSER;
 
 const defaultDbName = 'testDb';
-
-/**
- * @param {string} name
- * @param {string} code
- * @returns {Promise<VersionedObjectResult<Module>>}
- */
-export function createCodeModule(
-    name: string,
-    code: string
-): Promise<VersionedObjectResult<Module>> {
-    return createSingleObjectThroughPurePlan(
-        {
-            module: '@one/module-importer',
-            versionMapPolicy: {'*': VERSION_UPDATES.NONE}
-        },
-        {
-            moduleName: name,
-            version: '1.0',
-            code
-        }
-    );
-}
 
 export interface StorageHelpersInitOpts {
     email?: string;
@@ -113,7 +79,7 @@ export async function init({
         await deleteTestDB();
     }
 
-    const instanceObj = await initInstance({
+    return await initInstance({
         name,
         email,
         secret,
@@ -127,6 +93,4 @@ export async function init({
         initialRecipes: [...RecipesStable, ...RecipesExperimental],
         initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes)
     });
-
-    return instanceObj;
 }
