@@ -15,6 +15,8 @@ import * as StorageBase from '@refinio/one.core/lib/system/storage-base';
 import type {AnyObject} from '@refinio/one.core/lib/util/object';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {isNumber, isString} from '@refinio/one.core/lib/util/type-checks-basic';
+import RecipesStable from '../lib/recipes/recipes-stable';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
 
 // eslint-disable-next-line no-var, @typescript-eslint/no-unused-vars
 declare var WorkerGlobalScope: any;
@@ -122,45 +124,9 @@ export async function init({
         wipeStorage: deleteDb,
         encryptStorage,
         directory: isBrowser ? dbKey : 'test/' + dbKey,
+        initialRecipes: [...RecipesStable, ...RecipesExperimental],
         initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes)
     });
 
     return instanceObj;
-}
-
-/**
- * @param {string} type
- * @returns {Promise<SHA256Hash[]>}
- */
-export async function getAllFileHashesOfType(type: string): Promise<SHA256Hash[]> {
-    const hashes = await StorageBase.listAllObjectHashes();
-    const types = await Promise.all(hashes.map(StorageBase.getFileType));
-    return hashes.filter((_hash, index) => types[index] === type) as SHA256Hash[];
-}
-
-/**
- * Converts a raw byte count number to an easily human readable string.
- * Thanks to {@link https://stackoverflow.com/a/20732091/544779}
- * @param {number} size
- * @returns {string}
- */
-export function humanReadablyByteCount(size: number): string {
-    const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
-    return Number(size / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
-}
-
-/**
- * Convert an object one level deep and with numeric values to a string for debugging output
- * with human readable numbers.
- * @param {AnyObject} obj
- * @returns {string}
- */
-export function objWithNumberValuesToReadableStr(obj: AnyObject): string {
-    return Object.keys(obj)
-        .map(key =>
-            isNumber(obj[key])
-                ? `${key}: ${humanReadablyByteCount(obj[key])}`
-                : JSON.stringify(obj[key])
-        )
-        .join(', ');
 }

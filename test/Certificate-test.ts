@@ -46,7 +46,7 @@ describe('Certificate test', () => {
                 ['Certificate', null]
             ]
         });
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        // await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
 
         // Initialise needed models
