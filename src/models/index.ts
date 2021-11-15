@@ -17,7 +17,7 @@ import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
 import CertificateManager from './CertificateManager';
-import ChatModel from './Chat/ChatModel';
+import ChatModel from './Chat/v1/ChatModel';
 
 /** for one line imports **/
 export {

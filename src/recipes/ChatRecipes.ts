@@ -1,10 +1,26 @@
 import type {BLOB, Person, Recipe} from 'one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {ChannelInfo} from './ChannelRecipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         ChatMessage: ChatMessage;
+        Topic: Topic;
     }
+
+    export interface OneIdObjectInterfaces {
+        TopicAppRegistry: Pick<ChannelInfo, 'id'>;
+    }
+
+    export interface OneVersionedObjectInterfaces {
+        TopicAppRegistry: TopicAppRegistry;
+    }
+}
+
+export interface Topic {
+    $type$: 'Topic';
+    name?: string;
+    channel: SHA256IdHash<ChannelInfo>;
 }
 
 export interface ChatMessage {
@@ -12,6 +28,12 @@ export interface ChatMessage {
     text: string;
     attachments?: SHA256Hash<BLOB>[];
     sender: SHA256IdHash<Person>;
+}
+
+export interface TopicAppRegistry {
+    $type$: 'TopicAppRegistry';
+    id: 'TopicAppRegistry';
+    topics: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<Topic>>;
 }
 
 export const ChatMessageRecipe: Recipe = {
@@ -34,6 +56,42 @@ export const ChatMessageRecipe: Recipe = {
     ]
 };
 
-const ChatRecipes: Recipe[] = [ChatMessageRecipe];
+export const TopicRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'Topic',
+    rule: [
+        {
+            itemprop: 'name',
+            itemtype: {type: 'string'},
+            optional: true
+        },
+        {
+            itemprop: 'channel',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['ChannelInfo'])}
+        }
+    ]
+};
+
+export const TopicAppRegistryRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'TopicAppRegistry',
+    rule: [
+        {
+            itemprop: 'id',
+            isId: true,
+            itemtype: {type: 'string', regexp: /^TopicAppRegistry$/}
+        },
+        {
+            itemprop: 'topics',
+            itemtype: {
+                type: 'map',
+                key: {type: 'referenceToId', allowedTypes: new Set(['ChannelInfo'])},
+                value: {type: 'referenceToObj', allowedTypes: new Set(['Topic'])}
+            }
+        }
+    ]
+};
+
+const ChatRecipes: Recipe[] = [ChatMessageRecipe, TopicRecipe];
 
 export default ChatRecipes;

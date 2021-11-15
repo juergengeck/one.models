@@ -1,61 +1,57 @@
 import {Model} from '../Model';
-import type LeuteModel from '../Leute/LeuteModel';
 import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Group, Person} from 'one.core/lib/recipes';
-import type {PersonImage} from '../../recipes/Leute/PersonDescriptions';
+import type {Group, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
 import type ChannelManager from '../ChannelManager';
-import type {ChatMessage} from '../../recipes/ChatRecipes';
-import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
 import type {ObjectData} from '../ChannelManager';
-import GroupModel from '../Leute/GroupModel';
-import type ChatRoom from './ChatRoom';
-import GroupChatRoom from './GroupChatRoom';
-import DirectChatRoom from './DirectChatRoom';
-import {getObjectByIdHash} from 'one.core/lib/storage';
+import TopicRegistry from './TopicRegistry';
+import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import {OEvent} from '../../misc/OEvent';
+import type {Topic} from '../../recipes/ChatRecipes';
+import {
+    createSingleObjectThroughPurePlan,
+    onUnversionedObj,
+    SET_ACCESS_MODE,
+    VERSION_UPDATES
+} from 'one.core/lib/storage';
+import {serializeWithType} from 'one.core/lib/util/promise';
+import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
+import TopicRoom from './TopicRoom';
+import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
 
-export type WrappedChatRoom = {
-    // the conversation id
-    id: string;
-    with: SHA256IdHash<Person | Group>;
-};
-
-export type UnwrappedChatRoom = {
-    id: string;
-    with: SHA256IdHash<Person | Group>;
-    conversationName: string;
-    image?: PersonImage;
-    latestConversation?: {
-        text: string;
-        date: Date;
-    };
-};
-
-/**
- * Chat Model class that takes care of chat managing:
- *  - list chat rooms
- *  - creates chat rooms
- *  - listens on changes
- */
 export default class ChatModel extends Model {
-    private readonly leuteModel: LeuteModel;
     private readonly channelManager: ChannelManager;
+    private readonly ChannelRegistryLOCK = 'onChannelRegistryOperation';
 
+    private topicRegistry: TopicRegistry | undefined;
     private channelDisconnect: (() => void) | undefined;
-    private profileDisconnect: (() => void) | undefined;
 
     private readonly boundOnChannelUpdated: (
         channelId: string,
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) => Promise<void>;
-    private readonly boundOnProfileUpdated: () => Promise<void>;
 
-    constructor(leuteModel: LeuteModel, channelManager: ChannelManager) {
+    private readonly boundNewTopicFromResult: (
+        unversionedObjectResult: UnversionedObjectResult
+    ) => void;
+
+    /**
+     * Notify the user whenever a new topic is created or received.
+     */
+    public onNewTopicEvent = new OEvent<() => void>();
+
+    /**
+     * Notify the user whenever a new chat message is received. This can be used as a
+     * notification system too.
+     */
+    public onNewChatMessageEvent = this.onUpdated;
+
+    constructor(channelManager: ChannelManager) {
         super();
-        this.leuteModel = leuteModel;
         this.channelManager = channelManager;
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
-        this.boundOnProfileUpdated = this.onProfileUpdated.bind(this);
+        this.boundNewTopicFromResult = this.emitNewTopicEvent.bind(this);
     }
 
     /**
@@ -63,9 +59,9 @@ export default class ChatModel extends Model {
      */
     async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
+        this.topicRegistry = await TopicRegistry.load();
 
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
-        this.profileDisconnect = this.leuteModel.onProfileUpdate(this.boundOnProfileUpdated);
         this.state.triggerEvent('init');
     }
 
@@ -79,181 +75,85 @@ export default class ChatModel extends Model {
             this.channelDisconnect();
         }
 
-        if (this.profileDisconnect !== undefined) {
-            this.profileDisconnect();
-        }
-
+        onUnversionedObj.removeListener(this.boundNewTopicFromResult);
         this.state.triggerEvent('shutdown');
     }
 
     /**
-     * Retrieves all the conversations (direct + groups)
+     * Creates the topic and the channel for the topic.
+     * @param participants
+     * @param name
      */
-    async retrieveChatRoomContainers(): Promise<WrappedChatRoom[]> {
+    public async createTopic(
+        participants: SHA256IdHash<Person>[] | SHA256IdHash<Group>,
+        name?: string
+    ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        const groupConversations = await this.retrieveGroupChatRoomsContainers();
-        const directConversations = await this.retrieveDirectChatRoomsContainers();
-
-        return directConversations.concat(groupConversations);
-    }
-
-    /**
-     * Enter a chat room. A chat room object will be created.
-     * @param wrappedChatRoom
-     */
-    async enterChatRoom(wrappedChatRoom: WrappedChatRoom): Promise<ChatRoom> {
-        this.state.assertCurrentState('Initialised');
-        const withObj = await getObjectByIdHash(wrappedChatRoom.with);
-        if (withObj.obj.$type$ === 'Group') {
-            const groupModel = await GroupModel.constructFromLatestProfileVersion(
-                wrappedChatRoom.with as SHA256IdHash<Group>
-            );
-            return new GroupChatRoom(
-                wrappedChatRoom.id,
-                this.channelManager,
-                this.leuteModel,
-                groupModel
-            );
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
-        if (withObj.obj.$type$ === 'Person') {
-            return new DirectChatRoom(
-                wrappedChatRoom.id,
-                [wrappedChatRoom.with as SHA256IdHash<Person>],
-                this.channelManager,
-                this.leuteModel
-            );
+        const topicName = name === undefined ? await createRandomString() : name;
+        const randomChannelId = await createRandomString();
+        await this.channelManager.createChannel(randomChannelId);
+        const channels = await this.channelManager.channels({channelId: randomChannelId});
+
+        if (channels[0] === undefined) {
+            throw new Error('Error: no channel was created, this should not happen.');
         }
 
-        throw new Error('The given object in wrappedChatRoom.with is not a Group, nor a Person.');
-    }
+        const createdChannel = channels[0];
 
-    /**
-     * Retrieves conversations you can have with groups of people.
-     * @private
-     */
-    public async retrieveGroupChatRoomsContainers(): Promise<WrappedChatRoom[]> {
-        const groupsModel = await this.leuteModel.groups();
-
-        const mePersonId = await (await this.leuteModel.me()).mainIdentity();
-
-        return await Promise.all(
-            groupsModel.map(async groupModel => {
-                const personIds = [mePersonId, ...groupModel.persons].sort();
-
-                const names = await Promise.all(
-                    groupModel.persons.map(async personId => {
-                        const profile = await this.leuteModel.getMainProfile(personId);
-                        return profile.descriptionsOfType('PersonName')[0].name;
-                    })
-                );
-
-                const channelConversationId = [
-                    mePersonId,
-                    ...groupModel.persons,
-                    groupModel.groupIdHash
-                ]
-                    .sort()
-                    .join('#');
-
-                return {
-                    id: channelConversationId,
-                    with: groupModel.groupIdHash
-                };
+        const topic = await this.topicRegistry.addTopic({
+            name: topicName,
+            channel: await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                owner: createdChannel.owner,
+                id: createdChannel.id
             })
-        );
-    }
-
-    /**
-     * Retrieves the conversations you can have with only one person.
-     * @private
-     */
-    public async retrieveDirectChatRoomsContainers(): Promise<WrappedChatRoom[]> {
-        const others = await this.leuteModel.others();
-        const profiles = (
-            await Promise.all(
-                others.map(async someone => {
-                    return await someone.profiles();
-                })
-            )
-        ).flat(1);
-
-        const mePersonId = await (await this.leuteModel.me()).mainIdentity();
-
-        return await Promise.all(
-            profiles.map(async profile => {
-                const participantsIds = [mePersonId, profile.personId].sort();
-                const chatRoomId = `${participantsIds.join('<->')}`;
-                return {
-                    id: chatRoomId,
-                    with: profile.personId
-                };
-            })
-        );
-    }
-
-    /**
-     * Un wraps the chat room = give more details
-     * @param wrappedChatRoom
-     */
-    public async unwrapChatRoom(wrappedChatRoom: WrappedChatRoom): Promise<UnwrappedChatRoom> {
-        const withObj = await getObjectByIdHash(wrappedChatRoom.with);
-        if (withObj.obj.$type$ === 'Group') {
-            const groupModel = await GroupModel.constructFromLatestProfileVersion(
-                wrappedChatRoom.with as SHA256IdHash<Group>
-            );
-
-            return {
-                id: wrappedChatRoom.id,
-                with: wrappedChatRoom.with,
-                conversationName: groupModel.name,
-                latestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
-                    wrappedChatRoom.id
-                )
-            };
-        }
-
-        if (withObj.obj.$type$ === 'Person') {
-            const profile = await this.leuteModel.getMainProfile(
-                wrappedChatRoom.with as SHA256IdHash<Person>
-            );
-
-            return {
-                id: wrappedChatRoom.id,
-                with: wrappedChatRoom.with,
-                conversationName: profile.descriptionsOfType('PersonName')[0].name,
-                latestConversation: await this.findLastMessageOfChatRoomByChatRoomID(
-                    wrappedChatRoom.id
-                ),
-                image: profile.getImage()
-            };
-        }
-
-        throw new Error('The given object in wrappedChatRoom.with is not a Group, nor a Person.');
-    }
-
-    /**
-     * Retrieve the last conversation you had by the given Conversation ID.
-     * @param chatRoomId
-     * @private
-     */
-    private async findLastMessageOfChatRoomByChatRoomID(
-        chatRoomId: string
-    ): Promise<UnwrappedChatRoom['latestConversation'] | undefined> {
-        const foundEntries = await this.channelManager.getObjectsWithType('ChatMessage', {
-            channelId: chatRoomId,
-            count: 1
         });
-        if (foundEntries.length > 0) {
-            const lastEntry = foundEntries[0];
-            return {
-                date: lastEntry.creationTime,
-                text: lastEntry.data.text
-            };
+
+        const topicRoom = new TopicRoom(topic, this.channelManager);
+
+        if (participants.length !== undefined) {
+            await topicRoom.shareTopicWithPersons(
+                participants as SHA256IdHash<Person>[],
+                await calculateHashOfObj(topic)
+            );
         } else {
-            return undefined;
+            await topicRoom.shareTopicWithGroup(
+                participants as SHA256IdHash<Group>,
+                await calculateHashOfObj(topic)
+            );
         }
+    }
+
+    public async enterTopic(topic: Topic): Promise<TopicRoom> {
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
+
+        const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(topic.channel);
+
+        if (foundTopic === undefined) {
+            throw new Error('Error: topic could not be found');
+        }
+
+        return new TopicRoom(foundTopic, this.channelManager);
+    }
+
+    /**
+     * Lists all the topics in the TopicRegistry
+     */
+    public async listTopics(): Promise<Topic[]> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
+
+        return await this.topicRegistry.retrieveAllTopics();
     }
 
     /**
@@ -270,15 +170,28 @@ export default class ChatModel extends Model {
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
         if (data.data.$type$ === 'ChatMessage') {
-            this.onUpdated.emit();
+            this.onNewChatMessageEvent.emit(channelId, data.data);
         }
     }
 
     /**
-     * Notify the client to update the conversation list (there might be a profile change)
+     * Emit the appropriate event for a new topic. Add it to the topic registry.
+     * @param result
      * @private
      */
-    private async onProfileUpdated() {
-        this.onUpdated.emit();
+    private async emitNewTopicEvent(result: UnversionedObjectResult): Promise<void> {
+        if (result.obj.$type$ === 'Topic' && result.status === 'new') {
+            const {channel, name} = result.obj;
+            await serializeWithType(this.ChannelRegistryLOCK, async () => {
+                if (this.topicRegistry === undefined) {
+                    throw new Error(
+                        'Error while retrieving topic registry, model not initialised.'
+                    );
+                }
+
+                await this.topicRegistry.addTopic({channel, name});
+            });
+            this.onNewTopicEvent.emit();
+        }
     }
 }
