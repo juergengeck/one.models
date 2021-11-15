@@ -1,7 +1,5 @@
 import {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import {closeInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
 import {
@@ -28,11 +26,13 @@ describe('Certificate test', () => {
     let target: SHA256IdHash<Person>;
 
     afterEach(async () => {
-        await leuteModel.shutdown();
-        instancesModel.shutdown();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
+        try {
+            await leuteModel.shutdown();
+            await instancesModel.shutdown();
+            closeInstance();
+        } finally {
+            await removeDir(`./test/${dbKey}`);
+        }
     });
 
     beforeEach(async () => {
@@ -46,7 +46,6 @@ describe('Certificate test', () => {
                 ['Certificate', null]
             ]
         });
-        // await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
 
         // Initialise needed models
