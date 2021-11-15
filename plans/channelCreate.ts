@@ -11,7 +11,7 @@ import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
 // tsconfig.json, which only checks scripts/*.js but apparently it also checked lib even with
 // the references to src/ and test/ removed and explicitly told (via "exclude") to ignore that
 // folder. This line tells tsc to include this file so that there are no problems.
-import './@OneObjectInterfaces';
+// import './@OneObjectInterfaces';
 
 /**
  * Create a channel by writing a ChannelInfo object with an empty head.

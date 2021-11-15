@@ -6,9 +6,6 @@
  * @version 0.0.1
  */
 
-import {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import {BlobCollectionRecipe} from '../src/recipes/BlobRecipes';
-
 /**
  * @file
  *
