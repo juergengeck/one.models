@@ -1,3 +1,3 @@
 <component name="DependencyValidationManager">
-  <scope name="Source" pattern="file[one.models]:src//*" />
+  <scope name="Source" pattern="file[one.models]:src//*||file[one.models]:plans//*" />
 </component>
