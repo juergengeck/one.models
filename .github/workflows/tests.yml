@@ -18,6 +18,9 @@ jobs:
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+            - name: Configure git config
+              run: git config --global user.email "devops@refinio.net"
+
             - name: Setup Node
               uses: actions/setup-node@v1
               with:
