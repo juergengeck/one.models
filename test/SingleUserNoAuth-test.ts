@@ -59,7 +59,7 @@ describe('SingleUserNoAuth Test', () => {
                     .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
+                            'Could not erase due to lack of credentials without loging in. The credentials does not exist. Try to login and delete.'
                         );
                         resolve();
                     });
@@ -75,7 +75,7 @@ describe('SingleUserNoAuth Test', () => {
                     .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'Could not register user. The single user already exists.'
+                            'The transition does not exists from the current state with the specified event'
                         );
                         resolve();
                     });
@@ -117,7 +117,7 @@ describe('SingleUserNoAuth Test', () => {
             } catch (error) {
                 expect(error, error).to.be.instanceof(Error);
                 expect(error.message).to.include(
-                    'Error while trying to login. User does not exists.'
+                    'Error while trying to login. User was not registered.'
                 );
             }
         });

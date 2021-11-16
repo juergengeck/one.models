@@ -65,7 +65,7 @@ describe('SingleUser Test', () => {
                     .catch(async error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
+                            'Could not erase due to lack of credentials without loging in. The credentials does not exist. Try to login and delete.'
                         );
                         resolve();
                     });
@@ -81,7 +81,7 @@ describe('SingleUser Test', () => {
                     .catch(async error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'Could not register user. The single user already exists.'
+                            'The transition does not exists from the current state with the specified event'
                         );
                         resolve();
                     });
@@ -162,7 +162,7 @@ describe('SingleUser Test', () => {
                     .catch(async error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'Error while trying to initialise instance due to Error: IC-AUTH'
+                            'The provided secret is wrong'
                         );
                         resolve();
                     });
@@ -222,7 +222,7 @@ describe('SingleUser Test', () => {
                         .catch(async error => {
                             expect(error, error).to.be.instanceof(Error);
                             expect(error.message).to.include(
-                                'Error while trying to initialise instance due to Error: IC-AUTH'
+                                'The provided secret is wrong'
                             );
                             resolve();
                         });

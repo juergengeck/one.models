@@ -48,16 +48,16 @@ describe('MultiUser Test', () => {
         multiUserWorkflow
             .register(user2.email, user2.secret, user2.instance)
             .then(() => {
-                multiUserWorkflow.logout();
-                multiUserWorkflow
-                    .register(user1.email, user1.secret, user1.instance)
-                    .then(() => {
-                        multiUserWorkflow.logout();
-                        done();
-                    })
-                    .catch(err => {
-                        throw err;
-                    });
+                multiUserWorkflow.logout().then(() => {
+                    multiUserWorkflow
+                        .register(user1.email, user1.secret, user1.instance)
+                        .then(() => {
+                            multiUserWorkflow.logout().then(done);
+                        })
+                        .catch(err => {
+                            throw err;
+                        });
+                });
             })
             .catch(err => {
                 throw err;
@@ -223,7 +223,7 @@ describe('MultiUser Test', () => {
                     .catch(error => {
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
-                            'Error while trying to initialise instance due to Error: IC-AUTH'
+                            'The provided secret is wrong'
                         );
                         resolve();
                     });
@@ -300,7 +300,7 @@ describe('MultiUser Test', () => {
                         .catch(error => {
                             expect(error, error).to.be.instanceof(Error);
                             expect(error.message).to.include(
-                                'Error while trying to initialise instance due to Error: IC-AUTH'
+                                'The provided secret is wrong'
                             );
                             resolve();
                         });

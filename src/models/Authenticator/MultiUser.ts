@@ -18,32 +18,39 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async register(email: string, secret: string, instanceName: string): Promise<void> {
+        this.authState.triggerEvent('login');
+
         const storage = await doesStorageExist(instanceName, email, this.config.directory);
 
         if (storage) {
+            this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. User already exists.');
         }
-
-        this.authState.triggerEvent('login');
 
         try {
             await initInstance({
                 name: instanceName,
                 email: email,
-                secret: secret,
+                secret: secret === undefined ? null : secret,
                 ownerName: 'name' + email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
 
+        try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
+            await closeAndDeleteCurrentInstance();
             this.authState.triggerEvent('login_failure');
-            throw new Error(`Error while trying to initialise instance due to ${error}`);
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -64,28 +71,39 @@ export default class MultiUser extends Authenticator {
 
         const storage = await doesStorageExist(instanceName, email, this.config.directory);
 
-        if (storage) {
-            try {
-                await initInstance({
-                    name: instanceName,
-                    email: email,
-                    secret: secret,
-                    ownerName: 'name' + email,
-                    directory: this.config.directory,
-                    initialRecipes: this.config.recipes,
-                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
-                });
-                await this.importModules();
-                await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(instanceName, secret, email);
-                this.authState.triggerEvent('login_success');
-            } catch (error) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error(`Error while trying to initialise instance due to ${error}`);
-            }
-        } else {
+        if (!storage) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
+        }
+
+        try {
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: 'name' + email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+        } catch (error) {
+            if (error.code === 'IC-AUTH') {
+                this.authState.triggerEvent('login_failure');
+                throw new Error('The provided secret is wrong');
+            }
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
+
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
         }
     }
 

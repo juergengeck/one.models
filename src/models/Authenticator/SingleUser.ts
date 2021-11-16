@@ -1,7 +1,12 @@
 import Authenticator from './Authenticator';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
+import {
+    closeAndDeleteCurrentInstance,
+    deleteInstance,
+    initInstance,
+    registerRecipes
+} from 'one.core/lib/instance';
 import {stringify} from 'one.core/lib/util/sorted-stringify';
 
 type Credentials = {
@@ -33,34 +38,43 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async register(secret: string): Promise<void> {
+        this.authState.triggerEvent('login');
+
         const {name, email} = await this.generateCredentialsIfNotExist();
 
         const storage = await doesStorageExist(name, email, this.config.directory);
 
         if (storage) {
+            this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. The single user already exists.');
         }
-
-        this.authState.triggerEvent('login');
 
         try {
             await initInstance({
                 name: name,
                 email: email,
-                secret: secret,
+                secret: secret === undefined ? null : secret,
                 ownerName: 'name' + email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
+        } catch (error) {
+            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(name, secret, email);
-
             this.authState.triggerEvent('login_success');
         } catch (error) {
+            await closeAndDeleteCurrentInstance();
+            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
             this.authState.triggerEvent('login_failure');
-            throw new Error(`Error while trying to initialise instance due to ${error}`);
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -103,7 +117,16 @@ export default class SingleUser extends Authenticator {
                     initialRecipes: this.config.recipes,
                     initiallyEnabledReverseMapTypes: this.config.reverseMaps
                 });
+            } catch (error) {
+                if (error.code === 'IC-AUTH') {
+                    this.authState.triggerEvent('login_failure');
+                    throw new Error('The provided secret is wrong');
+                }
+                this.authState.triggerEvent('login_failure');
+                throw new Error(`Error while trying to initialise instance due to ${error}`);
+            }
 
+            try {
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
                 await this.onLogin.emitAll(name, secret, email);
@@ -121,12 +144,12 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async loginOrRegister(secret: string): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
+        const isRegistered = await this.isRegistered();
 
-        if (credentials === null) {
-            await this.register(secret);
-        } else {
+        if (isRegistered) {
             await this.login(secret);
+        } else {
+            await this.register(secret);
         }
     }
 
@@ -134,13 +157,16 @@ export default class SingleUser extends Authenticator {
      * Checks if the user exists or not by checking the credentials in the store.
      */
     async isRegistered(): Promise<boolean> {
+        // check if there are any saved credentials
         const credentials = this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
             return false;
         }
+        const {name, email} = credentials;
 
-        return true;
+        // check if the one storage exist (the instance was created)
+        return await doesStorageExist(name, email, this.config.directory);
     }
 
     /**
@@ -152,15 +178,32 @@ export default class SingleUser extends Authenticator {
      *  - trigger 'logout_done' event
      */
     async erase(): Promise<void> {
-        this.authState.triggerEvent('logout');
+        if (this.authState.currentState === 'logged_in') {
+            this.authState.triggerEvent('logout');
 
-        // Signal the application that it should shutdown one dependent models
-        // and wait for them to shut down
-        await this.onLogout.emitAll();
+            // Signal the application that it should shutdown one dependent models
+            // and wait for them to shut down
+            await this.onLogout.emitAll();
 
-        await closeAndDeleteCurrentInstance();
-        this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
-        this.authState.triggerEvent('logout_done');
+            await closeAndDeleteCurrentInstance();
+            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('logout_done');
+            return;
+        }
+
+        if (this.authState.currentState === 'logged_out') {
+            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            const credentials = this.retrieveCredentialsFromStore();
+            if (credentials !== null) {
+                const {name, email} = credentials;
+                await deleteInstance(name, email, this.config.directory);
+            } else {
+                throw new Error(
+                    'Could not erase due to lack of credentials without loging in.' +
+                        ' The credentials does not exist. Try to login and delete.'
+                );
+            }
+        }
     }
 
     private retrieveCredentialsFromStore(): Credentials | null {

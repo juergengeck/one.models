@@ -129,7 +129,6 @@ export default abstract class Authenticator {
      */
     async logout(): Promise<void> {
         this.authState.triggerEvent('logout');
-
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
         await this.onLogout.emitAll();
