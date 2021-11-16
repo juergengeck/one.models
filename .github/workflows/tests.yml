@@ -34,7 +34,7 @@ jobs:
               run: |
                 npm login
                 refinio-devops
-                ${{ ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
+                $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY
                 devops@refinio.net
 
             - name: Install if cache-miss
