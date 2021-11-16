@@ -18,9 +18,6 @@ jobs:
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            - name: Configure git config
-              run: git config --global user.email "devops@refinio.net"
-
             - name: Setup Node
               uses: actions/setup-node@v1
               with:
@@ -32,6 +29,13 @@ jobs:
               with:
                   path: node_modules
                   key: node-modules-${{ hashFiles('package-lock.json') }}
+
+            - name: Configure npm to be able to use the package
+              run: |
+                npm login
+                refinio-devops
+                ${{ ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
+                devops@refinio.net
 
             - name: Install if cache-miss
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
