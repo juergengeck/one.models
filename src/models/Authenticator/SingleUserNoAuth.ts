@@ -180,11 +180,11 @@ export default class SingleUserNoAuth extends Authenticator {
         }
 
         if (this.authState.currentState === 'logged_out') {
-            this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
             const credentials = this.retrieveCredentialsFromStore();
             if (credentials !== null) {
                 const {name, email} = credentials;
                 await deleteInstance(name, email, this.config.directory);
+                this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
             } else {
                 throw new Error(
                     'Could not erase due to lack of credentials without loging in.' +
