@@ -31,12 +31,7 @@ jobs:
                   key: node-modules-${{ hashFiles('package-lock.json') }}
 
             - name: Configure npm to be able to use the package
-              run: |
-                echo $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY
-                npm login
-                refinio-devops
-                $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY
-                devops@refinio.net
+              run: echo $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY
 
             - name: Install if cache-miss
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
