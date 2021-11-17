@@ -105,17 +105,27 @@ export default class SingleUserNoAuth extends Authenticator {
                 this.authState.triggerEvent('login_failure');
                 throw new Error('Error while trying to login. User storage does not exists.');
             }
-
             try {
                 await initInstance({
                     name: name,
                     email: email,
-                    secret: secret === undefined ? null : secret,
+                    secret: secret,
                     ownerName: 'name' + email,
                     directory: this.config.directory,
                     initialRecipes: this.config.recipes,
                     initiallyEnabledReverseMapTypes: this.config.reverseMaps
                 });
+            } catch (error) {
+                if (error.code === 'IC-AUTH') {
+                    this.authState.triggerEvent('login_failure');
+                    throw new Error('The stored secret is malformed, unrecovarable error. Delete' +
+                        ' instance.');
+                }
+                this.authState.triggerEvent('login_failure');
+                throw new Error(`Error while trying to initialise instance due to ${error}`);
+            }
+
+            try {
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
                 await this.onLogin.emitAll(name, secret, email);
