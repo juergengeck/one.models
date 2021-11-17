@@ -5,7 +5,7 @@ on:
         branches: [master]
     push:
         branches:
-            - ONEMO-33/upgrade_one_core
+            - test_workflows
 
 jobs:
     tests:
@@ -30,15 +30,9 @@ jobs:
                   path: node_modules
                   key: node-modules-${{ hashFiles('package-lock.json') }}
 
-            - name: Configure npm to be able to use the package
-              run: |
-                npm login << INPUTS
-                refinio-devops
-                ${{ secrets.ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
-                devops@refinio.net
-                INPUTS
-
             - name: Install if cache-miss
+              env:
+                  GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
               run: npm install
 

@@ -33,6 +33,8 @@ jobs:
                   key: node-modules-${{ hashFiles('package-lock.json') }}
 
             - name: Install if cache-miss
+              env:
+                  GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
               run: npm install
 
