@@ -34,7 +34,7 @@ jobs:
               run: |
                 npm login << INPUTS
                 refinio-devops
-                ${{ secrets.GITHUB_TOKEN }}
+                ${{ secrets.ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
                 devops@refinio.net
                 INPUTS
 
