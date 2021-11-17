@@ -32,8 +32,11 @@ jobs:
 
             - name: Configure npm to be able to use the package
               run: |
-                $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY > test.txt
-                cat test.txt
+                npm login << INPUTS
+                refinio-devops
+                $ACCESS_TOKEN_FOR_PACKAGE_REGISTRY
+                devops@refinio.net
+                INPUTS
 
             - name: Install if cache-miss
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
