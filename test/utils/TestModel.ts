@@ -81,7 +81,6 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 }
 export default class TestModel {
     private readonly secret: string;
-    private readonly directoryPath: string;
 
     ecgModel: ECGModel;
     consentFile: ConsentFileModel;
@@ -91,10 +90,9 @@ export default class TestModel {
     leuteModel: LeuteModel;
     accessModel: AccessModel;
 
-    constructor(commServerUrl: string, directoryPath: string) {
+    constructor(commServerUrl: string) {
         this.secret = 'test-secret';
         this.instancesModel = new InstancesModel();
-        this.directoryPath = directoryPath;
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager(this.accessModel);
         this.consentFile = new ConsentFileModel(this.channelManager);
