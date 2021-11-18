@@ -334,25 +334,26 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Converts the nonce counter from number to Uint8Array.
      *
-     * @returns
+     * The highest supported nonce counter value is Number.MAX_SAFE_INTEGER - 2
+     *
+     * Public for tests.
      */
-    private static nonceCounterToArray(nonceNumber: number): Uint8Array {
+    public static nonceCounterToArray(nonceNumber: number): Uint8Array {
         const nonce = new Uint8Array(tweetnacl.box.nonceLength);
+        const view = new DataView(nonce.buffer);
 
-        // We should check, that the nonce will not become larger than
-        // 2^32-1, because then we should trim the higher bits, because of the
-        // 32-bit operations we do to convert it to Uint8Array.
-        // The highest even number that can be stored in a 32-bit signed integer is
-        // 2^31-2 which is 0x7FFFFFFE, so we check that the nonceNumber does not get larger.
-        if (nonceNumber >= 0x7ffffffe) {
-            throw Error('Remote nonce counter reached its maximum value.');
+        // We need to check that the nonce counter doesn't become too large,
+        // otherwise already used nonces might happen.
+        // This only happens after 2^53 / 2 message ... which will never happen ...
+        // but people need to be aware that duplicate nonces are bad.
+        if (nonceNumber >= Number.MAX_SAFE_INTEGER - 1) {
+            throw new Error('Nonce counter reached its maximum value.');
         }
 
-        // Copy the bits over to the Uin8Array representation
-        nonce[0] = nonceNumber & 0xff;
-        nonce[1] = (nonceNumber << 8) & 0xff;
-        nonce[2] = (nonceNumber << 16) & 0xff;
-        nonce[3] = (nonceNumber << 24) & 0xff;
+        // Set the lowest bits of the nonce array in big endian notation.
+        // "- 8", because the setBigUint64 will set 8 bytes. This means that if
+        // nonce.length is 24, then bytes 16, 17, 18, 19, 20, 21, 22, 23 will be set.
+        view.setBigUint64(nonce.length - 8, BigInt(nonceNumber));
         return nonce;
     }
 }
