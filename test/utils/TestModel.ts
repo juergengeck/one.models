@@ -1,9 +1,8 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import RecipesStable from '../../lib/recipes/recipes-stable';
-import RecipesExperimental from '../../lib/recipes/recipes-experimental';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+
+import {closeInstance} from 'one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
@@ -13,7 +12,6 @@ import {
     ECGModel,
     InstancesModel
 } from '../../lib/models';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import oneModules from '../../lib/generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
@@ -99,19 +97,6 @@ export default class TestModel {
         this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-    }
-
-    async createInstance(directory: string) {
-        const email = await createRandomString(64);
-        const instanceName = await createRandomString(64);
-        await initInstance({
-            name: `test-${instanceName}`,
-            email: `test-${email}`,
-            secret: this.secret,
-            ownerName: `test-${email}`,
-            initialRecipes: [...RecipesStable, ...RecipesExperimental],
-            directory: directory
-        });
     }
 
     async init(
