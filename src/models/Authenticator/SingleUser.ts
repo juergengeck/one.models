@@ -2,7 +2,6 @@ import Authenticator from './Authenticator';
 import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from 'one.core/lib/system/storage-base';
 import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
-import {stringify} from 'one.core/lib/util/sorted-stringify';
 
 type Credentials = {
     email: string;
@@ -172,7 +171,7 @@ export default class SingleUser extends Authenticator {
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
-        await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+        await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
