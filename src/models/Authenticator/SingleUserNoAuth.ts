@@ -77,7 +77,7 @@ export default class SingleUserNoAuth extends Authenticator {
     async login(): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
             this.authState.triggerEvent('login_failure');
@@ -117,7 +117,7 @@ export default class SingleUserNoAuth extends Authenticator {
      * This function will login or register based on the credentials existence in store.
      */
     async loginOrRegister(): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
             await this.register();
@@ -130,13 +130,8 @@ export default class SingleUserNoAuth extends Authenticator {
      * Checks if the user exists or not by checking the credentials in the store.
      */
     async isRegistered(): Promise<boolean> {
-        const credentials = this.retrieveCredentialsFromStore();
-
-        if (credentials === null) {
-            return false;
-        }
-
-        return true;
+        const credentials = await this.retrieveCredentialsFromStore();
+        return credentials !== null;
     }
 
     /**
@@ -155,12 +150,12 @@ export default class SingleUserNoAuth extends Authenticator {
         await this.onLogout.emitAll();
 
         await closeAndDeleteCurrentInstance();
-        this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+        await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
         this.authState.triggerEvent('logout_done');
     }
 
-    private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = this.store.getItem(
+    private async retrieveCredentialsFromStore(): Promise<Credentials | null> {
+        const storeCredentials = await this.store.getItem(
             SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE
         );
         if (storeCredentials === null) {
@@ -170,19 +165,22 @@ export default class SingleUserNoAuth extends Authenticator {
         return JSON.parse(storeCredentials);
     }
 
-    private persistCredentialsToStore(credentials: Credentials): void {
-        this.store.setItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+    private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        await this.store.setItem(
+            SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE,
+            stringify(credentials)
+        );
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
-        const credentialsFromStore = this.retrieveCredentialsFromStore();
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
         if (credentialsFromStore === null) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64),
                 secret: await createRandomString(64)
             };
-            this.persistCredentialsToStore(generatedCredentials);
+            await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;
         }
         return credentialsFromStore;
