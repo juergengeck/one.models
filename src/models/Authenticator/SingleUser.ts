@@ -81,7 +81,7 @@ export default class SingleUser extends Authenticator {
 
         const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
@@ -123,7 +123,7 @@ export default class SingleUser extends Authenticator {
     async loginOrRegister(secret: string): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             await this.register(secret);
         } else {
             await this.login(secret);
@@ -135,7 +135,7 @@ export default class SingleUser extends Authenticator {
      */
     async isRegistered(): Promise<boolean> {
         const credentials = await this.retrieveCredentialsFromStore();
-        return credentials !== null;
+        return credentials !== undefined;
     }
 
     /**
@@ -158,16 +158,17 @@ export default class SingleUser extends Authenticator {
         this.authState.triggerEvent('logout_done');
     }
 
-    private async retrieveCredentialsFromStore(): Promise<Credentials | null> {
+    private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
         const storeCredentials = await this.store.getItem(
             SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
         );
 
-        if (storeCredentials === null) {
-            return null;
+        if (storeCredentials === undefined) {
+            return undefined;
         }
 
-        return JSON.parse(storeCredentials);
+        // Type cast: storing and retrieving is local to this module and we use the same key
+        return storeCredentials as Credentials;
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
@@ -176,7 +177,7 @@ export default class SingleUser extends Authenticator {
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
         const credentialsFromStore = await this.retrieveCredentialsFromStore();
-        if (credentialsFromStore === null) {
+        if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64)
