@@ -11,7 +11,7 @@ import {closeInstance} from '@refinio/one.core/lib/instance';
 import {DEFAULT_STORAGE_DIRECTORY} from '@refinio/one.core/lib/system/storage-base';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
-import {KeyValueStore} from '@refinio/one.core/lib/system/key-value-store';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
@@ -81,9 +81,9 @@ export default abstract class Authenticator {
     protected config: AuthenticatorOptions;
 
     /**
-     * Key-Value Store
+     * SettingsStoreApi
      */
-    protected store: Storage = KeyValueStore;
+    protected store = SettingsStore;
 
     constructor(options: Partial<AuthenticatorOptions>) {
         this.config = {

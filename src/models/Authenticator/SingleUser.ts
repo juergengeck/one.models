@@ -79,7 +79,7 @@ export default class SingleUser extends Authenticator {
     async login(secret: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
             this.authState.triggerEvent('login_failure');
@@ -121,7 +121,7 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async loginOrRegister(secret: string): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
         if (credentials === null) {
             await this.register(secret);
@@ -134,13 +134,8 @@ export default class SingleUser extends Authenticator {
      * Checks if the user exists or not by checking the credentials in the store.
      */
     async isRegistered(): Promise<boolean> {
-        const credentials = this.retrieveCredentialsFromStore();
-
-        if (credentials === null) {
-            return false;
-        }
-
-        return true;
+        const credentials = await this.retrieveCredentialsFromStore();
+        return credentials !== null;
     }
 
     /**
@@ -159,12 +154,14 @@ export default class SingleUser extends Authenticator {
         await this.onLogout.emitAll();
 
         await closeAndDeleteCurrentInstance();
-        this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
         this.authState.triggerEvent('logout_done');
     }
 
-    private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = this.store.getItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+    private async retrieveCredentialsFromStore(): Promise<Credentials | null> {
+        const storeCredentials = await this.store.getItem(
+            SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
+        );
 
         if (storeCredentials === null) {
             return null;
@@ -173,18 +170,18 @@ export default class SingleUser extends Authenticator {
         return JSON.parse(storeCredentials);
     }
 
-    private persistCredentialsToStore(credentials: Credentials): void {
-        this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+    private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
-        const credentialsFromStore = this.retrieveCredentialsFromStore();
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
         if (credentialsFromStore === null) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64)
             };
-            this.persistCredentialsToStore(generatedCredentials);
+            await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;
         }
         return credentialsFromStore;
