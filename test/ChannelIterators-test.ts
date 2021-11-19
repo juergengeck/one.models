@@ -54,7 +54,7 @@ describe('Channel Iterators test', () => {
                 }
             )
         ).idHash;
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
 

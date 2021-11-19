@@ -2,7 +2,6 @@ import Authenticator from './Authenticator';
 import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
-import {stringify} from '@refinio/one.core/lib/util/sorted-stringify';
 
 type Credentials = {
     email: string;
@@ -79,7 +78,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
         const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
@@ -119,7 +118,7 @@ export default class SingleUserNoAuth extends Authenticator {
     async loginOrRegister(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             await this.register();
         } else {
             await this.login();
@@ -131,7 +130,7 @@ export default class SingleUserNoAuth extends Authenticator {
      */
     async isRegistered(): Promise<boolean> {
         const credentials = await this.retrieveCredentialsFromStore();
-        return credentials !== null;
+        return credentials !== undefined;
     }
 
     /**
@@ -154,27 +153,25 @@ export default class SingleUserNoAuth extends Authenticator {
         this.authState.triggerEvent('logout_done');
     }
 
-    private async retrieveCredentialsFromStore(): Promise<Credentials | null> {
+    private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
         const storeCredentials = await this.store.getItem(
             SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE
         );
-        if (storeCredentials === null) {
-            return null;
+        if (storeCredentials === undefined) {
+            return undefined;
         }
 
-        return JSON.parse(storeCredentials);
+        // Type cast: storing and retrieving is local to this module and we use the same key
+        return storeCredentials as Credentials;
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
-        await this.store.setItem(
-            SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE,
-            stringify(credentials)
-        );
+        await this.store.setItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
         const credentialsFromStore = await this.retrieveCredentialsFromStore();
-        if (credentialsFromStore === null) {
+        if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64),

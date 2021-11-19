@@ -8,7 +8,6 @@ import {
 import type {Module, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import oneModules from '../../generated/oneModules';
 import {closeInstance} from '@refinio/one.core/lib/instance';
-import {DEFAULT_STORAGE_DIRECTORY} from '@refinio/one.core/lib/system/storage-base';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
@@ -18,8 +17,8 @@ export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' |
 export type AuthState = 'logged_out' | 'logging_in' | 'logged_in' | 'logging_out';
 
 export type AuthenticatorOptions = {
-    /** the desired storage directory - default is {@link DEFAULT_STORAGE_DIRECTORY} **/
-    directory: string;
+    /** the desired storage directory or undefined **/
+    directory: string | undefined;
     /**  One recipes - use all recipes if not specified **/
     recipes: Recipe[];
     /**  Reverse Maps - default is undefined  **/
@@ -87,8 +86,7 @@ export default abstract class Authenticator {
 
     constructor(options: Partial<AuthenticatorOptions>) {
         this.config = {
-            directory:
-                options.directory === undefined ? DEFAULT_STORAGE_DIRECTORY : options.directory,
+            directory: options.directory,
             recipes:
                 options.recipes === undefined
                     ? [...RecipesStable, ...RecipesExperimental]
