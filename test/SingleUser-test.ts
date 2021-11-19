@@ -25,27 +25,14 @@ describe('SingleUser Test', () => {
     const singleUserWorkflow = new SingleUser({directory: `test/${dbKey}`});
     const secret = 'secret';
 
-    afterEach(done => {
-        return singleUserWorkflow
-            .login(secret)
-            .then()
-            .catch()
-            .finally(async () => {
-                singleUserWorkflow
-                    .erase()
-                    .then()
-                    .catch()
-                    .finally(() => {
-                        done();
-                    });
-            });
+    afterEach(async () => {
+        await singleUserWorkflow.login(secret);
+        await singleUserWorkflow.erase();
     });
 
-    beforeEach(async done => {
+    beforeEach(async () => {
         await mkdir(`test/${dbKey}`, {recursive: true});
-        singleUserWorkflow.register(secret).catch(err => {
-            throw err;
-        });
+        await singleUserWorkflow.register(secret);
     });
 
     describe('Register & Erase', () => {
