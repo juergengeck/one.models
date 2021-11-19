@@ -11,6 +11,7 @@ import {closeInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
+import {setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
@@ -85,6 +86,8 @@ export default abstract class Authenticator {
     protected store = SettingsStore;
 
     constructor(options: Partial<AuthenticatorOptions>) {
+        setBaseDirOrName(options.directory);
+
         this.config = {
             directory: options.directory,
             recipes:
