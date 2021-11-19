@@ -2,6 +2,7 @@ import {expect} from 'chai';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {SingleUser} from '../lib/models/Authenticator';
 import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
 
 describe('SingleUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
@@ -25,7 +26,7 @@ describe('SingleUser Test', () => {
     const secret = 'secret';
 
     afterEach(done => {
-        singleUserWorkflow
+        return singleUserWorkflow
             .login(secret)
             .then()
             .catch()
@@ -40,13 +41,11 @@ describe('SingleUser Test', () => {
             });
     });
 
-    beforeEach(done => {
-        singleUserWorkflow
-            .register(secret)
-            .then(done)
-            .catch(err => {
-                throw err;
-            });
+    beforeEach(async done => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
+        singleUserWorkflow.register(secret).catch(err => {
+            throw err;
+        });
     });
 
     describe('Register & Erase', () => {

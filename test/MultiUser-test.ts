@@ -2,6 +2,7 @@ import {expect} from 'chai';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {MultiUser} from '../lib/models/Authenticator';
 import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
 
 describe('MultiUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
@@ -32,10 +33,10 @@ describe('MultiUser Test', () => {
      * After each test case login & erase user1, followed by login & erase user2
      */
     afterEach(done => {
-        multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
+        return multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
             multiUserWorkflow.eraseCurrentInstance().finally(() => {
                 multiUserWorkflow.login(user2.email, user2.secret, user2.instance).finally(() => {
-                    multiUserWorkflow.eraseCurrentInstance().finally(done);
+                    multiUserWorkflow.eraseCurrentInstance();
                 });
             });
         });
@@ -44,7 +45,9 @@ describe('MultiUser Test', () => {
     /**
      * Before each test case register & logout the user2, followed by register the user1 & logout
      */
-    beforeEach(done => {
+    beforeEach(async done => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
+
         multiUserWorkflow
             .register(user2.email, user2.secret, user2.instance)
             .then(() => {
@@ -53,7 +56,6 @@ describe('MultiUser Test', () => {
                     .register(user1.email, user1.secret, user1.instance)
                     .then(() => {
                         multiUserWorkflow.logout();
-                        done();
                     })
                     .catch(err => {
                         throw err;

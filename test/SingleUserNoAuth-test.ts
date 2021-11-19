@@ -2,6 +2,7 @@ import {expect} from 'chai';
 import {SingleUserNoAuth} from '../lib/models/Authenticator';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
 
 describe('SingleUserNoAuth Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
@@ -24,7 +25,7 @@ describe('SingleUserNoAuth Test', () => {
     const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: `test/${dbKey}`});
 
     afterEach(done => {
-        singleUserNoAuthWorkflow
+        return singleUserNoAuthWorkflow
             .login()
             .then()
             .catch()
@@ -33,19 +34,15 @@ describe('SingleUserNoAuth Test', () => {
                     .erase()
                     .then()
                     .catch()
-                    .finally(() => {
-                        done();
-                    });
+                    .finally(() => {});
             });
     });
 
-    beforeEach(done => {
-        singleUserNoAuthWorkflow
-            .register()
-            .then(done)
-            .catch(err => {
-                throw err;
-            });
+    beforeEach(async done => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
+        singleUserNoAuthWorkflow.register().catch(err => {
+            throw err;
+        });
     });
 
     describe('Register & Erase', () => {
