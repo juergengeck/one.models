@@ -1,11 +1,12 @@
 import {expect} from 'chai';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {MultiUser} from '../lib/models/Authenticator';
+import {dbKey} from './utils/TestModel';
 
 describe('MultiUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
-            if(multiUserWorkflow.authState.currentState === state){
+            if (multiUserWorkflow.authState.currentState === state) {
                 resolve();
             } else {
                 multiUserWorkflow.authState.onEnterState(newState => {
@@ -25,8 +26,7 @@ describe('MultiUser Test', () => {
         {email: 'test$email_2', secret: 'test$secret_2', instance: 'test$instanceName_2'}
     ];
 
-    const STORAGE_TEST_DIR = 'test/testStorage';
-    const multiUserWorkflow = new MultiUser({directory: STORAGE_TEST_DIR});
+    const multiUserWorkflow = new MultiUser({directory: `test/${dbKey}`});
 
     /**
      * After each test case login & erase user1, followed by login & erase user2
@@ -74,7 +74,7 @@ describe('MultiUser Test', () => {
         });
         it('should test if eraseCurrentInstance() throws an error when it is called twice', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
-            await  waitForState('logged_in');
+            await waitForState('logged_in');
 
             await multiUserWorkflow.eraseCurrentInstance();
             await waitForState('logged_out');
@@ -96,7 +96,7 @@ describe('MultiUser Test', () => {
         });
         it('should test if erase is successfully', async () => {
             await multiUserWorkflow.erase(user1.instance, user1.email);
-        })
+        });
         it(
             'should test if register(email, secret, instanceName) throws an error when user' +
                 ' already exist',
@@ -107,7 +107,7 @@ describe('MultiUser Test', () => {
                         done('Call should have thrown error.');
                     })
                     .catch(error => {
-                        done()
+                        done();
                         // code gets stucked in the .to.include for some unknown reason
                         expect(error, error).to.be.instanceof(Error);
                         expect(error.message).to.include(
