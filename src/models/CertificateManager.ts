@@ -1,11 +1,11 @@
 import {getLicenseHashByType, initLicenses} from '../misc/License';
 import type {Certificate} from '../recipes/CertificateRecipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
     Person
-} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/recipes';
 import {createCertificate, revokeCertificate, validateCertificate} from '../misc/Certificate';
 import {LeuteModel} from './index';
 import {
@@ -14,12 +14,12 @@ import {
     onUnversionedObj,
     SET_ACCESS_MODE,
     UnversionedObjectResult
-} from 'one.core/lib/storage';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
-import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
-import {getInstanceIdHash} from 'one.core/lib/instance';
-import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
-import type {OneObjectTypeNames} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
+import * as ReverseMapQuery from '@refinio/one.core/lib/reverse-map-query';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {LicenseType} from '../recipes/CertificateRecipes';
 import {Model} from './Model';
 import {OEvent} from '../misc/OEvent';

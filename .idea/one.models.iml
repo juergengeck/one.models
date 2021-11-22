@@ -5,6 +5,8 @@
       <excludeFolder url="file://$MODULE_DIR$/src/generated" />
       <excludeFolder url="file://$MODULE_DIR$/test/testDb" />
       <excludeFolder url="file://$MODULE_DIR$/lib" />
+      <excludeFolder url="file://$MODULE_DIR$/test/testStorage" />
+      <excludeFolder url="file://$MODULE_DIR$/.nyc_output" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -1,6 +1,6 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
 import WebSocketWS from 'isomorphic-ws';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent, EventTypes} from './OEvent';

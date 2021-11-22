@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 import CommunicationServer from '../misc/CommunicationServer';
-import * as Logger from 'one.core/lib/logger';
+import * as Logger from '@refinio/one.core/lib/logger';
 
 /**
  * Main function. This exists to be able to use await here.

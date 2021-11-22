@@ -1,11 +1,13 @@
 import {expect} from 'chai';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {SingleUser} from '../lib/models/Authenticator';
+import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
 
 describe('SingleUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
-            if(singleUserWorkflow.authState.currentState === state){
+            if (singleUserWorkflow.authState.currentState === state) {
                 resolve();
             } else {
                 singleUserWorkflow.authState.onEnterState(newState => {
@@ -20,26 +22,18 @@ describe('SingleUser Test', () => {
         });
     }
 
-    const STORAGE_TEST_DIR = 'test/testStorage';
-    const singleUserWorkflow = new SingleUser({directory: STORAGE_TEST_DIR});
+    const singleUserWorkflow = new SingleUser({directory: `test/${dbKey}`});
     const secret = 'secret';
 
+    afterEach(async () => {
+        await singleUserWorkflow.login(secret);
+        await singleUserWorkflow.erase();
+    });
 
-    afterEach((done) => {
-        singleUserWorkflow.login(secret).then().catch().finally(async () => {
-            singleUserWorkflow.erase().then().catch().finally(() => {
-                done();
-            });
-        })
-
-    })
-
-    beforeEach((done) => {
-        singleUserWorkflow.register(secret).then(done).catch(err => {
-            throw err;
-        })
-    })
-
+    beforeEach(async () => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
+        await singleUserWorkflow.register(secret);
+    });
 
     describe('Register & Erase', () => {
         it('should test if register(secret) & erase() are successfully', async () => {

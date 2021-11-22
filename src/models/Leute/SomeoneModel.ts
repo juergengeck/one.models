@@ -1,12 +1,12 @@
 import ProfileModel from './ProfileModel';
 import type {Profile} from '../../recipes/Leute/Profile';
-import {getObject, onVersionedObj, VersionedObjectResult} from 'one.core/lib/storage';
-import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {getObject, onVersionedObj, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Someone} from '../../recipes/Leute/Someone';
 import {OEvent} from '../../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {
     CommunicationEndpointInterfaces,
     CommunicationEndpointTypeNames
@@ -15,8 +15,8 @@ import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames
 } from '../../recipes/Leute/PersonDescriptions';
-import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
-import type {Plan} from 'one.core/lib/recipes';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
+import type {Plan} from '@refinio/one.core/lib/recipes';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;

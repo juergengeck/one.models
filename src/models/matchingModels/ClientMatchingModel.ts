@@ -7,12 +7,12 @@ import {
     UnversionedObjectResult,
     VersionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import type InstancesModel from '../InstancesModel';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {OEvent} from '../../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type ChannelManager from '../ChannelManager';
 import type {Demand, MatchMap, MatchResponse, Supply} from '../../recipes/MatchingRecipes';
 

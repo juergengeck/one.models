@@ -1,21 +1,21 @@
-import {deriveBinaryKey, scrypt} from 'one.core/lib/system/crypto-scrypt';
+import {deriveBinaryKey, scrypt} from '@refinio/one.core/lib/system/crypto-scrypt';
 import {
     decryptSecretKey,
     decryptWithSymmetricKey,
     encryptWithSymmetricKey,
     stringToUint8Array,
     Uint8ArrayToString
-} from 'one.core/lib/instance-crypto';
+} from '@refinio/one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import {fromByteArray, toByteArray} from 'base64-js';
 import type ConnectionsModel from './ConnectionsModel';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {getObjectByIdHash} from 'one.core/lib/storage';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;

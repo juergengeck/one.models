@@ -2,9 +2,9 @@ import {expect} from 'chai';
 import WebSocketWS from 'isomorphic-ws';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
-import {createWebSocket} from 'one.core/lib/system/websocket';
-import {wait} from 'one.core/lib/util/promise';
-/* import {start} from 'one.core/lib/logger';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
+import {wait} from '@refinio/one.core/lib/util/promise';
+/* import {start} from '@refinio/one.core/lib/logger';
 start({includeTimestamp: true});*/
 
 describe('websocket wait tests', () => {

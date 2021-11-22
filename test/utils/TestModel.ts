@@ -1,9 +1,8 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import RecipesStable from '../../lib/recipes/recipes-stable';
-import RecipesExperimental from '../../lib/recipes/recipes-experimental';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+
+import {closeInstance} from '@refinio/one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
@@ -13,14 +12,13 @@ import {
     ECGModel,
     InstancesModel
 } from '../../lib/models';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import oneModules from '../../lib/generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
     VersionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {Module} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import type {Module} from '@refinio/one.core/lib/recipes';
 
 export const dbKey = 'testDb';
 const path = require('path');
@@ -81,7 +79,6 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 }
 export default class TestModel {
     private readonly secret: string;
-    private readonly directoryPath: string;
 
     ecgModel: ECGModel;
     consentFile: ConsentFileModel;
@@ -91,29 +88,15 @@ export default class TestModel {
     leuteModel: LeuteModel;
     accessModel: AccessModel;
 
-    constructor(commServerUrl: string, directoryPath: string) {
+    constructor(commServerUrl: string) {
         this.secret = 'test-secret';
         this.instancesModel = new InstancesModel();
-        this.directoryPath = directoryPath;
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager(this.accessModel);
         this.consentFile = new ConsentFileModel(this.channelManager);
         this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-    }
-
-    async createInstance(directory: string) {
-        const email = await createRandomString(64);
-        const instanceName = await createRandomString(64);
-        await initInstance({
-            name: `test-${instanceName}`,
-            email: `test-${email}`,
-            secret: this.secret,
-            ownerName: `test-${email}`,
-            initialRecipes: [...RecipesStable, ...RecipesExperimental],
-            directory: directory
-        });
     }
 
     async init(

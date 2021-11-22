@@ -1,11 +1,11 @@
-import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
+import {getObjectByIdObj, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
-import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
-import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
+import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 
 // -------- LOW LEVEL API -----------
 

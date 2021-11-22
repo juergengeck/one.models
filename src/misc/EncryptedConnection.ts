@@ -1,8 +1,8 @@
 import {EventEmitter} from 'events';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import tweetnacl from 'tweetnacl';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import type {EncryptedConnectionInterface} from 'one.core/lib/websocket-promisifier';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {EncryptedConnectionInterface} from '@refinio/one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');

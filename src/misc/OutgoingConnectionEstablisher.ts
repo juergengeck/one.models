@@ -1,6 +1,6 @@
 import EncryptedConnection_Client from './EncryptedConnection_Client';
 import type EncryptedConnection from './EncryptedConnection';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import {OEvent} from './OEvent';
 

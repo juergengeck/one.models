@@ -2,9 +2,9 @@ import type {LeuteModel} from '../models';
 import type InstancesModel from '../models/InstancesModel';
 import {printUint8Array} from '../misc/LogUtils';
 import fs from 'fs';
-import {implode} from 'one.core/lib/microdata-imploder';
+import {implode} from '@refinio/one.core/lib/microdata-imploder';
 import readline from 'readline';
-import {createManyObjectsThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import {createManyObjectsThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {toByteArray} from 'base64-js';
 
 export async function writeMainProfile(

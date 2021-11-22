@@ -1,21 +1,21 @@
-import {getInstanceIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectByIdObj,
     getObjectWithType
-} from 'one.core/lib/storage';
-import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from 'one.core/lib/instance-crypto';
+} from '@refinio/one.core/lib/storage';
+import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from '@refinio/one.core/lib/instance-crypto';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
-import type {Instance, Keys, Person} from 'one.core/lib/recipes';
+import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
 
 /**

@@ -4,13 +4,13 @@
 
 import {expect} from 'chai';
 
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from './_helpers';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
@@ -24,7 +24,7 @@ describe('AccessRights model test', () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         accessModel = model.accessModel;
