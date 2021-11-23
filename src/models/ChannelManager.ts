@@ -1,4 +1,4 @@
-import type {UnversionedObjectResult, VersionedObjectResult} from 'one.core/lib/storage';
+import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import {
     createManyObjectsThroughPurePlan,
     createSingleObjectThroughImpurePlan,
@@ -11,17 +11,17 @@ import {
     onVersionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {createTrackingPromise, serializeWithType} from 'one.core/lib/util/promise';
-import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
-import type {ReverseMapEntry} from 'one.core/lib/reverse-map-updater';
+} from '@refinio/one.core/lib/storage';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {getNthVersionMapHash} from '@refinio/one.core/lib/version-map-query';
+import type {ReverseMapEntry} from '@refinio/one.core/lib/reverse-map-updater';
 import type AccessModel from './AccessModel';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import {ensureHash, ensureIdHash, SHA256Hash} from 'one.core/lib/util/type-checks';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {ensureHash, ensureIdHash, SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
 import type {
     Access,
@@ -29,7 +29,7 @@ import type {
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
     Person
-} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/recipes';
 import type {
     ChannelEntry,
     ChannelInfo,

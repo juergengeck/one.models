@@ -1,11 +1,11 @@
 import Authenticator from './Authenticator';
-import {doesStorageExist} from 'one.core/lib/system/storage-base';
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
     registerRecipes
-} from 'one.core/lib/instance';
+} from '@refinio/one.core/lib/instance';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.
@@ -139,7 +139,7 @@ export default class MultiUser extends Authenticator {
     async erase(
         instanceName: string,
         email: string,
-        dbName: string = this.config.directory
+        dbName: string | undefined = this.config.directory
     ): Promise<void> {
         await deleteInstance(instanceName, email, dbName);
     }

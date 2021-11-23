@@ -1,19 +1,19 @@
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
     getObject,
     UnversionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import type {Certificate, LicenseType} from '../recipes/CertificateRecipes';
-import {createCryptoAPI, stringToUint8Array} from 'one.core/lib/instance-crypto';
+import {createCryptoAPI, stringToUint8Array} from '@refinio/one.core/lib/instance-crypto';
 import {sign, verify} from 'tweetnacl';
 import {toByteArray} from 'base64-js';
-import {getInstanceIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
 import {getLicenseHashByType} from './License';
-import * as ReverseMapQuery from 'one.core/lib/reverse-map-query';
-import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
+import * as ReverseMapQuery from '@refinio/one.core/lib/reverse-map-query';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
 
 const CertificateRevocationList: SHA256Hash<Certificate>[] = [];

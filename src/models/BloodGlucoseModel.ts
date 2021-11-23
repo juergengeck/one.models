@@ -4,11 +4,11 @@
 
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {getObject} from 'one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
 
 export default class BloodGlucoseModel extends Model {

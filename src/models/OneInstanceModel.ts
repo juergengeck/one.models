@@ -1,23 +1,23 @@
-import {closeInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import oneModules from '../generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
     VERSION_UPDATES,
     createManyObjectsThroughPurePlan
-} from 'one.core/lib/storage';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 //@ts-ignore
-import {getDbInstance} from 'one.core/lib/system/storage-base';
-import {implode} from 'one.core/lib/microdata-imploder';
+import {getDbInstance} from '@refinio/one.core/lib/system/storage-base';
+import {implode} from '@refinio/one.core/lib/microdata-imploder';
 import type ChannelManager from './ChannelManager';
 import i18nModelsInstance from '../i18n';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type AccessModel from './AccessModel';
-import {getNthVersionMapHash} from 'one.core/lib/version-map-query';
+import {getNthVersionMapHash} from '@refinio/one.core/lib/version-map-query';
 import {OEvent} from '../misc/OEvent';
-import type {Instance, Module, Person, Recipe} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {Instance, Module, Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type ConsentFileModel from './ConsentFileModel';
 import {Model} from './Model';
 

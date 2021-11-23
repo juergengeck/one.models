@@ -1,19 +1,19 @@
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, Group, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {
     getObject,
     onVersionedObj,
     readBlobAsArrayBuffer,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+} from '@refinio/one.core/lib/storage';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {getObjectByIdHash, storeVersionedObject} from 'one.core/lib/storage-versioned-objects';
-import type {Plan} from 'one.core/lib/recipes';
-import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {getObjectByIdHash, storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {Plan} from '@refinio/one.core/lib/recipes';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {Model} from '../Model';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =

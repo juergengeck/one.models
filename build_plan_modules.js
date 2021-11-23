@@ -8,7 +8,7 @@ const mkDir = promisify(fs.mkdir);
 const jsesc = require('jsesc');
 
 /**
- * @param dir
+ * @param {string} dir
  */
 function mkDirExistOkay(dir) {
     return mkDir(dir, {recursive: true}).catch(err => {
@@ -57,9 +57,9 @@ const planModuleFiles = fs.readdirSync(inputDirectory);
 const additionalOnePlanModules = path.join(outputDirectory, '/oneModules.ts');
 
 /**
- * @param file
- * @param nameCodeMap
- * @param inputDirectory
+ * @param {string} file
+ * @param {Record<string, string>} nameCodeMap
+ * @param {string} inputDirectory
  */
 function addFileToNameCodeMap(file, nameCodeMap, inputDirectory) {
     const filePath = path.join(inputDirectory, file);

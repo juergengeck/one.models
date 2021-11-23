@@ -4,37 +4,37 @@ import {
     onVersionedObj,
     UnversionedObjectResult,
     VersionedObjectResult
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import {
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
-} from 'one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import SomeoneModel from './SomeoneModel';
 import type {Someone} from '../../recipes/Leute/Someone';
 import type {Leute} from '../../recipes/Leute/Leute';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import {getInstanceIdHash, getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import type InstancesModel from '../InstancesModel';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import type {
     Keys,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
     Person,
     Plan
-} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {storeVersionedObjectCRDT} from 'one.core/lib/crdt';
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import ProfileModel from './ProfileModel';
 import type {
     OneUnversionedObjectInterfaces,
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
 import {OEvent} from '../../misc/OEvent';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
@@ -206,7 +206,7 @@ export default class LeuteModel extends Model {
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        if(this.createEveryoneGroup) {
+        if (this.createEveryoneGroup) {
             onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
         }
 

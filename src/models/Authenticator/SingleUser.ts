@@ -8,6 +8,9 @@ import {
     registerRecipes
 } from 'one.core/lib/instance';
 import {stringify} from 'one.core/lib/util/sorted-stringify';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
+import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 
 type Credentials = {
     email: string;
@@ -93,9 +96,9 @@ export default class SingleUser extends Authenticator {
     async login(secret: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         }
@@ -157,9 +160,9 @@ export default class SingleUser extends Authenticator {
      */
     async isRegistered(): Promise<boolean> {
         // check if there are any saved credentials
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             return false;
         }
         const {name, email} = credentials;
@@ -202,28 +205,31 @@ export default class SingleUser extends Authenticator {
         this.authState.triggerEvent('logout_done');
     }
 
-    private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = this.store.getItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+    private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
+        const storeCredentials = await this.store.getItem(
+            SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
+        );
 
-        if (storeCredentials === null) {
-            return null;
+        if (storeCredentials === undefined) {
+            return undefined;
         }
 
-        return JSON.parse(storeCredentials);
+        // Type cast: storing and retrieving is local to this module and we use the same key
+        return storeCredentials as Credentials;
     }
 
-    private persistCredentialsToStore(credentials: Credentials): void {
-        this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+    private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
-        const credentialsFromStore = this.retrieveCredentialsFromStore();
-        if (credentialsFromStore === null) {
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
+        if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64)
             };
-            this.persistCredentialsToStore(generatedCredentials);
+            await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;
         }
         return credentialsFromStore;

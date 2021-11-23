@@ -1,6 +1,10 @@
-import * as StorageTestInit from 'one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 
-import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
+import {
+    closeInstance,
+    getInstanceOwnerIdHash,
+    registerRecipes
+} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
@@ -8,20 +12,20 @@ import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
 import type {CreationTime} from '../lib/recipes/MetaRecipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
-import {wait} from 'one.core/lib/util/promise';
+import {wait} from '@refinio/one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -115,7 +119,7 @@ describe('Channel Manager test', () => {
         await StorageTestInit.init({dbKey: dbKey});
         await registerRecipes([...RecipesStable, ...RecipesExperimental]);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         channelManager = model.channelManager;

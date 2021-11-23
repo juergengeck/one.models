@@ -1,12 +1,10 @@
-import type {CRDTMetaData, Person, Recipe} from 'one.core/lib/recipes';
-import {generateCrdtMetaRecipe} from 'one.core/lib/crdt-recipes';
+import type { Person, Recipe} from '@refinio/one.core/lib/recipes';
 import {
     CommunicationEndpointTypeNameSet,
     CommunicationEndpointTypes
 } from './CommunicationEndpoints';
 import {PersonDescriptionTypeNameSet, PersonDescriptionTypes} from './PersonDescriptions';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 // #### Typescript interfaces ####
 
@@ -19,15 +17,12 @@ export interface Profile {
     personDescription: SHA256Hash<PersonDescriptionTypes>[];
 }
 
-export interface ProfileCRDTMetaData extends CRDTMetaData<Profile> {
-    $type$: 'ProfileCRDTMetaData';
-}
-
 // #### Recipes ####
 
 export const ProfileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Profile',
+    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'profileId',
@@ -61,11 +56,6 @@ export const ProfileRecipe: Recipe = {
     ]
 };
 
-export const ProfileCRDTDataRecipe: Recipe = generateCrdtMetaRecipe(
-    ProfileRecipe,
-    'ProfileCRDTMetaData'
-);
-
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
@@ -76,14 +66,6 @@ declare module '@OneObjectInterfaces' {
     export interface OneCrdtIdObjectInterfaces {
         Profile: Pick<Profile, '$type$' | 'personId' | 'profileId' | 'owner'>;
     }
-
-    export interface OneCrdtMetaObjectInterfaces {
-        ProfileCRDTMetaData: ProfileCRDTMetaData;
-    }
-
-    export interface OneCrdtToMetaObjectInterfaces {
-        Profile: ProfileCRDTMetaData;
-    }
 }
 
-export default [ProfileRecipe, ProfileCRDTDataRecipe];
+export default [ProfileRecipe];

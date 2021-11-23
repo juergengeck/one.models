@@ -1,5 +1,5 @@
-import type {WriteStorageApi} from 'one.core/lib/storage';
-import {explode} from 'one.core/lib/microdata-exploder';
+import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
+import {explode} from '@refinio/one.core/lib/microdata-exploder';
 
 module.exports.createObjects = (WriteStorage: WriteStorageApi, obj: Array<string>) => {
     const objs = Array.isArray(obj) ? obj : [obj];

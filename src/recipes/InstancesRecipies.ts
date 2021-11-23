@@ -1,6 +1,6 @@
-import type {Instance, Recipe} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Instance, Recipe} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {

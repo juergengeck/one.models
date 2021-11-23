@@ -1,7 +1,7 @@
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
-import {createWebSocket} from 'one.core/lib/system/websocket';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 
 /**
  * This class implements the client side of communication server communication

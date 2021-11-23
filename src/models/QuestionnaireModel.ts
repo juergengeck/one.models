@@ -3,8 +3,8 @@ import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
 import type {
     QuestionnaireResponses,
