@@ -31,8 +31,8 @@ export default class MultiUser extends Authenticator {
             await initInstance({
                 name: instanceName,
                 email: email,
-                secret: secret === undefined ? null : secret,
-                ownerName: 'name' + email,
+                secret: secret,
+                ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
@@ -81,17 +81,17 @@ export default class MultiUser extends Authenticator {
                 name: instanceName,
                 email: email,
                 secret: secret,
-                ownerName: 'name' + email,
+                ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
         } catch (error) {
+            this.authState.triggerEvent('login_failure');
+
             if (error.code === 'IC-AUTH') {
-                this.authState.triggerEvent('login_failure');
                 throw new Error('The provided secret is wrong');
             }
-            this.authState.triggerEvent('login_failure');
             throw new Error(`Error while trying to initialise instance due to ${error}`);
         }
 
@@ -103,7 +103,7 @@ export default class MultiUser extends Authenticator {
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
-            throw new Error(`Error while trying to initialise instance due to ${error}`);
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -133,27 +133,8 @@ export default class MultiUser extends Authenticator {
     }
 
     /**
-     * Erases the current instance. This function will:
-     *  - triggers 'logout' event
-     *  - triggers 'onLogout' event
-     *  - deletes the database
-     *  - triggers 'logout_done' event
-     */
-    async eraseCurrentInstance(): Promise<void> {
-        this.authState.triggerEvent('logout');
-
-        // Signal the application that it should shutdown one dependent models
-        // and wait for them to shut down
-        await this.onLogout.emitAll();
-
-        await closeAndDeleteCurrentInstance();
-
-        this.authState.triggerEvent('logout_done');
-    }
-
-    /**
      * Erases the instance. This function will:
-     *  - deletes the database
+     *  - deletes the instance
      */
     async erase(
         instanceName: string,
@@ -161,5 +142,19 @@ export default class MultiUser extends Authenticator {
         dbName: string = this.config.directory
     ): Promise<void> {
         await deleteInstance(instanceName, email, dbName);
+    }
+
+    /**
+     * Logs out the current user and erases the instance.
+     */
+    async logoutAndErase(): Promise<void> {
+        this.authState.triggerEvent('logout');
+
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+
+        await closeAndDeleteCurrentInstance();
+        this.authState.triggerEvent('logout_done');
     }
 }

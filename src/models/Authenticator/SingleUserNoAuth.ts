@@ -53,8 +53,8 @@ export default class SingleUserNoAuth extends Authenticator {
             await initInstance({
                 name: name,
                 email: email,
-                secret: secret === undefined ? null : secret,
-                ownerName: 'name' + email,
+                secret: secret,
+                ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
@@ -97,44 +97,45 @@ export default class SingleUserNoAuth extends Authenticator {
         if (credentials === null) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User was not registered.');
-        } else {
-            const {email, name, secret} = credentials;
-            const storage = await doesStorageExist(name, email, this.config.directory);
+        }
 
-            if (!storage) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error('Error while trying to login. User storage does not exists.');
-            }
-            try {
-                await initInstance({
-                    name: name,
-                    email: email,
-                    secret: secret,
-                    ownerName: 'name' + email,
-                    directory: this.config.directory,
-                    initialRecipes: this.config.recipes,
-                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
-                });
-            } catch (error) {
-                if (error.code === 'IC-AUTH') {
-                    this.authState.triggerEvent('login_failure');
-                    throw new Error('The stored secret is malformed, unrecovarable error. Delete' +
-                        ' instance.');
-                }
-                this.authState.triggerEvent('login_failure');
-                throw new Error(`Error while trying to initialise instance due to ${error}`);
-            }
+        const {email, name, secret} = credentials;
+        const storage = await doesStorageExist(name, email, this.config.directory);
 
-            try {
-                await this.importModules();
-                await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(name, secret, email);
+        if (!storage) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error('Error while trying to login. User storage does not exists.');
+        }
+        try {
+            await initInstance({
+                name: name,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
 
-                this.authState.triggerEvent('login_success');
-            } catch (error) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error(`Error while trying to initialise instance due to ${error}`);
+            if (error.code === 'IC-AUTH') {
+                throw new Error(
+                    'The stored secret is malformed, unrecovarable error. Delete' + ' instance.'
+                );
             }
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(name, secret, email);
+
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -168,40 +169,37 @@ export default class SingleUserNoAuth extends Authenticator {
     }
 
     /**
-     * Erases the current instance's database. This function will:
-     *  - triggers 'logout' event
-     *  - triggers onLogout event
-     *  - deletes the database
-     *  - removes (if present) only workflow related store
-     *  - triggers 'logout_done' event
+     * Erases the instance. This function will:
+     *  - delete the instance
+     *  - remove (if present) only workflow related store
      */
     async erase(): Promise<void> {
-        if (this.authState.currentState === 'logged_in') {
-            this.authState.triggerEvent('logout');
-
-            // Signal the application that it should shutdown one dependent models
-            // and wait for them to shut down
-            await this.onLogout.emitAll();
-
-            await closeAndDeleteCurrentInstance();
+        const credentials = this.retrieveCredentialsFromStore();
+        if (credentials !== null) {
+            const {name, email} = credentials;
+            await deleteInstance(name, email, this.config.directory);
             this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
-            this.authState.triggerEvent('logout_done');
-            return;
+        } else {
+            throw new Error(
+                'Could not erase due to lack of credentials without loging in.' +
+                    ' The credentials does not exist. Try to login and delete.'
+            );
         }
+    }
 
-        if (this.authState.currentState === 'logged_out') {
-            const credentials = this.retrieveCredentialsFromStore();
-            if (credentials !== null) {
-                const {name, email} = credentials;
-                await deleteInstance(name, email, this.config.directory);
-                this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
-            } else {
-                throw new Error(
-                    'Could not erase due to lack of credentials without loging in.' +
-                        ' The credentials does not exist. Try to login and delete.'
-                );
-            }
-        }
+    /**
+     * Logs out the current user and erases the instance.
+     */
+    async logoutAndErase(): Promise<void> {
+        this.authState.triggerEvent('logout');
+
+        // Signal the application that it should shutdown one dependent models
+        // and wait for them to shut down
+        await this.onLogout.emitAll();
+
+        await closeAndDeleteCurrentInstance();
+        await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+        this.authState.triggerEvent('logout_done');
     }
 
     private retrieveCredentialsFromStore(): Credentials | null {

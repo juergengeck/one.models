@@ -12,11 +12,11 @@ describe('SingleUser Test', () => {
                     if (newState === state) {
                         resolve();
                     }
-                    setTimeout(() => {
-                        rejected();
-                    }, delay);
                 });
             }
+            setTimeout(() => {
+                rejected('The desired state did not showed up.');
+            }, delay);
         });
     }
 
@@ -25,35 +25,30 @@ describe('SingleUser Test', () => {
     const secret = 'secret';
 
 
-    afterEach((done) => {
-        singleUserWorkflow.login(secret).then().catch().finally(async () => {
-            singleUserWorkflow.erase().then().catch().finally(() => {
-                done();
-            });
-        })
-
+    afterEach(async () => {
+        if(singleUserWorkflow.authState.currentState === 'logged_out'){
+            await singleUserWorkflow.loginOrRegister(secret);
+        }
+        await singleUserWorkflow.logoutAndErase();
     })
 
-    beforeEach((done) => {
-        singleUserWorkflow.register(secret).then(done).catch(err => {
-            throw err;
-        })
+    beforeEach(async () => {
+        await singleUserWorkflow.register(secret);
     })
-
 
     describe('Register & Erase', () => {
         it('should test if register(secret) & erase() are successfully', async () => {
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
             await singleUserWorkflow.register(secret);
             await waitForState('logged_in');
 
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
         });
         it('should test if erase() throws an error when it is called twice', async () => {
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
             await new Promise<void>((resolve, rejected) => {
@@ -115,7 +110,7 @@ describe('SingleUser Test', () => {
             });
         });
         it('should test if login(secret) throws an error when the user was not registered', async () => {
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
             try {
@@ -171,7 +166,7 @@ describe('SingleUser Test', () => {
     });
     describe('LoginOrRegister', () => {
         it('should test if loginOrregister(secret) is successfuly when no user was registered', async () => {
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
             await singleUserWorkflow.loginOrRegister(secret);
@@ -235,7 +230,7 @@ describe('SingleUser Test', () => {
             expect(await singleUserWorkflow.isRegistered()).to.be.equal(true);
         });
         it('should test if isRegistered() returns false when the user is not registered', async () => {
-            await singleUserWorkflow.erase();
+            await singleUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
             expect(await singleUserWorkflow.isRegistered()).to.be.equal(false);

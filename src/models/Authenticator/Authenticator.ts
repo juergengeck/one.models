@@ -76,6 +76,11 @@ export default abstract class Authenticator {
     })();
 
     /**
+     * Logs out the current user and erase the instance
+     */
+    abstract logoutAndErase(): Promise<void>;
+
+    /**
      * Class configuration
      */
     protected config: AuthenticatorOptions;
