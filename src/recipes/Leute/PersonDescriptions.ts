@@ -1,6 +1,6 @@
-import type {BLOB, OneObjectTypeNames, Recipe} from 'one.core/lib/recipes';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {BLOB, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
  * This represents a description of a communication partner

@@ -1,4 +1,4 @@
-import type {Recipe} from 'one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes';
 import type {DocumentInfo} from './DocumentRecipes_1_0_0';
 
 export enum AcceptedMimeType {

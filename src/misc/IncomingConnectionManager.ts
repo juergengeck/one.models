@@ -4,7 +4,7 @@ import CommunicationServerListener, {
 import WebSocketListener from './WebSocketListener';
 import tweetnacl from 'tweetnacl';
 import {wslogId} from './LogUtils';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import EncryptedConnection_Server from './EncryptedConnection_Server';
 import type EncryptedConnection from './EncryptedConnection';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';

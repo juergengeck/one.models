@@ -7,11 +7,11 @@ import {
     createSingleObjectThroughPurePlan,
     getObject,
     readBlobAsArrayBuffer
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;

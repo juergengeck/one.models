@@ -1,16 +1,16 @@
 import type {LeuteModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import type EncryptedConnection from './EncryptedConnection';
-import {getObject} from 'one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import {toByteArray, fromByteArray} from 'base64-js';
 import type InstancesModel from '../models/InstancesModel';
 import type {LocalInstanceInfo} from '../models/InstancesModel';
-import {createCryptoAPI} from 'one.core/lib/instance-crypto';
+import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Instance, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {arrayBufferToHex} from './ArrayBufferHexConvertor';
 

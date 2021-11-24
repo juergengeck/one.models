@@ -12,12 +12,12 @@ import {
     UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this

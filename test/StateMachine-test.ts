@@ -1,11 +1,11 @@
 import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import {expect} from 'chai';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {StateMachine} from '../lib/misc/StateMachine';
-import {wait} from 'one.core/lib/util/promise';
+import {wait} from '@refinio/one.core/lib/util/promise';
 
 let testModel: TestModel;
 

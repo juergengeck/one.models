@@ -1,18 +1,18 @@
 import yargs from 'yargs';
-import * as Logger from 'one.core/lib/logger';
+import * as Logger from '@refinio/one.core/lib/logger';
 import {printUint8Array} from '../misc/LogUtils';
 import type EncryptedConnection from '../misc/EncryptedConnection';
 import {AccessModel, ChannelManager, LeuteModel} from '../models';
 import CommunicationModule from '../misc/CommunicationModule';
 import InstancesModel from '../models/InstancesModel';
-import {initInstance} from 'one.core/lib/instance';
+import {initInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../recipes/recipes-stable';
 import oneModules from '../generated/oneModules';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import * as readline from 'readline';
-import type {Module, Person} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Module, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
 
 /**

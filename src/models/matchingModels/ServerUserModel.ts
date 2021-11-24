@@ -1,12 +1,12 @@
 import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
 import type InstancesModel from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {
     createSingleObjectThroughPurePlan,
     UnversionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import type {Demand, Supply} from '../../recipes/MatchingRecipes';
 import MatchingModel from './MatchingModel';
 

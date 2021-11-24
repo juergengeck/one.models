@@ -2,7 +2,7 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {closeInstance} from 'one.core/lib/instance';
+import {closeInstance} from '@refinio/one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
@@ -17,8 +17,8 @@ import {
     createSingleObjectThroughPurePlan,
     VersionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {Module} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import type {Module} from '@refinio/one.core/lib/recipes';
 
 export const dbKey = 'testDb';
 const path = require('path');

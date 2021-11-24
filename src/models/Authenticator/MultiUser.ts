@@ -1,11 +1,11 @@
 import Authenticator from './Authenticator';
-import {doesStorageExist} from 'one.core/lib/system/storage-base';
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
     registerRecipes
-} from 'one.core/lib/instance';
+} from '@refinio/one.core/lib/instance';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.

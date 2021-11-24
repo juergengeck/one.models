@@ -1,7 +1,7 @@
-import type {BLOB, Recipe} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {BLOB, Recipe} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -33,7 +33,7 @@ export interface BlobDescriptor {
     type: string;
 }
 
-export const BlobCollection: Recipe = {
+export const BlobCollectionRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobCollection',
     rule: [
@@ -51,7 +51,7 @@ export const BlobCollection: Recipe = {
     ]
 };
 
-export const BlobDescriptor: Recipe = {
+export const BlobDescriptorRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobDescriptor',
     rule: [
@@ -80,6 +80,6 @@ export const BlobDescriptor: Recipe = {
     ]
 };
 
-const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
+const BlobRecipes: Recipe[] = [BlobCollectionRecipe, BlobDescriptorRecipe];
 
 export default BlobRecipes;

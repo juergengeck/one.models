@@ -3,15 +3,15 @@ import CommunicationServerListener, {
     CommunicationServerListenerState
 } from '../lib/misc/CommunicationServerListener';
 import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
-import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
 import {fromByteArray} from 'base64-js';
-import {wait} from 'one.core/lib/util/promise';
-import {createWebSocket} from 'one.core/lib/system/websocket';
+import {wait} from '@refinio/one.core/lib/util/promise';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 
-//import * as Logger from 'one.core/lib/logger';
+//import * as Logger from '@refinio/one.core/lib/logger';
 //Logger.start();
 
 /**

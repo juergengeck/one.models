@@ -1,7 +1,7 @@
-import type {VersionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {VersionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
-import type {Person} from 'one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * Gives a channel a new head pointer.
