@@ -1,11 +1,18 @@
-import {expect} from 'chai';
 import {SingleUserNoAuth} from '../lib/models/Authenticator';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
+import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
+
+import * as chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+chai.use(chaiAsPromised);
+
+const {expect} = chai;
 
 describe('SingleUserNoAuth Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
-            if(singleUserNoAuthWorkflow.authState.currentState === state){
+            if (singleUserNoAuthWorkflow.authState.currentState === state) {
                 resolve();
             } else {
                 singleUserNoAuthWorkflow.authState.onEnterState(newState => {
@@ -20,19 +27,19 @@ describe('SingleUserNoAuth Test', () => {
         });
     }
 
-    const STORAGE_TEST_DIR = 'test/testStorage';
-    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: STORAGE_TEST_DIR});
+    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: `test/${dbKey}`});
 
     afterEach(async () => {
-        if(singleUserNoAuthWorkflow.authState.currentState === 'logged_out'){
+        if (singleUserNoAuthWorkflow.authState.currentState === 'logged_out') {
             await singleUserNoAuthWorkflow.loginOrRegister();
         }
         await singleUserNoAuthWorkflow.logoutAndErase();
-    })
+    });
 
     beforeEach(async () => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
         await singleUserNoAuthWorkflow.register();
-    })
+    });
 
     describe('Register & Erase', () => {
         it('should test if register() & logoutAndErase() are successfully', async () => {
@@ -41,40 +48,24 @@ describe('SingleUserNoAuth Test', () => {
             await singleUserNoAuthWorkflow.register();
             await waitForState('logged_in');
         });
-        it('should test if erase() throws an error when it is called twice', async () => {
+        it('should test if logoutAndErase() throws an error when it is called twice', async () => {
             await singleUserNoAuthWorkflow.logoutAndErase();
             await waitForState('logged_out');
-
-            await new Promise<void>((resolve, rejected) => {
-                singleUserNoAuthWorkflow
-                    .erase()
-                    .then(res => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'Could not erase due to lack of credentials without loging in. The credentials does not exist. Try to login and delete.'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(singleUserNoAuthWorkflow.erase())
+                .to.eventually.be.rejectedWith(
+                    'Could not erase due to lack of credentials without loging in. The credentials does not exist. Try to login and delete.'
+                );
         });
         it('should test if register() throws an error when user already exist', async () => {
-            await new Promise<void>((resolve, rejected) => {
-                singleUserNoAuthWorkflow
-                    .register()
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await singleUserNoAuthWorkflow.logout();
+            await waitForState('logged_out');
+
+            await chai
+                .expect(singleUserNoAuthWorkflow.register())
+                .to.eventually.be.rejectedWith(
+                    'Could not register user. The single user already exists.'
+                );
         });
     });
     describe('Login & Logout', () => {
@@ -88,33 +79,21 @@ describe('SingleUserNoAuth Test', () => {
         it('should test if logout() throws an error when it is called twice', async () => {
             await singleUserNoAuthWorkflow.logout();
 
-            await new Promise<void>((resolve, rejected) => {
-                singleUserNoAuthWorkflow
-                    .logout()
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(singleUserNoAuthWorkflow.logout())
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
         it('should test if login() throws an error when the user was not registered', async () => {
             await singleUserNoAuthWorkflow.logoutAndErase();
-            await waitForState('logged_out')
+            await waitForState('logged_out');
 
-            try {
-                await singleUserNoAuthWorkflow.login();
-            } catch (error) {
-                expect(error, error).to.be.instanceof(Error);
-                expect(error.message).to.include(
+            await chai
+                .expect(singleUserNoAuthWorkflow.login())
+                .to.eventually.be.rejectedWith(
                     'Error while trying to login. User was not registered.'
                 );
-            }
         });
         it('should test if login() throws an error when the user double logins', async () => {
             await singleUserNoAuthWorkflow.logout();
@@ -123,20 +102,11 @@ describe('SingleUserNoAuth Test', () => {
             await singleUserNoAuthWorkflow.login();
             await waitForState('logged_in');
 
-            await new Promise<void>((resolve, rejected) => {
-                singleUserNoAuthWorkflow
-                    .login()
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(singleUserNoAuthWorkflow.login())
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
     });
     describe('LoginOrRegister', () => {
@@ -161,20 +131,11 @@ describe('SingleUserNoAuth Test', () => {
             await singleUserNoAuthWorkflow.loginOrRegister();
             await waitForState('logged_in');
 
-            await new Promise<void>((resolve, rejected) => {
-                singleUserNoAuthWorkflow
-                    .loginOrRegister()
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(singleUserNoAuthWorkflow.loginOrRegister())
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
     });
     describe('isRegistered', () => {

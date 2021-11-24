@@ -1,16 +1,12 @@
 import Authenticator from './Authenticator';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from 'one.core/lib/system/storage-base';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import { doesStorageExist, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
     registerRecipes
-} from 'one.core/lib/instance';
-import {stringify} from 'one.core/lib/util/sorted-stringify';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+} from '@refinio/one.core/lib/instance';
 
 type Credentials = {
     email: string;
@@ -63,7 +59,7 @@ export default class SingleUser extends Authenticator {
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
         } catch (error) {
-            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
             this.authState.triggerEvent('login_failure');
             throw new Error(`Error while trying to initialise instance due to ${error}`);
         }
@@ -75,7 +71,7 @@ export default class SingleUser extends Authenticator {
             this.authState.triggerEvent('login_success');
         } catch (error) {
             await closeAndDeleteCurrentInstance();
-            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
             this.authState.triggerEvent('login_failure');
             throw new Error(`Error while trying to configure instance due to ${error}`);
         }
@@ -100,7 +96,7 @@ export default class SingleUser extends Authenticator {
 
         if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User does not exists.');
+            throw new Error('Error while trying to login. User was not registered.');
         }
         const {email, name} = credentials;
         const storage = await doesStorageExist(name, email, this.config.directory);
@@ -177,11 +173,11 @@ export default class SingleUser extends Authenticator {
      *  - remove (if present) only workflow related store
      */
     async erase(): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
-        if (credentials !== null) {
+        const credentials = await this.retrieveCredentialsFromStore();
+        if (credentials !== undefined) {
             const {name, email} = credentials;
             await deleteInstance(name, email, this.config.directory);
-            this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
         } else {
             throw new Error(
                 'Could not erase due to lack of credentials without loging in.' +
@@ -200,12 +196,17 @@ export default class SingleUser extends Authenticator {
         // and wait for them to shut down
         await this.onLogout.emitAll();
 
-        await closeAndDeleteCurrentInstance();
         await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+
+        await closeAndDeleteCurrentInstance();
         this.authState.triggerEvent('logout_done');
     }
 
     private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
+        // This has to be called before generate credentials. Otherwise,
+        // the call would just fail
+        setBaseDirOrName(this.config.directory);
+
         const storeCredentials = await this.store.getItem(
             SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
         );
@@ -219,6 +220,10 @@ export default class SingleUser extends Authenticator {
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        // This has to be called before generate credentials. Otherwise,
+        // the call would just fail
+        setBaseDirOrName(this.config.directory);
+
         await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
