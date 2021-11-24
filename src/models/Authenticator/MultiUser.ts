@@ -145,7 +145,10 @@ export default class MultiUser extends Authenticator {
     }
 
     /**
-     * Logs out the current user and erases the instance.
+     * Erases the current instance. This function will:
+     *  - trigger the 'logout' & onLogout events
+     *  - delete the instance
+     *  - trigger 'logout_done' event
      */
     async logoutAndErase(): Promise<void> {
         this.authState.triggerEvent('logout');

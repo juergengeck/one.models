@@ -187,7 +187,11 @@ export default class SingleUserNoAuth extends Authenticator {
     }
 
     /**
-     * Logs out the current user and erases the instance.
+     * Erases the current instance. This function will:
+     *  - trigger the 'logout' & onLogout events
+     *  - remove (if present) only workflow related store
+     *  - delete the instance
+     *  - trigger 'logout_done' event
      */
     async logoutAndErase(): Promise<void> {
         this.authState.triggerEvent('logout');
