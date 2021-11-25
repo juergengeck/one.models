@@ -54,7 +54,7 @@ export default class TopicRegistry {
         );
         registry.obj.topics.set(topic.channel, savedTopic.hash);
         await this.updateTopicRegistry(registry.obj.topics);
-        return savedTopic;
+        return savedTopic.obj;
     }
 
     /**

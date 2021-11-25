@@ -1,5 +1,5 @@
-import type {BLOB, Person, Recipe} from 'one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BLOB, Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from './ChannelRecipes';
 
 declare module '@OneObjectInterfaces' {
@@ -92,6 +92,6 @@ export const TopicAppRegistryRecipe: Recipe = {
     ]
 };
 
-const ChatRecipes: Recipe[] = [ChatMessageRecipe, TopicRecipe];
+const ChatRecipes: Recipe[] = [ChatMessageRecipe, TopicRecipe, TopicAppRegistryRecipe];
 
 export default ChatRecipes;

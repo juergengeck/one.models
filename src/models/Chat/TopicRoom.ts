@@ -7,15 +7,16 @@ import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {
-    createSingleObjectThroughPurePlan,
+    createSingleObjectThroughPurePlan, getObjectByIdHash, getObjectByIdObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+} from "@refinio/one.core/lib/storage";
 import type {Group} from '@refinio/one.core/lib/recipes';
+import type { ChannelInfo } from "../../recipes/ChannelRecipes";
 
 export default class TopicRoom {
     // the conversation id
-    public channelId: string;
+    public channelIdHash: SHA256IdHash<ChannelInfo>;
     public roomName: string;
     public onNewMessage: OEvent<(message: ObjectData<ChatMessage>) => void> = new OEvent<
         (message: ObjectData<ChatMessage>) => void
@@ -34,7 +35,7 @@ export default class TopicRoom {
     protected channelManager: ChannelManager;
 
     constructor(topic: Topic, channelManager: ChannelManager) {
-        this.channelId = topic.channel;
+        this.channelIdHash = topic.channel;
         this.roomName = topic.name !== undefined ? topic.name : 'unnamed chat';
         this.channelManager = channelManager;
 
@@ -59,7 +60,7 @@ export default class TopicRoom {
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
             count,
             to: this.lastQueriedChatMessageTimestamp,
-            channelId: this.channelId
+            channelId: this.channelIdHash
         })) {
             yield entry;
             this.lastQueriedChatMessageTimestamp = entry.creationTime;
@@ -71,7 +72,7 @@ export default class TopicRoom {
      */
     async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
-            channelId: this.channelId
+            channelId: this.channelIdHash
         });
     }
 
@@ -83,11 +84,13 @@ export default class TopicRoom {
     async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
         const instanceIdHash = await getInstanceOwnerIdHash();
 
+        const channelId = (await getObjectByIdHash(this.channelIdHash)).obj.id;
+
         if (instanceIdHash === undefined) {
             throw new Error('Error: instance id hash could not be found');
         }
 
-        await this.channelManager.postToChannel(this.channelId, {
+        await this.channelManager.postToChannel(channelId, {
             $type$: 'ChatMessage',
             text: message,
             sender: instanceIdHash,
@@ -158,7 +161,7 @@ export default class TopicRoom {
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
-        if (channelId === this.channelId) {
+        if (channelId === this.channelIdHash) {
             this.onNewMessage.emit(data as ObjectData<ChatMessage>);
         }
     }

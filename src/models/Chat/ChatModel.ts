@@ -109,22 +109,22 @@ export default class ChatModel extends Model {
             name: topicName,
             channel: await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
+                id: createdChannel.id,
                 owner: createdChannel.owner,
-                id: createdChannel.id
             })
         });
 
         const topicRoom = new TopicRoom(topic, this.channelManager);
 
-        if (participants.length !== undefined) {
+        if (Array.isArray(participants)) {
             await topicRoom.shareTopicWithPersons(
                 participants as SHA256IdHash<Person>[],
-                await calculateHashOfObj(topic)
+                await calculateHashOfObj({...topic, $type$: 'Topic'})
             );
         } else {
             await topicRoom.shareTopicWithGroup(
                 participants as SHA256IdHash<Group>,
-                await calculateHashOfObj(topic)
+              await calculateHashOfObj({...topic, $type$: 'Topic'})
             );
         }
     }
