@@ -1,8 +1,7 @@
 import Authenticator from './Authenticator';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from 'one.core/lib/system/storage-base';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from 'one.core/lib/instance';
-import {stringify} from 'one.core/lib/util/sorted-stringify';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
+import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 
 type Credentials = {
     email: string;
@@ -79,9 +78,9 @@ export default class SingleUser extends Authenticator {
     async login(secret: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
@@ -121,9 +120,9 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async loginOrRegister(secret: string): Promise<void> {
-        const credentials = this.retrieveCredentialsFromStore();
+        const credentials = await this.retrieveCredentialsFromStore();
 
-        if (credentials === null) {
+        if (credentials === undefined) {
             await this.register(secret);
         } else {
             await this.login(secret);
@@ -134,13 +133,8 @@ export default class SingleUser extends Authenticator {
      * Checks if the user exists or not by checking the credentials in the store.
      */
     async isRegistered(): Promise<boolean> {
-        const credentials = this.retrieveCredentialsFromStore();
-
-        if (credentials === null) {
-            return false;
-        }
-
-        return true;
+        const credentials = await this.retrieveCredentialsFromStore();
+        return credentials !== undefined;
     }
 
     /**
@@ -159,32 +153,35 @@ export default class SingleUser extends Authenticator {
         await this.onLogout.emitAll();
 
         await closeAndDeleteCurrentInstance();
-        this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
         this.authState.triggerEvent('logout_done');
     }
 
-    private retrieveCredentialsFromStore(): Credentials | null {
-        const storeCredentials = this.store.getItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+    private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
+        const storeCredentials = await this.store.getItem(
+            SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
+        );
 
-        if (storeCredentials === null) {
-            return null;
+        if (storeCredentials === undefined) {
+            return undefined;
         }
 
-        return JSON.parse(storeCredentials);
+        // Type cast: storing and retrieving is local to this module and we use the same key
+        return storeCredentials as Credentials;
     }
 
-    private persistCredentialsToStore(credentials: Credentials): void {
-        this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, stringify(credentials));
+    private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
     private async generateCredentialsIfNotExist(): Promise<Credentials> {
-        const credentialsFromStore = this.retrieveCredentialsFromStore();
-        if (credentialsFromStore === null) {
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
+        if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
                 name: await createRandomString(64)
             };
-            this.persistCredentialsToStore(generatedCredentials);
+            await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;
         }
         return credentialsFromStore;

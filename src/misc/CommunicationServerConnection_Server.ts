@@ -2,7 +2,7 @@ import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isClientMessage} from './CommunicationServerProtocol';
 import {fromByteArray, toByteArray} from 'base64-js';
 import {wslogId} from './LogUtils';
-import {createMessageBus} from 'one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 

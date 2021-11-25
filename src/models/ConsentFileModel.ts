@@ -1,12 +1,12 @@
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import i18nModelsInstance from '../i18n';
-import {getObjectByIdHash} from 'one.core/lib/storage';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
 import type {ConsentFile as OneConsentFile} from '../recipes/ConsentFileRecipes';
 import {Model} from './Model';
 
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * Represents the consent file object that will be stored in one.

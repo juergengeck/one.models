@@ -2,17 +2,17 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import type {Access, Group, IdAccess, OneObjectTypes, Person} from 'one.core/lib/recipes';
+import type {Access, Group, IdAccess, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
+} from '@refinio/one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {Model} from './Model';
 
 const ACCESS_LOCKS = {

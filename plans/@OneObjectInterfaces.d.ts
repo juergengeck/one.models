@@ -40,17 +40,11 @@
  */
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces extends OneCrdtMetaObjectInterfaces {}
+    export interface OneUnversionedObjectInterfaces {}
 
-    export interface OneIdObjectInterfaces extends OneCrdtIdObjectInterfaces {}
+    export interface OneIdObjectInterfaces {}
 
-    export interface OneVersionedObjectInterfaces extends OneCrdtObjectInterfaces {}
+    export interface OneVersionedObjectInterfaces {}
 
     export interface OneCrdtObjectInterfaces {}
-
-    export interface PlanResultTypes {}
-
-    // added for extends
-    export interface OneCrdtMetaObjectInterfaces {}
-    export interface OneCrdtIdObjectInterfaces {}
 }

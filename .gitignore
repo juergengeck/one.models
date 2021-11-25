@@ -11,7 +11,7 @@ test/**/*.d.ts.map
 test/testStorage
 
 test/testDb
-store-dir
+store-dir/*
 
 # Generated code
 *.contact

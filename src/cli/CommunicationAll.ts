@@ -1,15 +1,15 @@
 import yargs from 'yargs';
 
-import * as Logger from 'one.core/lib/logger';
+import * as Logger from '@refinio/one.core/lib/logger';
 import {AccessModel, ChannelManager, ConnectionsModel, LeuteModel} from '../models';
 import InstancesModel from '../models/InstancesModel';
-import {initInstance, registerRecipes} from 'one.core/lib/instance';
+import {initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../recipes/recipes-stable';
 import RecipesExperimental from '../recipes/recipes-experimental';
-import type {Module} from 'one.core/lib/recipes';
+import type {Module} from '@refinio/one.core/lib/recipes';
 import oneModules from '../generated/oneModules';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
 
 /**

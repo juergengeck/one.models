@@ -1,9 +1,9 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {QueryOptions} from './ChannelManager';
 
 export default class AudioExerciseModel extends Model {

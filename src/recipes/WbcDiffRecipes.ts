@@ -11,7 +11,7 @@
  *      keep them as-is from start to end.
  */
 
-import type {Recipe, RecipeRule} from 'one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
 
 export interface WbcMeasurement {
     value: string;

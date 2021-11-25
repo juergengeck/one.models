@@ -1,11 +1,11 @@
 import yargs from 'yargs';
 import tweetnacl from 'tweetnacl';
-import * as Logger from 'one.core/lib/logger';
+import * as Logger from '@refinio/one.core/lib/logger';
 import EncryptedConnection_Client from '../misc/EncryptedConnection_Client';
 import fs from 'fs';
 import * as readline from 'readline';
 import WebSocketWS from 'isomorphic-ws';
-import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 
 /**
  * Main function. This exists to be able to use await here.

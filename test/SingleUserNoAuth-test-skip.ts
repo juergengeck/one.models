@@ -1,11 +1,13 @@
 import {expect} from 'chai';
 import {SingleUserNoAuth} from '../lib/models/Authenticator';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
+import {dbKey} from './utils/TestModel';
+import {mkdir} from 'fs/promises';
 
 describe('SingleUserNoAuth Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
-            if(singleUserNoAuthWorkflow.authState.currentState === state){
+            if (singleUserNoAuthWorkflow.authState.currentState === state) {
                 resolve();
             } else {
                 singleUserNoAuthWorkflow.authState.onEnterState(newState => {
@@ -20,23 +22,28 @@ describe('SingleUserNoAuth Test', () => {
         });
     }
 
-    const STORAGE_TEST_DIR = 'test/testStorage';
-    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: STORAGE_TEST_DIR});
+    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: `test/${dbKey}`});
 
-    afterEach((done) => {
-        singleUserNoAuthWorkflow.login().then().catch().finally(async () => {
-            singleUserNoAuthWorkflow.erase().then().catch().finally(() => {
-                done();
+    afterEach(done => {
+        return singleUserNoAuthWorkflow
+            .login()
+            .then()
+            .catch()
+            .finally(async () => {
+                singleUserNoAuthWorkflow
+                    .erase()
+                    .then()
+                    .catch()
+                    .finally(() => {});
             });
-        })
+    });
 
-    })
-
-    beforeEach((done) => {
-        singleUserNoAuthWorkflow.register().then(done).catch(err => {
+    beforeEach(async done => {
+        await mkdir(`test/${dbKey}`, {recursive: true});
+        singleUserNoAuthWorkflow.register().catch(err => {
             throw err;
-        })
-    })
+        });
+    });
 
     describe('Register & Erase', () => {
         it('should test if register() & erase() are successfully', async () => {
@@ -110,7 +117,7 @@ describe('SingleUserNoAuth Test', () => {
         });
         it('should test if login() throws an error when the user was not registered', async () => {
             await singleUserNoAuthWorkflow.erase();
-            await waitForState('logged_out')
+            await waitForState('logged_out');
 
             try {
                 await singleUserNoAuthWorkflow.login();

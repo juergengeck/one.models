@@ -2,9 +2,9 @@ import {Model} from './Model';
 
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type {HeartEvent} from '../recipes/HeartEventRecipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
  * This model implements the possibility of adding or retrieving HeartEvents that occurred on the Apple watch.

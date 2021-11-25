@@ -1,6 +1,6 @@
-import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from 'one.core/lib/storage';
+import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import type {License, LicenseType} from '../recipes/CertificateRecipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 const LICENSES: Map<LicenseType, SHA256Hash<License>> = new Map();
 

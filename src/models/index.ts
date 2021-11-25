@@ -5,7 +5,6 @@ import DocumentModel from './DocumentModel';
 import BodyTemperatureModel from './BodyTemperatureModel';
 import DiaryModel from './DiaryModel';
 import NewsModel from './NewsModel';
-import OneInstanceModel, {AuthenticationState} from './OneInstanceModel';
 import ChannelManager from './ChannelManager';
 import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
@@ -28,8 +27,6 @@ export {
     BodyTemperatureModel,
     DiaryModel,
     NewsModel,
-    OneInstanceModel,
-    AuthenticationState,
     ChannelManager,
     ConsentFileModel,
     PropertyTreeStore,
