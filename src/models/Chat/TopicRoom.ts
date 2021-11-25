@@ -1,17 +1,17 @@
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, Person} from '@refinio/one.core/lib/recipes';
 import type {ChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
-import type {OneUnversionedObjectTypes} from 'one.core/lib/recipes';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
-import {getInstanceOwnerIdHash} from 'one.core/lib/instance';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {
     createSingleObjectThroughPurePlan,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {Group} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import type {Group} from '@refinio/one.core/lib/recipes';
 
 export default class TopicRoom {
     // the conversation id

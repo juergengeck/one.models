@@ -1,15 +1,13 @@
 import {
     createSingleObjectThroughPurePlan,
     getObject,
-    SET_ACCESS_MODE,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {getObjectByIdObj} from 'one.core/lib/storage-versioned-objects';
+} from '@refinio/one.core/lib/storage';
+import {getObjectByIdObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from '../../recipes/ChannelRecipes';
-import type {Group, Person} from 'one.core/lib/recipes';
 
 export default class TopicRegistry {
     private static readonly id = 'TopicAppRegistry';

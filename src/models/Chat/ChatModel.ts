@@ -1,10 +1,10 @@
 import {Model} from '../Model';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Group, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import TopicRegistry from './TopicRegistry';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import {OEvent} from '../../misc/OEvent';
 import type {Topic} from '../../recipes/ChatRecipes';
 import {
@@ -12,12 +12,12 @@ import {
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {calculateHashOfObj, calculateIdHashOfObj} from 'one.core/lib/util/object';
+} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
-import {getObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 
 export default class ChatModel extends Model {
     private readonly channelManager: ChannelManager;
