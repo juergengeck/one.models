@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@refinio/one.core": "v0.2.29",
-    "@types/yargs": "^15.0.5",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
@@ -54,6 +53,8 @@
     "@types/qrcode": "^1.3.4",
     "@types/rimraf": "*",
     "@types/uuid": "^3.4.5",
+    "@types/ws": "^8.2.0",
+    "@types/yargs": "^15.0.5",
     "@typescript-eslint/eslint-plugin": "*",
     "@typescript-eslint/parser": "*",
     "babel-eslint": "*",
