@@ -1,5 +1,5 @@
 import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
-import {getMetaObjectHashesOfType, getMetaObjectsOfType, storeMetaObject} from "./MetaObjectMap";
+import {getMetaObjectHashesOfType, storeMetaObject} from "./MetaObjectMap";
 import {isSignedBy, sign, signedBy} from "./Signature";
 import type {Person} from "@refinio/one.core/lib/recipes";
 import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
@@ -13,7 +13,7 @@ import {calculateHashOfObj} from "@refinio/one.core/lib/util/object";
  * @param relation - Relation as defined by the application app.
  * @param app - Application in which context this relation is important.
  */
-async function certifyRelation(person1: SHA256IdHash<Person>, person2: SHA256IdHash<Person>, relation: string, app: string): Promise<void> {
+export async function certifyRelation(person1: SHA256IdHash<Person>, person2: SHA256IdHash<Person>, relation: string, app: string): Promise<void> {
     const certificateHash = (await storeUnversionedObject({
         $type$: 'RelationCertificate',
         person1,
@@ -34,7 +34,7 @@ async function certifyRelation(person1: SHA256IdHash<Person>, person2: SHA256IdH
  * @param relation
  * @param app
  */
-async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: SHA256IdHash<Person>, person2: SHA256IdHash<Person>, relation: string, app: string): Promise<boolean> {
+export async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: SHA256IdHash<Person>, person2: SHA256IdHash<Person>, relation: string, app: string): Promise<boolean> {
     const certificateHash = await calculateHashOfObj({
         $type$: 'RelationCertificate',
         person1,
@@ -51,7 +51,7 @@ async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: SHA256Id
  *
  * @param data
  */
-async function affirm(data: SHA256Hash): Promise<void> {
+export async function affirm(data: SHA256Hash): Promise<void> {
     const certificateHash = (await storeMetaObject(data, {
         $type$: 'AffirmationCertificate',
         data: data
@@ -66,7 +66,7 @@ async function affirm(data: SHA256Hash): Promise<void> {
  * @param by
  * @param data
  */
-async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): Promise<boolean> {
+export async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): Promise<boolean> {
     const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
     if (certificateHashes.length === 0) {
         return false;
@@ -84,7 +84,7 @@ async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): Promise
  *
  * @param data
  */
-async function affirmedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
+export async function affirmedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
     const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
     if (certificateHashes.length === 0) {
         return [];
