@@ -1,67 +1,151 @@
-import type {Person, Recipe, OneUnversionedObjectTypes, BLOB} from '@refinio/one.core/lib/recipes';
+import type {
+    Person,
+    Recipe,
+    OneUnversionedObjectTypes
+} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
-        Certificate: Certificate;
-        License: License;
+        AccessUnversionedObjectCertificate: AccessUnversionedObjectCertificate;
+        AccessVersionedObjectCertificate: AccessVersionedObjectCertificate;
+        RelationCertificate: RelationCertificate;
+        AffirmationCertificate: AffirmationCertificate;
     }
 }
 
-export type LicenseType = 'access' | 'truth';
-
-export interface Certificate {
-    $type$: 'Certificate';
-    license: SHA256Hash<License>;
-    issuer: SHA256IdHash<Person>;
-    subject: SHA256Hash<OneUnversionedObjectTypes>;
-    target: SHA256IdHash<Person>;
-    signature: string;
+/**
+ * TS Interface for AccessUnversionedObjectCertificateRecipe
+ */
+export interface AccessUnversionedObjectCertificate {
+    $type$: 'AccessUnversionedObjectCertificate';
+    person: SHA256IdHash<Person>;
+    data: SHA256Hash<OneUnversionedObjectTypes>;
 }
 
-export interface License {
-    $type$: 'License';
-    text: string;
-}
-
-export const CertificateRecipe: Recipe = {
+/**
+ * This certificate gives another person access to the pointed to data.
+ *
+ * [signature.issuer] gives [person] access to [data]
+ */
+export const AccessUnversionedObjectCertificateRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'Certificate',
+    name: 'AccessUnversionedObjectCertificate',
     rule: [
         {
-            itemprop: 'license',
-            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
-        },
-        {
-            itemprop: 'issuer',
+            itemprop: 'person',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
-            itemprop: 'subject',
+            itemprop: 'data',
             itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
-        },
+        }
+    ]
+};
+
+/**
+ * TS Interface for AccessVersionedObjectCertificateRecipe
+ */
+export interface AccessVersionedObjectCertificate {
+    $type$: 'AccessVersionedObjectCertificate';
+    person: SHA256IdHash<Person>;
+    data: SHA256IdHash;
+}
+
+/**
+ * This certificate gives another person access to the pointed to data.
+ *
+ * [signature.issuer] gives [person] access to [data]
+ */
+export const AccessVersionedObjectCertificateRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'AccessVersionedObjectCertificate',
+    rule: [
         {
-            itemprop: 'target',
+            itemprop: 'person',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
-            itemprop: 'signature',
-            itemtype: {type: 'string', regexp: /^[A-Fa-f0-9]+$/}
+            itemprop: 'data',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['*'])}
         }
     ]
 };
 
-export const LicenseRecipe: Recipe = {
+/**
+ * TS Interface for RelationCertificateRecipe
+ */
+export interface RelationCertificate {
+    $type$: 'RelationCertificate';
+    app: string;
+    relation: string;
+    person1: SHA256IdHash<Person>;
+    person2: SHA256IdHash<Person>;
+}
+
+/**
+ * This certificates affirms that a person has a specific relation to another person (or organization).
+ *
+ * [signature.issuer] confirms, that in the context of the application [app],
+ * [person1] has a [relation] to [person2]
+ *
+ * Examples:
+ * - Person1 is a doctor at a clinic(Person2)
+ * - Person1 is related to Person2
+ * - Person1 is a patient at doctor(Person2)
+ *
+ * This stuff is application specific, so the application has to decide which relations make sense.
+ */
+export const RelationCertificateRecipe: Recipe = {
     $type$: 'Recipe',
-    name: 'License',
+    name: 'RelationCertificate',
     rule: [
         {
-            itemprop: 'text',
-            itemtype: {type: 'string'}
+            itemprop: 'app'
+        },
+        {
+            itemprop: 'relation'
+        },
+        {
+            itemprop: 'person1',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'person2',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         }
     ]
 };
 
-const CertificateRecipes: Recipe[] = [CertificateRecipe, LicenseRecipe];
+/**
+ * TS Interface for RelationCertificateRecipe
+ */
+export interface AffirmationCertificate {
+    $type$: 'AffirmationCertificate';
+    data: SHA256Hash;
+}
+
+/**
+ * This certificate affirms the information in the pointed to object.
+ *
+ * [signature.issuer] asserts that [data] is true
+ */
+export const AffirmationCertificateRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'AffirmationCertificate',
+    rule: [
+        {
+            itemprop: 'data',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
+        }
+    ]
+};
+
+const CertificateRecipes: Recipe[] = [
+    AccessUnversionedObjectCertificateRecipe,
+    AccessVersionedObjectCertificateRecipe,
+    RelationCertificateRecipe,
+    AffirmationCertificateRecipe
+];
 
 export default CertificateRecipes;
