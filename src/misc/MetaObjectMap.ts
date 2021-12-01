@@ -56,22 +56,39 @@ export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
     objHash: SHA256Hash,
     type: T
 ): Promise<OneObjectInterfaces[T][]> {
-    const metaObjectMap = await loadMetaObjectMap(objHash);
-    let metaObjectHashes = metaObjectMap.metaObjects.get(type);
-    if (metaObjectHashes === undefined) {
-        return [];
-    }
-
+    const metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
     const metaObjects = await Promise.all(metaObjectHashes.map(getObject));
 
-    // We filter all objects by type, even though the map-entry should only contain objects of the right type.
-    // This is just for stability - if somebody manages to put something else in there.
+    // Filter unwanted objects, so that the app does not die if a wrong object made it into the map.
+    // This is just a stability improvement.
     const metaObjectsOfType: OneObjectInterfaces[T][] = metaObjects.filter(
         (obj: OneObjectTypes): obj is OneObjectInterfaces[T] => {
             return obj.$type$ === type;
         }
     );
+    if (metaObjectHashes.length !== metaObjectsOfType.length) {
+        console.error('Programming Error: Somehow an object of the wrong type made it into the MetaObjectMap');
+    }
+
     return metaObjectsOfType;
+}
+
+/**
+ * Get the meta object hashes of a specific type.
+ *
+ * @param objHash
+ * @param type
+ */
+export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
+    objHash: SHA256Hash,
+    type: T
+): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
+    const metaObjectMap = await loadMetaObjectMap(objHash);
+    let metaObjectHashes = metaObjectMap.metaObjects.get(type);
+    if (metaObjectHashes === undefined) {
+        return [];
+    }
+    return metaObjectHashes as SHA256Hash<OneObjectInterfaces[T]>[];
 }
 
 /**

@@ -63,6 +63,38 @@ export async function isSignedBy(
 }
 
 /**
+ * Return the persons who signed this object (only valid signatures - the rest is dropped)
+ *
+ * @param data
+ */
+export async function signedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
+    const sigs = await signatures(data);
+
+    // Create map from issuer to signatures
+    const sigMapPerIssuer = new Map<SHA256IdHash<Person>, Signature[]>();
+    for(const sig of sigs) {
+        const issuerSigs = sigMapPerIssuer.get(sig.issuer);
+        if (issuerSigs === undefined) {
+            sigMapPerIssuer.set(sig.issuer, [sig]);
+        } else {
+            issuerSigs.push(sig);
+        }
+    }
+
+    // Call the validation function on each entry
+    // If you do not like the await in the for loop - write it in a better way. I have no Idea how to
+    // write it so that it is still readable.
+    const validSigners = [];
+    for(const [issuer, sigsFromIssuer] of sigMapPerIssuer.entries()) {
+        if(verifySignaturesLowLevel(await trustedKeys(issuer), sigsFromIssuer)) {
+            validSigners.push(issuer);
+        }
+    }
+
+    return validSigners;
+}
+
+/**
  * Check if an object is signed by me.
  *
  * @param data - the data for which to check whether it is signed.
