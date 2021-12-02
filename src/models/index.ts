@@ -15,7 +15,6 @@ import InstancesModel from './InstancesModel';
 import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
-import CertificateManager from './CertificateManager';
 
 /** for one line imports **/
 export {
@@ -36,6 +35,5 @@ export {
     ECGModel,
     HeartEventModel,
     ConnectionsModel,
-    LeuteModel,
-    CertificateManager
+    LeuteModel
 };

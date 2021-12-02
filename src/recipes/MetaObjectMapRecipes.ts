@@ -24,7 +24,7 @@ declare module '@OneObjectInterfaces' {
  */
 export interface MetaObjectMap {
     $type$: 'MetaObjectMap';
-    object: SHA256Hash;
+    object: SHA256Hash | SHA256IdHash;
     metaObjects: Map<OneObjectTypeNames, Array<SHA256Hash>>;
 }
 
@@ -41,8 +41,10 @@ export const MetaObjectMapRecipe: Recipe = {
             itemprop: 'object',
             isId: true,
             itemtype: {
-                type: 'referenceToObj',
-                allowedTypes: new Set(['*'])
+                // This should be any reference (SHA256IdHash or SHA256Hash to a BLOB or CBLOB,
+                // but one.core does not support it, yet => string with regex)
+                type: 'string',
+                regexp: /^[0-9a-fA-F]{64}$/
             }
         },
         {
@@ -53,8 +55,11 @@ export const MetaObjectMapRecipe: Recipe = {
                     type: 'string'
                 },
                 value: {
-                    type: 'referenceToObj',
-                    allowedTypes: new Set(['*'])
+                    type: 'array',
+                    item: {
+                        type: 'referenceToObj',
+                        allowedTypes: new Set(['*'])
+                    }
                 }
             }
         }

@@ -37,6 +37,7 @@ export async function sign(data: SHA256Hash): Promise<void> {
     const cryptoAPI = createCryptoAPI(instanceIdHash);
     const signatureBinary = cryptoAPI.createSignature(new TextEncoder().encode(data));
     const signatureString = arrayBufferToHex(signatureBinary.buffer);
+    console.log('SIG_CREATE', signatureString);
 
     // Store the signature as meta object.
     await storeMetaObject(data, {
@@ -167,11 +168,24 @@ function verifySignatureLowLevel(key: Keys, signature: Signature): boolean {
     if (key.publicSignKey === undefined) {
         throw new Error('Public sign key does not exist.');
     }
-    return tweetnacl.sign.detached.verify(
+    console.log('SIG_VERIFY', signature.signature);
+    // TODO:
+    /*return tweetnacl.sign.detached.verify(
         new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
         new Uint8Array(hexToArrayBuffer(signature.signature)), // hex string -> UInt8Array (binary)
         toByteArray(key.publicSignKey) // base64 string -> UInt8Array (binary)
+    );*/
+    const opened = tweetnacl.sign.open(
+        new Uint8Array(hexToArrayBuffer(signature.signature)), // hex string -> UInt8Array (binary)
+        toByteArray(key.publicSignKey) // base64 string -> UInt8Array (binary)
     );
+    const original = new TextEncoder().encode(signature.data); // string -> utf8 UInt8Array
+
+    if (opened === null) {
+        return false;
+    }
+
+    return tweetnacl.verify(opened, original);
 }
 
 /**

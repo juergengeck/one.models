@@ -1,4 +1,4 @@
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getObject, getObjectByIdObj, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {
     OneObjectInterfaces,
@@ -24,7 +24,7 @@ const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
  * @param metaObjectHash - The hash of the meta object.
  */
 export async function addMetaObject(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     metaObjectHash: SHA256Hash
 ): Promise<void> {
     const metaObject = await getObject(metaObjectHash);
@@ -38,7 +38,7 @@ export async function addMetaObject(
  * @param metaObject - The meta object.
  */
 export async function storeMetaObject<T extends OneUnversionedObjectTypes>(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     metaObject: T
 ): Promise<UnversionedObjectResult<T>> {
     const metaObjectResult = await storeUnversionedObject(metaObject);
@@ -53,7 +53,7 @@ export async function storeMetaObject<T extends OneUnversionedObjectTypes>(
  * @param type
  */
 export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<OneObjectInterfaces[T][]> {
     const metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
@@ -80,7 +80,7 @@ export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
  * @param type
  */
 export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
     const metaObjectMap = await loadMetaObjectMap(objHash);
@@ -139,7 +139,7 @@ export async function getLatestMetaObjectOfType<T extends OneObjectTypeNames>(
  * @param type - The type of the metaObject with the hash metaObjectHash.
  */
 async function addMetaObjectWithType(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     metaObjectHash: SHA256Hash,
     type: OneObjectTypeNames
 ): Promise<void> {
@@ -163,7 +163,7 @@ async function addMetaObjectWithType(
  *
  * If the MetaObjectMap does not exist, it will return an empty MetaObjectList.
  */
-async function loadMetaObjectMap(objHash: SHA256Hash): Promise<MetaObjectMap> {
+async function loadMetaObjectMap(objHash: SHA256Hash | SHA256IdHash): Promise<MetaObjectMap> {
     try {
         return (
             await getObjectByIdObj({

@@ -9,6 +9,7 @@ import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
 import SignatureRecipes from "./SignatureRecipes";
+import MetaObjectMapRecipes from "./MetaObjectMapRecipes";
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -21,6 +22,7 @@ const RecipesExperimental: Recipe[] = [
     ...CertificateRecipes,
     ...LeuteRecipes,
     ...SignatureRecipes,
+    ...MetaObjectMapRecipes
 ];
 
 export default RecipesExperimental;
