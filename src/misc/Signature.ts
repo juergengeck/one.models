@@ -1,7 +1,7 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Keys, OneObjectTypes, Person, Plan} from '@refinio/one.core/lib/recipes';
+import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getObject, getObjectByIdHash, getObjectWithType} from '@refinio/one.core/lib/storage';
+import {getObject, getObjectByIdHash} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
@@ -27,17 +27,10 @@ export async function sign(data: SHA256Hash): Promise<void> {
 
     const instance = (await getObjectByIdHash(instanceIdHash)).obj;
 
-    // Sign the message with the crypto API
-    // TODO: Do we need to include the issuer? The keymanagement (leute) should be able to verify that
-    //       a key belongs to a certain person (the issuer). So we have to make sure that it does, then
-    //       it is not a problem.
-    //       A: It isn't necessary, because the issuer is just a hint which public key to use. Everything
-    //          would work just fine without the issuer, because we could find who this key belongs to by
-    //          testing all known public keys known to us.
+    // Sign the data hash with the crypto API
     const cryptoAPI = createCryptoAPI(instanceIdHash);
     const signatureBinary = cryptoAPI.createSignature(new TextEncoder().encode(data));
     const signatureString = arrayBufferToHex(signatureBinary.buffer);
-    console.log('SIG_CREATE', signatureString);
 
     // Store the signature as meta object.
     await storeMetaObject(data, {
@@ -168,24 +161,11 @@ function verifySignatureLowLevel(key: Keys, signature: Signature): boolean {
     if (key.publicSignKey === undefined) {
         throw new Error('Public sign key does not exist.');
     }
-    console.log('SIG_VERIFY', signature.signature);
-    // TODO:
-    /*return tweetnacl.sign.detached.verify(
+    return tweetnacl.sign.detached.verify(
         new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
         new Uint8Array(hexToArrayBuffer(signature.signature)), // hex string -> UInt8Array (binary)
         toByteArray(key.publicSignKey) // base64 string -> UInt8Array (binary)
-    );*/
-    const opened = tweetnacl.sign.open(
-        new Uint8Array(hexToArrayBuffer(signature.signature)), // hex string -> UInt8Array (binary)
-        toByteArray(key.publicSignKey) // base64 string -> UInt8Array (binary)
     );
-    const original = new TextEncoder().encode(signature.data); // string -> utf8 UInt8Array
-
-    if (opened === null) {
-        return false;
-    }
-
-    return tweetnacl.verify(opened, original);
 }
 
 /**

@@ -1,27 +1,25 @@
-import {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
 import {expect} from 'chai';
+import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
 import {getMetaObjectHashesOfType, getMetaObjectsOfType, storeMetaObject} from "../lib/misc/MetaObjectMap";
+import MetaObjectMapRecipes from "../src/recipes/MetaObjectMapRecipes";
 
-describe('Certificate test', () => {
+describe('MetaObjectMap test', () => {
 
     beforeEach(async () => {
-        await StorageTestInit.init({
-            dbKey: dbKey,
-            deleteDb: false
+        return await initInstance({
+            name: 'testname',
+            email: 'test@test.com',
+            secret: 'secret',
+            wipeStorage: true,
+            encryptStorage: false,
+            directory: 'testDb',
+            initialRecipes: [...MetaObjectMapRecipes]
         });
-        await importModules();
     });
 
     afterEach(async () => {
-        try {
-            closeInstance();
-        } finally {
-            await removeDir(`./test/${dbKey}`);
-        }
+        closeInstance();
     });
-
 
     it('Create and retrieve metamap objects', async () => {
         const me = await getInstanceOwnerIdHash();
