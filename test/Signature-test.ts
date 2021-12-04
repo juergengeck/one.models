@@ -1,40 +1,11 @@
 import {expect} from 'chai';
-import tweetnacl from 'tweetnacl';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {storeMetaObject} from '../lib/misc/MetaObjectMap';
 import {sign, signedBy, isSignedBy} from '../lib/misc/Signature';
-import {arrayBufferToHex} from '../lib/misc/ArrayBufferHexConvertor';
 import SignatureRecipes from '../lib/recipes/SignatureRecipes';
 import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
 import {createTestIdentity} from "./utils/createTestIdentity";
 import {createDummyObjectUnversioned, DummyObjectRecipes} from "./utils/createDummyObject";
-
-/**
- * Create a signature object with someone else as issuer and a provate key.
- *
- * The current signature module does not support this because of limitations of the key management. That's why we
- * have this helper function.
- *
- * @param data
- * @param issuer
- * @param secretKey
- */
-async function createSignatureObject(data: SHA256Hash, issuer: SHA256IdHash<Person>, secretKey: Uint8Array) {
-    const signatureBinary = tweetnacl.sign.detached(
-        new TextEncoder().encode(data),
-        secretKey
-    );
-    const signatureString = arrayBufferToHex(signatureBinary.buffer);
-    await storeMetaObject(data, {
-        $type$: 'Signature',
-        issuer,
-        data,
-        signature: signatureString
-    });
-}
-
+import {signForSomeoneElse} from "./utils/signForSomeoneElse";
 
 describe('Signature test', () => {
     beforeEach(async () => {
@@ -74,14 +45,10 @@ describe('Signature test', () => {
     });
 
     it('Sign object by someone else', async () => {
-        // Create an identity with brand new keys
+        // Create an identity with brand new keys & data & sign the data with this new identity.
         const other = await createTestIdentity('xyz');
-
-        // Create the data to sign
         const data = (await createDummyObjectUnversioned('bla')).hash;
-
-        // Create the signature with the key of another person
-        await createSignatureObject(data, other.person, other.signKeyPair.secretKey);
+        await signForSomeoneElse(data, other.person, other.signKeyPair.secretKey);
 
         // Check the signature (I did not approve the key)
         const signPersons1 = await signedBy(data);
@@ -90,6 +57,7 @@ describe('Signature test', () => {
 
         await sign(other.keys);
 
+        // Check the signature (I did approve the key)
         const signPersons2 = await signedBy(data);
         expect(signPersons2.length).to.be.equal(1);
         expect(signPersons2[0]).to.be.equal(other.person);

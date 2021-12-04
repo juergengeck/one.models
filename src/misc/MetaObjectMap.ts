@@ -5,7 +5,6 @@ import type {
     OneObjectTypeNames,
     OneObjectTypes,
     OneUnversionedObjectTypes,
-    OneVersionedObjectTypes,
     Plan
 } from '@refinio/one.core/lib/recipes';
 import type {MetaObjectMap} from '../recipes/MetaObjectMapRecipes';
@@ -88,7 +87,7 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
     if (metaObjectHashes === undefined) {
         return [];
     }
-    return metaObjectHashes as SHA256Hash<OneObjectInterfaces[T]>[];
+    return [...metaObjectHashes] as SHA256Hash<OneObjectInterfaces[T]>[];
 }
 
 /**
@@ -113,7 +112,7 @@ export async function getLatestMetaObjectOfType<T extends OneObjectTypeNames>(
 
     // We filter all objects by type, even though the map-entry should only contain objects of the right type.
     // This is just for stability - if somebody manages to put something else in there.
-    for (const metaObject of iterateArrayFromEnd(metaObjectHashes)) {
+    for (const metaObject of iterateArrayFromEnd([...metaObjectHashes])) {
         // eslint-disable-next-line no-await-in-loop
         const metaObj = await getObject(metaObject);
 
@@ -149,9 +148,9 @@ async function addMetaObjectWithType(
         // Add metaObject to the list with the correct type
         let metaObjectHashes = metaObjectMap.metaObjects.get(type);
         if (metaObjectHashes !== undefined) {
-            metaObjectHashes.push(metaObjectHash);
+            metaObjectHashes.add(metaObjectHash);
         } else {
-            metaObjectMap.metaObjects.set(type, [metaObjectHash]);
+            metaObjectMap.metaObjects.set(type, new Set([metaObjectHash]));
         }
 
         await saveMetaObjectMap(metaObjectMap);

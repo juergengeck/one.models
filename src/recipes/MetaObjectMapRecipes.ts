@@ -1,13 +1,8 @@
 import type {
-    Person,
     Recipe,
-    OneUnversionedObjectTypes,
-    BLOB,
-    OneObjectTypes, OneObjectTypeNames
+    OneObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {HexString} from '../misc/ArrayBufferHexConvertor';
-import {HexStringRegex} from '../misc/ArrayBufferHexConvertor';
 
 declare module '@OneObjectInterfaces' {
     export interface OneVersionedObjectInterfaces {
@@ -25,7 +20,7 @@ declare module '@OneObjectInterfaces' {
 export interface MetaObjectMap {
     $type$: 'MetaObjectMap';
     object: SHA256Hash | SHA256IdHash;
-    metaObjects: Map<OneObjectTypeNames, Array<SHA256Hash>>;
+    metaObjects: Map<OneObjectTypeNames, Set<SHA256Hash>>;
 }
 
 /**
@@ -55,7 +50,7 @@ export const MetaObjectMapRecipe: Recipe = {
                     type: 'string'
                 },
                 value: {
-                    type: 'array',
+                    type: 'set',
                     item: {
                         type: 'referenceToObj',
                         allowedTypes: new Set(['*'])

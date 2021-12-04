@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
 import {getMetaObjectHashesOfType, getMetaObjectsOfType, storeMetaObject} from "../lib/misc/MetaObjectMap";
-import MetaObjectMapRecipes from "../src/recipes/MetaObjectMapRecipes";
+import MetaObjectMapRecipes from "../lib/recipes/MetaObjectMapRecipes";
 
 describe('MetaObjectMap test', () => {
 
