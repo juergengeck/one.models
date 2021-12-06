@@ -1,6 +1,7 @@
 import {
     createSingleObjectThroughPurePlan,
     getObject,
+    UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
@@ -9,6 +10,9 @@ import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
+/**
+ * Registry that holds references to all the created topics
+ */
 export default class TopicRegistry {
     private static readonly id = 'TopicAppRegistry';
 
@@ -34,27 +38,16 @@ export default class TopicRegistry {
         await this.updateTopicRegistry(registry.obj.topics);
     }
 
-
     /**
      * Creates a topic and sets it in the TopicRegistry.
      * @param topic
      */
-    public async addTopic(topic: Omit<Topic, '$type$'>): Promise<Topic> {
+    public async registerTopic(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        const savedTopic = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Topic',
-                channel: topic.channel,
-                name: topic.name
-            }
-        );
-        registry.obj.topics.set(topic.channel, savedTopic.hash);
+
+        registry.obj.topics.set(topic.obj.channel, topic.hash);
         await this.updateTopicRegistry(registry.obj.topics);
-        return savedTopic.obj;
+        return topic.obj;
     }
 
     /**

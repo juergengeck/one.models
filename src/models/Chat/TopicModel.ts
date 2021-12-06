@@ -5,36 +5,27 @@ import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import TopicRegistry from './TopicRegistry';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import {OEvent} from '../../misc/OEvent';
-import type {Topic} from '../../recipes/ChatRecipes';
 import {
     createSingleObjectThroughPurePlan,
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
+import {OEvent} from '../../misc/OEvent';
+import type {Topic} from '../../recipes/ChatRecipes';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 
-export default class ChatModel extends Model {
+/**
+ * Model that manages the creation of chat topics.
+ */
+export default class TopicModel extends Model {
     private readonly channelManager: ChannelManager;
-    private readonly ChannelRegistryLOCK = 'onChannelRegistryOperation';
+    private readonly TopicRegistryLOCK = 'ON_TOPIC_REGISTRY_OPERATION';
 
     private topicRegistry: TopicRegistry | undefined;
-    private channelDisconnect: (() => void) | undefined;
-
-    private readonly boundOnChannelUpdated: (
-        channelId: string,
-        channelOwner: SHA256IdHash<Person>,
-        data: ObjectData<OneUnversionedObjectTypes>
-    ) => Promise<void>;
-
-    private readonly boundNewTopicFromResult: (
-        unversionedObjectResult: UnversionedObjectResult
-    ) => void;
 
     /**
      * Notify the user whenever a new topic is created or received.
@@ -43,9 +34,19 @@ export default class ChatModel extends Model {
 
     /**
      * Notify the user whenever a new chat message is received. This can be used as a
-     * notification system too.
+     * notification system.
      */
     public onNewChatMessageEvent = this.onUpdated;
+
+    private readonly boundOnChannelUpdated: (
+        channelId: string,
+        channelOwner: SHA256IdHash<Person>,
+        data: ObjectData<OneUnversionedObjectTypes>
+    ) => Promise<void>;
+    private readonly boundNewTopicFromResult: (
+        unversionedObjectResult: UnversionedObjectResult
+    ) => void;
+    private channelDisconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -80,56 +81,55 @@ export default class ChatModel extends Model {
     }
 
     /**
-     * Creates the topic and the channel for the topic.
-     * @param participants
+     * Creates a new topic.
      * @param name
      */
-    public async createTopic(
-        participants: SHA256IdHash<Person>[] | SHA256IdHash<Group>,
-        name?: string
-    ): Promise<void> {
+    private async createNewTopic(name?: string): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        if (this.topicRegistry === undefined) {
-            throw new Error('Error while retrieving topic registry, model not initialised.');
-        }
-
+        // if no name was passed, generate a random one
         const topicName = name === undefined ? await createRandomString() : name;
+        // generate a random channel id
         const randomChannelId = await createRandomString();
+
         await this.channelManager.createChannel(randomChannelId);
         const channels = await this.channelManager.channels({channelId: randomChannelId});
 
         if (channels[0] === undefined) {
-            throw new Error('Error: no channel was created, this should not happen.');
+            throw new Error(
+                "Error while trying to retrieve the topic's channel. The channel" +
+                    ' does not exist.'
+            );
         }
 
         const createdChannel = channels[0];
 
-        const topic = await this.topicRegistry.addTopic({
-            name: topicName,
-            channel: await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: createdChannel.id,
-                owner: createdChannel.owner,
-            })
-        });
+        const savedTopic = await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/identity',
+                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+            },
+            {
+                $type$: 'Topic',
+                channel: await calculateIdHashOfObj({
+                    $type$: 'ChannelInfo',
+                    id: createdChannel.id,
+                    owner: createdChannel.owner
+                }),
+                name: topicName
+            }
+        );
 
-        const topicRoom = new TopicRoom(topic, this.channelManager);
-
-        if (Array.isArray(participants)) {
-            await topicRoom.shareTopicWithPersons(
-                participants as SHA256IdHash<Person>[],
-                await calculateHashOfObj({...topic, $type$: 'Topic'})
-            );
-        } else {
-            await topicRoom.shareTopicWithGroup(
-                participants as SHA256IdHash<Group>,
-              await calculateHashOfObj({...topic, $type$: 'Topic'})
-            );
-        }
+        return savedTopic.obj;
     }
 
-    public async enterTopic(topic: Topic): Promise<TopicRoom> {
+    /**
+     * Enter the topic room by the given topic
+     * @param topic
+     */
+    public async enterTopicRoom(topic: Topic): Promise<TopicRoom> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.topicRegistry === undefined) {
             throw new Error('Error while retrieving topic registry, model not initialised.');
         }
@@ -137,16 +137,18 @@ export default class ChatModel extends Model {
         const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(topic.channel);
 
         if (foundTopic === undefined) {
-            throw new Error('Error: topic could not be found');
+            throw new Error('Error while trying to retrieve the topic. The topic does not exist.');
         }
 
-        return new TopicRoom(foundTopic, this.channelManager);
+        const topicRoom = new TopicRoom(foundTopic, this.channelManager);
+        await topicRoom.load();
+        return topicRoom;
     }
 
     /**
      * Lists all the topics in the TopicRegistry
      */
-    public async listTopics(): Promise<Topic[]> {
+    public async listAllTopics(): Promise<Topic[]> {
         this.state.assertCurrentState('Initialised');
 
         if (this.topicRegistry === undefined) {
@@ -155,6 +157,58 @@ export default class ChatModel extends Model {
 
         return await this.topicRegistry.retrieveAllTopics();
     }
+
+    /**
+     * Share the given topic with the desired persons.
+     * @param participants
+     * @param topic
+     */
+    public async shareTopicWithPersons(
+        participants: SHA256IdHash<Person>[],
+        topic: Topic
+    ): Promise<void> {
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
+                    person: participants,
+                    group: [],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+    }
+
+    /**
+     * Share the given topic with the desired persons.
+     * @param groupIdHash
+     * @param topic
+     */
+    public async shareTopicWithGroup(
+        groupIdHash: SHA256IdHash<Group>,
+        topic: Topic
+    ): Promise<void> {
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
+                    person: [],
+                    group: [groupIdHash],
+                    mode: SET_ACCESS_MODE.REPLACE
+                }
+            ]
+        );
+    }
+
+    // --------------------------------- private ---------------------------------
 
     /**
      * Notify the client to update the conversation list (there might be a new last message for
@@ -182,14 +236,14 @@ export default class ChatModel extends Model {
     private async emitNewTopicEvent(result: UnversionedObjectResult): Promise<void> {
         if (result.obj.$type$ === 'Topic' && result.status === 'new') {
             const {channel, name} = result.obj;
-            await serializeWithType(this.ChannelRegistryLOCK, async () => {
+            await serializeWithType(this.TopicRegistryLOCK, async () => {
                 if (this.topicRegistry === undefined) {
                     throw new Error(
                         'Error while retrieving topic registry, model not initialised.'
                     );
                 }
 
-                await this.topicRegistry.addTopic({channel, name});
+                await this.topicRegistry.registerTopic(result as UnversionedObjectResult<Topic>);
             });
             this.onNewTopicEvent.emit();
         }
