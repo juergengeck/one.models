@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@refinio/one.core": "v0.2.29",
+    "chai-as-promised": "^7.1.1",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
@@ -45,6 +46,7 @@
     "@microsoft/api-extractor": "^7.10.4",
     "@types/babel__core": "*",
     "@types/chai": "*",
+    "@types/chai-as-promised": "^7.1.4",
     "@types/jsesc": "^3.0.0",
     "@types/lodash": "^4.14.138",
     "@types/mocha": "*",
