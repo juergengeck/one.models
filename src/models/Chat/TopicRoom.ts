@@ -57,10 +57,12 @@ export default class TopicRoom {
      * @param count
      */
     async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>> {
+        const channelId = (await getObjectByIdHash(this.channelIdHash)).obj.id;
+
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
             count,
             to: this.lastQueriedChatMessageTimestamp,
-            channelId: this.channelIdHash
+            channelId: channelId
         })) {
             yield entry;
             this.lastQueriedChatMessageTimestamp = entry.creationTime;
