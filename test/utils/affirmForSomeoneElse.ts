@@ -4,9 +4,9 @@ import {storeMetaObject} from "../../lib/misc/MetaObjectMap";
 import {signForSomeoneElse} from "./signForSomeoneElse";
 
 /**
- * Create a signature object with someone else as issuer and a private key.
+ * Create an affirmation certificate for another personId.
  *
- * The current signature module does not support this because of limitations of the key management. That's why we
+ * The current certificate module does not support this because of limitations of the key management. That's why we
  * have this helper function.
  *
  * @param data

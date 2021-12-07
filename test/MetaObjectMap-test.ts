@@ -12,7 +12,7 @@ describe('MetaObjectMap test', () => {
             secret: 'secret',
             wipeStorage: true,
             encryptStorage: false,
-            directory: 'testDb',
+            directory: 'test/testDb',
             initialRecipes: [...MetaObjectMapRecipes]
         });
     });

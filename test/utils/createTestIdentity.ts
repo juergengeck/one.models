@@ -26,7 +26,7 @@ export async function createTestIdentity(email: string): Promise<{
         await storeVersionedObject(
             {
                 $type$: 'Person',
-                email: 'xyz'
+                email
             },
             DUMMY_PLAN_HASH
         )

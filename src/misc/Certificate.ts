@@ -42,7 +42,6 @@ export async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: S
         relation,
         app
     })
-
     return isSignedBy(certificateHash, by);
 }
 

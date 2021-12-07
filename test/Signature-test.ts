@@ -15,7 +15,7 @@ describe('Signature test', () => {
             secret: 'secret',
             wipeStorage: true,
             encryptStorage: false,
-            directory: 'testDb',
+            directory: 'test/testDb',
             initialRecipes: [...SignatureRecipes, ...MetaObjectMapRecipes, ...DummyObjectRecipes]
         });
     });
