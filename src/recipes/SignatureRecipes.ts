@@ -1,9 +1,6 @@
 import type {
     Person,
-    Recipe,
-    OneUnversionedObjectTypes,
-    BLOB,
-    OneObjectTypes
+    Recipe
 } from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {HexString} from '../misc/ArrayBufferHexConvertor';
