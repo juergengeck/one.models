@@ -125,19 +125,17 @@ export default class TopicModel extends Model {
     }
 
     /**
-     * Enter the topic room by the given topic
-     * @param topic
+     * Enter the topic room by the given topic channel id.
+     * @param topicChannelId
      */
-    public async enterTopicRoom(topic: Topic): Promise<TopicRoom> {
+    public async enterTopicRoom(topicChannelId: string): Promise<TopicRoom> {
         this.state.assertCurrentState('Initialised');
 
         if (this.topicRegistry === undefined) {
             throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
-        const channel = await getObjectByIdHash(topic.channel)
-
-        const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(channel.obj.id);
+        const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(topicChannelId);
 
         if (foundTopic === undefined) {
             throw new Error('Error while trying to retrieve the topic. The topic does not exist.');
@@ -148,14 +146,33 @@ export default class TopicModel extends Model {
         return topicRoom;
     }
 
+    /**
+     * Retrieve the topic by his channel id
+     * @param topicChannelID
+     */
+    public async retrieveTopic(topicChannelID: string): Promise<Topic | undefined> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
+
+        return await this.topicRegistry.retrieveTopicByChannelId(topicChannelID)
+    }
+
+    /**
+     * If the topic exist or not
+     * @param channelId
+     */
     public async doesTopicExists(channelId: string): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.topicRegistry === undefined) {
             throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
         const result = await this.topicRegistry.retrieveTopicByChannelId(channelId)
         return result !== undefined;
-
     }
 
     /**
