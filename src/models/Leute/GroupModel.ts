@@ -1,6 +1,5 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes';
-import {OEvent} from '../../misc/OEvent';
 import {
     getObject,
     onVersionedObj,
@@ -16,10 +15,9 @@ import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {Model} from '../Model';
 
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
+const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-// Todo: This is a hack, because CRDT objects don't support optionals
-const DUMMY_BLOB_HASH: SHA256Hash<BLOB> =
+const DUMMY_BLOB_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
 
 export default class GroupModel extends Model {

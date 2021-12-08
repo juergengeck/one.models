@@ -1,7 +1,4 @@
-import type {
-    Person,
-    Recipe
-} from '@refinio/one.core/lib/recipes';
+import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {HexString} from '../misc/ArrayBufferHexConvertor';
 import {HexStringRegex} from '../misc/ArrayBufferHexConvertor';
@@ -56,5 +53,8 @@ export const SignatureRecipe: Recipe = {
 };
 
 const SignatureRecipes: Recipe[] = [SignatureRecipe];
+export const SignatureReverseMaps: [OneObjectTypeNames, Set<string>][] = [
+    ['Signature', new Set(['issuer', 'data'])]
+];
 
 export default SignatureRecipes;

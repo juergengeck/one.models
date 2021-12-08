@@ -1,6 +1,7 @@
 import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
 import type {Person} from "@refinio/one.core/lib/recipes";
 import {storeMetaObject} from "../../lib/misc/MetaObjectMap";
+import {addMetaObject} from "../../lib/misc/MetaObjectMap";
 import {signForSomeoneElse} from "./signForSomeoneElse";
 
 /**
@@ -19,4 +20,5 @@ export async function affirmForSomeoneElse(data: SHA256Hash, issuer: SHA256IdHas
         data: data
     })).hash;
     await signForSomeoneElse(certificateHash, issuer, secretKey);
+    await addMetaObject(data, certificateHash);
 }

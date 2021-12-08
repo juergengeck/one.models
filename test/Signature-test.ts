@@ -1,14 +1,19 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import {sign, signedBy, isSignedBy} from '../lib/misc/Signature';
-import SignatureRecipes from '../lib/recipes/SignatureRecipes';
 import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
-import {createTestIdentity} from "./utils/createTestIdentity";
-import {createDummyObjectUnversioned, DummyObjectRecipes} from "./utils/createDummyObject";
-import {signForSomeoneElse} from "./utils/signForSomeoneElse";
+import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
+import {useExperimentalReverseMaps} from '../lib/misc/MetaObjectMap';
+import {sign, signedBy, isSignedBy} from '../lib/misc/Signature';
+import {createTestIdentity} from './utils/createTestIdentity';
+import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
+import {signForSomeoneElse} from './utils/signForSomeoneElse';
+
+// If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
+const experimentalReverseMaps = false;
 
 describe('Signature test', () => {
     beforeEach(async () => {
+        useExperimentalReverseMaps(experimentalReverseMaps);
         return await initInstance({
             name: 'testname',
             email: 'test@test.com',
@@ -16,7 +21,10 @@ describe('Signature test', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [...SignatureRecipes, ...MetaObjectMapRecipes, ...DummyObjectRecipes]
+            initialRecipes: [...SignatureRecipes, ...MetaObjectMapRecipes, ...DummyObjectRecipes],
+            initiallyEnabledReverseMapTypes: experimentalReverseMaps
+                ? undefined
+                : new Map([...SignatureReverseMaps])
         });
     });
 
@@ -25,7 +33,8 @@ describe('Signature test', () => {
     });
 
     it('Sign object by me', async () => {
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
+
         if (me === undefined) {
             throw new Error('Instance not initialized');
         }
@@ -44,7 +53,7 @@ describe('Signature test', () => {
         expect(await isSignedBy(data, me)).to.be.true;
     });
 
-    it('Sign object by someone else', async () => {
+    it('Sign object by someone else (trusted keys test)', async () => {
         // Create an identity with brand new keys & data & sign the data with this new identity.
         const other = await createTestIdentity('xyz');
         const data = (await createDummyObjectUnversioned('bla')).hash;

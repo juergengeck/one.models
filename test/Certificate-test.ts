@@ -1,8 +1,10 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import CertificateRecipes from '../lib/recipes/CertificateRecipes';
-import SignatureRecipes from '../lib/recipes/SignatureRecipes';
 import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
+import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
+import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
+import {useExperimentalReverseMaps} from '../lib/misc/MetaObjectMap';
+import {sign} from '../lib/misc/Signature';
 import {
     affirm,
     isAffirmedBy,
@@ -13,11 +15,14 @@ import {
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
 import {createTestIdentity} from './utils/createTestIdentity';
 import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse';
-import {sign} from '../lib/misc/Signature';
 import {certifyRelationForSomeoneElse} from './utils/certifyRelationForSomeoneElse';
+
+// If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
+const experimentalReverseMaps = false;
 
 describe('Certificate test', () => {
     beforeEach(async () => {
+        useExperimentalReverseMaps(experimentalReverseMaps);
         return await initInstance({
             name: 'testname',
             email: 'test@test.com',
@@ -30,7 +35,10 @@ describe('Certificate test', () => {
                 ...SignatureRecipes,
                 ...MetaObjectMapRecipes,
                 ...DummyObjectRecipes
-            ]
+            ],
+            initiallyEnabledReverseMapTypes: experimentalReverseMaps
+                ? undefined
+                : new Map([...SignatureReverseMaps, ...CertificateReverseMaps])
         });
     });
 
@@ -39,7 +47,7 @@ describe('Certificate test', () => {
     });
 
     it('Affirm something myself', async () => {
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
 
         if (me === undefined) {
             throw new Error('Instance not initialized');
@@ -72,7 +80,7 @@ describe('Certificate test', () => {
         expect(await affirmedBy(data)).to.be.eql([other.person]);
 
         // Now affirm it myself to see if multiple persons are not a problem
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
 
         if (me === undefined) {
             throw new Error('Instance not initialized');
@@ -83,13 +91,14 @@ describe('Certificate test', () => {
     });
 
     it('Relationship certificates issued by myself', async () => {
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
+
         if (me === undefined) {
             throw new Error('Instance not initialized');
         }
 
-        const praxis = await createTestIdentity('PraxisDrHasenstein');
-        const hasenstein = await createTestIdentity('DrHasenstein');
+        const praxis = await createTestIdentity('PraxisDrHasenbein');
+        const hasenstein = await createTestIdentity('DrHasenbein');
         const pid = praxis.person;
         const hid = hasenstein.person;
 
@@ -100,9 +109,9 @@ describe('Certificate test', () => {
         const a2 = await isRelationCertifiedBy(me, me, hid, 'patientOf', 'seeInsideUApp');
         expect(a2).to.be.false;
 
-        // Dr. Hasenstein is doctor at the Praxis Dr.Hasenstein
+        // Dr. Hasenbein is doctor at the Praxis Dr.Hasenbein
         await certifyRelation(hid, pid, 'doctorAt', 'seeInsideUApp');
-        // Me is patient of Dr. Hasenstein
+        // Me is patient of Dr. Hasenbein
         await certifyRelation(me, hid, 'patientOf', 'seeInsideUApp');
 
         // Second round of checks with certificates
@@ -127,13 +136,14 @@ describe('Certificate test', () => {
     });
 
     it('Relationship certificates issued by somebody else', async () => {
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
+
         if (me === undefined) {
             throw new Error('Instance not initialized');
         }
 
-        const praxis = await createTestIdentity('PraxisDrHasenstein');
-        const hasenstein = await createTestIdentity('DrHasenstein');
+        const praxis = await createTestIdentity('PraxisDrHasenbein');
+        const hasenstein = await createTestIdentity('DrHasenbein');
         const pid = praxis.person;
         const hid = hasenstein.person;
         sign(praxis.keys);
@@ -145,7 +155,7 @@ describe('Certificate test', () => {
         const a2 = await isRelationCertifiedBy(pid, me, hid, 'patientOf', 'seeInsideUApp');
         expect(a2).to.be.false;
 
-        // Dr. Hasenstein is doctor at the Praxis Dr.Hasenstein
+        // Dr. Hasenbein is doctor at the Praxis Dr.Hasenbein
         await certifyRelationForSomeoneElse(
             hid,
             pid,
@@ -154,7 +164,7 @@ describe('Certificate test', () => {
             pid,
             praxis.signKeyPair.secretKey
         );
-        // Me is patient of Dr. Hasenstein
+        // Me is patient of Dr. Hasenbein
         await certifyRelationForSomeoneElse(
             me,
             hid,

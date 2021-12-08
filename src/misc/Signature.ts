@@ -1,14 +1,15 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getObject, getObjectByIdHash} from '@refinio/one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
-import {getMetaObjectsOfType, storeMetaObject} from './MetaObjectMap';
+import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
 import {toByteArray} from 'base64-js';
+import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
 
 /**
  * Sign an object with my own key.
@@ -19,13 +20,12 @@ export async function sign(data: SHA256Hash): Promise<void> {
     // Load instance
     // This is only required, because the cryptoAPI is constructed from the instance and the issued is determined
     // this way at the moment. We need to change that!
-    const instanceIdHash = await getInstanceIdHash();
+    const instanceIdHash = getInstanceIdHash();
+    const instanceOwner = getInstanceOwnerIdHash();
 
-    if (instanceIdHash === undefined) {
+    if (instanceIdHash === undefined || instanceOwner === undefined) {
         throw new Error('Instance is not initialized');
     }
-
-    const instance = (await getObjectByIdHash(instanceIdHash)).obj;
 
     // Sign the data hash with the crypto API
     const cryptoAPI = createCryptoAPI(instanceIdHash);
@@ -33,12 +33,14 @@ export async function sign(data: SHA256Hash): Promise<void> {
     const signatureString = arrayBufferToHex(signatureBinary.buffer);
 
     // Store the signature as meta object.
-    await storeMetaObject(data, {
+    const sigResult = await storeUnversionedObject({
         $type$: 'Signature',
-        issuer: instance.owner,
+        issuer: instanceOwner,
         data: data,
         signature: signatureString
     });
+    await addMetaObject(data, sigResult.hash);
+    await addMetaObject(instanceOwner, sigResult.hash);
 }
 
 /**
@@ -49,10 +51,7 @@ export async function sign(data: SHA256Hash): Promise<void> {
  * @param data
  * @param issuer
  */
-export async function isSignedBy(
-    data: SHA256Hash,
-    issuer: SHA256IdHash<Person>
-): Promise<boolean> {
+export async function isSignedBy(data: SHA256Hash, issuer: SHA256IdHash<Person>): Promise<boolean> {
     return verifySignaturesLowLevel(await trustedKeys(issuer), await signatures(data, issuer));
 }
 
@@ -66,7 +65,7 @@ export async function signedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]
 
     // Create map from issuer to signatures
     const sigMapPerIssuer = new Map<SHA256IdHash<Person>, Signature[]>();
-    for(const sig of sigs) {
+    for (const sig of sigs) {
         const issuerSigs = sigMapPerIssuer.get(sig.issuer);
         if (issuerSigs === undefined) {
             sigMapPerIssuer.set(sig.issuer, [sig]);
@@ -79,8 +78,8 @@ export async function signedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]
     // If you do not like the await in the for loop - write it in a better way. I have no Idea how to
     // write it so that it is still readable.
     const validSigners = [];
-    for(const [issuer, sigsFromIssuer] of sigMapPerIssuer.entries()) {
-        if(verifySignaturesLowLevel(await trustedKeys(issuer), sigsFromIssuer)) {
+    for (const [issuer, sigsFromIssuer] of sigMapPerIssuer.entries()) {
+        if (verifySignaturesLowLevel(await trustedKeys(issuer), sigsFromIssuer)) {
             validSigners.push(issuer);
         }
     }
@@ -117,36 +116,36 @@ async function signatures(data: SHA256Hash, issuer?: SHA256IdHash<Person>): Prom
 /**
  * Filter out all elements that are not signed by me.
  *
- * @param data - The array of elements to filter
- * @returns - The array of elements that only has signed by me elements left.
+ * @param dataList - List of data hashes that shall be filtered.
+ * @returns - The array of elements that are signed by me.
  */
 async function filterSignedByMe<T extends OneObjectTypes>(
-    data: SHA256Hash<T>[]
+    dataList: SHA256Hash<T>[]
 ): Promise<SHA256Hash<T>[]> {
     const key = await myKey();
 
-    // Map from 'data' to '{data, signatures}' format
-    const container = await Promise.all(
-        data.map(async d => {
+    // Map from 'data[]' to '{data, signatures}[]' format
+    const containers = await Promise.all(
+        dataList.map(async data => {
             return {
-                data: d,
-                signatures: await signatures(d, key.owner as SHA256IdHash<Person>)
+                data: data,
+                signatures: await signatures(data, key.owner as SHA256IdHash<Person>)
             };
         })
     );
 
     // Filter container based on valid signatures
-    const containerSigned = container.filter(c => {
-        for (const sig of c.signatures) {
-            if (verifySignatureLowLevel(key, sig)) {
+    const containerSigned = containers.filter(container => {
+        for (const signature of container.signatures) {
+            if (verifySignatureLowLevel(key, signature)) {
                 return true;
             }
         }
         return false;
     });
 
-    // Map from '{data, signatures}' to 'data' format
-    return containerSigned.map(c => c.data);
+    // Map from '{data, signatures}[]' to 'data[]' format
+    return containerSigned.map(container => container.data);
 }
 
 // ######## Low-Level signature verification ########
@@ -203,7 +202,8 @@ async function trustedKeys(person: SHA256IdHash<Person>): Promise<Keys[]> {
  * @param person - The person for which to get trusted keys.
  */
 async function trustedKeyHashes(person: SHA256IdHash<Person>): Promise<SHA256Hash<Keys>[]> {
-    const me = await getInstanceOwnerIdHash();
+    const me = getInstanceOwnerIdHash();
+
     if (person === me) {
         const reverseMapEntry = await getAllValues(me, true, 'Keys');
         if (reverseMapEntry.length === 0) {
@@ -243,12 +243,14 @@ async function myKey(): Promise<Keys> {
 
 /**
  * Returns the person id for 'me'
+ *
+ * Let's keep it async for now, because we need to grab this from leute later, which is definitely async.
  */
 async function myId(): Promise<SHA256IdHash<Person>> {
-    const me = await getInstanceOwnerIdHash();
+    const me = getInstanceOwnerIdHash();
+
     if (me === undefined) {
         throw new Error('Instance is not initialized');
     }
     return me;
 }
-

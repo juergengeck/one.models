@@ -1,7 +1,8 @@
 import type {SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
 import type {Person} from "@refinio/one.core/lib/recipes";
-import {signForSomeoneElse} from "./signForSomeoneElse";
 import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
+import {addMetaObject} from "../../lib/misc/MetaObjectMap";
+import {signForSomeoneElse} from "./signForSomeoneElse";
 
 /**
  * Create an relation certificate for another personId.
@@ -25,4 +26,6 @@ export async function certifyRelationForSomeoneElse(person1: SHA256IdHash<Person
         app
     })).hash;
     await signForSomeoneElse(certificateHash, issuer, secretKey);
+    await addMetaObject(person1, certificateHash);
+    await addMetaObject(person2, certificateHash);
 }

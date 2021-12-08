@@ -1,7 +1,8 @@
 import type {
     Person,
     Recipe,
-    OneUnversionedObjectTypes
+    OneUnversionedObjectTypes,
+    OneObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
@@ -146,6 +147,10 @@ const CertificateRecipes: Recipe[] = [
     AccessVersionedObjectCertificateRecipe,
     RelationCertificateRecipe,
     AffirmationCertificateRecipe
+];
+export const CertificateReverseMaps: [OneObjectTypeNames, Set<string>][] = [
+    ['RelationCertificate', new Set(['person1', 'person2'])],
+    ['AffirmationCertificate', new Set(['data'])]
 ];
 
 export default CertificateRecipes;

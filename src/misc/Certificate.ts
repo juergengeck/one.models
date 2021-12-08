@@ -1,5 +1,5 @@
 import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
-import {getMetaObjectHashesOfType, storeMetaObject} from "./MetaObjectMap";
+import {addMetaObject, getMetaObjectHashesOfType, storeMetaObject} from "./MetaObjectMap";
 import {isSignedBy, sign, signedBy} from "./Signature";
 import type {Person} from "@refinio/one.core/lib/recipes";
 import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
@@ -21,8 +21,9 @@ export async function certifyRelation(person1: SHA256IdHash<Person>, person2: SH
         relation,
         app
     })).hash;
-
     await sign(certificateHash);
+    await addMetaObject(person1, certificateHash);
+    await addMetaObject(person2, certificateHash);
 }
 
 /**
@@ -57,6 +58,7 @@ export async function affirm(data: SHA256Hash): Promise<void> {
     })).hash;
 
     await sign(certificateHash);
+    await addMetaObject(data, certificateHash);
 }
 
 /**

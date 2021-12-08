@@ -12,7 +12,7 @@
  * not an object). This is a Typescript trick to have a special kind of strings.
  */
 export type HexString = string & {
-    _: 'HeyString';
+    _: 'HexString';
 };
 
 /**

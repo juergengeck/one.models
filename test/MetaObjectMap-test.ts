@@ -1,11 +1,21 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import {getMetaObjectHashesOfType, getMetaObjectsOfType, storeMetaObject} from "../lib/misc/MetaObjectMap";
-import MetaObjectMapRecipes from "../lib/recipes/MetaObjectMapRecipes";
+import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
+import {
+    addMetaObject,
+    getMetaObjectHashesOfType,
+    getMetaObjectsOfType,
+    useExperimentalReverseMaps
+} from '../lib/misc/MetaObjectMap';
+import {
+    createDummyObjectUnversioned,
+    createDummyObjectVersioned,
+    DummyObjectRecipes
+} from './utils/createDummyObject';
 
 describe('MetaObjectMap test', () => {
-
     beforeEach(async () => {
+        useExperimentalReverseMaps(true);
         return await initInstance({
             name: 'testname',
             email: 'test@test.com',
@@ -13,7 +23,7 @@ describe('MetaObjectMap test', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [...MetaObjectMapRecipes]
+            initialRecipes: [...DummyObjectRecipes, ...MetaObjectMapRecipes]
         });
     });
 
@@ -22,45 +32,34 @@ describe('MetaObjectMap test', () => {
     });
 
     it('Create and retrieve metamap objects', async () => {
-        const me = await getInstanceOwnerIdHash();
+        const me = getInstanceOwnerIdHash();
+
         if (me === undefined) {
             throw new Error('Instance not initialized');
         }
 
-        const result1 = await storeMetaObject(me, {
-            $type$: 'Keys',
-            owner: me,
-            publicKey: '0000000000000000000000000000000000000000000='
-        });
+        const result1 = await createDummyObjectUnversioned('t1');
+        const result2 = await createDummyObjectUnversioned('t2');
+        const idResult1 = await createDummyObjectVersioned('i1', 't3');
 
-        const result2 = await storeMetaObject(me, {
-            $type$: 'Keys',
-            owner: me,
-            publicKey: '0000000000000000000000000000000000000000001='
-        });
+        await addMetaObject(me, result1.hash);
+        await addMetaObject(me, result2.hash);
+        await addMetaObject(me, idResult1.hash);
 
-        const result3 = await storeMetaObject(me, {
-            $type$: 'Plan',
-            parameters: 'dummy3',
-            moduleName: 'dummy4'
-        });
+        const unv = await getMetaObjectsOfType(me, 'DummyObjectUnversioned');
+        const unvHashes = await getMetaObjectHashesOfType(me, 'DummyObjectUnversioned');
+        const v = await getMetaObjectsOfType(me, 'DummyObjectVersioned');
+        const vHashes = await getMetaObjectHashesOfType(me, 'DummyObjectVersioned');
 
-        const keys = await getMetaObjectsOfType(me, 'Keys');
-        const keyHashes = await getMetaObjectHashesOfType(me, 'Keys');
-        const plans = await getMetaObjectsOfType(me, 'Plan');
-        const planHashes = await getMetaObjectHashesOfType(me, 'Plan');
+        expect(unv.length).to.be.equal(2);
+        expect(unvHashes.length).to.be.equal(2);
+        expect(v.length).to.be.equal(1);
+        expect(vHashes.length).to.be.equal(1);
 
-        expect(keys.length).to.be.equal(2);
-        expect(keyHashes.length).to.be.equal(2);
-        expect(plans.length).to.be.equal(1);
-        expect(planHashes.length).to.be.equal(1);
-
-        expect(keys[0].publicKey).to.be.equal('0000000000000000000000000000000000000000000=');
-        expect(keys[1].publicKey).to.be.equal('0000000000000000000000000000000000000000001=');
-        expect(keyHashes[0]).to.be.equal(result1.hash);
-        expect(keyHashes[1]).to.be.equal(result2.hash);
-        expect(plans[0].parameters).to.be.equal('dummy3');
-        expect(plans[0].moduleName).to.be.equal('dummy4');
-        expect(planHashes[0]).to.be.equal(result3.hash);
+        expect(unv.map(x => x.data)).to.have.members(['t1', 't2']);
+        expect(unvHashes).to.have.members([result1.hash, result2.hash]);
+        expect(v[0].id).to.be.equal('i1');
+        expect(v[0].data).to.be.equal('t3');
+        expect(vHashes[0]).to.be.equal(idResult1.hash);
     });
 });

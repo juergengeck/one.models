@@ -12,9 +12,11 @@ import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-obje
 import {iterateArrayFromEnd} from '@refinio/one.core/lib/util/function';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {getAllValues} from "@refinio/one.core/lib/reverse-map-query";
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
+let useReverseMaps: boolean = true;
 
 /**
  * Add a meta object to the list of meta objects.
@@ -26,6 +28,10 @@ export async function addMetaObject(
     objHash: SHA256Hash | SHA256IdHash,
     metaObjectHash: SHA256Hash
 ): Promise<void> {
+    if (useReverseMaps) {
+        return;
+    }
+
     const metaObject = await getObject(metaObjectHash);
     await addMetaObjectWithType(objHash, metaObjectHash, metaObject.$type$);
 }
@@ -41,7 +47,11 @@ export async function storeMetaObject<T extends OneUnversionedObjectTypes>(
     metaObject: T
 ): Promise<UnversionedObjectResult<T>> {
     const metaObjectResult = await storeUnversionedObject(metaObject);
-    await addMetaObjectWithType(objHash, metaObjectResult.hash, metaObject.$type$);
+
+    if (!useReverseMaps) {
+        await addMetaObjectWithType(objHash, metaObjectResult.hash, metaObject.$type$);
+    }
+
     return metaObjectResult;
 }
 
@@ -55,7 +65,15 @@ export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
     objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<OneObjectInterfaces[T][]> {
-    const metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
+    let metaObjectHashes: SHA256Hash<OneObjectInterfaces[T]>[];
+    if (useReverseMaps) {
+        const reverseMapEntriesH = await getAllValues(objHash, true, type);
+        const reverseMapEntriesI = await getAllValues(objHash, false, type);
+        metaObjectHashes = reverseMapEntriesH.concat(reverseMapEntriesI).map(e => e.toHash);
+    } else {
+        metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
+    }
+
     const metaObjects = await Promise.all(metaObjectHashes.map(getObject));
 
     // Filter unwanted objects, so that the app does not die if a wrong object made it into the map.
@@ -66,7 +84,9 @@ export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
         }
     );
     if (metaObjectHashes.length !== metaObjectsOfType.length) {
-        console.error('Programming Error: Somehow an object of the wrong type made it into the MetaObjectMap');
+        console.error(
+            'Programming Error: Somehow an object of the wrong type made it into the MetaObjectMap'
+        );
     }
 
     return metaObjectsOfType;
@@ -82,29 +102,34 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
     objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
-    const metaObjectMap = await loadMetaObjectMap(objHash);
-    let metaObjectHashes = metaObjectMap.metaObjects.get(type);
-    if (metaObjectHashes === undefined) {
-        return [];
+    if (useReverseMaps) {
+        const reverseMapEntriesH = await getAllValues(objHash, true, type);
+        const reverseMapEntriesI = await getAllValues(objHash, false, type);
+        return reverseMapEntriesH.concat(reverseMapEntriesI).map(e => e.toHash);
+    } else {
+        const metaObjectMap = await loadMetaObjectMap(objHash);
+        const metaObjectHashes = metaObjectMap.metaObjects.get(type);
+        if (metaObjectHashes === undefined) {
+            return [];
+        }
+        return [...metaObjectHashes] as SHA256Hash<OneObjectInterfaces[T]>[];
     }
-    return [...metaObjectHashes] as SHA256Hash<OneObjectInterfaces[T]>[];
 }
 
 /**
  * Get the latest meta object of a specific type.
  *
+ * TODO: Attention this does not work as expected if experimental mode is on, because
+ *       'sets' in one.core are not ordered!
+ *
  * @param objHash
  * @param type
  */
 export async function getLatestMetaObjectOfType<T extends OneObjectTypeNames>(
-    objHash: SHA256Hash,
+    objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<OneObjectInterfaces[T]> {
-    const metaObjectMap = await loadMetaObjectMap(objHash);
-    let metaObjectHashes = metaObjectMap.metaObjects.get(type);
-    if (metaObjectHashes === undefined) {
-        throw new Error('No meta object of type found (1)');
-    }
+    const metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
 
     function isObjectOfType(obj: OneObjectTypes): obj is OneObjectInterfaces[T] {
         return obj.$type$ === type;
@@ -124,6 +149,15 @@ export async function getLatestMetaObjectOfType<T extends OneObjectTypeNames>(
     }
 
     throw new Error('No meta object of type found (2)');
+}
+
+/**
+ * Revert to the usage of reverse maps when using the MetaObjectMap interface.
+ *
+ * @param enable - If true then use reverse maps (then you have to enable reverse maps for the used types in initInstance)
+ */
+export function useExperimentalReverseMaps(enable: boolean) {
+    useReverseMaps = !enable;
 }
 
 // ######## Private stuff ########
