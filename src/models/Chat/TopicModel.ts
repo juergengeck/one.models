@@ -6,11 +6,11 @@ import type {ObjectData} from '../ChannelManager';
 import TopicRegistry from './TopicRegistry';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import {
-    createSingleObjectThroughPurePlan,
+    createSingleObjectThroughPurePlan, getObjectByIdHash,
     onUnversionedObj,
     SET_ACCESS_MODE,
     VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+} from "@refinio/one.core/lib/storage";
 import {OEvent} from '../../misc/OEvent';
 import type {Topic} from '../../recipes/ChatRecipes';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -26,6 +26,8 @@ export default class TopicModel extends Model {
     private readonly TopicRegistryLOCK = 'ON_TOPIC_REGISTRY_OPERATION';
 
     private topicRegistry: TopicRegistry | undefined;
+
+    public static readonly EVERYONE_TOPIC_ID = 'EveryoneTopic'
 
     /**
      * Notify the user whenever a new topic is created or received.
@@ -63,6 +65,8 @@ export default class TopicModel extends Model {
         this.topicRegistry = await TopicRegistry.load();
 
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
+        onUnversionedObj.addListener(this.boundNewTopicFromResult);
+
         this.state.triggerEvent('init');
     }
 
@@ -81,46 +85,43 @@ export default class TopicModel extends Model {
     }
 
     /**
-     * Creates a new topic.
-     * @param name
+     * Creates the default everyone topic
      */
-    private async createNewTopic(name?: string): Promise<Topic> {
+    public async createEveryoneTopic(): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        // if no name was passed, generate a random one
-        const topicName = name === undefined ? await createRandomString() : name;
-        // generate a random channel id
-        const randomChannelId = await createRandomString();
-
-        await this.channelManager.createChannel(randomChannelId);
-        const channels = await this.channelManager.channels({channelId: randomChannelId});
-
-        if (channels[0] === undefined) {
-            throw new Error(
-                "Error while trying to retrieve the topic's channel. The channel" +
-                    ' does not exist.'
-            );
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
-        const createdChannel = channels[0];
+        const exist = await this.doesTopicExists(TopicModel.EVERYONE_TOPIC_ID);
+        if(exist){
+            // because the topic exist - can't return undefined
+            return await this.topicRegistry.retrieveTopicByChannelId(TopicModel.EVERYONE_TOPIC_ID) as Topic
+        }
+        return await this.createNewTopic('Everyone', TopicModel.EVERYONE_TOPIC_ID)
+    }
 
-        const savedTopic = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Topic',
-                channel: await calculateIdHashOfObj({
-                    $type$: 'ChannelInfo',
-                    id: createdChannel.id,
-                    owner: createdChannel.owner
-                }),
-                name: topicName
-            }
-        );
+    /**
+     * Creates one to one topic (person to person)
+     * @param topicName
+     * @param from
+     * @param to
+     */
+    public async createOneToOneTopic(topicName: string, from: SHA256IdHash<Person>, to: SHA256IdHash<Person>): Promise<Topic> {
+        this.state.assertCurrentState('Initialised');
 
-        return savedTopic.obj;
+        return await this.createNewTopic(topicName, `${from}->${to}`)
+    }
+
+    /**
+     * Creates group topic (multiplePerson)
+     * @param topicName
+     */
+    public async createGroupTopic(topicName: string): Promise<Topic> {
+        this.state.assertCurrentState('Initialised');
+
+        return await this.createNewTopic(topicName);
     }
 
     /**
@@ -134,7 +135,9 @@ export default class TopicModel extends Model {
             throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
-        const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(topic.channel);
+        const channel = await getObjectByIdHash(topic.channel)
+
+        const foundTopic = await this.topicRegistry.retrieveTopicByChannelId(channel.obj.id);
 
         if (foundTopic === undefined) {
             throw new Error('Error while trying to retrieve the topic. The topic does not exist.');
@@ -143,6 +146,16 @@ export default class TopicModel extends Model {
         const topicRoom = new TopicRoom(foundTopic, this.channelManager);
         await topicRoom.load();
         return topicRoom;
+    }
+
+    public async doesTopicExists(channelId: string): Promise<boolean> {
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
+
+        const result = await this.topicRegistry.retrieveTopicByChannelId(channelId)
+        return result !== undefined;
+
     }
 
     /**
@@ -163,7 +176,7 @@ export default class TopicModel extends Model {
      * @param participants
      * @param topic
      */
-    public async shareTopicWithPersons(
+    public async addPersonsToTopic(
         participants: SHA256IdHash<Person>[],
         topic: Topic
     ): Promise<void> {
@@ -188,7 +201,7 @@ export default class TopicModel extends Model {
      * @param groupIdHash
      * @param topic
      */
-    public async shareTopicWithGroup(
+    public async addGroupToTopic(
         groupIdHash: SHA256IdHash<Group>,
         topic: Topic
     ): Promise<void> {
@@ -209,6 +222,50 @@ export default class TopicModel extends Model {
     }
 
     // --------------------------------- private ---------------------------------
+
+    /**
+     * Creates a new topic.
+     * @param desiredTopicName
+     * @param desiredChannelTopicId
+     */
+    private async createNewTopic(desiredTopicName?: string, desiredChannelTopicId?: string): Promise<Topic> {
+        this.state.assertCurrentState('Initialised');
+
+        // if no name was passed, generate a random one
+        const topicName = desiredTopicName === undefined ? await createRandomString() : desiredTopicName;
+        // generate a random channel id
+        const topicChannelId = desiredChannelTopicId === undefined ? await createRandomString() : desiredChannelTopicId;
+
+        await this.channelManager.createChannel(topicChannelId);
+        const channels = await this.channelManager.channels({channelId: topicChannelId});
+
+        if (channels[0] === undefined) {
+            throw new Error(
+              "Error while trying to retrieve the topic's channel. The channel" +
+              ' does not exist.'
+            );
+        }
+
+        const createdChannel = channels[0];
+
+        const savedTopic = await createSingleObjectThroughPurePlan(
+          {
+              module: '@one/identity',
+              versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
+          },
+          {
+              $type$: 'Topic',
+              channel: await calculateIdHashOfObj({
+                  $type$: 'ChannelInfo',
+                  id: createdChannel.id,
+                  owner: createdChannel.owner
+              }),
+              name: topicName
+          }
+        );
+
+        return savedTopic.obj;
+    }
 
     /**
      * Notify the client to update the conversation list (there might be a new last message for

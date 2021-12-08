@@ -30,10 +30,13 @@ export interface ChatMessage {
     sender: SHA256IdHash<Person>;
 }
 
+type TopicChannelID = string;
+
+
 export interface TopicAppRegistry {
     $type$: 'TopicAppRegistry';
     id: 'TopicAppRegistry';
-    topics: Map<SHA256IdHash<ChannelInfo>, SHA256Hash<Topic>>;
+    topics: Map<TopicChannelID, SHA256Hash<Topic>>;
 }
 
 export const ChatMessageRecipe: Recipe = {
@@ -85,7 +88,7 @@ export const TopicAppRegistryRecipe: Recipe = {
             itemprop: 'topics',
             itemtype: {
                 type: 'map',
-                key: {type: 'referenceToId', allowedTypes: new Set(['ChannelInfo'])},
+                key: {type: 'string'},
                 value: {type: 'referenceToObj', allowedTypes: new Set(['Topic'])}
             }
         }

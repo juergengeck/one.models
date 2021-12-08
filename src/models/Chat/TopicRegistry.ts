@@ -1,10 +1,10 @@
 import {
     createSingleObjectThroughPurePlan,
-    getObject,
+    getObject, getObjectByIdHash,
     UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
+} from "@refinio/one.core/lib/storage";
 import {getObjectByIdObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -30,11 +30,12 @@ export default class TopicRegistry {
 
     /**
      * Removes the topic from the TopicRegistry
-     * @param channel
+     * @param channelIdHash
      */
-    public async removeTopicByChannelId(channel: SHA256IdHash<ChannelInfo>): Promise<void> {
+    public async removeTopicByChannelId(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
+        const channel = await getObjectByIdHash(channelIdHash);
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        registry.obj.topics.delete(channel);
+        registry.obj.topics.delete(channel.obj.id);
         await this.updateTopicRegistry(registry.obj.topics);
     }
 
@@ -44,8 +45,9 @@ export default class TopicRegistry {
      */
     public async registerTopic(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
+        const channel = await getObjectByIdHash(topic.obj.channel);
 
-        registry.obj.topics.set(topic.obj.channel, topic.hash);
+        registry.obj.topics.set(channel.obj.id, topic.hash);
         await this.updateTopicRegistry(registry.obj.topics);
         return topic.obj;
     }
@@ -64,7 +66,7 @@ export default class TopicRegistry {
      * @param channelId
      */
     public async retrieveTopicByChannelId(
-        channelId: SHA256IdHash<ChannelInfo>
+        channelId: string
     ): Promise<Topic | undefined> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
         const foundTopic = registry.obj.topics.get(channelId);

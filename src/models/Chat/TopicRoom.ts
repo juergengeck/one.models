@@ -58,14 +58,21 @@ export default class TopicRoom {
      * Iterator to retrieved page-sized messages.
      * @param count
      */
-    async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>> {
+    async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>[]> {
+        let collectedItems = [];
+
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
-            count,
-            to: this.dateOfLastQueriedMessage,
-            channelId: this.topic.channel
+            channelId: this.conversationId
         })) {
-            yield entry;
-            this.dateOfLastQueriedMessage = entry.creationTime;
+            collectedItems.push(entry)
+            if(collectedItems.length === count){
+                yield collectedItems;
+                collectedItems = [];
+            }
+        }
+
+        if(collectedItems.length > 0){
+            yield collectedItems
         }
     }
 
@@ -74,7 +81,7 @@ export default class TopicRoom {
      */
     async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
-            channelId: this.topic.channel
+            channelId: this.conversationId
         });
     }
 
@@ -115,7 +122,7 @@ export default class TopicRoom {
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
-        if (channelId === this.topic.channel) {
+        if (channelId === this.conversationId) {
             this.onNewMessageReceived.emit(data as ObjectData<ChatMessage>);
         }
     }
