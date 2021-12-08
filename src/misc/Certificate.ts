@@ -4,6 +4,8 @@ import {isSignedBy, sign, signedBy} from "./Signature";
 import type {Person} from "@refinio/one.core/lib/recipes";
 import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
 import {calculateHashOfObj} from "@refinio/one.core/lib/util/object";
+import {getObject} from "@refinio/one.core/lib/storage";
+import type {RelationCertificate} from "../recipes/CertificateRecipes";
 
 /**
  * Certify with your own sign key, that person1 has the specified relation with person2.
@@ -29,11 +31,11 @@ export async function certifyRelation(person1: SHA256IdHash<Person>, person2: SH
 /**
  * Check if somebody certified the specified relation between two persons
  *
- * @param by
- * @param person1
- * @param person2
- * @param relation
- * @param app
+ * @param by - issued by this person
+ * @param person1 - person1 in relation
+ * @param person2 - person2 in relation
+ * @param relation - type of relation
+ * @param app -  app string
  */
 export async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: SHA256IdHash<Person>, person2: SHA256IdHash<Person>, relation: string, app: string): Promise<boolean> {
     const certificateHash = await calculateHashOfObj({
@@ -45,6 +47,25 @@ export async function isRelationCertifiedBy(by: SHA256IdHash<Person>, person1: S
     })
     return isSignedBy(certificateHash, by);
 }
+
+/**
+ * Get a list of relation certificates where person1 is a specific person.
+ *
+ * @param by - issued by this person
+ * @param person1 - person1 in relation
+ * @param relation - type of relation
+ * @param app -  app string
+ */
+export async function relationsCertifiedForPerson1By(by: SHA256IdHash<Person>, person1: SHA256IdHash<Person>, relation: string, app: string): Promise<RelationCertificate[]> {
+    const certificates = await getMetaObjectHashesOfType(person1, 'RelationCertificate');
+    const isSingedArr = await Promise.all(certificates.map(cert => isSignedBy(cert, by)));
+    const signedCertificateHashes = certificates.filter((_value, index) => isSingedArr[index])
+    const signedCertificates = await Promise.all(signedCertificateHashes.map(getObject));
+    return signedCertificates.filter(cert => {
+        return cert.person1 === person1 && cert.relation === relation && cert.app === app
+    });
+}
+
 
 /**
  * You affirm that this data ia genuine.

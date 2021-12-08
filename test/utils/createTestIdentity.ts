@@ -1,9 +1,9 @@
-import tweetnacl from "tweetnacl";
-import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
-import type {Keys, Person, Plan} from "@refinio/one.core/lib/recipes";
-import {storeVersionedObject} from "@refinio/one.core/lib/storage-versioned-objects";
-import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
-import {fromByteArray} from "base64-js";
+import tweetnacl from 'tweetnacl';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Keys, Person, Plan} from '@refinio/one.core/lib/recipes';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {fromByteArray} from 'base64-js';
 
 const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -22,19 +22,20 @@ export async function createTestIdentity(email: string): Promise<{
 }> {
     const keyPair = tweetnacl.box.keyPair();
     const signKeyPair = tweetnacl.sign.keyPair();
-    const person = (
-        await storeVersionedObject(
-            {
-                $type$: 'Person',
-                email
-            },
-            DUMMY_PLAN_HASH
-        )
-    ).idHash;
+    const personResult = await storeVersionedObject(
+        {
+            $type$: 'Person',
+            email
+        },
+        DUMMY_PLAN_HASH
+    );
+    if (personResult.status !== 'new') {
+        throw new Error('The person with the specified ID already exists.');
+    }
     const keys = (
         await storeUnversionedObject({
             $type$: 'Keys',
-            owner: person,
+            owner: personResult.idHash,
             publicKey: fromByteArray(keyPair.publicKey),
             publicSignKey: fromByteArray(signKeyPair.publicKey)
         })
@@ -43,7 +44,7 @@ export async function createTestIdentity(email: string): Promise<{
     return {
         keyPair,
         signKeyPair,
-        person,
+        person: personResult.idHash,
         keys
     };
 }
