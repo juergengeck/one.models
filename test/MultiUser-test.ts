@@ -1,9 +1,13 @@
-import {expect} from 'chai';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {MultiUser} from '../lib/models/Authenticator';
 import {dbKey} from './utils/TestModel';
 import {mkdir} from 'fs/promises';
 
+import * as chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+chai.use(chaiAsPromised);
+
+const {expect} = chai;
 describe('MultiUser Test', () => {
     async function waitForState(state: AuthState, delay: number = 500): Promise<void> {
         await new Promise<void>((resolve, rejected) => {
@@ -14,11 +18,11 @@ describe('MultiUser Test', () => {
                     if (newState === state) {
                         resolve();
                     }
-                    setTimeout(() => {
-                        rejected();
-                    }, delay);
                 });
             }
+            setTimeout(() => {
+                rejected('The desired state did not showed up.');
+            }, delay);
         });
     }
 
@@ -27,16 +31,17 @@ describe('MultiUser Test', () => {
         {email: 'test$email_2', secret: 'test$secret_2', instance: 'test$instanceName_2'}
     ];
 
+    const STORAGE_TEST_DIR = 'test/testStorage';
     const multiUserWorkflow = new MultiUser({directory: `test/${dbKey}`});
 
     /**
      * After each test case login & erase user1, followed by login & erase user2
      */
     afterEach(done => {
-        return multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
-            multiUserWorkflow.eraseCurrentInstance().finally(() => {
+        multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
+            multiUserWorkflow.logoutAndErase().finally(() => {
                 multiUserWorkflow.login(user2.email, user2.secret, user2.instance).finally(() => {
-                    multiUserWorkflow.eraseCurrentInstance();
+                    multiUserWorkflow.logoutAndErase().finally(done);
                 });
             });
         });
@@ -45,56 +50,34 @@ describe('MultiUser Test', () => {
     /**
      * Before each test case register & logout the user2, followed by register the user1 & logout
      */
-    beforeEach(async done => {
+    beforeEach(async () => {
         await mkdir(`test/${dbKey}`, {recursive: true});
-
-        multiUserWorkflow
-            .register(user2.email, user2.secret, user2.instance)
-            .then(() => {
-                multiUserWorkflow.logout();
-                multiUserWorkflow
-                    .register(user1.email, user1.secret, user1.instance)
-                    .then(() => {
-                        multiUserWorkflow.logout();
-                    })
-                    .catch(err => {
-                        throw err;
-                    });
-            })
-            .catch(err => {
-                throw err;
-            });
+        await multiUserWorkflow.register(user2.email, user2.secret, user2.instance);
+        await multiUserWorkflow.logout();
+        await multiUserWorkflow.register(user1.email, user1.secret, user1.instance);
+        await multiUserWorkflow.logout();
     });
 
     describe('Register & Erase', () => {
-        it('should test if register(email, secret, instanceName) & eraseCurrentInstance() are successfully', async () => {
+        it('should test if register(email, secret, instanceName) & logoutAndErase() are successfully', async () => {
             await multiUserWorkflow.register('test$email', 'test$secret', 'test$instanceName');
             await waitForState('logged_in');
 
-            await multiUserWorkflow.eraseCurrentInstance();
+            await multiUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
         });
-        it('should test if eraseCurrentInstance() throws an error when it is called twice', async () => {
+        it('should test if logoutAndErase() throws an error when it is called twice', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
             await waitForState('logged_in');
 
-            await multiUserWorkflow.eraseCurrentInstance();
+            await multiUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
 
-            await new Promise<void>((resolve, rejected) => {
-                multiUserWorkflow
-                    .eraseCurrentInstance()
-                    .then(res => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(multiUserWorkflow.logoutAndErase())
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
         it('should test if erase is successfully', async () => {
             await multiUserWorkflow.erase(user1.instance, user1.email);
@@ -102,20 +85,10 @@ describe('MultiUser Test', () => {
         it(
             'should test if register(email, secret, instanceName) throws an error when user' +
                 ' already exist',
-            done => {
-                multiUserWorkflow
-                    .register(user1.email, user1.secret, user1.instance)
-                    .then(_ => {
-                        done('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        done();
-                        // code gets stucked in the .to.include for some unknown reason
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'Could not register user. The single user already exists.'
-                        );
-                    });
+            async () => {
+                await chai
+                    .expect(multiUserWorkflow.register(user1.email, user1.secret, user1.instance))
+                    .to.eventually.be.rejectedWith('Could not register user. User already exists.');
             }
         );
         it(
@@ -129,7 +102,7 @@ describe('MultiUser Test', () => {
                 );
                 await waitForState('logged_in');
 
-                await multiUserWorkflow.eraseCurrentInstance();
+                await multiUserWorkflow.logoutAndErase();
                 await waitForState('logged_out');
 
                 await multiUserWorkflow.register(
@@ -139,7 +112,7 @@ describe('MultiUser Test', () => {
                 );
                 await waitForState('logged_in');
 
-                await multiUserWorkflow.eraseCurrentInstance();
+                await multiUserWorkflow.logoutAndErase();
                 await waitForState('logged_out');
             }
         );
@@ -167,69 +140,35 @@ describe('MultiUser Test', () => {
             await multiUserWorkflow.logout();
             await waitForState('logged_out');
 
-            await new Promise<void>((resolve, rejected) => {
-                multiUserWorkflow
-                    .logout()
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(multiUserWorkflow.logout())
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
         it('should test if login(email, secret, instanceName) throws an error when the user was not registered', async () => {
-            try {
-                await multiUserWorkflow.login(
-                    'test$email_5',
-                    'test$secret_5',
-                    'test$instanceName_5'
-                );
-            } catch (error) {
-                expect(error, error).to.be.instanceof(Error);
-                expect(error.message).to.include(
+            await chai
+                .expect(
+                    multiUserWorkflow.login('test$email_5', 'test$secret_5', 'test$instanceName_5')
+                )
+                .to.eventually.be.rejectedWith(
                     'Error while trying to login. User does not exists.'
                 );
-            }
         });
         it('should test if login(email, secret, instanceName) throws an error when the user double logins', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
             await waitForState('logged_in');
 
-            await new Promise<void>((resolve, rejected) => {
-                multiUserWorkflow
-                    .login(user1.email, user1.secret, user1.instance)
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(multiUserWorkflow.login(user1.email, user1.secret, user1.instance))
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
         it('should test if login(email, secret, instanceName) throws an error when the user inputs the wrong secret', async () => {
-            await new Promise<void>((resolve, rejected) => {
-                multiUserWorkflow
-                    .login(user1.email, 'wrong-secret', user1.instance)
-                    .then(async () => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'Error while trying to initialise instance due to Error: IC-AUTH'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(multiUserWorkflow.login(user1.email, 'wrong-secret', user1.instance))
+                .to.eventually.be.rejectedWith('The provided secret is wrong');
         });
         it('should test if it can login & logout into new created users', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
@@ -254,7 +193,7 @@ describe('MultiUser Test', () => {
             );
             await waitForState('logged_in');
 
-            await multiUserWorkflow.eraseCurrentInstance();
+            await multiUserWorkflow.logoutAndErase();
             await waitForState('logged_out');
         });
         it('should test if loginOrregister(email, secret, instanceName) is successfuly when user was registered', async () => {
@@ -274,39 +213,27 @@ describe('MultiUser Test', () => {
             await multiUserWorkflow.loginOrRegister(user1.email, user1.secret, user1.instance);
             await waitForState('logged_in');
 
-            await new Promise<void>((resolve, rejected) => {
-                multiUserWorkflow
-                    .loginOrRegister(user1.email, user1.secret, user1.instance)
-                    .then(_ => {
-                        rejected('Call should have thrown error.');
-                    })
-                    .catch(error => {
-                        expect(error, error).to.be.instanceof(Error);
-                        expect(error.message).to.include(
-                            'The transition does not exists from the current state with the specified event'
-                        );
-                        resolve();
-                    });
-            });
+            await chai
+                .expect(
+                    multiUserWorkflow.loginOrRegister(user1.email, user1.secret, user1.instance)
+                )
+                .to.eventually.be.rejectedWith(
+                    'The transition does not exists from the current state with the specified event'
+                );
         });
         it(
             'should test if loginOrregister(email, secret, instanceName) throws an error when the user was' +
                 ' already registered and it calls the function with the wrong secret',
             async () => {
-                await new Promise<void>((resolve, rejected) => {
-                    multiUserWorkflow
-                        .loginOrRegister(user1.email, 'wrong-secret', user1.instance)
-                        .then(async () => {
-                            rejected('Call should have thrown error.');
-                        })
-                        .catch(error => {
-                            expect(error, error).to.be.instanceof(Error);
-                            expect(error.message).to.include(
-                                'Error while trying to initialise instance due to Error: IC-AUTH'
-                            );
-                            resolve();
-                        });
-                });
+                await chai
+                    .expect(
+                        multiUserWorkflow.loginOrRegister(
+                            user1.email,
+                            'wrong-secret',
+                            user1.instance
+                        )
+                    )
+                    .to.eventually.be.rejectedWith('The provided secret is wrong');
             }
         );
     });
