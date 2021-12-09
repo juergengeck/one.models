@@ -1,11 +1,16 @@
 import Authenticator from './Authenticator';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {
+    calculateInstanceIdHash,
+    closeAndDeleteCurrentInstance,
+    initInstance,
+    registerRecipes
+} from '@refinio/one.core/lib/instance';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 
 type Credentials = {
     email: string;
-    name: string;
+    instanceName: string;
     secret: string;
 };
 
@@ -32,9 +37,10 @@ export default class SingleUserNoAuth extends Authenticator {
      *      - if no, it will throw error and trigger 'login_failure' event
      */
     async register(): Promise<void> {
-        const {name, email, secret} = await this.generateCredentialsIfNotExist();
+        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
 
-        const storage = await doesStorageExist(name, email, this.config.directory);
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
             throw new Error('Could not register user. The single user already exists.');
@@ -44,7 +50,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
         try {
             await initInstance({
-                name: name,
+                name: instanceName,
                 email: email,
                 secret: secret === undefined ? null : secret,
                 ownerName: 'name' + email,
@@ -54,7 +60,7 @@ export default class SingleUserNoAuth extends Authenticator {
             });
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll(name, secret, email);
+            await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
@@ -82,8 +88,9 @@ export default class SingleUserNoAuth extends Authenticator {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
-            const {email, name, secret} = credentials;
-            const storage = await doesStorageExist(name, email, this.config.directory);
+            const {email, instanceName, secret} = credentials;
+            const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+            const storage = await doesStorageExist(instanceIdHash);
 
             if (!storage) {
                 this.authState.triggerEvent('login_failure');
@@ -92,7 +99,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
             try {
                 await initInstance({
-                    name: name,
+                    name: instanceName,
                     email: email,
                     secret: secret === undefined ? null : secret,
                     ownerName: 'name' + email,
@@ -102,7 +109,7 @@ export default class SingleUserNoAuth extends Authenticator {
                 });
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(name, secret, email);
+                await this.onLogin.emitAll(instanceName, secret, email);
 
                 this.authState.triggerEvent('login_success');
             } catch (error) {
@@ -174,7 +181,7 @@ export default class SingleUserNoAuth extends Authenticator {
         if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
-                name: await createRandomString(64),
+                instanceName: await createRandomString(64),
                 secret: await createRandomString(64)
             };
             await this.persistCredentialsToStore(generatedCredentials);

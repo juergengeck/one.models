@@ -1,11 +1,16 @@
 import Authenticator from './Authenticator';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
-import {closeAndDeleteCurrentInstance, initInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {
+    calculateInstanceIdHash,
+    closeAndDeleteCurrentInstance,
+    initInstance,
+    registerRecipes
+} from '@refinio/one.core/lib/instance';
 
 type Credentials = {
     email: string;
-    name: string;
+    instanceName: string;
 };
 
 /**
@@ -32,9 +37,9 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async register(secret: string): Promise<void> {
-        const {name, email} = await this.generateCredentialsIfNotExist();
-
-        const storage = await doesStorageExist(name, email, this.config.directory);
+        const {instanceName, email} = await this.generateCredentialsIfNotExist();
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
             throw new Error('Could not register user. The single user already exists.');
@@ -44,7 +49,7 @@ export default class SingleUser extends Authenticator {
 
         try {
             await initInstance({
-                name: name,
+                name: instanceName,
                 email: email,
                 secret: secret,
                 ownerName: 'name' + email,
@@ -54,7 +59,7 @@ export default class SingleUser extends Authenticator {
             });
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll(name, secret, email);
+            await this.onLogin.emitAll(instanceName, secret, email);
 
             this.authState.triggerEvent('login_success');
         } catch (error) {
@@ -84,8 +89,10 @@ export default class SingleUser extends Authenticator {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
         } else {
-            const {email, name} = credentials;
-            const storage = await doesStorageExist(name, email, this.config.directory);
+            const {email, instanceName} = credentials;
+
+            const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+            const storage = await doesStorageExist(instanceIdHash);
 
             if (!storage) {
                 this.authState.triggerEvent('login_failure');
@@ -94,7 +101,7 @@ export default class SingleUser extends Authenticator {
 
             try {
                 await initInstance({
-                    name: name,
+                    name: instanceName,
                     email: email,
                     secret: secret,
                     ownerName: 'name' + email,
@@ -105,7 +112,7 @@ export default class SingleUser extends Authenticator {
 
                 await this.importModules();
                 await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(name, secret, email);
+                await this.onLogin.emitAll(instanceName, secret, email);
 
                 this.authState.triggerEvent('login_success');
             } catch (error) {
@@ -179,7 +186,7 @@ export default class SingleUser extends Authenticator {
         if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
-                name: await createRandomString(64)
+                instanceName: await createRandomString(64)
             };
             await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;

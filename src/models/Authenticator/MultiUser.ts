@@ -1,6 +1,7 @@
 import Authenticator from './Authenticator';
 import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 import {
+    calculateInstanceIdHash,
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
@@ -18,7 +19,8 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async register(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
             throw new Error('Could not register user. User already exists.');
@@ -62,7 +64,8 @@ export default class MultiUser extends Authenticator {
     async login(email: string, secret: string, instanceName: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
             try {
@@ -96,7 +99,8 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async loginOrRegister(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
             await this.login(email, secret, instanceName);
@@ -111,7 +115,8 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async isRegistered(email: string, instanceName: string): Promise<boolean> {
-        return await doesStorageExist(instanceName, email, this.config.directory);
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        return await doesStorageExist(instanceIdHash);
     }
 
     /**
@@ -137,11 +142,7 @@ export default class MultiUser extends Authenticator {
      * Erases the instance. This function will:
      *  - deletes the database
      */
-    async erase(
-        instanceName: string,
-        email: string,
-        dbName: string | undefined = this.config.directory
-    ): Promise<void> {
-        await deleteInstance(instanceName, email, dbName);
+    async erase(instanceName: string, email: string): Promise<void> {
+        await deleteInstance(instanceName, email);
     }
 }
