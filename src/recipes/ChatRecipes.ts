@@ -19,8 +19,10 @@ declare module '@OneObjectInterfaces' {
 
 export interface Topic {
     $type$: 'Topic';
-    name?: string;
+    // one-to-one relationship between the id and the channelID
+    id: string;
     channel: SHA256IdHash<ChannelInfo>;
+    name?: string;
 }
 
 export interface ChatMessage {
@@ -67,6 +69,10 @@ export const TopicRecipe: Recipe = {
             itemprop: 'name',
             itemtype: {type: 'string'},
             optional: true
+        },
+        {
+            itemprop: 'id',
+            itemtype: {type: 'string'},
         },
         {
             itemprop: 'channel',

@@ -6,7 +6,6 @@ import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
 
 export default class TopicRoom {
     /**
@@ -17,17 +16,18 @@ export default class TopicRoom {
     >();
 
     public topic: Topic;
-    public conversationId: string | undefined;
 
     /** cache the last timestamp for queried messages **/
     private dateOfLastQueriedMessage: Date | undefined = undefined;
 
     private readonly channelDisconnect: (() => void) | undefined;
+
     private readonly boundOnChannelUpdated: (
         channelId: string,
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) => Promise<void>;
+
     private channelManager: ChannelManager;
 
     constructor(topic: Topic, channelManager: ChannelManager) {
@@ -36,13 +36,6 @@ export default class TopicRoom {
 
         this.boundOnChannelUpdated = this.emitNewMessageEvent.bind(this);
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
-    }
-
-    /**
-     * Load the topic Room; sets the conversation id;
-     */
-    async load(): Promise<void> {
-        this.conversationId = (await getObjectByIdHash(this.topic.channel)).obj.id;
     }
 
     /**
@@ -62,17 +55,17 @@ export default class TopicRoom {
         let collectedItems = [];
 
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
-            channelId: this.conversationId
+            channelId: this.topic.id
         })) {
-            collectedItems.push(entry)
-            if(collectedItems.length === count){
+            collectedItems.push(entry);
+            if (collectedItems.length === count) {
                 yield collectedItems;
                 collectedItems = [];
             }
         }
 
-        if(collectedItems.length > 0){
-            yield collectedItems
+        if (collectedItems.length > 0) {
+            yield collectedItems;
         }
     }
 
@@ -81,7 +74,7 @@ export default class TopicRoom {
      */
     async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
-            channelId: this.conversationId
+            channelId: this.topic.id
         });
     }
 
@@ -93,21 +86,19 @@ export default class TopicRoom {
     async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
         const instanceIdHash = await getInstanceOwnerIdHash();
 
-        if (this.conversationId === undefined) {
-            throw new Error('Error: conversation id is undefined');
-        }
-
         if (instanceIdHash === undefined) {
             throw new Error('Error: instance id hash could not be found');
         }
 
-        await this.channelManager.postToChannel(this.conversationId, {
+        await this.channelManager.postToChannel(this.topic.id, {
             $type$: 'ChatMessage',
             text: message,
             sender: instanceIdHash,
             attachments: attachments
         });
     }
+
+    // --------------------------------- private ---------------------------------
 
     /**
      * Notify the client to update the conversation list (there might be a new last message for
@@ -122,7 +113,7 @@ export default class TopicRoom {
         channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
-        if (channelId === this.conversationId) {
+        if (channelId === this.topic.id) {
             this.onNewMessageReceived.emit(data as ObjectData<ChatMessage>);
         }
     }

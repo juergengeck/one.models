@@ -1,17 +1,16 @@
 import {
     createSingleObjectThroughPurePlan,
-    getObject, getObjectByIdHash,
+    getObject,
+    getObjectByIdHash,
     UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
-} from "@refinio/one.core/lib/storage";
+} from '@refinio/one.core/lib/storage';
 import {getObjectByIdObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
 /**
- * Registry that holds references to all the created topics
+ * Registry that holds references to all the created topics.
  */
 export default class TopicRegistry {
     private static readonly id = 'TopicAppRegistry';
@@ -29,59 +28,32 @@ export default class TopicRegistry {
     }
 
     /**
-     * Removes the topic from the TopicRegistry
-     * @param channelIdHash
+     * Removes the topic from the TopicRegistry by the given topicID.
+     * @param topicID
      */
-    public async removeTopicByChannelId(channelIdHash: SHA256IdHash<ChannelInfo>): Promise<void> {
-        const channel = await getObjectByIdHash(channelIdHash);
+    public async remove(topicID: string): Promise<void> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        registry.obj.topics.delete(channel.obj.id);
-        await this.updateTopicRegistry(registry.obj.topics);
+        registry.obj.topics.delete(topicID);
+        await TopicRegistry.updateTopicRegistry(registry.obj.topics);
     }
 
     /**
-     * Creates a topic and sets it in the TopicRegistry.
+     * Registers the given topic into the TopicRegistry.
      * @param topic
      */
-    public async registerTopic(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
+    public async add(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
         const channel = await getObjectByIdHash(topic.obj.channel);
 
         registry.obj.topics.set(channel.obj.id, topic.hash);
-        await this.updateTopicRegistry(registry.obj.topics);
+        await TopicRegistry.updateTopicRegistry(registry.obj.topics);
         return topic.obj;
-    }
-
-    /**
-     * Retrieve topics by the given name.
-     * @param name
-     */
-    public async retrieveTopicsByName(name: string): Promise<Topic[]> {
-        const topics = await this.retrieveAllTopics();
-        return topics.filter(topic => topic.name !== undefined && topic.name === name);
-    }
-
-    /**
-     * Retrieve topic by the channel id.
-     * @param channelId
-     */
-    public async retrieveTopicByChannelId(
-        channelId: string
-    ): Promise<Topic | undefined> {
-        const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        const foundTopic = registry.obj.topics.get(channelId);
-
-        if (foundTopic === undefined) {
-            return undefined;
-        }
-
-        return await getObject(foundTopic);
     }
 
     /**
      * Retrieve all the topics in the TopicRegistry.
      */
-    public async retrieveAllTopics(): Promise<Topic[]> {
+    public async all(): Promise<Topic[]> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
         const topicsHashes = Array.from(registry.obj.topics.values());
         return await Promise.all(
@@ -90,6 +62,32 @@ export default class TopicRegistry {
             })
         );
     }
+
+    /**
+     * Retrieve topics by the given name.
+     * @param name
+     */
+    public async queryByName(name: string): Promise<Topic[]> {
+        const topics = await this.all();
+        return topics.filter(topic => topic.name !== undefined && topic.name === name);
+    }
+
+    /**
+     * Retrieve topic by the channel id.
+     * @param topicID
+     */
+    public async queryById(topicID: string): Promise<Topic | undefined> {
+        const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
+        const foundTopic = registry.obj.topics.get(topicID);
+
+        if (foundTopic === undefined) {
+            return undefined;
+        }
+
+        return await getObject(foundTopic);
+    }
+
+    // --------------------------------- private ---------------------------------
 
     /**
      * Creates the topic registry if not exist, otherwise returns the existing one.
@@ -124,7 +122,7 @@ export default class TopicRegistry {
      * @param topics
      * @private
      */
-    private async updateTopicRegistry(topics: TopicAppRegistry['topics']): Promise<void> {
+    private static async updateTopicRegistry(topics: TopicAppRegistry['topics']): Promise<void> {
         await createSingleObjectThroughPurePlan(
             {
                 module: '@one/identity',
