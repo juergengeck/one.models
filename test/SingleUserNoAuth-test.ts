@@ -5,6 +5,7 @@ import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 chai.use(chaiAsPromised);
 
 const {expect} = chai;
@@ -40,6 +41,8 @@ describe('SingleUserNoAuth Test', () => {
         await mkdir(`test/${defaultDbName}`, {recursive: true});
         await singleUserNoAuthWorkflow.register();
     });
+
+    after(async () => closeAndDeleteCurrentInstance);
 
     describe('Register & Erase', () => {
         it('should test if register() & logoutAndErase() are successfully', async () => {
