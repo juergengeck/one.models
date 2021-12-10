@@ -1,16 +1,15 @@
-import {importModules, removeDir} from './utils/TestModel';
-import {closeInstance} from '@refinio/one.core/lib/instance';
+import {importModules} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
 import {expect} from 'chai';
-import {wait} from '@refinio/one.core/lib/util/promise';
 
 describe('LeuteModel test', function () {
     let instancesModel: InstancesModel;
     let leuteModel: LeuteModel;
 
     beforeEach(async () => {
-        await StorageTestInit.init({deleteDb: false});
+        await StorageTestInit.init();
         await importModules();
 
         instancesModel = new InstancesModel();
@@ -21,10 +20,8 @@ describe('LeuteModel test', function () {
 
     afterEach(async function () {
         await leuteModel.shutdown();
-        //await instancesModel.shutdown();
-        await wait(1000);
-        closeInstance();
-        await removeDir(`./test/testDb`);
+        await instancesModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('should create groups module', async function () {
