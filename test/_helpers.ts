@@ -3,7 +3,7 @@ import type {Instance, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/r
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 
-const defaultDbName = 'testDb';
+export const defaultDbName = 'testDb';
 
 export interface StorageHelpersInitOpts {
     email?: string;

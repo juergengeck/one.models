@@ -1,6 +1,6 @@
 import Authenticator from './Authenticator';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import { doesStorageExist, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
+import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 import {
     calculateInstanceIdHash,
     closeAndDeleteCurrentInstance,
@@ -162,10 +162,12 @@ export default class SingleUser extends Authenticator {
         if (credentials === undefined) {
             return false;
         }
-        const {name, email} = credentials;
+
+        const {email, instanceName} = credentials;
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
 
         // check if the one storage exist (the instance was created)
-        return await doesStorageExist(name, email, this.config.directory);
+        return await doesStorageExist(instanceIdHash);
     }
 
     /**
@@ -176,8 +178,8 @@ export default class SingleUser extends Authenticator {
     async erase(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
         if (credentials !== undefined) {
-            const {name, email} = credentials;
-            await deleteInstance(name, email, this.config.directory);
+            const {instanceName, email} = credentials;
+            await closeAndDeleteCurrentInstance();
             await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
         } else {
             throw new Error(
@@ -208,10 +210,6 @@ export default class SingleUser extends Authenticator {
     }
 
     private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
-        // This has to be called before generate credentials. Otherwise,
-        // the call would just fail
-        setBaseDirOrName(this.config.directory);
-
         const storeCredentials = await this.store.getItem(
             SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
         );
@@ -225,10 +223,6 @@ export default class SingleUser extends Authenticator {
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
-        // This has to be called before generate credentials. Otherwise,
-        // the call would just fail
-        setBaseDirOrName(this.config.directory);
-
         await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 

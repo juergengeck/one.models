@@ -141,12 +141,8 @@ export default class MultiUser extends Authenticator {
      * Erases the instance. This function will:
      *  - deletes the instance
      */
-    async erase(
-        instanceName: string,
-        email: string,
-        dbName: string | undefined = this.config.directory
-    ): Promise<void> {
-        await deleteInstance(instanceName, email, dbName);
+    async erase(instanceName: string, email: string): Promise<void> {
+        await deleteInstance(instanceName, email);
     }
 
     /**
