@@ -1,5 +1,5 @@
-import {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance} from '@refinio/one.core/lib/instance';
+import {importModules, removeDir} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance, closeInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
 import {
@@ -25,20 +25,9 @@ describe('Certificate test', () => {
     let subject: SHA256Hash<OneUnversionedObjectTypes>;
     let target: SHA256IdHash<Person>;
 
-    afterEach(async () => {
-        try {
-            await leuteModel.shutdown();
-            await instancesModel.shutdown();
-            closeInstance();
-        } finally {
-            await removeDir(`./test/${dbKey}`);
-        }
-    });
-
     beforeEach(async () => {
         // Initialise Test Storage
         await StorageTestInit.init({
-            dbKey: dbKey,
             deleteDb: false,
             initiallyEnabledReverseMapTypes: [
                 ['License', null],
@@ -99,10 +88,17 @@ describe('Certificate test', () => {
         issuerPublicSingKey = publicSignKey;
     });
 
+    afterEach(async () => {
+        await leuteModel.shutdown();
+        await instancesModel.shutdown();
+        await closeAndDeleteCurrentInstance();
+    });
+
     it('Should create a certificate and validate it successfully', async () => {
         const cert = await createCertificate('access', subject, issuer, target);
         await validateCertificate(cert.hash, issuerPublicSingKey);
     });
+
     it('Should revoke a certificate successfully', async () => {
         const cert = await createCertificate('access', subject, issuer, target);
         let error = false;
@@ -117,6 +113,7 @@ describe('Certificate test', () => {
 
         expect(error).to.be.equal(true);
     });
+
     it(
         'Should throw error if the license for the subject does not exist when creating a' +
             ' certificate',
@@ -133,6 +130,7 @@ describe('Certificate test', () => {
                 });
         }
     );
+
     it('Should find certificates for a specific object', async () => {
         const certificateManager = new CertificateManager(leuteModel);
         await certificateManager.init();
@@ -141,6 +139,7 @@ describe('Certificate test', () => {
         const targets = await certificateManager.findPersonsWhoSignedThisObject(subject);
         expect(targets).to.deep.equal([issuer]);
     });
+
     it('Should find shared objects with a person', async () => {
         const certificateManager = new CertificateManager(leuteModel);
         await certificateManager.init();
