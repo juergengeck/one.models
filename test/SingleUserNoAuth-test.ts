@@ -1,10 +1,11 @@
 import {SingleUserNoAuth} from '../lib/models/Authenticator';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
-import {dbKey} from './utils/TestModel';
+import {defaultDbName} from './_helpers';
 import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 chai.use(chaiAsPromised);
 
 const {expect} = chai;
@@ -27,7 +28,7 @@ describe('SingleUserNoAuth Test', () => {
         });
     }
 
-    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: `test/${dbKey}`});
+    const singleUserNoAuthWorkflow = new SingleUserNoAuth({directory: `test/${defaultDbName}`});
 
     afterEach(async () => {
         if (singleUserNoAuthWorkflow.authState.currentState === 'logged_out') {
@@ -37,9 +38,11 @@ describe('SingleUserNoAuth Test', () => {
     });
 
     beforeEach(async () => {
-        await mkdir(`test/${dbKey}`, {recursive: true});
+        await mkdir(`test/${defaultDbName}`, {recursive: true});
         await singleUserNoAuthWorkflow.register();
     });
+
+    after(async () => closeAndDeleteCurrentInstance);
 
     describe('Register & Erase', () => {
         it('should test if register() & logoutAndErase() are successfully', async () => {

@@ -1,6 +1,6 @@
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {MultiUser} from '../lib/models/Authenticator';
-import {dbKey} from './utils/TestModel';
+import {defaultDbName} from './_helpers';
 import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
@@ -32,12 +32,23 @@ describe('MultiUser Test', () => {
     ];
 
     const STORAGE_TEST_DIR = 'test/testStorage';
-    const multiUserWorkflow = new MultiUser({directory: `test/${dbKey}`});
+    const multiUserWorkflow = new MultiUser({directory: `test/${defaultDbName}`});
+
+    /**
+     * Before each test case register & logout the user2, followed by register the user1 & logout
+     */
+    beforeEach(async () => {
+        await mkdir(`test/${defaultDbName}`, {recursive: true});
+        await multiUserWorkflow.register(user2.email, user2.secret, user2.instance);
+        await multiUserWorkflow.logout();
+        await multiUserWorkflow.register(user1.email, user1.secret, user1.instance);
+        await multiUserWorkflow.logout();
+    });
 
     /**
      * After each test case login & erase user1, followed by login & erase user2
      */
-    afterEach(done => {
+    /*   afterEach(done => {
         multiUserWorkflow.login(user1.email, user1.secret, user1.instance).finally(() => {
             multiUserWorkflow.logoutAndErase().finally(() => {
                 multiUserWorkflow.login(user2.email, user2.secret, user2.instance).finally(() => {
@@ -45,17 +56,13 @@ describe('MultiUser Test', () => {
                 });
             });
         });
-    });
+    });*/
 
-    /**
-     * Before each test case register & logout the user2, followed by register the user1 & logout
-     */
-    beforeEach(async () => {
-        await mkdir(`test/${dbKey}`, {recursive: true});
-        await multiUserWorkflow.register(user2.email, user2.secret, user2.instance);
-        await multiUserWorkflow.logout();
-        await multiUserWorkflow.register(user1.email, user1.secret, user1.instance);
-        await multiUserWorkflow.logout();
+    afterEach(async () => {
+        await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
+        await multiUserWorkflow.logoutAndErase();
+        await multiUserWorkflow.login(user2.email, user2.secret, user2.instance);
+        await multiUserWorkflow.logoutAndErase();
     });
 
     describe('Register & Erase', () => {

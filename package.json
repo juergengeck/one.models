@@ -13,8 +13,8 @@
     "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
     "install": "node ./build.js",
     "start": "node lib/model/index.js",
-    "test": "npx --no-install mocha test/**-test.js",
-    "testcov": "npx --no-install nyc npx --no-install mocha test/**-test.js",
+    "test": "npx --no-install mocha --exit test/**-test.js",
+    "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**-test.js",
     "start-comm-server": "node lib/cli/CommunicationServer",
     "start-comm-server-log": "node lib/cli/CommunicationServer -l",
     "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "v0.2.29",
+    "@refinio/one.core": "refinio/one.core#4d9e562bbdf1a15f4baf72ff68526001beb3cadd",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
