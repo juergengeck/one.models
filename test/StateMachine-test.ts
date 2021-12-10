@@ -1,7 +1,6 @@
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import TestModel, {importModules} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+
 import {expect} from 'chai';
 import * as StorageTestInit from './_helpers';
 import {StateMachine} from '../lib/misc/StateMachine';
@@ -46,12 +45,16 @@ function createStateMachineWithoutHistory(hasHistory: boolean): StateMachine<SMS
 
 describe('StateMachine test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
+    });
+
+    after(async () => {
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     // @todo implement test case where transition doesn't exist for the triggered event.
@@ -669,11 +672,4 @@ describe('StateMachine test', () => {
         expect(onStateChangeTriggered).to.be.equal(1);
         expect(onStatesChangeTriggered).to.be.equal(1);
     }).timeout(1000);
-
-    after(async () => {
-        await wait(1000);
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-    });
 });
