@@ -1,12 +1,11 @@
 import Authenticator from './Authenticator';
 import {
     closeAndDeleteCurrentInstance,
-    calculateInstanceIdHash,
     initInstance,
-    registerRecipes
+    registerRecipes,
+    instanceExists
 } from '@refinio/one.core/lib/instance';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 
 type Credentials = {
     email: string;
@@ -40,10 +39,8 @@ export default class SingleUserNoAuth extends Authenticator {
         this.authState.triggerEvent('login');
 
         const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
-        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
-        const storage = await doesStorageExist(instanceIdHash);
 
-        if (storage) {
+        if (await instanceExists(instanceName, email)) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. The single user already exists.');
         }
@@ -82,7 +79,7 @@ export default class SingleUserNoAuth extends Authenticator {
      *  - trigger the 'login' event
      *  - will check if there are any stored credentials
      *      - if no, it will throw an error and trigger 'login_failure' event
-     *      - if yes, it will check if the storage exist
+     *      - if yes, it will check if the instance exist
      *          - if no, it will throw an error and trigger 'login_failure' event
      *          - if yes, it will initialize the instance, import modules, register recipes
      *            trigger onLogin and wait for all the listeners to finish and trigger
@@ -99,12 +96,10 @@ export default class SingleUserNoAuth extends Authenticator {
         }
 
         const {email, instanceName, secret} = credentials;
-        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
-        const storage = await doesStorageExist(instanceIdHash);
 
-        if (!storage) {
+        if (!(await instanceExists(instanceName, email))) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User storage does not exists.');
+            throw new Error('Error while trying to login. User instance does not exists.');
         }
         try {
             await initInstance({
@@ -163,10 +158,8 @@ export default class SingleUserNoAuth extends Authenticator {
             return false;
         }
         const {email, instanceName} = credentials;
-        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
 
-        // check if the one storage exist (the instance was created)
-        return await doesStorageExist(instanceIdHash);
+        return await instanceExists(instanceName, email);
     }
 
     /**
@@ -177,7 +170,6 @@ export default class SingleUserNoAuth extends Authenticator {
     async erase(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
         if (credentials !== undefined) {
-            const {instanceName, email} = credentials;
             await closeAndDeleteCurrentInstance();
             await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
         } else {
