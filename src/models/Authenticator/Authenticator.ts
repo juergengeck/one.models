@@ -11,7 +11,7 @@ import {closeInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
-import {setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
+import { getBaseDirOrName, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
@@ -76,6 +76,11 @@ export default abstract class Authenticator {
     })();
 
     /**
+     * Logs out the current user and erase the instance
+     */
+    abstract logoutAndErase(): Promise<void>;
+
+    /**
      * Class configuration
      */
     protected config: AuthenticatorOptions;
@@ -87,7 +92,6 @@ export default abstract class Authenticator {
 
     constructor(options: Partial<AuthenticatorOptions>) {
         setBaseDirOrName(options.directory);
-
         this.config = {
             directory: options.directory,
             recipes:
@@ -130,7 +134,6 @@ export default abstract class Authenticator {
      */
     async logout(): Promise<void> {
         this.authState.triggerEvent('logout');
-
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
         await this.onLogout.emitAll();

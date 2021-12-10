@@ -1,6 +1,6 @@
 import Authenticator from './Authenticator';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
+import { doesStorageExist, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
 import {
     calculateInstanceIdHash,
     closeAndDeleteCurrentInstance,
@@ -37,34 +37,43 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async register(secret: string): Promise<void> {
+        this.authState.triggerEvent('login');
+
         const {instanceName, email} = await this.generateCredentialsIfNotExist();
         const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
         const storage = await doesStorageExist(instanceIdHash);
 
         if (storage) {
+            this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. The single user already exists.');
         }
-
-        this.authState.triggerEvent('login');
 
         try {
             await initInstance({
                 name: instanceName,
                 email: email,
                 secret: secret,
-                ownerName: 'name' + email,
+                ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
+        } catch (error) {
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
-
             this.authState.triggerEvent('login_success');
         } catch (error) {
+            await closeAndDeleteCurrentInstance();
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
             this.authState.triggerEvent('login_failure');
-            throw new Error(`Error while trying to initialise instance due to ${error}`);
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -87,38 +96,45 @@ export default class SingleUser extends Authenticator {
 
         if (credentials === undefined) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User does not exists.');
-        } else {
-            const {email, instanceName} = credentials;
+            throw new Error('Error while trying to login. User was not registered.');
+        }
+        const {email, instanceName} = credentials;
+        const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
+        const storage = await doesStorageExist(instanceIdHash);
 
-            const instanceIdHash = await calculateInstanceIdHash(instanceName, email);
-            const storage = await doesStorageExist(instanceIdHash);
+        if (!storage) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error('Error while trying to login. User storage does not exists.');
+        }
 
-            if (!storage) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error('Error while trying to login. User storage does not exists.');
+        try {
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+
+            if (error.code === 'IC-AUTH') {
+                throw new Error('The provided secret is wrong');
             }
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
 
-            try {
-                await initInstance({
-                    name: instanceName,
-                    email: email,
-                    secret: secret,
-                    ownerName: 'name' + email,
-                    directory: this.config.directory,
-                    initialRecipes: this.config.recipes,
-                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
-                });
+        try {
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
 
-                await this.importModules();
-                await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(instanceName, secret, email);
-
-                this.authState.triggerEvent('login_success');
-            } catch (error) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error(`Error while trying to initialise instance due to ${error}`);
-            }
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
@@ -127,12 +143,12 @@ export default class SingleUser extends Authenticator {
      * @param secret
      */
     async loginOrRegister(secret: string): Promise<void> {
-        const credentials = await this.retrieveCredentialsFromStore();
+        const isRegistered = await this.isRegistered();
 
-        if (credentials === undefined) {
-            await this.register(secret);
-        } else {
+        if (isRegistered) {
             await this.login(secret);
+        } else {
+            await this.register(secret);
         }
     }
 
@@ -140,31 +156,62 @@ export default class SingleUser extends Authenticator {
      * Checks if the user exists or not by checking the credentials in the store.
      */
     async isRegistered(): Promise<boolean> {
+        // check if there are any saved credentials
         const credentials = await this.retrieveCredentialsFromStore();
-        return credentials !== undefined;
+
+        if (credentials === undefined) {
+            return false;
+        }
+        const {name, email} = credentials;
+
+        // check if the one storage exist (the instance was created)
+        return await doesStorageExist(name, email, this.config.directory);
     }
 
     /**
-     * Erases the current instance's database. This function will:
-     *  - triggers 'logout' event
-     *  - triggers onLogout event
-     *  - deletes the database
-     *  - removes (if present) only workflow related store
-     *  - trigger 'logout_done' event
+     * Erases the instance. This function will:
+     *  - delete the instance
+     *  - remove (if present) only workflow related store
      */
     async erase(): Promise<void> {
+        const credentials = await this.retrieveCredentialsFromStore();
+        if (credentials !== undefined) {
+            const {name, email} = credentials;
+            await deleteInstance(name, email, this.config.directory);
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        } else {
+            throw new Error(
+                'Could not erase due to lack of credentials without loging in.' +
+                    ' The credentials does not exist. Try to login and delete.'
+            );
+        }
+    }
+
+    /**
+     * Erases the current instance. This function will:
+     *  - trigger the 'logout' & onLogout events
+     *  - remove (if present) only workflow related store
+     *  - delete the instance
+     *  - trigger 'logout_done' event
+     */
+    async logoutAndErase(): Promise<void> {
         this.authState.triggerEvent('logout');
 
         // Signal the application that it should shutdown one dependent models
         // and wait for them to shut down
         await this.onLogout.emitAll();
 
-        await closeAndDeleteCurrentInstance();
         await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+
+        await closeAndDeleteCurrentInstance();
         this.authState.triggerEvent('logout_done');
     }
 
     private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
+        // This has to be called before generate credentials. Otherwise,
+        // the call would just fail
+        setBaseDirOrName(this.config.directory);
+
         const storeCredentials = await this.store.getItem(
             SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
         );
@@ -178,6 +225,10 @@ export default class SingleUser extends Authenticator {
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
+        // This has to be called before generate credentials. Otherwise,
+        // the call would just fail
+        setBaseDirOrName(this.config.directory);
+
         await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
