@@ -1,21 +1,7 @@
-import {initInstance, closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import {PLATFORMS} from '@refinio/one.core/lib/platforms';
-import type {Instance, Module, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import {platform} from '@refinio/one.core/lib/system/platform';
-import {isNumber, isString} from '@refinio/one.core/lib/util/type-checks-basic';
+import {initInstance} from '@refinio/one.core/lib/instance';
+import type {Instance, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-
-// eslint-disable-next-line no-var, @typescript-eslint/no-unused-vars
-declare var WorkerGlobalScope: any;
-
-// Just requiring the module starts the server at it's default values so that it can run as a
-// standalone script as well.
-// const isBrowser =
-//     (typeof window !== 'undefined' && getObjTypeName(window) === 'Window') ||
-//     (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope);
-// @ts-ignore - To TS this will always be either true or false when it checks the values
-const isBrowser = platform === PLATFORMS.BROWSER;
 
 const defaultDbName = 'testDb';
 
@@ -31,20 +17,8 @@ export interface StorageHelpersInitOpts {
     addTypes?: boolean;
     deleteDb?: boolean;
     encryptStorage?: boolean;
+    initialRecipes?: readonly Recipe[];
     initiallyEnabledReverseMapTypes?: Array<[OneObjectTypeNames, null | Set<string>]>;
-}
-
-/**
- * @returns {Promise<void>}
- */
-export async function deleteTestDB(): Promise<void> {
-    try {
-        return await closeAndDeleteCurrentInstance();
-    } catch (err) {
-        if (!isString(err.message) || !err.message.startsWith('SB-NO-INIT1')) {
-            throw err;
-        }
-    }
 }
 
 /**
@@ -59,6 +33,7 @@ export async function deleteTestDB(): Promise<void> {
  * @param {Array} [options.initiallyEnabledReverseMapTypes]
  * @param {string|undefined} options.publicEncryptionKey
  * @param {string|undefined} options.publicSignKey
+ * @param {Recipe[]} options.initialRecipes
  * @returns {Promise<Instance>}
  */
 export async function init({
@@ -72,13 +47,10 @@ export async function init({
     dbKey = defaultDbName,
     addTypes = true,
     deleteDb = true,
-    encryptStorage = isBrowser,
+    encryptStorage = false,
+    initialRecipes = [],
     initiallyEnabledReverseMapTypes = [['Plan', null]]
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
-    if (deleteDb) {
-        await deleteTestDB();
-    }
-
     return await initInstance({
         name,
         email,
@@ -89,7 +61,7 @@ export async function init({
         publicSignKey,
         wipeStorage: deleteDb,
         encryptStorage,
-        directory: isBrowser ? dbKey : 'test/' + dbKey,
+        directory: 'test/' + dbKey,
         initialRecipes: [...RecipesStable, ...RecipesExperimental],
         initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes)
     });
