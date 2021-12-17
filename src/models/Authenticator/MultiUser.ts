@@ -1,9 +1,9 @@
 import Authenticator from './Authenticator';
-import {doesStorageExist} from '@refinio/one.core/lib/system/storage-base';
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
+    instanceExists,
     registerRecipes
 } from '@refinio/one.core/lib/instance';
 
@@ -12,45 +12,50 @@ import {
  */
 export default class MultiUser extends Authenticator {
     /**
-     * Registers the user. Register acts as a login if the storage does not exists yet.
+     * Registers the user. Register acts as a login if the instance does not exists yet.
      * @param email
      * @param secret
      * @param instanceName
      */
     async register(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
+        this.authState.triggerEvent('login');
 
-        if (storage) {
+        if (await instanceExists(instanceName, email)) {
+            this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. User already exists.');
         }
-
-        this.authState.triggerEvent('login');
 
         try {
             await initInstance({
                 name: instanceName,
                 email: email,
                 secret: secret,
-                ownerName: 'name' + email,
+                ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps
             });
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
 
+        try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
+            await closeAndDeleteCurrentInstance();
             this.authState.triggerEvent('login_failure');
-            throw new Error(`Error while trying to initialise instance due to ${error}`);
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
     /**
      * Logins the user. This function will:
      *  - trigger the 'login' event
-     *  - will check if the storage exists
+     *  - will check if the instance exists
      *      - if yes, it will initialize the instance, import modules, register recipes,
      *        trigger onLogin and wait for all the listeners to finish and trigger
      *        'login_success' event
@@ -62,43 +67,50 @@ export default class MultiUser extends Authenticator {
     async login(email: string, secret: string, instanceName: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
-
-        if (storage) {
-            try {
-                await initInstance({
-                    name: instanceName,
-                    email: email,
-                    secret: secret,
-                    ownerName: 'name' + email,
-                    directory: this.config.directory,
-                    initialRecipes: this.config.recipes,
-                    initiallyEnabledReverseMapTypes: this.config.reverseMaps
-                });
-                await this.importModules();
-                await registerRecipes(this.config.recipes);
-                await this.onLogin.emitAll(instanceName, secret, email);
-                this.authState.triggerEvent('login_success');
-            } catch (error) {
-                this.authState.triggerEvent('login_failure');
-                throw new Error(`Error while trying to initialise instance due to ${error}`);
-            }
-        } else {
+        if (!(await instanceExists(instanceName, email))) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User does not exists.');
+        }
+
+        try {
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+            });
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+
+            if (error.code === 'IC-AUTH') {
+                throw new Error('The provided secret is wrong');
+            }
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await this.importModules();
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
+
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
         }
     }
 
     /**
-     * This function will login or register based on the storage existence.
+     * This function will login or register based on the instance existence.
      * @param email
      * @param secret
      * @param instanceName
      */
     async loginOrRegister(email: string, secret: string, instanceName: string): Promise<void> {
-        const storage = await doesStorageExist(instanceName, email, this.config.directory);
-
-        if (storage) {
+        if (await instanceExists(instanceName, email)) {
             await this.login(email, secret, instanceName);
         } else {
             await this.register(email, secret, instanceName);
@@ -111,17 +123,24 @@ export default class MultiUser extends Authenticator {
      * @param instanceName
      */
     async isRegistered(email: string, instanceName: string): Promise<boolean> {
-        return await doesStorageExist(instanceName, email, this.config.directory);
+        return await instanceExists(instanceName, email);
+    }
+
+    /**
+     * Erases the instance. This function will:
+     *  - deletes the instance
+     */
+    async erase(instanceName: string, email: string): Promise<void> {
+        await deleteInstance(instanceName, email);
     }
 
     /**
      * Erases the current instance. This function will:
-     *  - triggers 'logout' event
-     *  - triggers 'onLogout' event
-     *  - deletes the database
-     *  - triggers 'logout_done' event
+     *  - trigger the 'logout' & onLogout events
+     *  - delete the instance
+     *  - trigger 'logout_done' event
      */
-    async eraseCurrentInstance(): Promise<void> {
+    async logoutAndErase(): Promise<void> {
         this.authState.triggerEvent('logout');
 
         // Signal the application that it should shutdown one dependent models
@@ -129,19 +148,6 @@ export default class MultiUser extends Authenticator {
         await this.onLogout.emitAll();
 
         await closeAndDeleteCurrentInstance();
-
         this.authState.triggerEvent('logout_done');
-    }
-
-    /**
-     * Erases the instance. This function will:
-     *  - deletes the database
-     */
-    async erase(
-        instanceName: string,
-        email: string,
-        dbName: string | undefined = this.config.directory
-    ): Promise<void> {
-        await deleteInstance(instanceName, email, dbName);
     }
 }

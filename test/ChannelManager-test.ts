@@ -1,13 +1,9 @@
 import * as StorageTestInit from './_helpers';
-
 import {
-    closeInstance,
-    getInstanceOwnerIdHash,
-    registerRecipes
+    closeAndDeleteCurrentInstance,
+    getInstanceOwnerIdHash
 } from '@refinio/one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import TestModel, {importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import type {RawChannelEntry} from '../lib/models/ChannelManager';
@@ -116,13 +112,19 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 
 describe('Channel Manager test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         channelManager = model.channelManager;
+    });
+
+    after(async () => {
+        // Wait for the hooks to run to completion
+        await wait(1000);
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('should create channels and init channelManager', async () => {
@@ -297,7 +299,8 @@ describe('Channel Manager test', () => {
 
         console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
     });
-*/
+    */
+
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
@@ -491,14 +494,5 @@ describe('Channel Manager test', () => {
         const channelInfoHash = await channelManager.getLatestMergedChannelInfoHash({id, owner});
         const channelInfo = await getObject(channelInfoHash);
         expect(channelInfo.$type$).to.equal('ChannelInfo');
-    });
-
-    after(async () => {
-        // Wait for the hooks to run to completion
-        await wait(1000);
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-        //await StorageTestInit.deleteTestDB();
     });
 });

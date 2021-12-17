@@ -1,7 +1,5 @@
-import {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import {importModules} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
 import {InstancesModel, LeuteModel} from '../lib/models';
 import {expect} from 'chai';
@@ -11,14 +9,19 @@ describe('LeuteModel test', function () {
     let leuteModel: LeuteModel;
 
     beforeEach(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
 
         instancesModel = new InstancesModel();
         leuteModel = new LeuteModel(instancesModel, 'localhost');
         await instancesModel.init('abc');
         await leuteModel.init();
+    });
+
+    afterEach(async function () {
+        await leuteModel.shutdown();
+        await instancesModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('should create groups module', async function () {
@@ -41,13 +44,5 @@ describe('LeuteModel test', function () {
         expect(groups2[0].persons.length).to.be.equal(1);
         expect(groups2[0].name).to.be.equal('sissis');
         expect(groups2[0].picture).to.be.undefined;
-    });
-
-    afterEach(async function () {
-        await leuteModel.shutdown();
-        //await instancesModel.shutdown();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
     });
 });

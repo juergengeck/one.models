@@ -33,6 +33,7 @@ describe('communication server tests', () => {
         await commServer.start('localhost', 8080);
     });
 
+    // todo needs fixing why isn't it closing
     after(async () => {
         if (commServer) {
             await commServer.stop();
