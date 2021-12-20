@@ -25,7 +25,7 @@ export const HexStringRegex = /^([0-9a-fA-F]{2})*$/;
  *
  * @param input - the string to test.
  */
-function isHexString(input: string): input is HexString {
+export function isHexString(input: string): input is HexString {
     return HexStringRegex.test(input);
 }
 
@@ -34,7 +34,7 @@ function isHexString(input: string): input is HexString {
  *
  * @param input - the string to test.
  */
-function ensureHexString(input: string): HexString {
+export function ensureHexString(input: string): HexString {
     if (!isHexString(input)) {
         throw new Error('Passed string is not a hex string.');
     }
