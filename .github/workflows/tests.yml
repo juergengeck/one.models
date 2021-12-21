@@ -38,8 +38,9 @@ jobs:
               run: npm run build
 
             - name: Check mode of the files
-              if: "${git ls-files --stage}" =~ "100755"
-              run: echo "Some files contains 755 mode" && exit 1
+              run: if git ls-files --stage | grep -q '100755'; then
+                echo "matched"
+                fi
 
             - name: Run Tests
               run: |
