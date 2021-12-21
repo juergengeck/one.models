@@ -39,7 +39,7 @@ jobs:
 
             - name: Check mode of the files
               if: `git ls-files --stage` =~ .*"100755".*
-              run: echo Some files contains 755 mode && exit 1
+              run: echo "Some files contains 755 mode" && exit 1
 
             - name: Run Tests
               run: |
