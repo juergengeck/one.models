@@ -57,7 +57,7 @@ export function arrayBufferToHex(buffer: ArrayBuffer): HexString {
  *
  * @param input - The string that shall be converted. It must consist of an even number of the characters 0-9, a-f, A-F.
  */
-export default function hexToArrayBuffer(input: HexString): ArrayBuffer {
+export function hexToArrayBuffer(input: HexString): ArrayBuffer {
     if (input.length % 2 !== 0) {
         throw new RangeError('Expected string to be an even number of characters');
     }
