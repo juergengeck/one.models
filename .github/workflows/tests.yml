@@ -39,8 +39,8 @@ jobs:
 
             - name: Check mode of the files
               run: if git ls-files --stage | grep -q '100755'; then
-                echo "matched"
-                fi
+                echo "matched";
+                fi;
 
             - name: Run Tests
               run: |
