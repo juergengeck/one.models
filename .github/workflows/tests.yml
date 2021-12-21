@@ -37,6 +37,10 @@ jobs:
               if: steps.cache-node-modules.outputs.cache-hit == 'true'
               run: npm run build
 
+            - name: Check mode of the files
+              if: `git ls-files --stage` =~ .*"100755".*
+              run: echo Some files contains 755 mode && exit 1
+
             - name: Run Tests
               run: |
                   npm run test
