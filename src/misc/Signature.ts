@@ -4,12 +4,12 @@ import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/i
 import {getObject} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
-import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
+import {hexToArrayBuffer, arrayBufferToHex} from './ArrayBufferHexConvertor';
 import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
 import {toByteArray} from 'base64-js';
-import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * Sign an object with my own key.
