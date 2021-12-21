@@ -39,7 +39,10 @@ jobs:
 
             - name: Check mode of the files
               run: if git ls-files --stage | grep -q '100755'; then
-                echo "matched";
+                echo "You have files that are executable in the project. Please run git ls-files --stage to find out
+                which files are, then run git update-index --chmod=-x 'name-of-shell-script' in order to change the mode
+                of the files back to 100644. If not, it will cause integrity errors on Windows users, since Windows cannot handle
+                the x byte, resulting in a different checksum when NPM computes it." && exit 1;
                 fi;
 
             - name: Run Tests
