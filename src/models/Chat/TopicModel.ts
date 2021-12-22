@@ -157,7 +157,7 @@ export default class TopicModel extends Model {
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.createNewTopic(topicName, `${from}->${to}`);
+        return await this.createNewTopic(topicName, ([from, to].sort()).join('<->'));
     }
 
     /**
