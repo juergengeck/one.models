@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "github:refinio/one.core#675daf8b47927a10e8da5eb93b74a1210cfcd51f",
+    "@refinio/one.core": "github:refinio/one.core#3d4c325a651cc0b8bdcedcd96f952c75b4594bda",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
