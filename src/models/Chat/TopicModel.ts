@@ -17,6 +17,7 @@ import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
+import { getInstanceOwnerIdHash } from "@refinio/one.core/lib/instance";
 
 /**
  * Model that manages the creation of chat topics.
@@ -186,7 +187,7 @@ export default class TopicModel extends Model {
             },
             [
                 {
-                    object: await calculateHashOfObj(topic),
+                    id: topic.channel,
                     person: participants,
                     group: [],
                     mode: SET_ACCESS_MODE.REPLACE
@@ -237,7 +238,9 @@ export default class TopicModel extends Model {
         const topicID = desiredTopicID === undefined ? await createRandomString() : desiredTopicID;
 
         await this.channelManager.createChannel(topicID);
-        const channels = await this.channelManager.channels({channelId: topicID});
+        const owner = await getInstanceOwnerIdHash();
+
+        const channels = await this.channelManager.channels({channelId: topicID, owner: owner});
 
         if (channels[0] === undefined) {
             throw new Error(
