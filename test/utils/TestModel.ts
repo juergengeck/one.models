@@ -20,7 +20,6 @@ import {
 } from '@refinio/one.core/lib/storage';
 import type {Module} from '@refinio/one.core/lib/recipes';
 
-export const dbKey = 'testDb';
 const path = require('path');
 const fs = require('fs');
 const util = require('util');
@@ -133,6 +132,5 @@ export default class TestModel {
         } catch (e) {
             console.error(e);
         }
-        closeInstance();
     }
 }

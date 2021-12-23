@@ -1,16 +1,15 @@
 import Authenticator from './Authenticator';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import { doesStorageExist, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
 import {
     closeAndDeleteCurrentInstance,
-    deleteInstance,
     initInstance,
+    instanceExists,
     registerRecipes
 } from '@refinio/one.core/lib/instance';
 
 type Credentials = {
     email: string;
-    name: string;
+    instanceName: string;
 };
 
 /**
@@ -39,18 +38,16 @@ export default class SingleUser extends Authenticator {
     async register(secret: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {name, email} = await this.generateCredentialsIfNotExist();
+        const {instanceName, email} = await this.generateCredentialsIfNotExist();
 
-        const storage = await doesStorageExist(name, email, this.config.directory);
-
-        if (storage) {
+        if (await instanceExists(instanceName, email)) {
             this.authState.triggerEvent('login_failure');
             throw new Error('Could not register user. The single user already exists.');
         }
 
         try {
             await initInstance({
-                name: name,
+                name: instanceName,
                 email: email,
                 secret: secret,
                 ownerName: email,
@@ -67,7 +64,7 @@ export default class SingleUser extends Authenticator {
         try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll(name, secret, email);
+            await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
             await closeAndDeleteCurrentInstance();
@@ -82,7 +79,7 @@ export default class SingleUser extends Authenticator {
      *  - trigger the 'login' event
      *  - will check if there are any stored credentials
      *      - if no, it will throw an error and trigger 'login_failure' event
-     *      - if yes, it will check if the storage exist
+     *      - if yes, it will check if the instance exist
      *          - if yes, it will initialize the instance, import modules, register recipes
      *            trigger onLogin and wait for all the listeners to finish and trigger
      *            'login_success' event
@@ -98,17 +95,16 @@ export default class SingleUser extends Authenticator {
             this.authState.triggerEvent('login_failure');
             throw new Error('Error while trying to login. User was not registered.');
         }
-        const {email, name} = credentials;
-        const storage = await doesStorageExist(name, email, this.config.directory);
+        const {email, instanceName} = credentials;
 
-        if (!storage) {
+        if (!(await instanceExists(instanceName, email))) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User storage does not exists.');
+            throw new Error('Error while trying to login. User instance does not exists.');
         }
 
         try {
             await initInstance({
-                name: name,
+                name: instanceName,
                 email: email,
                 secret: secret,
                 ownerName: email,
@@ -128,7 +124,7 @@ export default class SingleUser extends Authenticator {
         try {
             await this.importModules();
             await registerRecipes(this.config.recipes);
-            await this.onLogin.emitAll(name, secret, email);
+            await this.onLogin.emitAll(instanceName, secret, email);
 
             this.authState.triggerEvent('login_success');
         } catch (error) {
@@ -161,10 +157,10 @@ export default class SingleUser extends Authenticator {
         if (credentials === undefined) {
             return false;
         }
-        const {name, email} = credentials;
 
-        // check if the one storage exist (the instance was created)
-        return await doesStorageExist(name, email, this.config.directory);
+        const {email, instanceName} = credentials;
+
+        return await instanceExists(instanceName, email);
     }
 
     /**
@@ -175,8 +171,7 @@ export default class SingleUser extends Authenticator {
     async erase(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
         if (credentials !== undefined) {
-            const {name, email} = credentials;
-            await deleteInstance(name, email, this.config.directory);
+            await closeAndDeleteCurrentInstance();
             await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
         } else {
             throw new Error(
@@ -207,10 +202,6 @@ export default class SingleUser extends Authenticator {
     }
 
     private async retrieveCredentialsFromStore(): Promise<Credentials | undefined> {
-        // This has to be called before generate credentials. Otherwise,
-        // the call would just fail
-        setBaseDirOrName(this.config.directory);
-
         const storeCredentials = await this.store.getItem(
             SingleUser.CREDENTIAL_CONTAINER_KEY_STORE
         );
@@ -224,10 +215,6 @@ export default class SingleUser extends Authenticator {
     }
 
     private async persistCredentialsToStore(credentials: Credentials): Promise<void> {
-        // This has to be called before generate credentials. Otherwise,
-        // the call would just fail
-        setBaseDirOrName(this.config.directory);
-
         await this.store.setItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE, credentials);
     }
 
@@ -236,7 +223,7 @@ export default class SingleUser extends Authenticator {
         if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
-                name: await createRandomString(64)
+                instanceName: await createRandomString(64)
             };
             await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;

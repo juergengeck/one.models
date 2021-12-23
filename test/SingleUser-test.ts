@@ -1,7 +1,7 @@
 import type {AuthState} from '../lib/models/Authenticator/Authenticator';
 import {SingleUser} from '../lib/models/Authenticator';
 
-import {dbKey} from './utils/TestModel';
+import {defaultDbName} from './_helpers';
 import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
@@ -28,7 +28,7 @@ describe('SingleUser Test', () => {
         });
     }
 
-    const singleUserWorkflow = new SingleUser({directory: `test/${dbKey}`});
+    const singleUserWorkflow = new SingleUser({directory: `test/${defaultDbName}`});
     const secret = 'secret';
 
     afterEach(async () => {
@@ -39,7 +39,7 @@ describe('SingleUser Test', () => {
     });
 
     beforeEach(async () => {
-        await mkdir(`test/${dbKey}`, {recursive: true});
+        await mkdir(`test/${defaultDbName}`, {recursive: true});
         await singleUserWorkflow.register(secret);
     });
 
@@ -72,6 +72,7 @@ describe('SingleUser Test', () => {
                 );
         });
     });
+
     describe('Login & Logout', () => {
         it('should test if login(secret) & logout() are successfully', async () => {
             await singleUserWorkflow.logout();
@@ -121,6 +122,7 @@ describe('SingleUser Test', () => {
                 .to.eventually.be.rejectedWith('The provided secret is wrong');
         });
     });
+
     describe('LoginOrRegister', () => {
         it('should test if loginOrregister(secret) is successfuly when no user was registered', async () => {
             await singleUserWorkflow.logoutAndErase();
@@ -162,6 +164,7 @@ describe('SingleUser Test', () => {
             }
         );
     });
+
     describe('isRegistered', () => {
         it('should test if isRegistered() returns true when the user is registered', async () => {
             expect(await singleUserWorkflow.isRegistered()).to.be.equal(true);

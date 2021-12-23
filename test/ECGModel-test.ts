@@ -2,11 +2,9 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {closeAndDeleteCurrentInstance, registerRecipes} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import TestModel, {importModules} from './utils/TestModel';
 import type ECGModel from '../lib/models/ECGModel';
 import type {Electrocardiogram} from '../lib/recipes/ECGRecipes';
 
@@ -15,13 +13,16 @@ let testModel: TestModel;
 
 describe('ECG Model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         ecgModel = model.ecgModel;
+    });
+    after(async () => {
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('Should create an ECG with 15000 readings', async () => {
@@ -47,10 +48,4 @@ describe('ECG Model test', () => {
             expect(result.readings.length).to.be.equal(result.nextFrom ? 100 : 99);
         }
     }).timeout(4000);
-
-    after(async () => {
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-    });
 });

@@ -2,20 +2,16 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import TestModel, {importModules, removeDir} from './utils/TestModel';
 import {QuestionnaireModel} from '../lib/models';
 
 let testModel: TestModel;
 
 describe('Questionnaire model test', () => {
     before(async () => {
-        // TODO: clean test initialization up!
-        await StorageTestInit.init({dbKey: dbKey});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
@@ -24,9 +20,7 @@ describe('Questionnaire model test', () => {
 
     after(async () => {
         await testModel.shutdown();
-        closeInstance();
-        await StorageTestInit.deleteTestDB();
-        await removeDir(`./test/${dbKey}`);
+        await closeAndDeleteCurrentInstance();
     });
 
     it('post a questionnaire reponse', async () => {
