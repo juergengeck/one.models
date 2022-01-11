@@ -9,7 +9,7 @@ declare module '@OneObjectInterfaces' {
     }
 
     export interface OneIdObjectInterfaces {
-        TopicAppRegistry: Pick<ChannelInfo, 'id'>;
+        TopicAppRegistry: Pick<TopicAppRegistry, 'id' | '$type$'>;
     }
 
     export interface OneVersionedObjectInterfaces {
@@ -34,7 +34,6 @@ export interface ChatMessage {
 
 type TopicChannelID = string;
 
-
 export interface TopicAppRegistry {
     $type$: 'TopicAppRegistry';
     id: 'TopicAppRegistry';
@@ -56,7 +55,7 @@ export const ChatMessageRecipe: Recipe = {
         },
         {
             itemprop: 'sender',
-            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Person'])}
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         }
     ]
 };
@@ -72,7 +71,7 @@ export const TopicRecipe: Recipe = {
         },
         {
             itemprop: 'id',
-            itemtype: {type: 'string'},
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'channel',

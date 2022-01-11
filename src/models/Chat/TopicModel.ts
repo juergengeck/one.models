@@ -17,7 +17,7 @@ import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
-import { getInstanceOwnerIdHash } from "@refinio/one.core/lib/instance";
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 
 /**
  * Model that manages the creation of chat topics.
@@ -158,7 +158,7 @@ export default class TopicModel extends Model {
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.createNewTopic(topicName, ([from, to].sort()).join('<->'));
+        return await this.createNewTopic(topicName, [from, to].sort().join('<->'));
     }
 
     /**
@@ -209,7 +209,7 @@ export default class TopicModel extends Model {
             },
             [
                 {
-                    object: await calculateHashOfObj(topic),
+                    id: topic.channel,
                     person: [],
                     group: [groupIdHash],
                     mode: SET_ACCESS_MODE.REPLACE

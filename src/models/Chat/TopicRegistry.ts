@@ -1,13 +1,14 @@
 import {
     createSingleObjectThroughPurePlan,
+    getIdObject,
     getObject,
-    getObjectByIdHash,
     UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import {getObjectByIdObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
 /**
  * Registry that holds references to all the created topics.
@@ -43,9 +44,9 @@ export default class TopicRegistry {
      */
     public async add(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        const channel = await getObjectByIdHash(topic.obj.channel);
 
-        registry.obj.topics.set(channel.obj.id, topic.hash);
+        const channel = await getIdObject<'ChannelInfo'>(topic.obj.channel);
+        registry.obj.topics.set(channel.id, topic.hash);
         await TopicRegistry.updateTopicRegistry(registry.obj.topics);
         return topic.obj;
     }
