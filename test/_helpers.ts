@@ -18,7 +18,7 @@ export interface StorageHelpersInitOpts {
     deleteDb?: boolean;
     encryptStorage?: boolean;
     initialRecipes?: readonly Recipe[];
-    initiallyEnabledReverseMapTypes?: Array<[OneObjectTypeNames, null | Set<string>]>;
+    initiallyEnabledReverseMapTypes?: Array<[OneObjectTypeNames, Set<string>]>;
 }
 
 /**
@@ -49,7 +49,7 @@ export async function init({
     deleteDb = true,
     encryptStorage = false,
     initialRecipes = [],
-    initiallyEnabledReverseMapTypes = [['Plan', null]]
+    initiallyEnabledReverseMapTypes = [['Plan', new Set(['*'])]]
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
     return await initInstance({
         name,
