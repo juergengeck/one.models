@@ -1,4 +1,10 @@
-import type {Instance, Keys, OneObjectTypeNames, Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {
+    Instance,
+    Keys,
+    OneObjectTypeNames,
+    Person,
+    Recipe
+} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 // #### Typescript interfaces ####
@@ -24,18 +30,25 @@ export interface Email {
     email: string;
 }
 
+export interface PhoneNumber {
+    $type$: 'PhoneNumber';
+    number: string;
+}
+
 // #### type check magic ####
 
 export type CommunicationEndpointInterfaces = {
     OneInstanceEndpoint: OneInstanceEndpoint;
     Email: Email;
+    PhoneNumber: PhoneNumber;
 };
 export type CommunicationEndpointTypes =
     CommunicationEndpointInterfaces[keyof CommunicationEndpointInterfaces];
 export type CommunicationEndpointTypeNames = keyof CommunicationEndpointInterfaces;
 export const CommunicationEndpointTypeNameSet = new Set<OneObjectTypeNames | '*'>([
     'OneInstanceEndpoint',
-    'Email'
+    'Email',
+    'PhoneNumber'
 ]);
 
 /**
@@ -92,13 +105,25 @@ export const EmailRecipe: Recipe = {
     ]
 };
 
+export const PhoneNumberRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'PhoneNumber',
+    rule: [
+        {
+            itemprop: 'number',
+            itemtype: {type: 'string'}
+        }
+    ]
+};
+
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         OneInstanceEndpoint: OneInstanceEndpoint;
         Email: Email;
+        PhoneNumber: PhoneNumber;
     }
 }
 
-export default [OneInstanceEndpointRecipe, EmailRecipe];
+export default [OneInstanceEndpointRecipe, EmailRecipe, PhoneNumberRecipe];
