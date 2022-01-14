@@ -103,7 +103,15 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
         //       We do not support id objects right now and returning all entries of all versions
         //       would contradict the intended behaviour for id hashes (to get reverse relations of
         //       id objects - not of all versions)
-        let idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
+
+        let idHash;
+
+        // We need to catch the error like this because some conditions return undefined, others
+        // throw so we make throwing also to undefined.
+        try {
+            let idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
+        } catch (e) {}
+
         if (idHash !== undefined) {
             // Case 1) if objHash is a specific version of an versioned object
             values = await getAllValues(idHash, true, type);
