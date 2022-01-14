@@ -6,6 +6,8 @@ import {implode} from '@refinio/one.core/lib/microdata-imploder';
 import readline from 'readline';
 import {createManyObjectsThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {toByteArray} from 'base64-js';
+import type {Identity} from '../misc/IdentityExchange';
+import {createProfileFromIdentity} from '../misc/IdentityExchange';
 
 export async function writeMainProfile(
     leuteModel: LeuteModel,
@@ -39,21 +41,17 @@ export async function waitForKeyPress(): Promise<void> {
 
 export async function importProfiles(ownFile: string): Promise<void> {
     // Read all key files except our own
-    console.log('Read *.profile files');
-    const filter = '.profile';
+    console.log('Read *.id files');
+    const filter = '.id.json';
     const files = fs.readdirSync('.');
-    const keyFiles = files.filter(file => file.endsWith(filter)).filter(file => file !== ownFile);
-    const profileObjects = keyFiles.map(file => fs.readFileSync(file, {encoding: 'utf-8'}));
-
-    // Import all contact objs into instance
-    console.log('Import contact objects:', profileObjects.length);
-    if (profileObjects.length > 0) {
-        await createManyObjectsThroughPurePlan(
-            {
-                module: '@module/explodeObject',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            profileObjects
-        );
-    }
+    const identityFiles = files
+        .filter(file => file.endsWith(filter))
+        .filter(file => !file.includes(ownFile) && !file.includes('_secret'));
+    const identityObjects = identityFiles.map(file => fs.readFileSync(file, {encoding: 'utf-8'}));
+    await Promise.all(
+        identityObjects.map(async identity => {
+            await createProfileFromIdentity(JSON.parse(identity));
+        })
+    );
+    console.log('Imported identity objects:', identityObjects.length);
 }

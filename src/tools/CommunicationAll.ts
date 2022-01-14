@@ -11,6 +11,9 @@ import oneModules from '../generated/oneModules';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
+import {readIdentityWithSecretsFileOrWriteRandom} from './identity/IdentityExchange-fs';
+import {fromByteArray} from 'base64-js';
+import {hexToArrayBuffer} from '../misc/ArrayBufferHexConvertor';
 
 /**
  * Import all plan modules
@@ -82,36 +85,47 @@ async function main(): Promise<void> {
         console.log('ONLINE STATE IS NOW: ' + state);
     });
 
+    const identity = await readIdentityWithSecretsFileOrWriteRandom(
+        `${argv.i}_secret.id.json`,
+        argv.u
+    );
     await initInstance({
-        name: 'inst_' + argv.i,
-        email: 'email_' + argv.i,
-        secret: '1234',
+        name: identity.instanceName,
+        email: identity.personEmail,
+        publicEncryptionKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.personKeyPublic))
+        ),
+        secretEncryptionKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.personKeySecret))
+        ),
+        publicSignKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.personSignKeyPublic))
+        ),
+        secretSignKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.personSignKeySecret))
+        ),
+        publicInstanceEncryptionKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.instanceKeyPublic))
+        ),
+        secretInstanceEncryptionKey: fromByteArray(
+            new Uint8Array(hexToArrayBuffer(identity.instanceKeySecret))
+        ),
         encryptStorage: false,
-        ownerName: 'name_' + argv.i,
+        secret: 'dummy',
+        directory: 'OneDB',
         initialRecipes: [...RecipesStable, ...RecipesExperimental]
-        // initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
     });
+
     await importModules();
     await registerRecipes([...RecipesStable, ...RecipesExperimental]);
 
     await accessModel.init();
-    await instancesModel.init('secret_' + argv.i);
+    await instancesModel.init('dummy');
     await leuteModel.init();
     await channelManager.init();
 
-    const myProfileFile = `${argv.i}_main.profile`;
-    await writeMainProfile(leuteModel, instancesModel, myProfileFile);
     await waitForKeyPress();
-    await importProfiles(myProfileFile);
-
-    // Start the communication module
-    console.log('Start the comm module');
-    /**
-     * TODO: Register leute callback for new updates?
-     */
-    /*leuteModel.onContactUpdate(() => {
-        console.log('ADDED a contact');
-    });*/
+    await importProfiles(argv.i);
     await connectionsModel.init();
 }
 
