@@ -5,6 +5,7 @@ import type {
     OneObjectTypeNames,
     OneObjectTypes,
     OneUnversionedObjectTypes,
+    OneVersionedObjectTypes,
     Plan
 } from '@refinio/one.core/lib/recipes';
 import type {MetaObjectMap} from '../recipes/MetaObjectMapRecipes';
@@ -12,7 +13,8 @@ import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-obje
 import {iterateArrayFromEnd} from '@refinio/one.core/lib/util/function';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {getAllValues} from "@refinio/one.core/lib/reverse-map-query";
+import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {calculateIdHash} from '@refinio/one.core/lib/microdata-to-id-hash';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -65,14 +67,7 @@ export async function getMetaObjectsOfType<T extends OneObjectTypeNames>(
     objHash: SHA256Hash | SHA256IdHash,
     type: T
 ): Promise<OneObjectInterfaces[T][]> {
-    let metaObjectHashes: SHA256Hash<OneObjectInterfaces[T]>[];
-    if (useReverseMaps) {
-        const reverseMapEntriesH = await getAllValues(objHash, true, type);
-        const reverseMapEntriesI = await getAllValues(objHash, false, type);
-        metaObjectHashes = reverseMapEntriesH.concat(reverseMapEntriesI).map(e => e.toHash);
-    } else {
-        metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
-    }
+    let metaObjectHashes = await getMetaObjectHashesOfType(objHash, type);
 
     const metaObjects = await Promise.all(metaObjectHashes.map(getObject));
 
@@ -103,9 +98,29 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
     type: T
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
     if (useReverseMaps) {
-        const reverseMapEntriesH = await getAllValues(objHash, true, type);
-        const reverseMapEntriesI = await getAllValues(objHash, false, type);
-        return reverseMapEntriesH.concat(reverseMapEntriesI).map(e => e.toHash);
+        let values;
+        // Note: In this implementation we ignore the case where objHash is an id hash, because
+        //       We do not support id objects right now and returning all entries of all versions
+        //       would contradict the intended behaviour for id hashes (to get reverse relations of
+        //       id objects - not of all versions)
+
+        let idHash;
+
+        // We need to catch the error like this because some conditions return undefined, others
+        // throw so we make throwing also to undefined.
+        try {
+            let idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
+        } catch (e) {}
+
+        if (idHash !== undefined) {
+            // Case 1) if objHash is a specific version of an versioned object
+            values = await getAllValues(idHash, true, type);
+            values = values.filter(value => value.fromHash === objHash);
+        } else {
+            // Case 2) if objHash is a hash of an unversioned object
+            values = await getAllValues(objHash, false, type);
+        }
+        return values.map(value => value.toHash);
     } else {
         const metaObjectMap = await loadMetaObjectMap(objHash);
         const metaObjectHashes = metaObjectMap.metaObjects.get(type);
