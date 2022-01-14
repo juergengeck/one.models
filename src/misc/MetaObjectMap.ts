@@ -109,7 +109,7 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
         // We need to catch the error like this because some conditions return undefined, others
         // throw so we make throwing also to undefined.
         try {
-            let idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
+            idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
         } catch (e) {}
 
         if (idHash !== undefined) {
