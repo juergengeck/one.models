@@ -1,7 +1,7 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getObject} from '@refinio/one.core/lib/storage';
+import {getObject, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import {hexToArrayBuffer, arrayBufferToHex} from './ArrayBufferHexConvertor';
@@ -16,7 +16,7 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
  *
  * @param data - The data which to sign.
  */
-export async function sign(data: SHA256Hash): Promise<void> {
+export async function sign(data: SHA256Hash): Promise<UnversionedObjectResult<Signature>> {
     // Load instance
     // This is only required, because the cryptoAPI is constructed from the instance and the issued is determined
     // this way at the moment. We need to change that!
@@ -41,6 +41,8 @@ export async function sign(data: SHA256Hash): Promise<void> {
     });
     await addMetaObject(data, sigResult.hash);
     await addMetaObject(instanceOwner, sigResult.hash);
+
+    return sigResult;
 }
 
 /**

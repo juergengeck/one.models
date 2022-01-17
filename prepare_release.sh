@@ -19,8 +19,12 @@ echo "Set version $1 in package.json"
 sed "s/\"version\": \".*\",/\"version\": \"$1\",/" package.json > package2.json
 mv package2.json package.json
 
+echo "Update lock file by executing npm install"
+npm install
+
 echo "Push to repo"
 git add package.json
+git add package-lock.json
 git commit -m "Set version number to $1"
 git push -u origin release_$1
 
