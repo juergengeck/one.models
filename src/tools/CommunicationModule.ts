@@ -13,7 +13,8 @@ import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import * as readline from 'readline';
 import type {Module, Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
+import {importIdentityToLeute, initInstanceWithIdentity, waitForKeyPress} from './cliHelpers';
+import {readIdentityWithSecretsFileOrWriteRandom} from './identity/IdentityExchange-fs';
 
 /**
  * Import all plan modules
@@ -128,16 +129,12 @@ async function main(): Promise<void> {
         }
     );
 
-    // Create the instance
-    await initInstance({
-        name: 'inst_' + argv.i,
-        email: 'email_' + argv.i,
-        secret: '1234',
-        encryptStorage: false,
-        ownerName: 'name_' + argv.i,
-        initialRecipes: RecipesStable
-        // initiallyEnabledReverseMapTypes: new Map([['Instance', new Set('owner')]])
-    });
+    const identity = await readIdentityWithSecretsFileOrWriteRandom(
+        `${argv.i}_secret.id.json`,
+        argv.u
+    );
+    await initInstanceWithIdentity(identity);
+
     await importModules();
 
     // Init models
@@ -146,10 +143,10 @@ async function main(): Promise<void> {
     await leuteModel.init();
     await channelManager.init();
 
-    const myProfileFile = `${argv.i}_main.profile`;
-    await writeMainProfile(leuteModel, instancesModel, myProfileFile);
+    const myIdentityFile = `${argv.i}_main.profile`;
+
     await waitForKeyPress();
-    await importProfiles(myProfileFile);
+    await importIdentityToLeute(myIdentityFile);
 
     // Start the communication module
     console.log('Start the comm module');

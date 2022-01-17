@@ -10,7 +10,7 @@ import type {Module} from '@refinio/one.core/lib/recipes';
 import oneModules from '../generated/oneModules';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import {createSingleObjectThroughPurePlan, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
-import {importProfiles, waitForKeyPress, writeMainProfile} from './cliHelpers';
+import {importIdentityToLeute, initInstanceWithIdentity, waitForKeyPress} from './cliHelpers';
 import {readIdentityWithSecretsFileOrWriteRandom} from './identity/IdentityExchange-fs';
 import {fromByteArray} from 'base64-js';
 import {hexToArrayBuffer} from '../misc/ArrayBufferHexConvertor';
@@ -89,32 +89,7 @@ async function main(): Promise<void> {
         `${argv.i}_secret.id.json`,
         argv.u
     );
-    await initInstance({
-        name: identity.instanceName,
-        email: identity.personEmail,
-        publicEncryptionKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.personKeyPublic))
-        ),
-        secretEncryptionKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.personKeySecret))
-        ),
-        publicSignKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.personSignKeyPublic))
-        ),
-        secretSignKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.personSignKeySecret))
-        ),
-        publicInstanceEncryptionKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.instanceKeyPublic))
-        ),
-        secretInstanceEncryptionKey: fromByteArray(
-            new Uint8Array(hexToArrayBuffer(identity.instanceKeySecret))
-        ),
-        encryptStorage: false,
-        secret: 'dummy',
-        directory: 'OneDB',
-        initialRecipes: [...RecipesStable, ...RecipesExperimental]
-    });
+    await initInstanceWithIdentity(identity);
 
     await importModules();
     await registerRecipes([...RecipesStable, ...RecipesExperimental]);
@@ -125,7 +100,7 @@ async function main(): Promise<void> {
     await channelManager.init();
 
     await waitForKeyPress();
-    await importProfiles(argv.i);
+    await importIdentityToLeute(argv.i);
     await connectionsModel.init();
 }
 
