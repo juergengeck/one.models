@@ -99,10 +99,19 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
     if (useReverseMaps) {
         let values;
-        // Note: In this implementation we ignore the case where objHash is an id hash, because
-        //       We do not support id objects right now and returning all entries of all versions
-        //       would contradict the intended behaviour for id hashes (to get reverse relations of
-        //       id objects - not of all versions)
+
+
+        // We have three cases to distignuish:
+        // 1) referenceToId -> the input here will be the SHA256IdHash
+        // 2) referenceToObj (Versioned) -> the input here will be SHA256Hash<OneVersionedObjectTypeNames>
+        // 3) referenceToObj (Unversioned) -> the input here will be the SHA256Hash<OnUnversionedObjectTypeNames>
+        // We have no functions to check this so we will do it as follows:
+        // 
+        // Try to calculate an id hash 
+        //   -> success it is a SHA256Hash<OneVersionedObjectTypeNames>
+        //   -> failure with M20-PH1 it is a SHA256IdHash
+        //   -> other failure (undefined or exception) it is a SHA256Hash<UnversionedObjectTypeNames>
+        
 
         let idHash;
 
@@ -110,14 +119,19 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
         // throw so we make throwing also to undefined.
         try {
             idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
-        } catch (e) {}
+        } catch (e) {
+            // M2O-PH1 - expected a non id object
+            if (e.code === 'M2O-PH1') {
+                idHash = objHash;
+            }
+        }
 
         if (idHash !== undefined) {
-            // Case 1) if objHash is a specific version of an versioned object
+            // Case 1) & 2) versioned object / specific version
             values = await getAllValues(idHash, true, type);
             values = values.filter(value => value.fromHash === objHash);
         } else {
-            // Case 2) if objHash is a hash of an unversioned object
+            // Case 3) unversioned object
             values = await getAllValues(objHash, false, type);
         }
         return values.map(value => value.toHash);
