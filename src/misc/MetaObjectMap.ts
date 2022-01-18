@@ -99,7 +99,11 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
     if (useReverseMaps) {
         let values;
-        // Note: In this implementation we ignore the case where objHash is an id hash, because
+        // New Note: We handle the id objects in the bellow catch by checking for
+        //           M20-PH1 Error that gets thrown from calculateIdHash function in
+        //           case of an id-object.
+        //
+        // Old Note: In this implementation we ignore the case where objHash is an id hash, because
         //       We do not support id objects right now and returning all entries of all versions
         //       would contradict the intended behaviour for id hashes (to get reverse relations of
         //       id objects - not of all versions)
@@ -110,7 +114,12 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
         // throw so we make throwing also to undefined.
         try {
             idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
-        } catch (e) {}
+        } catch (e) {
+            // M2O-PH1 - expected a non id object
+            if (e.code === 'M2O-PH1') {
+                idHash = objHash;
+            }
+        }
 
         if (idHash !== undefined) {
             // Case 1) if objHash is a specific version of an versioned object
