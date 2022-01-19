@@ -37,10 +37,7 @@ import RecipesStable from '../recipes/recipes-stable';
 import RecipesExperimental from '../recipes/recipes-experimental';
 import oneModules from '../generated/oneModules';
 import {importModules, waitForKeyPress} from './cliHelpers';
-import {
-    importIdentityFilesAsProfiles,
-    readOrCreateIdentityFile
-} from './identity/IdentityExchange-fs';
+import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
 import {
     convertIdentityToInstanceOptions,
     Identity,

@@ -5,8 +5,8 @@ import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {readdir, readFile, writeFile} from 'fs/promises';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 
-import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import type {Identity, IdentityWithSecrets} from '../../misc/IdentityExchange';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
+import type {Identity, IdentityWithSecrets} from './IdentityExchange';
 import {
     generateNewIdentity,
     isIdentity,
@@ -14,8 +14,8 @@ import {
     convertOneInstanceEndpointToIdentity,
     convertIdentityToOneInstanceEndpoint,
     convertIdentityToProfile
-} from '../../misc/IdentityExchange';
-import type ProfileModel from '../../models/Leute/ProfileModel';
+} from './IdentityExchange';
+import type ProfileModel from '../models/Leute/ProfileModel';
 
 // ######## Identity I/O ########
 

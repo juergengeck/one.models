@@ -1,4 +1,4 @@
-import {writeNewIdentityToFile} from './IdentityExchange-fs';
+import {writeNewIdentityToFile} from '../../misc/IdentityExchange-fs';
 
 (async () => {
     if (process.argv.length != 3 && process.argv.length != 4) {
