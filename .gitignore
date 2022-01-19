@@ -12,6 +12,7 @@ test/testStorage
 
 test/testDb
 store-dir/*
+*.id.json
 
 # Generated code
 *.contact
