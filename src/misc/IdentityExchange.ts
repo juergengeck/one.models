@@ -19,6 +19,7 @@ import {arrayBufferToHex, hexToArrayBuffer, isHexString} from './ArrayBufferHexC
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {sign} from './Signature';
 import ProfileModel from '../models/Leute/ProfileModel';
+import type {InstanceOptions} from '@refinio/one.core/lib/instance';
 
 const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -96,18 +97,29 @@ export function isIdentityWithSecrets(arg: any): arg is IdentityWithSecrets {
 }
 
 /**
- * Creates a random identity.
+ * Creates a new identity.
  *
- * Does not need a running one instance.
+ * Does not need a running one instance. It will generate new key pairs and if no personEmail or
+ * instanceName is specified it will also generate random values for those.
  *
  * @param commServerUrl - The communication server url to include in the identity objects.
+ * @param personEmail - The person email to use. If not specified a random string is used.
+ * @param instanceName - The instance name to use. If not specified a random string is used.
  */
-export async function generateRandomIdentity(commServerUrl: string): Promise<{
+export async function generateNewIdentity(
+    commServerUrl: string,
+    personEmail?: string,
+    instanceName?: string
+): Promise<{
     secret: IdentityWithSecrets;
     public: Identity;
 }> {
-    const personEmail = await createRandomString();
-    const instanceName = await createRandomString();
+    if (personEmail === undefined) {
+        personEmail = await createRandomString();
+    }
+    if (instanceName === undefined) {
+        instanceName = await createRandomString();
+    }
     const personKeyPair = tweetnacl.box.keyPair();
     const personSignKeyPair = tweetnacl.sign.keyPair();
     const instanceKeyPair = tweetnacl.box.keyPair();
@@ -148,7 +160,7 @@ export async function generateRandomIdentity(commServerUrl: string): Promise<{
  *
  * @param identity
  */
-export async function storeIdentityAsOneInstanceEndpoint(
+export async function convertIdentityToOneInstanceEndpoint(
     identity: Identity
 ): Promise<UnversionedObjectResult<OneInstanceEndpoint>> {
     // Step 1: Create person object if it does not exist, yet
@@ -241,7 +253,7 @@ export async function storeIdentityAsOneInstanceEndpoint(
  *
  * @param oneInstanceEndpointHash
  */
-export async function loadOneInstanceEndpointAsIdentity(
+export async function convertOneInstanceEndpointToIdentity(
     oneInstanceEndpointHash: SHA256Hash<OneInstanceEndpoint>
 ): Promise<Identity> {
     const oneInstanceEndpoint = await getObject(oneInstanceEndpointHash);
@@ -269,12 +281,56 @@ export async function loadOneInstanceEndpointAsIdentity(
 
 /**
  * Creates an profile object from a identity object.
+ *
  * @param identity
  */
-export async function createProfileFromIdentity(identity: Identity): Promise<ProfileModel> {
-    const oneInstanceEndpoint = await storeIdentityAsOneInstanceEndpoint(identity);
+export async function convertIdentityToProfile(identity: Identity): Promise<ProfileModel> {
+    const oneInstanceEndpoint = await convertIdentityToOneInstanceEndpoint(identity);
     const personId = oneInstanceEndpoint.obj.personId;
     return await ProfileModel.constructWithNewProfile(personId, personId, personId, [
         oneInstanceEndpoint.obj
     ]);
+}
+
+/**
+ * Creates instance options based on an identity.
+ *
+ * @param identity
+ * @param secret - secret is mandatory for InstanceOptions => this is used 1:1
+ */
+export function convertIdentityToInstanceOptions(
+    identity: Identity | IdentityWithSecrets,
+    secret: string
+): InstanceOptions {
+    if (isIdentity(identity)) {
+        return {
+            name: identity.instanceName,
+            email: identity.personEmail,
+            secret
+        };
+    } else {
+        return {
+            name: identity.instanceName,
+            email: identity.personEmail,
+            publicEncryptionKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.personKeyPublic))
+            ),
+            secretEncryptionKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.personKeySecret))
+            ),
+            publicSignKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.personSignKeyPublic))
+            ),
+            secretSignKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.personSignKeySecret))
+            ),
+            publicInstanceEncryptionKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.instanceKeyPublic))
+            ),
+            secretInstanceEncryptionKey: fromByteArray(
+                new Uint8Array(hexToArrayBuffer(identity.instanceKeySecret))
+            ),
+            secret
+        };
+    }
 }
