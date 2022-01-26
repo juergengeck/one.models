@@ -1,212 +1,183 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import {
-    createSingleObjectThroughPurePlan,
-    getObject,
-    UnversionedObjectResult,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
-import type {Certificate, LicenseType} from '../recipes/CertificateRecipes';
-import {createCryptoAPI, stringToUint8Array} from '@refinio/one.core/lib/instance-crypto';
-import {sign, verify} from 'tweetnacl';
-import {toByteArray} from 'base64-js';
-import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
-import {getLicenseHashByType} from './License';
-import * as ReverseMapQuery from '@refinio/one.core/lib/reverse-map-query';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import hexToArrayBuffer, {arrayBufferToHex} from './ArrayBufferHexConvertor';
-
-const CertificateRevocationList: SHA256Hash<Certificate>[] = [];
+import {addMetaObject, getMetaObjectHashesOfType, storeMetaObject} from './MetaObjectMap';
+import {isSignedBy, sign, signedBy} from './Signature';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
+import {getObject, onUnversionedObj, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {RelationCertificate} from '../recipes/CertificateRecipes';
+import type {Signature} from '../recipes/SignatureRecipes';
 
 /**
+ * Certify with your own sign key, that person1 has the specified relation with person2.
  *
- * @param licenseType
- * @param subject
- * @param issuer
- * @param target
+ * @param person1
+ * @param person2
+ * @param relation - Relation as defined by the application app.
+ * @param app - Application in which context this relation is important.
  */
-export async function createCertificate(
-    licenseType: LicenseType,
-    subject: SHA256Hash<OneUnversionedObjectTypes>,
-    issuer: SHA256IdHash<Person>,
-    target: SHA256IdHash<Person>
-): Promise<UnversionedObjectResult<Certificate>> {
-    const licenseHash = getLicenseHashByType(licenseType);
+export async function certifyRelation(
+    person1: SHA256IdHash<Person>,
+    person2: SHA256IdHash<Person>,
+    relation: string,
+    app: string
+): Promise<UnversionedObjectResult<Signature>> {
+    const certificateHash = (
+        await storeUnversionedObject({
+            $type$: 'RelationCertificate',
+            person1,
+            person2,
+            relation,
+            app
+        })
+    ).hash;
+    const sigResult = await sign(certificateHash);
+    await addMetaObject(person1, certificateHash);
+    await addMetaObject(person2, certificateHash);
+    return sigResult;
+}
 
-    if (licenseHash === undefined) {
-        throw new Error(`The License for ${licenseType} does not exist.`);
+/**
+ * Check if somebody certified the specified relation between two persons
+ *
+ * @param by - issued by this person
+ * @param person1 - person1 in relation
+ * @param person2 - person2 in relation
+ * @param relation - type of relation
+ * @param app -  app string
+ */
+export async function isRelationCertifiedBy(
+    by: SHA256IdHash<Person>,
+    person1: SHA256IdHash<Person>,
+    person2: SHA256IdHash<Person>,
+    relation: string,
+    app: string
+): Promise<boolean> {
+    const certificateHash = await calculateHashOfObj({
+        $type$: 'RelationCertificate',
+        person1,
+        person2,
+        relation,
+        app
+    });
+    return isSignedBy(certificateHash, by);
+}
+
+/**
+ * Get a list of relation certificates where person1 is a specific person.
+ *
+ * @param by - issued by this person
+ * @param person1 - person1 in relation
+ * @param relation - type of relation
+ * @param app -  app string
+ */
+export async function relationsCertifiedForPerson1By(
+    by: SHA256IdHash<Person>,
+    person1: SHA256IdHash<Person>,
+    relation: string,
+    app: string
+): Promise<RelationCertificate[]> {
+    const certificates = await getMetaObjectHashesOfType(person1, 'RelationCertificate');
+    const isSingedArr = await Promise.all(certificates.map(cert => isSignedBy(cert, by)));
+    const signedCertificateHashes = certificates.filter((_value, index) => isSingedArr[index]);
+    const signedCertificates = await Promise.all(signedCertificateHashes.map(getObject));
+    return signedCertificates.filter(cert => {
+        return cert.person1 === person1 && cert.relation === relation && cert.app === app;
+    });
+}
+
+/**
+ * You affirm that this data ia genuine.
+ *
+ * @param data
+ */
+export async function affirm(data: SHA256Hash): Promise<UnversionedObjectResult<Signature>> {
+    const certificateHash = (
+        await storeMetaObject(data, {
+            $type$: 'AffirmationCertificate',
+            data: data
+        })
+    ).hash;
+
+    const sigResult = await sign(certificateHash);
+    await addMetaObject(data, certificateHash);
+    return sigResult;
+}
+
+/**
+ * Check if someone declared this data as genuine.
+ *
+ * @param by
+ * @param data
+ */
+export async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): Promise<boolean> {
+    const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
+    if (certificateHashes.length === 0) {
+        return false;
+    }
+    if (certificateHashes.length > 1) {
+        console.error(
+            'Programming Error: For a specific object there should always only be one AffirmationCertificate.'
+        );
     }
 
-    const licenseText = (await getObject(licenseHash)).text;
-    const signature = await createCertificateSignature(
-        createSignatureMsg(licenseText, subject, issuer, target)
+    const signedStates = await Promise.all(
+        certificateHashes.map(certificateHash => isSignedBy(certificateHash, by))
     );
+    return signedStates.includes(true);
+}
 
-    return await createSingleObjectThroughPurePlan(
-        {
-            module: '@one/identity',
-            versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-        },
-        {
-            $type$: 'Certificate',
-            license: licenseHash,
-            issuer: issuer,
-            subject: subject,
-            target: target,
-            signature: arrayBufferToHex(signature)
+/**
+ * Get a list of persons that declared that this information is genuine.
+ *
+ * @param data
+ */
+export async function affirmedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
+    const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
+    if (certificateHashes.length === 0) {
+        return [];
+    }
+    if (certificateHashes.length > 1) {
+        console.error(
+            'Programming Error: For a specific object there should always only be one AffirmationCertificate.'
+        );
+    }
+
+    const people2Dim = await Promise.all(certificateHashes.map(signedBy));
+    return people2Dim.reduce((p, c) => p.concat(c));
+}
+
+/**
+ * Register callback that is called when a new Affirmation object for the specified data is received.
+ *
+ * @param data
+ * @param cb
+ */
+export function onNewAffirmation(
+    data: SHA256Hash,
+    cb: (issuer: SHA256IdHash<Person>) => void
+): () => void {
+    async function handleNewObjectAsync(result: UnversionedObjectResult): Promise<void> {
+        if (result.obj.$type$ !== 'Signature') {
+            return;
         }
-    );
-}
 
-/**
- *
- * @param certificate
- * @param issuerPublicKey
- */
-export async function validateCertificate(
-    certificate: SHA256Hash<Certificate>,
-    issuerPublicKey: string
-): Promise<void> {
-    if (CertificateRevocationList.includes(certificate)) {
-        throw new Error('The certificate has been revoked.');
-    }
+        const cert = await getObject(result.obj.data);
+        if (cert.$type$ !== 'AffirmationCertificate') {
+            return;
+        }
 
-    const certificateObj = await getObject(certificate);
-
-    const {signature, license, subject, issuer, target} = certificateObj;
-    const licenseText = (await getObject(license)).text;
-
-    const expectedSignature = await createCertificateSignature(
-        createSignatureMsg(licenseText, subject, issuer, target)
-    );
-
-    const signatureAb = hexToArrayBuffer(signature);
-
-    // issuerPublicKey is Base64 - toByteArray is needed
-    const result = sign.open(new Uint8Array(signatureAb), toByteArray(issuerPublicKey));
-
-    if (result === null) {
-        throw new Error("The certificate's signature is not valid.");
-    }
-
-    if (
-        !verify(
-            result,
-            stringToUint8Array(createSignatureMsg(licenseText, subject, issuer, target))
-        )
-    ) {
-        throw new Error("The certificate's signature is not valid.");
-    }
-}
-
-/**
- * Revokes the certificate by the given license type, subject & target
- * @param licenseType
- * @param subject
- * @param target
- */
-export async function revokeCertificate(
-    licenseType: LicenseType,
-    subject: SHA256Hash<OneUnversionedObjectTypes>,
-    target: SHA256IdHash<Person>
-): Promise<void> {
-    let foundCertificate = await findCertificate(licenseType, subject, target);
-
-    if (foundCertificate === undefined) {
-        throw new Error('The certificate does not exist');
-    }
-
-    CertificateRevocationList.push(foundCertificate);
-}
-
-// ----------------------------------------- PRIVATE -----------------------------------------
-
-/**
- * Searches for the certificate. Throws error if it doesn't exist.
- * @param licenseType
- * @param subject
- * @param target
- */
-async function findCertificate(
-    licenseType: LicenseType,
-    subject: SHA256Hash<OneUnversionedObjectTypes>,
-    target: SHA256IdHash<Person>
-) {
-    const instanceIdHash = await getInstanceIdHash();
-
-    if (instanceIdHash === undefined) {
-        throw new Error('The instance id hash could be found. Init instance first.');
-    }
-
-    const instanceObject = await getObjectByIdHash(instanceIdHash);
-
-    if (
-        !instanceObject.obj.enabledReverseMapTypes.has('License') ||
-        !instanceObject.obj.enabledReverseMapTypes.has('Person')
-    ) {
-        throw new Error(`The reverse maps needs to be added in order to use 
-              findCertificate(). Add [[\'Person\', null],[\'License\']] to
-              the reverse maps`);
-    }
-
-    const licenseHash = getLicenseHashByType(licenseType);
-
-    if (licenseHash === undefined) {
-        throw new Error(`The License for ${licenseType} does not exist.`);
-    }
-
-    let foundCertificate;
-
-    const personCertificateReverseMaps = (
-        await ReverseMapQuery.getAllValues(target, true, 'Certificate')
-    ).map(revMap => revMap.toHash);
-
-    const licenseCertificateReverseMaps = (
-        await ReverseMapQuery.getAllValues(licenseHash, false, 'Certificate')
-    ).map(revMap => revMap.toHash);
-
-    const intersectionOfCertificateReverseMaps = personCertificateReverseMaps.filter(value =>
-        licenseCertificateReverseMaps.includes(value)
-    );
-
-    for (const certificateHash of intersectionOfCertificateReverseMaps) {
-        const certificate = await getObject(certificateHash);
-        if (certificate.subject === subject) {
-            foundCertificate = certificateHash;
-            break;
+        if (cert.data === data) {
+            cb(result.obj.issuer);
         }
     }
-    return foundCertificate;
-}
 
-/**
- *
- * @param msg
- */
-async function createCertificateSignature(msg: string) {
-    const instanceId = await getInstanceIdHash();
-
-    if (instanceId === undefined) {
-        throw new Error('The instance id hash could not be found.');
+    function handleNewObject(result: UnversionedObjectResult): void {
+        handleNewObjectAsync(result).catch(console.error);
     }
 
-    const crypto = createCryptoAPI(instanceId);
-
-    return crypto.createSignature(stringToUint8Array(msg));
-}
-
-/**
- *
- * @param licenseText
- * @param subject
- * @param issuer
- * @param target
- */
-function createSignatureMsg(
-    licenseText: string,
-    subject: SHA256Hash<OneUnversionedObjectTypes>,
-    issuer: SHA256IdHash<Person>,
-    target: SHA256IdHash<Person>
-) {
-    return `${licenseText}${subject}${issuer}${target}`;
+    onUnversionedObj.addListener(handleNewObject);
+    return () => {
+        onUnversionedObj.removeListener(handleNewObject);
+    };
 }

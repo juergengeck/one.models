@@ -8,6 +8,8 @@ import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
+import SignatureRecipes from "./SignatureRecipes";
+import MetaObjectMapRecipes from "./MetaObjectMapRecipes";
 import ChatRecipes from './ChatRecipes';
 
 const RecipesExperimental: Recipe[] = [
@@ -19,8 +21,10 @@ const RecipesExperimental: Recipe[] = [
     ...BloodGlucoseRecipes,
     ...AudioExerciseRecipes,
     ...CertificateRecipes,
+    ...ChatRecipes,
     ...LeuteRecipes,
-    ...ChatRecipes
+    ...SignatureRecipes,
+    ...MetaObjectMapRecipes
 ];
 
 export default RecipesExperimental;

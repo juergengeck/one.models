@@ -11,7 +11,7 @@ import {closeInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
-import { getBaseDirOrName, setBaseDirOrName } from "@refinio/one.core/lib/system/storage-base";
+import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 
@@ -23,7 +23,7 @@ export type AuthenticatorOptions = {
     /**  One recipes - use all recipes if not specified **/
     recipes: Recipe[];
     /**  Reverse Maps - default is undefined  **/
-    reverseMaps?: Map<OneObjectTypeNames, null | Set<string>>;
+    reverseMaps?: Map<OneObjectTypeNames, Set<string>>;
 };
 
 /**

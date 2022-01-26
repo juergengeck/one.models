@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "7.1.0",
+  "version": "8.2.0",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -23,8 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "github:refinio/one.core#onIdObjListener_SS",
-    "chai-as-promised": "^7.1.1",
+    "@refinio/one.core": "^0.3.3",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
@@ -63,6 +62,7 @@
     "babel-loader": "*",
     "babel-preset-minify": "*",
     "chai": "*",
+    "chai-as-promised": "^7.1.1",
     "eslint": "*",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "*",

@@ -5,7 +5,7 @@ import LeuteRecipesProfile from './Profile';
 import LeuteRecipesSomeone from './Someone';
 import LeuteRecipesGroupProfile from './GroupProfile';
 
-export default [
+const LeuteRecipes = [
     ...LeuteRecipesCE,
     ...LeuteRecipesLeute,
     ...LeuteRecipesPD,
@@ -13,3 +13,5 @@ export default [
     ...LeuteRecipesSomeone,
     ...LeuteRecipesGroupProfile
 ];
+
+export default LeuteRecipes;
