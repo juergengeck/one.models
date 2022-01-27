@@ -593,6 +593,17 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
+            // Add a jitter on top of the timeout, so that both sides don't attempt connections
+            // at the same time. If done properly this should not be necessary, but ... this was
+            // the easy / fast fix to solve lots of duplicate connection errors.
+            if (delay < 3000) {
+                throw new Error(
+                    'Reconnect timeouts must be larger than 3 seconds, because of' +
+                        ' the jitter hack.'
+                );
+            }
+            delay = delay + (Math.random() * 4000 - 2000);
+
             connContainer.reconnectTimeoutHandle = setTimeout(() => {
                 connContainer.reconnectTimeoutHandle = null;
                 connect();

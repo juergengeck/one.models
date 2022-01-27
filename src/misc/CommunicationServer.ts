@@ -67,9 +67,7 @@ class CommunicationServer {
      * Stop the communication server.
      */
     public async stop(): Promise<void> {
-        await this.webSocketListener.stop();
-
-        MessageBus.send('log', `Closing remaining connections`);
+        MessageBus.send('log', `Stop communication server`);
 
         // Close spare connections
         for (const connectionContainers of this.listeningConnectionsMap.values()) {
@@ -85,7 +83,10 @@ class CommunicationServer {
             }
         }
 
-        MessageBus.send('log', `Closing remaining connections done`);
+        MessageBus.send('log', `Closing websocker listener`);
+        await this.webSocketListener.stop();
+
+        MessageBus.send('log', `Stop communication server complete`);
     }
 
     /**
