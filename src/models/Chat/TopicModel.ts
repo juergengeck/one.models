@@ -15,9 +15,15 @@ import {OEvent} from '../../misc/OEvent';
 import type {Topic} from '../../recipes/ChatRecipes';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {Plan} from '@refinio/one.core/lib/recipes';
+
+const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
+    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 
 /**
  * Model that manages the creation of chat topics.
@@ -54,6 +60,9 @@ export default class TopicModel extends Model {
 
     private channelDisconnect: (() => void) | undefined;
 
+    // @todo remove this hack when core supports optional id fields
+    public static DEFAULT_TOPIC_OWNER: SHA256IdHash<Person> | undefined;
+
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
@@ -71,6 +80,16 @@ export default class TopicModel extends Model {
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
 
         onUnversionedObj.addListener(this.boundNewTopicFromResult);
+
+        TopicModel.DEFAULT_TOPIC_OWNER = (
+            await storeVersionedObject(
+                {
+                    $type$: 'Person',
+                    email: 'NOBODY'
+                },
+                DUMMY_PLAN_HASH
+            )
+        ).idHash;
 
         this.state.triggerEvent('init');
     }
@@ -96,9 +115,9 @@ export default class TopicModel extends Model {
     public get topics(): Omit<TopicRegistry, 'add' | 'remove'> {
         this.state.assertCurrentState('Initialised');
 
+        // assertCurrentState ensures that the model was initialised - so topics are not undefined
         const topicRegistry = this.Topics as TopicRegistry;
 
-        // assertCurrentState ensures that the model was initialised - so topics is not undefined
         return {
             all: topicRegistry.all,
             queryById: topicRegistry.queryById,
@@ -231,16 +250,22 @@ export default class TopicModel extends Model {
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
+        if (TopicModel.DEFAULT_TOPIC_OWNER === undefined) {
+            throw new Error('Error: model not initialised.');
+        }
+
         // if no name was passed, generate a random one
         const topicName =
             desiredTopicName === undefined ? await createRandomString() : desiredTopicName;
         // generate a random channel id
         const topicID = desiredTopicID === undefined ? await createRandomString() : desiredTopicID;
 
-        await this.channelManager.createChannel(topicID);
-        const owner = await getInstanceOwnerIdHash();
+        await this.channelManager.createChannel(topicID, TopicModel.DEFAULT_TOPIC_OWNER);
 
-        const channels = await this.channelManager.channels({channelId: topicID, owner: owner});
+        const channels = await this.channelManager.channels({
+            channelId: topicID,
+            owner: TopicModel.DEFAULT_TOPIC_OWNER
+        });
 
         if (channels[0] === undefined) {
             throw new Error(
@@ -250,23 +275,16 @@ export default class TopicModel extends Model {
         }
 
         const createdChannel = channels[0];
-
-        const savedTopic = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            {
-                $type$: 'Topic',
+        const savedTopic = await storeUnversionedObject({
+            $type$: 'Topic',
+            id: createdChannel.id,
+            channel: await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
                 id: createdChannel.id,
-                channel: await calculateIdHashOfObj({
-                    $type$: 'ChannelInfo',
-                    id: createdChannel.id,
-                    owner: createdChannel.owner
-                }),
-                name: topicName
-            }
-        );
+                owner: TopicModel.DEFAULT_TOPIC_OWNER
+            }),
+            name: topicName
+        });
 
         return savedTopic.obj;
     }

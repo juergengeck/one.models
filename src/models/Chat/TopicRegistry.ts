@@ -1,14 +1,19 @@
 import {
-    createSingleObjectThroughPurePlan,
     getIdObject,
     getObject,
     UnversionedObjectResult,
-    VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
-import {getObjectByIdObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {Plan} from '@refinio/one.core/lib/recipes';
+
+const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
+    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 
 /**
  * Registry that holds references to all the created topics.
@@ -45,7 +50,7 @@ export default class TopicRegistry {
     public async add(topic: UnversionedObjectResult<Topic>): Promise<Topic> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
 
-        const channel = await getIdObject<'ChannelInfo'>(topic.obj.channel);
+        const channel = await getIdObject(topic.obj.channel);
         registry.obj.topics.set(channel.id, topic.hash);
         await TopicRegistry.updateTopicRegistry(registry.obj.topics);
         return topic.obj;
@@ -101,16 +106,13 @@ export default class TopicRegistry {
             return await getObjectByIdObj({$type$: 'TopicAppRegistry', id: this.id});
         } catch (e) {
             if (e.name === 'FileNotFoundError') {
-                return await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
+                return await storeVersionedObject(
                     {
                         $type$: 'TopicAppRegistry',
                         id: TopicRegistry.id,
                         topics: new Map()
-                    }
+                    },
+                    DUMMY_PLAN_HASH
                 );
             }
 
@@ -124,16 +126,13 @@ export default class TopicRegistry {
      * @private
      */
     private static async updateTopicRegistry(topics: TopicAppRegistry['topics']): Promise<void> {
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
+        await storeVersionedObject(
             {
                 $type$: 'TopicAppRegistry',
                 id: TopicRegistry.id,
                 topics: topics
-            }
+            },
+            DUMMY_PLAN_HASH
         );
     }
 }

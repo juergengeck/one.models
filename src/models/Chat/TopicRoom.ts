@@ -6,6 +6,7 @@ import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {TopicModel} from '../index';
 
 export default class TopicRoom {
     /**
@@ -20,7 +21,7 @@ export default class TopicRoom {
     /** cache the last timestamp for queried messages **/
     private dateOfLastQueriedMessage: Date | undefined = undefined;
 
-    private readonly channelDisconnect: (() => void) | undefined;
+    private channelDisconnect: (() => void) | undefined;
 
     private readonly boundOnChannelUpdated: (
         channelId: string,
@@ -35,16 +36,20 @@ export default class TopicRoom {
         this.channelManager = channelManager;
 
         this.boundOnChannelUpdated = this.emitNewMessageEvent.bind(this);
-        this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
-    }
 
-    /**
-     * De-register listeners.
-     */
-    async exit(): Promise<void> {
-        if (this.channelDisconnect !== undefined) {
-            this.channelDisconnect();
-        }
+        this.onNewMessageReceived.onListen(() => {
+            if (this.onNewMessageReceived.listenerCount() === 0) {
+                this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
+            }
+        });
+        this.onNewMessageReceived.onStopListen(() => {
+            if (
+                this.onNewMessageReceived.listenerCount() === 0 &&
+                this.channelDisconnect !== undefined
+            ) {
+                this.channelDisconnect();
+            }
+        });
     }
 
     /**
@@ -90,12 +95,16 @@ export default class TopicRoom {
             throw new Error('Error: instance id hash could not be found');
         }
 
-        await this.channelManager.postToChannel(this.topic.id, {
-            $type$: 'ChatMessage',
-            text: message,
-            sender: instanceIdHash,
-            attachments: attachments
-        });
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: instanceIdHash,
+                attachments: attachments
+            },
+            TopicModel.DEFAULT_TOPIC_OWNER
+        );
     }
 
     // --------------------------------- private ---------------------------------
