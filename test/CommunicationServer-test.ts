@@ -11,8 +11,8 @@ import {wait} from '@refinio/one.core/lib/util/promise';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
-import * as Logger from '@refinio/one.core/lib/logger';
-Logger.start();
+/*import * as Logger from '@refinio/one.core/lib/logger';
+Logger.start();*/
 
 /**
  * Test for testing the communication server.

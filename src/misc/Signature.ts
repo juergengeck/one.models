@@ -166,7 +166,7 @@ function verifySignatureLowLevel(key: Keys, signature: Signature): boolean {
     }
     return tweetnacl.sign.detached.verify(
         new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
-        new Uint8Array(hexToUint8Array(signature.signature)), // hex string -> UInt8Array (binary)
+        hexToUint8Array(signature.signature), // hex string -> UInt8Array (binary)
         hexToUint8Array(key.publicSignKey) // Hex String -> UInt8Array (binary)
     );
 }

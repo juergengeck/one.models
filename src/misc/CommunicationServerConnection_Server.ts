@@ -1,7 +1,10 @@
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 
@@ -193,20 +196,20 @@ class CommunicationServerConnection_Server {
         // Transform the Uint8Array fields of authentication_request
         if (message.command === 'register') {
             if (message.publicKey && typeof message.publicKey === 'string') {
-                message.publicKey = uint8arrayToHexString(message.publicKey);
+                message.publicKey = hexToUint8Array(message.publicKey);
             }
         }
         if (message.command === 'authentication_response') {
             if (message.response && typeof message.response === 'string') {
-                message.response = uint8arrayToHexString(message.response);
+                message.response = hexToUint8Array(message.response);
             }
         }
         if (message.command === 'communication_request') {
             if (message.sourcePublicKey && typeof message.sourcePublicKey === 'string') {
-                message.sourcePublicKey = uint8arrayToHexString(message.sourcePublicKey);
+                message.sourcePublicKey = hexToUint8Array(message.sourcePublicKey);
             }
             if (message.targetPublicKey && typeof message.targetPublicKey === 'string') {
-                message.targetPublicKey = uint8arrayToHexString(message.targetPublicKey);
+                message.targetPublicKey = hexToUint8Array(message.targetPublicKey);
             }
         }
 
