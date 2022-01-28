@@ -29,7 +29,6 @@ import {
     Uint8ArrayToString
 } from '@refinio/one.core/lib/instance-crypto';
 import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
-import {fromByteArray, toByteArray} from 'base64-js';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
@@ -44,6 +43,11 @@ import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
+import {
+    HexString,
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -54,7 +58,7 @@ const MessageBus = createMessageBus('ConnectionsModel');
  */
 export type PairingInformation = {
     authenticationTag: string;
-    publicKeyLocal: string;
+    publicKeyLocal: HexString;
     url: string;
     takeOver: boolean;
     takeOverDetails?: TakeOverInformation;
@@ -64,7 +68,7 @@ export type PairingInformation = {
  * Additional information for instance takeover.
  */
 export type TakeOverInformation = {
-    nonce: string;
+    nonce: HexString;
     email: string;
 };
 
@@ -406,7 +410,7 @@ class ConnectionsModel extends Model {
                 url: this.config.commServerUrl,
                 takeOver: true,
                 takeOverDetails: {
-                    nonce: fromByteArray(salt),
+                    nonce: uint8arrayToHexString(salt),
                     email: myEmail
                 }
             };
@@ -461,14 +465,14 @@ class ConnectionsModel extends Model {
         }
 
         const mainInstanceInfo = this.mainInstanceInfo;
-        const remoteInstanceKey = toByteArray(
+        const remoteInstanceKey = hexToUint8Array(
             (await getObject(remoteEndpoint.instanceKeys)).publicKey
         );
 
         // Connect to target
         const conn = await OutgoingConnectionEstablisher.connectOnce(
             remoteEndpoint.url,
-            toByteArray(mainInstanceInfo.instanceKeys.publicKey),
+            hexToUint8Array(mainInstanceInfo.instanceKeys.publicKey),
             remoteInstanceKey,
             text => {
                 return mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
@@ -522,7 +526,7 @@ class ConnectionsModel extends Model {
             throw new Error('Module is not initialized!');
         }
 
-        const remotePublicKey = toByteArray(pairingInformation.publicKeyLocal);
+        const remotePublicKey = hexToUint8Array(pairingInformation.publicKeyLocal);
 
         // Case of takeover
         if (pairingInformation.takeOver) {
@@ -536,7 +540,7 @@ class ConnectionsModel extends Model {
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
                 this.config.commServerUrl,
-                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
+                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
                 remotePublicKey,
                 text => {
                     if (!this.mainInstanceInfo) {
@@ -560,7 +564,7 @@ class ConnectionsModel extends Model {
 
             // Add this connection to the communication module, so that it becomes the known connection
             this.communicationModule.addNewUnknownConnection(
-                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
+                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
                 remotePublicKey,
                 conn
             );
@@ -579,7 +583,7 @@ class ConnectionsModel extends Model {
                     conn,
                     this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag,
-                    toByteArray(pairingInformation.takeOverDetails.nonce),
+                    hexToUint8Array(pairingInformation.takeOverDetails.nonce),
                     this.password
                 );
             } catch (e) {
@@ -597,8 +601,8 @@ class ConnectionsModel extends Model {
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
                 this.config.commServerUrl,
-                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
-                toByteArray(pairingInformation.publicKeyLocal),
+                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+                hexToUint8Array(pairingInformation.publicKeyLocal),
                 text => {
                     if (!this.mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
@@ -621,7 +625,7 @@ class ConnectionsModel extends Model {
 
             // Add this connection to the communication module, so that it becomes the known connection
             this.communicationModule.addNewUnknownConnection(
-                toByteArray(this.mainInstanceInfo.instanceKeys.publicKey),
+                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
                 remotePublicKey,
                 conn
             );
@@ -1178,7 +1182,7 @@ class ConnectionsModel extends Model {
             conn,
             'encrypted_authentication_token'
         );
-        const encryptedAuthTag = toByteArray(encAuthData.token);
+        const encryptedAuthTag = hexToUint8Array(encAuthData.token);
         const derivedKey = await scrypt(stringToUint8Array(this.password), authData.salt);
 
         // Verify if the other instance has the same password as the current instance.
@@ -1266,7 +1270,7 @@ class ConnectionsModel extends Model {
         const encryptedAuthTag = await encryptWithSymmetricKey(derivedKey, authenticationToken);
         await ConnectionsModel.sendMessage(conn, {
             command: 'encrypted_authentication_token',
-            token: fromByteArray(encryptedAuthTag)
+            token: uint8arrayToHexString(encryptedAuthTag)
         });
 
         // Step 4: Wait for the private keys and then takeover the instance
@@ -1533,10 +1537,10 @@ class ConnectionsModel extends Model {
         }
 
         const overwritePrivateKeys = async (
-            encryptedBase64Key: string,
+            encryptedHexKey: HexString,
             filename: string
         ): Promise<void> => {
-            await writeUTF8TextFile(encryptedBase64Key, filename, 'private');
+            await writeUTF8TextFile(encryptedHexKey, filename, 'private');
         };
 
         if (thisMainInstanceInfo.personId !== privatePersonInformation.personId) {
@@ -1583,11 +1587,11 @@ class ConnectionsModel extends Model {
      */
     private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
-        personPrivateEncryptionKey: string;
-        personPrivateSignKey: string;
+        personPrivateEncryptionKey: HexString;
+        personPrivateSignKey: HexString;
     }> {
-        const readPrivateKeys = async (filename: string): Promise<string> => {
-            return await readUTF8TextFile(filename, 'private');
+        const readPrivateKeys = async (filename: string): Promise<HexString> => {
+            return (await readUTF8TextFile(filename, 'private')) as HexString;
         };
 
         const personKeyLink = await getAllValues(personId, true, 'Keys');
@@ -1687,7 +1691,7 @@ class ConnectionsModel extends Model {
                 'person_information'
             );
             remotePersonId = remotePersonInfo.personId;
-            remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
+            remotePersonKey = hexToUint8Array(remotePersonInfo.personPublicKey);
 
             // Step 3: Perform challenge / response
             await ConnectionsModel.challengePersonKey(conn, remotePersonKey, crypto);
@@ -1701,7 +1705,7 @@ class ConnectionsModel extends Model {
                 'person_information'
             );
             remotePersonId = remotePersonInfo.personId;
-            remotePersonKey = toByteArray(remotePersonInfo.personPublicKey);
+            remotePersonKey = hexToUint8Array(remotePersonInfo.personPublicKey);
 
             // Step2: Send my person information
             await ConnectionsModel.sendMessage(conn, {
@@ -1745,7 +1749,7 @@ class ConnectionsModel extends Model {
             ).publicKey;
 
             // Compare the key to the transmitted one
-            if (fromByteArray(remotePersonKey) === remotePersonKeyStored) {
+            if (uint8arrayToHexString(remotePersonKey) === remotePersonKeyStored) {
                 keyComparisionFailed = false;
             }
         } catch (e) {

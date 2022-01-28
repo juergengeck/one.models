@@ -7,7 +7,7 @@ import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
 import WebSocketListener from './WebSocketListener';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
-import {arrayBufferToHex} from './ArrayBufferHexConvertor';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const MessageBus = createMessageBus('CommunicationServer');
 
@@ -111,7 +111,7 @@ class CommunicationServer {
             if (isClientMessage(message, 'register')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Registering connection for ${arrayBufferToHex(
+                    `${wslogId(ws.webSocket)}: Registering connection for ${uint8arrayToHexString(
                         message.publicKey
                     )}`
                 );
@@ -166,7 +166,7 @@ class CommunicationServer {
             else if (isClientMessage(message, 'communication_request')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Requesting Relay to ${arrayBufferToHex(
+                    `${wslogId(ws.webSocket)}: Requesting Relay to ${uint8arrayToHexString(
                         message.targetPublicKey
                     )}`
                 );
@@ -255,7 +255,7 @@ class CommunicationServer {
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
     ): void {
-        const strPublicKey = arrayBufferToHex(publicKey);
+        const strPublicKey = uint8arrayToHexString(publicKey);
         MessageBus.send(
             'debug',
             `${wslogId(conn.webSocket)}: pushListeningConnection(${strPublicKey})`
@@ -295,7 +295,7 @@ class CommunicationServer {
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
     ): void {
-        const strPublicKey = arrayBufferToHex(publicKey);
+        const strPublicKey = uint8arrayToHexString(publicKey);
         MessageBus.send(
             'debug',
             `${wslogId(conn.webSocket)}: removeListeningConnection(${strPublicKey})`
@@ -318,7 +318,7 @@ class CommunicationServer {
      * @returns The found connection.
      */
     private popListeningConnection(publicKey: Uint8Array): CommunicationServerConnection_Server {
-        const strPublicKey = arrayBufferToHex(publicKey);
+        const strPublicKey = uint8arrayToHexString(publicKey);
         MessageBus.send('debug', `popListeningConnection(${strPublicKey})`);
 
         // Get the connection list for the current public key

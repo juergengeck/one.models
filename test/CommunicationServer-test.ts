@@ -7,12 +7,12 @@ import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
-import {fromByteArray} from 'base64-js';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
-//import * as Logger from '@refinio/one.core/lib/logger';
-//Logger.start();
+import * as Logger from '@refinio/one.core/lib/logger';
+Logger.start();
 
 /**
  * Test for testing the communication server.
@@ -100,16 +100,20 @@ describe('communication server tests', () => {
                 await clientConn.send(
                     JSON.stringify({
                         command: 'communication_request',
-                        sourcePublicKey: fromByteArray(clientKeyPair.publicKey),
-                        targetPublicKey: fromByteArray(listenerKeyPair.publicKey)
+                        sourcePublicKey: uint8arrayToHexString(clientKeyPair.publicKey),
+                        targetPublicKey: uint8arrayToHexString(listenerKeyPair.publicKey)
                     })
                 );
 
                 // MESSAGE1 RECEIVE: Wait for the mirrored communication request message
                 const msg1 = await clientConn.waitForJSONMessage(1000);
                 expect(msg1.command).to.be.equal('communication_request');
-                expect(msg1.sourcePublicKey).to.be.equal(fromByteArray(clientKeyPair.publicKey));
-                expect(msg1.targetPublicKey).to.be.equal(fromByteArray(listenerKeyPair.publicKey));
+                expect(msg1.sourcePublicKey).to.be.equal(
+                    uint8arrayToHexString(clientKeyPair.publicKey)
+                );
+                expect(msg1.targetPublicKey).to.be.equal(
+                    uint8arrayToHexString(listenerKeyPair.publicKey)
+                );
 
                 // MESSAGE2 SEND:
                 await clientConn.send('Hello Friend!');

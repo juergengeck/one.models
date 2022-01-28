@@ -1,9 +1,9 @@
-import tweetnacl from "tweetnacl";
-import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
-import type {Person} from "@refinio/one.core/lib/recipes";
-import {storeUnversionedObject} from "@refinio/one.core/lib/storage-unversioned-objects";
-import {arrayBufferToHex} from "../../lib/misc/ArrayBufferHexConvertor";
-import {addMetaObject} from "../../lib/misc/MetaObjectMap";
+import tweetnacl from 'tweetnacl';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {addMetaObject} from '../../lib/misc/MetaObjectMap';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * Create a signature object with someone else as issuer and a private key.
@@ -15,12 +15,13 @@ import {addMetaObject} from "../../lib/misc/MetaObjectMap";
  * @param issuer
  * @param secretKey
  */
-export async function signForSomeoneElse(data: SHA256Hash, issuer: SHA256IdHash<Person>, secretKey: Uint8Array): Promise<void> {
-    const signatureBinary = tweetnacl.sign.detached(
-        new TextEncoder().encode(data),
-        secretKey
-    );
-    const signatureString = arrayBufferToHex(signatureBinary.buffer);
+export async function signForSomeoneElse(
+    data: SHA256Hash,
+    issuer: SHA256IdHash<Person>,
+    secretKey: Uint8Array
+): Promise<void> {
+    const signatureBinary = tweetnacl.sign.detached(new TextEncoder().encode(data), secretKey);
+    const signatureString = uint8arrayToHexString(signatureBinary);
     const result = await storeUnversionedObject({
         $type$: 'Signature',
         issuer,

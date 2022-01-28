@@ -1,8 +1,11 @@
 import CommunicationInitiationProtocol, {isClientMessage} from './CommunicationInitiationProtocol';
-import {fromByteArray, toByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * This class implements the 'server' side of an encrypted communication.
@@ -106,7 +109,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
         await this.webSocketPB.send(
             JSON.stringify(message, function (key, value) {
                 if (value.constructor === Uint8Array) {
-                    return fromByteArray(value);
+                    return uint8arrayToHexString(value);
                 } else {
                     return value;
                 }
@@ -115,7 +118,7 @@ class EncryptedConnetion_Server extends EncryptedConnection {
     }
 
     /**
-     * Convert fields from base64 encoding to Uint8Array.
+     * Convert fields from Hex encoding to Uint8Array.
      *
      * @param message - The message to convert
      * @returns - The converted message
@@ -127,10 +130,10 @@ class EncryptedConnetion_Server extends EncryptedConnection {
 
         if (message.command === 'communication_request') {
             if (message.sourcePublicKey && typeof message.sourcePublicKey === 'string') {
-                message.sourcePublicKey = toByteArray(message.sourcePublicKey);
+                message.sourcePublicKey = hexToUint8Array(message.sourcePublicKey);
             }
             if (message.targetPublicKey && typeof message.targetPublicKey === 'string') {
-                message.targetPublicKey = toByteArray(message.targetPublicKey);
+                message.targetPublicKey = hexToUint8Array(message.targetPublicKey);
             }
         }
 

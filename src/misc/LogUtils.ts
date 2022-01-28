@@ -1,5 +1,3 @@
-import {arrayBufferToHex} from './ArrayBufferHexConvertor';
-
 /**
  * Creates a string that identifies the websocket.
  *
@@ -9,6 +7,8 @@ import {arrayBufferToHex} from './ArrayBufferHexConvertor';
  * @param ws - The websocket instance for which to generate the identifier.
  * @returns
  */
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+
 export function wslogId(ws: WebSocket | null): string {
     // TODO: We should use pseudonyms based on an hashing algorithm or something, because we don't want to
     //  have ip addresses in the logs.
@@ -35,5 +35,5 @@ export function wslogId(ws: WebSocket | null): string {
  * @param data - The data to print
  */
 export function printUint8Array(name: string, data: Uint8Array): void {
-    console.log(' ---- ' + name + ': ' + arrayBufferToHex(data));
+    console.log(' ---- ' + name + ': ' + uint8arrayToHexString(data));
 }

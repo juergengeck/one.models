@@ -9,7 +9,7 @@ import EncryptedConnection_Server from './EncryptedConnection_Server';
 import type EncryptedConnection from './EncryptedConnection';
 import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
-import {arrayBufferToHex} from './ArrayBufferHexConvertor';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -88,7 +88,7 @@ class IncomingConnectionManager {
         decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array
     ): Promise<void> {
         // String representation of public string
-        const strPublicKey = arrayBufferToHex(publicKey);
+        const strPublicKey = uint8arrayToHexString(publicKey);
 
         // Create listener for this key
         const listener = new CommunicationServerListener(2, 10000);
