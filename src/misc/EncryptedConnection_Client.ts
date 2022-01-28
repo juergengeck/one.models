@@ -1,9 +1,9 @@
 import CommunicationInitiationProtocol, {isServerMessage} from './CommunicationInitiationProtocol';
-import {fromByteArray} from 'base64-js';
 import tweetnacl from 'tweetnacl';
 import EncryptedConnection from './EncryptedConnection';
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * This class implements the 'client' side of an encrypted communication.
@@ -107,7 +107,7 @@ class EncryptedConnection_Client extends EncryptedConnection {
         await this.webSocketPB.send(
             JSON.stringify(message, function (key, value) {
                 if (value.constructor === Uint8Array) {
-                    return fromByteArray(value);
+                    return uint8arrayToHexString(value);
                 } else {
                     return value;
                 }

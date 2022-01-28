@@ -10,16 +10,18 @@ import {
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {fromByteArray, toByteArray} from 'base64-js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import type {HexString} from './ArrayBufferHexConvertor';
-import {arrayBufferToHex, hexToArrayBuffer, isHexString} from './ArrayBufferHexConvertor';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {sign} from './Signature';
 import ProfileModel from '../models/Leute/ProfileModel';
 import type {InstanceOptions} from '@refinio/one.core/lib/instance';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {
+    isHexString,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -128,12 +130,12 @@ export async function generateNewIdentity(
         type: 'secret',
         personEmail,
         instanceName,
-        personKeySecret: arrayBufferToHex(personKeyPair.secretKey.buffer),
-        personKeyPublic: arrayBufferToHex(personKeyPair.publicKey.buffer),
-        personSignKeySecret: arrayBufferToHex(personSignKeyPair.secretKey.buffer),
-        personSignKeyPublic: arrayBufferToHex(personSignKeyPair.publicKey.buffer),
-        instanceKeySecret: arrayBufferToHex(instanceKeyPair.secretKey.buffer),
-        instanceKeyPublic: arrayBufferToHex(instanceKeyPair.publicKey.buffer),
+        personKeySecret: uint8arrayToHexString(personKeyPair.secretKey),
+        personKeyPublic: uint8arrayToHexString(personKeyPair.publicKey),
+        personSignKeySecret: uint8arrayToHexString(personSignKeyPair.secretKey),
+        personSignKeyPublic: uint8arrayToHexString(personSignKeyPair.publicKey),
+        instanceKeySecret: uint8arrayToHexString(instanceKeyPair.secretKey),
+        instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
         commServerUrl
     };
 
@@ -141,9 +143,9 @@ export async function generateNewIdentity(
         type: 'public',
         personEmail,
         instanceName,
-        personKeyPublic: arrayBufferToHex(personKeyPair.publicKey.buffer),
-        personSignKeyPublic: arrayBufferToHex(personSignKeyPair.publicKey.buffer),
-        instanceKeyPublic: arrayBufferToHex(instanceKeyPair.publicKey.buffer),
+        personKeyPublic: uint8arrayToHexString(personKeyPair.publicKey),
+        personSignKeyPublic: uint8arrayToHexString(personSignKeyPair.publicKey),
+        instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
         commServerUrl
     };
 
@@ -190,8 +192,8 @@ export async function convertIdentityToOneInstanceEndpoint(
         await storeUnversionedObject({
             $type$: 'Keys',
             owner: personHash,
-            publicKey: fromByteArray(new Uint8Array(hexToArrayBuffer(identity.personKeyPublic))),
-            publicSignKey: fromByteArray(new Uint8Array(hexToArrayBuffer(identity.personKeyPublic)))
+            publicKey: identity.personKeyPublic,
+            publicSignKey: identity.personKeyPublic
         })
     ).hash;
 
@@ -229,7 +231,7 @@ export async function convertIdentityToOneInstanceEndpoint(
         await storeUnversionedObject({
             $type$: 'Keys',
             owner: instanceHash,
-            publicKey: fromByteArray(new Uint8Array(hexToArrayBuffer(identity.instanceKeyPublic)))
+            publicKey: identity.instanceKeyPublic
         })
     ).hash;
 
@@ -272,9 +274,9 @@ export async function convertOneInstanceEndpointToIdentity(
         type: 'public',
         personEmail: person.obj.email,
         instanceName: instance.obj.name,
-        personKeyPublic: arrayBufferToHex(toByteArray(personKeys.publicKey).buffer),
-        personSignKeyPublic: arrayBufferToHex(toByteArray(personKeys.publicSignKey).buffer),
-        instanceKeyPublic: arrayBufferToHex(toByteArray(instanceKeys.publicKey).buffer),
+        personKeyPublic: personKeys.publicKey,
+        personSignKeyPublic: personKeys.publicSignKey,
+        instanceKeyPublic: instanceKeys.publicKey,
         commServerUrl: oneInstanceEndpoint.url
     };
 }
@@ -312,24 +314,12 @@ export function convertIdentityToInstanceOptions(
         return {
             name: identity.instanceName,
             email: identity.personEmail,
-            publicEncryptionKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.personKeyPublic))
-            ),
-            secretEncryptionKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.personKeySecret))
-            ),
-            publicSignKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.personSignKeyPublic))
-            ),
-            secretSignKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.personSignKeySecret))
-            ),
-            publicInstanceEncryptionKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.instanceKeyPublic))
-            ),
-            secretInstanceEncryptionKey: fromByteArray(
-                new Uint8Array(hexToArrayBuffer(identity.instanceKeySecret))
-            ),
+            publicEncryptionKey: identity.personKeyPublic,
+            secretEncryptionKey: identity.personKeySecret,
+            publicSignKey: identity.personSignKeyPublic,
+            secretSignKey: identity.personSignKeySecret,
+            publicInstanceEncryptionKey: identity.instanceKeyPublic,
+            secretInstanceEncryptionKey: identity.instanceKeySecret,
             secret
         };
     }

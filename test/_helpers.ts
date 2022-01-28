@@ -2,16 +2,17 @@ import {initInstance} from '@refinio/one.core/lib/instance';
 import type {Instance, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 export const defaultDbName = 'testDb';
 
 export interface StorageHelpersInitOpts {
     email?: string;
     secret?: string | null;
-    secretEncryptionKey?: string;
-    publicEncryptionKey?: string;
-    secretSignKey?: string;
-    publicSignKey?: string;
+    secretEncryptionKey?: HexString;
+    publicEncryptionKey?: HexString;
+    secretSignKey?: HexString;
+    publicSignKey?: HexString;
     name?: string;
     dbKey?: string;
     addTypes?: boolean;

@@ -3,7 +3,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Keys, Person, Plan} from '@refinio/one.core/lib/recipes';
 import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {fromByteArray} from 'base64-js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -36,8 +36,8 @@ export async function createTestIdentity(email: string): Promise<{
         await storeUnversionedObject({
             $type$: 'Keys',
             owner: personResult.idHash,
-            publicKey: fromByteArray(keyPair.publicKey),
-            publicSignKey: fromByteArray(signKeyPair.publicKey)
+            publicKey: uint8arrayToHexString(keyPair.publicKey),
+            publicSignKey: uint8arrayToHexString(signKeyPair.publicKey)
         })
     ).hash;
 

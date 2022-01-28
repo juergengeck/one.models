@@ -7,7 +7,6 @@ import {
     Uint8ArrayToString
 } from '@refinio/one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
-import {fromByteArray, toByteArray} from 'base64-js';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
@@ -17,6 +16,11 @@ import type CommunicationInitiationProtocol from '../misc/CommunicationInitiatio
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
+import {
+    HexString,
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
@@ -28,10 +32,10 @@ type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonIn
  */
 interface PersonInformation {
     personEmail: string;
-    personPublicKey: string;
-    personPublicSignKey: string;
-    personPrivateKey: string;
-    personPrivateSignKey: string;
+    personPublicKey: HexString;
+    personPublicSignKey: HexString;
+    personPrivateKey: HexString;
+    personPrivateSignKey: HexString;
 }
 
 /**
@@ -99,13 +103,13 @@ export default class RecoveryModel extends Model {
         }
 
         // generate a new nonce which will be used in encrypting the person information
-        const recoveryNonce = fromByteArray(tweetnacl.randomBytes(64));
+        const recoveryNonce = uint8arrayToHexString(tweetnacl.randomBytes(64));
         // generate a new key which will be used together with
         // the nonce for encrypting the person information
         const recoveryKey = this.generateRandomReadableString();
         const derivedKey = await scrypt(
             stringToUint8Array(recoveryKey),
-            toByteArray(recoveryNonce)
+            hexToUint8Array(recoveryNonce)
         );
 
         // extract all information for main person and anonymous
@@ -113,7 +117,7 @@ export default class RecoveryModel extends Model {
         const objectToEncrypt = await this.extractPersonInformation();
 
         // encrypt the persons information with the recovery nonce and recovery key
-        const encryptedPersonInformation = fromByteArray(
+        const encryptedPersonInformation = uint8arrayToHexString(
             await encryptWithSymmetricKey(derivedKey, objectToEncrypt)
         );
 
@@ -145,15 +149,15 @@ export default class RecoveryModel extends Model {
      */
     async decryptReceivedRecoveryInformation(
         recoveryKey: string,
-        recoveryNonce: string,
-        encryptedPersonInformation: string
+        recoveryNonce: HexString,
+        encryptedPersonInformation: HexString
     ): Promise<string> {
         this.state.assertCurrentState('Initialised');
 
-        const objectToDecrypt = toByteArray(encryptedPersonInformation);
+        const objectToDecrypt = hexToUint8Array(encryptedPersonInformation);
         const derivedKey = await scrypt(
             stringToUint8Array(recoveryKey),
-            toByteArray(recoveryNonce)
+            hexToUint8Array(recoveryNonce)
         );
         this.decryptedObject = JSON.parse(
             Uint8ArrayToString(await decryptWithSymmetricKey(derivedKey, objectToDecrypt))
@@ -281,8 +285,8 @@ export default class RecoveryModel extends Model {
      * @private
      */
     private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
-        privateKey: string;
-        privateSignKey: string;
+        privateKey: HexString;
+        privateSignKey: HexString;
     }> {
         if (this.password === '') {
             throw new Error('Can not decrypt person keys without knowing the instance password!');
@@ -306,8 +310,8 @@ export default class RecoveryModel extends Model {
         }
 
         return {
-            privateKey: fromByteArray(personPrivateEncryptionKey),
-            privateSignKey: fromByteArray(personPrivateSignKey)
+            privateKey: uint8arrayToHexString(personPrivateEncryptionKey),
+            privateSignKey: uint8arrayToHexString(personPrivateSignKey)
         };
     }
 
@@ -324,8 +328,8 @@ export default class RecoveryModel extends Model {
      * @returns
      * @private
      */
-    private async encryptPersonPrivateKey(keyAsString: string): Promise<string> {
-        const key = toByteArray(keyAsString);
+    private async encryptPersonPrivateKey(keyAsString: HexString): Promise<HexString> {
+        const key = hexToUint8Array(keyAsString);
         const nonce = randomBytes(tweetnacl.secretbox.nonceLength);
         const derivedKey = await deriveBinaryKey(
             this.password,
@@ -336,6 +340,6 @@ export default class RecoveryModel extends Model {
         const encryptedKey = new Uint8Array(tweetnacl.secretbox.nonceLength + encrypted.byteLength);
         encryptedKey.set(nonce, 0);
         encryptedKey.set(encrypted, nonce.byteLength);
-        return fromByteArray(encryptedKey);
+        return uint8arrayToHexString(encryptedKey);
     }
 }
