@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "8.2.0",
+  "version": "8.2.1",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -15,11 +15,11 @@
     "start": "node lib/model/index.js",
     "test": "npx --no-install mocha --exit test/**-test.js",
     "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**-test.js",
-    "start-comm-server": "node lib/cli/CommunicationServer",
-    "start-comm-server-log": "node lib/cli/CommunicationServer -l",
+    "start-comm-server": "node lib/tools/CommunicationServer",
+    "start-comm-server-log": "node lib/tools/CommunicationServer -l",
     "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
-    "start-uke": "node lib/cli/CommunicationServer -p 8000",
-    "start-state-machine": "node lib/cli/StateMachine",
+    "start-uke": "node lib/tools/CommunicationServer -p 8000",
+    "start-state-machine": "node lib/tools/StateMachine",
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
