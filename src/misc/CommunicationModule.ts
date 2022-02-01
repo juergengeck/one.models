@@ -2,7 +2,6 @@ import type {LeuteModel} from '../models';
 import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
 import type EncryptedConnection from './EncryptedConnection';
 import {getObject} from '@refinio/one.core/lib/storage';
-import {toByteArray, fromByteArray} from 'base64-js';
 import type InstancesModel from '../models/InstancesModel';
 import type {LocalInstanceInfo} from '../models/InstancesModel';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
@@ -12,7 +11,11 @@ import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
-import {arrayBufferToHex} from './ArrayBufferHexConvertor';
+import {
+    HexString,
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * This type represents information about a connection.
@@ -38,8 +41,8 @@ type ConnectionContainer = {
     connEst?: OutgoingConnectionEstablisher;
     activeConnection: EncryptedConnection | null;
     url: string;
-    sourcePublicKey: string;
-    targetPublicKey: string;
+    sourcePublicKey: HexString;
+    targetPublicKey: HexString;
     sourceInstanceId: SHA256IdHash<Instance>;
     targetInstanceId: SHA256IdHash<Instance>;
     sourcePersonId: SHA256IdHash<Person>;
@@ -62,7 +65,7 @@ type ConnectionContainer = {
  * @returns
  */
 function genMapKey(localPublicKey: Uint8Array, remotePublicKey: Uint8Array): string {
-    return `${arrayBufferToHex(localPublicKey)} + ${arrayBufferToHex(remotePublicKey)}`;
+    return `${uint8arrayToHexString(localPublicKey)} + ${uint8arrayToHexString(remotePublicKey)}`;
 }
 
 /**
@@ -261,8 +264,8 @@ export default class CommunicationModule extends EventEmitter {
 
                 // Load endpoint sub-elements
                 const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
-                const sourceKey = toByteArray(mainInstanceInfo.instanceKeys.publicKey);
-                const targetKey = toByteArray(remoteInstanceKeys.publicKey);
+                const sourceKey = hexToUint8Array(mainInstanceInfo.instanceKeys.publicKey);
+                const targetKey = hexToUint8Array(remoteInstanceKeys.publicKey);
                 const mapKey = genMapKey(sourceKey, targetKey);
 
                 // Check if the desired connection it's with you
@@ -411,8 +414,8 @@ export default class CommunicationModule extends EventEmitter {
             connectionsInfo.push({
                 isConnected: container.activeConnection !== null,
                 url: container.url,
-                sourcePublicKey: arrayBufferToHex(toByteArray(container.sourcePublicKey)),
-                targetPublicKey: arrayBufferToHex(toByteArray(container.targetPublicKey)),
+                sourcePublicKey: container.sourcePublicKey,
+                targetPublicKey: container.targetPublicKey,
                 sourceInstanceId: container.sourceInstanceId,
                 targetInstanceId: container.targetInstanceId,
                 sourcePersonId: container.sourcePersonId,
@@ -485,8 +488,8 @@ export default class CommunicationModule extends EventEmitter {
 
         // Fill all endpoints into this.knownPeerMap and this.establishedConnections
         for (const contactInfo of myOutgoingConnInfo.concat(otherOutgoingConnInfo)) {
-            const sourceKey = toByteArray(contactInfo.sourcePublicKey);
-            const targetKey = toByteArray(contactInfo.targetPublicKey);
+            const sourceKey = hexToUint8Array(contactInfo.sourcePublicKey);
+            const targetKey = hexToUint8Array(contactInfo.targetPublicKey);
 
             // Append to peer map
             const mapKey = genMapKey(sourceKey, targetKey);
@@ -570,17 +573,17 @@ export default class CommunicationModule extends EventEmitter {
             // Start outgoing connections
             connContainer.connEst.start(
                 connContainer.url,
-                toByteArray(connContainer.sourcePublicKey),
-                toByteArray(connContainer.targetPublicKey),
+                hexToUint8Array(connContainer.sourcePublicKey),
+                hexToUint8Array(connContainer.targetPublicKey),
                 text => {
                     return connContainer.cryptoApi.encryptWithInstancePublicKey(
-                        toByteArray(connContainer.targetPublicKey),
+                        hexToUint8Array(connContainer.targetPublicKey),
                         text
                     );
                 },
                 cypherText => {
                     return connContainer.cryptoApi.decryptWithInstancePublicKey(
-                        toByteArray(connContainer.targetPublicKey),
+                        hexToUint8Array(connContainer.targetPublicKey),
                         cypherText
                     );
                 }
@@ -637,7 +640,7 @@ export default class CommunicationModule extends EventEmitter {
         const cryptoApi = createCryptoAPI(instance);
         await this.incomingConnectionManager.listenForCommunicationServerConnections(
             this.commServer,
-            toByteArray(keys.publicKey),
+            hexToUint8Array(keys.publicKey),
             (key, text) => {
                 return cryptoApi.encryptWithInstancePublicKey(key, text);
             },
@@ -669,7 +672,7 @@ export default class CommunicationModule extends EventEmitter {
         const endpoint = this.knownPeerMap.get(mapKey);
         if (endpoint === undefined) {
             const localPersonInfo = this.myPublicKeyToInstanceInfoMap.get(
-                fromByteArray(localPublicKey)
+                uint8arrayToHexString(localPublicKey)
             );
             if (!localPersonInfo) {
                 conn.close('Local public key is unknown');

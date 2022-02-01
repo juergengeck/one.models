@@ -1,7 +1,9 @@
 import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {HexString} from '../misc/ArrayBufferHexConvertor';
-import {HexStringRegex} from '../misc/ArrayBufferHexConvertor';
+import {
+    HexString,
+    HexStringRegex
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

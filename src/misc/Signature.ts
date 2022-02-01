@@ -4,12 +4,14 @@ import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/i
 import {getObject, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
-import {hexToArrayBuffer, arrayBufferToHex} from './ArrayBufferHexConvertor';
 import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
-import {toByteArray} from 'base64-js';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * Sign an object with my own key.
@@ -30,7 +32,7 @@ export async function sign(data: SHA256Hash): Promise<UnversionedObjectResult<Si
     // Sign the data hash with the crypto API
     const cryptoAPI = createCryptoAPI(instanceIdHash);
     const signatureBinary = cryptoAPI.createSignature(new TextEncoder().encode(data));
-    const signatureString = arrayBufferToHex(signatureBinary.buffer);
+    const signatureString = uint8arrayToHexString(signatureBinary);
 
     // Store the signature as meta object.
     const sigResult = await storeUnversionedObject({
@@ -164,8 +166,8 @@ function verifySignatureLowLevel(key: Keys, signature: Signature): boolean {
     }
     return tweetnacl.sign.detached.verify(
         new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
-        new Uint8Array(hexToArrayBuffer(signature.signature)), // hex string -> UInt8Array (binary)
-        toByteArray(key.publicSignKey) // base64 string -> UInt8Array (binary)
+        hexToUint8Array(signature.signature), // hex string -> UInt8Array (binary)
+        hexToUint8Array(key.publicSignKey) // Hex String -> UInt8Array (binary)
     );
 }
 

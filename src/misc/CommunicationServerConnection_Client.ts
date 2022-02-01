@@ -1,7 +1,10 @@
 import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
-import {fromByteArray, toByteArray} from 'base64-js';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
  * This class implements the client side of communication server communication
@@ -139,7 +142,7 @@ class CommunicationServerConnection_Client {
         await this.webSocketPB.send(
             JSON.stringify(message, function (key, value) {
                 if (value.constructor === Uint8Array) {
-                    return fromByteArray(value);
+                    return uint8arrayToHexString(value);
                 } else {
                     return value;
                 }
@@ -148,7 +151,7 @@ class CommunicationServerConnection_Client {
     }
 
     /**
-     * Convert fields from base64 encoding to Uint8Array.
+     * Convert fields from Hex encoding to Uint8Array.
      *
      * @param message - The message to convert
      * @returns The converted message
@@ -160,18 +163,18 @@ class CommunicationServerConnection_Client {
 
         if (message.command === 'authentication_request') {
             if (message.publicKey && typeof message.publicKey === 'string') {
-                message.publicKey = toByteArray(message.publicKey);
+                message.publicKey = hexToUint8Array(message.publicKey);
             }
             if (message.challenge && typeof message.challenge === 'string') {
-                message.challenge = toByteArray(message.challenge);
+                message.challenge = hexToUint8Array(message.challenge);
             }
         }
         if (message.command === 'communication_request') {
             if (message.sourcePublicKey && typeof message.sourcePublicKey === 'string') {
-                message.sourcePublicKey = toByteArray(message.sourcePublicKey);
+                message.sourcePublicKey = hexToUint8Array(message.sourcePublicKey);
             }
             if (message.targetPublicKey && typeof message.targetPublicKey === 'string') {
-                message.targetPublicKey = toByteArray(message.targetPublicKey);
+                message.targetPublicKey = hexToUint8Array(message.targetPublicKey);
             }
         }
 

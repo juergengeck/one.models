@@ -3,6 +3,7 @@
  */
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 // TODO No extra namespace (the module already is one)
 declare module CommunicationInitiationProtocol {
@@ -58,7 +59,7 @@ declare module CommunicationInitiationProtocol {
     export type PersonInformationMessage = {
         command: 'person_information';
         personId: SHA256IdHash<Person>;
-        personPublicKey: string;
+        personPublicKey: HexString;
     };
 
     /**
@@ -74,7 +75,7 @@ declare module CommunicationInitiationProtocol {
      */
     export type EncryptedAuthenticationTokenMessage = {
         command: 'encrypted_authentication_token';
-        token: string;
+        token: HexString;
     };
 
     /**
@@ -91,10 +92,10 @@ declare module CommunicationInitiationProtocol {
     export type PrivatePersonInformationMessage = {
         command: 'private_person_information';
         personId: SHA256IdHash<Person>;
-        personPublicKey: string;
-        personPublicSignKey: string;
-        personPrivateKey: string;
-        personPrivateSignKey: string;
+        personPublicKey: HexString;
+        personPublicSignKey: HexString;
+        personPrivateKey: HexString;
+        personPrivateSignKey: HexString;
     };
 
     /**
