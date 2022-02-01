@@ -147,7 +147,7 @@ async function setupOneModels(commServerUrl: string): Promise<{
     // Construct models
     const access = new AccessModel();
     const instances = new InstancesModel();
-    const channelManager = new ChannelManager(access);
+    const channelManager = new ChannelManager();
     const leute = new LeuteModel(instances, commServerUrl);
     const connections = new ConnectionsModel(leute, instances, {
         commServerUrl

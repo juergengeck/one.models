@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "8.2.1",
+  "version": "9.0.0",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "github:refinio/one.core",
+    "@refinio/one.core": "github:refinio/one.core#optional_id_fields",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",

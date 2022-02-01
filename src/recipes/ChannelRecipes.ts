@@ -27,7 +27,7 @@ export interface ChannelEntry {
 export interface ChannelInfo {
     $type$: 'ChannelInfo';
     id: string;
-    owner: SHA256IdHash<Person>;
+    owner?: SHA256IdHash<Person>;
     head?: SHA256Hash<ChannelEntry>;
 }
 
@@ -71,7 +71,8 @@ export const ChannelInfoRecipe: Recipe = {
         {
             itemprop: 'owner',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])},
-            isId: true
+            isId: true,
+            optional: true
         },
         {
             itemprop: 'head',

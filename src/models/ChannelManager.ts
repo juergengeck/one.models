@@ -18,7 +18,6 @@ import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {getNthVersionMapHash} from '@refinio/one.core/lib/version-map-query';
 import type {ReverseMapEntry} from '@refinio/one.core/lib/reverse-map-updater';
-import type AccessModel from './AccessModel';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureHash, ensureIdHash, SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
@@ -46,9 +45,14 @@ const MessageBus = createMessageBus('ChannelManager');
  *
  * @param channelId
  * @param owner
+ * @param message
  * @parammessage
  */
-function logWithId(channelId: string | null, owner: SHA256IdHash<Person> | null, message: string) {
+function logWithId(
+    channelId: string | null,
+    owner: SHA256IdHash<Person> | undefined | null,
+    message: string
+) {
     MessageBus.send('log', `${channelId} # ${owner} # ${message}`);
 }
 
@@ -61,7 +65,7 @@ function logWithId(channelId: string | null, owner: SHA256IdHash<Person> | null,
  */
 function logWithId_Debug(
     channelId: string | null,
-    owner: SHA256IdHash<Person> | null,
+    owner: SHA256IdHash<Person> | undefined | null,
     message: string
 ) {
     MessageBus.send('debug', `${channelId} # ${owner} # ${message}`);
@@ -72,7 +76,7 @@ function logWithId_Debug(
  */
 export type Channel = {
     id: string;
-    owner: SHA256IdHash<Person>;
+    owner?: SHA256IdHash<Person>;
 };
 
 /**
@@ -139,14 +143,15 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
  */
 export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
     channelId: string; // The channel id
-    channelOwner: SHA256IdHash<Person>; // The owner of the channel
+    channelOwner?: SHA256IdHash<Person>; // The owner of the channel
     channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
 
     // This id identifies the data point. It can be used to reference this data point in other
     // methods of this class.
     id: string;
     creationTime: Date; // Time when this data point was created
-    author: SHA256IdHash<Person>; // Author of this data point (currently, this is always the owner)
+    author?: SHA256IdHash<Person>; // Author of this data point (currently, this is always the
+    // owner)
     sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
 
     data: T;
@@ -228,28 +233,20 @@ export default class ChannelManager {
      * (channelId, channelOwner) pair.
      */
     public onUpdated = new OEvent<
-        (
-            channelId: string,
-            channelOwner: SHA256IdHash<Person>,
-            data: ObjectData<OneUnversionedObjectTypes>
-        ) => void
+        (channelId: string, data: ObjectData<OneUnversionedObjectTypes>) => void
     >();
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
     // Default owner for post calls
     private defaultOwner: SHA256IdHash<Person> | null;
-    private accessModel: AccessModel;
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
 
     /**
      * Create the channel manager instance.
-     *
-     * @param accessModel
      */
-    constructor(accessModel: AccessModel) {
-        this.accessModel = accessModel;
+    constructor() {
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
@@ -307,15 +304,23 @@ export default class ChannelManager {
      *
      * @param channelId - The id of the channel. See class description for more details
      * on how ids and channels are handled.
-     * @param owner - The id hash of the person that should be the owner
-     * of this channel.
+     * @param owner - If the owner it's not passed, then the {@link this.defaultOwner} is
+     * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
+     * will be used as an owner.
      */
-    public async createChannel(channelId: string, owner?: SHA256IdHash<Person>): Promise<void> {
+    public async createChannel(
+        channelId: string,
+        owner?: SHA256IdHash<Person> | null
+    ): Promise<void> {
         if (!this.defaultOwner) {
             throw Error('Not initialized');
         }
-        if (!owner) {
+        if (owner === undefined) {
             owner = this.defaultOwner;
+        }
+
+        if (owner === null) {
+            owner = undefined;
         }
 
         const channelInfoIdHash = await calculateIdHashOfObj({
@@ -367,21 +372,29 @@ export default class ChannelManager {
      *
      * @param channelId - The id of the channel to post to
      * @param data - The object to post to the channel
-     * @param channelOwner
+     * @param channelOwner - If the owner it's not passed, then the {@link this.defaultOwner} is
+     * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
+     * will be used as an owner.
      * @param timestamp
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
         data: T,
-        channelOwner?: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person> | null,
         timestamp?: number
     ): Promise<void> {
         // Determine the owner to use for posting.
-        // It is either the passed one, or the default one if none was passed.
-        let owner: SHA256IdHash<Person>;
-        if (channelOwner) {
-            owner = channelOwner;
+        // The owner can be the passed one, or the default one if none was passed.
+        // It is no owner if null is passed.
+        let owner: SHA256IdHash<Person> | undefined;
+
+        if (channelOwner === null) {
+            owner = undefined;
         } else {
+            owner = channelOwner;
+        }
+
+        if (channelOwner === undefined) {
             if (!this.defaultOwner) {
                 throw new Error('Default owner is not initialized');
             }
@@ -446,19 +459,27 @@ export default class ChannelManager {
      *
      * @param channelId - The id of the channel to post to
      * @param data - The object to post to the channel
-     * @param channelOwner
+     * @param channelOwner - If the owner it's not passed, then the {@link this.defaultOwner} is
+     * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
+     * will be used as an owner.
      */
     public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
         channelId: string,
         data: T,
-        channelOwner?: SHA256IdHash<Person>
+        channelOwner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         // Determine the owner to use for posting.
-        // It is either the passed one, or the default one if none was passed.
-        let owner: SHA256IdHash<Person>;
-        if (channelOwner) {
-            owner = channelOwner;
+        // The owner can be the passed one, or the default one if none was passed.
+        // It is no owner if null is passed.
+        let owner: SHA256IdHash<Person> | undefined;
+
+        if (channelOwner === null) {
+            owner = undefined;
         } else {
+            owner = channelOwner;
+        }
+
+        if (channelOwner === undefined) {
             if (!this.defaultOwner) {
                 throw new Error('Default owner is not initialized');
             }
@@ -1173,7 +1194,7 @@ export default class ChannelManager {
     ): Promise<void> {
         // Determine the channel id and owner
         let channelId: string;
-        let channelOwner: SHA256IdHash<Person>;
+        let channelOwner: SHA256IdHash<Person> | undefined;
         {
             const channelInfo = await getObjectByIdHash(channelInfoIdHash);
             channelId = channelInfo.obj.id;
@@ -1390,7 +1411,7 @@ export default class ChannelManager {
                 if (data === undefined) {
                     throw new Error('wrapChannelInfoWithObjectData returned undefined ');
                 }
-                this.onUpdated.emit(channelId, channelOwner, data);
+                this.onUpdated.emit(channelId, data);
             });
         } catch (e) {
             logWithId(channelId, channelOwner, 'mergePendingVersions - FAIL: ' + e.toString());
@@ -1550,7 +1571,11 @@ export default class ChannelManager {
                 if (channelIds && !channelIds.includes(channelInfo.readVersion.id)) {
                     continue;
                 }
-                if (owners && !owners.includes(channelInfo.readVersion.owner)) {
+                if (
+                    owners &&
+                    channelInfo.readVersion.owner !== undefined &&
+                    !owners.includes(channelInfo.readVersion.owner)
+                ) {
                     continue;
                 }
                 selectedChannelInfos.push(channelInfo.readVersion);
@@ -1647,7 +1672,7 @@ export default class ChannelManager {
 
                 // Determine the channel id and owner
                 let channelId: string;
-                let channelOwner: SHA256IdHash<Person>;
+                let channelOwner: SHA256IdHash<Person> | undefined;
 
                 this.promiseTrackers.add(promiseTracker.promise);
 
@@ -1695,7 +1720,7 @@ export default class ChannelManager {
     ): Promise<void> {
         // Determine the channel id and owner
         let channelId: string;
-        let channelOwner: SHA256IdHash<Person>;
+        let channelOwner: SHA256IdHash<Person> | undefined;
         {
             const channelInfo = await getObjectByIdHash(channelInfoIdHash);
             channelId = channelInfo.obj.id;
@@ -1882,7 +1907,7 @@ export default class ChannelManager {
             );
         }
 
-        const group = await this.accessModel.getAccessGroupByName(to);
+        const group = await getObjectByIdObj({$type$: 'Group', name: to});
 
         const accessObjects = await Promise.all(
             channels.map(async channelInfo => {

@@ -120,12 +120,10 @@ export default class BodyTemperatureModel extends Model {
     /**
      *  Handler function for the 'updated' event
      * @param id
-     * @param owner
      * @param data
      */
     private async handleChannelUpdate(
         id: string,
-        owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === BodyTemperatureModel.channelId) {
