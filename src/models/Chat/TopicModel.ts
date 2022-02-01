@@ -18,7 +18,6 @@ import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {Plan} from '@refinio/one.core/lib/recipes';
 
@@ -50,7 +49,6 @@ export default class TopicModel extends Model {
 
     private readonly boundOnChannelUpdated: (
         channelId: string,
-        channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) => Promise<void>;
 
@@ -59,9 +57,6 @@ export default class TopicModel extends Model {
     ) => void;
 
     private channelDisconnect: (() => void) | undefined;
-
-    // @todo remove this hack when core supports optional id fields
-    public static DEFAULT_TOPIC_OWNER: SHA256IdHash<Person> | undefined;
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -80,16 +75,6 @@ export default class TopicModel extends Model {
         this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
 
         onUnversionedObj.addListener(this.boundNewTopicFromResult);
-
-        TopicModel.DEFAULT_TOPIC_OWNER = (
-            await storeVersionedObject(
-                {
-                    $type$: 'Person',
-                    email: 'NOBODY'
-                },
-                DUMMY_PLAN_HASH
-            )
-        ).idHash;
 
         this.state.triggerEvent('init');
     }
@@ -250,21 +235,16 @@ export default class TopicModel extends Model {
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        if (TopicModel.DEFAULT_TOPIC_OWNER === undefined) {
-            throw new Error('Error: model not initialised.');
-        }
-
         // if no name was passed, generate a random one
         const topicName =
             desiredTopicName === undefined ? await createRandomString() : desiredTopicName;
         // generate a random channel id
         const topicID = desiredTopicID === undefined ? await createRandomString() : desiredTopicID;
 
-        await this.channelManager.createChannel(topicID, TopicModel.DEFAULT_TOPIC_OWNER);
+        await this.channelManager.createChannel(topicID, null);
 
         const channels = await this.channelManager.channels({
-            channelId: topicID,
-            owner: TopicModel.DEFAULT_TOPIC_OWNER
+            channelId: topicID
         });
 
         if (channels[0] === undefined) {
@@ -280,8 +260,7 @@ export default class TopicModel extends Model {
             id: createdChannel.id,
             channel: await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
-                id: createdChannel.id,
-                owner: TopicModel.DEFAULT_TOPIC_OWNER
+                id: createdChannel.id
             }),
             name: topicName
         });
@@ -293,15 +272,10 @@ export default class TopicModel extends Model {
      * Notify the client to update the conversation list (there might be a new last message for
      * a conversation)
      * @param channelId
-     * @param channelOwner
      * @param data
      * @private
      */
-    private async onChannelUpdated(
-        channelId: string,
-        channelOwner: SHA256IdHash<Person>,
-        data: ObjectData<OneUnversionedObjectTypes>
-    ) {
+    private async onChannelUpdated(channelId: string, data: ObjectData<OneUnversionedObjectTypes>) {
         if (data.data.$type$ === 'ChatMessage') {
             this.onNewChatMessageEvent.emit(channelId, data.data);
         }

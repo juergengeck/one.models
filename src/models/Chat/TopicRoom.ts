@@ -6,7 +6,6 @@ import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {TopicModel} from '../index';
 
 export default class TopicRoom {
     /**
@@ -25,7 +24,6 @@ export default class TopicRoom {
 
     private readonly boundOnChannelUpdated: (
         channelId: string,
-        channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) => Promise<void>;
 
@@ -103,7 +101,7 @@ export default class TopicRoom {
                 sender: instanceIdHash,
                 attachments: attachments
             },
-            TopicModel.DEFAULT_TOPIC_OWNER
+            null
         );
     }
 
@@ -113,13 +111,11 @@ export default class TopicRoom {
      * Notify the client to update the conversation list (there might be a new last message for
      * a conversation).
      * @param channelId
-     * @param channelOwner
      * @param data
      * @private
      */
     private async emitNewMessageEvent(
         channelId: string,
-        channelOwner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
         if (channelId === this.topic.id) {
