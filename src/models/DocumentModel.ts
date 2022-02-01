@@ -228,12 +228,10 @@ export default class DocumentModel extends Model {
     /**
      *  Handler function for the 'updated' event
      * @param id
-     * @param owner
      * @param data
      */
     private async handleOnUpdated(
         id: string,
-        owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DocumentModel.channelId) {

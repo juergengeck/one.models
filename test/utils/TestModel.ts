@@ -91,7 +91,7 @@ export default class TestModel {
         this.secret = 'test-secret';
         this.instancesModel = new InstancesModel();
         this.accessModel = new AccessModel();
-        this.channelManager = new ChannelManager(this.accessModel);
+        this.channelManager = new ChannelManager();
         this.consentFile = new ConsentFileModel(this.channelManager);
         this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
