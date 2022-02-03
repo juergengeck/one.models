@@ -4,7 +4,7 @@
 
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import TestModel, {importModules, removeDir} from './utils/TestModel';
+import TestModel, {importModules} from './utils/TestModel';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
@@ -17,7 +17,6 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
-import {wait} from '@refinio/one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -79,8 +78,8 @@ describe('Channel Iterators test', () => {
 
     it('should get zero objects by getObjects', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            expect(objects1).to.have.length(0);
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            expect(retrievedObjects).to.have.length(0);
         }
     });
 
@@ -92,7 +91,6 @@ describe('Channel Iterators test', () => {
                         $type$: 'BodyTemperature',
                         temperature: Math.random()
                     });
-                    await wait(300);
                 }
             })
         );
@@ -105,10 +103,24 @@ describe('Channel Iterators test', () => {
 
     it('should get objects', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            await wait(500);
-            expect(objects1).to.have.length(howMany);
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            expect(retrievedObjects).to.have.length(howMany);
         }
+    });
+
+    it('should add data to a NO OWNER channel and retrieve them', async () => {
+        const noOwnerChannelId = 'no-owner';
+        await channelManager.createChannel(noOwnerChannelId, null);
+        await channelManager.postToChannel(
+            noOwnerChannelId,
+            {
+                $type$: 'BodyTemperature',
+                temperature: Math.random()
+            },
+            null
+        );
+        const retrievedObjects = await channelManager.getObjects({channelId: noOwnerChannelId});
+        expect(retrievedObjects).to.have.length(1);
     });
 
     it('should create second tier of channels but for another user and add data to them', async () => {
@@ -127,14 +139,13 @@ describe('Channel Iterators test', () => {
                         {$type$: 'BodyTemperature', temperature: Math.random()},
                         owner
                     );
-                    await wait(100);
                 }
             })
         );
 
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            expect(objects1).to.have.length(howMany * 2);
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            expect(retrievedObjects).to.have.length(howMany * 2);
         }
     }).timeout(20000);
 
@@ -142,22 +153,22 @@ describe('Channel Iterators test', () => {
 
     it('should test getObjects with queryOptions.owner', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId, owner});
-            expect(objects1).to.have.length(howMany);
+            const retrievedObjects = await channelManager.getObjects({channelId, owner});
+            expect(retrievedObjects).to.have.length(howMany);
         }
     });
 
     it('should test getObjects with no queryOptions.owner', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            expect(objects1).to.have.length(howMany * 2);
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            expect(retrievedObjects).to.have.length(howMany * 2);
         }
     });
 
     it('should test getObjects with queryOptions.from and OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId, owner});
-            const from = objects1[objects1.length / 2].creationTime;
+            const retrievedObjects = await channelManager.getObjects({channelId, owner});
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
 
             const objectsFrom = await channelManager.getObjects({
                 channelId,
@@ -168,13 +179,11 @@ describe('Channel Iterators test', () => {
         }
     });
 
-    //@todo FIX
-    it.skip('should test getObjects with queryOptions.from and queryOptions.to and OWNER', async () => {
+    it('should test getObjects with queryOptions.from and queryOptions.to and OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId, owner});
-            const from = objects1[objects1.length / 2].creationTime;
-            const to = objects1[objects1.length - 2].creationTime;
-            console.log(from, to);
+            const retrievedObjects = await channelManager.getObjects({channelId, owner});
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+            const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
             const objectsFrom = await channelManager.getObjects({
                 channelId,
                 owner,
@@ -189,28 +198,27 @@ describe('Channel Iterators test', () => {
         const count = 10;
 
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({
+            const retrievedObjects = await channelManager.getObjects({
                 channelId,
                 owner: owner,
                 count: count
             });
-            expect(objects1).to.have.length(count);
+            expect(retrievedObjects).to.have.length(count);
         }
     });
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjects with queryOptions.count, queryOptions.form and queryOption.to' +
             ' and OWNER',
         async () => {
             const count = 10;
 
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjects({channelId, owner});
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjects({channelId, owner});
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
 
-                const trueLen = objects1.length / 2 - 1;
+                const trueLen = retrievedObjects.length / 2 - 1;
 
                 const objectsFromToWithOwner = await channelManager.getObjects({
                     owner: owner,
@@ -226,8 +234,8 @@ describe('Channel Iterators test', () => {
 
     it('should test getObjects with queryOptions.from and NO-OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            const from = objects1[objects1.length / 2].creationTime;
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
 
             const objectsFrom = await channelManager.getObjects({
                 channelId,
@@ -237,12 +245,11 @@ describe('Channel Iterators test', () => {
         }
     });
 
-    //@todo FIX
-    it.skip('should test getObjects with queryOptions.from and queryOptions.to and NO-OWNER', async () => {
+    it('should test getObjects with queryOptions.from and queryOptions.to and NO-OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({channelId});
-            const from = objects1[objects1.length / 2].creationTime;
-            const to = objects1[objects1.length - 2].creationTime;
+            const retrievedObjects = await channelManager.getObjects({channelId});
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+            const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
             const objectsFrom = await channelManager.getObjects({
                 channelId,
                 from: from,
@@ -256,25 +263,24 @@ describe('Channel Iterators test', () => {
         const count = 10;
 
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjects({
+            const retrievedObjects = await channelManager.getObjects({
                 channelId,
                 count: count
             });
-            expect(objects1).to.have.length(count);
+            expect(retrievedObjects).to.have.length(count);
         }
     });
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjects with queryOptions.count, queryOptions.form and' +
             ' queryOption.to and NO-OWNER',
         async () => {
             const count = 10;
 
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjects({channelId});
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjects({channelId});
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
 
                 const objectsFromToWithOwner = await channelManager.getObjects({
                     channelId,
@@ -291,31 +297,30 @@ describe('Channel Iterators test', () => {
 
     it('should test getObjectsWithType with specific type and queryOptions.owner', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
                 channelId,
                 owner: owner
             });
-            expect(objects1).to.have.length(howMany);
+            expect(retrievedObjects).to.have.length(howMany);
         }
     });
 
     it('should test getObjectsWithType with specific type and no queryOptions.owner', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
                 channelId
             });
-            expect(objects1).to.have.length(howMany * 2);
+            expect(retrievedObjects).to.have.length(howMany * 2);
         }
     });
 
-    //@todo FIX
-    it.skip('should test getObjectsWithType with specific type and queryOptions.from and OWNER', async () => {
+    it('should test getObjectsWithType with specific type and queryOptions.from and OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
                 channelId,
                 owner: owner
             });
-            const from = objects1[objects1.length / 2].creationTime;
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
 
             const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
                 channelId,
@@ -326,18 +331,20 @@ describe('Channel Iterators test', () => {
         }
     });
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjectsWithType with specific type and queryOptions.from and' +
             ' queryOptions.to and OWNER',
         async () => {
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
-                    channelId,
-                    owner: owner
-                });
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjectsWithType(
+                    'BodyTemperature',
+                    {
+                        channelId,
+                        owner: owner
+                    }
+                );
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
                 const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
                     owner: owner,
                     channelId,
@@ -353,31 +360,33 @@ describe('Channel Iterators test', () => {
         const count = 10;
 
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
                 owner: owner,
                 channelId,
                 count: count
             });
-            expect(objects1).to.have.length(count);
+            expect(retrievedObjects).to.have.length(count);
         }
     });
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjectsWithType with specific type and queryOptions.count,' +
             ' queryOptions.form and queryOption.to and OWNER',
         async () => {
             const count = 10;
 
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
-                    owner: owner,
-                    channelId
-                });
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjectsWithType(
+                    'BodyTemperature',
+                    {
+                        owner: owner,
+                        channelId
+                    }
+                );
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
 
-                const trueLen = objects1.length / 2 - 1;
+                const trueLen = retrievedObjects.length / 2 - 1;
 
                 const objectsFromToWithOwner = await channelManager.getObjectsWithType(
                     'BodyTemperature',
@@ -394,15 +403,17 @@ describe('Channel Iterators test', () => {
         }
     );
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjectsWithType with specific type and queryOptions.from and' + ' NO-OWNER',
         async () => {
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
-                    channelId
-                });
-                const from = objects1[objects1.length / 2].creationTime;
+                const retrievedObjects = await channelManager.getObjectsWithType(
+                    'BodyTemperature',
+                    {
+                        channelId
+                    }
+                );
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
 
                 const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
                     channelId,
@@ -413,17 +424,19 @@ describe('Channel Iterators test', () => {
         }
     );
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjectsWithType with specific type and queryOptions.from and' +
             ' queryOptions.to and NO-OWNER',
         async () => {
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
-                    channelId
-                });
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjectsWithType(
+                    'BodyTemperature',
+                    {
+                        channelId
+                    }
+                );
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
                 const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
                     channelId,
                     from: from,
@@ -438,27 +451,29 @@ describe('Channel Iterators test', () => {
         const count = 10;
 
         for (const channelId of channelsIdentifiers) {
-            const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
                 channelId,
                 count: count
             });
-            expect(objects1).to.have.length(count);
+            expect(retrievedObjects).to.have.length(count);
         }
     });
 
-    //@todo FIX
-    it.skip(
+    it(
         'should test getObjectsWithType with specific type and queryOptions.count,' +
             ' queryOptions.form and queryOption.to and NO-OWNER',
         async () => {
             const count = 10;
 
             for (const channelId of channelsIdentifiers) {
-                const objects1 = await channelManager.getObjectsWithType('BodyTemperature', {
-                    channelId
-                });
-                const from = objects1[objects1.length / 2].creationTime;
-                const to = objects1[objects1.length - 2].creationTime;
+                const retrievedObjects = await channelManager.getObjectsWithType(
+                    'BodyTemperature',
+                    {
+                        channelId
+                    }
+                );
+                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+                const to = retrievedObjects[retrievedObjects.length - 2].creationTime;
 
                 const objectsFromToWithOwner = await channelManager.getObjectsWithType(
                     'BodyTemperature',
@@ -472,8 +487,8 @@ describe('Channel Iterators test', () => {
     it('should test getObjectsWithType with no specific type and NO-OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
             //@ts-ignore
-            const objects1 = await channelManager.getObjectsWithType('Person', {channelId});
-            expect(objects1).to.have.length(0);
+            const retrievedObjects = await channelManager.getObjectsWithType('Person', {channelId});
+            expect(retrievedObjects).to.have.length(0);
         }
     });
 });
