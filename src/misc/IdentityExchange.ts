@@ -193,7 +193,7 @@ export async function convertIdentityToOneInstanceEndpoint(
             $type$: 'Keys',
             owner: personHash,
             publicKey: identity.personKeyPublic,
-            publicSignKey: identity.personKeyPublic
+            publicSignKey: identity.personSignKeyPublic
         })
     ).hash;
 
@@ -282,16 +282,28 @@ export async function convertOneInstanceEndpointToIdentity(
 }
 
 /**
- * Creates an profile object from a identity object.
+ * Create a profile from an identity file.
  *
- * @param identity
+ * This profile will have a single OneInstanceEndpoint if it didn't exist before.
+ * If it existed, the OneInstanceEndpoint will be added to the existing profile.
+ *
+ * @param identity - The identity that is added to the profile
+ * @param profileId - The profile identity string. Defaults to 'default'.
+ * @param owner - The owner of the profile. If undefined use the owner personId of the Identity.
  */
-export async function convertIdentityToProfile(identity: Identity): Promise<ProfileModel> {
+export async function convertIdentityToProfile(
+    identity: Identity,
+    profileId: string = 'default',
+    owner?: SHA256IdHash<Person>
+): Promise<ProfileModel> {
     const oneInstanceEndpoint = await convertIdentityToOneInstanceEndpoint(identity);
     const personId = oneInstanceEndpoint.obj.personId;
-    return await ProfileModel.constructWithNewProfile(personId, personId, personId, [
-        oneInstanceEndpoint.obj
-    ]);
+    return await ProfileModel.constructWithNewProfile(
+        personId,
+        owner === undefined ? personId : owner,
+        profileId,
+        [oneInstanceEndpoint.obj]
+    );
 }
 
 /**
