@@ -1,5 +1,8 @@
 import type {Profile} from '../../recipes/Leute/Profile';
 import {
+    getIdObject,
+    IdFileCreation,
+    onIdObj,
     onUnversionedObj,
     onVersionedObj,
     UnversionedObjectResult,
@@ -20,8 +23,10 @@ import type InstancesModel from '../InstancesModel';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import type {
     Keys,
+    OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
+    OneVersionedObjectTypes,
     Person,
     Plan
 } from '@refinio/one.core/lib/recipes';
@@ -103,6 +108,10 @@ export default class LeuteModel extends Model {
         versionedObjectResult: VersionedObjectResult
     ) => Promise<void>;
 
+    private readonly boundAddIdPersonToEveryoneGroup: (
+        idObjectResult: IdFileCreation<OneVersionedObjectTypes | OneIdObjectTypes>
+    ) => Promise<void>;
+
     private readonly boundAddProfileFromResult: (
         versionedObjectResult: VersionedObjectResult
     ) => Promise<void>;
@@ -131,6 +140,7 @@ export default class LeuteModel extends Model {
         super();
         this.instancesModel = instancesModel;
         this.boundAddPersonToEveryoneGroup = this.addPersonToEveryoneGroup.bind(this);
+        this.boundAddIdPersonToEveryoneGroup = this.addIdPersonToEveryoneGroup.bind(this);
         this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
         this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
         this.boundNewOneInstanceEndpointFromResult =
@@ -197,6 +207,7 @@ export default class LeuteModel extends Model {
         if (this.createEveryoneGroup) {
             const group = await this.createGroupIfNotExist(LeuteModel.EVERYONE_GROUP_NAME);
             onVersionedObj.addListener(this.boundAddPersonToEveryoneGroup);
+            onIdObj.addListener(this.boundAddIdPersonToEveryoneGroup);
         }
     }
 
@@ -208,6 +219,7 @@ export default class LeuteModel extends Model {
 
         if (this.createEveryoneGroup) {
             onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
+            onIdObj.removeListener(this.boundAddIdPersonToEveryoneGroup);
         }
 
         onVersionedObj.removeListener(this.boundAddProfileFromResult);
@@ -678,6 +690,33 @@ export default class LeuteModel extends Model {
                 );
                 if (group.persons.find(person => person === result.idHash) === undefined) {
                     group.persons.push(result.idHash);
+                    await group.saveAndLoad();
+                }
+            });
+        }
+    }
+
+    /**
+     * Add a person to the respective {@link LeuteModel.EVERYONE_GROUP_NAME} group.
+     *
+     * This call is registered at one.core for listening for new persons.
+     *
+     * @param result
+     * @private
+     */
+    private async addIdPersonToEveryoneGroup(
+        result: IdFileCreation<OneVersionedObjectTypes | OneIdObjectTypes>
+    ): Promise<void> {
+        const object = await getIdObject(
+            result.idHash as unknown as SHA256IdHash<OneVersionedObjectTypes>
+        );
+        if (object.$type$ === 'Person') {
+            await serializeWithType('addPerson', async () => {
+                const group = await GroupModel.constructFromLoadedVersionByName(
+                    LeuteModel.EVERYONE_GROUP_NAME
+                );
+                if (group.persons.find(person => person === result.idHash) === undefined) {
+                    group.persons.push(result.idHash as SHA256IdHash<Person>);
                     await group.saveAndLoad();
                 }
             });
