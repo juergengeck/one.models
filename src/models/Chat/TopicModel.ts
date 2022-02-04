@@ -194,14 +194,14 @@ export default class TopicModel extends Model {
                     id: topic.channel,
                     person: participants,
                     group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
+                    mode: SET_ACCESS_MODE.ADD
                 }
             ]
         );
     }
 
     /**
-     * Share the given topic with the desired persons.
+     * Share the given topic with the desired group.
      * @param groupIdHash
      * @param topic
      */
@@ -216,7 +216,7 @@ export default class TopicModel extends Model {
                     id: topic.channel,
                     person: [],
                     group: [groupIdHash],
-                    mode: SET_ACCESS_MODE.REPLACE
+                    mode: SET_ACCESS_MODE.ADD
                 }
             ]
         );
