@@ -2,6 +2,7 @@ import Authenticator from './Authenticator';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {
     closeAndDeleteCurrentInstance,
+    deleteInstance,
     initInstance,
     instanceExists,
     registerRecipes
@@ -171,8 +172,18 @@ export default class SingleUser extends Authenticator {
     async erase(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
         if (credentials !== undefined) {
-            await closeAndDeleteCurrentInstance();
-            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            try {
+                await closeAndDeleteCurrentInstance();
+            } catch (error) {
+                // if the instance is not active then just delete the instance without closing it
+                if (error.code === 'IN-CADCI1') {
+                    await deleteInstance(credentials.instanceName, credentials.email);
+                } else {
+                    throw new Error(`Error while trying to delete the instance due to ${error}`);
+                }
+            } finally {
+                await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            }
         } else {
             throw new Error(
                 'Could not erase due to lack of credentials without loging in.' +
