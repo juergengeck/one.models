@@ -1957,11 +1957,7 @@ export default class ChannelManager {
                     })
                 );
                 allSharedPersons = allSharedPersons.concat(
-                    groupPersons.reduce(
-                        (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) =>
-                            acc.concat(val),
-                        []
-                    )
+                    groupPersons.reduce((acc, val) => acc.concat(val), [])
                 );
             }
 
@@ -1974,14 +1970,9 @@ export default class ChannelManager {
         // Extract the access objects pointing to the channel info
         const channelAccessObjects = await getAllValues(channelInfoIdHash, true, 'IdAccess');
         const personNested = await Promise.all(
-            channelAccessObjects.map(async (value: ReverseMapEntry<IdAccess>) =>
-                extractPersonsFromIdAccessObject(value.toHash)
-            )
+            channelAccessObjects.map(async value => extractPersonsFromIdAccessObject(value.toHash))
         );
-        const personsFlat = personNested.reduce(
-            (acc: SHA256IdHash<Person>[], val: SHA256IdHash<Person>[]) => acc.concat(val),
-            []
-        );
+        const personsFlat = personNested.reduce((acc, val) => acc.concat(val), []);
 
         // Remove duplicate persons and return the result
         return [...new Set(personsFlat)];
