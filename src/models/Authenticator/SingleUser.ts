@@ -171,24 +171,23 @@ export default class SingleUser extends Authenticator {
      */
     async erase(): Promise<void> {
         const credentials = await this.retrieveCredentialsFromStore();
-        if (credentials !== undefined) {
-            try {
-                await closeAndDeleteCurrentInstance();
-            } catch (error) {
-                // if the instance is not active then just delete the instance without closing it
-                if (error.code === 'IN-CADCI1') {
-                    await deleteInstance(credentials.instanceName, credentials.email);
-                } else {
-                    throw new Error(`Error while trying to delete the instance due to ${error}`);
-                }
-            } finally {
-                await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
-            }
-        } else {
+        if (credentials === undefined) {
             throw new Error(
                 'Could not erase due to lack of credentials without loging in.' +
                     ' The credentials does not exist. Try to login and delete.'
             );
+        }
+
+        try {
+            await closeAndDeleteCurrentInstance();
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        } catch (error) {
+            if (error.code !== 'IN-CADCI1') {
+                throw new Error(`Error while trying to delete the instance due to ${error}`);
+            }
+
+            // if the instance is not active then just delete the instance without closing it
+            await this.deleteInstance(credentials);
         }
     }
 
@@ -240,5 +239,14 @@ export default class SingleUser extends Authenticator {
             return generatedCredentials;
         }
         return credentialsFromStore;
+    }
+
+    private async deleteInstance(credentials: Credentials): Promise<void> {
+        try {
+            await deleteInstance(credentials.instanceName, credentials.email);
+            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+        } catch (error) {
+            throw new Error(`Error while trying to delete the instance due to ${error}`);
+        }
     }
 }
