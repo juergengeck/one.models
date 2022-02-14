@@ -182,14 +182,12 @@ export default class SingleUser extends Authenticator {
             await closeAndDeleteCurrentInstance();
         } catch (error) {
             if (error.code !== 'IN-CADCI1') {
-                throw new Error(`Error while trying to delete the instance due to ${error}`);
+                throw error;
             }
 
-            // if the instance is not active then just delete the instance without closing it
-            await SingleUser.deleteInstance(credentials);
-        } finally {
-            await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
+            await deleteInstance(credentials.instanceName, credentials.email);
         }
+        await this.store.removeItem(SingleUser.CREDENTIAL_CONTAINER_KEY_STORE);
     }
 
     /**
@@ -240,13 +238,5 @@ export default class SingleUser extends Authenticator {
             return generatedCredentials;
         }
         return credentialsFromStore;
-    }
-
-    private static async deleteInstance(credentials: Credentials): Promise<void> {
-        try {
-            await deleteInstance(credentials.instanceName, credentials.email);
-        } catch (error) {
-            throw new Error(`Error while trying to delete the instance due to ${error}`);
-        }
     }
 }
