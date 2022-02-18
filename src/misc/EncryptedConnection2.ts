@@ -1,8 +1,6 @@
-import {EventEmitter} from 'events';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import WebSocketPromiseBased from './WebSocketPromiseBased';
 import tweetnacl from 'tweetnacl';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {EncryptedConnectionInterface} from '@refinio/one.core/lib/websocket-promisifier';
+import {createMessageBus} from '../message-bus';
 import {OEvent} from './OEvent';
 
 const MessageBus = createMessageBus('EncryptedConnection');
@@ -14,13 +12,11 @@ const MessageBus = createMessageBus('EncryptedConnection');
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptedConnection extends EventEmitter implements EncryptedConnectionInterface {
+class EncryptedConnection {
     /**
-     * Event is emitted when an encrypted message is received. The event contains the decrypted
-     * message.
+     * Event is emitted when an encrypted message is received. The event contains the decrypted message.
      */
     public onMessage = new OEvent<(decrypted: Uint8Array) => void>();
-
     /**
      * Event is emitted when the message data type is invalid or the decryption fails.
      */
@@ -38,12 +34,11 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      * by a derived class through some kind of key negotiation procedure before the encryption
      * actually works.
      *
-     * @param ws                    - The websocket that is used to exchange encrypted messages.
-     * @param sharedKey             - the key used for encryption
-     * @param evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
+     * @param {WebSocketPromiseBased} ws - The websocket that is used to exchange encrypted messages.
+     * @param {Uint8Array} sharedKey - the key used for encryption
+     * @param {boolean} evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
      */
     constructor(ws: WebSocketPromiseBased, sharedKey: Uint8Array, evenLocalNonceCounter: boolean) {
-        super();
         this.webSocketPB = ws;
         this.sharedKey = sharedKey;
 
@@ -79,12 +74,10 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
                     }
 
                     const decrypted = this.decryptMessage(new Uint8Array(message.data));
-                    this.emit('message', decrypted);
                     this.onMessage.emit(decrypted);
                 } catch (e) {
                     this.close();
                     MessageBus.send('debug', `Error happened in message handler: ${e}`);
-                    this.emit('error', e);
                     this.onError.emit(e);
                 }
             }
@@ -96,12 +89,13 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the underlying web socket instance
      *
-     * @returns
+     * @returns {WebSocket}
      */
     get webSocket(): WebSocket {
         if (!this.webSocketPB.webSocket) {
             throw new Error('No Websocket is assigned to connection.');
         }
+
         return this.webSocketPB.webSocket;
     }
 
@@ -109,6 +103,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
      * Releases the underlying websocket, so that it can be used by another class.
      *
      * Attention: If messages arrive in the meantime they might get lost.
+     *
+     * @returns {WebSocket}
      */
     public releaseWebSocket(): WebSocket {
         return this.webSocketPB.releaseWebSocket();
@@ -117,8 +113,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Closes the web socket.
      *
-     * @param reason - The reason for closing. If specified it is sent unencrypted to
-     * the remote side!
+     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @returns {void}
      */
     public close(reason?: string): void {
         return this.webSocketPB.close(reason);
@@ -127,11 +123,10 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Switches the interface to event based processing.
      *
-     * This means that you can no longer use the waitFor*Message functions, but now you can use
-     * the on('message')
+     * This means that you can no longer use the waitFor*Message functions, but now you can use the on('message')
      * events.
      *
-     * @param value
+     * @param {boolean} value
      */
     public set switchToEvents(value: boolean) {
         this.webSocketPB.disableWaitForMessage = value;
@@ -140,7 +135,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the waitForMessage state
      *
-     * @returns
+     * @returns {boolean}
      */
     public get switchToEvents(): boolean {
         return this.webSocketPB.disableWaitForMessage;
@@ -149,10 +144,9 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Set the request timeout.
      *
-     * This timeout specifies how long the connection will wait for new messages in the wait*
-     * methods.
+     * This timeout specifies how long the connection will wait for new messages in the wait* methods.
      *
-     * @param timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
     set requestTimeout(timeout: number) {
         this.webSocketPB.defaultTimeout = timeout;
@@ -161,7 +155,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Get the current request timeout.
      *
-     * @returns
+     * @returns {number}
      */
     get requestTimeout(): number {
         return this.webSocketPB.defaultTimeout;
@@ -172,7 +166,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Send string data encrypted.
      *
-     * @param data - The data to send over the encrypted channel
+     * @param {string} data - The data to send over the encrypted channel
+     * @returns {Promise<void>}
      */
     public async sendMessage(data: string): Promise<void> {
         if (!this.sharedKey) {
@@ -186,7 +181,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Send binary data encrypted.
      *
-     * @param data - The data to send over the encrypted channel
+     * @param {Uint8Array} data - The data to send over the encrypted channel
+     * @returns {Promise<void>}
      */
     public async sendBinaryMessage(data: Uint8Array): Promise<void> {
         if (!this.sharedKey) {
@@ -201,15 +197,17 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for an incoming message with a specific type for a specified period of time.
      *
-     * @param type    - The type field of the message should have this type.
-     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @param typekey - The name of the member that holds the type that is checked for
-     * equality with the type param.
-     * @returns The promise will resolve when a value was received. The value will be the
-     * 'JSON.parse' result object. The promise will reject when
-     * 1) the timeout expired
-     * 2) the connection was closed
-     * 3) the type of the received message doe not match parameter 'type'
+     * @param {string} type - The type field of the message should have this type.
+     * @param {string} typekey - The name of the member that holds the type that is checked for equality
+     *                           with the type param.
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns {Promise<any>} - The promise will resolve when a value was received.
+     *                                                 - The value will be the JSON.parse'd object
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
+     *                                                 3) the type of the received message doe not match parameter
+     *                                                    'type'
      */
     public async waitForJSONMessageWithType(
         type: string,
@@ -220,7 +218,7 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
 
         // Assert that is has a 'type' member
         if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
-            throw new Error(`Received message without a "${typekey}" member.`);
+            throw new Error(`Received message without a '${typekey}' member.`);
         }
 
         // Assert that the type matches the requested one
@@ -236,18 +234,21 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @returns The promise will resolve when a value was received. The value will be the
-     * `JSON.parse` object The promise will reject when
-     * 1) the timeout expired
-     * 2) the connection was closed
-     * 3) the type of the received message doe not match parameter 'type'
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns {Promise<any>} The promise will resolve when a value was received.
+     *                         The value will be the JSON.parse'd object
+     *                         The promise will reject when
+     *                         1) the timeout expired
+     *                         2) the connection was closed
+     *                         3) the type of the received message doe not match parameter
+     *                            'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
 
         // Convert from JSON to Object
         let messageObj;
+
         try {
             messageObj = JSON.parse(message);
         } catch (e) {
@@ -260,7 +261,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for string message.
      *
-     * @returns The received message
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns {Promise<string>} The received message
      */
     public async waitForMessage(timeout: number = -1): Promise<string> {
         const decrypted = this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
@@ -270,7 +272,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Wait for binary message.
      *
-     * @returns The received message
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns {Promise<string>} The received message
      */
     public async waitForBinaryMessage(timeout: number = -1): Promise<Uint8Array> {
         return this.decryptMessage(await this.webSocketPB.waitForBinaryMessage(timeout));
@@ -281,8 +284,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Encrypt the message using the shared key.
      *
-     * @param plainText - The text to encrypt
-     * @returns The encrypted text
+     * @param {Uint8Array} plainText - The text to encrypt
+     * @returns {Uint8Array} The encrypted text
      */
     private encryptMessage(plainText: Uint8Array): Uint8Array {
         if (!this.sharedKey) {
@@ -296,8 +299,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Decrypt the cypher text using the shared key.
      *
-     * @param cypherText - The text to decrypt
-     * @returns The decrypted text
+     * @param {Uint8Array} cypherText - The text to decrypt
+     * @returns {Uint8Array} The decrypted text
      */
     private decryptMessage(cypherText: Uint8Array): Uint8Array {
         if (!this.sharedKey) {
@@ -317,6 +320,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
 
     /**
      * Returns and then increases the local nonce counter.
+     *
+     * @returns {Uint8Array}
      */
     private getAndIncLocalNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.localNonceCounter);
@@ -326,6 +331,8 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
 
     /**
      * Returns and then increases the remote nonce counter.
+     *
+     * @returns {Uint8Array}
      */
     private getAndIncRemoteNonce(): Uint8Array {
         const nonce = EncryptedConnection.nonceCounterToArray(this.remoteNonceCounter);
@@ -336,26 +343,26 @@ class EncryptedConnection extends EventEmitter implements EncryptedConnectionInt
     /**
      * Converts the nonce counter from number to Uint8Array.
      *
-     * The highest supported nonce counter value is Number.MAX_SAFE_INTEGER - 2
-     *
-     * Public for tests.
+     * @param {number} nonceNumber - value to convert
+     * @returns {Uint8Array}
      */
-    public static nonceCounterToArray(nonceNumber: number): Uint8Array {
+    private static nonceCounterToArray(nonceNumber: number): Uint8Array {
         const nonce = new Uint8Array(tweetnacl.box.nonceLength);
-        const view = new DataView(nonce.buffer);
 
-        // We need to check that the nonce counter doesn't become too large,
-        // otherwise already used nonces might happen.
-        // This only happens after 2^53 / 2 message ... which will never happen ...
-        // but people need to be aware that duplicate nonces are bad.
-        if (nonceNumber >= Number.MAX_SAFE_INTEGER - 1) {
-            throw new Error('Nonce counter reached its maximum value.');
+        // We should check, that the nonce will not become larger than
+        // 2^32-1, because then we should trim the higher bits, because of the
+        // 32-bit operations we do to convert it to Uint8Array.
+        // The highest even number that can be stored in a 32-bit signed integer is
+        // 2^31-2 which is 0x7FFFFFFE, so we check that the nonceNumber does not get larger.
+        if (nonceNumber >= 0x7ffffffe) {
+            throw Error('Remote nonce counter reached its maximum value.');
         }
 
-        // Set the lowest bits of the nonce array in big endian notation.
-        // "- 8", because the setBigUint64 will set 8 bytes. This means that if
-        // nonce.length is 24, then bytes 16, 17, 18, 19, 20, 21, 22, 23 will be set.
-        view.setBigUint64(nonce.length - 8, BigInt(nonceNumber));
+        // Copy the bits over to the Uin8Array representation
+        nonce[0] = nonceNumber & 0xff;
+        nonce[1] = (nonceNumber << 8) & 0xff;
+        nonce[2] = (nonceNumber << 16) & 0xff;
+        nonce[3] = (nonceNumber << 24) & 0xff;
         return nonce;
     }
 }

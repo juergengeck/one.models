@@ -1,35 +1,7 @@
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {EventEmitter} from 'events';
-import type {WebSocketPromiseBasedInterface} from '@refinio/one.core/lib/websocket-promisifier';
+import {createMessageBus} from '../message-bus';
 import {OEvent} from './OEvent';
+
 const MessageBus = createMessageBus('WebSocketPromiseBased');
-
-/**
- * Returns the byte count of the passed string in UTF-8 notation.
- *
- * @param input
- */
-function utf8ByteCount(input: string): number {
-    return new TextEncoder().encode(input).length;
-}
-
-/**
- * Shortens the input string to be lesser or equal than maxByteLength in UTF-8 representation.
- *
- * It is not the most efficient solution, but the efficient solution would be much more complex like
- * estimating the number of bytes that have to be removed by something like ceil(length -
- * mayByteLength / 4)
- *
- * @param input - Input string that is possibly longer than maxByteLength
- * @param maxByteLength - Maximum length.
- */
-function shortenStringUTF8(input: string, maxByteLength: number): string {
-    let inputShort = input;
-    while (utf8ByteCount(inputShort) > maxByteLength) {
-        inputShort = inputShort.slice(0, -1);
-    }
-    return inputShort;
-}
 
 /**
  * This class is a wrapper for web sockets, that allows to receive messages with async / await
@@ -40,59 +12,45 @@ function shortenStringUTF8(input: string, maxByteLength: number): string {
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class WebSocketPromiseBased
-    extends EventEmitter
-    implements WebSocketPromiseBasedInterface
-{
+export default class WebSocketPromiseBased {
     /**
      * Event is emitted when a new message is received.
      */
     public onMessage = new OEvent<(messageEvent: MessageEvent) => void>();
 
-    // Members
+    public readonly id: number;
     public webSocket: WebSocket | null;
-    public defaultTimeout: number = -1;
-    private readonly deregisterHandlers: () => void;
-
-    // Members for unique id management for logging
-    private static idCounter: number = 0;
-    public readonly id: number = ++WebSocketPromiseBased.idCounter;
-
-    // Members for promise based handling of data
-    private dataQueue: MessageEvent[] = [];
-    private socketOpenFn: ((err?: Error) => void) | null = null;
-    private dataAvailableFn: ((err?: Error) => void) | null = null;
+    public defaultTimeout: number;
+    private dataQueue: MessageEvent[];
+    private socketOpenFn: ((err?: Error) => void) | null;
+    private dataAvailableFn: ((err?: Error) => void) | null;
     private readonly maxDataQueueSize: number;
-    private dataQueueOverflow: boolean = false;
-    private disableWaitForMessageInt: boolean = false;
-    private closeReason: string = '';
-    private firstError: string = '';
-    private lastError: string = '';
-    private pingInterval: number;
-    private pongTimeout: number;
-    private isPinging: boolean = false; // State that indicates if the ping process is running
-
-    // Members for Ping/Pong stuff
-    private pingTimeoutHandle: ReturnType<typeof setTimeout> | null = null; // Ping timout handle for cancellation in stop
-    private onPong = new OEvent<() => void>();
-    private onStopPingPong = new OEvent<() => void>();
+    private readonly deregisterHandlers: () => void;
+    private dataQueueOverflow: boolean;
+    private disableWaitForMessageInt: boolean;
+    private closeReason: string;
+    private firstError: string;
+    private lastError: string;
+    private static idCounter: number = 0;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
+     * @param webSocket
+     * @param maxDataQueueSize
      */
-    constructor(
-        webSocket: WebSocket,
-        maxDataQueueSize = 10,
-        pingInterval = 30000,
-        pongTimeout = 3000
-    ) {
-        super();
-
-        // Setup members
+    constructor(webSocket: WebSocket, maxDataQueueSize = 10) {
+        this.id = ++WebSocketPromiseBased.idCounter;
         this.webSocket = webSocket;
+        this.dataQueue = [];
+        this.socketOpenFn = null;
+        this.dataAvailableFn = null;
         this.maxDataQueueSize = maxDataQueueSize;
-        this.pingInterval = pingInterval;
-        this.pongTimeout = pongTimeout;
+        this.dataQueueOverflow = false;
+        this.defaultTimeout = -1;
+        this.disableWaitForMessageInt = false;
+        this.closeReason = '';
+        this.firstError = '';
+        this.lastError = '';
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -106,6 +64,7 @@ export default class WebSocketPromiseBased
         this.webSocket.addEventListener('message', boundMessageHandler);
         this.webSocket.addEventListener('close', boundCloseHandler);
         this.webSocket.addEventListener('error', boundErrorHandler);
+
         this.deregisterHandlers = () => {
             if (this.webSocket) {
                 this.webSocket.removeEventListener('open', boundOpenHandler);
@@ -124,12 +83,12 @@ export default class WebSocketPromiseBased
      *
      * This is required, if you only want to use the event based interface for retrieving messages.
      *
-     * @param value
+     * @param {boolean} value
      */
     public set disableWaitForMessage(value: boolean) {
         this.disableWaitForMessageInt = value;
 
-        if (value) {
+        if (this.disableWaitForMessage) {
             if (this.dataAvailableFn) {
                 this.dataAvailableFn(Error('Waiting for incoming messages has been disabled.'));
             }
@@ -138,6 +97,8 @@ export default class WebSocketPromiseBased
 
     /**
      * Get the waitForMessage state
+     *
+     * @returns {boolean}
      */
     public get disableWaitForMessage(): boolean {
         return this.disableWaitForMessageInt;
@@ -164,7 +125,6 @@ export default class WebSocketPromiseBased
 
         const webSocket = this.webSocket;
         this.webSocket = null;
-        this.stopPingPong();
         return webSocket;
     }
 
@@ -176,7 +136,7 @@ export default class WebSocketPromiseBased
      * connection was interrupted because e.g. the wireless adapter was switched
      * off.
      *
-     * @param reason - Reason for timeout
+     * @param {string} reason - Reason for timeout
      */
     public close(reason?: string): void {
         MessageBus.send('debug', `${this.id}: close(${reason})`);
@@ -187,9 +147,7 @@ export default class WebSocketPromiseBased
             }
 
             if (reason) {
-                // Shorten the reason string to maximum 123 bytes, because the standard mandates it:
-                // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close
-                this.webSocket.close(1000, shortenStringUTF8(reason, 123));
+                this.webSocket.close(1000, reason);
             } else {
                 this.webSocket.close();
             }
@@ -207,7 +165,7 @@ export default class WebSocketPromiseBased
      * This also releases the websocket, because the state might still be open, but
      * we don't want anyone to do any operation on the websocket anymore.
      *
-     * @param reason - Reason for timeout
+     * @param {string} reason - Reason for timeout
      */
     public terminate(reason?: string) {
         MessageBus.send('debug', `${this.id}: terminate(${reason})`);
@@ -219,9 +177,7 @@ export default class WebSocketPromiseBased
 
             // Close the websocket
             if (reason) {
-                // Shorten the reason string to maximum 123 bytes, because the standard mandates it:
-                // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close
-                this.webSocket.close(1000, shortenStringUTF8(reason, 123));
+                this.webSocket.close(1000, reason);
             } else {
                 this.webSocket.close();
             }
@@ -236,13 +192,15 @@ export default class WebSocketPromiseBased
             if (this.socketOpenFn) {
                 this.socketOpenFn(new Error('Connection was closed: ' + reason));
             }
+
+            // for now releasing websocket becomes null and throws and error no websocket assigned to connection
+            // Release the websocket, so that nobody can accidentally use it while it waits for the FIN
+            // this.releaseWebSocket();
         }
-        this.stopPingPong();
     }
 
     /**
      * Wait for the socket to be open.
-     *
      * @param timeout
      */
     public async waitForOpen(timeout: number = -2): Promise<void> {
@@ -260,7 +218,7 @@ export default class WebSocketPromiseBased
             }
 
             if (this.socketOpenFn) {
-                reject(new Error('Another call is already wating for the socket to open.'));
+                reject(Error('Another call is already wating for the socket to open.'));
                 return;
             }
 
@@ -345,17 +303,17 @@ export default class WebSocketPromiseBased
     /**
      * Wait for an incoming message with a specific type for a specified period of time.
      *
-     * @param type    - The type field of the message should have this type.
-     * @param typekey - The name of the member that holds the type that is checked for equality
+     * @param {string} type -    - The type field of the message should have this type.
+     * @param {string} typekey - The name of the member that holds the type that is checked for equality
      *                           with the type param.
-     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @returns The promise will resolve when a value was received. The value will be the
-     *          JSON.parse'd object
-     *          The promise will reject when
-     *          1) the timeout expired
-     *          2) the connection was closed
-     *          3) the type of the received message doe not match parameter
-     *             'type'
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     *                                                 - The value will be the JSON.parsed object
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
+     *                                                 3) the type of the received message doe not match parameter
+     *                                                    'type'
      */
     public async waitForJSONMessageWithType(
         type: string,
@@ -365,8 +323,8 @@ export default class WebSocketPromiseBased
         const messageObj = await this.waitForJSONMessage(timeout);
 
         // Assert that is has a 'type' member
-        if (!Object.prototype.hasOwnProperty.call(messageObj, typekey)) {
-            throw new Error(`Received message without a '${typekey}' member.`);
+        if (!messageObj.hasOwnProperty(typekey)) {
+            throw new Error(`Received message without a \'${typekey}\' member.`);
         }
 
         // Assert that the type matches the requested one
@@ -382,14 +340,14 @@ export default class WebSocketPromiseBased
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @returns The promise will resolve when a value was received. The value will be the
-     *          JSON.parsed object.
-     *          The promise will reject when
-     *          1) the timeout expired
-     *          2) the connection was closed
-     *          3) the type of the received message doe not match parameter
-     *             'type'
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns Promise<any> The promise will resolve when a value was received.
+     *                      The value will be the JSON.parsed object
+     *                      The promise will reject when
+     *                      1) the timeout expired
+     *                      2) the connection was closed
+     *                      3) the type of the received message doe not match parameter
+     *                         'type'
      */
     public async waitForJSONMessage(timeout: number = -2): Promise<any> {
         const message = await this.waitForMessage(timeout);
@@ -414,24 +372,27 @@ export default class WebSocketPromiseBased
     /**
      * Wait for a binary message.
      *
-     * @param timeout
+     * @param {number} timeout
+     * @returns {Promise<Uint8Array>}
      */
     public async waitForBinaryMessage(timeout: number = -2): Promise<Uint8Array> {
         const message = await this.waitForMessage(timeout);
+
         if (!(message instanceof ArrayBuffer)) {
             throw new Error('Received message that is not a binary message.');
         }
+
         return new Uint8Array(message);
     }
 
     /**
      * Wait for an incoming message for a specified period of time.
      *
-     * @param timeout - Number of msecs to wait for the message. -1 to wait forever
-     * @returns The promise will resolve when a value was received.
-     *          The promise will reject when
-     *          1) the timeout expired
-     *          2) the connection was closed
+     * @param {number} timeout - Number of msecs to wait for the message. -1 to wait forever
+     * @returns Promise<WebSocket.MessageEvent['data']> The promise will resolve when a value was received.
+     *                                                 The promise will reject when
+     *                                                 1) the timeout expired
+     *                                                 2) the connection was closed
      */
     public async waitForMessage(timeout: number = -2): Promise<MessageEvent['data']> {
         MessageBus.send('debug', `${this.id}: waitForMessage(${timeout})`);
@@ -463,7 +424,6 @@ export default class WebSocketPromiseBased
                     return;
                 }
 
-                // If we have data in the queue, then resolve with the first element
                 if (this.dataQueue.length > 0) {
                     // If we have data in the queue, then resolve with the first element
                     const data = this.dataQueue.shift();
@@ -542,7 +502,6 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn();
         }
-        this.startPingPong(this.pingInterval, this.pongTimeout);
     }
 
     /**
@@ -555,18 +514,7 @@ export default class WebSocketPromiseBased
     private handleMessage(messageEvent: MessageEvent) {
         MessageBus.send('debug', `${this.id}: handleMessage(${messageEvent.data})`);
 
-        if (WebSocketPromiseBased.isPing(messageEvent)) {
-            this.sendPongMessage();
-            return;
-        }
-
-        if (WebSocketPromiseBased.isPong(messageEvent)) {
-            this.onPong.emit();
-            return;
-        }
-
         // Notify listeners for a new message
-        this.emit('message', messageEvent);
         this.onMessage.emit(messageEvent);
 
         // If the queue is full, then we reject the next reader
@@ -593,6 +541,8 @@ export default class WebSocketPromiseBased
      * Function asserts that the connection is open.
      *
      * If it is closed it will reject the promise with a message having the close reason.
+     *
+     * @returns {Promise<void>}
      */
     private assertOpen(): void {
         if (!this.webSocket) {
@@ -635,7 +585,6 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error('Connection was closed: ' + closeEvent.reason));
         }
-        this.stopPingPong();
     }
 
     /**
@@ -662,138 +611,5 @@ export default class WebSocketPromiseBased
         if (this.socketOpenFn) {
             this.socketOpenFn(new Error(errMessage));
         }
-        this.stopPingPong();
-    }
-
-    // ######## Ping/Pong ########
-    /**
-     * Send Ping Message
-     */
-    private async sendPingMessage(): Promise<void> {
-        await this.send(JSON.stringify({command: 'comm_ping'}));
-    }
-    /**
-     * Send Pong Message
-     */
-    private async sendPongMessage(): Promise<void> {
-        await this.send(JSON.stringify({command: 'comm_pong'}));
-    }
-
-    static isPing(message: MessageEvent): boolean {
-        try {
-            const messageObj = JSON.parse(message.data);
-            return messageObj.command === 'comm_ping';
-        } catch (e) {
-            return false;
-        }
-    }
-
-    static isPong(message: MessageEvent): boolean {
-        try {
-            const messageObj = JSON.parse(message.data);
-            return messageObj.command === 'comm_pong';
-        } catch (e) {
-            return false;
-        }
-    }
-
-    private async waitForPong(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            let disconnectPong: () => void;
-            let disconnectStopPingPong: () => void;
-            disconnectPong = this.onPong(() => {
-                resolve();
-                disconnectPong();
-                disconnectStopPingPong();
-            });
-            disconnectStopPingPong = this.onStopPingPong(() => {
-                reject(new Error('Ping pong stopped'));
-                disconnectPong();
-                disconnectStopPingPong();
-            });
-        });
-    }
-    /**
-     * Starts pinging the client.
-     *
-     * @param pingInterval - Interval since last pong when to send another ping.
-     * @param pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
-     */
-    private startPingPong(pingInterval: number, pongTimeout: number): void {
-        MessageBus.send('debug', `${this.id}: startPingPong(${pingInterval}, ${pongTimeout})`);
-
-        if (this.isPinging) {
-            throw new Error('Already ping / ponging');
-        }
-        this.isPinging = true;
-
-        // Sends the ping. This is a wrapper for async
-        const sendPing = async () => {
-            try {
-                // If not pinging anymore, because stopPingPing was called
-                // Then resolve the waiter in stopPingPong and don't schedule another ping
-                if (!this.isPinging) {
-                    return;
-                }
-
-                // Send ping and wait for pong
-                let pongTimeoutHandler: ReturnType<typeof setTimeout> | null = null;
-                try {
-                    // Send a ping
-                    await this.sendPingMessage();
-
-                    // Set a timeout for the pong
-                    pongTimeoutHandler = setTimeout(() => {
-                        this.terminate('Pong Timeout');
-                    }, pongTimeout);
-
-                    // Wait for the message
-                    await this.waitForPong();
-
-                    // Cancel timeout
-                    clearTimeout(pongTimeoutHandler);
-                } catch (e) {
-                    // Cancel timeout
-                    if (pongTimeoutHandler) {
-                        clearTimeout(pongTimeoutHandler);
-                    }
-
-                    throw e;
-                }
-
-                // Reschedule another ping
-                if (this.isPinging) {
-                    this.pingTimeoutHandle = setTimeout(() => {
-                        this.pingTimeoutHandle = null;
-                        sendPing();
-                    }, pingInterval);
-                }
-            } catch (e) {
-                this.close();
-            }
-        };
-
-        // Send the first ping
-        sendPing();
-    }
-
-    /**
-     * Stops the ping / pong process.
-     */
-    private stopPingPong(): void {
-        MessageBus.send('log', `${this.id}: stopPingPong()`);
-
-        if (!this.isPinging) {
-            return;
-        }
-
-        // Cancel the next ping if it is scheduled
-        this.isPinging = false;
-
-        if (this.pingTimeoutHandle) {
-            clearTimeout(this.pingTimeoutHandle);
-        }
-
-        this.onStopPingPong.emit();
     }
 }
