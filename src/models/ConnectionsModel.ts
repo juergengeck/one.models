@@ -525,29 +525,32 @@ class ConnectionsModel extends Model {
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized.');
+        }
 
-        const remotePublicKey = hexToUint8Array(pairingInformation.publicKeyLocal);
+        const localPublicInstanceKey = hexToUint8Array(
+            this.mainInstanceInfo.instanceKeys.publicKey
+        );
+        const remotePublicInstanceKey = hexToUint8Array(pairingInformation.publicKeyLocal);
 
         // Case of takeover
         if (pairingInformation.takeOver) {
             if (!pairingInformation.takeOverDetails) {
                 throw new Error('Incomplete pairing information');
             }
-            if (!this.mainInstanceInfo) {
-                throw new Error('mainInstanceInfo not initialized.');
-            }
 
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
                 this.config.commServerUrl,
-                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
-                remotePublicKey,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
                 text => {
                     if (!this.mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
                     return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                        remotePublicKey,
+                        remotePublicInstanceKey,
                         text
                     );
                 },
@@ -556,7 +559,7 @@ class ConnectionsModel extends Model {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
                     return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                        remotePublicKey,
+                        remotePublicInstanceKey,
                         cypherText
                     );
                 }
@@ -564,8 +567,8 @@ class ConnectionsModel extends Model {
 
             // Add this connection to the communication module, so that it becomes the known connection
             this.communicationModule.addNewUnknownConnection(
-                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
-                remotePublicKey,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
                 conn
             );
 
@@ -581,6 +584,8 @@ class ConnectionsModel extends Model {
                 // STart the selected protocol
                 await this.startChumPkExchangeProtocol_Client(
                     conn,
+                    localPublicInstanceKey,
+                    remotePublicInstanceKey,
                     this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag,
                     hexToUint8Array(pairingInformation.takeOverDetails.nonce),
@@ -594,21 +599,17 @@ class ConnectionsModel extends Model {
 
         // Case for normal pairing
         else {
-            if (!this.mainInstanceInfo) {
-                throw new Error('mainInstanceInfo not initialized.');
-            }
-
             // Connect to target
             const conn = await OutgoingConnectionEstablisher.connectOnce(
                 this.config.commServerUrl,
-                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+                localPublicInstanceKey,
                 hexToUint8Array(pairingInformation.publicKeyLocal),
                 text => {
                     if (!this.mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
                     return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                        remotePublicKey,
+                        remotePublicInstanceKey,
                         text
                     );
                 },
@@ -617,7 +618,7 @@ class ConnectionsModel extends Model {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
                     return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                        remotePublicKey,
+                        remotePublicInstanceKey,
                         cypherText
                     );
                 }
@@ -625,8 +626,8 @@ class ConnectionsModel extends Model {
 
             // Add this connection to the communication module, so that it becomes the known connection
             this.communicationModule.addNewUnknownConnection(
-                hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
-                remotePublicKey,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
                 conn
             );
 
@@ -642,6 +643,8 @@ class ConnectionsModel extends Model {
                 // Start the selected protocol
                 await this.startChumOneTimeAuthProtocol_Client(
                     conn,
+                    localPublicInstanceKey,
+                    remotePublicInstanceKey,
                     this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag
                 );
@@ -686,16 +689,16 @@ class ConnectionsModel extends Model {
      * This function is called whenever a connection with a known instance was established
      *
      * @param conn
-     * @param localPublicKey
-     * @param remotePublicKey
+     * @param localPublicInstanceKey
+     * @param remotePublicInstanceKey
      * @param localPersonId
      * @param remotePersonId
      * @param initiatedLocally
      */
     private async onKnownConnection(
         conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
@@ -714,7 +717,16 @@ class ConnectionsModel extends Model {
                     protocol: 'chum',
                     version: '1.0'
                 });
-                await this.startChumProtocol(conn, localPersonId, true, true, true, remotePersonId);
+                await this.startChumProtocol(
+                    conn,
+                    localPublicInstanceKey,
+                    remotePublicInstanceKey,
+                    localPersonId,
+                    true,
+                    true,
+                    true,
+                    remotePersonId
+                );
             }
 
             // On incoming connections we wait for the peer to select its protocol
@@ -736,6 +748,8 @@ class ConnectionsModel extends Model {
 
                     await this.startChumProtocol(
                         conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
                         localPersonId,
                         false,
                         true,
@@ -760,7 +774,12 @@ class ConnectionsModel extends Model {
                         throw new Error('Unsupported chum_onetimeauth_withtoken protocol version.');
                     }
 
-                    await this.startChumOneTimeAuthProtocol_Server(conn, localPersonId);
+                    await this.startChumOneTimeAuthProtocol_Server(
+                        conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
+                        localPersonId
+                    );
                 }
 
                 // A chum and private key exchange protocol.
@@ -781,7 +800,12 @@ class ConnectionsModel extends Model {
                         );
                     }
 
-                    await this.startChumPkExchangeProtocol_Server(conn, localPersonId);
+                    await this.startChumPkExchangeProtocol_Server(
+                        conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
+                        localPersonId
+                    );
                 }
 
                 // Set the access groups on the remote machine
@@ -817,15 +841,15 @@ class ConnectionsModel extends Model {
      * This function is called whenever a connection with an unknown instance was established
      *
      * @param conn
-     * @param localPublicKey
-     * @param remotePublicKey
+     * @param localPublicInstanceKey
+     * @param remotePublicInstanceKey
      * @param localPersonId
      * @param initiatedLocally
      */
     private async onUnknownConnection(
         conn: EncryptedConnection,
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
@@ -865,6 +889,8 @@ class ConnectionsModel extends Model {
 
                     await this.startChumProtocol(
                         conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
                         localPersonId,
                         false,
                         !this.config.acceptUnknownPersons,
@@ -886,7 +912,12 @@ class ConnectionsModel extends Model {
                         throw new Error('Unsupported chum_onetimeauth_withtoken protocol version.');
                     }
 
-                    await this.startChumOneTimeAuthProtocol_Server(conn, localPersonId);
+                    await this.startChumOneTimeAuthProtocol_Server(
+                        conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
+                        localPersonId
+                    );
                 }
 
                 // A chum and private key exchange protocol.
@@ -905,7 +936,12 @@ class ConnectionsModel extends Model {
                         );
                     }
 
-                    await this.startChumPkExchangeProtocol_Server(conn, localPersonId);
+                    await this.startChumPkExchangeProtocol_Server(
+                        conn,
+                        localPublicInstanceKey,
+                        remotePublicInstanceKey,
+                        localPersonId
+                    );
                 }
 
                 // Set the access groups on the remote machine
@@ -946,6 +982,10 @@ class ConnectionsModel extends Model {
      * Step 2: Setup the chum
      *
      * @param conn - Connection to the peer.
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId - The local person id used to setup the chum
      * @param isClient - This is used to determine who sends messages first. Client should pass
      *                   true, server false.
@@ -959,6 +999,8 @@ class ConnectionsModel extends Model {
      */
     private async startChumProtocol(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         isClient: boolean,
         contactShouldBeKnown: boolean,
@@ -981,6 +1023,8 @@ class ConnectionsModel extends Model {
         // Step 2: Start the chum
         await this.startChum(
             conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
             localPersonId,
             remotePersonInfo.personId,
             'chum',
@@ -1004,10 +1048,16 @@ class ConnectionsModel extends Model {
      * Step 4: Setup the chum
      *
      * @param conn - Connection to the peer.
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId - The local person id used to setup the chum
      */
     private async startChumOneTimeAuthProtocol_Server(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         if (!this.mainInstanceInfo) {
@@ -1061,6 +1111,8 @@ class ConnectionsModel extends Model {
         // Step 4: Start the chum
         await this.startChum(
             conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
             localPersonId,
             remotePersonInfo.personId,
             'chum_onetimeauth_withtoken',
@@ -1080,12 +1132,18 @@ class ConnectionsModel extends Model {
      * Step 4: Setup the chum
      *
      * @param conn - Connection to the peer.
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId - The local person id used to setup the chum
      * @param authenticationToken - The authentication token received via a secure channel from
      *                              the peer
      */
     private async startChumOneTimeAuthProtocol_Client(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         authenticationToken: string
     ): Promise<void> {
@@ -1124,6 +1182,8 @@ class ConnectionsModel extends Model {
         // Step 4: Start the chum
         await this.startChum(
             conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
             localPersonId,
             personInfo.personId,
             'chum_onetimeauth_withtoken',
@@ -1147,10 +1207,16 @@ class ConnectionsModel extends Model {
      * Step 5: Setup the chum
      *
      * @param conn
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId
      */
     private async startChumPkExchangeProtocol_Server(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
@@ -1217,6 +1283,8 @@ class ConnectionsModel extends Model {
         // Step 5: Start the chum
         await this.startChum(
             conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
             localPersonId,
             remotePersonInfo.personId,
             'chumAndPkExchange_onetimeauth_withtoken',
@@ -1238,6 +1306,10 @@ class ConnectionsModel extends Model {
      * Step 5: Setup the chum with the new identity
      *
      * @param conn
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId
      * @param authenticationToken
      * @param kdfSalt
@@ -1245,6 +1317,8 @@ class ConnectionsModel extends Model {
      */
     private async startChumPkExchangeProtocol_Client(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         authenticationToken: string,
         kdfSalt: Uint8Array,
@@ -1291,6 +1365,8 @@ class ConnectionsModel extends Model {
         // Step 5: Start the chum with the new id
         await this.startChum(
             conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
             localPersonId,
             personInfo.personId,
             'chumAndPkExchange_onetimeauth_withtoken',
@@ -1410,6 +1486,10 @@ class ConnectionsModel extends Model {
      * Starts the corresponding chum connection.
      *
      * @param conn
+     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
+     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * connections.
      * @param localPersonId
      * @param remotePersonId
      * @param protocol
@@ -1418,6 +1498,8 @@ class ConnectionsModel extends Model {
      */
     private async startChum(
         conn: EncryptedConnection,
+        localPublicInstanceKey: Uint8Array,
+        remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         protocol: CommunicationInitiationProtocol.Protocols,
@@ -1460,8 +1542,8 @@ class ConnectionsModel extends Model {
 
                 // used only for logging purpose
                 chumName: 'ConnectionsChum',
-                localInstanceName: 'local',
-                remoteInstanceName: 'remote',
+                localInstanceName: uint8arrayToHexString(localPublicInstanceKey),
+                remoteInstanceName: uint8arrayToHexString(remotePublicInstanceKey),
 
                 keepRunning,
                 maxNotificationDelay: 20
