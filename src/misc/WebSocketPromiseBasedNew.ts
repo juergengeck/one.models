@@ -2,6 +2,7 @@ import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {EventEmitter} from 'events';
 import type {WebSocketPromiseBasedInterface} from '@refinio/one.core/lib/websocket-promisifier';
 import {OEvent} from './OEvent';
+import BlockingQueue from './BlockingQueue';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -59,7 +60,7 @@ export default class WebSocketPromiseBased
     public readonly id: number = ++WebSocketPromiseBased.idCounter;
 
     // Members for promise based handling of data
-    private dataQueue: MessageEvent[] = [];
+    private dataQueue: BlockingQueue<MessageEvent>;
     private socketOpenFn: ((err?: Error) => void) | null = null;
     private dataAvailableFn: ((err?: Error) => void) | null = null;
     private readonly maxDataQueueSize: number;
@@ -90,9 +91,9 @@ export default class WebSocketPromiseBased
 
         // Setup members
         this.webSocket = webSocket;
-        this.maxDataQueueSize = maxDataQueueSize;
         this.pingInterval = pingInterval;
         this.pongTimeout = pongTimeout;
+        this.dataQueue = new BlockingQueue<MessageEvent>(maxDataQueueSize);
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -569,24 +570,8 @@ export default class WebSocketPromiseBased
         this.emit('message', messageEvent);
         this.onMessage.emit(messageEvent);
 
-        // If the queue is full, then we reject the next reader
-        if (this.dataQueue.length >= this.maxDataQueueSize) {
-            this.dataQueueOverflow = true;
-
-            if (this.dataAvailableFn) {
-                this.dataAvailableFn(Error('The incoming message data queue overflowed.'));
-            }
-
-            return;
-        }
-
         // Enqueue message
-        this.dataQueue.push(messageEvent);
-
-        // Wakeup the reader in waitForMessage if somebody waits
-        if (this.dataAvailableFn) {
-            this.dataAvailableFn();
-        }
+        this.dataQueue.add(messageEvent);
     }
 
     /**
