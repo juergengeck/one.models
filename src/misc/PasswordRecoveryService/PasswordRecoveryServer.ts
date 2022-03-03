@@ -72,7 +72,10 @@ export default class PasswordRecoveryServer {
                 let buffer = '';
                 for await (const chunk of req) {
                     if (buffer.length > this.maxMessageCharCount) {
-                        res.writeHead(500, {'Content-Type': 'plain/text'});
+                        res.writeHead(500, {
+                            'Content-Type': 'plain/text',
+                            'Access-Control-Allow-Origin': '*'
+                        });
                         res.write('Request is too long.');
                         res.end();
                         return;
@@ -85,10 +88,16 @@ export default class PasswordRecoveryServer {
                     bundledRecoveryInformation
                 );
                 this.onPasswordRecoveryRequest.emit(recoveryInformation);
-                res.writeHead(201, {'Content-Type': 'plain/text'});
+                res.writeHead(201, {
+                    'Content-Type': 'plain/text',
+                    'Access-Control-Allow-Origin': '*'
+                });
                 res.write('Thanks for submitting a password recovery request.');
             } catch (e) {
-                res.writeHead(500, {'Content-Type': 'plain/text'});
+                res.writeHead(500, {
+                    'Content-Type': 'plain/text',
+                    'Access-Control-Allow-Origin': '*'
+                });
                 res.write(e.toString());
             }
 
@@ -97,7 +106,10 @@ export default class PasswordRecoveryServer {
 
         // If no route present
         else {
-            res.writeHead(404, {'Content-Type': 'application/json'});
+            res.writeHead(404, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            });
             res.end(JSON.stringify({message: 'Route not found'}));
         }
     }
