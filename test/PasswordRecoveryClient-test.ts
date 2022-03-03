@@ -5,13 +5,14 @@ import PasswordRecoveryServer from '../lib/misc/PasswordRecoveryService/Password
 import {generateNewIdentity} from '../lib/misc/IdentityExchange';
 import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 import {mkdir} from 'fs/promises';
+import {defaultDbName} from './_helpers';
 
 describe('Password recovery test over server', () => {
     let server: PasswordRecoveryServer;
     let client: PasswordRecoveryClient;
 
     beforeEach(async () => {
-        await setBaseDirOrName();
+        await setBaseDirOrName(`test/${defaultDbName}`);
         await mkdir(getBaseDirOrName(), {recursive: true});
         const identity = await generateNewIdentity('http://localhost:8080');
         server = new PasswordRecoveryServer(identity.secret);
