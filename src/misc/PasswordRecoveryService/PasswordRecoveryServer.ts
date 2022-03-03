@@ -1,0 +1,104 @@
+import http, {ServerResponse} from 'http';
+import type {IdentityWithSecrets} from '../IdentityExchange';
+import {OEvent} from '../OEvent';
+import type {RecoveryInformation} from './PasswordRecovery';
+import {unpackRecoveryInformation} from './PasswordRecovery';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+
+export default class PasswordRecoveryServer {
+    public onPasswordRecoveryRequest = new OEvent<(info: RecoveryInformation) => void>();
+
+    private identity: IdentityWithSecrets;
+    private server: http.Server | null = null;
+    private maxMessageCharCount: number;
+
+    constructor(identity: IdentityWithSecrets, maxMessageCharCount = 10000) {
+        this.identity = identity;
+        this.maxMessageCharCount = maxMessageCharCount;
+    }
+
+    /**
+     * Start the password recovery server
+     */
+    async start(): Promise<void> {
+        if (this.server !== null) {
+            throw new Error('Password recovery server is already started.');
+        }
+
+        const urlp = new URL(this.identity.commServerUrl);
+
+        return new Promise<void>((resolve, reject) => {
+            const server = http.createServer(this.handleRequest.bind(this));
+
+            server.on('error', err => {
+                reject(err);
+            });
+
+            server.listen(urlp.port, () => {
+                this.server = server;
+                resolve();
+            });
+        });
+    }
+
+    /**
+     * Stop the password recovery server
+     */
+    async stop(): Promise<void> {
+        return new Promise<void>(resolve => {
+            if (this.server) {
+                this.server.close(err => {
+                    if (err) {
+                        console.error(err);
+                    }
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Handles the REST request.
+     *
+     * @param req
+     * @param res
+     */
+    private async handleRequest(req: http.IncomingMessage, res: ServerResponse): Promise<void> {
+        // Password recovery route
+        if (req.url === '/passwordRecoveryRequests' && req.method === 'POST') {
+            try {
+                let buffer = '';
+                for await (const chunk of req) {
+                    if (buffer.length > this.maxMessageCharCount) {
+                        res.writeHead(500, {'Content-Type': 'plain/text'});
+                        res.write('Request is too long.');
+                        res.end();
+                        return;
+                    }
+                    buffer += chunk;
+                }
+                const bundledRecoveryInformation = JSON.parse(buffer);
+                const recoveryInformation = unpackRecoveryInformation(
+                    hexToUint8Array(this.identity.instanceKeySecret),
+                    bundledRecoveryInformation
+                );
+                this.onPasswordRecoveryRequest.emit(recoveryInformation);
+                res.writeHead(201, {'Content-Type': 'plain/text'});
+                res.write('Thanks for submitting a password recovery request.');
+            } catch (e) {
+                res.writeHead(500, {'Content-Type': 'plain/text'});
+                res.write(e.toString());
+            }
+
+            res.end();
+        }
+
+        // If no route present
+        else {
+            res.writeHead(404, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({message: 'Route not found'}));
+        }
+    }
+}
