@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {addPadding, removePadding} from '../lib/misc/passwordRecoveryService/padding';
+import {addPadding, removePadding} from '../lib/misc/PasswordRecoveryService/padding';
 
 /**
  * This function generates indices around 2^x values.

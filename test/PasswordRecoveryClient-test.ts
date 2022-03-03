@@ -1,8 +1,8 @@
 import {expect} from 'chai';
-import PasswordRecoveryClient from '../lib/misc/passwordRecoveryService/PasswordRecoveryClient';
-import PasswordRecoveryServer from '../lib/misc/passwordRecoveryService/PasswordRecoveryServer';
+import type {RecoveryInformation} from '../lib/misc/PasswordRecoveryService/PasswordRecovery';
+import PasswordRecoveryClient from '../lib/misc/PasswordRecoveryService/PasswordRecoveryClient';
+import PasswordRecoveryServer from '../lib/misc/PasswordRecoveryService/PasswordRecoveryServer';
 import {generateNewIdentity} from '../lib/misc/IdentityExchange';
-import type {RecoveryInformation} from '../lib/misc/passwordRecoveryService/PasswordRecovery';
 import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 import {mkdir} from 'fs/promises';
 
