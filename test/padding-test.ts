@@ -1,9 +1,6 @@
 import {expect} from 'chai';
 import {addPadding, removePadding} from '../lib/misc/passwordRecoveryService/padding';
 
-// If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
-const experimentalReverseMaps = false;
-
 /**
  * This function generates indices around 2^x values.
  *
