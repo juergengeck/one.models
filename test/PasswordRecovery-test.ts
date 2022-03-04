@@ -11,13 +11,13 @@ describe('Password recovery test', () => {
 
     afterEach(async () => {});
 
-    it('Add data and get it', async () => {
+    it('Standard workflow', async () => {
         const secret = 'abfuqlwkeu';
         const identity = 'test@me.invalid';
         const recoveryServerKeys = tweetnacl.box.keyPair();
 
         // Step 1: Create recovery information
-        const info = createRecoveryInformation(recoveryServerKeys.publicKey, secret, 20, identity);
+        const info = createRecoveryInformation(recoveryServerKeys.publicKey, secret, identity);
 
         // Step 2: When the secret was forgotten, the bundledEncryptedRecoveryInformation is
         // sent to the recovery service and decrypted there.

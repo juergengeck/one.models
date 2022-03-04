@@ -1,5 +1,5 @@
 import tweetnacl from 'tweetnacl';
-import {addPadding} from './padding';
+import {addPadding, removePadding} from './padding';
 import {
     HexString,
     hexToUint8Array,
@@ -68,18 +68,25 @@ export function isBundledEncryptedRecoveryInformation(
  * @param recoveryServicePublicKey - The public key used to encrypt the key that can be used to
  * decrypt the original secret.
  * @param secret - The secret to encrypt.
- * @param secretLengthWithPadding - The secret is padded to this length before encryption.
  * @param identity - The identity string that is bundled with the key, so that the recovery
  * service know which person should be allowed to receive the decryption key for the original
  * secret.
+ * @param encryptedSecretSize - The final size of the encrypted secret. This limits the length
+ * of the secret to (encryptedSecretSize - 1). This is needed, so that you cannot retrieve the
+ * length of the original secret from the length of the encrypted payload.
+ * @param bundledEncryptedRecoveryInformationSize - The final size of the encrypted recovery
+ * information. This limits the length of identity to approx
+ * (bundledEncryptedRecoveryInformationSize - 50). This is needed, so that you cannot retrieve
+ * the length of the identity field from the length of the encrypted payload.
  * @returns An encrypted secret that should be stored locally. The bundled recovery information
  * that should be sent to the recovery server when the secret was forgotten.
  */
 export function createRecoveryInformation(
     recoveryServicePublicKey: Uint8Array,
     secret: Uint8Array | string,
-    secretLengthWithPadding: number,
-    identity: string
+    identity: string,
+    encryptedSecretSize = 1024,
+    bundledEncryptedRecoveryInformationSize = 1024
 ): {
     encryptedSecret: HexString;
     bundledEncryptedRecoveryInformation: BundledEncryptedRecoveryInformation;
@@ -89,9 +96,12 @@ export function createRecoveryInformation(
     }
 
     // Step 1: Encrypt secret with random symmetric key.
-    const secretPadded = addPadding(secret, secretLengthWithPadding);
     const symmetricKey = tweetnacl.randomBytes(tweetnacl.box.sharedKeyLength);
-    const encryptedRecoverySecret = tweetnacl.secretbox(secret, secretBoxZeroNonce, symmetricKey);
+    const encryptedRecoverySecret = tweetnacl.secretbox(
+        addPadding(secret, encryptedSecretSize),
+        secretBoxZeroNonce,
+        symmetricKey
+    );
 
     // Step 2: Encrypt random symmetric key + identity with derived symmetric key
     // Key is derived from random secret key and public recovery service key
@@ -101,7 +111,10 @@ export function createRecoveryInformation(
         symmetricKey: uint8arrayToHexString(symmetricKey)
     };
     const encryptedRecoveryInformation = tweetnacl.box(
-        new TextEncoder().encode(JSON.stringify(recoveryInformation)),
+        addPadding(
+            new TextEncoder().encode(JSON.stringify(recoveryInformation)),
+            bundledEncryptedRecoveryInformationSize
+        ),
         boxZeroNonce,
         recoveryServicePublicKey,
         tempKeys.secretKey
@@ -148,7 +161,9 @@ export function unpackRecoveryInformation(
         throw new Error('Decryption of recovery information failed.');
     }
 
-    const recoveryInformation = JSON.parse(new TextDecoder().decode(decryptedRecoveryInformation));
+    const recoveryInformation = JSON.parse(
+        new TextDecoder().decode(removePadding(decryptedRecoveryInformation))
+    );
 
     if (!isRecoveryInformation(recoveryInformation)) {
         throw new Error('The recovery information has the wrong data format.');
@@ -174,7 +189,7 @@ export function recoverSecret(encryptedSecret: HexString, symmetricKey: HexStrin
         throw new Error('Decryption of secret failed.');
     }
 
-    return decrypted;
+    return removePadding(decrypted);
 }
 
 /**

@@ -24,7 +24,7 @@ describe('Password recovery test over server', () => {
         await server.stop();
     });
 
-    it('Add data and get it', async () => {
+    it('Standard workflow', async () => {
         const waitForRequestPromise = new Promise<RecoveryInformation>((resolve, reject) => {
             const handle = setTimeout(() => reject(new Error('Timeout')), 1000);
             server.onPasswordRecoveryRequest(info => {

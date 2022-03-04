@@ -8,7 +8,7 @@ function parseCommandLine(argv: string[]): {outputFolder: string; identityFileNa
         return `usage: ${argv[0]} ${argv[1]} [outputFolder] [identityFileName]`;
     }
 
-    if (argv.length > 3) {
+    if (argv.length > 4) {
         console.error(getUsage());
         process.exit(1);
     }
@@ -25,6 +25,7 @@ function parseCommandLine(argv: string[]): {outputFolder: string; identityFileNa
             process.exit(0);
         }
     }
+
     if (argv.length >= 4) {
         params.identityFileName = argv[3];
     }
