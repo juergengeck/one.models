@@ -22,14 +22,14 @@ export default class PasswordRecoveryClient {
     /**
      * Create the recovery information and store them in local storage until needed.
      *
-     * @param secret - The secret that should be later recovered.
+     * @param secret - The secret that should be later recovered. Limited to 1023 bytes.
      * @param identity - The identity that is needed by the recovery service to identify you.
+     * Limited to approx 980 bytes.
      */
     async createAndStoreRecoveryInformation(secret: string | Uint8Array, identity: string) {
         const info = createRecoveryInformation(
             hexToUint8Array(this.identity.instanceKeyPublic),
             secret,
-            1024,
             identity
         );
         await SettingsStore.setItem('SecretRecoveryService.encryptedSecret', info.encryptedSecret);

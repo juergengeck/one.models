@@ -42,7 +42,7 @@ function convertNumberToUint8Array(n: number, minimumLength: number = 1): Uint8A
     }
 
     const arr = new Uint8Array(8);
-    const view = new DataView(arr.buffer);
+    const view = new DataView(arr.buffer, arr.byteOffset);
     view.setBigUint64(0, BigInt(n));
     return stripLeadingZeros(arr, minimumLength);
 }
@@ -223,14 +223,17 @@ export function removePadding(paddedValue: Uint8Array): Uint8Array {
     // Extract F2
     const paddingLengthAsArrayArbitraryLength = new Uint8Array(
         paddedValue.buffer,
-        1,
+        paddedValue.byteOffset + 1,
         paddingLengthLength
     );
     const paddingLengthAsArrayEightBytes = addZeroPaddingAtBeginning(
         paddingLengthAsArrayArbitraryLength,
         8
     );
-    const paddingLengthBigInt = new DataView(paddingLengthAsArrayEightBytes.buffer).getBigUint64(0);
+    const paddingLengthBigInt = new DataView(
+        paddingLengthAsArrayEightBytes.buffer,
+        paddingLengthAsArrayEightBytes.byteOffset
+    ).getBigUint64(0);
     if (paddingLengthBigInt > Number.MAX_SAFE_INTEGER) {
         throw new Error('paddingLength must not be larger than Number.MAX_SAFE_INTEGER');
     }
@@ -243,5 +246,5 @@ export function removePadding(paddedValue: Uint8Array): Uint8Array {
     if (startOfValue > Number.MAX_SAFE_INTEGER) {
         throw new Error('startOfValue must not be larger than Number.MAX_SAFE_INTEGER');
     }
-    return new Uint8Array(paddedValue.buffer, startOfValue);
+    return new Uint8Array(paddedValue.buffer, paddedValue.byteOffset + startOfValue);
 }
