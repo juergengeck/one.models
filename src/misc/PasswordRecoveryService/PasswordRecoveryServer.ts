@@ -86,18 +86,32 @@ export default class PasswordRecoveryServer {
                         bundledRecoveryInformation
                     );
                     this.onPasswordRecoveryRequest.emit(recoveryInformation);
-                    res.writeHead(201);
+                    const headers: Record<string, string> = {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+                    };
+                    if (req.headers['access-control-request-headers']) {
+                        headers['Access-Control-Allow-Headers'] =
+                            req.headers['access-control-request-headers'];
+                    }
+                    res.writeHead(201, headers);
                 } catch (e) {
+                    console.log(e);
                     res.writeHead(500, {'Content-Type': 'application/json'});
                     res.write(JSON.stringify({message: e.toString()}));
                 }
 
                 res.end();
             } else if (req.method === 'OPTIONS') {
-                res.writeHead(200, {
+                const headers: Record<string, string> = {
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                });
+                };
+                if (req.headers['access-control-request-headers']) {
+                    headers['Access-Control-Allow-Headers'] =
+                        req.headers['access-control-request-headers'];
+                }
+                res.writeHead(200, headers);
                 res.end();
             } else {
                 res.writeHead(400, {'Content-Type': 'application/json'});
