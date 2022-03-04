@@ -67,41 +67,55 @@ export default class PasswordRecoveryServer {
      */
     private async handleRequest(req: http.IncomingMessage, res: ServerResponse): Promise<void> {
         // Password recovery route
-        if (req.url === '/passwordRecoveryRequests' && req.method === 'POST') {
-            try {
-                let buffer = '';
-                for await (const chunk of req) {
-                    if (buffer.length > this.maxMessageCharCount) {
-                        res.writeHead(500, {
-                            'Content-Type': 'plain/text',
-                            'Access-Control-Allow-Origin': '*'
-                        });
-                        res.write('Request is too long.');
-                        res.end();
-                        return;
+        if (req.url === '/passwordRecoveryRequests') {
+            if (req.method === 'POST') {
+                try {
+                    let buffer = '';
+                    for await (const chunk of req) {
+                        if (buffer.length > this.maxMessageCharCount) {
+                            res.writeHead(500, {
+                                'Content-Type': 'plain/text',
+                                'Access-Control-Allow-Origin': '*'
+                            });
+                            res.write('Request is too long.');
+                            res.end();
+                            return;
+                        }
+                        buffer += chunk;
                     }
-                    buffer += chunk;
+                    const bundledRecoveryInformation = JSON.parse(buffer);
+                    const recoveryInformation = unpackRecoveryInformation(
+                        hexToUint8Array(this.identity.instanceKeySecret),
+                        bundledRecoveryInformation
+                    );
+                    this.onPasswordRecoveryRequest.emit(recoveryInformation);
+                    res.writeHead(201, {
+                        'Content-Type': 'plain/text',
+                        'Access-Control-Allow-Origin': '*'
+                    });
+                    res.write('Thanks for submitting a password recovery request.');
+                } catch (e) {
+                    res.writeHead(500, {
+                        'Content-Type': 'plain/text',
+                        'Access-Control-Allow-Origin': '*'
+                    });
+                    res.write(e.toString());
                 }
-                const bundledRecoveryInformation = JSON.parse(buffer);
-                const recoveryInformation = unpackRecoveryInformation(
-                    hexToUint8Array(this.identity.instanceKeySecret),
-                    bundledRecoveryInformation
-                );
-                this.onPasswordRecoveryRequest.emit(recoveryInformation);
-                res.writeHead(201, {
-                    'Content-Type': 'plain/text',
-                    'Access-Control-Allow-Origin': '*'
-                });
-                res.write('Thanks for submitting a password recovery request.');
-            } catch (e) {
-                res.writeHead(500, {
-                    'Content-Type': 'plain/text',
-                    'Access-Control-Allow-Origin': '*'
-                });
-                res.write(e.toString());
-            }
 
-            res.end();
+                res.end();
+            } else if (req.method === 'OPTIONS') {
+                res.writeHead(200, {
+                    'Content-Type': 'plain/text',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end();
+            } else {
+                res.writeHead(400, {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify({message: 'Method not supported'}));
+            }
         }
 
         // If no route present
