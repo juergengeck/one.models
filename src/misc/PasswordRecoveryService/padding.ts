@@ -146,8 +146,8 @@ function addZeroPaddingAtBeginning(arr: Uint8Array, minimumLength: number): Uint
  *
  * The internal layout of the padding is this:
  *
- * | Field 1: length of field2 | Field 2: length of field 3 | Field 3: padding (random) | Field 4:
- * value |
+ * | Field 1: extra flags(high 4 bits) length of field2 (lower four bits) | Field 2: length of
+ * field 3 | Field 3: padding (random) | Field 4: value |
  *
  * If Field 1 is zero, it means that Fields 2 and 3 do not exist. (Case when value.length =
  * totalLength -1)
@@ -247,4 +247,28 @@ export function removePadding(paddedValue: Uint8Array): Uint8Array {
         throw new Error('startOfValue must not be larger than Number.MAX_SAFE_INTEGER');
     }
     return new Uint8Array(paddedValue.buffer, paddedValue.byteOffset + startOfValue);
+}
+
+export function addPaddingWithExtraFlags(
+    value: Uint8Array,
+    totalLength: number,
+    flags: number
+): Uint8Array {
+    if ((flags | 0x0f) !== 0x0f) {
+        throw new Error('Only four bits in extra flags can be stored.');
+    }
+
+    const paddedValue = addPadding(value, totalLength);
+    paddedValue[0] = paddedValue[0] & (flags << 4);
+    return paddedValue;
+}
+
+export function removePaddingWithExtraFlags(paddedValue: Uint8Array): {
+    value: Uint8Array;
+    flags: number;
+} {
+    return {
+        value: removePadding(paddedValue),
+        flags: (paddedValue[0] & 0xf0) >> 4
+    };
 }

@@ -1,13 +1,28 @@
+import MultiPromise from './MultiPromise';
+
 /**
  * A queue implementation where the reader promises block until new data is available.
  */
 export default class BlockingQueue<T> {
     private dataQueue: T[] = [];
-    private dataListener: Array<(data: T | undefined, err?: Error) => void> = [];
-    private readonly maxLength: number;
+    private dataListeners: MultiPromise<T>;
+    private readonly maxDataQueueLength: number;
 
-    constructor(maxLength: number = -1) {
-        this.maxLength = maxLength;
+    /**
+     * Constructs a new blokcing queue.
+     *
+     * @param maxDataQueueLength
+     * @param maxPendingPromiseCount
+     * @param defaultTimeout - Default timeout used for remove() call when no timeout was specified.
+     *                         Defaults to Number.POSITIVE_INFINITY.
+     */
+    constructor(
+        maxDataQueueLength = Number.POSITIVE_INFINITY,
+        maxPendingPromiseCount = Number.POSITIVE_INFINITY,
+        defaultTimeout = Number.POSITIVE_INFINITY
+    ) {
+        this.maxDataQueueLength = maxDataQueueLength;
+        this.dataListeners = new MultiPromise<T>(maxPendingPromiseCount, defaultTimeout);
     }
 
     /**
@@ -19,16 +34,16 @@ export default class BlockingQueue<T> {
      */
     public add(data: T): void {
         // If a listener exists then the queue is empty and somebody is waiting for new data.
-        const listener = this.dataListener.shift();
-        if (listener !== undefined) {
-            listener(data);
+        if (this.dataListeners.resolveFirst(data)) {
             return;
         }
 
         // If no listener exists, then we enqueue the element unless the maximum size is already
         // reached.
-        if (this.dataQueue.length === this.maxLength) {
-            throw new Error(`Queue is full, it reached its maximum length of ${this.maxLength}`);
+        if (this.dataQueue.length === this.maxDataQueueLength) {
+            throw new Error(
+                `Queue is full, it reached its maximum length of ${this.maxDataQueueLength}`
+            );
         }
         this.dataQueue.push(data);
     }
@@ -38,50 +53,16 @@ export default class BlockingQueue<T> {
      *
      * If no element is in the queue, then the promise will not resolve, until there is.
      *
-     * @param timeout
+     * @param timeout - Timeout as unsigned 32-bit integer or Number.POSITIVE_INFINITY. If
+     *                  undefined use the default value passed to the constructor.
      */
-    public async remove(timeout: number = -1): Promise<T> {
+    public async remove(timeout?: number): Promise<T> {
         const data = this.dataQueue.shift();
         if (data !== undefined) {
             return data;
         }
 
-        return new Promise((resolve, reject) => {
-            // Start the timeout for waiting on a new message
-            const timeoutHandle =
-                timeout > -1
-                    ? setTimeout(() => {
-                          this.removeDataListener(dataListener);
-                          reject(new Error('Timeout expired'));
-                      }, timeout)
-                    : null;
-
-            // Register the dataAvailable handler that is called when data is available
-            const dataListener = (data: T | undefined, err: Error | undefined) => {
-                if (timeoutHandle) {
-                    clearTimeout(timeoutHandle);
-                }
-                this.removeDataListener(dataListener);
-
-                // Reject when cancelled
-                if (err !== undefined) {
-                    reject(err);
-                    return;
-                }
-
-                // Check if data
-                if (data === undefined) {
-                    reject(
-                        new Error('Internal error: Both data and error arguments are undefined.')
-                    );
-                    return;
-                }
-
-                resolve(data);
-            };
-
-            this.addDataListener(dataListener);
-        });
+        return this.dataListeners.addNewPromise(timeout);
     }
 
     /**
@@ -90,28 +71,29 @@ export default class BlockingQueue<T> {
      * @param err
      */
     public cancelPendingPromises(err?: Error): void {
-        for (const dataListener of this.dataListener) {
-            dataListener(undefined, err || new Error('Cancelled by' + ' cancelPendingPromises'));
-        }
+        this.dataListeners.rejectAll(err || new Error('Cancelled by cancelPendingPromises'));
     }
 
     /**
-     * Remove the listener callbacks from dataListener.
-     *
-     * @param dataListener
-     * @private
+     * Clears the queue and returns the internal array.
      */
-    private removeDataListener(dataListener: (data: T | undefined, err?: Error) => void) {
-        this.dataListener = this.dataListener.filter(listener => dataListener !== listener);
+    public clear(): T[] {
+        const dataQueue = this.dataQueue;
+        this.dataQueue = [];
+        return dataQueue;
     }
 
     /**
-     * Add the listener callback to dataListener.
-     *
-     * @param dataListener
-     * @private
+     * Get the number of elements in the queue.
      */
-    private addDataListener(dataListener: (data: T | undefined, err?: Error) => void) {
-        this.dataListener.push(dataListener);
+    get length(): number {
+        return this.dataQueue.length;
+    }
+
+    /**
+     * Get the number of pending promises if no elements are in the queue.
+     */
+    get pendingPromiseCount(): number {
+        return this.dataListeners.pendingPromiseCount;
     }
 }
