@@ -1,5 +1,6 @@
 import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
 import type {BlobCollection, BlobDescriptor} from '../lib/recipes/BlobRecipes';
+import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/storage';
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,
@@ -9,21 +10,12 @@ export async function createObjects(
     const blobs: UnversionedObjectResult<BlobDescriptor>[] = [];
 
     for (const file of files) {
-        const stream = WriteStorage.createFileWriteStream();
-        stream.write(await file.arrayBuffer());
-        const blob = await stream.end();
+        const blobDescriptor = (await createSingleObjectThroughPurePlan(
+            {module: '@module/writeFile'},
+            file
+        )) as UnversionedObjectResult<BlobDescriptor>;
 
-        const {lastModified, name, size, type} = file;
-
-        const blobDescriptor: BlobDescriptor = {
-            $type$: 'BlobDescriptor',
-            data: blob.hash,
-            lastModified,
-            name,
-            size,
-            type
-        };
-        blobs.push(await WriteStorage.storeUnversionedObject(blobDescriptor));
+        blobs.push(blobDescriptor);
     }
 
     const blobCollection: BlobCollection = {

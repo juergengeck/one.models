@@ -37,6 +37,6 @@ const ConsentRecipe: Recipe = {
     ]
 };
 
-const Consent: Recipe[] = [ConsentRecipe];
+const ConsentRecipes: Recipe[] = [ConsentRecipe];
 
 export default Consent;
