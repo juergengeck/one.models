@@ -10,6 +10,8 @@ import {StateMachine} from '../misc/StateMachine';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {sign} from '../misc/Signature';
 
+type FileStatusTuple = [File, Consent['status']];
+
 /**
  * This model deals with the user consent.
  *
@@ -28,6 +30,7 @@ export default class ConsentModel extends Model {
     channelManager: ChannelManager;
     // stateMachine: StateMachine<any, any>
     private disconnect: (() => void) | undefined;
+    private consentsToWrite: FileStatusTuple[] = [];
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -36,9 +39,14 @@ export default class ConsentModel extends Model {
 
     async init() {
         this.state.assertCurrentState('Uninitialised');
-        this.state.triggerEvent('init');
 
-        // check the queue
+        this.consentsToWrite.every(async fileStatusTuple => {
+            await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
+        });
+
+        // set current consent status
+
+        this.state.triggerEvent('init');
     }
 
     // have the current
@@ -53,10 +61,14 @@ export default class ConsentModel extends Model {
     // private write function
 
     public async setConsent(file: File, status: Consent['status']) {
-        // if current state != initialized push to queue
-        this.state.assertCurrentState('Initialised');
+        if (this.state.currentState === 'Uninitialised') {
+            this.consentsToWrite.push([file, status]);
+        } else {
+            await this.writeConsetn(file, status);
+        }
+    }
 
-        // store (after init)
+    private async writeConsetn(file: File, status: Consent['status']) {
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
             {module: '@module/writeFile'},
             file
@@ -69,8 +81,9 @@ export default class ConsentModel extends Model {
             status
         };
 
-        const result = await storeUnversionedObject(consent);
-        const signedConsent = await sign(result.hash);
+        // signing
+        const consentResult = await storeUnversionedObject(consent);
+        const signedConsent = await sign(consentResult.hash);
 
         /** store the consent object in one **/
         await this.channelManager.postToChannel(
@@ -79,6 +92,4 @@ export default class ConsentModel extends Model {
             undefined
         );
     }
-
-    // signing after init because we need the hash and the password (only after init)
 }
