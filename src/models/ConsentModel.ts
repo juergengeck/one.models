@@ -1,6 +1,11 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type Consent from '../recipes/ConsentRecipes';
+import {
+    createSingleObjectThroughPurePlan,
+    UnversionedObjectResult
+} from '@refinio/one.core/lib/storage';
+import type {BlobDescriptor} from '../recipes/BlobRecipes';
 
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
@@ -28,11 +33,17 @@ export default class ConsentModel extends Model {
 
     public async addConsent(file: File) {
         this.state.assertCurrentState('Initialised');
+
+        const blobDescriptor = (await createSingleObjectThroughPurePlan(
+            {module: '@module/writeFile'},
+            file
+        )) as UnversionedObjectResult<BlobDescriptor>;
+
         const consent: Consent = {
             $type$: 'Consent',
-            file: file,
-            isoStringDate: Date,
-            status: undefined
+            file: blobDescriptor.obj,
+            isoStringDate: new Date().toISOString(),
+            status: 'given'
         };
 
         /** store the consent object in one **/
