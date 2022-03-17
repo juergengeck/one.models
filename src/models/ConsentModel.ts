@@ -31,7 +31,7 @@ export default class ConsentModel extends Model {
         this.state.triggerEvent('shutdown');
     }
 
-    public async addConsent(file: File) {
+    public async setConsent(file: File, status: Consent['status']) {
         this.state.assertCurrentState('Initialised');
 
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
@@ -43,7 +43,7 @@ export default class ConsentModel extends Model {
             $type$: 'Consent',
             file: blobDescriptor.obj,
             isoStringDate: new Date().toISOString(),
-            status: 'given'
+            status
         };
 
         /** store the consent object in one **/
