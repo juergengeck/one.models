@@ -7,6 +7,16 @@ import {
 } from '@refinio/one.core/lib/storage';
 import type {BlobDescriptor} from '../recipes/BlobRecipes';
 
+/**
+ * This model deals with the user consent.
+ *
+ * The consent can be given and revoked and the object needs to be signed by the user.
+ *
+ * When the consent is given data is shared with a predefined entity.
+ * When the consent is revoked this sharing needs to stop.
+ *
+ * How to handel information of this predefined enty? get the connections model?
+ */
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
 
