@@ -41,7 +41,7 @@ export default class ConsentModel extends Model {
 
         const consent: Consent = {
             $type$: 'Consent',
-            file: blobDescriptor.obj,
+            fileReference: blobDescriptor.hash,
             isoStringDate: new Date().toISOString(),
             status
         };

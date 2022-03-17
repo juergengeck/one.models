@@ -1,5 +1,6 @@
 import type {Recipe} from '@refinio/one.core/lib/recipes';
 import type {BlobDescriptor} from './BlobRecipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -9,7 +10,7 @@ declare module '@OneObjectInterfaces' {
 
 export interface Consent {
     $type$: 'Consent';
-    file: BlobDescriptor;
+    fileReference: SHA256Hash<BlobDescriptor>;
     status: 'given' | 'revoked';
     isoStringDate: string;
 }
@@ -19,7 +20,7 @@ const ConsentRecipe: Recipe = {
     name: 'Consent',
     rule: [
         {
-            itemprop: 'file',
+            itemprop: 'fileReference',
             itemtype: {
                 type: 'referenceToObj',
                 allowedTypes: new Set(['BlobDescriptor'])
