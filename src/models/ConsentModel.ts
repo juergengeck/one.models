@@ -6,6 +6,9 @@ import {
     UnversionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import type {BlobDescriptor} from '../recipes/BlobRecipes';
+import {StateMachine} from '../misc/StateMachine';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {sign} from '../misc/Signature';
 
 /**
  * This model deals with the user consent.
@@ -23,6 +26,7 @@ export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
 
     channelManager: ChannelManager;
+    // stateMachine: StateMachine<any, any>
     private disconnect: (() => void) | undefined;
 
     constructor(channelManager: ChannelManager) {
@@ -33,7 +37,11 @@ export default class ConsentModel extends Model {
     async init() {
         this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
+
+        // check the queue
     }
+
+    // have the current
 
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
@@ -42,10 +50,13 @@ export default class ConsentModel extends Model {
         }
         this.state.triggerEvent('shutdown');
     }
+    // private write function
 
     public async setConsent(file: File, status: Consent['status']) {
+        // if current state != initialized push to queue
         this.state.assertCurrentState('Initialised');
 
+        // store (after init)
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
             {module: '@module/writeFile'},
             file
@@ -58,7 +69,16 @@ export default class ConsentModel extends Model {
             status
         };
 
+        const result = await storeUnversionedObject(consent);
+        const signedConsent = await sign(result.hash);
+
         /** store the consent object in one **/
-        await this.channelManager.postToChannel(ConsentModel.channelId, consent, undefined);
+        await this.channelManager.postToChannel(
+            ConsentModel.channelId,
+            signedConsent.obj,
+            undefined
+        );
     }
+
+    // signing after init because we need the hash and the password (only after init)
 }
