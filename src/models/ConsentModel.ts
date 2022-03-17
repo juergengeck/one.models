@@ -26,10 +26,12 @@ type FileStatusTuple = [File, Consent['status']];
  */
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
-    public consentState: StateMachine<'Given' | 'Revoked', 'giveConsent' | 'revokeConsent'>;
+    public consentState: StateMachine<
+        'Uninitialised' | 'Given' | 'Revoked',
+        'giveConsent' | 'revokeConsent'
+    >;
 
     channelManager: ChannelManager;
-    // stateMachine: StateMachine<any, any>
     private disconnect: (() => void) | undefined;
     private consentsToWrite: FileStatusTuple[] = [];
 
@@ -38,9 +40,15 @@ export default class ConsentModel extends Model {
         this.channelManager = channelManager;
 
         this.consentState = new StateMachine<
-            'Given' | 'Revoked',
+            'Uninitialised' | 'Given' | 'Revoked',
             'giveConsent' | 'revokeConsent'
         >();
+        this.consentState.addState('Given');
+        this.consentState.addState('Revoked');
+        this.consentState.addEvent('giveConsent');
+        this.consentState.addEvent('revokeConsent');
+        this.consentState.addTransition('giveConsent', 'Uninitialised', 'Given');
+        this.consentState.addTransition('revokeConsent', 'Given', 'Revoked');
     }
 
     async init() {
@@ -55,8 +63,6 @@ export default class ConsentModel extends Model {
         this.state.triggerEvent('init');
     }
 
-    // have the current
-
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
         if (this.disconnect) {
@@ -64,7 +70,6 @@ export default class ConsentModel extends Model {
         }
         this.state.triggerEvent('shutdown');
     }
-    // private write function
 
     public async setConsent(file: File, status: Consent['status']) {
         if (this.state.currentState === 'Uninitialised') {
@@ -91,7 +96,6 @@ export default class ConsentModel extends Model {
         const consentResult = await storeUnversionedObject(consent);
         const signedConsent = await sign(consentResult.hash);
 
-        /** store the consent object in one **/
         await this.channelManager.postToChannel(
             ConsentModel.channelId,
             signedConsent.obj,
