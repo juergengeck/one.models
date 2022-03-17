@@ -15,7 +15,9 @@ import type {BlobDescriptor} from '../recipes/BlobRecipes';
  * When the consent is given data is shared with a predefined entity.
  * When the consent is revoked this sharing needs to stop.
  *
- * How to handel information of this predefined enty? get the connections model?
+ * * How to handel information of this predefined entity? get the connections model?
+ * * What does the UI need
+ * * Need to be able to postpone storage till one is initialized
  */
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
