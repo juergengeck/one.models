@@ -26,6 +26,7 @@ type FileStatusTuple = [File, Consent['status']];
  */
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
+    public consentState: StateMachine<'Given' | 'Revoked', 'giveConsent' | 'revokeConsent'>;
 
     channelManager: ChannelManager;
     // stateMachine: StateMachine<any, any>
@@ -35,6 +36,11 @@ export default class ConsentModel extends Model {
     constructor(channelManager: ChannelManager) {
         super();
         this.channelManager = channelManager;
+
+        this.consentState = new StateMachine<
+            'Given' | 'Revoked',
+            'giveConsent' | 'revokeConsent'
+        >();
     }
 
     async init() {
