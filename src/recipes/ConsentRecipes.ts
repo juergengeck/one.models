@@ -40,4 +40,4 @@ const ConsentRecipe: Recipe = {
 
 const ConsentRecipes: Recipe[] = [ConsentRecipe];
 
-export default Consent;
+export default ConsentRecipes;

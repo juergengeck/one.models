@@ -1,6 +1,6 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
-import type Consent from '../recipes/ConsentRecipes';
+import type {Consent} from '../recipes/ConsentRecipes';
 import {
     createSingleObjectThroughPurePlan,
     UnversionedObjectResult
@@ -111,5 +111,13 @@ export default class ConsentModel extends Model {
             signedConsent.obj,
             undefined
         );
+
+        // update the state
+        if (status == 'given') {
+            this.consentState.triggerEvent('giveConsent');
+        }
+        if (status == 'revoked') {
+            this.consentState.triggerEvent('revokeConsent');
+        }
     }
 }
