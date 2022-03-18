@@ -66,9 +66,8 @@ export default class ConsentModel extends Model {
             await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
         }
 
-        // update state from storage if no unstored consents are given
+        // update state from storage if no queued consents are present
         if (this.consentsToWrite.length == 0) {
-            // set current consent status
             const latestChannelEntry = await this.channelManager.getObjects({
                 channelId: ConsentModel.channelId,
                 count: 1
