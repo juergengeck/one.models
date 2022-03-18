@@ -75,10 +75,9 @@ export default class ConsentModel extends Model {
             });
 
             const signarue = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
+            const conset = await getObjectWithType(signarue.data, 'Consent');
 
-            console.log(signarue);
-
-            console.log('latestChannelEntry', latestChannelEntry);
+            this.setState(conset.status);
         }
 
         this.state.triggerEvent('init');
@@ -132,6 +131,7 @@ export default class ConsentModel extends Model {
         const consentResult = await storeUnversionedObject(consent);
         const signedConsent = await sign(consentResult.hash);
 
+        // @ts-ignore writeConsent is only called after the channelManger is set
         await this.channelManager.postToChannel(
             ConsentModel.channelId,
             signedConsent.obj,

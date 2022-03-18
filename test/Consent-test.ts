@@ -1,6 +1,6 @@
 import ConsentModel from '../lib/models/ConsentModel';
 import {expect} from 'chai';
-import {readFile, stat} from 'fs/promises';
+import {readFile} from 'fs/promises';
 import * as StorageTestInit from './_helpers';
 import TestModel, {importModules} from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
@@ -14,14 +14,13 @@ function buildTestFile(): File {
     const stats = statSync(filePath);
 
     // @ts-ignore enough for the test
-    const file: File = {
+    return {
         lastModified: stats.ctimeMs,
         name: path.basename(filePath),
         size: stats.size,
         type: 'application/pdf',
         arrayBuffer: () => readFile(filePath)
     };
-    return file;
 }
 
 describe('Consent', () => {
@@ -66,9 +65,19 @@ describe('Consent', () => {
         const consentModel = new ConsentModel();
         const file = buildTestFile();
 
-        console.log('currrent state', consentModel.consentState.currentState);
         await consentModel.setConsent(file, 'revoked');
         expect(consentModel.consentState.currentState).to.equal('Revoked');
+    });
+
+    it('should load latest state from storage', async function () {
+        const consentModel = new ConsentModel();
+        expect(consentModel.consentState.currentState).to.equal('Uninitialised');
+
+        // equals ONE is initialized
+        await consentModel.init(testModel.channelManager);
         console.log('currrent state', consentModel.consentState.currentState);
+
+        // the latest WRITTEN consent was in test "should write consent to channel after one is initialized"
+        expect(consentModel.consentState.currentState).to.equal('Given');
     });
 });
