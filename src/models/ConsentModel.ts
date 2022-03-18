@@ -58,9 +58,9 @@ export default class ConsentModel extends Model {
 
         await this.channelManager.createChannel(ConsentModel.channelId);
 
-        this.consentsToWrite.every(async fileStatusTuple => {
+        for (const fileStatusTuple of this.consentsToWrite) {
             await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
-        });
+        }
 
         // set current consent status
         const latestChannelEntry = await this.channelManager.getObjects({
@@ -90,8 +90,6 @@ export default class ConsentModel extends Model {
     }
 
     private async writeConsetn(file: File, status: Consent['status']) {
-        this.state.assertCurrentState('Initialised');
-
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
             {module: '@module/writeFile'},
             file
@@ -108,7 +106,6 @@ export default class ConsentModel extends Model {
         const consentResult = await storeUnversionedObject(consent);
         const signedConsent = await sign(consentResult.hash);
 
-        // @ts-ignore this is true because of the state assertion
         await this.channelManager.postToChannel(
             ConsentModel.channelId,
             signedConsent.obj,

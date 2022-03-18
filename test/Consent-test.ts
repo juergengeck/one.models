@@ -35,9 +35,20 @@ describe('Consent', () => {
 
     it('should write consent to channel ', async function () {
         const consentModel = new ConsentModel();
+
+        const consentFile = await readFile('./test/consent.pdf');
+
+        await consentModel.setConsent(consentFile, 'given');
         console.log(consentModel.consentsToWrite.length);
 
         await consentModel.init(testModel.channelManager);
         console.log(consentModel.consentState.currentState);
+
+        const latestChannelEntry = await testModel.channelManager.getObjects({
+            channelId: ConsentModel.channelId,
+            count: 1
+        });
+
+        console.log('latestChannelEntry', latestChannelEntry);
     });
 });
