@@ -50,21 +50,25 @@ describe('Consent', () => {
         await consentModel.setConsent(consentFile, 'given');
     });
 
-    it('should write consent to channel ', async function () {
+    it('should write consent to channel after one is initialized ', async function () {
         const consentModel = new ConsentModel();
         const file = buildTestFile();
 
         await consentModel.setConsent(file, 'given');
-        console.log(consentModel.consentsToWrite.length);
 
+        // equals ONE is initialized
         await consentModel.init(testModel.channelManager);
-        console.log(consentModel.consentState.currentState);
 
-        const latestChannelEntry = await testModel.channelManager.getObjects({
-            channelId: ConsentModel.channelId,
-            count: 1
-        });
+        expect(consentModel.consentState.currentState).to.equal('Given');
+    });
 
-        console.log('latestChannelEntry', latestChannelEntry);
+    it('should change the state from given to revoked', async function () {
+        const consentModel = new ConsentModel();
+        const file = buildTestFile();
+
+        console.log('currrent state', consentModel.consentState.currentState);
+        await consentModel.setConsent(file, 'revoked');
+        expect(consentModel.consentState.currentState).to.equal('Revoked');
+        console.log('currrent state', consentModel.consentState.currentState);
     });
 });

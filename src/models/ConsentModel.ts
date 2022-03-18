@@ -3,6 +3,7 @@ import type ChannelManager from './ChannelManager';
 import type {Consent} from '../recipes/ConsentRecipes';
 import {
     createSingleObjectThroughPurePlan,
+    getObjectWithType,
     UnversionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import type {BlobDescriptor} from '../recipes/BlobRecipes';
@@ -49,6 +50,9 @@ export default class ConsentModel extends Model {
         this.consentState.addEvent('revokeConsent');
         this.consentState.addTransition('giveConsent', 'Uninitialised', 'Given');
         this.consentState.addTransition('revokeConsent', 'Given', 'Revoked');
+        // not needed for ARTEMIS but generally could make sense?
+        this.consentState.addTransition('revokeConsent', 'Uninitialised', 'Revoked');
+
         this.consentState.setInitialState('Uninitialised');
     }
 
@@ -62,15 +66,36 @@ export default class ConsentModel extends Model {
             await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
         }
 
-        // set current consent status
-        const latestChannelEntry = await this.channelManager.getObjects({
-            channelId: ConsentModel.channelId,
-            count: 1
-        });
+        // update state from storage if no unstored consents are given
+        if (this.consentsToWrite.length == 0) {
+            // set current consent status
+            const latestChannelEntry = await this.channelManager.getObjects({
+                channelId: ConsentModel.channelId,
+                count: 1
+            });
 
-        console.log('latestChannelEntry', latestChannelEntry);
+            const signarue = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
+
+            console.log(signarue);
+
+            console.log('latestChannelEntry', latestChannelEntry);
+        }
 
         this.state.triggerEvent('init');
+    }
+
+    /**
+     * do the state transition
+     * @param status
+     * @private
+     */
+    private setState(status: Consent['status']) {
+        if (status == 'given') {
+            this.consentState.triggerEvent('giveConsent');
+        }
+        if (status == 'revoked') {
+            this.consentState.triggerEvent('revokeConsent');
+        }
     }
 
     public async shutdown(): Promise<void> {
@@ -87,6 +112,7 @@ export default class ConsentModel extends Model {
         } else {
             await this.writeConsetn(file, status);
         }
+        this.setState(status);
     }
 
     private async writeConsetn(file: File, status: Consent['status']) {
@@ -111,13 +137,5 @@ export default class ConsentModel extends Model {
             signedConsent.obj,
             undefined
         );
-
-        // update the state
-        if (status == 'given') {
-            this.consentState.triggerEvent('giveConsent');
-        }
-        if (status == 'revoked') {
-            this.consentState.triggerEvent('revokeConsent');
-        }
     }
 }
