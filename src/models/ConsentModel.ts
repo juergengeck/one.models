@@ -31,28 +31,30 @@ export default class ConsentModel extends Model {
         'giveConsent' | 'revokeConsent'
     >;
 
-    channelManager: ChannelManager;
+    channelManager: ChannelManager | undefined;
     private disconnect: (() => void) | undefined;
-    private consentsToWrite: FileStatusTuple[] = [];
+    public consentsToWrite: FileStatusTuple[] = [];
 
-    constructor(channelManager: ChannelManager) {
+    constructor() {
         super();
-        this.channelManager = channelManager;
-
         this.consentState = new StateMachine<
             'Uninitialised' | 'Given' | 'Revoked',
             'giveConsent' | 'revokeConsent'
         >();
+
+        this.consentState.addState('Uninitialised');
         this.consentState.addState('Given');
         this.consentState.addState('Revoked');
         this.consentState.addEvent('giveConsent');
         this.consentState.addEvent('revokeConsent');
         this.consentState.addTransition('giveConsent', 'Uninitialised', 'Given');
         this.consentState.addTransition('revokeConsent', 'Given', 'Revoked');
+        this.consentState.setInitialState('Uninitialised');
     }
 
-    async init() {
+    async init(channelManager: ChannelManager) {
         this.state.assertCurrentState('Uninitialised');
+        this.channelManager = channelManager;
 
         this.consentsToWrite.every(async fileStatusTuple => {
             await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
@@ -84,6 +86,8 @@ export default class ConsentModel extends Model {
     }
 
     private async writeConsetn(file: File, status: Consent['status']) {
+        this.state.assertCurrentState('Initialised');
+
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
             {module: '@module/writeFile'},
             file
@@ -100,6 +104,7 @@ export default class ConsentModel extends Model {
         const consentResult = await storeUnversionedObject(consent);
         const signedConsent = await sign(consentResult.hash);
 
+        // @ts-ignore this is true because of the state assertion
         await this.channelManager.postToChannel(
             ConsentModel.channelId,
             signedConsent.obj,
