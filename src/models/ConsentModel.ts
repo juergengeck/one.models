@@ -64,9 +64,11 @@ export default class ConsentModel extends Model {
 
         // set current consent status
         const latestChannelEntry = await this.channelManager.getObjects({
-            id: ConsentModel.channelId,
+            channelId: ConsentModel.channelId,
             count: 1
         });
+
+        console.log('latestChannelEntry', latestChannelEntry);
 
         this.state.triggerEvent('init');
     }
