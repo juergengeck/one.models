@@ -56,6 +56,8 @@ export default class ConsentModel extends Model {
         this.state.assertCurrentState('Uninitialised');
         this.channelManager = channelManager;
 
+        await this.channelManager.createChannel(ConsentModel.channelId);
+
         this.consentsToWrite.every(async fileStatusTuple => {
             await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
         });
