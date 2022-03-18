@@ -32,9 +32,9 @@ export default class ConsentModel extends Model {
         'giveConsent' | 'revokeConsent'
     >;
 
-    channelManager: ChannelManager | undefined;
+    private consentsToWrite: FileStatusTuple[] = [];
+    private channelManager: ChannelManager | undefined;
     private disconnect: (() => void) | undefined;
-    public consentsToWrite: FileStatusTuple[] = [];
 
     constructor() {
         super();
@@ -56,14 +56,22 @@ export default class ConsentModel extends Model {
         this.consentState.setInitialState('Uninitialised');
     }
 
-    async init(channelManager: ChannelManager) {
+    /**
+     * The init function is only called after ONE is initialized
+     *
+     * It update the state fro storage if no consent changes where queued.
+     * Else it writes the queue to storage
+     * @param channelManager
+     */
+    public async init(channelManager: ChannelManager) {
         this.state.assertCurrentState('Uninitialised');
         this.channelManager = channelManager;
 
         await this.channelManager.createChannel(ConsentModel.channelId);
 
         for (const fileStatusTuple of this.consentsToWrite) {
-            await this.writeConsetn(fileStatusTuple[0], fileStatusTuple[1]);
+            const [file, status] = fileStatusTuple;
+            await this.writeConsetn(file, status);
         }
 
         // update state from storage if no queued consents are present
