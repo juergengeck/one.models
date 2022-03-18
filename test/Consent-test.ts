@@ -5,8 +5,24 @@ import * as StorageTestInit from './_helpers';
 import TestModel, {importModules} from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import path from 'path';
+import {statSync} from 'fs';
 
 let testModel: TestModel;
+
+function buildTestFile(): File {
+    const filePath = './test/consent.pdf';
+    const stats = statSync(filePath);
+
+    // @ts-ignore enough for the test
+    const file: File = {
+        lastModified: stats.ctimeMs,
+        name: path.basename(filePath),
+        size: stats.size,
+        type: 'application/pdf',
+        arrayBuffer: () => readFile(filePath)
+    };
+    return file;
+}
 
 describe('Consent', () => {
     before(async () => {
@@ -29,24 +45,14 @@ describe('Consent', () => {
 
     it('should add a conset to the queue', async function () {
         const consentModel = new ConsentModel();
-        const consentFile = await readFile('./test/consent.pdf');
+        const consentFile = buildTestFile();
 
         await consentModel.setConsent(consentFile, 'given');
     });
 
     it('should write consent to channel ', async function () {
         const consentModel = new ConsentModel();
-
-        const filePath = './test/consent.pdf';
-        const stats = await stat(filePath);
-
-        const file: File = {
-            lastModified: stats.ctimeMs,
-            name: path.basename(filePath),
-            size: stats.size,
-            type: 'application/pdf',
-            arrayBuffer: () => readFile(filePath)
-        };
+        const file = buildTestFile();
 
         await consentModel.setConsent(file, 'given');
         console.log(consentModel.consentsToWrite.length);
