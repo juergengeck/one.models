@@ -109,5 +109,10 @@ describe('Consent', () => {
         // equals ONE is initialized
         await consentModel.init(testModel.channelManager);
         await consentModel.shutdown();
+
+        expect(consentModel.consentState.currentState).to.equal('Uninitialised');
+
+        await consentModel.init(testModel.channelManager);
+        expect(consentModel.consentState.currentState).to.equal('Revoked');
     });
 });
