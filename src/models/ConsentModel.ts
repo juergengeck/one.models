@@ -21,9 +21,9 @@ type FileStatusTuple = [File, Consent['status']];
  * When the consent is given data is shared with a predefined entity.
  * When the consent is revoked this sharing needs to stop.
  *
- * * How to handel information of this predefined entity? get the connections model?
- * * What does the UI need
- * * Need to be able to postpone storage till one is initialized
+ * * How to handle information of this predefined entity? get the connections model?
+ * * The UI can query the consent by checking the public property consentState.
+ *
  */
 export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
@@ -34,7 +34,6 @@ export default class ConsentModel extends Model {
 
     private consentsToWrite: FileStatusTuple[] = [];
     private channelManager: ChannelManager | undefined;
-    private disconnect: (() => void) | undefined;
 
     constructor() {
         super();
@@ -59,7 +58,7 @@ export default class ConsentModel extends Model {
     /**
      * The init function is only called after ONE is initialized
      *
-     * It update the state fro storage if no consent changes where queued.
+     * It updates the state from storage if no consent changes where queued.
      * Else it writes the queue to storage
      * @param channelManager
      */
@@ -106,9 +105,10 @@ export default class ConsentModel extends Model {
 
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
-        if (this.disconnect) {
-            this.disconnect();
-        }
+
+        // after init the queue and all new consents are written to the storage so we don't need
+        // to check here vor unwritten consents
+
         this.state.triggerEvent('shutdown');
     }
 
