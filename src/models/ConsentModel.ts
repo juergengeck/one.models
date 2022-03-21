@@ -24,8 +24,9 @@ type FileStatusTuple = [File, Consent['status']];
  * The application needs to take core of the previous tasks.
  * Therefore it can:
  *  * Check the public `consentState` to see the current consent state
- *  * Listen on the ConsentModel.consentState.onEnterState('Revoked') to stop sharing if it is
- *    received.
+ *  * Listen and filter on ConsentModel.consentState
+ *      .onEnterState(state => {if (state == 'Revoked'){ do ...}})
+ *    to stop sharing if it is received.
  *
  */
 export default class ConsentModel extends Model {
