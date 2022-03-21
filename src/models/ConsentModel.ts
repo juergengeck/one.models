@@ -74,11 +74,6 @@ export default class ConsentModel extends Model {
 
         await this.channelManager.createChannel(ConsentModel.channelId);
 
-        for (const fileStatusTuple of this.consentsToWrite) {
-            const [file, status] = fileStatusTuple;
-            await this.writeConsetn(file, status);
-        }
-
         // update state from storage if no queued consents are present
         if (this.consentsToWrite.length == 0) {
             const latestChannelEntry = await this.channelManager.getObjects({
@@ -90,6 +85,15 @@ export default class ConsentModel extends Model {
             const conset = await getObjectWithType(signarue.data, 'Consent');
 
             this.setState(conset.status);
+        } else {
+            // write all queued consents
+            for (const fileStatusTuple of this.consentsToWrite) {
+                const [file, status] = fileStatusTuple;
+                await this.writeConsetn(file, status);
+            }
+
+            // cleanup the queue
+            this.consentsToWrite = [];
         }
 
         this.state.triggerEvent('init');
