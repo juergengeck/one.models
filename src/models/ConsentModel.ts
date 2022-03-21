@@ -32,7 +32,7 @@ export default class ConsentModel extends Model {
     public static readonly channelId = 'consent';
     public consentState: StateMachine<
         'Uninitialised' | 'Given' | 'Revoked',
-        'giveConsent' | 'revokeConsent'
+        'giveConsent' | 'revokeConsent' | 'shutdown'
     >;
 
     private consentsToWrite: FileStatusTuple[] = [];
@@ -42,7 +42,7 @@ export default class ConsentModel extends Model {
         super();
         this.consentState = new StateMachine<
             'Uninitialised' | 'Given' | 'Revoked',
-            'giveConsent' | 'revokeConsent'
+            'giveConsent' | 'revokeConsent' | 'shutdown'
         >();
 
         this.consentState.addState('Uninitialised');
@@ -50,10 +50,13 @@ export default class ConsentModel extends Model {
         this.consentState.addState('Revoked');
         this.consentState.addEvent('giveConsent');
         this.consentState.addEvent('revokeConsent');
+        this.consentState.addEvent('shutdown');
         this.consentState.addTransition('giveConsent', 'Uninitialised', 'Given');
         this.consentState.addTransition('revokeConsent', 'Given', 'Revoked');
-        // not needed for ARTEMIS but generally could make sense?
+        // not needed for ARTEMIS but generally makes sense
         this.consentState.addTransition('revokeConsent', 'Uninitialised', 'Revoked');
+        this.consentState.addTransition('shutdown', 'Given', 'Uninitialised');
+        this.consentState.addTransition('shutdown', 'Revoked', 'Uninitialised');
 
         this.consentState.setInitialState('Uninitialised');
     }
@@ -110,9 +113,11 @@ export default class ConsentModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         // after init the queue and all new consents are written to the storage so we don't need
-        // to check here vor unwritten consents
+        // to check here for unwritten consents
+        this.consentsToWrite = [];
 
         this.state.triggerEvent('shutdown');
+        this.consentState.triggerEvent('shutdown');
     }
 
     public async setConsent(file: File, status: Consent['status']) {

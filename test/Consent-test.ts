@@ -99,4 +99,15 @@ describe('Consent', () => {
         const revoked = await onEnterRevokeState;
         expect(revoked).to.equal('Close connection to replicant');
     });
+
+    it('should have the revoked state after init if the last stored consent was revoked', async function () {
+        const consentModel = new ConsentModel();
+        const file = buildTestFile();
+
+        await consentModel.setConsent(file, 'revoked');
+
+        // equals ONE is initialized
+        await consentModel.init(testModel.channelManager);
+        await consentModel.shutdown();
+    });
 });
