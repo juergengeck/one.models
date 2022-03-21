@@ -118,7 +118,6 @@ export default class ConsentModel extends Model {
 
         // after init the queue and all new consents are written to the storage so we don't need
         // to check here for unwritten consents
-        this.consentsToWrite = [];
 
         this.state.triggerEvent('shutdown');
         this.consentState.triggerEvent('shutdown');
