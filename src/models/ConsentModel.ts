@@ -82,15 +82,15 @@ export default class ConsentModel extends Model {
                 count: 1
             });
 
-            const signarue = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
-            const conset = await getObjectWithType(signarue.data, 'Consent');
+            const signature = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
+            const consent = await getObjectWithType(signature.data, 'Consent');
 
-            this.setState(conset.status);
+            this.setState(consent.status);
         } else {
             // write all queued consents
             for (const fileStatusTuple of this.consentsToWrite) {
                 const [file, status] = fileStatusTuple;
-                await this.writeConsetn(file, status);
+                await this.writeConsent(file, status);
             }
 
             // cleanup the queue
@@ -128,12 +128,12 @@ export default class ConsentModel extends Model {
         if (this.state.currentState === 'Uninitialised') {
             this.consentsToWrite.push([file, status]);
         } else {
-            await this.writeConsetn(file, status);
+            await this.writeConsent(file, status);
         }
         this.setState(status);
     }
 
-    private async writeConsetn(file: File, status: Consent['status']) {
+    private async writeConsent(file: File, status: Consent['status']) {
         const blobDescriptor = (await createSingleObjectThroughPurePlan(
             {module: '@module/writeFile'},
             file
