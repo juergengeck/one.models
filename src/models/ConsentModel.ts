@@ -21,8 +21,11 @@ type FileStatusTuple = [File, Consent['status']];
  * When the consent is given data is shared with a predefined entity.
  * When the consent is revoked this sharing needs to stop.
  *
- * * How to handle information of this predefined entity? get the connections model?
- * * The UI can query the consent by checking the public property consentState.
+ * The application needs to take core of the previous tasks.
+ * Therefore it can:
+ *  * Check the public `consentState` to see the current consent state
+ *  * Listen on the ConsentModel.consentState.onEnterState('Revoked') to stop sharing if it is
+ *    received.
  *
  */
 export default class ConsentModel extends Model {
