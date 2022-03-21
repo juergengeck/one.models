@@ -38,8 +38,8 @@ describe('Consent', () => {
 
     it('should be uninitialised', function () {
         //test
-        const consetnModel = new ConsentModel();
-        expect(consetnModel.consentState.currentState).to.equal('Uninitialised');
+        const consentModel = new ConsentModel();
+        expect(consentModel.consentState.currentState).to.equal('Uninitialised');
     });
 
     it('should add a conset to the queue', async function () {
