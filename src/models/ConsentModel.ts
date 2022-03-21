@@ -100,20 +100,6 @@ export default class ConsentModel extends Model {
         this.state.triggerEvent('init');
     }
 
-    /**
-     * do the state transition
-     * @param status
-     * @private
-     */
-    private setState(status: Consent['status']) {
-        if (status == 'given') {
-            this.consentState.triggerEvent('giveConsent');
-        }
-        if (status == 'revoked') {
-            this.consentState.triggerEvent('revokeConsent');
-        }
-    }
-
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
@@ -131,6 +117,20 @@ export default class ConsentModel extends Model {
             await this.writeConsent(file, status);
         }
         this.setState(status);
+    }
+
+    /**
+     * do the state transition
+     * @param status
+     * @private
+     */
+    private setState(status: Consent['status']) {
+        if (status == 'given') {
+            this.consentState.triggerEvent('giveConsent');
+        }
+        if (status == 'revoked') {
+            this.consentState.triggerEvent('revokeConsent');
+        }
     }
 
     private async writeConsent(file: File, status: Consent['status']) {
