@@ -75,9 +75,28 @@ describe('Consent', () => {
 
         // equals ONE is initialized
         await consentModel.init(testModel.channelManager);
-        console.log('currrent state', consentModel.consentState.currentState);
 
         // the latest WRITTEN consent was in test "should write consent to channel after one is initialized"
         expect(consentModel.consentState.currentState).to.equal('Given');
+    });
+
+    it('should trigger something on state beeng revoked', async function () {
+        const consentModel = new ConsentModel();
+        expect(consentModel.consentState.currentState).to.equal('Uninitialised');
+
+        const onEnterRevokeState = new Promise(resolve => {
+            consentModel.consentState.onEnterState(state => {
+                if (state == 'Revoked') {
+                    resolve('Close connection to replicant');
+                }
+            });
+        });
+
+        const file = buildTestFile();
+        await consentModel.setConsent(file, 'given');
+        await consentModel.setConsent(file, 'revoked');
+
+        const revoked = await onEnterRevokeState;
+        expect(revoked).to.equal('Close connection to replicant');
     });
 });
