@@ -21,7 +21,7 @@ type FileStatusTuple = [File, Consent['status']];
  * When the consent is given data is shared with a predefined entity.
  * When the consent is revoked this sharing needs to stop.
  *
- * The application needs to take core of the previous tasks.
+ * The application needs to take care of the previous tasks.
  * Therefore it can:
  *  * Check the public `consentState` to see the current consent state
  *  * Listen and filter on ConsentModel.consentState
@@ -120,7 +120,7 @@ export default class ConsentModel extends Model {
     }
 
     /**
-     * do the state transition
+     * Do the state transition
      * @param status
      * @private
      */
