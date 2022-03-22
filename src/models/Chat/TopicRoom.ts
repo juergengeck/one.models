@@ -1,5 +1,5 @@
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChatMessage, Topic} from '../../recipes/ChatRecipes';
+import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
@@ -11,12 +11,16 @@ import BlobCollectionModel from '../BlobCollectionModel';
 import type {BlobDescriptor} from '../BlobCollectionModel';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 
+export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
+    attachments: BlobDescriptor[];
+}
+
 export default class TopicRoom {
     /**
      * Notify the user whenever a new chat message is received.
      */
-    public onNewMessageReceived: OEvent<(message: ObjectData<ChatMessage>) => void> = new OEvent<
-        (message: ObjectData<ChatMessage>) => void
+    public onNewMessageReceived: OEvent<(message: ObjectData<OneChatMessage>) => void> = new OEvent<
+        (message: ObjectData<OneChatMessage>) => void
     >();
 
     public topic: Topic;
@@ -58,7 +62,9 @@ export default class TopicRoom {
      * Iterator to retrieved page-sized messages.
      * @param count
      */
-    async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>[]> {
+    async *retrieveMessagesIterator(
+        count: number = 25
+    ): AsyncGenerator<ObjectData<OneChatMessage>[]> {
         let collectedItems = [];
 
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
@@ -79,13 +85,15 @@ export default class TopicRoom {
     /**
      * Retrieve all the messages in the chat.
      */
-    async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
+    async retrieveAllMessages(): Promise<ObjectData<OneChatMessage>[]> {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
     }
 
-    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors() {
+    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
+        ObjectData<ChatMessage | OneChatMessage>[]
+    > {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
@@ -160,7 +168,7 @@ export default class TopicRoom {
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
         if (channelId === this.topic.id) {
-            this.onNewMessageReceived.emit(data as ObjectData<ChatMessage>);
+            this.onNewMessageReceived.emit(data as ObjectData<OneChatMessage>);
         }
     }
 }

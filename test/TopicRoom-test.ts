@@ -71,7 +71,7 @@ describe('Consent', () => {
     });
 
     it('should recover the file from BlobDescriptors', async function () {
-        const messages = await topicRoom.retrieveAllMessagesWithAttachmentsAsFiles();
+        const messages = await topicRoom.retrieveAllMessagesWithAttachmentsAsBlobDescriptors();
         const messageWithAttachment = messages[1];
 
         expect(messageWithAttachment.data.attachments).to.not.be.undefined;
