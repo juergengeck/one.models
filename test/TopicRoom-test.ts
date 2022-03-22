@@ -7,6 +7,9 @@ import path from 'path';
 import {statSync} from 'fs';
 import TopicModel from '../lib/models/Chat/TopicModel';
 import TopicRoom from '../lib/models/Chat/TopicRoom';
+import type {ChannelEntry} from '../src/recipes/ChannelRecipes';
+import type {ObjectData} from '../src/models/ChannelManager';
+import type {ChatMessage} from '../src/recipes/ChatRecipes';
 
 let testModel: TestModel;
 let topicRoom: TopicRoom;
@@ -47,13 +50,22 @@ describe('Consent', () => {
     });
 
     it('should receive a message', async function () {
-        const messagePromise = new Promise(resolve => {
+        const messagePromise: Promise<ObjectData<ChatMessage>> = new Promise(resolve => {
             topicRoom.onNewMessageReceived(msg => resolve(msg));
         });
 
-        await topicRoom.sendMessage('muhahaha');
+        await topicRoom.sendMessage('the message');
         const message = await messagePromise;
+        expect(message.data.text).to.equal('the message');
+    });
 
-        console.log(message);
+    it('should receive a message containing a Blobdescriptor', async function () {
+        const messagePromise: Promise<ObjectData<ChatMessage>> = new Promise(resolve => {
+            topicRoom.onNewMessageReceived(msg => resolve(msg));
+        });
+        const file = buildTestFile();
+        await topicRoom.sendMessage('with attachment', [file]);
+        const message = await messagePromise;
+        expect(message.data.attachments?.length).to.not.equal(0);
     });
 });

@@ -1,11 +1,12 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
+import type {BlobDescriptor} from '../../recipes/BlobRecipes';
 
 export default class TopicRoom {
     /**
@@ -86,14 +87,19 @@ export default class TopicRoom {
      * @param message
      * @param attachments
      */
-    async sendMessage(
-        message: string,
-        attachments?: SHA256Hash<BLOB>[] | undefined
-    ): Promise<void> {
+    async sendMessage(message: string, attachments?: File[] | undefined): Promise<void> {
         const instanceIdHash = await getInstanceOwnerIdHash();
 
         if (instanceIdHash === undefined) {
             throw new Error('Error: instance id hash could not be found');
+        }
+        let writtenAttachments: SHA256Hash<BlobDescriptor>[] = [];
+
+        if (attachments) {
+            const blobDescriptors = await Promise.all(
+                attachments.map(file => storeFileWithBlobDescriptor(file))
+            );
+            writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
         }
 
         await this.channelManager.postToChannel(
@@ -102,7 +108,7 @@ export default class TopicRoom {
                 $type$: 'ChatMessage',
                 text: message,
                 sender: instanceIdHash,
-                attachments
+                attachments: writtenAttachments
             },
             null
         );
