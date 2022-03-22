@@ -78,8 +78,6 @@ describe('Consent', () => {
         // @ts-ignore
         const blobDescriptor: BlobDescriptor = messageWithAttachment.data.attachments[0];
 
-        console.log('###################');
-        console.log(blobDescriptor);
-        console.log('###################');
+        expect(blobDescriptor.data instanceof ArrayBuffer);
     });
 });
