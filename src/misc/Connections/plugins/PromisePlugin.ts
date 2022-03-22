@@ -1,25 +1,37 @@
-import ConnectionPlugin from '../ConnectionPlugin';
-import tweetnacl from 'tweetnacl';
-import {
-    addPaddingWithExtraFlags,
-    removePaddingWithExtraFlags
-} from '../../PasswordRecoveryService/padding';
+import ConnectionPlugin, {
+    ConnectionIncomingEvent,
+    ConnectionOutgoingEvent
+} from '../ConnectionPlugin';
 import BlockingQueue from '../../BlockingQueue';
 
-class PromisePlugin extends ConnectionPlugin {
-    private dataQueue: BlockingQueue<Uint8Array | string>;
+export default class PromisePlugin extends ConnectionPlugin {
+    private dataQueue: BlockingQueue<ConnectionIncomingEvent>;
+    private isOpen = false;
 
     constructor(maxDataQueueSize = 10, defaultReadTimeout = Number.POSITIVE_INFINITY) {
-        super();
-        this.dataQueue = new BlockingQueue<Uint8Array | string>(
+        super('promise');
+        this.dataQueue = new BlockingQueue<ConnectionIncomingEvent>(
             maxDataQueueSize,
+            1,
             defaultReadTimeout
         );
     }
 
-    public transformIncomingMessage(message: Uint8Array | string): Uint8Array | string | null {
-        this.dataQueue.add(message);
-        return message;
+    public transformIncomingEvent(event: ConnectionIncomingEvent): ConnectionIncomingEvent | null {
+        if (event.type === 'opened') {
+            this.isOpen = true;
+        } else {
+            this.dataQueue.add(event);
+        }
+        return event;
+    }
+
+    public transformOutgoingEvent(event: ConnectionOutgoingEvent): ConnectionOutgoingEvent | null {
+        return event;
+    }
+
+    public cleanup(reason?: string) {
+        this.dataQueue.cancelPendingPromises(new Error(reason));
     }
 
     // ######## Receiving messages ########
@@ -130,7 +142,18 @@ class PromisePlugin extends ConnectionPlugin {
      *          2) the connection was closed
      */
     public async waitForMessage(timeout?: number): Promise<Uint8Array | string> {
-        // TODO: this.assertOpen();
-        return this.dataQueue.remove(timeout);
+        if (!this.isOpen) {
+            throw new Error('The connection is not open, yet.');
+        }
+
+        const event = await this.dataQueue.remove(timeout);
+        while (event.type !== 'message') {
+            if (event.type === 'closed') {
+                this.isOpen = false;
+                throw new Error('The connection was closed.');
+            }
+        }
+
+        return event.data;
     }
 }

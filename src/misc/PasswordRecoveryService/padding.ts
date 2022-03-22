@@ -218,7 +218,7 @@ export function addPadding(value: Uint8Array, totalLength: number): Uint8Array {
  */
 export function removePadding(paddedValue: Uint8Array): Uint8Array {
     // Extract F1
-    const paddingLengthLength = paddedValue[0];
+    const paddingLengthLength = paddedValue[0] & 0x0f;
 
     // Extract F2
     const paddingLengthAsArrayArbitraryLength = new Uint8Array(
@@ -259,7 +259,7 @@ export function addPaddingWithExtraFlags(
     }
 
     const paddedValue = addPadding(value, totalLength);
-    paddedValue[0] = paddedValue[0] & (flags << 4);
+    paddedValue[0] = paddedValue[0] | (flags << 4);
     return paddedValue;
 }
 

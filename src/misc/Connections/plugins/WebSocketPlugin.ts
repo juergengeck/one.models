@@ -1,11 +1,12 @@
+// noinspection JSMethodCanBeStatic
+
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {EventEmitter} from 'events';
-import type {WebSocketPromiseBasedInterface} from '@refinio/one.core/lib/websocket-promisifier';
-import {OEvent} from '../OEvent';
-import BlockingQueue from '../BlockingQueue';
-import MultiPromise from '../MultiPromise';
-import Watchdog from '../Watchdog';
-import type {IConnection} from './IConnection';
+import ConnectionPlugin, {
+    ConnectionClosedEvent,
+    ConnectionIncomingEvent,
+    ConnectionOutgoingEvent,
+    EventCreationFunctions
+} from '../ConnectionPlugin';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -44,42 +45,21 @@ function shortenStringUTF8(input: string, maxByteLength: number): string {
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class Connection implements IConnection {
-    /**
-     * Event is emitted when a new message is received.
-     */
-    public onMessage = new OEvent<(message: Uint8Array | string) => void>();
-
+export default class WebSocketPlugin extends ConnectionPlugin {
     // Members
     public webSocket: WebSocket | null;
     private readonly deregisterHandlers: () => void;
-
-    // Members for unique id management for logging
-    private static idCounter: number = 0;
-    public readonly id: number = ++Connection.idCounter;
-
-    // Members for promise based handling of data
-    private dataQueue: BlockingQueue<ArrayBuffer | string>;
-    private openPromises: MultiPromise<void>;
-
-    private disableWaitForMessageInt: boolean = false;
-    private closeReason: string = '';
+    private closeEventSent = false;
+    private closedReason: ConnectionClosedEvent | null = null;
 
     /**
      * Construct a new connection - at the moment based on WebSockets
      */
-    constructor(
-        webSocket: WebSocket,
-        maxDataQueueSize = 10,
-        defaultReadTimeout = Number.POSITIVE_INFINITY,
-        defaultOpenTimeout = Number.POSITIVE_INFINITY
-    ) {
-        super();
-        MessageBus.send('debug', `${this.id}: constructor()`);
+    constructor(webSocket: WebSocket) {
+        super('websocket');
 
         // Setup members
         this.webSocket = webSocket;
-        this.openPromises = new MultiPromise<void>(1, defaultOpenTimeout);
 
         // Configure for binary messages
         this.webSocket.binaryType = 'arraybuffer';
@@ -103,39 +83,48 @@ export default class Connection implements IConnection {
         };
     }
 
-    // ######## Socket Management & Settings ########
-    /**
-     * Disables the waitForMessage functions.
-     *
-     * This is required, if you only want to use the event based interface for retrieving
-     * messages, otherwise the dataQueue would overflow.
-     * Calling this function will flush the remaining elements in the data queue by calling the
-     * onMessage event for each remaining element.
-     *
-     * @param value
-     */
-    public set disableWaitForMessage(value: boolean) {
-        this.disableWaitForMessageInt = value;
+    public attachedToConnection(eventCreationFunctions: EventCreationFunctions, id: number): void {
+        super.attachedToConnection(eventCreationFunctions, id);
+        const webSocket = this.assertNotDetached();
 
-        if (value) {
-            const messageEvents = this.dataQueue.clear();
-
-            for (const messageEvent of messageEvents) {
-                this.emit('message', messageEvent);
-                this.onMessage.emit(messageEvent);
-            }
-
-            this.dataQueue.cancelPendingPromises(
-                new Error('Waiting for incoming messages has been disabled.')
-            );
+        if (webSocket.readyState === webSocket.OPEN) {
+            this.handleOpen(null);
+        }
+        if (
+            webSocket.readyState === webSocket.CLOSING ||
+            webSocket.readyState === webSocket.CLOSED
+        ) {
+            this.setClosedReasonOnce(`Websocket was already closed`, 'local');
+            this.sendClosedEvent();
         }
     }
 
-    /**
-     * Get the waitForMessage state
-     */
-    public get disableWaitForMessage(): boolean {
-        return this.disableWaitForMessageInt;
+    public transformIncomingEvent(event: ConnectionIncomingEvent): ConnectionIncomingEvent | null {
+        return null;
+    }
+
+    public transformOutgoingEvent(event: ConnectionOutgoingEvent): ConnectionOutgoingEvent | null {
+        if (event.type === 'close') {
+            if (event.terminate) {
+                this.terminate(event.reason);
+            } else {
+                this.close(event.reason);
+            }
+        }
+        if (event.type === 'message') {
+            let arr: ArrayBuffer | string;
+            if (typeof event.data === 'string') {
+                arr = event.data;
+            } else {
+                arr = event.data.buffer.slice(
+                    event.data.byteOffset,
+                    event.data.byteOffset + event.data.byteLength
+                );
+            }
+
+            this.assertOpen().send(arr);
+        }
+        return null;
     }
 
     /**
@@ -149,19 +138,20 @@ export default class Connection implements IConnection {
      *            until new handlers are registered.
      */
     public releaseWebSocket(): WebSocket {
-        MessageBus.send('debug', `${this.id}: releaseWebSocket()`);
-
         if (!this.webSocket) {
             throw Error('No websocket is bound to this instance.');
         }
 
         this.deregisterHandlers();
+        this.setClosedReasonOnce('detached websocket', 'local');
+        this.sendClosedEvent();
 
         const webSocket = this.webSocket;
         this.webSocket = null;
-        this.stopPingPong();
         return webSocket;
     }
+
+    // ######## Private API ########
 
     /**
      * Closes the underlying websocket.
@@ -172,21 +162,19 @@ export default class Connection implements IConnection {
      * off.
      *
      * @param reason - Reason for timeout
-     * @param omitReason - If true, don't append the reason to the close reason.
      */
-    public close(reason?: string, omitReason: boolean = false): void {
-        MessageBus.send('debug', `${this.id}: close(${reason})`);
-
+    private close(reason?: string): void {
         const webSocket = this.assertNotDetached();
-        if (webSocket.readyState !== WebSocket.OPEN) {
+        if (webSocket.readyState !== webSocket.OPEN) {
             return;
         }
 
-        this.appendCloseReason(`close called: ${reason}`);
+        const wholeReason = 'Close called' + (reason === undefined ? '.' : `: ${reason}`);
 
         // Shorten the reason string to maximum 123 bytes, because the standard mandates it:
         // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close
-        webSocket.close(1000, shortenStringUTF8(this.closeReason, 123));
+        webSocket.close(1000, shortenStringUTF8(wholeReason, 123));
+        this.setClosedReasonOnce(wholeReason, 'local');
     }
 
     /**
@@ -202,46 +190,57 @@ export default class Connection implements IConnection {
      *
      * @param reason - Reason for timeout
      */
-    public terminate(reason?: string): void {
-        MessageBus.send('debug', `${this.id}: terminate(${reason})`);
-
-        this.appendCloseReason(`terminate called: ${reason}`);
-
+    private terminate(reason?: string): void {
         const webSocket = this.assertNotDetached();
-        if (webSocket.readyState === WebSocket.OPEN) {
-            this.close(this.closeReason, true);
+        if (webSocket.readyState !== webSocket.OPEN) {
+            return;
         }
 
-        this.cleanupAfterClose();
+        const wholeReason = 'Terminate called' + (reason === undefined ? '.' : `: ${reason}`);
+
+        // Shorten the reason string to maximum 123 bytes, because the standard mandates it:
+        // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close
+        webSocket.close(1000, shortenStringUTF8(wholeReason, 123));
+        this.setClosedReasonOnce(wholeReason, 'local');
+        this.sendClosedEvent();
     }
 
     /**
-     * Wait for the socket to be open.
+     * Set the close reason.
      *
-     * @param timeout
+     * If called multiple times only the reason of the first call will be kept.
+     *
+     * @param reason
+     * @param origin
      */
-    public async waitForOpen(timeout?: number): Promise<void> {
-        MessageBus.send('debug', `${this.id}: waitForOpen()`);
-        return this.openPromises.addNewPromise(timeout);
+    private setClosedReasonOnce(reason: string, origin: 'local' | 'remote'): void {
+        if (this.closedReason === null) {
+            this.closedReason = {
+                type: 'closed',
+                reason,
+                origin
+            };
+        }
     }
-
-    // ######## Sending messages ########
 
     /**
-     * Send data to the websocket.
-     * @param data
+     * Send the close reason that was previously set with setClosedReasonOnce.
      */
-    public send(data: Uint8Array | string): void {
-        MessageBus.send('debug', `${this.id}: send(${JSON.stringify(data)})`);
-        const websocket = this.assertOpen();
-        websocket.send(data);
-    }
+    private sendClosedEvent(): void {
+        if (this.closeEventSent) {
+            return;
+        }
 
-    // ######## Private API ########
-
-    private cleanupAfterClose(): void {
-        this.dataQueue.cancelPendingPromises(new Error(this.closeReason));
-        this.openPromises.rejectAll(new Error(this.closeReason));
+        this.eventCreationFunctions.createIncomingEvent(
+            this.closedReason || {
+                type: 'closed',
+                reason:
+                    'No reason specified, this should not happen and is most likely an' +
+                    ' implementation error.',
+                origin: 'local'
+            }
+        );
+        this.closeEventSent = true;
     }
 
     /**
@@ -263,12 +262,18 @@ export default class Connection implements IConnection {
     private assertOpen(): WebSocket {
         const webSocket = this.assertNotDetached();
 
-        if (webSocket.readyState !== WebSocket.OPEN) {
-            throw new Error(`The websocket is closed. ${this.closeReason}`);
+        if (webSocket.readyState === webSocket.CONNECTING) {
+            throw new Error(`The websocket was not opened, yet.`);
+        }
+
+        if (webSocket.readyState !== webSocket.OPEN) {
+            throw new Error(`The websocket was closed: ${this.closedReason?.reason}`);
         }
 
         return webSocket;
     }
+
+    // ######## Private API - WebSocket event handler ########
 
     /**
      * This function handles the web sockets open event
@@ -278,8 +283,9 @@ export default class Connection implements IConnection {
      * @param openEvent
      */
     private handleOpen(openEvent: unknown) {
-        MessageBus.send('debug', `${this.id}: handleOpen()`);
-        this.openPromises.resolveAll();
+        this.eventCreationFunctions.createIncomingEvent({
+            type: 'opened'
+        });
     }
 
     /**
@@ -290,8 +296,13 @@ export default class Connection implements IConnection {
      * @param messageEvent
      */
     private handleMessage(messageEvent: MessageEvent) {
-        MessageBus.send('debug', `${this.id}: handleMessage(${messageEvent.data})`);
-        this.onMessage.emit(messageEvent.data);
+        this.eventCreationFunctions.createIncomingEvent({
+            type: 'message',
+            data:
+                typeof messageEvent.data === 'string'
+                    ? messageEvent.data
+                    : new Uint8Array(messageEvent.data)
+        });
     }
 
     /**
@@ -302,9 +313,8 @@ export default class Connection implements IConnection {
      * @param closeEvent
      */
     private handleClose(closeEvent: CloseEvent) {
-        MessageBus.send('debug', `${this.id}: handleClose()`);
-        this.appendCloseReason(`close event called: ${closeEvent.reason}`);
-        this.cleanupAfterClose();
+        this.setClosedReasonOnce(`${closeEvent.reason}`, 'remote');
+        this.sendClosedEvent();
     }
 
     /**
@@ -315,24 +325,7 @@ export default class Connection implements IConnection {
      * @param errorEvent
      */
     private handleError(errorEvent: Event) {
-        MessageBus.send('debug', `${this.id}: handleError()`);
-        this.appendCloseReason(`error event called: ${(errorEvent as any).message}`);
-        this.cleanupAfterClose();
-    }
-
-    /**
-     * Append a close reason to the closeReason member.
-     *
-     * We have several sources of error messages (local & remote, close / terminate ...).
-     * Sometimes more than one source might deliver a close reason (e.g. each side of the
-     * bidirectional pipe might give us a reason) That's why we append them.
-     *
-     * @param reason - The close reason to append.
-     */
-    private appendCloseReason(reason: string): void {
-        if (this.closeReason === '') {
-            this.closeReason = 'Closed due to:\n';
-        }
-        this.closeReason += ` - ${reason}`;
+        this.setClosedReasonOnce(`Error: ${(errorEvent as any).message}`, 'local');
+        this.sendClosedEvent();
     }
 }

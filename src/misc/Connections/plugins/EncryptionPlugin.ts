@@ -1,12 +1,10 @@
-import {EventEmitter} from 'events';
-import {EncryptedConnectionInterface} from '@refinio/one.core/lib/websocket-promisifier';
-import {OEvent} from '../../OEvent';
-import WebSocketPromiseBased from '../../WebSocketPromiseBased';
 import tweetnacl from 'tweetnacl';
-import ConnectionPlugin from '../ConnectionPlugin';
+import ConnectionPlugin, {
+    ConnectionIncomingEvent,
+    ConnectionOutgoingEvent
+} from '../ConnectionPlugin';
 import {
     addPaddingWithExtraFlags,
-    removePadding,
     removePaddingWithExtraFlags
 } from '../../PasswordRecoveryService/padding';
 
@@ -17,7 +15,7 @@ import {
  * side of the conversation (client: initiator of the connection / server:
  * acceptor of the connection) the key exchange procedure changes.
  */
-class EncryptionPlugin extends ConnectionPlugin {
+export default class EncryptionPlugin extends ConnectionPlugin {
     private readonly sharedKey: Uint8Array; // The shared key used for encryption
     private localNonceCounter: number = 0; // The counter for the local nonce
     private remoteNonceCounter: number = 0; // The counter for the remote nonce
@@ -33,7 +31,7 @@ class EncryptionPlugin extends ConnectionPlugin {
      * @param evenLocalNonceCounter - If true the local instance uses even nonces, otherwise odd.
      */
     constructor(sharedKey: Uint8Array, evenLocalNonceCounter: boolean) {
-        super();
+        super('encryption');
         this.sharedKey = sharedKey;
 
         // For simplicity we will count with the number type and it has a width of 32 bit
@@ -54,38 +52,53 @@ class EncryptionPlugin extends ConnectionPlugin {
         }
     }
 
-    public transformIncomingMessage(message: Uint8Array | string): Uint8Array | string | null {
-        if (typeof message === 'string') {
+    public transformIncomingEvent(event: ConnectionIncomingEvent): ConnectionIncomingEvent | null {
+        if (event.type !== 'message') {
+            return event;
+        }
+
+        if (typeof event.data === 'string') {
             throw new Error(
                 'Incoming encrypted message is a string, it needs to be an' + ' ArrayBuffer'
             );
         }
+
         // Step C: Decrypt message
-        const decryptedMessage = this.decryptMessage(message);
+        const decryptedMessage = this.decryptMessage(event.data);
 
         // Step B: Remove padding
         const unpaddedMessageAndFlags = removePaddingWithExtraFlags(decryptedMessage);
 
         // Step A: Based on flags determine whether to return a string or an ArrayBuffer
         if ((unpaddedMessageAndFlags.flags & 0x01) === 0x01) {
-            return new TextDecoder().decode(unpaddedMessageAndFlags.value);
+            return {
+                type: 'message',
+                data: new TextDecoder().decode(unpaddedMessageAndFlags.value)
+            };
         } else {
-            return unpaddedMessageAndFlags.value;
+            return {
+                type: 'message',
+                data: unpaddedMessageAndFlags.value
+            };
         }
     }
 
-    public transformOutgoingMessage(message: Uint8Array | string): Uint8Array | string | null {
+    public transformOutgoingEvent(event: ConnectionOutgoingEvent): ConnectionOutgoingEvent | null {
+        if (event.type !== 'message') {
+            return event;
+        }
+
         let flags: number;
         let binaryMessage: Uint8Array;
 
         // Step A: Determine flag and convert based on type of messsage
         // Lowest flag bit === 1 => string
         // Lowest flag bit === 0 => ArrayBuffer
-        if (typeof message === 'string') {
-            binaryMessage = new TextEncoder().encode(message);
+        if (typeof event.data === 'string') {
+            binaryMessage = new TextEncoder().encode(event.data);
             flags = 0x01;
         } else {
-            binaryMessage = message;
+            binaryMessage = event.data;
             flags = 0x00;
         }
 
@@ -103,7 +116,10 @@ class EncryptionPlugin extends ConnectionPlugin {
         );
 
         // Step C: encrypt
-        return this.encryptMessage(paddedMessage);
+        return {
+            type: 'message',
+            data: this.encryptMessage(paddedMessage)
+        };
     }
 
     /**

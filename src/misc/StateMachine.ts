@@ -372,6 +372,10 @@ export class StateMachine<StateT, EventT> {
         }
     }
 
+    /*waitForState(state: StateT, timeout?: number): Promise<void> {
+
+    }*/
+
     // ------------------------------- PRIVATE API -------------------------------
 
     /**
