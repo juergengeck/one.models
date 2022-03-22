@@ -6,9 +6,10 @@ import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
-import type {BlobDescriptor} from '../../recipes/BlobRecipes';
 import {getObject} from '@refinio/one.core/lib/storage';
 import BlobCollectionModel from '../BlobCollectionModel';
+import type {BlobDescriptor} from '../BlobCollectionModel';
+import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 
 export default class TopicRoom {
     /**
@@ -96,7 +97,7 @@ export default class TopicRoom {
                         getObject(blobDescriptorHash)
                     )
                 );
-                const resolvedBlobDescriptors = await Promise.all(
+                const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
                     blobDescriptors.map(blobDescriptor =>
                         BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
                     )
@@ -124,7 +125,7 @@ export default class TopicRoom {
         if (instanceIdHash === undefined) {
             throw new Error('Error: instance id hash could not be found');
         }
-        let writtenAttachments: SHA256Hash<BlobDescriptor>[] = [];
+        let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
 
         if (attachments) {
             const blobDescriptors = await Promise.all(

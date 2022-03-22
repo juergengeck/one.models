@@ -7,9 +7,10 @@ import path from 'path';
 import {statSync} from 'fs';
 import TopicModel from '../lib/models/Chat/TopicModel';
 import TopicRoom from '../lib/models/Chat/TopicRoom';
-import type {ChannelEntry} from '../src/recipes/ChannelRecipes';
 import type {ObjectData} from '../src/models/ChannelManager';
 import type {ChatMessage} from '../src/recipes/ChatRecipes';
+import type {BlobDescriptor} from '../lib/models/BlobCollectionModel';
+import type {BlobDescriptor as OneBlobDescriptor} from '../lib/recipes/BlobRecipes';
 
 let testModel: TestModel;
 let topicRoom: TopicRoom;
@@ -71,8 +72,14 @@ describe('Consent', () => {
 
     it('should recover the file from BlobDescriptors', async function () {
         const messages = await topicRoom.retrieveAllMessagesWithAttachmentsAsFiles();
+        const messageWithAttachment = messages[1];
+
+        expect(messageWithAttachment.data.attachments).to.not.be.undefined;
+        // @ts-ignore
+        const blobDescriptor: BlobDescriptor = messageWithAttachment.data.attachments[0];
+
         console.log('###################');
-        console.log(JSON.stringify(messages));
+        console.log(blobDescriptor);
         console.log('###################');
     });
 });
