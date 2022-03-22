@@ -6,7 +6,6 @@ import BodyTemperatureModel from './BodyTemperatureModel';
 import DiaryModel from './DiaryModel';
 import NewsModel from './NewsModel';
 import ChannelManager from './ChannelManager';
-import ConsentFileModel from './ConsentFileModel';
 import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
@@ -27,7 +26,6 @@ export {
     DiaryModel,
     NewsModel,
     ChannelManager,
-    ConsentFileModel,
     PropertyTreeStore,
     PropertyTree,
     AccessModel,
