@@ -7,6 +7,8 @@ import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
 import type {BlobDescriptor} from '../../recipes/BlobRecipes';
+import {getObject} from '@refinio/one.core/lib/storage';
+import BlobCollectionModel from '../BlobCollectionModel';
 
 export default class TopicRoom {
     /**
@@ -80,6 +82,35 @@ export default class TopicRoom {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
+    }
+
+    async retrieveAllMessagesWithAttachmentsAsFiles() {
+        const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
+            channelId: this.topic.id
+        });
+        const resolvedMessages = [];
+        for (const message of messages) {
+            if (message.data.attachments) {
+                const blobDescriptors = await Promise.all(
+                    message.data.attachments.map(blobDescriptorHash =>
+                        getObject(blobDescriptorHash)
+                    )
+                );
+                const resolvedBlobDescriptors = await Promise.all(
+                    blobDescriptors.map(blobDescriptor =>
+                        BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
+                    )
+                );
+
+                resolvedMessages.push({
+                    ...message,
+                    data: {...message.data, attachments: resolvedBlobDescriptors}
+                });
+            } else {
+                resolvedMessages.push(message);
+            }
+        }
+        return resolvedMessages;
     }
 
     /**

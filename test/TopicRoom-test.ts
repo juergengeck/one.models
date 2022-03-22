@@ -59,7 +59,7 @@ describe('Consent', () => {
         expect(message.data.text).to.equal('the message');
     });
 
-    it('should receive a message containing a Blobdescriptor', async function () {
+    it('should receive a message containing a BlobDescriptors', async function () {
         const messagePromise: Promise<ObjectData<ChatMessage>> = new Promise(resolve => {
             topicRoom.onNewMessageReceived(msg => resolve(msg));
         });
@@ -67,5 +67,12 @@ describe('Consent', () => {
         await topicRoom.sendMessage('with attachment', [file]);
         const message = await messagePromise;
         expect(message.data.attachments?.length).to.not.equal(0);
+    });
+
+    it('should recover the file from BlobDescriptors', async function () {
+        const messages = await topicRoom.retrieveAllMessagesWithAttachmentsAsFiles();
+        console.log('###################');
+        console.log(JSON.stringify(messages));
+        console.log('###################');
     });
 });
