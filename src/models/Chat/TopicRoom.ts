@@ -12,7 +12,7 @@ import type {BlobDescriptor} from '../BlobCollectionModel';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
-    attachments: BlobDescriptor[];
+    attachments: File[];
 }
 
 export default class TopicRoom {
@@ -91,7 +91,7 @@ export default class TopicRoom {
         });
     }
 
-    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
+    async retrieveAllMessagesWithAttachmentsAsFiles(): Promise<
         ObjectData<ChatMessage | OneChatMessage>[]
     > {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
@@ -111,9 +111,21 @@ export default class TopicRoom {
                     )
                 );
 
+                const resolvedFiles: File[] = resolvedBlobDescriptors.map(blobDescriptor => {
+                    // @ts-ignore additional params
+                    const file: File = {
+                        lastModified: blobDescriptor.lastModified,
+                        name: blobDescriptor.name,
+                        size: blobDescriptor.size,
+                        type: blobDescriptor.type,
+                        arrayBuffer: () => new Promise(() => blobDescriptor.data)
+                    };
+                    return file;
+                });
+
                 resolvedMessages.push({
                     ...message,
-                    data: {...message.data, attachments: resolvedBlobDescriptors}
+                    data: {...message.data, attachments: resolvedFiles}
                 });
             } else {
                 resolvedMessages.push(message);

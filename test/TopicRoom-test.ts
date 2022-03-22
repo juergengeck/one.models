@@ -10,7 +10,6 @@ import TopicRoom from '../lib/models/Chat/TopicRoom';
 import type {ObjectData} from '../src/models/ChannelManager';
 import type {ChatMessage} from '../src/recipes/ChatRecipes';
 import type {BlobDescriptor} from '../lib/models/BlobCollectionModel';
-import type {BlobDescriptor as OneBlobDescriptor} from '../lib/recipes/BlobRecipes';
 
 let testModel: TestModel;
 let topicRoom: TopicRoom;
