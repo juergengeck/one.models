@@ -7,7 +7,6 @@ import {
     AccessModel,
     BodyTemperatureModel,
     ChannelManager,
-    ConsentFileModel,
     LeuteModel,
     ECGModel,
     InstancesModel
@@ -80,7 +79,6 @@ export default class TestModel {
     private readonly secret: string;
 
     ecgModel: ECGModel;
-    consentFile: ConsentFileModel;
     instancesModel: InstancesModel;
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;
@@ -92,7 +90,6 @@ export default class TestModel {
         this.instancesModel = new InstancesModel();
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager();
-        this.consentFile = new ConsentFileModel(this.channelManager);
         this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);

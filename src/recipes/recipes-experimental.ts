@@ -8,9 +8,10 @@ import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
-import SignatureRecipes from "./SignatureRecipes";
-import MetaObjectMapRecipes from "./MetaObjectMapRecipes";
+import SignatureRecipes from './SignatureRecipes';
+import MetaObjectMapRecipes from './MetaObjectMapRecipes';
 import ChatRecipes from './ChatRecipes';
+import ConsentRecipes from './ConsentRecipes';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -24,7 +25,8 @@ const RecipesExperimental: Recipe[] = [
     ...ChatRecipes,
     ...LeuteRecipes,
     ...SignatureRecipes,
-    ...MetaObjectMapRecipes
+    ...MetaObjectMapRecipes,
+    ...ConsentRecipes
 ];
 
 export default RecipesExperimental;
