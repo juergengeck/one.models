@@ -10,7 +10,7 @@ import type {BlobDescriptor} from '../recipes/BlobRecipes';
 import {StateMachine} from '../misc/StateMachine';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {sign} from '../misc/Signature';
-import {writeFile} from '../misc/writeFile';
+import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor';
 
 type FileStatusTuple = [File, Consent['status']];
 
@@ -135,7 +135,7 @@ export default class ConsentModel extends Model {
     }
 
     private async writeConsent(file: File, status: Consent['status']) {
-        const blobDescriptor = await writeFile(file);
+        const blobDescriptor = await storeFileWithBlobDescriptor(file);
 
         const consent: Consent = {
             $type$: 'Consent',

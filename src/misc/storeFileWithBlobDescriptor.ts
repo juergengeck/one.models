@@ -3,7 +3,9 @@ import type {BlobDescriptor} from '../recipes/BlobRecipes';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
-export async function writeFile(file: File): Promise<UnversionedObjectResult<BlobDescriptor>> {
+export async function storeFileWithBlobDescriptor(
+    file: File
+): Promise<UnversionedObjectResult<BlobDescriptor>> {
     const blobs: UnversionedObjectResult<BlobDescriptor>[] = [];
 
     const stream = createFileWriteStream();
