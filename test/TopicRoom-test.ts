@@ -51,7 +51,7 @@ describe('Consent', () => {
             topicRoom.onNewMessageReceived(msg => resolve(msg));
         });
 
-        await topicRoom.sendMessage('muhahaha', []);
+        await topicRoom.sendMessage('muhahaha');
         const message = await messagePromise;
 
         console.log(message);

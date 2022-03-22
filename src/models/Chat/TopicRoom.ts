@@ -86,7 +86,10 @@ export default class TopicRoom {
      * @param message
      * @param attachments
      */
-    async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
+    async sendMessage(
+        message: string,
+        attachments?: SHA256Hash<BLOB>[] | undefined
+    ): Promise<void> {
         const instanceIdHash = await getInstanceOwnerIdHash();
 
         if (instanceIdHash === undefined) {
@@ -99,7 +102,7 @@ export default class TopicRoom {
                 $type$: 'ChatMessage',
                 text: message,
                 sender: instanceIdHash,
-                attachments: attachments
+                attachments
             },
             null
         );
