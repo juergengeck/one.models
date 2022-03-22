@@ -85,7 +85,7 @@ export default class TopicRoom {
         });
     }
 
-    async retrieveAllMessagesWithAttachmentsAsFiles() {
+    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors() {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
