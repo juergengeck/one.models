@@ -91,6 +91,9 @@ export default class TopicRoom {
         });
     }
 
+    /**
+     * Retrieves all chat messages and resolves the blobs so the binary data can be used.
+     */
     async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
         ObjectData<ChatMessage | OneChatMessage>[]
     > {
