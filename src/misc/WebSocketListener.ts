@@ -22,7 +22,7 @@ class WebSocketListener {
     /**
      * Event is emitted on incoming connections.
      */
-    public onConnection = new OEvent<(webSocket: Connection) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted when the state of the connector changes. The listener callback

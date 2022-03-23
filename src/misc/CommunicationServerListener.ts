@@ -2,8 +2,8 @@ import CommunicationServerConnection_Client from './CommunicationServerConnectio
 import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {wslogId} from './LogUtils';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent, EventTypes} from './OEvent';
+import type Connection from './Connections/Connection';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -26,7 +26,7 @@ class CommunicationServerListener {
     /**
      * Event is emitted after a connection between two instances has been established.
      */
-    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted  for proving that the instance that has asked to register on the
@@ -185,7 +185,7 @@ class CommunicationServerListener {
             // On success schedule a new spare connection and give the outside world the connection via event
             else {
                 this.scheduleSpareConnection(server, publicKey, false);
-                this.onConnection.emit(connection.webSocketPB);
+                this.onConnection.emit(connection.connection);
             }
         };
 
@@ -299,7 +299,7 @@ class CommunicationServerListener {
 
         // Open websocket to communication server
         const connection = new CommunicationServerConnection_Client(server);
-        await connection.webSocketPB.waitForOpen(); // not so nice to do it on webSocketPB
+        await connection.connection.waitForOpen(); // not so nice to do it on webSocketPB
 
         let pingTimeout;
 

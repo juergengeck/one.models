@@ -2,10 +2,10 @@ import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
-import type EncryptedConnection from '../misc/EncryptedConnection';
 import {
     createWebsocketPromisifier,
-    EncryptedConnectionInterface
+    EncryptedConnectionInterface,
+    WebSocketPromiseBasedInterface
 } from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
@@ -28,14 +28,12 @@ import {
     stringToUint8Array,
     Uint8ArrayToString
 } from '@refinio/one.core/lib/instance-crypto';
-import OutgoingConnectionEstablisher from '../misc/OutgoingConnectionEstablisher';
 import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
     isPeerMessage
 } from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {wslogId} from '../misc/LogUtils';
 import {scrypt} from '@refinio/one.core/lib/system/crypto-scrypt';
 import {readUTF8TextFile, writeUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
@@ -48,6 +46,9 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {connectWithEncryption} from '../misc/Connections/protocols/ConnectionSetup';
+import type Connection from '../misc/Connections/Connection';
+import {EventEmitter} from 'events';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -136,6 +137,41 @@ type PkAuthenticationTokenInfo = {
     salt: Uint8Array;
     expirationTimeoutHandle: ReturnType<typeof setTimeout>;
 };
+
+class EncryptedConnectionForOneCore extends EventEmitter implements EncryptedConnectionInterface {
+    private connection: Connection;
+    public webSocketPB: WebSocketPromiseBasedInterface;
+
+    constructor(connection: Connection) {
+        super();
+        this.connection = connection;
+        this.webSocketPB = {
+            get webSocket(): WebSocket | null {
+                return connection.websocketPlugin().webSocket;
+            }
+        };
+    }
+
+    set switchToEvents(arg: boolean) {}
+
+    get switchToEvents(): boolean {
+        return true;
+    }
+
+    close(reason?: string): void {
+        this.connection.close(reason);
+    }
+
+    sendMessage(data: string): Promise<void> {
+        this.connection.send(data);
+        return Promise.resolve();
+    }
+
+    sendBinaryMessage(data: Uint8Array): Promise<void> {
+        this.connection.send(data);
+        return Promise.resolve();
+    }
+}
 
 /**
  * This model manages all connections including pairing scenarios etc.
@@ -470,7 +506,7 @@ class ConnectionsModel extends Model {
         );
 
         // Connect to target
-        const conn = await OutgoingConnectionEstablisher.connectOnce(
+        const connInfo = await connectWithEncryption(
             remoteEndpoint.url,
             hexToUint8Array(mainInstanceInfo.instanceKeys.publicKey),
             remoteInstanceKey,
@@ -491,7 +527,7 @@ class ConnectionsModel extends Model {
         // Start the takeover protocol
         try {
             // Send the other side the protocol we'd like to use
-            await ConnectionsModel.sendMessage(conn, {
+            await ConnectionsModel.sendMessage(connInfo.connection, {
                 command: 'start_protocol',
                 protocol: 'accessGroup_set',
                 version: '1.0'
@@ -499,13 +535,13 @@ class ConnectionsModel extends Model {
 
             // Start the selected protocol
             await this.startSetAccessGroup_Client(
-                conn,
+                connInfo.connection,
                 mainInstanceInfo.personId,
                 remotePerson,
                 accessGroupMembers
             );
         } catch (e) {
-            conn.close(e.message);
+            connInfo.connection.close(e.message);
             throw e;
         }
     }
@@ -541,7 +577,7 @@ class ConnectionsModel extends Model {
             }
 
             // Connect to target
-            const conn = await OutgoingConnectionEstablisher.connectOnce(
+            const connInfo = await connectWithEncryption(
                 this.config.commServerUrl,
                 localPublicInstanceKey,
                 remotePublicInstanceKey,
@@ -569,13 +605,13 @@ class ConnectionsModel extends Model {
             this.communicationModule.addNewUnknownConnection(
                 localPublicInstanceKey,
                 remotePublicInstanceKey,
-                conn
+                connInfo.connection
             );
 
             // Start the takeover protocol
             try {
                 // Send the other side the protocol we'd like to use
-                await ConnectionsModel.sendMessage(conn, {
+                await ConnectionsModel.sendMessage(connInfo.connection, {
                     command: 'start_protocol',
                     protocol: 'chumAndPkExchange_onetimeauth_withtoken',
                     version: '1.0'
@@ -583,7 +619,7 @@ class ConnectionsModel extends Model {
 
                 // STart the selected protocol
                 await this.startChumPkExchangeProtocol_Client(
-                    conn,
+                    connInfo.connection,
                     localPublicInstanceKey,
                     remotePublicInstanceKey,
                     this.mainInstanceInfo.personId,
@@ -592,7 +628,7 @@ class ConnectionsModel extends Model {
                     this.password
                 );
             } catch (e) {
-                conn.close(e.message);
+                connInfo.connection.close(e.message);
                 throw e;
             }
         }
@@ -600,7 +636,7 @@ class ConnectionsModel extends Model {
         // Case for normal pairing
         else {
             // Connect to target
-            const conn = await OutgoingConnectionEstablisher.connectOnce(
+            const connInfo = await connectWithEncryption(
                 this.config.commServerUrl,
                 localPublicInstanceKey,
                 hexToUint8Array(pairingInformation.publicKeyLocal),
@@ -628,13 +664,13 @@ class ConnectionsModel extends Model {
             this.communicationModule.addNewUnknownConnection(
                 localPublicInstanceKey,
                 remotePublicInstanceKey,
-                conn
+                connInfo.connection
             );
 
             // Start the pairing protocol
             try {
                 // Send the other side the protocol we'd like to use
-                await ConnectionsModel.sendMessage(conn, {
+                await ConnectionsModel.sendMessage(connInfo.connection, {
                     command: 'start_protocol',
                     protocol: 'chum_onetimeauth_withtoken',
                     version: '1.0'
@@ -642,14 +678,14 @@ class ConnectionsModel extends Model {
 
                 // Start the selected protocol
                 await this.startChumOneTimeAuthProtocol_Client(
-                    conn,
+                    connInfo.connection,
                     localPublicInstanceKey,
                     remotePublicInstanceKey,
                     this.mainInstanceInfo.personId,
                     pairingInformation.authenticationTag
                 );
             } catch (e) {
-                conn.close(e.message);
+                connInfo.connection.close(e.message);
                 throw e;
             }
         }
@@ -696,14 +732,14 @@ class ConnectionsModel extends Model {
      * @param initiatedLocally
      */
     private async onKnownConnection(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
-        MessageBus.send('log', `${wslogId(conn.webSocket)}: onKnownConnection()`);
+        MessageBus.send('log', `${conn.id}: onKnownConnection()`);
 
         if (!this.initialized) {
             return;
@@ -734,9 +770,7 @@ class ConnectionsModel extends Model {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
                 MessageBus.send(
                     'log',
-                    `${wslogId(conn.webSocket)}: Known: Start protocol ${protocolMsg.protocol} ${
-                        protocolMsg.version
-                    }`
+                    `${conn.id}: Known: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
                 );
 
                 // The normal chum protocol
@@ -831,7 +865,7 @@ class ConnectionsModel extends Model {
                 }
             }
         } catch (e) {
-            MessageBus.send('log', `${wslogId(conn.webSocket)}: Known: Error in protocol ${e}`);
+            MessageBus.send('log', `${conn.id}: Known: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -847,13 +881,13 @@ class ConnectionsModel extends Model {
      * @param initiatedLocally
      */
     private async onUnknownConnection(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean
     ): Promise<void> {
-        MessageBus.send('log', `${wslogId(conn.webSocket)}: onUnknownConnection()`);
+        MessageBus.send('log', `${conn.id}: onUnknownConnection()`);
 
         if (!this.initialized) {
             return;
@@ -871,9 +905,7 @@ class ConnectionsModel extends Model {
                 const protocolMsg = await ConnectionsModel.waitForMessage(conn, 'start_protocol');
                 MessageBus.send(
                     'log',
-                    `${wslogId(conn.webSocket)}: Unknown: Start protocol ${protocolMsg.protocol} ${
-                        protocolMsg.version
-                    }`
+                    `${conn.id}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
                 );
 
                 // The normal chum protocol
@@ -967,7 +999,7 @@ class ConnectionsModel extends Model {
                 }
             }
         } catch (e) {
-            MessageBus.send('log', `${wslogId(conn.webSocket)}: Unknown: Error in protocol ${e}`);
+            MessageBus.send('log', `${conn.id}: Unknown: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -998,7 +1030,7 @@ class ConnectionsModel extends Model {
      * @param keepRunning
      */
     private async startChumProtocol(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
@@ -1055,7 +1087,7 @@ class ConnectionsModel extends Model {
      * @param localPersonId - The local person id used to setup the chum
      */
     private async startChumOneTimeAuthProtocol_Server(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
@@ -1141,7 +1173,7 @@ class ConnectionsModel extends Model {
      *                              the peer
      */
     private async startChumOneTimeAuthProtocol_Client(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
@@ -1214,7 +1246,7 @@ class ConnectionsModel extends Model {
      * @param localPersonId
      */
     private async startChumPkExchangeProtocol_Server(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
@@ -1316,7 +1348,7 @@ class ConnectionsModel extends Model {
      * @param password
      */
     private async startChumPkExchangeProtocol_Client(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
@@ -1378,7 +1410,7 @@ class ConnectionsModel extends Model {
     // ################ SET AUTH GROUP ################
 
     private async startSetAccessGroup_Server(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         try {
@@ -1454,7 +1486,7 @@ class ConnectionsModel extends Model {
      * @param accessGroupMembers
      */
     private async startSetAccessGroup_Client(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPersonId: SHA256IdHash<Person>,
         remotePersonId: SHA256IdHash<Person>,
         accessGroupMembers: SHA256IdHash<Person>[]
@@ -1497,7 +1529,7 @@ class ConnectionsModel extends Model {
      * @param keepRunning
      */
     private async startChum(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicInstanceKey: Uint8Array,
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
@@ -1510,11 +1542,11 @@ class ConnectionsModel extends Model {
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         if (initiatedLocally) {
-            await conn.sendMessage('synchronisation');
-            await conn.waitForMessage();
+            await conn.send('synchronisation');
+            await conn.promisePlugin().waitForMessage();
         } else {
-            await conn.waitForMessage();
-            await conn.sendMessage('synchronisation');
+            await conn.promisePlugin().waitForMessage();
+            await conn.send('synchronisation');
         }
 
         const minimalWriteStorageApiObj = {
@@ -1529,7 +1561,7 @@ class ConnectionsModel extends Model {
         const websocketPromisifierAPI = createWebsocketPromisifier(
             minimalWriteStorageApiObj,
             // TODO: Fix incompatibility of EncryptedConnectionInterface and EncryptedConnection
-            conn as EncryptedConnectionInterface
+            new EncryptedConnectionForOneCore(conn)
         );
         websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
         websocketPromisifierAPI.localPersonIdHash = localPersonId;
@@ -1733,7 +1765,7 @@ class ConnectionsModel extends Model {
      * @returns
      */
     private async verifyAndExchangePersonId(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
         matchRemotePersonId?: SHA256IdHash<Person>,
@@ -1864,7 +1896,7 @@ class ConnectionsModel extends Model {
      * @param crypto
      */
     private static async challengePersonKey(
-        conn: EncryptedConnection,
+        conn: Connection,
         remotePersonPublicKey: Uint8Array,
         crypto: CryptoAPI
     ): Promise<void> {
@@ -1874,13 +1906,13 @@ class ConnectionsModel extends Model {
             remotePersonPublicKey,
             challenge
         );
-        await conn.sendBinaryMessage(encryptedChallenge);
+        await conn.send(encryptedChallenge);
         for (let i = 0; i < challenge.length; ++i) {
             challenge[i] = ~challenge[i];
         }
 
         // Wait for response
-        const encryptedResponse = await conn.waitForBinaryMessage();
+        const encryptedResponse = await conn.promisePlugin().waitForBinaryMessage();
         const response = crypto.decryptWithPersonPublicKey(
             remotePersonPublicKey,
             encryptedResponse
@@ -1899,12 +1931,12 @@ class ConnectionsModel extends Model {
      * @param crypto
      */
     private static async challengeRespondPersonKey(
-        conn: EncryptedConnection,
+        conn: Connection,
         remotePersonPublicKey: Uint8Array,
         crypto: CryptoAPI
     ): Promise<void> {
         // Wait for challenge
-        const encryptedChallenge = await conn.waitForBinaryMessage();
+        const encryptedChallenge = await conn.promisePlugin().waitForBinaryMessage();
         const challenge = crypto.decryptWithPersonPublicKey(
             remotePersonPublicKey,
             encryptedChallenge
@@ -1916,7 +1948,7 @@ class ConnectionsModel extends Model {
             remotePersonPublicKey,
             challenge
         );
-        await conn.sendBinaryMessage(encryptedResponse);
+        await conn.send(encryptedResponse);
     }
 
     // ######## Low level io functions (should probably part of a class??? #######
@@ -1928,10 +1960,10 @@ class ConnectionsModel extends Model {
      * @param message - The message to send
      */
     private static async sendMessage<T extends CommunicationInitiationProtocol.PeerMessageTypes>(
-        conn: EncryptedConnection,
+        conn: Connection,
         message: T
     ): Promise<void> {
-        await conn.sendMessage(JSON.stringify(message));
+        await conn.send(JSON.stringify(message));
     }
 
     /**
@@ -1943,11 +1975,8 @@ class ConnectionsModel extends Model {
      */
     public static async waitForMessage<
         T extends keyof CommunicationInitiationProtocol.PeerMessages
-    >(
-        conn: EncryptedConnection,
-        command: T
-    ): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
-        const message = await conn.waitForJSONMessageWithType(command, 'command');
+    >(conn: Connection, command: T): Promise<CommunicationInitiationProtocol.PeerMessages[T]> {
+        const message = await conn.promisePlugin().waitForJSONMessageWithType(command, 'command');
         if (isPeerMessage(message, command)) {
             return message;
         }

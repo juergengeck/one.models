@@ -2,7 +2,6 @@ import CommunicationServer from '../lib/misc/CommunicationServer';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from '../lib/misc/CommunicationServerListener';
-import WebSocketPromiseBased from '../lib/misc/WebSocketPromiseBased';
 import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
@@ -10,6 +9,8 @@ import {expect} from 'chai';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import Connection from '../lib/misc/Connections/Connection';
+import PromisePlugin from '../lib/misc/Connections/plugins/PromisePlugin';
 
 /*import * as Logger from '@refinio/one.core/lib/logger';
 Logger.start();*/
@@ -62,13 +63,13 @@ describe('communication server tests', () => {
                 );
             }
         );
-        commServerListener.onConnection(async (ws: WebSocketPromiseBased) => {
-            if (ws.webSocket === null) {
+        commServerListener.onConnection(async (connection: Connection) => {
+            if (connection.websocketPlugin().webSocket === null) {
                 throw new Error('ws.webSocket is null');
             }
             try {
-                while (ws.webSocket.readyState === WebSocketWS.OPEN) {
-                    await ws.send(await ws.waitForMessage(1000));
+                while (connection.websocketPlugin().webSocket!.readyState === WebSocketWS.OPEN) {
+                    await connection.send(await connection.promisePlugin().waitForMessage(1000));
                 }
             } catch (e) {
                 // This will also fail on a closing connection, but this is okay, because the listenerFailure
@@ -91,7 +92,8 @@ describe('communication server tests', () => {
 
             // Setup outgoing connection and send something
             const clientKeyPair = tweetnacl.box.keyPair();
-            let clientConn = new WebSocketPromiseBased(createWebSocket('ws://localhost:8080'));
+            let clientConn = new Connection(createWebSocket('ws://localhost:8080'));
+            clientConn.addPlugin(new PromisePlugin());
 
             try {
                 await clientConn.waitForOpen(1000);
@@ -106,7 +108,7 @@ describe('communication server tests', () => {
                 );
 
                 // MESSAGE1 RECEIVE: Wait for the mirrored communication request message
-                const msg1 = await clientConn.waitForJSONMessage(1000);
+                const msg1 = await clientConn.promisePlugin().waitForJSONMessage(1000);
                 expect(msg1.command).to.be.equal('communication_request');
                 expect(msg1.sourcePublicKey).to.be.equal(
                     uint8arrayToHexString(clientKeyPair.publicKey)
@@ -119,7 +121,7 @@ describe('communication server tests', () => {
                 await clientConn.send('Hello Friend!');
 
                 // MESSAGE2 RECEIVE:
-                const msg2 = await clientConn.waitForMessage();
+                const msg2 = await clientConn.promisePlugin().waitForMessage();
                 expect(msg2).to.be.equal('Hello Friend!');
 
                 // Check if the listener had any errors
