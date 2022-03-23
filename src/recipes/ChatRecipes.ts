@@ -1,6 +1,7 @@
-import type {BLOB, Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from './ChannelRecipes';
+import type {BlobDescriptor} from './BlobRecipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -28,7 +29,7 @@ export interface Topic {
 export interface ChatMessage {
     $type$: 'ChatMessage';
     text: string;
-    attachments?: SHA256Hash<BLOB>[];
+    attachments?: SHA256Hash<BlobDescriptor>[];
     sender: SHA256IdHash<Person>;
 }
 
@@ -50,7 +51,13 @@ export const ChatMessageRecipe: Recipe = {
         },
         {
             itemprop: 'attachments',
-            itemtype: {type: 'bag', item: {type: 'referenceToBlob'}},
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['BlobDescriptor'])
+                }
+            },
             optional: true
         },
         {

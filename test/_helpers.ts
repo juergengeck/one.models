@@ -3,6 +3,9 @@ import type {Instance, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/r
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {statSync} from 'fs';
+import path from 'path';
+import {readFile} from 'fs/promises';
 
 export const defaultDbName = 'testDb';
 
@@ -66,4 +69,18 @@ export async function init({
         initialRecipes: [...RecipesStable, ...RecipesExperimental],
         initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes)
     });
+}
+
+export function buildTestFile(): File {
+    const filePath = './test/consent.pdf';
+    const stats = statSync(filePath);
+
+    // @ts-ignore enough for the test
+    return {
+        lastModified: stats.ctimeMs,
+        name: path.basename(filePath),
+        size: stats.size,
+        type: 'application/pdf',
+        arrayBuffer: () => readFile(filePath)
+    };
 }
