@@ -1,16 +1,17 @@
-import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import PromisePlugin from './Connections/plugins/PromisePlugin';
+import Connection from './Connections/Connection';
 
 /**
  * This class implements the client side of communication server communication
  */
 class CommunicationServerConnection_Client {
-    public webSocketPB: WebSocketPromiseBased; // The websocket used for the communication
+    public connection: Connection; // The websocket used for the communication
 
     /**
      * Creates a client connection to a communication server for registering connection listeners.
@@ -18,7 +19,12 @@ class CommunicationServerConnection_Client {
      * @param url
      */
     constructor(url: string) {
-        this.webSocketPB = new WebSocketPromiseBased(createWebSocket(url));
+        this.connection = new Connection(createWebSocket(url));
+        this.connection.addPlugin(new PromisePlugin());
+    }
+
+    get id(): number {
+        return this.connection.id;
     }
 
     // ######## Socket Management & Settings ########
@@ -29,10 +35,11 @@ class CommunicationServerConnection_Client {
      * @returns
      */
     get webSocket(): WebSocket {
-        if (!this.webSocketPB.webSocket) {
+        const webSocket = this.connection.websocketPlugin().webSocket;
+        if (!webSocket) {
             throw new Error('No Websocket is assigned to connection.');
         }
-        return this.webSocketPB.webSocket;
+        return webSocket;
     }
 
     /**
@@ -41,7 +48,7 @@ class CommunicationServerConnection_Client {
      * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
-        return this.webSocketPB.releaseWebSocket();
+        return this.connection.websocketPlugin().releaseWebSocket();
     }
 
     /**
@@ -50,7 +57,7 @@ class CommunicationServerConnection_Client {
      * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public close(reason?: string): void {
-        return this.webSocketPB.close(reason);
+        return this.connection.close(reason);
     }
 
     /**
@@ -59,7 +66,7 @@ class CommunicationServerConnection_Client {
      * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public terminate(reason?: string): void {
-        return this.webSocketPB.terminate(reason);
+        return this.connection.terminate(reason);
     }
 
     /**
@@ -69,18 +76,18 @@ class CommunicationServerConnection_Client {
      *
      * @param timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
-    set requestTimeout(timeout: number) {
-        this.webSocketPB.defaultTimeout = timeout;
-    }
+    /*set requestTimeout(timeout: number) {
+        this.connection.defaultTimeout = timeout;
+    }*/
 
     /**
      * Get the current request timeout.
      *
      * @returns
      */
-    get requestTimeout(): number {
-        return this.webSocketPB.defaultTimeout;
-    }
+    /*get requestTimeout(): number {
+        return this.connection.defaultTimeout;
+    }*/
 
     // ######## Message sending ########
 
@@ -120,7 +127,7 @@ class CommunicationServerConnection_Client {
         command: T
     ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
         const message = this.unpackBinaryFields(
-            await this.webSocketPB.waitForJSONMessageWithType(command, 'command')
+            await this.connection.promisePlugin().waitForJSONMessageWithType(command, 'command')
         );
         if (isServerMessage(message, command)) {
             return message;
@@ -138,8 +145,8 @@ class CommunicationServerConnection_Client {
     private async sendMessage<T extends CommunicationServerProtocol.ClientMessageTypes>(
         message: T
     ): Promise<void> {
-        await this.webSocketPB.waitForOpen();
-        await this.webSocketPB.send(
+        await this.connection.waitForOpen();
+        await this.connection.send(
             JSON.stringify(message, function (key, value) {
                 if (value.constructor === Uint8Array) {
                     return uint8arrayToHexString(value);

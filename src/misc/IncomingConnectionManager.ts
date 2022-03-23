@@ -2,14 +2,11 @@ import CommunicationServerListener, {
     CommunicationServerListenerState
 } from './CommunicationServerListener';
 import WebSocketListener from './WebSocketListener';
-import tweetnacl from 'tweetnacl';
-import {wslogId} from './LogUtils';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import EncryptedConnection_Server from './EncryptedConnection_Server';
-import type EncryptedConnection from './EncryptedConnection';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type Connection from './Connections/Connection';
+import {acceptWithEncryption} from './Connections/protocols/ConnectionSetup';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 
@@ -21,7 +18,7 @@ class IncomingConnectionManager {
      * Event is emitted when E2E connection is setup correctly. The event will pass the connection to the listener.
      */
     public onConnection = new OEvent<
-        (conn: EncryptedConnection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
+        (conn: Connection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => void
     >();
 
     /**
@@ -99,8 +96,8 @@ class IncomingConnectionManager {
             }
             return encrypt(publicKey, decryptedChallenge);
         });
-        listener.onConnection((ws: WebSocketPromiseBased) => {
-            this.acceptConnection(ws, [publicKey], encrypt, decrypt);
+        listener.onConnection((connection: Connection) => {
+            this.acceptConnection(connection, [publicKey], encrypt, decrypt);
         });
 
         // Connect the stateChanged event to the onelineStateChanged event
@@ -151,8 +148,8 @@ class IncomingConnectionManager {
 
             // Create web socket listener & connect signals
             const listener = new WebSocketListener();
-            listener.onConnection((ws: WebSocketPromiseBased) => {
-                this.acceptConnection(ws, registeredPublicKeys, encrypt, decrypt);
+            listener.onConnection((connection: Connection) => {
+                this.acceptConnection(connection, registeredPublicKeys, encrypt, decrypt);
             });
 
             // Start the listener
@@ -195,59 +192,25 @@ class IncomingConnectionManager {
     // What do we actually need here?
     // A list of acceptable public keys for this connection.
     private async acceptConnection(
-        ws: WebSocketPromiseBased,
+        connection: Connection,
         allowedPublicKeys: Uint8Array[],
         encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
         decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array
     ): Promise<void> {
-        MessageBus.send('log', `${wslogId(ws.webSocket)}: Accepted WebSocket`);
+        MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
-            const conn = new EncryptedConnection_Server(ws);
-
-            // Step 1: Wait for the communication request
-            const request = await conn.waitForUnencryptedMessage('communication_request');
-
-            // Step 2: Send communication ready message
-            await conn.sendCommunicationReadyMessage();
-
-            // Step 3: Check whether the request has come through the right endpoint
-            //           (someone might probe an anonymous endpoint for the real id)
-            let rejectConnection = true;
-            for (let i = 0; i < allowedPublicKeys.length; ++i) {
-                if (tweetnacl.verify(request.targetPublicKey, allowedPublicKeys[i])) {
-                    rejectConnection = false;
-                    // No break here, so that the loop execution time stays constant
-                    // compared between success and failure.
-                    // It is not constant when the
-                    // number of allowed public keys changes, but for now it is not so bad, because
-                    // anonymous endpoints should only have one element.
-                }
-            }
-
-            // Step 4: Check whether our id wants to communicate with the other side
-            // This step should also run in constant time ... but we can't decide it here. We would have to
-            // 1) call a callback or
-            // 2) we also get an array of allowed peers for a given public key
-            // ... but let's do this later.
-            // TODO: implement this step (select communication partners)
-
-            // Step 5: Initiate key exchange
-            // Note that termination of a connection should always be done after the peer proved, that it has the
-            // public key, but after we proved, that we have our public key. This means that we don't expose any
-            // information about what identities we have, because the following scenarios terminate at the same
-            // point in protocol and also if possible at the exact same time time (side channel timing attacks!)
-            // If the third parameter is false the connection is closed at exactly the right
-            await conn.exchangeKeys(
-                text => encrypt(request.sourcePublicKey, text),
-                cypherText => decrypt(request.sourcePublicKey, cypherText),
-                rejectConnection
+            const conn = await acceptWithEncryption(
+                connection,
+                allowedPublicKeys,
+                encrypt,
+                decrypt
             );
 
             // Step 6: E2E encryption is setup correctly. Pass the connection to a listener.
-            this.onConnection.emit(conn, request.targetPublicKey, request.sourcePublicKey);
+            this.onConnection.emit(conn.connection, conn.myKey, conn.remoteKey);
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws.webSocket)}: ${e}`);
-            ws.close();
+            MessageBus.send('log', `${connection.id}: ${e}`);
+            connection.close();
             throw e;
         }
     }

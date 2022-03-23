@@ -49,7 +49,7 @@ async function main(): Promise<void> {
     // Create commserver listener and register callbacks
     console.log(`Connection to : ${argv.u}`);
     const conn = new EncryptedConnection_Client(argv.u);
-    await conn.webSocketPB.waitForOpen();
+    await conn.connection.waitForOpen();
     console.log(`Successfully connected to : ${argv.u}`);
 
     // Request communication

@@ -1,8 +1,7 @@
 import WebSocketWS from 'isomorphic-ws';
-import {wslogId} from './LogUtils';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent} from './OEvent';
+import Connection from './Connections/Connection';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -22,7 +21,7 @@ class WebSocketListener {
     /**
      * Event is emitted on incoming connections.
      */
-    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted when the state of the connector changes. The listener callback
@@ -128,11 +127,12 @@ class WebSocketListener {
      * @param ws
      */
     private async acceptConnection(ws: WebSocket): Promise<void> {
-        MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
+        const connection = new Connection(ws);
+        MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
-            this.onConnection.emit(new WebSocketPromiseBased(ws));
+            this.onConnection.emit(connection);
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws)}: ${e}`);
+            MessageBus.send('log', `${connection.id}: ${e}`);
             ws.close();
         }
     }

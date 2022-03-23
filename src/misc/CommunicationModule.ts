@@ -1,6 +1,4 @@
 import type {LeuteModel} from '../models';
-import OutgoingConnectionEstablisher from './OutgoingConnectionEstablisher';
-import type EncryptedConnection from './EncryptedConnection';
 import {getObject} from '@refinio/one.core/lib/storage';
 import type InstancesModel from '../models/InstancesModel';
 import type {LocalInstanceInfo} from '../models/InstancesModel';
@@ -16,6 +14,8 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type Connection from './Connections/Connection';
+import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
 
 /**
  * This type represents information about a connection.
@@ -38,8 +38,8 @@ export type ConnectionInfo = {
  * This internal type stores all information tied to a connection.
  */
 type ConnectionContainer = {
-    connEst?: OutgoingConnectionEstablisher;
-    activeConnection: EncryptedConnection | null;
+    stopConnecting?: () => void;
+    activeConnection: Connection | null;
     url: string;
     sourcePublicKey: HexString;
     targetPublicKey: HexString;
@@ -54,6 +54,7 @@ type ConnectionContainer = {
     // This flag will change automatically from true to false
     // after two seconds of an connection to be established.
     closeHandler?: () => void;
+    disconnectCloseHandler?: () => void;
     reconnectTimeoutHandle: ReturnType<typeof setTimeout> | null;
 };
 
@@ -121,7 +122,7 @@ export default class CommunicationModule extends EventEmitter {
      */
     public onUnknownConnection = new OEvent<
         (
-            conn: EncryptedConnection,
+            conn: Connection,
             localPublicKey: Uint8Array,
             remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
@@ -134,7 +135,7 @@ export default class CommunicationModule extends EventEmitter {
      */
     public onKnownConnection = new OEvent<
         (
-            conn: EncryptedConnection,
+            conn: Connection,
             localPublicKey: Uint8Array,
             remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
@@ -150,7 +151,7 @@ export default class CommunicationModule extends EventEmitter {
 
     // Internal maps and lists (dynamic)
     private readonly knownPeerMap: Map<string, ConnectionContainer>; // Stores the known peers - Map from srcKey + dstKey
-    private readonly unknownPeerMap: Map<string, EncryptedConnection>; // Stores unknown peers - Map from srcKey + dstKey
+    private readonly unknownPeerMap: Map<string, Connection>; // Stores unknown peers - Map from srcKey + dstKey
 
     // Internal maps and lists (precomputed on init)
     private mainInstanceInfo: LocalInstanceInfo | null; // My person info
@@ -201,7 +202,7 @@ export default class CommunicationModule extends EventEmitter {
         this.incomingConnectionManager = new IncomingConnectionManager();
 
         this.knownPeerMap = new Map<string, ConnectionContainer>();
-        this.unknownPeerMap = new Map<string, EncryptedConnection>();
+        this.unknownPeerMap = new Map<string, Connection>();
 
         this.mainInstanceInfo = null;
         this.myPublicKeyToInstanceInfoMap = new Map<string, LocalInstanceInfo>();
@@ -214,11 +215,7 @@ export default class CommunicationModule extends EventEmitter {
 
         // Setup incoming connection manager events
         this.incomingConnectionManager.onConnection(
-            (
-                conn: EncryptedConnection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array
-            ) => {
+            (conn: Connection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => {
                 this.acceptConnection(conn, localPublicKey, remotePublicKey, false);
             }
         );
@@ -311,8 +308,13 @@ export default class CommunicationModule extends EventEmitter {
                         this.onConnectionsChange.emit();
                         this.reconnect(connContainer, this.reconnectDelay);
                     };
-                    activeConnection.webSocket.addEventListener('close', closeHandler);
+                    const disconnectCloseHandler = activeConnection.state.onEnterState(newState => {
+                        if (newState === 'closed') {
+                            closeHandler();
+                        }
+                    });
                     connContainer.closeHandler = closeHandler;
+                    connContainer.disconnectCloseHandler = disconnectCloseHandler;
                 }
 
                 // If no active connection exists for this endpoint, then we need to start outgoing connections
@@ -349,8 +351,9 @@ export default class CommunicationModule extends EventEmitter {
 
         // Stop all knownPeerMap connections
         for (const v of this.knownPeerMap.values()) {
-            if (v.connEst) {
-                await v.connEst.stop();
+            if (v.stopConnecting) {
+                v.stopConnecting();
+                v.stopConnecting = undefined;
             }
             if (v.activeConnection) {
                 await v.activeConnection.close();
@@ -394,12 +397,15 @@ export default class CommunicationModule extends EventEmitter {
     public addNewUnknownConnection(
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
-        conn: EncryptedConnection
+        conn: Connection
     ): void {
         const mapKey = genMapKey(localPublicKey, remotePublicKey);
         this.unknownPeerMap.set(mapKey, conn);
-        conn.webSocket.addEventListener('close', () => {
-            this.unknownPeerMap.delete(mapKey);
+        const webSocket = conn.websocketPlugin().webSocket;
+        conn.state.onEnterState(newState => {
+            if (newState === 'closed') {
+                this.unknownPeerMap.delete(mapKey);
+            }
         });
     }
 
@@ -548,7 +554,7 @@ export default class CommunicationModule extends EventEmitter {
         }
 
         // This function does the connect
-        const connect = () => {
+        const connect = async () => {
             if (!this.initialized) {
                 return;
             }
@@ -556,22 +562,8 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
-            // If outgoing connection establisher does not exist, then create one
-            if (!connContainer.connEst) {
-                connContainer.connEst = new OutgoingConnectionEstablisher();
-                connContainer.connEst.onConnection(
-                    (
-                        conn: EncryptedConnection,
-                        localPublicKey: Uint8Array,
-                        remotePublicKey: Uint8Array
-                    ) => {
-                        this.acceptConnection(conn, localPublicKey, remotePublicKey, true);
-                    }
-                );
-            }
-
             // Start outgoing connections
-            connContainer.connEst.start(
+            const p = connectWithEncryptionUntilSuccessful(
                 connContainer.url,
                 hexToUint8Array(connContainer.sourcePublicKey),
                 hexToUint8Array(connContainer.targetPublicKey),
@@ -588,6 +580,19 @@ export default class CommunicationModule extends EventEmitter {
                     );
                 }
             );
+
+            connContainer.stopConnecting = () => {
+                p.stop();
+            };
+            const connInfo = await p;
+            console.log(
+                'FFF',
+                connContainer,
+                connInfo,
+                uint8arrayToHexString(connInfo.myKey),
+                uint8arrayToHexString(connInfo.remoteKey)
+            );
+            this.acceptConnection(connInfo.connection, connInfo.myKey, connInfo.remoteKey, true);
         };
 
         // Schedule the call delayed
@@ -609,10 +614,10 @@ export default class CommunicationModule extends EventEmitter {
 
             connContainer.reconnectTimeoutHandle = setTimeout(() => {
                 connContainer.reconnectTimeoutHandle = null;
-                connect();
+                connect().catch(console.error);
             }, delay);
         } else {
-            connect();
+            connect().catch(console.error);
         }
     }
 
@@ -661,7 +666,7 @@ export default class CommunicationModule extends EventEmitter {
      * @param initiatedLocally - If outgoing connection, then this should be set to true, otherwise false
      */
     private acceptConnection(
-        conn: EncryptedConnection,
+        conn: Connection,
         localPublicKey: Uint8Array,
         remotePublicKey: Uint8Array,
         initiatedLocally: boolean
@@ -691,14 +696,16 @@ export default class CommunicationModule extends EventEmitter {
                 // To clean up we terminate the current connection. Which will remove the
                 // probably orphaned connection from the unknownPeerMap.
                 // The next try from the client will then run trough.
-                conn.webSocketPB.terminate('duplicate connection');
+                conn.terminate('duplicate connection');
             }
 
             // register this connection on an internal list, so that when a new contact object arrives we can take this
             // connection as activeConnection, so that we don't establish a second connection
             this.unknownPeerMap.set(mapKey, conn);
-            conn.webSocket.addEventListener('close', () => {
-                this.unknownPeerMap.delete(mapKey);
+            conn.state.onEnterState(newState => {
+                if (newState === 'closed') {
+                    this.unknownPeerMap.delete(mapKey);
+                }
             });
 
             // Notify the listeners that we have an unknown connection
@@ -724,8 +731,8 @@ export default class CommunicationModule extends EventEmitter {
 
             //  If we replace the old connection, then
             //  Disconnect the close handler and close the old connection
-            if (endpoint.closeHandler) {
-                conn.webSocket.removeEventListener('close', endpoint.closeHandler);
+            if (endpoint.disconnectCloseHandler) {
+                endpoint.disconnectCloseHandler();
             } else {
                 throw new Error('closeHandler is out of sync with activeConnection');
             }
@@ -733,8 +740,9 @@ export default class CommunicationModule extends EventEmitter {
         }
 
         // Stop the outgoing connection attempts
-        if (endpoint.connEst) {
-            endpoint.connEst.stop().catch(e => console.log(e));
+        if (endpoint.stopConnecting) {
+            endpoint.stopConnecting();
+            endpoint.stopConnecting = undefined;
         }
 
         // Connect close handler
@@ -746,8 +754,13 @@ export default class CommunicationModule extends EventEmitter {
             this.onConnectionsChange.emit();
             this.reconnect(endpoint, this.reconnectDelay);
         };
-        conn.webSocket.addEventListener('close', closeHandler);
+        const disconnectCloseHandler = conn.state.onEnterState(newState => {
+            if (newState === 'closed') {
+                closeHandler();
+            }
+        });
         endpoint.closeHandler = closeHandler;
+        endpoint.disconnectCloseHandler = disconnectCloseHandler;
 
         // Set the current connection as active connection
         endpoint.activeConnection = conn;

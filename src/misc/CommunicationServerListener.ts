@@ -1,9 +1,8 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
 import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {wslogId} from './LogUtils';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
 import {OEvent, EventTypes} from './OEvent';
+import type Connection from './Connections/Connection';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -26,7 +25,7 @@ class CommunicationServerListener {
     /**
      * Event is emitted after a connection between two instances has been established.
      */
-    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted  for proving that the instance that has asked to register on the
@@ -185,7 +184,7 @@ class CommunicationServerListener {
             // On success schedule a new spare connection and give the outside world the connection via event
             else {
                 this.scheduleSpareConnection(server, publicKey, false);
-                this.onConnection.emit(connection.webSocketPB);
+                this.onConnection.emit(connection.connection);
             }
         };
 
@@ -217,7 +216,7 @@ class CommunicationServerListener {
      * @param connection
      */
     private addSpareConnection(connection: CommunicationServerConnection_Client): void {
-        MessageBus.send('debug', `addSpareConnection(${wslogId(connection.webSocket)})`);
+        MessageBus.send('debug', `addSpareConnection(${connection.id})`);
         this.spareConnections.push(connection);
         this.updateState();
     }
@@ -228,7 +227,7 @@ class CommunicationServerListener {
      * @param connection
      */
     private removeSpareConnection(connection: CommunicationServerConnection_Client): void {
-        MessageBus.send('debug', `removeSpareConnection(${wslogId(connection.webSocket)})`);
+        MessageBus.send('debug', `removeSpareConnection(${connection.id})`);
         this.spareConnections = this.spareConnections.filter(elem => elem !== connection);
         this.updateState();
     }
@@ -299,30 +298,24 @@ class CommunicationServerListener {
 
         // Open websocket to communication server
         const connection = new CommunicationServerConnection_Client(server);
-        await connection.webSocketPB.waitForOpen(); // not so nice to do it on webSocketPB
+        await connection.connection.waitForOpen(); // not so nice to do it on webSocketPB
 
         let pingTimeout;
 
         // Phase 1: Register and authenticate the connection
         try {
             // Step1: Register at comm server
-            MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 1: Send 'register' message`
-            );
+            MessageBus.send('log', `${connection.id}: Step 1: Send 'register' message`);
             await connection.sendRegisterMessage(publicKey);
 
             // Step2: Wait for authentication request of comm-server and check parameters
-            MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 2: Wait for authentication_request`
-            );
+            MessageBus.send('log', `${connection.id}: Step 2: Wait for authentication_request`);
             const authRequest = await connection.waitForMessage('authentication_request');
 
             // Step3: Send authentication response
             MessageBus.send(
                 'log',
-                `${wslogId(connection.webSocket)}: Step 3: Send authentication_response message`
+                `${connection.id}: Step 3: Send authentication_response message`
             );
             const response = await onChallengeEvent.emitAll(
                 authRequest.challenge,
@@ -333,7 +326,7 @@ class CommunicationServerListener {
             // Step4: Wait for authentication success message
             MessageBus.send(
                 'log',
-                `${wslogId(connection.webSocket)}: Step 4: Wait for authentication_success message`
+                `${connection.id}: Step 4: Wait for authentication_success message`
             );
             let authSuccess = await connection.waitForMessage('authentication_success');
 
@@ -348,17 +341,11 @@ class CommunicationServerListener {
 
         // Phase 2: Listen for connection while ping / ponging the server
         // Step 5: Wait for connection
-        MessageBus.send(
-            'log',
-            `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`
-        );
+        MessageBus.send('log', `${connection.id}: Step 5: Wait for connection_handover message`);
         connection
             .waitForMessage('connection_handover')
             .then(() => {
-                MessageBus.send(
-                    'log',
-                    `${wslogId(connection.webSocket)}: Received connection_handover message`
-                );
+                MessageBus.send('log', `${connection.id}: Received connection_handover message`);
                 onConnect(connection);
             })
             .catch((err: Error) => {
