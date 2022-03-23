@@ -95,7 +95,7 @@ export default class TopicRoom {
      * Retrieves all chat messages and resolves the blobs so the binary data can be used.
      */
     async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
-        ObjectData<ChatMessage | OneChatMessage>[]
+        ObjectData<ChatMessage>[]
     > {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
@@ -119,7 +119,7 @@ export default class TopicRoom {
                     data: {...message.data, attachments: resolvedBlobDescriptors}
                 });
             } else {
-                resolvedMessages.push(message);
+                resolvedMessages.push({...message, data: {...message.data, attachments: []}});
             }
         }
         return resolvedMessages;
