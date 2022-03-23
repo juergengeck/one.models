@@ -22,6 +22,10 @@ class CommunicationServerConnection_Server {
         this.connection = connection;
     }
 
+    get id(): number {
+        return this.connection.id;
+    }
+
     // ######## Socket Management & Settings ########
 
     /**

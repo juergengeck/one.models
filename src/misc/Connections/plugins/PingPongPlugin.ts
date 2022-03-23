@@ -14,7 +14,7 @@ function isPong(message: Uint8Array | string): boolean {
             return false;
         }
         const messageObj = JSON.parse(message);
-        return messageObj.command === 'comm_pong';
+        return messageObj.command === 'pong';
     } catch (e) {
         return false;
     }
@@ -30,7 +30,7 @@ function isPing(message: Uint8Array | string): boolean {
             return false;
         }
         const messageObj = JSON.parse(message);
-        return messageObj.command === 'comm_ping';
+        return messageObj.command === 'ping';
     } catch (e) {
         return false;
     }

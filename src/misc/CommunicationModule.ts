@@ -585,6 +585,13 @@ export default class CommunicationModule extends EventEmitter {
                 p.stop();
             };
             const connInfo = await p;
+            console.log(
+                'FFF',
+                connContainer,
+                connInfo,
+                uint8arrayToHexString(connInfo.myKey),
+                uint8arrayToHexString(connInfo.remoteKey)
+            );
             this.acceptConnection(connInfo.connection, connInfo.myKey, connInfo.remoteKey, true);
         };
 

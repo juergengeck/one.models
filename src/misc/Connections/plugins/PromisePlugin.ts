@@ -107,7 +107,7 @@ export default class PromisePlugin extends ConnectionPlugin {
      */
     public async waitForBinaryMessage(timeout?: number): Promise<Uint8Array> {
         const message = await this.waitForMessage(timeout);
-        if (!(message instanceof ArrayBuffer)) {
+        if (!(message instanceof Uint8Array)) {
             throw new Error('Received message that is not a binary message.');
         }
         return new Uint8Array(message);
@@ -150,7 +150,7 @@ export default class PromisePlugin extends ConnectionPlugin {
         while (event.type !== 'message') {
             if (event.type === 'closed') {
                 this.isOpen = false;
-                throw new Error('The connection was closed.');
+                throw new Error(`The connection was closed. ${event.reason}`);
             }
         }
 

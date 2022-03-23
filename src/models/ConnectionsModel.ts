@@ -150,6 +150,13 @@ class EncryptedConnectionForOneCore extends EventEmitter implements EncryptedCon
                 return connection.websocketPlugin().webSocket;
             }
         };
+        this.connection.onMessage(message => {
+            if (typeof message === 'string') {
+                this.emit('message', new TextEncoder().encode(message));
+            } else {
+                this.emit('message', message);
+            }
+        });
     }
 
     set switchToEvents(arg: boolean) {}
@@ -162,12 +169,11 @@ class EncryptedConnectionForOneCore extends EventEmitter implements EncryptedCon
         this.connection.close(reason);
     }
 
-    sendMessage(data: string): Promise<void> {
+    async sendMessage(data: string): Promise<void> {
         this.connection.send(data);
-        return Promise.resolve();
     }
 
-    sendBinaryMessage(data: Uint8Array): Promise<void> {
+    async sendBinaryMessage(data: Uint8Array): Promise<void> {
         this.connection.send(data);
         return Promise.resolve();
     }

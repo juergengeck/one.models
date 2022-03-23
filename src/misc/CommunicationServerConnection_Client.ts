@@ -23,6 +23,10 @@ class CommunicationServerConnection_Client {
         this.connection.addPlugin(new PromisePlugin());
     }
 
+    get id(): number {
+        return this.connection.id;
+    }
+
     // ######## Socket Management & Settings ########
 
     /**

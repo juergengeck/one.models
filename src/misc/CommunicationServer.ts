@@ -4,7 +4,6 @@ import CommunicationServerConnection_Server from './CommunicationServerConnectio
 import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {wslogId} from './LogUtils';
 import WebSocketListener from './WebSocketListener';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connections/Connection';
@@ -213,17 +212,17 @@ class CommunicationServer {
                     this.openedConnections.delete(wsThis);
                     MessageBus.send(
                         'log',
-                        `${conn.connection.id}: Requesting connection closed - ${e.reason}`
+                        `${conn.connection.id}: Requesting connection closed - ${e.message}`
                     );
-                    wsOther.close(1000, e.reason);
+                    wsOther.close(1000, e.message);
                 });
                 wsOther.addEventListener('close', (e: any) => {
                     this.openedConnections.delete(wsOther);
                     MessageBus.send(
                         'log',
-                        `${connOther.connection.id}: Listening connection closed - ${e.reason}`
+                        `${connOther.connection.id}: Listening connection closed - ${e.message}`
                     );
-                    wsThis.close(1000, e.reason);
+                    wsThis.close(1000, e.message);
                 });
 
                 this.openedConnections.add(wsThis);
@@ -236,9 +235,7 @@ class CommunicationServer {
             }
         } catch (e) {
             MessageBus.send('log', `${connection.id}: ${e}`);
-            // TODO: Perhaps we should send the client the reason. Perhaps not, because this would
-            // expose whether he is communicating via a commserver or directly. But would it be that bad?
-            connection.close(e.reason);
+            connection.close(e.message);
         }
     }
 
@@ -256,10 +253,7 @@ class CommunicationServer {
         conn: CommunicationServerConnection_Server
     ): void {
         const strPublicKey = uint8arrayToHexString(publicKey);
-        MessageBus.send(
-            'debug',
-            `${wslogId(conn.webSocket)}: pushListeningConnection(${strPublicKey})`
-        );
+        MessageBus.send('debug', `${conn.id}: pushListeningConnection(${strPublicKey})`);
 
         // Add handler that removes the connection from the listening list when the ws closes
         const boundRemoveHandler = this.removeListeningConnection.bind(this, publicKey, conn);
@@ -296,10 +290,7 @@ class CommunicationServer {
         conn: CommunicationServerConnection_Server
     ): void {
         const strPublicKey = uint8arrayToHexString(publicKey);
-        MessageBus.send(
-            'debug',
-            `${wslogId(conn.webSocket)}: removeListeningConnection(${strPublicKey})`
-        );
+        MessageBus.send('debug', `${conn.id}: removeListeningConnection(${strPublicKey})`);
 
         const connectionList = this.listeningConnectionsMap.get(strPublicKey);
         if (connectionList) {
@@ -323,7 +314,7 @@ class CommunicationServer {
 
         // Get the connection list for the current public key
         const connectionList = this.listeningConnectionsMap.get(strPublicKey);
-        if (!connectionList) {
+        if (connectionList === undefined) {
             throw new Error('No listening connection for the specified publicKey.');
         }
 
@@ -341,9 +332,7 @@ class CommunicationServer {
         }
         MessageBus.send(
             'debug',
-            `${wslogId(
-                connContainer.conn.webSocket
-            )}: popListeningConnection(${strPublicKey}) - Returned`
+            `${connContainer.conn.id}: popListeningConnection(${strPublicKey}) - Returned`
         );
 
         // Remove the close listener

@@ -18,11 +18,12 @@ import {
 } from './CommunicationInitiationProtocol';
 import Connection from '../Connection';
 import EncryptionPlugin from '../plugins/EncryptionPlugin';
-import {PongPlugin} from '../plugins/PingPongPlugin';
+import {PingPlugin, PongPlugin} from '../plugins/PingPongPlugin';
 import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import PromisePlugin from '../plugins/PromisePlugin';
 
 const MessageBus = createMessageBus('ConnectionSetup');
 
@@ -76,6 +77,7 @@ export async function connectWithEncryption(
         )}, ${uint8arrayToHexString(remotePublicKey)})`
     );
 
+    connection.addPlugin(new PromisePlugin());
     await connection.waitForOpen();
 
     try {
@@ -346,18 +348,18 @@ export async function acceptWithEncryption(
 
         const sharedKey = tweetnacl.box.before(publicKeyOther, tempKeyPair.secretKey);
         connection.addPlugin(new EncryptionPlugin(sharedKey, true), {before: 'promise'});
-        connection.addPlugin(new PongPlugin(20000, 2000), {before: 'promise'});
+        connection.addPlugin(new PingPlugin(20000, 2000), {before: 'promise'});
 
         MessageBus.send(
             'log',
             `acceptWithEncryption(${connection.id}, ${uint8arrayToHexString(
                 targetPublicKey
-            )}, ${uint8arrayToHexString(publicKeyOther)}) - success`
+            )}, ${uint8arrayToHexString(sourcePublicKey)}) - success`
         );
         return {
             connection,
             myKey: targetPublicKey,
-            remoteKey: publicKeyOther
+            remoteKey: sourcePublicKey
         };
     } catch (e) {
         MessageBus.send('log', `acceptWithEncryption(${connection.id}) - failure: ${e}`);

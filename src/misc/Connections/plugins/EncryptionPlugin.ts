@@ -58,9 +58,7 @@ export default class EncryptionPlugin extends ConnectionPlugin {
         }
 
         if (typeof event.data === 'string') {
-            throw new Error(
-                'Incoming encrypted message is a string, it needs to be an' + ' ArrayBuffer'
-            );
+            throw new Error('Incoming encrypted message is a string, it needs to be binary');
         }
 
         // Step C: Decrypt message
@@ -69,7 +67,7 @@ export default class EncryptionPlugin extends ConnectionPlugin {
         // Step B: Remove padding
         const unpaddedMessageAndFlags = removePaddingWithExtraFlags(decryptedMessage);
 
-        // Step A: Based on flags determine whether to return a string or an ArrayBuffer
+        // Step A: Based on flags determine whether to return a string or an Uint8Array
         if ((unpaddedMessageAndFlags.flags & 0x01) === 0x01) {
             return {
                 type: 'message',
@@ -93,7 +91,7 @@ export default class EncryptionPlugin extends ConnectionPlugin {
 
         // Step A: Determine flag and convert based on type of messsage
         // Lowest flag bit === 1 => string
-        // Lowest flag bit === 0 => ArrayBuffer
+        // Lowest flag bit === 0 => Uint8Array
         if (typeof event.data === 'string') {
             binaryMessage = new TextEncoder().encode(event.data);
             flags = 0x01;

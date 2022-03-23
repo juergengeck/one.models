@@ -247,6 +247,9 @@ export default class Connection implements IConnection {
                         `${this.id}: Closed connection ${transformedEvent.origin}ly. ${transformedEvent.reason}`
                     );
                     this.state.triggerEvent('close');
+                    this.openPromises.rejectAll(
+                        new Error(`Failed to open connection. ${transformedEvent.reason}`)
+                    );
                 }
             } catch (e) {
                 this.close(e.message);
