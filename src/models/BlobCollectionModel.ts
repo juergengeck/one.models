@@ -160,7 +160,7 @@ export default class BlobCollectionModel extends Model {
      * @return
      * @private
      */
-    private static async resolveBlobDescriptor(
+    public static async resolveBlobDescriptor(
         blobDescriptor: OneBlobDescriptor
     ): Promise<BlobDescriptor> {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);

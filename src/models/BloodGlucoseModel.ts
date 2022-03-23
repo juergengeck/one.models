@@ -8,7 +8,7 @@ import {getObject} from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
 import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
 
 export default class BloodGlucoseModel extends Model {

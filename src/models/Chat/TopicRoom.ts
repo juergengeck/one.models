@@ -1,18 +1,26 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, Person} from '@refinio/one.core/lib/recipes';
-import type {ChatMessage, Topic} from '../../recipes/ChatRecipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
+import {getObject} from '@refinio/one.core/lib/storage';
+import BlobCollectionModel from '../BlobCollectionModel';
+import type {BlobDescriptor} from '../BlobCollectionModel';
+import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
+
+export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
+    attachments: BlobDescriptor[];
+}
 
 export default class TopicRoom {
     /**
      * Notify the user whenever a new chat message is received.
      */
-    public onNewMessageReceived: OEvent<(message: ObjectData<ChatMessage>) => void> = new OEvent<
-        (message: ObjectData<ChatMessage>) => void
+    public onNewMessageReceived: OEvent<(message: ObjectData<OneChatMessage>) => void> = new OEvent<
+        (message: ObjectData<OneChatMessage>) => void
     >();
 
     public topic: Topic;
@@ -54,7 +62,9 @@ export default class TopicRoom {
      * Iterator to retrieved page-sized messages.
      * @param count
      */
-    async *retrieveMessagesIterator(count: number = 25): AsyncGenerator<ObjectData<ChatMessage>[]> {
+    async *retrieveMessagesIterator(
+        count: number = 25
+    ): AsyncGenerator<ObjectData<OneChatMessage>[]> {
         let collectedItems = [];
 
         for await (const entry of this.channelManager.objectIteratorWithType('ChatMessage', {
@@ -75,10 +85,44 @@ export default class TopicRoom {
     /**
      * Retrieve all the messages in the chat.
      */
-    async retrieveAllMessages(): Promise<ObjectData<ChatMessage>[]> {
+    async retrieveAllMessages(): Promise<ObjectData<OneChatMessage>[]> {
         return await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
+    }
+
+    /**
+     * Retrieves all chat messages and resolves the blobs so the binary data can be used.
+     */
+    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
+        ObjectData<ChatMessage>[]
+    > {
+        const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
+            channelId: this.topic.id
+        });
+        const resolvedMessages = [];
+        for (const message of messages) {
+            if (message.data.attachments) {
+                const blobDescriptors = await Promise.all(
+                    message.data.attachments.map(blobDescriptorHash =>
+                        getObject(blobDescriptorHash)
+                    )
+                );
+                const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
+                    blobDescriptors.map(blobDescriptor =>
+                        BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
+                    )
+                );
+
+                resolvedMessages.push({
+                    ...message,
+                    data: {...message.data, attachments: resolvedBlobDescriptors}
+                });
+            } else {
+                resolvedMessages.push({...message, data: {...message.data, attachments: []}});
+            }
+        }
+        return resolvedMessages;
     }
 
     /**
@@ -86,11 +130,19 @@ export default class TopicRoom {
      * @param message
      * @param attachments
      */
-    async sendMessage(message: string, attachments: SHA256Hash<BLOB>[] | undefined): Promise<void> {
+    async sendMessage(message: string, attachments?: File[] | undefined): Promise<void> {
         const instanceIdHash = await getInstanceOwnerIdHash();
 
         if (instanceIdHash === undefined) {
             throw new Error('Error: instance id hash could not be found');
+        }
+        let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
+
+        if (attachments) {
+            const blobDescriptors = await Promise.all(
+                attachments.map(file => storeFileWithBlobDescriptor(file))
+            );
+            writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
         }
 
         await this.channelManager.postToChannel(
@@ -99,7 +151,7 @@ export default class TopicRoom {
                 $type$: 'ChatMessage',
                 text: message,
                 sender: instanceIdHash,
-                attachments: attachments
+                attachments: writtenAttachments
             },
             null
         );
@@ -119,7 +171,7 @@ export default class TopicRoom {
         data: ObjectData<OneUnversionedObjectTypes>
     ) {
         if (channelId === this.topic.id) {
-            this.onNewMessageReceived.emit(data as ObjectData<ChatMessage>);
+            this.onNewMessageReceived.emit(data as ObjectData<OneChatMessage>);
         }
     }
 }
