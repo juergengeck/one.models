@@ -1547,13 +1547,9 @@ class ConnectionsModel extends Model {
         this.onChumStart.emit(localPersonId, remotePersonId, protocol, initiatedLocally);
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
-        if (initiatedLocally) {
-            await conn.send('synchronisation');
-            await conn.promisePlugin().waitForMessage();
-        } else {
-            await conn.promisePlugin().waitForMessage();
-            await conn.send('synchronisation');
-        }
+        conn.send('synchronisation');
+        await conn.promisePlugin().waitForMessage();
+        conn.removePlugin('promise');
 
         const minimalWriteStorageApiObj = {
             createFileWriteStream: createFileWriteStream

@@ -145,6 +145,14 @@ export default class Connection implements IConnection {
         }
     }
 
+    public removePlugin(name: string) {
+        const i = this.plugins.findIndex(plugin => plugin.name === name);
+        if (i < 0) {
+            throw new Error(`Plugin '${name}' not found`);
+        }
+        this.plugins.splice(i, 1);
+    }
+
     public plugin(name: string): ConnectionPlugin {
         const plugin = this.plugins.find(plugin => plugin.name === name);
         if (plugin === undefined) {
