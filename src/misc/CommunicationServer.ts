@@ -55,7 +55,7 @@ class CommunicationServer {
     public async start(
         host: string,
         port: number,
-        pingInterval: number = 5000,
+        pingInterval: number = 25000,
         pongTimeout = 1000
     ): Promise<void> {
         this.pingInterval = pingInterval;
@@ -156,6 +156,10 @@ class CommunicationServer {
                 // Step 3: Add to spare map and return success message
                 this.pushListeningConnection(message.publicKey, conn);
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
+
+                // Step 4: Start PingPong
+                MessageBus.send('log', `${connection.id}: Register Step 3: Starting Ping Pong`);
+                conn.startPingPong(this.pingInterval, this.pongTimeout);
             }
 
             // On communication request, let's connect it to a spare connection of the requested publicKey
@@ -169,11 +173,15 @@ class CommunicationServer {
 
                 const connOther = this.popListeningConnection(message.targetPublicKey);
 
-                // Step 1: Send the handover message
+                // Step 1: Stop the ping ponging
+                MessageBus.send('log', `${connection.id}: Relay Step 1: Stop ping pong`);
+                await connOther.stopPingPong();
+
+                // Step 2: Send the handover message
                 MessageBus.send('log', `${connection.id}: Relay Step 1: Send Handover`);
                 await connOther.sendConnectionHandoverMessage();
 
-                // Step 2: Forward the communication request
+                // Step 3: Forward the communication request
                 MessageBus.send(
                     'log',
                     `${connection.id}: Relay Step 2: Forward connection request`
@@ -183,7 +191,7 @@ class CommunicationServer {
                     message.targetPublicKey
                 );
 
-                // Step 3: Forward everything
+                // Step 4: Forward everything
                 // TODO: Because we send the communicationRequestMessage on Step3 (with an await) it is theoretically
                 // possible, that the answer is received before the web socket send call returns.
                 // So it might be possible that the old websocket 'message' handler is scheduled before the new

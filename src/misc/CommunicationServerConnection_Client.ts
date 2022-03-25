@@ -6,6 +6,7 @@ import {
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import PromisePlugin from './Connections/plugins/PromisePlugin';
 import Connection from './Connections/Connection';
+import {PongPlugin} from './Connections/plugins/PingPongPlugin';
 
 /**
  * This class implements the client side of communication server communication
@@ -48,6 +49,7 @@ class CommunicationServerConnection_Client {
      * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
+        this.stopPingPong();
         return this.connection.websocketPlugin().releaseWebSocket();
     }
 
@@ -133,6 +135,31 @@ class CommunicationServerConnection_Client {
             return message;
         }
         throw Error("Received data does not match the data expected for command '" + command + "'");
+    }
+
+    /**
+     * Starts answering pings of the server.
+     *
+     * @param pingInterval - Interval since last pong when to send another ping.
+     * @param pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
+     */
+    public startPingPong(pingInterval: number, pongTimeout: number): void {
+        if (this.connection.hasPlugin('pong')) {
+            throw new Error('Already ping / ponging');
+        }
+
+        this.connection.addPlugin(new PongPlugin(pingInterval, pongTimeout), {before: 'promise'});
+    }
+
+    /**
+     * Stops answering pings of the server.
+     */
+    public stopPingPong(): void {
+        if (!this.connection.hasPlugin('pong')) {
+            return;
+        }
+        this.connection.pongPlugin().disable();
+        this.connection.removePlugin('pong');
     }
 
     // ######## Private ########

@@ -161,6 +161,10 @@ export default class Connection implements IConnection {
         return plugin;
     }
 
+    public hasPlugin(name: string): boolean {
+        return this.plugins.find(plugin => plugin.name === name) !== undefined;
+    }
+
     public promisePlugin(): PromisePlugin {
         return this.plugin('promise') as PromisePlugin;
     }
