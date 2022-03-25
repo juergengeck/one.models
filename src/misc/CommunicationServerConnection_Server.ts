@@ -5,6 +5,7 @@ import {
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connections/Connection';
+import {PingPlugin} from './Connections/plugins/PingPongPlugin';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 
@@ -132,6 +133,43 @@ class CommunicationServerConnection_Server {
             targetPublicKey
         });
     }
+
+    /**
+     * Starts pinging the client.
+     *
+     * @param pingInterval - Interval since last pong when to send another ping.
+     * @param pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
+     */
+    public startPingPong(pingInterval: number, pongTimeout: number): void {
+        MessageBus.send(
+            'debug',
+            `${this.connection.id}: startPingPong(${pingInterval}, ${pongTimeout})`
+        );
+
+        if (this.connection.hasPlugin('ping')) {
+            throw new Error('Already ping / ponging');
+        }
+
+        this.connection.addPlugin(new PingPlugin(pingInterval, pongTimeout), {before: 'promise'});
+    }
+
+    /**
+     * Stops the ping / pong process.
+     *
+     * If currently waiting for a pong, then the promise resolves
+     * 1) After the pong was received
+     * 2) After the pong timeout was reached
+     */
+    public async stopPingPong(): Promise<void> {
+        MessageBus.send('log', `${this.connection.id}: stopPingPong()`);
+        if (!this.connection.hasPlugin('ping')) {
+            return;
+        }
+
+        await this.connection.pingPlugin().disable();
+        this.connection.removePlugin('ping');
+    }
+
     // ######## Message receiving ########
 
     /**

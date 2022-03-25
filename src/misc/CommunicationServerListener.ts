@@ -330,9 +330,8 @@ class CommunicationServerListener {
             );
             let authSuccess = await connection.waitForMessage('authentication_success');
 
-            // The ping interval communicated by the server * 3 should be a good timeout. It can handle a short delay of
-            // twice the ping interval.
-            pingTimeout = authSuccess.pingInterval * 3;
+            // Step 5: Start answering the ping messages (todo check the pongTimeout again)
+            connection.startPingPong(authSuccess.pingInterval, 2000);
         } catch (e) {
             // If an error happened, close the websocket
             connection.close(e.toString());
@@ -346,9 +345,11 @@ class CommunicationServerListener {
             .waitForMessage('connection_handover')
             .then(() => {
                 MessageBus.send('log', `${connection.id}: Received connection_handover message`);
+                connection.stopPingPong();
                 onConnect(connection);
             })
             .catch((err: Error) => {
+                connection.stopPingPong();
                 onConnect(connection, err);
             });
 

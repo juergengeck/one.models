@@ -3,6 +3,7 @@ import ConnectionPlugin, {
     ConnectionIncomingEvent,
     ConnectionOutgoingEvent
 } from '../ConnectionPlugin';
+import MultiPromise from '../../MultiPromise';
 
 /**
  * Check if message is a pong.
@@ -39,6 +40,8 @@ function isPing(message: Uint8Array | string): boolean {
 export class PingPlugin extends ConnectionPlugin {
     private readonly watchdog: Watchdog;
     private readonly pingWatchdog: Watchdog;
+    private waitForPong = false;
+    private disablePromises = new MultiPromise<void>();
 
     constructor(pingInterval: number, roundTripTime: number = 2000) {
         super('ping');
@@ -46,17 +49,21 @@ export class PingPlugin extends ConnectionPlugin {
         this.watchdog = new Watchdog(pingInterval + roundTripTime);
         this.pingWatchdog = new Watchdog(pingInterval);
         this.watchdog.onTimeout(() => {
+            this.waitForPong = false;
             this.eventCreationFunctions.createOutogingEvent({
                 type: 'close',
                 reason: 'Ping: Connection timed out',
                 terminate: true
             });
+            this.disablePromises.resolveAll();
         });
         this.pingWatchdog.onTimeout(() => {
+            this.waitForPong = true;
             this.eventCreationFunctions.createOutogingEvent({
                 type: 'message',
                 data: JSON.stringify({command: 'ping'})
             });
+            this.disablePromises.resolveAll();
         });
     }
 
@@ -66,13 +73,19 @@ export class PingPlugin extends ConnectionPlugin {
         }
 
         if (event.type === 'closed') {
-            this.disable();
+            this.disable().catch(console.error);
         }
 
         if (event.type === 'message') {
+            if (!this.watchdog.enabled()) {
+                return event;
+            }
+
             if (isPong(event.data)) {
+                this.waitForPong = false;
                 this.watchdog.restart();
                 this.pingWatchdog.restart();
+                this.disablePromises.resolveAll();
                 return null;
             }
         }
@@ -89,7 +102,11 @@ export class PingPlugin extends ConnectionPlugin {
         this.pingWatchdog.enable();
     }
 
-    public disable() {
+    public async disable(): Promise<void> {
+        // Delay the disabling until a scheduled pong arrived
+        if (this.waitForPong) {
+            await this.disablePromises.addNewPromise();
+        }
         this.watchdog.disable();
         this.pingWatchdog.disable();
     }

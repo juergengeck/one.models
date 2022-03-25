@@ -22,7 +22,7 @@ async function main(): Promise<void> {
 
             // Ping interval
             .describe('tp', 'Ping interval')
-            .default('tp', 5000)
+            .default('tp', 25000)
 
             // Logger
             .describe('l', 'Enable logger')
