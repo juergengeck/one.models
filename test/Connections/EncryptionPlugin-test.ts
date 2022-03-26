@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import EncryptionPlugin from '../lib/misc/Connections/plugins/EncryptionPlugin';
+import EncryptionPlugin from '../../lib/misc/Connections/plugins/EncryptionPlugin';
 import tweetnacl from 'tweetnacl';
 
 describe('Encryption plugin test', () => {
@@ -41,5 +41,24 @@ describe('Encryption plugin test', () => {
             throw new Error('Event is not a message (4)');
         }
         expect(decMsg2.data).to.be.equal('Hello Client!');
+    });
+
+    it('test the nonce counter conversion function', async function () {
+        const one = EncryptionPlugin.nonceCounterToArray(1);
+        expect(one).to.be.eql(
+            new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        );
+        const tho = EncryptionPlugin.nonceCounterToArray(1000);
+        expect(tho).to.be.eql(
+            new Uint8Array([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0xe8
+            ])
+        );
+        const mil = EncryptionPlugin.nonceCounterToArray(1000000);
+        expect(mil).to.be.eql(
+            new Uint8Array([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0f, 0x42, 0x40
+            ])
+        );
     });
 });

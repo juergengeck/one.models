@@ -33,7 +33,8 @@ export default class MultiUser extends Authenticator {
                 ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
-                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {
             this.authState.triggerEvent('login_failure');
@@ -80,7 +81,8 @@ export default class MultiUser extends Authenticator {
                 ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
-                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {
             this.authState.triggerEvent('login_failure');
