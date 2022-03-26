@@ -358,6 +358,8 @@ export default class Connection implements IConnection {
         return `${this.id.toString().padStart(4, ' ')} ${pluginName.padEnd(
             12,
             ' '
-        )} ${functionName.padEnd(24, ' ')} ${JSON.stringify(event)}`;
+        )} ${functionName.padEnd(24, ' ')} ${event.type} ${
+            event.type === 'message' ? typeof event.data + ' ' + event.data.length : ''
+        }`;
     }
 }
