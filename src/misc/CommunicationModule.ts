@@ -610,7 +610,9 @@ export default class CommunicationModule extends EventEmitter {
                 connect().catch(console.error);
             }, delay);
         } else {
-            connect().catch(console.error);
+            connect().catch(e => {
+                /* ignore this error - this is usually stopped by user */
+            });
         }
     }
 

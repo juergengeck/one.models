@@ -18,12 +18,17 @@ import {
 } from './CommunicationInitiationProtocol';
 import Connection from '../Connection';
 import EncryptionPlugin from '../plugins/EncryptionPlugin';
-import {PingPlugin, PongPlugin} from '../plugins/PingPongPlugin';
 import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import PromisePlugin from '../plugins/PromisePlugin';
+import {KeepAlivePlugin} from '../plugins/KeepAlivePlugin';
+import FragmentationPlugin from '../plugins/FragmentationPlugin';
+
+const KEEPALIVE_TIMER = 20000;
+const KEEPALIVE_TIMEOUT = 25000;
+const FRAGMENTATION_CHUNKSIZE = 65536;
 
 const MessageBus = createMessageBus('ConnectionSetup');
 
@@ -118,7 +123,10 @@ export async function connectWithEncryption(
 
         const sharedKey = tweetnacl.box.before(publicKeyOther, tempKeyPair.secretKey);
         connection.addPlugin(new EncryptionPlugin(sharedKey, false), {before: 'promise'});
-        connection.addPlugin(new PongPlugin(20000, 2000), {before: 'promise'});
+        connection.addPlugin(new KeepAlivePlugin(KEEPALIVE_TIMER, KEEPALIVE_TIMEOUT), {
+            before: 'promise'
+        });
+        connection.addPlugin(new FragmentationPlugin(FRAGMENTATION_CHUNKSIZE), {before: 'promise'});
 
         MessageBus.send(
             'debug',
@@ -348,7 +356,10 @@ export async function acceptWithEncryption(
 
         const sharedKey = tweetnacl.box.before(publicKeyOther, tempKeyPair.secretKey);
         connection.addPlugin(new EncryptionPlugin(sharedKey, true), {before: 'promise'});
-        connection.addPlugin(new PingPlugin(20000, 2000), {before: 'promise'});
+        connection.addPlugin(new KeepAlivePlugin(KEEPALIVE_TIMER, KEEPALIVE_TIMEOUT), {
+            before: 'promise'
+        });
+        connection.addPlugin(new FragmentationPlugin(FRAGMENTATION_CHUNKSIZE), {before: 'promise'});
 
         MessageBus.send(
             'log',

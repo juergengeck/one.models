@@ -257,7 +257,7 @@ export default class WebSocketPlugin extends ConnectionPlugin {
     /**
      * Function asserts that the connection is open.
      *
-     * If it is closed it will reject the promise with a message having the close reason.
+     * If it is closed it will throw an error with a message having the close reason.
      */
     private assertOpen(): WebSocket {
         const webSocket = this.assertNotDetached();

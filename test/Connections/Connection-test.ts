@@ -1,12 +1,12 @@
 import {expect} from 'chai';
 import WebSocketWS from 'isomorphic-ws';
-import WebSocketServerPromiseBased from '../lib/misc/WebSocketServerPromiseBased';
+import WebSocketServerPromiseBased from '../../lib/misc/WebSocketServerPromiseBased';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import Connection from '../lib/misc/Connections/Connection';
-import EncryptionPlugin from '../lib/misc/Connections/plugins/EncryptionPlugin';
+import Connection from '../../lib/misc/Connections/Connection';
+import EncryptionPlugin from '../../lib/misc/Connections/plugins/EncryptionPlugin';
 import tweetnacl from 'tweetnacl';
-import PromisePlugin from '../lib/misc/Connections/plugins/PromisePlugin';
-import {PingPlugin, PongPlugin} from '../lib/misc/Connections/plugins/PingPongPlugin';
+import PromisePlugin from '../../lib/misc/Connections/plugins/PromisePlugin';
+import {PingPlugin, PongPlugin} from '../../lib/misc/Connections/plugins/PingPongPlugin';
 import {wait} from '@refinio/one.core/lib/util/promise';
 //import {start} from '@refinio/one.core/lib/logger';
 //start({includeTimestamp: true});

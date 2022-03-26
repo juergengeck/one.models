@@ -53,7 +53,8 @@ export default class SingleUserNoAuth extends Authenticator {
                 ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
-                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {
             await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
@@ -109,7 +110,8 @@ export default class SingleUserNoAuth extends Authenticator {
                 ownerName: email,
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
-                initiallyEnabledReverseMapTypes: this.config.reverseMaps
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {
             this.authState.triggerEvent('login_failure');
