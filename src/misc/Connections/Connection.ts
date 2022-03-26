@@ -347,7 +347,7 @@ export default class Connection implements IConnection {
         functionName: string,
         event: ConnectionIncomingEvent | ConnectionOutgoingEvent
     ) {
-        MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
+        //MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
     }
 
     private formatForPlugin(
