@@ -229,6 +229,15 @@ class ConnectionsModel extends Model {
         ) => void
     >();
 
+    public onOneTimeAuthSuccessFirstSync = new OEvent<
+        (
+            token: string,
+            flag: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            personId: SHA256IdHash<Person>
+        ) => void
+    >();
+
     // Models
     private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
@@ -1318,6 +1327,25 @@ class ConnectionsModel extends Model {
             remotePersonInfo.personId
         );
 
+        // Step 4: Start the chum
+        await this.startChum(
+            conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
+            localPersonId,
+            remotePersonInfo.personId,
+            'chumAndPkExchange_onetimeauth_withtoken',
+            false,
+            false
+        );
+
+        this.onOneTimeAuthSuccessFirstSync.emit(
+            authToken.token,
+            true,
+            localPersonId,
+            remotePersonInfo.personId
+        );
+
         // Step 5: Start the chum
         await this.startChum(
             conn,
@@ -1400,7 +1428,26 @@ class ConnectionsModel extends Model {
             personInfo.personId
         );
 
-        // Step 5: Start the chum with the new id
+        // Step 5: Start the chum with the new id short running
+        await this.startChum(
+            conn,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
+            localPersonId,
+            personInfo.personId,
+            'chumAndPkExchange_onetimeauth_withtoken',
+            true,
+            false
+        );
+
+        this.onOneTimeAuthSuccessFirstSync.emit(
+            authenticationToken,
+            true,
+            localPersonId,
+            personInfo.personId
+        );
+
+        // Step 6: Start the chum with the new id
         await this.startChum(
             conn,
             localPublicInstanceKey,
