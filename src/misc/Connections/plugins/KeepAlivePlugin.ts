@@ -77,7 +77,9 @@ export class KeepAlivePlugin extends ConnectionPlugin {
             return event;
         }
 
-        this.sendPulseWatchdog.restart();
+        if (this.sendPulseWatchdog.enabled()) {
+            this.sendPulseWatchdog.restart();
+        }
 
         // We need to escape the 'keepalive' message so that if somebody sends the
         // string 'keepalive' it isn't swallowed by the keepalive plugin on the other side.
