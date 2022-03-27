@@ -1179,16 +1179,6 @@ class ConnectionsModel extends Model {
             remotePersonInfo.personId
         );
 
-        // Step 5: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
-            localPersonId,
-            remotePersonInfo.personId,
-            'chum_onetimeauth_withtoken',
-            false
-        );
         conn.close();
     }
 
@@ -1273,16 +1263,6 @@ class ConnectionsModel extends Model {
             personInfo.personId
         );
 
-        // Step 5: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
-            localPersonId,
-            personInfo.personId,
-            'chum_onetimeauth_withtoken',
-            true
-        );
         conn.close();
     }
 
@@ -1397,16 +1377,6 @@ class ConnectionsModel extends Model {
             remotePersonInfo.personId
         );
 
-        // Step 6: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
-            localPersonId,
-            remotePersonInfo.personId,
-            'chumAndPkExchange_onetimeauth_withtoken',
-            false
-        );
         conn.close();
     }
 
@@ -1502,16 +1472,6 @@ class ConnectionsModel extends Model {
             personInfo.personId
         );
 
-        // Step 6: Start the chum with the new id
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
-            localPersonId,
-            personInfo.personId,
-            'chumAndPkExchange_onetimeauth_withtoken',
-            true
-        );
         conn.close();
     }
 
