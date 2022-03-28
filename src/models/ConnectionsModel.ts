@@ -1606,7 +1606,7 @@ class ConnectionsModel extends Model {
         initiatedLocally: boolean,
         keepRunning: boolean = true
     ): Promise<void> {
-        this.onChumStart.emit(
+        await this.onChumStart.emitAll(
             localPersonId,
             remotePersonId,
             protocol,
