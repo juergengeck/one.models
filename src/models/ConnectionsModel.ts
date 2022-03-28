@@ -1149,7 +1149,7 @@ class ConnectionsModel extends Model {
         clearTimeout(authData.expirationTimeoutHandle);
         this.oneTimeAuthenticationTokens.delete(authToken.token);
 
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authToken.token,
             true,
             localPersonId,
@@ -1172,7 +1172,7 @@ class ConnectionsModel extends Model {
             console.error('Short chum for pairing failed', e);
         }
 
-        this.onOneTimeAuthSuccessFirstSync.emit(
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
             authToken.token,
             true,
             localPersonId,
@@ -1233,7 +1233,7 @@ class ConnectionsModel extends Model {
         });
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authenticationToken,
             false,
             localPersonId,
@@ -1256,7 +1256,7 @@ class ConnectionsModel extends Model {
             console.error('Short chum for pairing failed', e);
         }
 
-        this.onOneTimeAuthSuccessFirstSync.emit(
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
             authenticationToken,
             false,
             localPersonId,
@@ -1347,7 +1347,7 @@ class ConnectionsModel extends Model {
         this.pkOneTimeAuthenticationTokens.delete(authToken.token);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authToken.token,
             true,
             localPersonId,
@@ -1370,7 +1370,7 @@ class ConnectionsModel extends Model {
             console.error('Short chum for pairing failed', e);
         }
 
-        this.onOneTimeAuthSuccessFirstSync.emit(
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
             authToken.token,
             true,
             localPersonId,
@@ -1442,7 +1442,7 @@ class ConnectionsModel extends Model {
         await this.overwriteExistingPersonKeys(privatePersonInfo);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authenticationToken,
             true,
             localPersonId,
@@ -1465,7 +1465,7 @@ class ConnectionsModel extends Model {
             console.error('Short chum for pairing failed', e);
         }
 
-        this.onOneTimeAuthSuccessFirstSync.emit(
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
             authenticationToken,
             true,
             localPersonId,
