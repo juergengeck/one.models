@@ -607,7 +607,9 @@ export default class CommunicationModule extends EventEmitter {
 
             connContainer.reconnectTimeoutHandle = setTimeout(() => {
                 connContainer.reconnectTimeoutHandle = null;
-                connect().catch(console.error);
+                connect().catch(e => {
+                    /* ignore this error - this is usually stopped by user */
+                });
             }, delay);
         } else {
             connect().catch(e => {

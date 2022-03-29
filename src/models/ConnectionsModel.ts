@@ -225,7 +225,17 @@ class ConnectionsModel extends Model {
             localPersonId: SHA256IdHash<Person>,
             remotePersonId: SHA256IdHash<Person>,
             protocol: CommunicationInitiationProtocol.Protocols,
-            initiatedLocally: boolean
+            initiatedLocally: boolean,
+            keepRunning: boolean
+        ) => void
+    >();
+
+    public onOneTimeAuthSuccessFirstSync = new OEvent<
+        (
+            token: string,
+            flag: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            personId: SHA256IdHash<Person>
         ) => void
     >();
 
@@ -1139,23 +1149,36 @@ class ConnectionsModel extends Model {
         clearTimeout(authData.expirationTimeoutHandle);
         this.oneTimeAuthenticationTokens.delete(authToken.token);
 
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authToken.token,
             true,
             localPersonId,
             remotePersonInfo.personId
         );
 
-        // Step 4: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
+        // Step 4: Start the short running chum
+        try {
+            await this.startChum(
+                conn,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
+                localPersonId,
+                remotePersonInfo.personId,
+                'chum_onetimeauth_withtoken',
+                false,
+                false
+            );
+        } catch (e) {
+            console.error('Short chum for pairing failed', e);
+        }
+
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
+            authToken.token,
+            true,
             localPersonId,
-            remotePersonInfo.personId,
-            'chum_onetimeauth_withtoken',
-            false
+            remotePersonInfo.personId
         );
+
         conn.close();
     }
 
@@ -1210,23 +1233,36 @@ class ConnectionsModel extends Model {
         });
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authenticationToken,
             false,
             localPersonId,
             personInfo.personId
         );
 
-        // Step 4: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
+        // Step 4: Start the short running chum
+        try {
+            await this.startChum(
+                conn,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
+                localPersonId,
+                personInfo.personId,
+                'chum_onetimeauth_withtoken',
+                true,
+                false
+            );
+        } catch (e) {
+            console.error('Short chum for pairing failed', e);
+        }
+
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
+            authenticationToken,
+            false,
             localPersonId,
-            personInfo.personId,
-            'chum_onetimeauth_withtoken',
-            true
+            personInfo.personId
         );
+
         conn.close();
     }
 
@@ -1311,7 +1347,7 @@ class ConnectionsModel extends Model {
         this.pkOneTimeAuthenticationTokens.delete(authToken.token);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authToken.token,
             true,
             localPersonId,
@@ -1319,15 +1355,28 @@ class ConnectionsModel extends Model {
         );
 
         // Step 5: Start the chum
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
+        try {
+            await this.startChum(
+                conn,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
+                localPersonId,
+                remotePersonInfo.personId,
+                'chumAndPkExchange_onetimeauth_withtoken',
+                false,
+                false
+            );
+        } catch (e) {
+            console.error('Short chum for pairing failed', e);
+        }
+
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
+            authToken.token,
+            true,
             localPersonId,
-            remotePersonInfo.personId,
-            'chumAndPkExchange_onetimeauth_withtoken',
-            false
+            remotePersonInfo.personId
         );
+
         conn.close();
     }
 
@@ -1393,23 +1442,36 @@ class ConnectionsModel extends Model {
         await this.overwriteExistingPersonKeys(privatePersonInfo);
 
         // emit the one_time_auth_success event with the corresponding authentication token
-        this.onOneTimeAuthSuccess.emit(
+        await this.onOneTimeAuthSuccess.emitAll(
             authenticationToken,
             true,
             localPersonId,
             personInfo.personId
         );
 
-        // Step 5: Start the chum with the new id
-        await this.startChum(
-            conn,
-            localPublicInstanceKey,
-            remotePublicInstanceKey,
+        // Step 5: Start the short running chum
+        try {
+            await this.startChum(
+                conn,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
+                localPersonId,
+                personInfo.personId,
+                'chumAndPkExchange_onetimeauth_withtoken',
+                true,
+                false
+            );
+        } catch (e) {
+            console.error('Short chum for pairing failed', e);
+        }
+
+        await this.onOneTimeAuthSuccessFirstSync.emitAll(
+            authenticationToken,
+            true,
             localPersonId,
-            personInfo.personId,
-            'chumAndPkExchange_onetimeauth_withtoken',
-            true
+            personInfo.personId
         );
+
         conn.close();
     }
 
@@ -1544,7 +1606,13 @@ class ConnectionsModel extends Model {
         initiatedLocally: boolean,
         keepRunning: boolean = true
     ): Promise<void> {
-        this.onChumStart.emit(localPersonId, remotePersonId, protocol, initiatedLocally);
+        await this.onChumStart.emitAll(
+            localPersonId,
+            remotePersonId,
+            protocol,
+            initiatedLocally,
+            keepRunning
+        );
 
         // Send synchronisation messages to make sure both instances start the chum at the same time.
         conn.send('synchronisation');

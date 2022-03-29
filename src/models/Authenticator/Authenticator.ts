@@ -100,7 +100,8 @@ export default abstract class Authenticator {
                 options.recipes === undefined
                     ? [...RecipesStable, ...RecipesExperimental]
                     : options.recipes,
-            reverseMaps: options.reverseMaps === undefined ? undefined : options.reverseMaps
+            reverseMaps: options.reverseMaps === undefined ? undefined : options.reverseMaps,
+            storageInitTimeout: options.storageInitTimeout
         };
     }
 
