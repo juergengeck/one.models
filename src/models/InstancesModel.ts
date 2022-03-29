@@ -7,11 +7,15 @@ import {
     getObjectWithType
 } from '@refinio/one.core/lib/storage';
 import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from '@refinio/one.core/lib/instance-crypto';
+import {
+    createCryptoAPI,
+    CryptoAPI,
+    loadPersonAndInstanceKeys
+} from '@refinio/one.core/lib/instance-crypto';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
@@ -280,8 +284,8 @@ class InstancesModel extends Model {
         if (!(await this.isLocalInstance(instanceId))) {
             throw new Error('Passed instance is not a local instance');
         }
-        const instanceKeyLink = await getAllValues(instanceId, true, 'Keys');
-        return instanceKeyLink[instanceKeyLink.length - 1].toHash;
+        const instanceKeyLink = await getAllEntries(instanceId, 'Keys');
+        return instanceKeyLink[instanceKeyLink.length - 1];
     }
 
     /**

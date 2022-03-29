@@ -5,7 +5,6 @@ import type {
     OneObjectTypeNames,
     OneObjectTypes,
     OneUnversionedObjectTypes,
-    OneVersionedObjectTypes,
     Plan
 } from '@refinio/one.core/lib/recipes';
 import type {MetaObjectMap} from '../recipes/MetaObjectMapRecipes';
@@ -13,8 +12,7 @@ import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-obje
 import {iterateArrayFromEnd} from '@refinio/one.core/lib/util/function';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
-import {calculateIdHash} from '@refinio/one.core/lib/microdata-to-id-hash';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 
 const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -98,43 +96,18 @@ export async function getMetaObjectHashesOfType<T extends OneObjectTypeNames>(
     type: T
 ): Promise<SHA256Hash<OneObjectInterfaces[T]>[]> {
     if (useReverseMaps) {
-        let values;
-
-
         // We have three cases to distignuish:
         // 1) referenceToId -> the input here will be the SHA256IdHash
         // 2) referenceToObj (Versioned) -> the input here will be SHA256Hash<OneVersionedObjectTypeNames>
         // 3) referenceToObj (Unversioned) -> the input here will be the SHA256Hash<OnUnversionedObjectTypeNames>
         // We have no functions to check this so we will do it as follows:
-        // 
-        // Try to calculate an id hash 
+        //
+        // Try to calculate an id hash
         //   -> success it is a SHA256Hash<OneVersionedObjectTypeNames>
         //   -> failure with M20-PH1 it is a SHA256IdHash
         //   -> other failure (undefined or exception) it is a SHA256Hash<UnversionedObjectTypeNames>
-        
 
-        let idHash;
-
-        // We need to catch the error like this because some conditions return undefined, others
-        // throw so we make throwing also to undefined.
-        try {
-            idHash = await calculateIdHash(objHash as SHA256Hash<OneVersionedObjectTypes>);
-        } catch (e) {
-            // M2O-PH1 - expected a non id object
-            if (e.code === 'M2O-PH1') {
-                idHash = objHash;
-            }
-        }
-
-        if (idHash !== undefined) {
-            // Case 1) & 2) versioned object / specific version
-            values = await getAllValues(idHash, true, type);
-            values = values.filter(value => value.fromHash === objHash);
-        } else {
-            // Case 3) unversioned object
-            values = await getAllValues(objHash, false, type);
-        }
-        return values.map(value => value.toHash);
+        return await getAllEntries(objHash, type);
     } else {
         const metaObjectMap = await loadMetaObjectMap(objHash);
         const metaObjectHashes = metaObjectMap.metaObjects.get(type);

@@ -10,7 +10,7 @@ import tweetnacl from 'tweetnacl';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -293,16 +293,16 @@ export default class RecoveryModel extends Model {
         }
 
         // obtain the person keys
-        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        const personKeyLink = await getAllEntries(personId, 'Keys');
         // obtain the decrypted person key
         const personPrivateEncryptionKey = await decryptSecretKey(
             this.password,
-            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+            `${personKeyLink[personKeyLink.length - 1]}.owner.encrypt`
         );
         // obtain the decrypted person sign key
         const personPrivateSignKey = await decryptSecretKey(
             this.password,
-            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+            `${personKeyLink[personKeyLink.length - 1]}.owner.sign`
         );
 
         if (personPrivateEncryptionKey === null || personPrivateSignKey === null) {

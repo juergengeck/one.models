@@ -31,7 +31,7 @@ import type {
     Plan
 } from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import ProfileModel from './ProfileModel';
 import type {
@@ -519,8 +519,8 @@ export default class LeuteModel extends Model {
     public static async personKeysHashForPerson(
         personId: SHA256IdHash<Person>
     ): Promise<SHA256Hash<Keys>> {
-        const personKeyLink = await getAllValues(personId, true, 'Keys');
-        return personKeyLink[personKeyLink.length - 1].toHash;
+        const personKeyLink = await getAllEntries(personId, 'Keys');
+        return personKeyLink[personKeyLink.length - 1];
     }
 
     /**

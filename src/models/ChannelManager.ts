@@ -14,10 +14,9 @@ import {
 } from '@refinio/one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {getNthVersionMapHash} from '@refinio/one.core/lib/version-map-query';
-import type {ReverseMapEntry} from '@refinio/one.core/lib/reverse-map-updater';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureHash, ensureIdHash, SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
@@ -1968,9 +1967,9 @@ export default class ChannelManager {
         }
 
         // Extract the access objects pointing to the channel info
-        const channelAccessObjects = await getAllValues(channelInfoIdHash, true, 'IdAccess');
+        const channelAccessObjects = await getAllEntries(channelInfoIdHash, 'IdAccess');
         const personNested = await Promise.all(
-            channelAccessObjects.map(async value => extractPersonsFromIdAccessObject(value.toHash))
+            channelAccessObjects.map(async value => extractPersonsFromIdAccessObject(value))
         );
         const personsFlat = personNested.reduce((acc, val) => acc.concat(val), []);
 

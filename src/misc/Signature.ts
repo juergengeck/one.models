@@ -3,7 +3,7 @@ import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {getObject, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
@@ -209,11 +209,11 @@ async function trustedKeyHashes(person: SHA256IdHash<Person>): Promise<SHA256Has
     const me = getInstanceOwnerIdHash();
 
     if (person === me) {
-        const reverseMapEntry = await getAllValues(me, true, 'Keys');
+        const reverseMapEntry = await getAllEntries(me, 'Keys');
         if (reverseMapEntry.length === 0) {
             return [];
         } else {
-            return [reverseMapEntry[0].toHash];
+            return [reverseMapEntry[0]];
         }
     } else {
         const keyHashes = await untrustedKeyHashes(person);
@@ -227,8 +227,8 @@ async function trustedKeyHashes(person: SHA256IdHash<Person>): Promise<SHA256Has
  * @param person - The person for which to get keys.
  */
 async function untrustedKeyHashes(person: SHA256IdHash<Person>): Promise<SHA256Hash<Keys>[]> {
-    const reverseMapEntries = await getAllValues(person, true, 'Keys');
-    return reverseMapEntries.map(reverseMapEntry => reverseMapEntry.toHash);
+    const reverseMapEntries = await getAllEntries(person, 'Keys');
+    return reverseMapEntries.map(reverseMapEntry => reverseMapEntry);
 }
 
 /**

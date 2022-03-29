@@ -28,7 +28,7 @@ import {
     stringToUint8Array,
     Uint8ArrayToString
 } from '@refinio/one.core/lib/instance-crypto';
-import {getAllValues} from '@refinio/one.core/lib/reverse-map-query';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
     isPeerMessage
@@ -1778,16 +1778,16 @@ class ConnectionsModel extends Model {
             return (await readUTF8TextFile(filename, 'private')) as HexString;
         };
 
-        const personKeyLink = await getAllValues(personId, true, 'Keys');
+        const personKeyLink = await getAllEntries(personId, 'Keys');
         const personPublicKeys = await getObjectWithType(
-            personKeyLink[personKeyLink.length - 1].toHash,
+            personKeyLink[personKeyLink.length - 1],
             'Keys'
         );
         const personPrivateEncryptionKey = await readPrivateKeys(
-            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.encrypt`
+            `${personKeyLink[personKeyLink.length - 1]}.owner.encrypt`
         );
         const personPrivateSignKey = await readPrivateKeys(
-            `${personKeyLink[personKeyLink.length - 1].toHash}.owner.sign`
+            `${personKeyLink[personKeyLink.length - 1]}.owner.sign`
         );
 
         return {
@@ -1850,12 +1850,9 @@ class ConnectionsModel extends Model {
         const crypto = createCryptoAPI(instanceHash);
 
         // Get my own person key
-        const localPersonKeyReverse = await getAllValues(localPersonId, true, 'Keys');
+        const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
         const localPersonKey = (
-            await getObjectWithType(
-                localPersonKeyReverse[localPersonKeyReverse.length - 1].toHash,
-                'Keys'
-            )
+            await getObjectWithType(localPersonKeyReverse[localPersonKeyReverse.length - 1], 'Keys')
         ).publicKey;
 
         // Exchange and challenge response the person keys
@@ -1914,7 +1911,7 @@ class ConnectionsModel extends Model {
         let keyComparisionFailed: boolean = true;
         try {
             // Lookup key objects of the person he claims to be
-            const remotePersonKeyReverse = await getAllValues(remotePersonId, true, 'Keys');
+            const remotePersonKeyReverse = await getAllEntries(remotePersonId, 'Keys');
             if (!remotePersonKeyReverse || remotePersonKeyReverse.length === 0) {
                 // This means that we have no key belonging to this person
                 return {
@@ -1927,7 +1924,7 @@ class ConnectionsModel extends Model {
             // Load the stored key from storage
             const remotePersonKeyStored = (
                 await getObjectWithType(
-                    remotePersonKeyReverse[remotePersonKeyReverse.length - 1].toHash,
+                    remotePersonKeyReverse[remotePersonKeyReverse.length - 1],
                     'Keys'
                 )
             ).publicKey;
