@@ -410,6 +410,72 @@ export default class CommunicationModule extends EventEmitter {
     }
 
     /**
+     * Replaces a known connection with a new one.
+     *
+     * @param localPublicKey - the local public key used to identify the connection
+     * @param remotePublicKey - the remote public key used to identify the connection
+     * @param conn - the connection
+     * @param reason - the reason why to close the old connection
+     */
+    public replaceKnownConnection(
+        localPublicKey: Uint8Array,
+        remotePublicKey: Uint8Array,
+        conn: Connection,
+        reason: string
+    ): void {
+        const mapKey = genMapKey(localPublicKey, remotePublicKey);
+        const endpoint = this.knownPeerMap.get(mapKey);
+        if (endpoint === undefined) {
+            throw new Error('This is not a known connection.');
+        }
+
+        if (endpoint.activeConnection) {
+            if (endpoint.disconnectCloseHandler) {
+                endpoint.disconnectCloseHandler();
+            }
+            endpoint.activeConnection.close(reason);
+        }
+
+        // Stop the outgoing connection attempts
+        if (endpoint.stopConnecting) {
+            endpoint.stopConnecting();
+            endpoint.stopConnecting = undefined;
+        }
+
+        // Connect close handler
+        const closeHandler = () => {
+            endpoint.dropDuplicates = true;
+            endpoint.activeConnection = null;
+            delete endpoint.closeHandler;
+            this.emit('connectionsChange');
+            this.onConnectionsChange.emit();
+            this.reconnect(endpoint, this.reconnectDelay);
+        };
+        const disconnectCloseHandler = conn.state.onEnterState(newState => {
+            if (newState === 'closed') {
+                closeHandler();
+            }
+        });
+        endpoint.closeHandler = closeHandler;
+        endpoint.disconnectCloseHandler = disconnectCloseHandler;
+
+        // Set the current connection as active connection
+        endpoint.activeConnection = conn;
+        if (endpoint.reconnectTimeoutHandle !== null) {
+            clearTimeout(endpoint.reconnectTimeoutHandle);
+            endpoint.reconnectTimeoutHandle = null;
+        }
+
+        this.emit('connectionsChange');
+        this.onConnectionsChange.emit();
+
+        // Set timeout that changes duplicate connection behavior
+        setTimeout(() => {
+            endpoint.dropDuplicates = false;
+        }, 2000);
+    }
+
+    /**
      * Return information about all known connections.
      *
      * @returns

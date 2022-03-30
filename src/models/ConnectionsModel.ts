@@ -708,6 +708,98 @@ class ConnectionsModel extends Model {
     }
 
     /**
+     * Connect to target using pairing information with the goal to pair / being taken over
+     *
+     * @param remotePersonId
+     */
+    public async connecOnceWithShortRunningChum(
+        remotePersonId: SHA256IdHash<Person>
+    ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized.');
+        }
+
+        // Load the remote instance keys
+        let localInstanceKeys = this.mainInstanceInfo.instanceKeys;
+        let remoteInstanceKeys: Keys;
+        {
+            const remoteSomeone = await this.leuteModel.getSomeone(remotePersonId);
+            if (remoteSomeone === undefined) {
+                throw new Error('Someone for specified personid was not found.');
+            }
+            const remoteProfile = await remoteSomeone.mainProfile();
+            const instanceEndpoints = remoteProfile.endpointsOfType('OneInstanceEndpoint');
+            if (instanceEndpoints.length === 0) {
+                throw new Error('No endpoint exists for the specified person');
+            }
+
+            remoteInstanceKeys = await getObject(instanceEndpoints[0].instanceKeys);
+        }
+
+        const localPublicInstanceKey = hexToUint8Array(localInstanceKeys.publicKey);
+        const remotePublicInstanceKey = hexToUint8Array(remoteInstanceKeys.publicKey);
+
+        // Connect to target
+        const connInfo = await connectWithEncryption(
+            this.config.commServerUrl,
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
+            text => {
+                if (!this.mainInstanceInfo) {
+                    throw new Error('mainInstanceInfo not initialized.');
+                }
+                return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
+                    remotePublicInstanceKey,
+                    text
+                );
+            },
+            cypherText => {
+                if (!this.mainInstanceInfo) {
+                    throw new Error('mainInstanceInfo not initialized.');
+                }
+                return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
+                    remotePublicInstanceKey,
+                    cypherText
+                );
+            }
+        );
+
+        // Add this connection to the communication module, so that it becomes the known connection
+        this.communicationModule.replaceKnownConnection(
+            localPublicInstanceKey,
+            remotePublicInstanceKey,
+            connInfo.connection,
+            'Replaced connection for chum_one_time protocol'
+        );
+
+        // Start the pairing protocol
+        try {
+            // Send the other side the protocol we'd like to use
+            await ConnectionsModel.sendMessage(connInfo.connection, {
+                command: 'start_protocol',
+                protocol: 'chum_one_time',
+                version: '1.0'
+            });
+
+            await this.startChumProtocol(
+                connInfo.connection,
+                localPublicInstanceKey,
+                remotePublicInstanceKey,
+                this.mainInstanceInfo.personId,
+                true,
+                true,
+                false,
+                remotePersonId
+            );
+        } catch (e) {
+            connInfo.connection.close(e.message);
+            throw e;
+        }
+    }
+
+    /**
      * Given the pairing information as parameter, the corresponding invitation will be invalidated.
      *
      * @param pairingInformation
