@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "10.0.3",
+  "version": "10.1.0",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "github:refinio/one.core#demohotfix_eh",
+    "@refinio/one.core": "^0.3.11",
     "i18next": "^19.4.2",
     "isomorphic-ws": "^4.0.1",
     "jsesc": "^3.0.2",
