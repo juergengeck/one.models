@@ -32,6 +32,9 @@ export default class ConsentModel extends Model {
         'giveConsent' | 'revokeConsent' | 'shutdown'
     >;
 
+    // Contains the date of the first consent for the application
+    public firstConsentDate: Date | undefined;
+
     private consentsToWrite: FileStatusTuple[] = [];
     private channelManager: ChannelManager | undefined;
 
@@ -73,15 +76,23 @@ export default class ConsentModel extends Model {
 
         // update state from storage if no queued consents are present
         if (this.consentsToWrite.length == 0) {
-            const latestChannelEntry = await this.channelManager.getObjects({
-                channelId: ConsentModel.channelId,
-                count: 1
+            const allChannelEntrys = await this.channelManager.getObjects({
+                channelId: ConsentModel.channelId
             });
 
-            const signature = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
-            const consent = await getObjectWithType(signature.data, 'Consent');
+            const latestChannelEntry = allChannelEntrys[allChannelEntrys.length - 1];
 
-            this.setState(consent.status);
+            const latestSignature = await getObjectWithType(
+                latestChannelEntry.dataHash,
+                'Signature'
+            );
+            const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
+
+            const firstSignature = allChannelEntrys[0];
+            const firstConsent = await getObjectWithType(latestSignature.data, 'Consent');
+            this.firstConsentDate = new Date(firstConsent.isoStringDate);
+
+            this.setState(latestConsent.status);
         } else {
             // write all queued consents
             for (const fileStatusTuple of this.consentsToWrite) {
@@ -149,5 +160,9 @@ export default class ConsentModel extends Model {
             signedConsent.obj,
             undefined
         );
+
+        if (this.firstConsentDate === undefined) {
+            this.firstConsentDate = new Date(consent.isoStringDate);
+        }
     }
 }
