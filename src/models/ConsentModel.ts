@@ -164,9 +164,5 @@ export default class ConsentModel extends Model {
             signedConsent.obj,
             undefined
         );
-
-        if (this.firstConsentDate === undefined) {
-            this.firstConsentDate = new Date(consent.isoStringDate);
-        }
     }
 }
