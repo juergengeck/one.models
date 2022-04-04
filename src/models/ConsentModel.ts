@@ -99,7 +99,7 @@ export default class ConsentModel extends Model {
             this.consentsToWrite = [];
         }
 
-        // Get the first consent after queue has been written
+        // Get the first consent after queue has potentially been written
         const allChannelEntrys = await this.channelManager.getObjects({
             channelId: ConsentModel.channelId
         });
