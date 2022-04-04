@@ -112,8 +112,9 @@ describe('Consent', () => {
             allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
         );
 
-        console.log(allConsents);
-        console.log(consentModel.firstConsentDate);
-        expect(consentModel.firstConsentDate).to.be.equal(new Date(allConsents[0].isoStringDate));
+        // @ts-ignore
+        expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
+            allConsents[0].isoStringDate
+        );
     });
 });

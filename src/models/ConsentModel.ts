@@ -81,15 +81,16 @@ export default class ConsentModel extends Model {
             });
 
             const latestChannelEntry = allChannelEntrys[allChannelEntrys.length - 1];
-
             const latestSignature = await getObjectWithType(
                 latestChannelEntry.dataHash,
                 'Signature'
             );
             const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
 
-            const firstSignature = allChannelEntrys[0];
-            const firstConsent = await getObjectWithType(latestSignature.data, 'Consent');
+            const firstChannelEntry = allChannelEntrys[0];
+            const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
+            const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
+
             this.firstConsentDate = new Date(firstConsent.isoStringDate);
 
             this.setState(latestConsent.status);
