@@ -76,22 +76,16 @@ export default class ConsentModel extends Model {
 
         // update state from storage if no queued consents are present
         if (this.consentsToWrite.length == 0) {
-            const allChannelEntrys = await this.channelManager.getObjects({
-                channelId: ConsentModel.channelId
+            const latestChannelEntry = await this.channelManager.getObjects({
+                channelId: ConsentModel.channelId,
+                count: 1
             });
 
-            const latestChannelEntry = allChannelEntrys[allChannelEntrys.length - 1];
             const latestSignature = await getObjectWithType(
-                latestChannelEntry.dataHash,
+                latestChannelEntry[0].dataHash,
                 'Signature'
             );
             const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
-
-            const firstChannelEntry = allChannelEntrys[0];
-            const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
-            const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
-
-            this.firstConsentDate = new Date(firstConsent.isoStringDate);
 
             this.setState(latestConsent.status);
         } else {
@@ -104,6 +98,15 @@ export default class ConsentModel extends Model {
             // cleanup the queue
             this.consentsToWrite = [];
         }
+
+        // Get the first consent after queue has been written
+        const allChannelEntrys = await this.channelManager.getObjects({
+            channelId: ConsentModel.channelId
+        });
+        const firstChannelEntry = allChannelEntrys[0];
+        const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
+        const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
+        this.firstConsentDate = new Date(firstConsent.isoStringDate);
 
         this.state.triggerEvent('init');
     }
@@ -163,7 +166,6 @@ export default class ConsentModel extends Model {
         );
 
         if (this.firstConsentDate === undefined) {
-            console.log('In writeConsent');
             this.firstConsentDate = new Date(consent.isoStringDate);
         }
     }
