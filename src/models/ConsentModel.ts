@@ -1,12 +1,7 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {Consent} from '../recipes/ConsentRecipes';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectWithType,
-    UnversionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import type {BlobDescriptor} from '../recipes/BlobRecipes';
+import {getObjectWithType} from '@refinio/one.core/lib/storage';
 import {StateMachine} from '../misc/StateMachine';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {sign} from '../misc/Signature';
