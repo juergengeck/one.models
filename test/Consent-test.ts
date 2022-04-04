@@ -117,4 +117,24 @@ describe('Consent', () => {
             allConsents[0].isoStringDate
         );
     });
+
+    it('should have the right firstConsentDate even with queued consents', async function () {
+        const consentModel = new ConsentModel();
+        const file = buildTestFile();
+        await consentModel.setConsent(file, 'given');
+
+        await consentModel.init(testModel.channelManager);
+        const allChannelEntrys = await testModel.channelManager.getObjects({
+            channelId: ConsentModel.channelId
+        });
+        const allConsents = await Promise.all(
+            //@ts-ignore
+            allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
+        );
+
+        // @ts-ignore
+        expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
+            allConsents[0].isoStringDate
+        );
+    });
 });

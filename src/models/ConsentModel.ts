@@ -163,6 +163,7 @@ export default class ConsentModel extends Model {
         );
 
         if (this.firstConsentDate === undefined) {
+            console.log('In writeConsent');
             this.firstConsentDate = new Date(consent.isoStringDate);
         }
     }
