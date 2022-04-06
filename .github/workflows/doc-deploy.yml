@@ -1,9 +1,5 @@
 name: Generate & deploy documentation
 
-on:
-    push:
-        branches: []
-
 jobs:
     documentation:
         runs-on: ubuntu-20.04
