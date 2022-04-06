@@ -4,6 +4,7 @@ import * as StorageTestInit from './_helpers';
 import TestModel, {importModules} from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {buildTestFile} from './_helpers';
+import {getObjectWithType} from '@refinio/one.core/lib/storage';
 
 let testModel: TestModel;
 
@@ -98,5 +99,42 @@ describe('Consent', () => {
 
         await consentModel.init(testModel.channelManager);
         expect(consentModel.consentState.currentState).to.equal('Revoked');
+    });
+
+    it('should have the right firstConsentDate', async function () {
+        const consentModel = new ConsentModel();
+        await consentModel.init(testModel.channelManager);
+        const allChannelEntrys = await testModel.channelManager.getObjects({
+            channelId: ConsentModel.channelId
+        });
+        const allConsents = await Promise.all(
+            //@ts-ignore
+            allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
+        );
+
+        // @ts-ignore
+        expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
+            allConsents[0].isoStringDate
+        );
+    });
+
+    it('should have the right firstConsentDate even with queued consents', async function () {
+        const consentModel = new ConsentModel();
+        const file = buildTestFile();
+        await consentModel.setConsent(file, 'given');
+
+        await consentModel.init(testModel.channelManager);
+        const allChannelEntrys = await testModel.channelManager.getObjects({
+            channelId: ConsentModel.channelId
+        });
+        const allConsents = await Promise.all(
+            //@ts-ignore
+            allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
+        );
+
+        // @ts-ignore
+        expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
+            allConsents[0].isoStringDate
+        );
     });
 });

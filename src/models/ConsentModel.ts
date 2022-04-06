@@ -1,12 +1,7 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {Consent} from '../recipes/ConsentRecipes';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectWithType,
-    UnversionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import type {BlobDescriptor} from '../recipes/BlobRecipes';
+import {getObjectWithType} from '@refinio/one.core/lib/storage';
 import {StateMachine} from '../misc/StateMachine';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {sign} from '../misc/Signature';
@@ -36,6 +31,9 @@ export default class ConsentModel extends Model {
         'Uninitialised' | 'Given' | 'Revoked',
         'giveConsent' | 'revokeConsent' | 'shutdown'
     >;
+
+    // Contains the date of the first consent for the application
+    public firstConsentDate: Date | undefined;
 
     private consentsToWrite: FileStatusTuple[] = [];
     private channelManager: ChannelManager | undefined;
@@ -83,10 +81,13 @@ export default class ConsentModel extends Model {
                 count: 1
             });
 
-            const signature = await getObjectWithType(latestChannelEntry[0].dataHash, 'Signature');
-            const consent = await getObjectWithType(signature.data, 'Consent');
+            const latestSignature = await getObjectWithType(
+                latestChannelEntry[0].dataHash,
+                'Signature'
+            );
+            const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
 
-            this.setState(consent.status);
+            this.setState(latestConsent.status);
         } else {
             // write all queued consents
             for (const fileStatusTuple of this.consentsToWrite) {
@@ -97,6 +98,15 @@ export default class ConsentModel extends Model {
             // cleanup the queue
             this.consentsToWrite = [];
         }
+
+        // Get the first consent after queue has potentially been written
+        const allChannelEntrys = await this.channelManager.getObjects({
+            channelId: ConsentModel.channelId
+        });
+        const firstChannelEntry = allChannelEntrys[0];
+        const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
+        const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
+        this.firstConsentDate = new Date(firstConsent.isoStringDate);
 
         this.state.triggerEvent('init');
     }
