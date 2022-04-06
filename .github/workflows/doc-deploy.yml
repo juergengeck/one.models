@@ -2,7 +2,7 @@ name: Generate & deploy documentation
 
 on:
     push:
-        branches: [master]
+        branches: []
 
 jobs:
     documentation:
