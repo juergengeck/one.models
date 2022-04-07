@@ -1,3 +1,4 @@
+// @ts-nocheck
 import yargs from 'yargs';
 import CommunicationServer from '../misc/CommunicationServer';
 import * as Logger from '@refinio/one.core/lib/logger';
