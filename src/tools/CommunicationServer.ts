@@ -6,31 +6,42 @@ import * as Logger from '@refinio/one.core/lib/logger';
  * Main function. This exists to be able to use await here.
  */
 async function main(): Promise<void> {
-    const argv =
-        // Evaluate
-        yargs
-
+    const argv = yargs(process.argv.slice(2))
+        .options({
             // Url of communication server
-            .alias('h', 'host')
-            .describe('h', 'host to bind the listening port to')
-            .default('h', 'localhost')
-
+            h: {
+                longName: 'host',
+                type: 'string',
+                describe: 'Host to bind the listening port to',
+                default: 'localhost'
+            },
             // Spare connections
-            .alias('p', 'port')
-            .describe('p', 'Port to listen on')
-            .default('p', 8000)
-
+            p: {
+                longName: 'port',
+                type: 'number',
+                describe: 'Port to listen on',
+                default: 8000
+            },
             // Ping interval
-            .describe('tp', 'Ping interval')
-            .default('tp', 25000)
-
+            tp: {
+                type: 'number',
+                describe: 'Ping intervall',
+                default: 25000
+            },
             // Logger
-            .describe('l', 'Enable logger')
-            .boolean('l')
-
+            l: {
+                type: 'boolean',
+                longName: 'logger',
+                describe: 'Enable logger'
+            },
             // Logger
-            .describe('d', 'Enable logger (all)')
-            .boolean('d').argv;
+            d: {
+                type: 'boolean',
+                longName: 'debugging',
+                describe: 'Enable logger (all)'
+            }
+        })
+        .parseSync();
 
     if (argv.l) {
         Logger.start({types: ['log', 'debug']});
