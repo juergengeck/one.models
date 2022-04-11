@@ -71,14 +71,14 @@ function parseCommandLine(): {
                 describe: 'Url of communication server.',
                 default: 'ws://localhost:8000'
             },
-            // Spare connections
+            // Instance name that shall be used
             i: {
                 longName: 'i',
                 type: 'string',
                 describe: 'Instance name',
                 demandOption: true
             },
-            // Ping interval
+            // Display connection details
             c: {
                 type: 'boolean',
                 describe: 'Display connection details',
