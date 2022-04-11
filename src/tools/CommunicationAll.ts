@@ -62,32 +62,42 @@ function parseCommandLine(): {
     instanceName: string;
     displayDetails: boolean;
 } {
-    const argv =
-        // Evaluate
-        yargs
-
+    const argv = yargs(process.argv.slice(2))
+        .options({
             // Url of communication server
-            .alias('u', 'url')
-            .describe('u', 'Url of communication server.')
-            .default('u', 'ws://localhost:8000')
-
-            // Instance name that shall be used
-            .describe('i', 'Instance name')
-            .string('i')
-            .demandOption('i')
-
-            // Display connection details
-            .describe('c', 'Display connection details')
-            .boolean('c')
-            .default('c', false)
-
+            u: {
+                longName: 'u',
+                type: 'string',
+                describe: 'Url of communication server.',
+                default: 'ws://localhost:8000'
+            },
+            // Spare connections
+            i: {
+                longName: 'i',
+                type: 'string',
+                describe: 'Instance name',
+                demandOption: true
+            },
+            // Ping interval
+            c: {
+                type: 'boolean',
+                describe: 'Display connection details',
+                default: false
+            },
             // Logger
-            .describe('l', 'Enable logger')
-            .boolean('l')
-
+            l: {
+                type: 'boolean',
+                longName: 'logger',
+                describe: 'Enable logger'
+            },
             // Logger
-            .describe('d', 'Enable logger (all)')
-            .boolean('d').argv;
+            d: {
+                type: 'boolean',
+                longName: 'debugging',
+                describe: 'Enable logger (all)'
+            }
+        })
+        .parseSync();
 
     // Initialize Logger
     if (argv.l) {
