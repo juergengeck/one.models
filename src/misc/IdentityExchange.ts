@@ -22,6 +22,7 @@ import {
     isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {isHash} from '@refinio/one.core/lib/util/type-checks';
 
 const DUMMY_PLAN_HASH =
     '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
@@ -253,12 +254,14 @@ export async function convertIdentityToOneInstanceEndpoint(
 /**
  * Creates an identity object from a oneInstanceEndpoint hash
  *
- * @param oneInstanceEndpointHash
+ * @param oneInstanceEndpointOrHash
  */
 export async function convertOneInstanceEndpointToIdentity(
-    oneInstanceEndpointHash: SHA256Hash<OneInstanceEndpoint>
+    oneInstanceEndpointOrHash: SHA256Hash<OneInstanceEndpoint> | OneInstanceEndpoint
 ): Promise<Identity> {
-    const oneInstanceEndpoint = await getObject(oneInstanceEndpointHash);
+    const oneInstanceEndpoint = isHash(oneInstanceEndpointOrHash)
+        ? await getObject(oneInstanceEndpointOrHash)
+        : oneInstanceEndpointOrHash;
     if (oneInstanceEndpoint.personKeys === undefined) {
         throw new Error('Person keys must not be undefined when exporting a OneInstanceEndpoint.');
     }
