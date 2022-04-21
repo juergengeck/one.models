@@ -4,7 +4,6 @@ on:
     push:
         branches:
             - master
-            - ARTEM-88/bundle_password_recovery_server
 jobs:
     package-development:
         runs-on: ubuntu-20.04
