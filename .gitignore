@@ -29,6 +29,8 @@ OneDB
 dist/
 ./test/testDb
 comm_server.*
+password_recovery_server.*
+
 #########
 # Node.js
 #########
