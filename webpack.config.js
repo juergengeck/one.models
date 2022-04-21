@@ -13,6 +13,10 @@ module.exports = {
         password_recovery_server: {
             import: './src/tools/PasswordRecoveryService/PasswordRecoveryServer.ts',
             filename: '[name].bundle.js'
+        },
+        generate_identity: {
+            import: './src/tools/identity/GenerateIdentity.ts',
+            filename: '[name].bundle.js'
         }
     },
     devtool: 'inline-source-map',
