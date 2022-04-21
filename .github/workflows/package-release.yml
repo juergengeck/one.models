@@ -51,12 +51,12 @@ jobs:
 
             - name: Set filename
               id: release_info
-              run: echo ::set-output name=filename::one.models.comm_server-${GITHUB_REF#refs/*/}.tar.gz
+              run: echo ::set-output name=filename::one.models.bundles-${GITHUB_REF#refs/*/}.tar.gz
 
             - name: Package zip
               run: |
                   cd ..
-                  tar -czvf ${{steps.release_info.outputs.filename}} one.models/comm_server.bundle.js
+                  tar -czvf ${{steps.release_info.outputs.filename}} one.models/comm_server.bundle.js one.models/password_recovery_server.bundle.js
                   mv ${{steps.release_info.outputs.filename}} one.models/
             - name: Upload to s3
               run: >
