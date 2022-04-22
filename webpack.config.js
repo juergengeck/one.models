@@ -2,10 +2,22 @@ const path = require('path');
 
 module.exports = {
     mode: 'production',
-    entry: ['./src/tools/CommunicationServer.ts'],
     output: {
-        filename: 'comm_server.bundle.js',
         path: path.resolve(__dirname)
+    },
+    entry: {
+        comm_server: {
+            import: './src/tools/CommunicationServer.ts',
+            filename: '[name].bundle.js'
+        },
+        password_recovery_server: {
+            import: './src/tools/PasswordRecoveryService/PasswordRecoveryServer.ts',
+            filename: '[name].bundle.js'
+        },
+        generate_identity: {
+            import: './src/tools/identity/GenerateIdentity.ts',
+            filename: '[name].bundle.js'
+        }
     },
     devtool: 'inline-source-map',
     module: {

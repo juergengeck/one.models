@@ -29,6 +29,9 @@ OneDB
 dist/
 ./test/testDb
 comm_server.*
+password_recovery_server.*
+generate_identity.*
+
 #########
 # Node.js
 #########
