@@ -15,7 +15,7 @@ describe('Password recovery test over server', () => {
         await setBaseDirOrName(`test/${defaultDbName}`);
         await mkdir(getBaseDirOrName(), {recursive: true});
         const identity = await generateNewIdentity('http://localhost:8080');
-        server = new PasswordRecoveryServer(identity.secret);
+        server = new PasswordRecoveryServer(identity.secret, 8080);
         await server.start();
         client = new PasswordRecoveryClient(identity.public);
     });
