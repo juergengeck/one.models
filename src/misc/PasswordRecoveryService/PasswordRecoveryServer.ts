@@ -10,10 +10,12 @@ export default class PasswordRecoveryServer {
 
     private identity: IdentityWithSecrets;
     private server: http.Server | null = null;
-    private maxMessageCharCount: number;
+    private readonly port: number;
+    private readonly maxMessageCharCount: number;
 
-    constructor(identity: IdentityWithSecrets, maxMessageCharCount = 10000) {
+    constructor(identity: IdentityWithSecrets, port: number, maxMessageCharCount = 10000) {
         this.identity = identity;
+        this.port = port;
         this.maxMessageCharCount = maxMessageCharCount;
     }
 
@@ -25,8 +27,6 @@ export default class PasswordRecoveryServer {
             throw new Error('Password recovery server is already started.');
         }
 
-        const urlp = new URL(this.identity.commServerUrl);
-
         return new Promise<void>((resolve, reject) => {
             const server = http.createServer(this.handleRequest.bind(this));
 
@@ -34,7 +34,7 @@ export default class PasswordRecoveryServer {
                 reject(err);
             });
 
-            server.listen(urlp.port, () => {
+            server.listen(this.port, () => {
                 this.server = server;
                 resolve();
             });

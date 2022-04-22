@@ -3,31 +3,36 @@ import PasswordRecoveryServer from '../../misc/PasswordRecoveryService/PasswordR
 import {mkdir, writeFile} from 'fs/promises';
 import path from 'path';
 
-function parseCommandLine(argv: string[]): {outputFolder: string; identityFileName: string} {
+function parseCommandLine(argv: string[]): {
+    outputFolder: string;
+    identityFileName: string;
+    port: number;
+} {
     function getUsage() {
-        return `usage: ${argv[0]} ${argv[1]} [outputFolder] [identityFileName]`;
+        return `usage: node PasswordRecoveryServer.js [port] [outputFolder] [identityFileName]`;
     }
 
-    if (argv.length > 4) {
+    if (argv.length > 5 || argv.includes('-h')) {
         console.error(getUsage());
         process.exit(1);
     }
 
     const params = {
         outputFolder: 'passwordRecoveryRequests',
-        identityFileName: 'pw_secret.id.json'
+        identityFileName: 'pw_secret.id.json',
+        port: 8080
     };
 
     if (argv.length >= 3) {
-        params.outputFolder = argv[2];
-        if (argv[2] === '-h') {
-            console.log(getUsage());
-            process.exit(0);
-        }
+        params.port = parseInt(argv[2]);
     }
 
     if (argv.length >= 4) {
-        params.identityFileName = argv[3];
+        params.outputFolder = argv[3];
+    }
+
+    if (argv.length >= 5) {
+        params.identityFileName = argv[4];
     }
 
     return params;
@@ -39,14 +44,18 @@ async function main(): Promise<void> {
 
     await mkdir(cmdArgs.outputFolder, {recursive: true});
 
-    const server = new PasswordRecoveryServer(identity);
+    const server = new PasswordRecoveryServer(identity, cmdArgs.port);
     server.onPasswordRecoveryRequest(request => {
         console.log('Received request');
         writeFile(path.join(cmdArgs.outputFolder, Date.now().toString()), JSON.stringify(request));
     });
+
     process.on('SIGINT', () => {
+        console.log(`PasswordRecoveryServer port ${cmdArgs.port} shutdown.`);
         server.stop();
     });
+
+    console.log(`PasswordRecoveryServer port ${cmdArgs.port} start.`);
     await server.start();
 }
 
