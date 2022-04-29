@@ -1,4 +1,5 @@
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {EncryptedConnectionInterface} from '@refinio/one.core/lib/websocket-promisifier';
 import {OEvent} from '../OEvent';
 import MultiPromise from '../MultiPromise';
 import type {IConnection} from './IConnection';
@@ -9,6 +10,7 @@ import WebSocketPlugin from './plugins/WebSocketPlugin';
 import type EncryptionPlugin from './plugins/EncryptionPlugin';
 import type {PingPlugin, PongPlugin} from './plugins/PingPongPlugin';
 import {StateMachine} from '../StateMachine';
+
 const MessageBus = createMessageBus('Connection');
 const MessageBus_connectionLifecycle = createMessageBus('Connection Lifecycle');
 
@@ -21,7 +23,7 @@ const MessageBus_connectionLifecycle = createMessageBus('Connection Lifecycle');
  * disableWaitForMessage to true, because otherwise you will get an error that you didn't collect
  * incoming messages with waitFor... functions.
  */
-export default class Connection implements IConnection {
+export default class Connection implements IConnection, EncryptedConnectionInterface {
     /**
      *
      */
@@ -37,6 +39,16 @@ export default class Connection implements IConnection {
     // Members for unique id management for logging
     private static idCounter: number = 0;
     public readonly id: number = ++Connection.idCounter;
+
+    public get bufferedAmount() {
+        const ws = this.websocketPlugin().webSocket;
+
+        if (ws === null) {
+            throw new Error('No websocket available yet');
+        }
+
+        return ws.bufferedAmount;
+    }
 
     /**
      * Construct a new connection - at the moment based on WebSockets
