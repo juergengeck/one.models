@@ -40,6 +40,10 @@ export default class Connection implements IConnection, EncryptedConnectionInter
     private static idCounter: number = 0;
     public readonly id: number = ++Connection.idCounter;
 
+    /**
+     * Chum streams use the websocket bufferedAmount number to control how fast the streams
+     * provide data to the websocket stream.
+     */
     public get bufferedAmount() {
         const ws = this.websocketPlugin().webSocket;
 
