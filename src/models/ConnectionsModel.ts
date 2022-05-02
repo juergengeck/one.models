@@ -1856,14 +1856,14 @@ class ConnectionsModel extends Model {
         // why we need to ignore the below error, because after compilation
         // the types of the websockets will be the same.
         const websocketPromisifierAPI = createWebsocketPromisifier(conn);
-        websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
-        websocketPromisifierAPI.localPersonIdHash = localPersonId;
 
         // Start the chum
         await createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             {
                 connection: websocketPromisifierAPI,
+                remotePersonId,
+                localPersonId,
 
                 // used only for logging purpose
                 chumName: 'ConnectionsChum',
