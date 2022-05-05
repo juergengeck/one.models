@@ -21,9 +21,6 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {Plan} from '@refinio/one.core/lib/recipes';
 
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-
 /**
  * Model that manages the creation of chat topics.
  */

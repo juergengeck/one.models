@@ -16,10 +16,6 @@ import type {
     PersonDescriptionTypeNames
 } from '../../recipes/Leute/PersonDescriptions';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import type {Plan} from '@refinio/one.core/lib/recipes';
-
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 
 /**
  * This class is a nicer frontend for the Someone recipe.
@@ -329,8 +325,7 @@ export default class SomeoneModel {
                 mainProfile: this.someone.mainProfile,
                 identity: identities
             },
-            this.pLoadedVersion,
-            DUMMY_PLAN_HASH
+            this.pLoadedVersion
         );
 
         await this.updateModelDataFromSomeone(result.obj, result.hash);

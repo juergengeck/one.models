@@ -9,16 +9,15 @@ import {
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {getObjectByIdHash, storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {Plan} from '@refinio/one.core/lib/recipes';
+import {
+    getObjectByIdHash,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {Model} from '../Model';
 
-const DUMMY_PLAN_HASH =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-const DUMMY_BLOB_HASH =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<BLOB>;
+const DUMMY_BLOB_HASH = '0'.repeat(64) as SHA256Hash<BLOB>;
 
 export default class GroupModel extends Model {
     public readonly groupIdHash: SHA256IdHash<Group>;
@@ -129,7 +128,7 @@ export default class GroupModel extends Model {
             name: groupName || (await createRandomString(32)),
             person: []
         };
-        const groupResult = await storeVersionedObject(newGroup, DUMMY_PLAN_HASH);
+        const groupResult = await storeVersionedObject(newGroup);
 
         const newGroupProfile: GroupProfile = {
             $type$: 'GroupProfile',
@@ -137,11 +136,7 @@ export default class GroupModel extends Model {
             name: groupName || 'unnamed group',
             picture: DUMMY_BLOB_HASH
         };
-        const groupProfileResult = await storeVersionedObjectCRDT(
-            newGroupProfile,
-            undefined,
-            DUMMY_PLAN_HASH
-        );
+        const groupProfileResult = await storeVersionedObjectCRDT(newGroupProfile, undefined);
 
         const newModel = new GroupModel(groupResult.idHash, groupProfileResult.idHash);
         await newModel.loadLatestVersion();
@@ -225,7 +220,7 @@ export default class GroupModel extends Model {
     /**
      * Save the profile to disk and load the latest version.
      *
-     * Why is there no pure save() function? The cause are crdts. The object that is eventually
+     * Why is there no pure save() function? The cause are CRDTs. The object that is eventually
      * written to disk might differ from the current state of this instance. This happens when new
      * data was received via chum since the last load. This means that we don't have a hash
      * representing the current state.
@@ -244,7 +239,7 @@ export default class GroupModel extends Model {
         }
 
         // Write image blob
-        let blobHash: SHA256Hash<BLOB> = DUMMY_BLOB_HASH;
+        let blobHash = DUMMY_BLOB_HASH;
         if (this.picture) {
             const stream = createFileWriteStream();
             stream.write(this.picture);
@@ -259,18 +254,14 @@ export default class GroupModel extends Model {
                 name: this.name,
                 picture: blobHash
             },
-            this.pLoadedVersion,
-            DUMMY_PLAN_HASH
+            this.pLoadedVersion
         );
 
-        const groupResult = await storeVersionedObject(
-            {
-                $type$: 'Group',
-                name: this.internalGroupName,
-                person: this.persons
-            },
-            DUMMY_PLAN_HASH
-        );
+        const groupResult = await storeVersionedObject({
+            $type$: 'Group',
+            name: this.internalGroupName,
+            person: this.persons
+        });
 
         await this.updateModelDataFromGroupAndProfile(
             groupResult.obj,
