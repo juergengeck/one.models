@@ -24,9 +24,6 @@ import {
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {isHash} from '@refinio/one.core/lib/util/type-checks';
 
-const DUMMY_PLAN_HASH =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-
 // ######## Identity types ########
 
 /**
@@ -178,13 +175,10 @@ export async function convertIdentityToOneInstanceEndpoint(
         ).idHash;
     } catch (_ignore) {
         personHash = (
-            await storeVersionedObject(
-                {
-                    $type$: 'Person',
-                    email: identity.personEmail
-                },
-                DUMMY_PLAN_HASH
-            )
+            await storeVersionedObject({
+                $type$: 'Person',
+                email: identity.personEmail
+            })
         ).idHash;
     }
 
@@ -213,17 +207,14 @@ export async function convertIdentityToOneInstanceEndpoint(
         ).idHash;
     } catch (_ignore) {
         instanceHash = (
-            await storeVersionedObject(
-                {
-                    $type$: 'Instance',
-                    name: identity.instanceName,
-                    owner: personHash,
-                    recipe: [],
-                    module: [],
-                    enabledReverseMapTypes: new Map()
-                },
-                DUMMY_PLAN_HASH
-            )
+            await storeVersionedObject({
+                $type$: 'Instance',
+                name: identity.instanceName,
+                owner: personHash,
+                recipe: [],
+                module: [],
+                enabledReverseMapTypes: new Map()
+            })
         ).idHash;
     }
 

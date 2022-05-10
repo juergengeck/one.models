@@ -14,8 +14,6 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 let useReverseMaps: boolean = true;
 
 /**
@@ -221,5 +219,5 @@ async function loadMetaObjectMap(objHash: SHA256Hash | SHA256IdHash): Promise<Me
  * @param metaObjectMap
  */
 async function saveMetaObjectMap(metaObjectMap: MetaObjectMap) {
-    await storeVersionedObject(metaObjectMap, DUMMY_PLAN_HASH);
+    await storeVersionedObject(metaObjectMap);
 }

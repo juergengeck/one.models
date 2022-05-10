@@ -47,9 +47,6 @@ import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import GroupModel from './GroupModel';
 import {Model} from '../Model';
 
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-
 /**
  * This class manages people - to be precise: their identities including your own.
  *
@@ -645,13 +642,10 @@ export default class LeuteModel extends Model {
      */
     private static async createIdentity(): Promise<SHA256IdHash<Person>> {
         const newPersonEmail = await createRandomString(32);
-        const result = await storeVersionedObject(
-            {
-                $type$: 'Person',
-                email: newPersonEmail
-            },
-            DUMMY_PLAN_HASH
-        );
+        const result = await storeVersionedObject({
+            $type$: 'Person',
+            email: newPersonEmail
+        });
         return result.idHash;
     }
 
@@ -789,11 +783,7 @@ export default class LeuteModel extends Model {
             throw new Error('No leute data that could be saved');
         }
 
-        const result = await storeVersionedObjectCRDT(
-            this.leute,
-            this.pLoadedVersion,
-            DUMMY_PLAN_HASH
-        );
+        const result = await storeVersionedObjectCRDT(this.leute, this.pLoadedVersion);
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
 

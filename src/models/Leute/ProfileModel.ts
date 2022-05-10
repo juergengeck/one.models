@@ -24,9 +24,6 @@ import type {Plan} from '@refinio/one.core/lib/recipes';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {BLOB} from '@refinio/one.core/lib/recipes';
 
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
-
 /**
  * This class is a nicer frontend for the Profile recipe.
  *
@@ -359,8 +356,7 @@ export default class ProfileModel {
                 communicationEndpoint: epHashes.map(ep => ep.hash),
                 personDescription: descHashes.map(desc => desc.hash)
             },
-            this.pLoadedVersion,
-            DUMMY_PLAN_HASH
+            this.pLoadedVersion
         );
 
         await this.updateModelDataFromProfile(result.obj, result.hash);

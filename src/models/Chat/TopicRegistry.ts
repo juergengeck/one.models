@@ -9,11 +9,6 @@ import {
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {Plan} from '@refinio/one.core/lib/recipes';
-
-const DUMMY_PLAN_HASH: SHA256Hash<Plan> =
-    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<Plan>;
 
 /**
  * Registry that holds references to all the created topics.
@@ -106,14 +101,11 @@ export default class TopicRegistry {
             return await getObjectByIdObj({$type$: 'TopicAppRegistry', id: this.id});
         } catch (e) {
             if (e.name === 'FileNotFoundError') {
-                return await storeVersionedObject(
-                    {
-                        $type$: 'TopicAppRegistry',
-                        id: TopicRegistry.id,
-                        topics: new Map()
-                    },
-                    DUMMY_PLAN_HASH
-                );
+                return await storeVersionedObject({
+                    $type$: 'TopicAppRegistry',
+                    id: TopicRegistry.id,
+                    topics: new Map()
+                });
             }
 
             throw e;
@@ -126,13 +118,10 @@ export default class TopicRegistry {
      * @private
      */
     private static async updateTopicRegistry(topics: TopicAppRegistry['topics']): Promise<void> {
-        await storeVersionedObject(
-            {
-                $type$: 'TopicAppRegistry',
-                id: TopicRegistry.id,
-                topics: topics
-            },
-            DUMMY_PLAN_HASH
-        );
+        await storeVersionedObject({
+            $type$: 'TopicAppRegistry',
+            id: TopicRegistry.id,
+            topics: topics
+        });
     }
 }

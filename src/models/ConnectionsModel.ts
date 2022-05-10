@@ -49,6 +49,7 @@ import {
     convertIdentityToProfile,
     convertOneInstanceEndpointToIdentity
 } from '../misc/IdentityExchange';
+import {createChum} from '@refinio/one.core/lib/chum-sync';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -1857,23 +1858,18 @@ class ConnectionsModel extends Model {
         // the types of the websockets will be the same.
         const websocketPromisifierAPI = createWebsocketPromisifier(conn);
 
-        // Start the chum
-        await createSingleObjectThroughImpurePlan(
-            {module: '@one/chum-sync'},
-            {
-                connection: websocketPromisifierAPI,
-                remotePersonId,
-                localPersonId,
+        await createChum({
+            connection: websocketPromisifierAPI,
+            remotePersonId,
 
-                // used only for logging purpose
-                chumName: 'ConnectionsChum',
-                localInstanceName: uint8arrayToHexString(localPublicInstanceKey),
-                remoteInstanceName: uint8arrayToHexString(remotePublicInstanceKey),
+            // used only for logging purpose
+            chumName: 'ConnectionsChum',
+            localInstanceName: uint8arrayToHexString(localPublicInstanceKey),
+            remoteInstanceName: uint8arrayToHexString(remotePublicInstanceKey),
 
-                keepRunning,
-                maxNotificationDelay: 20
-            }
-        );
+            keepRunning,
+            maxNotificationDelay: 20
+        }).promise;
     }
 
     /**
