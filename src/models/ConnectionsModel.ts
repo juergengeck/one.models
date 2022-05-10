@@ -2,11 +2,7 @@ import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
-import {
-    createWebsocketPromisifier,
-    EncryptedConnectionInterface,
-    WebSocketPromiseBasedInterface
-} from '@refinio/one.core/lib/websocket-promisifier';
+import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
@@ -141,47 +137,6 @@ type PkAuthenticationTokenInfo = {
     salt: Uint8Array;
     expirationTimeoutHandle: ReturnType<typeof setTimeout>;
 };
-
-class EncryptedConnectionForOneCore extends EventEmitter implements EncryptedConnectionInterface {
-    private connection: Connection;
-    public webSocketPB: WebSocketPromiseBasedInterface;
-
-    constructor(connection: Connection) {
-        super();
-        this.connection = connection;
-        this.webSocketPB = {
-            get webSocket(): WebSocket | null {
-                return connection.websocketPlugin().webSocket;
-            }
-        };
-        this.connection.onMessage(message => {
-            if (typeof message === 'string') {
-                this.emit('message', new TextEncoder().encode(message));
-            } else {
-                this.emit('message', message);
-            }
-        });
-    }
-
-    set switchToEvents(arg: boolean) {}
-
-    get switchToEvents(): boolean {
-        return true;
-    }
-
-    close(reason?: string): void {
-        this.connection.close(reason);
-    }
-
-    async sendMessage(data: string): Promise<void> {
-        this.connection.send(data);
-    }
-
-    async sendBinaryMessage(data: Uint8Array): Promise<void> {
-        this.connection.send(data);
-        return Promise.resolve();
-    }
-}
 
 /**
  * This model manages all connections including pairing scenarios etc.
@@ -1895,28 +1850,20 @@ class ConnectionsModel extends Model {
         await conn.promisePlugin().waitForMessage();
         conn.removePlugin('promise');
 
-        const minimalWriteStorageApiObj = {
-            createFileWriteStream: createFileWriteStream
-        } as WriteStorageApi;
-
         // Core takes either the ws package or the default websocket
         // depending on for what environment it was compiled. In this
         // project we use the isomorphic-ws library for this. This is
         // why we need to ignore the below error, because after compilation
         // the types of the websockets will be the same.
-        const websocketPromisifierAPI = createWebsocketPromisifier(
-            minimalWriteStorageApiObj,
-            // TODO: Fix incompatibility of EncryptedConnectionInterface and EncryptedConnection
-            new EncryptedConnectionForOneCore(conn)
-        );
-        websocketPromisifierAPI.remotePersonIdHash = remotePersonId;
-        websocketPromisifierAPI.localPersonIdHash = localPersonId;
+        const websocketPromisifierAPI = createWebsocketPromisifier(conn);
 
         // Start the chum
         await createSingleObjectThroughImpurePlan(
             {module: '@one/chum-sync'},
             {
                 connection: websocketPromisifierAPI,
+                remotePersonId,
+                localPersonId,
 
                 // used only for logging purpose
                 chumName: 'ConnectionsChum',

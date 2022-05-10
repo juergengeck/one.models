@@ -11,7 +11,7 @@ export const defaultDbName = 'testDb';
 
 export interface StorageHelpersInitOpts {
     email?: string;
-    secret?: string | null;
+    secret?: string;
     secretEncryptionKey?: HexString;
     publicEncryptionKey?: HexString;
     secretSignKey?: HexString;
