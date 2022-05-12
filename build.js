@@ -254,9 +254,9 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         BABEL_OPTS.filename = file;
 
         const fileExtension =
-          targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
-            ? '.mjs'
-            : '.js';
+            targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
+                ? '.mjs'
+                : '.js';
 
         console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
 
@@ -312,17 +312,17 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-              `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
-              (dir === 'test' ? 'test' : targetDir),
-              {
-                  stdio: 'inherit'
-              }
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
+                    (dir === 'test' ? 'test' : targetDir),
+                {
+                    stdio: 'inherit'
+                }
             );
         } catch (/** @type any */ err) {
             console.error(
-              '\ntsc failed with ' +
-              err.message +
-              '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+                '\ntsc failed with ' +
+                    err.message +
+                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
             );
         }
     }
@@ -365,11 +365,11 @@ async function findHighestPkgJsonRefinioPlatform() {
             if (isValidPlatformString(refinio.platform)) {
                 system = refinio.platform;
                 console.log(
-                  `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                    `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
                 );
             } else {
                 console.log(
-                  `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                    `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
                 );
             }
         }
@@ -425,7 +425,7 @@ function setModuleTarget() {
 
         default:
             throw new Error(
-              'Option -m detected but no valid module system string (see usage with -h)'
+                'Option -m detected but no valid module system string (see usage with -h)'
             );
     }
 
@@ -489,11 +489,11 @@ async function run() {
         }
 
         return transformAndWriteJsFile(
-          destination,
-          dirname(singleFile),
-          basename(singleFile),
-          system,
-          moduleTarget
+            destination,
+            dirname(singleFile),
+            basename(singleFile),
+            system,
+            moduleTarget
         );
     }
 
@@ -516,21 +516,21 @@ function runBuilForAllTargets() {
     for (const platform of Object.keys(PLATFORMS)) {
         for (const moduleSystem of PLATFORMS[platform]) {
             execSync(
-              `node ./build.js ${platform} -t ${join(
-                'builds',
-                platform
-              )}.${moduleSystem} -m ${moduleSystem}`,
-              {stdio: 'inherit'}
+                `node ./build.js ${platform} -t ${join(
+                    'builds',
+                    platform
+                )}.${moduleSystem} -m ${moduleSystem}`,
+                {stdio: 'inherit'}
             );
         }
     }
 }
 
 if (
-  process.argv.includes('h') ||
-  process.argv.includes('-h') ||
-  process.argv.includes('help') ||
-  process.argv.includes('--help')
+    process.argv.includes('h') ||
+    process.argv.includes('-h') ||
+    process.argv.includes('help') ||
+    process.argv.includes('--help')
 ) {
     usage();
     process.exit(0);
