@@ -254,9 +254,9 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         BABEL_OPTS.filename = file;
 
         const fileExtension =
-            targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
-                ? '.mjs'
-                : '.js';
+          targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
+            ? '.mjs'
+            : '.js';
 
         console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
 
@@ -294,11 +294,9 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 
 /**
  * @param {string} targetDir
- * @returns {Promise<boolean>}
+ * @returns {Promise<void>}
  */
 async function createDeclarationFiles(targetDir) {
-    let failed = false;
-
     for (const dir of ['src', 'test']) {
         console.log(`Calling tsc for ${dir} to create declaration and map files...`);
 
@@ -314,23 +312,20 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
-                    (dir === 'test' ? 'test' : targetDir),
-                {
-                    stdio: 'inherit'
-                }
+              `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
+              (dir === 'test' ? 'test' : targetDir),
+              {
+                  stdio: 'inherit'
+              }
             );
         } catch (/** @type any */ err) {
-            failed = true;
             console.error(
-                '\ntsc failed with ' +
-                    err.message +
-                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+              '\ntsc failed with ' +
+              err.message +
+              '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
             );
         }
     }
-
-    return failed;
 }
 
 /**
@@ -370,11 +365,11 @@ async function findHighestPkgJsonRefinioPlatform() {
             if (isValidPlatformString(refinio.platform)) {
                 system = refinio.platform;
                 console.log(
-                    `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                  `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
                 );
             } else {
                 console.log(
-                    `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                  `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
                 );
             }
         }
@@ -430,7 +425,7 @@ function setModuleTarget() {
 
         default:
             throw new Error(
-                'Option -m detected but no valid module system string (see usage with -h)'
+              'Option -m detected but no valid module system string (see usage with -h)'
             );
     }
 
@@ -494,11 +489,11 @@ async function run() {
         }
 
         return transformAndWriteJsFile(
-            destination,
-            dirname(singleFile),
-            basename(singleFile),
-            system,
-            moduleTarget
+          destination,
+          dirname(singleFile),
+          basename(singleFile),
+          system,
+          moduleTarget
         );
     }
 
@@ -508,19 +503,10 @@ async function run() {
 
     await deleteDirectory(targetDir);
     await processAllFiles('src', targetDir, system, moduleTarget);
-    const failed = await createDeclarationFiles(targetDir);
+    await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system, moduleTarget);
 
     console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
-
-    // Only fail on nodejs - browser still has some errors because of node specific code in
-    // tests and other files
-    if (failed && system === 'nodejs') {
-        throw new Error(
-            'Tsc failed for at least one source file. Look at the console output for' +
-                ' further information.'
-        );
-    }
 }
 
 /**
@@ -530,21 +516,21 @@ function runBuilForAllTargets() {
     for (const platform of Object.keys(PLATFORMS)) {
         for (const moduleSystem of PLATFORMS[platform]) {
             execSync(
-                `node ./build.js ${platform} -t ${join(
-                    'builds',
-                    platform
-                )}.${moduleSystem} -m ${moduleSystem}`,
-                {stdio: 'inherit'}
+              `node ./build.js ${platform} -t ${join(
+                'builds',
+                platform
+              )}.${moduleSystem} -m ${moduleSystem}`,
+              {stdio: 'inherit'}
             );
         }
     }
 }
 
 if (
-    process.argv.includes('h') ||
-    process.argv.includes('-h') ||
-    process.argv.includes('help') ||
-    process.argv.includes('--help')
+  process.argv.includes('h') ||
+  process.argv.includes('-h') ||
+  process.argv.includes('help') ||
+  process.argv.includes('--help')
 ) {
     usage();
     process.exit(0);
