@@ -81,13 +81,16 @@ export default class ConsentModel extends Model {
                 count: 1
             });
 
-            const latestSignature = await getObjectWithType(
-                latestChannelEntry[0].dataHash,
-                'Signature'
-            );
-            const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
+            // latest consent can be empty e.g. in a replicant
+            if (latestChannelEntry.length > 0) {
+                const latestSignature = await getObjectWithType(
+                    latestChannelEntry[0].dataHash,
+                    'Signature'
+                );
+                const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
 
-            this.setState(latestConsent.status);
+                this.setState(latestConsent.status);
+            }
         } else {
             // write all queued consents
             for (const fileStatusTuple of this.consentsToWrite) {
