@@ -78,7 +78,7 @@ export default class ConsentModel extends Model {
         if (this.consentsToWrite.length == 0) {
             const latestChannelEntry = await this.channelManager.getObjects({
                 channelId: ConsentModel.channelId,
-                count: 1
+                count: 'asdf'
             });
 
             // The latest consent can be empty e.g. in a replicant
