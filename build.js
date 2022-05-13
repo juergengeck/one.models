@@ -294,11 +294,9 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 
 /**
  * @param {string} targetDir
- * @returns {Promise<boolean>}
+ * @returns {Promise<void>}
  */
 async function createDeclarationFiles(targetDir) {
-    let failed = false;
-
     for (const dir of ['src', 'test']) {
         console.log(`Calling tsc for ${dir} to create declaration and map files...`);
 
@@ -321,7 +319,6 @@ async function createDeclarationFiles(targetDir) {
                 }
             );
         } catch (/** @type any */ err) {
-            failed = true;
             console.error(
                 '\ntsc failed with ' +
                     err.message +
@@ -329,8 +326,6 @@ async function createDeclarationFiles(targetDir) {
             );
         }
     }
-
-    return failed;
 }
 
 /**
@@ -508,19 +503,10 @@ async function run() {
 
     await deleteDirectory(targetDir);
     await processAllFiles('src', targetDir, system, moduleTarget);
-    const failed = await createDeclarationFiles(targetDir);
+    await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system, moduleTarget);
 
     console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
-
-    // Only fail on nodejs - browser still has some errors because of node specific code in
-    // tests and other files
-    if (failed && system === 'nodejs') {
-        throw new Error(
-            'Tsc failed for at least one source file. Look at the console output for' +
-                ' further information.'
-        );
-    }
 }
 
 /**
