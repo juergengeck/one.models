@@ -15,6 +15,7 @@ import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
 import TopicModel from './Chat/TopicModel';
+import ConsentModel from './ConsentModel';
 
 /** for one line imports **/
 export {
@@ -35,5 +36,6 @@ export {
     HeartEventModel,
     ConnectionsModel,
     LeuteModel,
-    TopicModel
+    TopicModel,
+    ConsentModel
 };

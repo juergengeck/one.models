@@ -74,28 +74,31 @@ export default class ConsentModel extends Model {
 
         await this.channelManager.createChannel(ConsentModel.channelId);
 
-        // update state from storage if no queued consents are present
+        // Update state from storage if no queued consents are present
         if (this.consentsToWrite.length == 0) {
             const latestChannelEntry = await this.channelManager.getObjects({
                 channelId: ConsentModel.channelId,
                 count: 1
             });
 
-            const latestSignature = await getObjectWithType(
-                latestChannelEntry[0].dataHash,
-                'Signature'
-            );
-            const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
+            // The latest consent can be empty e.g. in a replicant
+            if (latestChannelEntry.length > 0) {
+                const latestSignature = await getObjectWithType(
+                    latestChannelEntry[0].dataHash,
+                    'Signature'
+                );
+                const latestConsent = await getObjectWithType(latestSignature.data, 'Consent');
 
-            this.setState(latestConsent.status);
+                this.setState(latestConsent.status);
+            }
         } else {
-            // write all queued consents
+            // Write all queued consents
             for (const fileStatusTuple of this.consentsToWrite) {
                 const [file, status] = fileStatusTuple;
                 await this.writeConsent(file, status);
             }
 
-            // cleanup the queue
+            // Cleanup the queue
             this.consentsToWrite = [];
         }
 
@@ -103,10 +106,14 @@ export default class ConsentModel extends Model {
         const allChannelEntrys = await this.channelManager.getObjects({
             channelId: ConsentModel.channelId
         });
-        const firstChannelEntry = allChannelEntrys[0];
-        const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
-        const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
-        this.firstConsentDate = new Date(firstConsent.isoStringDate);
+
+        // The channel can be empty
+        if (allChannelEntrys.length > 0) {
+            const firstChannelEntry = allChannelEntrys[0];
+            const firstSignature = await getObjectWithType(firstChannelEntry.dataHash, 'Signature');
+            const firstConsent = await getObjectWithType(firstSignature.data, 'Consent');
+            this.firstConsentDate = new Date(firstConsent.isoStringDate);
+        }
 
         this.state.triggerEvent('init');
     }

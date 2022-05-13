@@ -27,6 +27,11 @@ describe('Consent', () => {
         expect(consentModel.consentState.currentState).to.equal('Uninitialised');
     });
 
+    it('should init without consent', async function () {
+        const consentModel = new ConsentModel();
+        await consentModel.init(testModel.channelManager);
+    });
+
     it('should add a conset to the queue', async function () {
         const consentModel = new ConsentModel();
         const consentFile = buildTestFile();
