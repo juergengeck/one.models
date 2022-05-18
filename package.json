@@ -11,7 +11,7 @@
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
     "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
-    "install": "node ./build.js",
+    "prepare": "node ./build.js",
     "start": "node lib/model/index.js",
     "test": "npx --no-install mocha --exit test/**/**-test.js",
     "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**/**-test.js",
@@ -23,7 +23,7 @@
     "bundle": "npx --no-install webpack"
   },
   "dependencies": {
-    "@refinio/one.core": "^0.3.14",
+    "@refinio/one.core": "^0.3.15",
     "i18next": "*",
     "isomorphic-ws": "*",
     "jsesc": "*",

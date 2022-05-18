@@ -48,6 +48,5 @@ jobs:
 
             - name: Run Tests
               run: |
-                  node build-for-action.js
                   npm run test                  
                   npm run bundle
