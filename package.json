@@ -11,7 +11,7 @@
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
     "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
-    "prepare": "node ./build.js",
+    "install": "node ./build.js",
     "start": "node lib/model/index.js",
     "test": "npx --no-install mocha --exit test/**/**-test.js",
     "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**/**-test.js",
@@ -22,6 +22,14 @@
     "start-state-machine": "node lib/tools/StateMachine",
     "bundle": "npx --no-install webpack"
   },
+  "files": [
+    "src",
+    "plans",
+    "lib",
+    "test",
+    "build.js",
+    "build_plan_modules.js"
+  ],
   "dependencies": {
     "@refinio/one.core": "^0.3.15",
     "i18next": "*",
