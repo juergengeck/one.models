@@ -19,7 +19,7 @@ export async function createTestIdentity(email: string): Promise<{
 }> {
     const keyPair = tweetnacl.box.keyPair();
     const signKeyPair = tweetnacl.sign.keyPair();
-    const personResult = await storeVersionedObject({
+    const personResult = await storeVersionedObject<Person>({
         $type$: 'Person',
         email
     });
@@ -27,7 +27,7 @@ export async function createTestIdentity(email: string): Promise<{
         throw new Error('The person with the specified ID already exists.');
     }
     const keys = (
-        await storeUnversionedObject({
+        await storeUnversionedObject<Keys>({
             $type$: 'Keys',
             owner: personResult.idHash,
             publicKey: uint8arrayToHexString(keyPair.publicKey),
