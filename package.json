@@ -31,7 +31,6 @@
     "build_plan_modules.js"
   ],
   "dependencies": {
-    "@refinio/one.core": "^0.3.15",
     "@types/ws": "*",
     "i18next": "*",
     "isomorphic-ws": "*",
@@ -39,6 +38,9 @@
     "ts-loader": "*",
     "ws": "*",
     "yargs": "*"
+  },
+  "peerDependencies": {
+    "@refinio/one.core": "0.3.15"
   },
   "devDependencies": {
     "@babel/core": "*",
