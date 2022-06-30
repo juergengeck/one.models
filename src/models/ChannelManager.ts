@@ -101,8 +101,8 @@ export enum Order {
 export type ChannelSelectionOptions = {
     channelId?: string; // Query channels that have this id
     channelIds?: string[]; // Query channels that have one of these ids.
-    owner?: SHA256IdHash<Person>; // Query channels that have this owner.
-    owners?: SHA256IdHash<Person>[]; // Query channels that have one of these owners.
+    owner?: SHA256IdHash<Person> | null; // Query channels that have this owner.
+    owners?: (SHA256IdHash<Person> | null)[]; // Query channels that have one of these owners.
     channel?: Channel; // Query this channel
     channels?: Channel[]; // Query these channels
 
@@ -831,7 +831,7 @@ export default class ChannelManager {
      * @param ids
      * @returns
      */
-    private static async *singleChannelObjectIterator(
+    public static async *singleChannelObjectIterator(
         channelInfo: ChannelInfo,
         from?: Date,
         to?: Date,
@@ -989,6 +989,11 @@ export default class ChannelManager {
      * Then this iterator implementation would return the items with these creation times:
      * 9, 8, 7, 6, 5, 4, 3, 2, 1
      *
+     * When two or more iterators reach the same history, then the first iterator in the iterator
+     * list will continue iterating. The other iterators will stop. This is relevant if one
+     * iterator is faster than the other (because one iterator iterates over cached values
+     * instead of one objects -> e.g. an elemnt cache in ui elements.)
+     *
      * @param  iterators
      * @param terminateOnSingleIterator - If true, then stop iteration when all but
      * one iterator reached their end. The first element of the last iterator is still returned,
@@ -1000,14 +1005,16 @@ export default class ChannelManager {
      * will be yielded as last element
      * @param onlyDifferentElements - If true (default false) only elements that are only in a
      * single channel are yielded.
-     * @returns
+     * @returns the RawChannelEntry, iterIndex (the index of the iterator in the iterators
+     * array that yielded this RawChannelEntry), activeIteratorCount (number of iterators that
+     * were active when this element was yielded)
      */
-    private static async *mergeIteratorMostCurrent(
+    public static async *mergeIteratorMostCurrent(
         iterators: AsyncIterableIterator<RawChannelEntry>[],
         terminateOnSingleIterator: boolean = false,
         yieldCommonHistoryElement: boolean = true,
         onlyDifferentElements: boolean = false
-    ): AsyncIterableIterator<RawChannelEntry> {
+    ): AsyncIterableIterator<RawChannelEntry & {iterIndex: number; activeIteratorCount: number}> {
         logWithId(null, null, `mergeIteratorMostCurrent - ENTER: ${iterators.length} iterators`);
 
         // This array holds the topmost value of each iterator
@@ -1029,7 +1036,7 @@ export default class ChannelManager {
             // determine the largest element in currentValues
             let mostCurrentItem: RawChannelEntry | undefined = undefined;
             let mostCurrentIndex: number = 0;
-            let activeIterators: number = 0;
+            let activeIteratorCount: number = 0;
 
             for (let i = 0; i < currentValues.length; i++) {
                 const currentValue = currentValues[i];
@@ -1038,7 +1045,7 @@ export default class ChannelManager {
                 if (currentValue === undefined) {
                     continue;
                 } else {
-                    ++activeIterators;
+                    ++activeIteratorCount;
                 }
 
                 // This checks whether we have an element to compare to (so i is at least 1)
@@ -1069,7 +1076,7 @@ export default class ChannelManager {
                         // Thus the corresponding iterator will never be advanced again, so
                         // we effectively removed the duplicate history from the iteration
                         currentValues[i] = undefined;
-                        --activeIterators;
+                        --activeIteratorCount;
                         continue;
                     }
                 }
@@ -1125,7 +1132,11 @@ export default class ChannelManager {
             // If we have one active iterator remaining and the user requested it, we terminate
             // This is done before the yield, because we want the first element of the remaining
             // iterator not to be returned.
-            if (terminateOnSingleIterator && !yieldCommonHistoryElement && activeIterators === 1) {
+            if (
+                terminateOnSingleIterator &&
+                !yieldCommonHistoryElement &&
+                activeIteratorCount === 1
+            ) {
                 break;
             }
 
@@ -1149,7 +1160,11 @@ export default class ChannelManager {
                 );
 
                 // Yield the value that has the highest creationTime
-                yield mostCurrentItem;
+                yield {
+                    ...mostCurrentItem,
+                    iterIndex: mostCurrentIndex,
+                    activeIteratorCount
+                };
 
                 // If we have one active iterator remaining and the user requested it, we terminate
                 // This is done after the yield, because we want the first element of the remaining
@@ -1157,7 +1172,7 @@ export default class ChannelManager {
                 if (
                     terminateOnSingleIterator &&
                     yieldCommonHistoryElement &&
-                    activeIterators === 1
+                    activeIteratorCount === 1
                 ) {
                     break;
                 }
@@ -1463,7 +1478,7 @@ export default class ChannelManager {
      * @param options
      * @returns
      */
-    private async getMatchingChannelInfos(
+    public async getMatchingChannelInfos(
         options?: ChannelSelectionOptions
     ): Promise<ChannelInfo[]> {
         logWithId(null, null, `getMatchingChannelInfos - START: ${JSON.stringify(options)}`);
@@ -1475,7 +1490,7 @@ export default class ChannelManager {
                 "You cannot specify 'channelId' and 'channelIds' at the same time in query options!"
             );
         }
-        if (options && options.owner && options.owners) {
+        if (options && options.owner !== undefined && options.owners) {
             throw new Error(
                 "You cannot specify 'owner' and 'owners' at the same time in query options!"
             );
@@ -1511,8 +1526,8 @@ export default class ChannelManager {
         }
 
         // Map options.owner(s) to a single variable
-        let owners: SHA256IdHash<Person>[] | null = null;
-        if (options && options.owner) {
+        let owners: (SHA256IdHash<Person> | null)[] | null = null;
+        if (options && options.owner !== undefined) {
             owners = [options.owner];
         }
         if (options && options.owners) {
@@ -1572,8 +1587,11 @@ export default class ChannelManager {
                 }
                 if (
                     owners &&
-                    channelInfo.readVersion.owner !== undefined &&
-                    !owners.includes(channelInfo.readVersion.owner)
+                    !owners.includes(
+                        channelInfo.readVersion.owner === undefined
+                            ? null
+                            : channelInfo.readVersion.owner
+                    )
                 ) {
                     continue;
                 }
