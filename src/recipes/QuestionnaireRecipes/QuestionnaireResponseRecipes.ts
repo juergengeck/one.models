@@ -83,7 +83,10 @@ export const QuestionnaireResponseRules: RecipeRule[] = [
                     // FHIR(QuestionnaireResponse): Nested questionnaire response items
                     {
                         itemprop: 'item',
-                        inheritFrom: 'QuestionnaireResponses.response.item',
+                        inheritFrom: {
+                            rule: 'QuestionnaireResponses.response',
+                            extract: 'CollectionItemType'
+                        },
                         optional: true
                     }
                 ]
