@@ -83,7 +83,7 @@ export const QuestionnaireResponseRules: RecipeRule[] = [
                     // FHIR(QuestionnaireResponse): Nested questionnaire response items
                     {
                         itemprop: 'item',
-                        inheritFrom: 'QuestionnaireResponses.response.item',
+                        inheritFrom: 'QuestionnaireResponses.hotfixdummy',
                         optional: true
                     }
                 ]
@@ -116,6 +116,38 @@ export const QuestionnaireResponsesRecipe: Recipe = {
         {
             itemprop: 'response',
             itemtype: {type: 'array', item: {type: 'object', rules: QuestionnaireResponseRules}}
+        },
+
+        // Hotfix for an inheritance bug in one.core. Do not use this field. Just for inheritance.
+        {
+            itemprop: 'hotfixdummy',
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'object',
+                    rules: [
+                        // FHIR(QuestionnaireResponse): Pointer to specific item from Questionnaire
+                        // Note: This links to the linkId of the specified questionnaire.
+                        {
+                            itemprop: 'linkId'
+                        },
+
+                        // FHIR(QuestionnaireResponse): The response(s) to the question
+                        {
+                            itemprop: 'answer',
+                            itemtype: {type: 'array', item: {type: 'object', rules: ValueRules}}
+                        },
+
+                        // FHIR(QuestionnaireResponse): Nested questionnaire response items
+                        {
+                            itemprop: 'item',
+                            inheritFrom: 'QuestionnaireResponses.hotfixdummy',
+                            optional: true
+                        }
+                    ]
+                }
+            },
+            optional: true
         }
     ]
 };
