@@ -50,7 +50,7 @@ export default class IoMRequestManager {
     // ######## model state management ########
 
     public async init(): Promise<void> {
-        messageBus.send('log', 'init');
+        messageBus.send('debug', 'init');
         this.disconnectListener = onUnversionedObj.addListener(result => {
             if (isUnversionedObjectResultOfType(result, 'IoMRequest')) {
                 this.processNewIomRequest(result);
@@ -67,7 +67,7 @@ export default class IoMRequestManager {
     }
 
     public async shutdown(): Promise<void> {
-        messageBus.send('log', 'shutdown');
+        messageBus.send('debug', 'shutdown');
         this.isInitialized = false;
         if (this.disconnectListener) {
             this.disconnectListener();
@@ -78,19 +78,23 @@ export default class IoMRequestManager {
     // ######## requests management ########
 
     async createIoMRequest(participants: SHA256IdHash<Person>[]) {
-        messageBus.send('log', `createIoMReuqest ${JSON.stringify(participants)}`);
+        messageBus.send('debug', `createIoMReuqest ${JSON.stringify(participants)}`);
         const requestResult = await storeUnversionedObject({
             $type$: 'IoMRequest',
             timestamp: Date.now(),
             participants: new Set(participants)
         });
-        messageBus.send('log', `createIoMReuqest hash - ${requestResult.hash}`);
+
+        messageBus.send(
+            'log',
+            `Create IoM Request ${requestResult.hash} with participants ${participants}`
+        );
 
         await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
     }
 
     async affirmRequest(requestHash: SHA256Hash<IoMRequest>) {
-        messageBus.send('log', `affirmRequest ${requestHash}`);
+        messageBus.send('debug', `affirmRequest ${requestHash}`);
         await IoMRequestManager.affirmRequestObj(requestHash, await getObject(requestHash));
     }
 
@@ -118,14 +122,14 @@ export default class IoMRequestManager {
         request: IoMRequest
     ): Promise<boolean> {
         messageBus.send(
-            'log',
+            'debug',
             `isRequestCompleted ${requestHash} ${JSON.stringify(request)} ${[
                 ...request.participants
             ]}`
         );
         const affirmedByPersons = new Set(await affirmedBy(requestHash));
         messageBus.send(
-            'log',
+            'debug',
             `isRequestCompleted - affirmed by ${requestHash} ${JSON.stringify([
                 ...affirmedByPersons
             ])}`
@@ -134,7 +138,7 @@ export default class IoMRequestManager {
         // Check that the sets are equal
         if (affirmedByPersons.size !== request.participants.size) {
             messageBus.send(
-                'log',
+                'debug',
                 `isRequestCompleted - size mismatch ${requestHash} ${affirmedByPersons.size} !== ${request.participants.size}`
             );
             return false;
@@ -144,14 +148,14 @@ export default class IoMRequestManager {
         for (const participant of request.participants) {
             if (!affirmedByPersons.has(participant)) {
                 messageBus.send(
-                    'log',
+                    'debug',
                     `isRequestCompleted - content mismatch ${requestHash} ${participant}`
                 );
                 return false;
             }
         }
 
-        messageBus.send('log', `isRequestCompleted - success ${requestHash}`);
+        messageBus.send('debug', `isRequestCompleted - success ${requestHash}`);
         return true;
     }
 
@@ -160,6 +164,7 @@ export default class IoMRequestManager {
         request: IoMRequest
     ): Promise<void> {
         if (await IoMRequestManager.isRequestCompleted(requestHash, request)) {
+            messageBus.send('log', `Request ${requestHash} was accepted by all participants.`);
             this.onRequestComplete.emit(requestHash, request);
         }
     }
@@ -167,14 +172,14 @@ export default class IoMRequestManager {
     // ######## ObjectListener ########
 
     private async processNewIomRequest(result: UnversionedObjectResult<IoMRequest>) {
-        messageBus.send('log', `addNewIomRequest ${result.hash}`);
+        messageBus.send('debug', `processNewIomRequest ${result.hash}`);
         this.requestsRegistry.requests.add(result.hash);
         await this.saveRegistry();
         this.onNewRequest.emit(result.hash, result.obj);
     }
 
     private async processNewIoMRequestCertificate(result: UnversionedObjectResult<Signature>) {
-        messageBus.send('log', `processNewIoMRequestCertificate ${result.hash}`);
+        messageBus.send('debug', `processNewIoMRequestCertificate ${result.hash}`);
 
         // Step 1: Load the certificate object (might be something else)
         const certificate = await getObject(result.obj.data);
@@ -189,8 +194,14 @@ export default class IoMRequestManager {
         }
 
         // Step 3: Check if IoM request is fulfilled
-        messageBus.send('log', `processNewIoMRequestCertificate - isIomRequest ${result.hash}`);
+        messageBus.send('debug', `processNewIoMRequestCertificate - isIomRequest ${result.hash}`);
         const requestHash = certificate.data as SHA256Hash<IoMRequest>;
+
+        messageBus.send(
+            'log',
+            `Participant ${result.obj.issuer} affirmed IoM Request ${certificate.data}`
+        );
+
         this.onRequestUpdate.emit(requestHash, request);
         await this.emitIfRequestCompleted(requestHash, request);
     }
@@ -238,19 +249,14 @@ export default class IoMRequestManager {
         requestHash: SHA256Hash<IoMRequest>,
         request: IoMRequest
     ) {
-        messageBus.send(
-            'log',
-            `affirmRequestObj ${requestHash} ${JSON.stringify(request)}, ${JSON.stringify([
-                ...request.participants.values()
-            ])}`
-        );
+        messageBus.send('debug', `affirmRequestObj ${requestHash}`);
 
         // affirm the request
-        const requestCertificate = await affirm(requestHash);
+        const requestCertificateSignature = await affirm(requestHash);
 
         messageBus.send(
-            'log',
-            `affirmRequestObj - certificate ${requestHash} ${requestCertificate.hash}`
+            'debug',
+            `affirmRequestObj - requestHash ${requestHash}, signatureHash ${requestCertificateSignature.hash}`
         );
 
         // Share it with all the participants
@@ -260,7 +266,7 @@ export default class IoMRequestManager {
             },
             [
                 {
-                    object: requestCertificate.hash,
+                    object: requestCertificateSignature.hash,
                     person: [...request.participants],
                     group: [],
                     mode: SET_ACCESS_MODE.REPLACE

@@ -294,7 +294,7 @@ class CommunicationServerListener {
         onConnect: (ws: CommunicationServerConnection_Client, err?: Error) => void,
         onChallengeEvent: OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
     ): Promise<CommunicationServerConnection_Client> {
-        MessageBus.send('log', `establishConnection(${server})`);
+        MessageBus.send('debug', `establishConnection(${server})`);
 
         // Open websocket to communication server
         const connection = new CommunicationServerConnection_Client(server);
@@ -305,16 +305,16 @@ class CommunicationServerListener {
         // Phase 1: Register and authenticate the connection
         try {
             // Step1: Register at comm server
-            MessageBus.send('log', `${connection.id}: Step 1: Send 'register' message`);
+            MessageBus.send('debug', `${connection.id}: Step 1: Send 'register' message`);
             await connection.sendRegisterMessage(publicKey);
 
             // Step2: Wait for authentication request of comm-server and check parameters
-            MessageBus.send('log', `${connection.id}: Step 2: Wait for authentication_request`);
+            MessageBus.send('debug', `${connection.id}: Step 2: Wait for authentication_request`);
             const authRequest = await connection.waitForMessage('authentication_request');
 
             // Step3: Send authentication response
             MessageBus.send(
-                'log',
+                'debug',
                 `${connection.id}: Step 3: Send authentication_response message`
             );
             const response = await onChallengeEvent.emitAll(
@@ -325,7 +325,7 @@ class CommunicationServerListener {
 
             // Step4: Wait for authentication success message
             MessageBus.send(
-                'log',
+                'debug',
                 `${connection.id}: Step 4: Wait for authentication_success message`
             );
             let authSuccess = await connection.waitForMessage('authentication_success');
@@ -340,11 +340,11 @@ class CommunicationServerListener {
 
         // Phase 2: Listen for connection while ping / ponging the server
         // Step 5: Wait for connection
-        MessageBus.send('log', `${connection.id}: Step 5: Wait for connection_handover message`);
+        MessageBus.send('debug', `${connection.id}: Step 5: Wait for connection_handover message`);
         connection
             .waitForMessage('connection_handover')
             .then(() => {
-                MessageBus.send('log', `${connection.id}: Received connection_handover message`);
+                MessageBus.send('debug', `${connection.id}: Received connection_handover message`);
                 connection.stopPingPong();
                 onConnect(connection);
             })
