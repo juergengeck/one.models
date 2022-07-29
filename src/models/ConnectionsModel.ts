@@ -1,5 +1,5 @@
-import CommunicationModule from '../misc/CommunicationModule';
 import type {ConnectionInfo} from '../misc/CommunicationModule';
+import CommunicationModule from '../misc/CommunicationModule';
 import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
@@ -12,8 +12,6 @@ import {
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
-import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {
     createCryptoAPI,
@@ -44,7 +42,6 @@ import {
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {connectWithEncryption} from '../misc/Connections/protocols/ConnectionSetup';
 import type Connection from '../misc/Connections/Connection';
-import {EventEmitter} from 'events';
 import {
     convertIdentityToProfile,
     convertOneInstanceEndpointToIdentity
