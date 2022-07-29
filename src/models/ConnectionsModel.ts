@@ -380,9 +380,13 @@ class ConnectionsModel extends Model {
      * Generates the information for sharing which will be sent in the QR code.
      *
      * @param takeOver
+     * @param token supply a token instead generating a new one
      * @returns
      */
-    public async generatePairingInformation(takeOver: boolean): Promise<PairingInformation> {
+    public async generatePairingInformation(
+        takeOver: boolean,
+        token?: string
+    ): Promise<PairingInformation> {
         this.state.assertCurrentState('Initialised');
 
         if (!this.initialized) {
@@ -392,7 +396,7 @@ class ConnectionsModel extends Model {
             throw new Error('mainInstanceInfo not initialized.');
         }
 
-        const authenticationToken = await createRandomString();
+        const authenticationToken = token ? token : await createRandomString();
 
         if (takeOver) {
             const myEmail = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj.email;
