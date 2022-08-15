@@ -177,7 +177,7 @@ export default class LeuteModel extends Model {
         );
 
         if (this.createEveryoneGroup) {
-            const group = await this.createGroup(LeuteModel.EVERYONE_GROUP_NAME);
+            const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
             disconnectFns.push(
                 onVersionedObj.addListener(this.addPersonToEveryoneGroup.bind(this))
             );
@@ -360,17 +360,7 @@ export default class LeuteModel extends Model {
      */
     public async createGroup(name?: string): Promise<GroupModel> {
         this.state.assertCurrentState('Initialised');
-
-        if (this.leute === undefined) {
-            throw new Error('Leute model is not initialized');
-        }
-
-        const group = await GroupModel.constructWithNewGroup(name);
-        if (!this.leute.group.includes(group.groupIdHash)) {
-            this.leute.group.push(group.groupIdHash);
-            await this.saveAndLoad();
-        }
-        return group;
+        return this.createGroupInternal();
     }
 
     /**
@@ -597,6 +587,27 @@ export default class LeuteModel extends Model {
     }
 
     // ######## Private stuff ########
+
+    /**
+     * Create a new group.
+     *
+     * If it already exist this will return the existing group instead.
+     *
+     * @param name - If specified use this name, otherwise create a group with a random id.
+     * @returns the created group or the existing one if it already existed.
+     */
+    public async createGroupInternal(name?: string): Promise<GroupModel> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const group = await GroupModel.constructWithNewGroup(name);
+        if (!this.leute.group.includes(group.groupIdHash)) {
+            this.leute.group.push(group.groupIdHash);
+            await this.saveAndLoad();
+        }
+        return group;
+    }
 
     /**
      * Create an identity and an instance and corresponding keys
