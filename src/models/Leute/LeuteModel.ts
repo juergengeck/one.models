@@ -360,7 +360,7 @@ export default class LeuteModel extends Model {
      */
     public async createGroup(name?: string): Promise<GroupModel> {
         this.state.assertCurrentState('Initialised');
-        return this.createGroupInternal();
+        return this.createGroupInternal(name);
     }
 
     /**

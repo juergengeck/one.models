@@ -28,6 +28,23 @@ function isUnversionedObjectResultOfType<T extends OneUnversionedObjectTypeNames
     return arg.obj.$type$ === typeName;
 }
 
+/**
+ * This class manages IoM requests.
+ *
+ * The IoM Request is exchanged using IoMRequest objects that are locally registered at the
+ * IoMRequestRegistry.
+ *
+ * The class allows you to create an IoMRequest that is distributed to the other participants. They
+ * are then notified through the onNewRequest event and can affirm the request.
+ * Affirmation works by creating an affirmation certificate that is then distributed back to all
+ * other participants.
+ *
+ * TODO:
+ * - At the moment we cannot decline the request, only ignore it.
+ * - At the moment you should only create 1:1 requests, because if you have more participants
+ *   the synchronization between all participants is complicated. Therefore we might remove
+ *   support for multiple participants in the future when adding the ability to decline requests.
+ */
 export default class IoMRequestManager {
     public onError = new OEvent<(message: any) => void>();
     public onNewRequest = new OEvent<
@@ -49,6 +66,9 @@ export default class IoMRequestManager {
 
     // ######## model state management ########
 
+    /**
+     * Init the request manager.
+     */
     public async init(): Promise<void> {
         messageBus.send('debug', 'init');
         this.disconnectListener = onUnversionedObj.addListener(result => {
@@ -66,6 +86,9 @@ export default class IoMRequestManager {
         this.isInitialized = true;
     }
 
+    /**
+     * Shutdown the request manager.
+     */
     public async shutdown(): Promise<void> {
         messageBus.send('debug', 'shutdown');
         this.isInitialized = false;
@@ -77,6 +100,12 @@ export default class IoMRequestManager {
 
     // ######## requests management ########
 
+    /**
+     * Creates a new IoM request.
+     *
+     * @param participants The persons that shall be part of the IoM. You also have to include
+     * your own identity (as first element?).
+     */
     async createIoMRequest(participants: SHA256IdHash<Person>[]) {
         messageBus.send('debug', `createIoMReuqest ${JSON.stringify(participants)}`);
         const requestResult = await storeUnversionedObject({
@@ -93,11 +122,19 @@ export default class IoMRequestManager {
         await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
     }
 
+    /**
+     * Affirm an IoMRequest - this means that you want to join the IoM.
+     *
+     * @param requestHash
+     */
     async affirmRequest(requestHash: SHA256Hash<IoMRequest>) {
         messageBus.send('debug', `affirmRequest ${requestHash}`);
         await IoMRequestManager.affirmRequestObj(requestHash, await getObject(requestHash));
     }
 
+    /**
+     * Obtain all requests.
+     */
     async allRequests(): Promise<
         {active: boolean; requestHash: SHA256Hash<IoMRequest>; request: IoMRequest}[]
     > {
