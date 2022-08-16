@@ -286,7 +286,7 @@ async function initWithIdentityExchange(
     return {
         ...oneModels,
         shutdown,
-        contacts: [...profiles.map(profile => profile.personId), owner]
+        contacts: [owner, ...profiles.map(profile => profile.personId)]
     };
 }
 
@@ -328,7 +328,8 @@ async function main(): Promise<void> {
 
     // Do the IoMPairing
     if (createRequest) {
-        await models.iom.createIoMRequest(models.contacts);
+        const [me, ...others] = models.contacts;
+        await models.iom.createIoMRequest(me, others);
     } else {
         models.iom.onNewRequest((requestHash, request) => {
             console.log(`New request ${requestHash} received. Created at ${request.timestamp}.`);

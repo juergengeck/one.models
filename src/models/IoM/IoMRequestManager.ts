@@ -103,20 +103,21 @@ export default class IoMRequestManager {
     /**
      * Creates a new IoM request.
      *
-     * @param participants The persons that shall be part of the IoM. You also have to include
-     * your own identity (as first element?).
+     * @param initiator - The person who initiated the request
+     * @param participants - Additional persons that shall be part of the IoM
      */
-    async createIoMRequest(participants: SHA256IdHash<Person>[]) {
-        messageBus.send('debug', `createIoMReuqest ${JSON.stringify(participants)}`);
+    async createIoMRequest(initiator: SHA256IdHash<Person>, participants: SHA256IdHash<Person>[]) {
+        messageBus.send('debug', `createIoMReuqest ${initiator} ${JSON.stringify(participants)}`);
         const requestResult = await storeUnversionedObject({
             $type$: 'IoMRequest',
             timestamp: Date.now(),
+            initiator,
             participants: new Set(participants)
         });
 
         messageBus.send(
             'log',
-            `Create IoM Request ${requestResult.hash} with participants ${participants}`
+            `Create IoM Request ${requestResult.hash} with participants ${initiator} ${participants}`
         );
 
         await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
@@ -161,6 +162,7 @@ export default class IoMRequestManager {
         messageBus.send(
             'debug',
             `isRequestCompleted ${requestHash} ${JSON.stringify(request)} ${[
+                request.initiator,
                 ...request.participants
             ]}`
         );
@@ -173,16 +175,18 @@ export default class IoMRequestManager {
         );
 
         // Check that the sets are equal
-        if (affirmedByPersons.size !== request.participants.size) {
+        if (affirmedByPersons.size !== request.participants.size + 1) {
             messageBus.send(
                 'debug',
-                `isRequestCompleted - size mismatch ${requestHash} ${affirmedByPersons.size} !== ${request.participants.size}`
+                `isRequestCompleted - size mismatch ${requestHash} ${affirmedByPersons.size} !== ${
+                    request.participants.size + 1
+                }`
             );
             return false;
         }
 
         // Now check all the elements
-        for (const participant of request.participants) {
+        for (const participant of [request.initiator, ...request.participants]) {
             if (!affirmedByPersons.has(participant)) {
                 messageBus.send(
                     'debug',
