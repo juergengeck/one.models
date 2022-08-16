@@ -100,7 +100,7 @@ export default class GroupModel extends Model {
      *
      * @param groupName
      */
-    public static async constructFromLoadedVersionByName(groupName: string) {
+    public static async constructFromLatestProfileVersionByGroupName(groupName: string) {
         const groupIdHash = await calculateIdHashOfObj({
             $type$: 'Group',
             name: groupName,
@@ -119,26 +119,44 @@ export default class GroupModel extends Model {
     /**
      * Create a group and profile if they do not exist.
      *
+     * If it already exists, it will simply return the existing group.
+     *
      * @param groupName - Name if not given the internal name will be random, and the profile name will be 'unnamed group'
      * @returns The latest version of the group or an empty group.
      */
     public static async constructWithNewGroup(groupName?: string): Promise<GroupModel> {
+        // Create a new group object if it does not yet exist. If it exists, skip.
         const newGroup: Group = {
             $type$: 'Group',
             name: groupName || (await createRandomString(32)),
             person: []
         };
-        const groupResult = await storeVersionedObject(newGroup);
 
-        const newGroupProfile: GroupProfile = {
+        let groupResult;
+        try {
+            const groupIdHash = await calculateIdHashOfObj(newGroup);
+            groupResult = await getObjectByIdHash(groupIdHash);
+        } catch (e) {
+            groupResult = await storeVersionedObject(newGroup);
+        }
+
+        // Create a new profile
+        const newProfile: GroupProfile = {
             $type$: 'GroupProfile',
             group: groupResult.idHash,
             name: groupName || 'unnamed group',
             picture: DUMMY_BLOB_HASH
         };
-        const groupProfileResult = await storeVersionedObjectCRDT(newGroupProfile, undefined);
 
-        const newModel = new GroupModel(groupResult.idHash, groupProfileResult.idHash);
+        let profileResult;
+        try {
+            const profileIdHash = await calculateIdHashOfObj(newProfile);
+            profileResult = await getObjectByIdHash(profileIdHash);
+        } catch (e) {
+            profileResult = await storeVersionedObjectCRDT(newProfile, undefined);
+        }
+
+        const newModel = new GroupModel(groupResult.idHash, profileResult.idHash);
         await newModel.loadLatestVersion();
         return newModel;
     }

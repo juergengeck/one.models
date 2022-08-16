@@ -10,7 +10,6 @@ import {
 } from '@refinio/one.core/lib/storage';
 import {
     getObjectByIdHash,
-    getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
@@ -27,8 +26,7 @@ import type {
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
     OneVersionedObjectTypes,
-    Person,
-    Plan
+    Person
 } from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
@@ -99,26 +97,8 @@ export default class LeuteModel extends Model {
 
     private pLoadedVersion?: SHA256Hash<Leute>;
     private leute?: Leute;
-    private createEveryoneGroup: boolean;
-
-    private readonly boundAddPersonToEveryoneGroup: (
-        versionedObjectResult: VersionedObjectResult
-    ) => Promise<void>;
-
-    private readonly boundAddIdPersonToEveryoneGroup: (
-        idObjectResult: IdFileCreation<OneVersionedObjectTypes | OneIdObjectTypes>
-    ) => Promise<void>;
-
-    private readonly boundAddProfileFromResult: (
-        versionedObjectResult: VersionedObjectResult
-    ) => Promise<void>;
-    private readonly boundUpdateLeuteMember: (
-        versionedObjectResult: VersionedObjectResult
-    ) => Promise<void>;
-
-    private readonly boundNewOneInstanceEndpointFromResult: (
-        unversionedObjectResult: UnversionedObjectResult
-    ) => void;
+    private readonly createEveryoneGroup: boolean;
+    private shutdownInternal: () => Promise<void> = async () => {};
 
     /**
      * Constructor
@@ -136,12 +116,6 @@ export default class LeuteModel extends Model {
     ) {
         super();
         this.instancesModel = instancesModel;
-        this.boundAddPersonToEveryoneGroup = this.addPersonToEveryoneGroup.bind(this);
-        this.boundAddIdPersonToEveryoneGroup = this.addIdPersonToEveryoneGroup.bind(this);
-        this.boundAddProfileFromResult = this.addProfileFromResult.bind(this);
-        this.boundUpdateLeuteMember = this.updateLeuteMember.bind(this);
-        this.boundNewOneInstanceEndpointFromResult =
-            this.emitNewOneInstanceEndpointEvent.bind(this);
         this.commserverUrl = commserverUrl;
         this.createEveryoneGroup = createEveryoneGroup;
     }
@@ -196,16 +170,30 @@ export default class LeuteModel extends Model {
         };
         await this.saveAndLoad();
 
-        onVersionedObj.addListener(this.boundAddProfileFromResult);
-        onUnversionedObj.addListener(this.boundNewOneInstanceEndpointFromResult);
-
-        this.state.triggerEvent('init');
+        const disconnectFns: Array<() => void> = [];
+        disconnectFns.push(onVersionedObj.addListener(this.addProfileFromResult.bind(this)));
+        disconnectFns.push(
+            onUnversionedObj.addListener(this.emitNewOneInstanceEndpointEvent.bind(this))
+        );
 
         if (this.createEveryoneGroup) {
-            const group = await this.createGroupIfNotExist(LeuteModel.EVERYONE_GROUP_NAME);
-            onVersionedObj.addListener(this.boundAddPersonToEveryoneGroup);
-            onIdObj.addListener(this.boundAddIdPersonToEveryoneGroup);
+            const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
+            disconnectFns.push(
+                onVersionedObj.addListener(this.addPersonToEveryoneGroup.bind(this))
+            );
+            disconnectFns.push(onIdObj.addListener(this.addIdPersonToEveryoneGroup.bind(this)));
         }
+
+        this.shutdownInternal = async () => {
+            for (const disconnectFn of disconnectFns) {
+                disconnectFn();
+            }
+            this.leute = undefined;
+            this.pLoadedVersion = undefined;
+            this.shutdownInternal = async () => {};
+        };
+
+        this.state.triggerEvent('init');
     }
 
     /**
@@ -213,17 +201,7 @@ export default class LeuteModel extends Model {
      */
     public async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
-
-        if (this.createEveryoneGroup) {
-            onVersionedObj.removeListener(this.boundAddPersonToEveryoneGroup);
-            onIdObj.removeListener(this.boundAddIdPersonToEveryoneGroup);
-        }
-
-        onVersionedObj.removeListener(this.boundAddProfileFromResult);
-        onUnversionedObj.removeListener(this.boundNewOneInstanceEndpointFromResult);
-        this.leute = undefined;
-        this.pLoadedVersion = undefined;
-
+        await this.shutdownInternal();
         this.state.triggerEvent('shutdown');
     }
 
@@ -375,35 +353,14 @@ export default class LeuteModel extends Model {
     /**
      * Create a new group.
      *
+     * If it already exist this will return the existing group instead.
+     *
      * @param name - If specified use this name, otherwise create a group with a random id.
-     * @returns the id of the generated group.
+     * @returns the created group or the existing one if it already existed.
      */
     public async createGroup(name?: string): Promise<GroupModel> {
         this.state.assertCurrentState('Initialised');
-
-        if (this.leute === undefined) {
-            throw new Error('Leute model is not initialized');
-        }
-
-        const group = await GroupModel.constructWithNewGroup(name);
-        this.leute.group.push(group.groupIdHash);
-        await this.saveAndLoad();
-        return group;
-    }
-
-    /**
-     * Creates a new group if it doesn't exist yet, otherwise, return the present one
-     * @param name
-     */
-    public async createGroupIfNotExist(name: string): Promise<GroupModel> {
-        this.state.assertCurrentState('Initialised');
-
-        try {
-            await getObjectByIdObj({$type$: 'Group', name: name});
-            return await GroupModel.constructFromLoadedVersionByName(name);
-        } catch (e) {
-            return await this.createGroup(name);
-        }
+        return this.createGroupInternal(name);
     }
 
     /**
@@ -417,6 +374,16 @@ export default class LeuteModel extends Model {
         }
 
         return Promise.all(this.leute.group.map(GroupModel.constructFromLatestProfileVersion));
+    }
+
+    public static async everyoneGroup(): Promise<GroupModel> {
+        try {
+            return await GroupModel.constructFromLatestProfileVersionByGroupName(
+                LeuteModel.EVERYONE_GROUP_NAME
+            );
+        } catch (e) {
+            throw new Error(`Everyone group does not exist: ${e.message}`);
+        }
     }
 
     // ######## Misc stuff ########
@@ -622,6 +589,27 @@ export default class LeuteModel extends Model {
     // ######## Private stuff ########
 
     /**
+     * Create a new group.
+     *
+     * If it already exist this will return the existing group instead.
+     *
+     * @param name - If specified use this name, otherwise create a group with a random id.
+     * @returns the created group or the existing one if it already existed.
+     */
+    public async createGroupInternal(name?: string): Promise<GroupModel> {
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const group = await GroupModel.constructWithNewGroup(name);
+        if (!this.leute.group.includes(group.groupIdHash)) {
+            this.leute.group.push(group.groupIdHash);
+            await this.saveAndLoad();
+        }
+        return group;
+    }
+
+    /**
      * Create an identity and an instance and corresponding keys
      */
     private async createIdentityWithInstanceAndKeys(): Promise<SHA256IdHash<Person>> {
@@ -679,9 +667,7 @@ export default class LeuteModel extends Model {
     private async addPersonToEveryoneGroup(result: VersionedObjectResult): Promise<void> {
         if (isVersionedResultOfType(result, 'Person')) {
             await serializeWithType('addPerson', async () => {
-                const group = await GroupModel.constructFromLoadedVersionByName(
-                    LeuteModel.EVERYONE_GROUP_NAME
-                );
+                const group = await LeuteModel.everyoneGroup();
                 if (group.persons.find(person => person === result.idHash) === undefined) {
                     group.persons.push(result.idHash);
                     await group.saveAndLoad();
@@ -706,9 +692,7 @@ export default class LeuteModel extends Model {
         );
         if (object.$type$ === 'Person') {
             await serializeWithType('addPerson', async () => {
-                const group = await GroupModel.constructFromLoadedVersionByName(
-                    LeuteModel.EVERYONE_GROUP_NAME
-                );
+                const group = await LeuteModel.everyoneGroup();
                 if (group.persons.find(person => person === result.idHash) === undefined) {
                     group.persons.push(result.idHash as SHA256IdHash<Person>);
                     await group.saveAndLoad();

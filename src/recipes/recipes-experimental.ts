@@ -12,6 +12,8 @@ import SignatureRecipes from './SignatureRecipes';
 import MetaObjectMapRecipes from './MetaObjectMapRecipes';
 import ChatRecipes from './ChatRecipes';
 import ConsentRecipes from './ConsentRecipes';
+import IoMRequestRecipes from './IoM/IoMRequest';
+import IoMRequestsRegistryRecipes from './IoM/IoMRequestsRegistry';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,
@@ -26,7 +28,9 @@ const RecipesExperimental: Recipe[] = [
     ...LeuteRecipes,
     ...SignatureRecipes,
     ...MetaObjectMapRecipes,
-    ...ConsentRecipes
+    ...ConsentRecipes,
+    ...IoMRequestRecipes,
+    ...IoMRequestsRegistryRecipes
 ];
 
 export default RecipesExperimental;
