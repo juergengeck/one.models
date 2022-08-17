@@ -308,7 +308,7 @@ export default class IoMRequestManager {
             [
                 {
                     object: requestCertificateSignature.hash,
-                    person: [...request.participants],
+                    person: [request.initiator, ...request.participants],
                     group: [],
                     mode: SET_ACCESS_MODE.REPLACE
                 }
