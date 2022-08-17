@@ -40,7 +40,7 @@
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "0.3.16"
+    "@refinio/one.core": "0.3.18"
   },
   "devDependencies": {
     "@babel/core": "*",
