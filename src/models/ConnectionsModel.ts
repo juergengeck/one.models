@@ -5,7 +5,7 @@ import type {LocalInstanceInfo} from './InstancesModel';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan, FileCreation,
+    createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
     getObjectWithType,
@@ -1867,6 +1867,7 @@ class ConnectionsModel extends Model {
             chumName: 'ConnectionsChum',
             localInstanceName: uint8arrayToHexString(localPublicInstanceKey),
             remoteInstanceName: uint8arrayToHexString(remotePublicInstanceKey),
+
             keepRunning,
             maxNotificationDelay: 20
         }).promise;
@@ -2268,29 +2269,6 @@ class ConnectionsModel extends Model {
         }
         throw Error("Received data does not match the data expected for command '" + command + "'");
     }
-
-    /**
-     * Enables the heart beat between two connected instances
-     *
-     * @param {EncryptedConnection} conn - the Encrypted Connection with the other instance
-     * @private
-     * @returns {ReturnType<typeof setInterval>} - the created interval
-     */
-    private startHeartBeat(conn: EncryptedConnection): ReturnType<typeof setInterval> {
-        async function heartBeatHandlerFn() {
-            try {
-                await ConnectionsModel.sendMessage(conn, {command: 'heartbeat_message'})
-            } catch (e) {
-                // If the message could not be sent, remove the interval
-                clearInterval(heartBeatInterval);
-            }
-        }
-
-        const heartBeatInterval = setInterval(heartBeatHandlerFn, this.config.heartBeatInterval);
-
-        return heartBeatInterval;
-    }
-
 }
 
 export default ConnectionsModel;
