@@ -11,6 +11,10 @@ import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
 import ECGModel from './ECGModel';
 import InstancesModel from './InstancesModel';
+import ConnectionsFilerModel from './filer/ConnectionsFilerModel';
+import ObjectsFilerModel from './filer/ObjectsFilerModel';
+import PersistentFilerModel from './filer/PersistentFilerModel';
+import TemporaryFilerModel from './filer/TemporaryFilerModel';
 import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
@@ -34,6 +38,10 @@ export {
     InstancesModel,
     ECGModel,
     HeartEventModel,
+    ConnectionsFilerModel,
+    ObjectsFilerModel,
+    PersistentFilerModel,
+    TemporaryFilerModel,
     ConnectionsModel,
     LeuteModel,
     TopicModel,
