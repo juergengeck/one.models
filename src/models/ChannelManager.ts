@@ -444,7 +444,6 @@ export default class ChannelManager {
             if (waitForMergePromise) {
                 await waitForMergePromise;
             }
-
         } catch (e) {
             logWithId(channelId, owner, 'postToChannel - FAIL: ' + e.toString());
             throw e;
