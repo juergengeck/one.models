@@ -1,8 +1,7 @@
-import {EventEmitter} from 'events';
 import type InstancesModel from '../InstancesModel';
 import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
@@ -10,13 +9,14 @@ import {
     SET_ACCESS_MODE,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import type {Model} from '../Model';
+} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+
 import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {Model} from '../Model';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -25,16 +25,15 @@ import type {Person} from 'one.core/lib/recipes';
  * @description Matching Model class
  * @augments EventEmitter
  */
-export default abstract class MatchingModel extends EventEmitter implements Model {
+export default abstract class MatchingModel extends Model {
     /**
      * Event emitted when matching data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
 
     protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
     protected anonInstanceInfo: LocalInstanceInfo | null;
-    protected channelId = 'matching';
+    public static readonly channelId = 'matching';
 
     protected suppliesMap: Map<string, Supply[]>;
     protected demandsMap: Map<string, Demand[]>;
@@ -46,6 +45,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
 
     protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
         super();
+
         this.instancesModel = instancesModel;
         this.channelManager = channelManager;
         this.anonInstanceInfo = null;
@@ -55,13 +55,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
 
     /**
      * Will be implemented in each child class.
-     *
-     * @returns {Promise<void>}
      */
     abstract init(): Promise<void>;
 
     protected async startMatchingChannel(): Promise<void> {
-        await this.channelManager.createChannel(this.channelId);
+        await this.channelManager.createChannel(MatchingModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleUpdate.bind(this));
     }
 
@@ -69,9 +67,12 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
@@ -80,10 +81,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * will be shared between clients and servers and the main identity
      * should never be leaked.
      *
-     * @returns {Promise<void>}
      * @protected
      */
     protected async updateInstanceInfo(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const infos = await this.instancesModel.localInstancesInfo();
 
         if (infos.length !== 2) {
@@ -103,11 +105,12 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * The channel which holds the corresponding matching objects should be
      * shared between clients and server.
      *
-     * @param {SHA256IdHash<Person>[]} person
-     * @returns {Promise<void>}
+     * @param person
      * @protected
      */
     protected async giveAccessToMatchingChannel(person: SHA256IdHash<Person>[]): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             if (!this.anonInstanceInfo) {
                 throw new Error('Anon instance info is not initialized!');
@@ -116,7 +119,7 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
             const setAccessParam = {
                 id: await calculateIdHashOfObj({
                     $type$: 'ChannelInfo',
-                    id: this.channelId,
+                    id: MatchingModel.channelId,
                     owner: this.anonInstanceInfo.personId
                 }),
                 person,
@@ -149,10 +152,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     /**
      * Initialise supplies and demands maps.
      *
-     * @returns {Promise<void>}
      * @protected
      */
     protected async initialiseMaps(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         try {
             const supplyMapObj = (await getObjectByIdObj({
                 $type$: 'SupplyMap',
@@ -183,10 +187,12 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * Memorise the corresponding Supply object if it does not
      * exist in the supplies map.
      *
-     * @param {Supply} supply
+     * @param supply
      * @protected
      */
     protected addNewValueToSupplyMap(supply: Supply): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(supply.match);
 
         if (!availableSupplies) {
@@ -204,10 +210,12 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * Memorise the corresponding Demand object if it does not
      * exist in the supplies map.
      *
-     * @param {Demand} demand
+     * @param demand
      * @protected
      */
     protected addNewValueToDemandMap(demand: Demand): void {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(demand.match);
 
         if (!availableDemands) {
@@ -225,9 +233,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * This function gets a supply and search for last version of it
      * in the supply map and replace it with the new version
      *
-     * @param {Supply} newSupply
+     * @param newSupply
      */
     protected updateSupplyInSupplyMap(newSupply: Supply) {
+        this.state.assertCurrentState('Initialised');
+
         let availableSupplies = this.suppliesMap.get(newSupply.match);
 
         if (availableSupplies) {
@@ -244,9 +254,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * This function gets a demand and search for last version of it
      * in the demand map and replace it with the new version
      *
-     * @param {Demand} newDemand
+     * @param newDemand
      */
     protected updateDemandInDemandMap(newDemand: Demand) {
+        this.state.assertCurrentState('Initialised');
+
         let availableDemands = this.demandsMap.get(newDemand.match);
 
         if (availableDemands) {
@@ -262,10 +274,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     /**
      * This functions memorise the latest version of the SupplyMap.
      *
-     * @returns {Promise<void>}
      * @private
      */
     protected async memoriseLatestVersionOfSupplyMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('SupplyMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -283,11 +296,11 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
 
     /**
      * This functions memorise the latest version of the DemandMap.
-     *
-     * @returns {Promise<void>}
      * @private
      */
     protected async memoriseLatestVersionOfDemandMap(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('DemandMap', async () => {
             await createSingleObjectThroughPurePlan(
                 {
@@ -304,36 +317,6 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     }
 
     /**
-     * Verify if the Supply or Demand object received as parameter
-     * does not exist in the objects array.
-     *
-     * This function is the corespondent of Array.includes but
-     * adapted specially for Supply and Demand objects.
-     *
-     * @param {Supply[] | Demand[]} objectsArray
-     * @param {Supply | Demand} object
-     * @returns {boolean}
-     * @private
-     */
-    private static arrayIncludesObject(
-        objectsArray: Supply[] | Demand[],
-        object: Supply | Demand
-    ): boolean {
-        for (let i = 0; i < objectsArray.length; i++) {
-            if (
-                objectsArray[i].$type$ === object.$type$ &&
-                objectsArray[i].identity === object.identity &&
-                objectsArray[i].match === object.match &&
-                objectsArray[i].isActive === object.isActive &&
-                objectsArray[i].timestamp === object.timestamp
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * This function checks if the received object is here
      * as an update of active status for one of existing objects
      *
@@ -341,9 +324,9 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
      * values, but with a different active status, this means this new object
      * was sent to replace the old one, because the 'isActive' attribute was changed
      *
-     * @param {Map<string, (Demand | Supply)[]>} objectsMap
-     * @param {Supply | Demand} tagObject
-     * @returns {boolean}
+     * @param objectsMap
+     * @param tagObject
+     * @returns
      */
     protected static checkIfItIsAnUpdate(
         objectsMap: Map<string, (Demand | Supply)[]>,
@@ -369,13 +352,41 @@ export default abstract class MatchingModel extends EventEmitter implements Mode
     }
 
     /**
+     * Verify if the Supply or Demand object received as parameter
+     * does not exist in the objects array.
+     *
+     * This function is the corespondent of Array.includes but
+     * adapted specially for Supply and Demand objects.
+     *
+     * @param objectsArray
+     * @param object
+     * @returns
+     * @private
+     */
+    private static arrayIncludesObject(
+        objectsArray: Supply[] | Demand[],
+        object: Supply | Demand
+    ): boolean {
+        for (let i = 0; i < objectsArray.length; i++) {
+            if (
+                objectsArray[i].$type$ === object.$type$ &&
+                objectsArray[i].identity === object.identity &&
+                objectsArray[i].match === object.match &&
+                objectsArray[i].isActive === object.isActive &&
+                objectsArray[i].timestamp === object.timestamp
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      *  Handler function for the 'updated' event
-     *  @param {string} id
-     * @return {Promise<void>}
+     *  @param id
      */
     private async handleUpdate(id: string): Promise<void> {
-        if (id === this.channelId) {
-            this.emit('updated');
+        if (id === MatchingModel.channelId) {
             this.onUpdated.emit();
         }
     }

@@ -1,8 +1,11 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {Identity} from './IdentityExchange';
+import {isIdentity} from './IdentityExchange';
 
 // TODO No extra namespace (the module already is one)
 declare module CommunicationInitiationProtocol {
@@ -16,6 +19,7 @@ declare module CommunicationInitiationProtocol {
         | 'chum_onetimeauth_withtoken'
         | 'chumAndPkExchange_onetimeauth_withtoken'
         | 'chum_one_time'
+        | 'pairing'
         | 'accessGroup_set';
 
     /**
@@ -62,7 +66,7 @@ declare module CommunicationInitiationProtocol {
     export type PersonInformationMessage = {
         command: 'person_information';
         personId: SHA256IdHash<Person>;
-        personPublicKey: string;
+        personPublicKey: HexString;
     };
 
     /**
@@ -78,7 +82,7 @@ declare module CommunicationInitiationProtocol {
      */
     export type EncryptedAuthenticationTokenMessage = {
         command: 'encrypted_authentication_token';
-        token: string;
+        token: HexString;
     };
 
     /**
@@ -90,20 +94,23 @@ declare module CommunicationInitiationProtocol {
     };
 
     /**
+     * Message that transports a profile object.
+     */
+    export type IdentityMessage = {
+        command: 'identity';
+        obj: Identity;
+    };
+
+    /**
      * Message for exchanging private person information like person id and private keys.
      */
     export type PrivatePersonInformationMessage = {
         command: 'private_person_information';
         personId: SHA256IdHash<Person>;
-        personPublicKey: string;
-        personPublicSignKey: string;
-        personPrivateKey: string;
-        personPrivateSignKey: string;
-        anonPersonId: SHA256IdHash<Person>;
-        anonPersonPublicKey: string;
-        anonPersonPublicSignKey: string;
-        anonPersonPrivateKey: string;
-        anonPersonPrivateSignKey: string;
+        personPublicKey: HexString;
+        personPublicSignKey: HexString;
+        personPrivateKey: HexString;
+        personPrivateSignKey: HexString;
     };
 
     /**
@@ -147,6 +154,7 @@ declare module CommunicationInitiationProtocol {
         authentication_token: AuthenticationTokenMessage;
         encrypted_authentication_token: EncryptedAuthenticationTokenMessage;
         person_object: PersonObjectMessage;
+        identity: IdentityMessage;
         access_group_members: AccessGroupMembersMessage;
         success: SuccessMessage;
         heartbeat: HeartBeatMessage;
@@ -161,8 +169,8 @@ declare module CommunicationInitiationProtocol {
  * Check whether the argument is a client message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ClientMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isClientMessage<T extends keyof CommunicationInitiationProtocol.ClientMessages>(
     arg: any,
@@ -182,8 +190,8 @@ export function isClientMessage<T extends keyof CommunicationInitiationProtocol.
  * Check whether the argument is a server message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isServerMessage<T extends keyof CommunicationInitiationProtocol.ServerMessages>(
     arg: any,
@@ -200,8 +208,8 @@ export function isServerMessage<T extends keyof CommunicationInitiationProtocol.
  * Check whether the argument is a peer message of specified type / command.
  *
  * @param arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {arg is CommunicationInitiationProtocol.ServerMessages[T]}
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.PeerMessages>(
     arg: any,
@@ -239,6 +247,9 @@ export function isPeerMessage<T extends keyof CommunicationInitiationProtocol.Pe
     }
     if (command === 'person_object') {
         return arg.obj && arg.obj.$type$ === 'Person';
+    }
+    if (command === 'identity') {
+        return arg.obj && isIdentity(arg.obj);
     }
     if (command === 'access_group_members') {
         if (arg && arg.persons && Array.isArray(arg.persons)) {

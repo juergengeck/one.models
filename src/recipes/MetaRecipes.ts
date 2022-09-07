@@ -1,5 +1,5 @@
-import type {OneUnversionedObjectTypes, Recipe} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Recipe} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -19,11 +19,11 @@ const CreationTimeRecipe: Recipe = {
     rule: [
         {
             itemprop: 'timestamp',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'data',
-            referenceToObj: new Set(['*'])
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
         }
     ]
 };

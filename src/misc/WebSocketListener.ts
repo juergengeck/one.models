@@ -1,8 +1,7 @@
-import WebSocket from 'isomorphic-ws';
-import {wslogId} from './LogUtils';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
+import WebSocketWS from 'isomorphic-ws';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from './OEvent';
+import Connection from './Connections/Connection';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -22,7 +21,7 @@ class WebSocketListener {
     /**
      * Event is emitted on incoming connections.
      */
-    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted when the state of the connector changes. The listener callback
@@ -38,7 +37,7 @@ class WebSocketListener {
     >();
 
     public state: WebSocketListenerState; // Current connection state.
-    private webSocketServer: WebSocket.Server | null = null; // The web socket server for listening for connections
+    private webSocketServer: WebSocketWS.Server | null = null; // The web socket server for listening for connections
 
     /**
      * Creates the listener.
@@ -50,9 +49,8 @@ class WebSocketListener {
     /**
      * Start the web socket listener.
      *
-     * @param {string} host - The host to listen on
-     * @param {number} port - The port to listen on
-     * @returns {Promise<void>}
+     * @param host - The host to listen on
+     * @param port - The port to listen on
      */
     public async start(host: string, port: number): Promise<void> {
         if (this.webSocketServer) {
@@ -62,7 +60,7 @@ class WebSocketListener {
         this.changeCurrentState(WebSocketListenerState.Starting);
 
         try {
-            this.webSocketServer = new WebSocket.Server({host, port});
+            this.webSocketServer = new WebSocketWS.Server({host, port});
 
             // Wait until the websocket server is either ready or stopped with an error (e.g. address in use)
             await new Promise<void>((resolve, reject) => {
@@ -96,13 +94,12 @@ class WebSocketListener {
             MessageBus.send('log', `Successful started WebSocket server`);
         } catch (e) {
             this.changeCurrentState(WebSocketListenerState.NotListening, e.toString());
+            throw e;
         }
     }
 
     /**
      * Stops the listener
-     *
-     * @returns {Promise<void>}
      */
     public async stop(): Promise<void> {
         MessageBus.send('log', `Stopping WebSocket server`);
@@ -127,15 +124,15 @@ class WebSocketListener {
     /**
      * Notifies the user of a new connection.
      *
-     * @param {WebSocket} ws
-     * @returns {Promise<void>}
+     * @param ws
      */
     private async acceptConnection(ws: WebSocket): Promise<void> {
-        MessageBus.send('log', `${wslogId(ws)}: Accepted WebSocket`);
+        const connection = new Connection(ws);
+        MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
-            this.onConnection.emit(new WebSocketPromiseBased(ws));
+            this.onConnection.emit(connection);
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws)}: ${e}`);
+            MessageBus.send('log', `${connection.id}: ${e}`);
             ws.close();
         }
     }
@@ -145,8 +142,8 @@ class WebSocketListener {
      * in order for the connector caller to be aware of the changes that happen
      * in the registration process.
      *
-     * @param {CommunicationServerListenerState} newState - The new state to set.
-     * @param {string} reason - The reason for the state change (Usually an error)
+     * @param newState - The new state to set.
+     * @param reason - The reason for the state change (Usually an error)
      */
     private changeCurrentState(newState: WebSocketListenerState, reason?: string): void {
         const oldState = this.state;

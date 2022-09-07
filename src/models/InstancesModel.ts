@@ -1,22 +1,26 @@
-import {getInstanceIdHash} from 'one.core/lib/instance';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectByIdObj,
     getObjectWithType
-} from 'one.core/lib/storage';
-import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
-import {getAllValues} from 'one.core/lib/reverse-map-query';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {createCryptoAPI, CryptoAPI, loadPersonAndInstanceKeys} from 'one.core/lib/instance-crypto';
-import {EventEmitter} from 'events';
+} from '@refinio/one.core/lib/storage';
+import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {
+    createCryptoAPI,
+    CryptoAPI,
+    loadPersonAndInstanceKeys
+} from '@refinio/one.core/lib/instance-crypto';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
-import type {Instance, Keys, Person} from 'one.core/lib/recipes';
+import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
+import {Model} from './Model';
 
 /**
  * This type stores information about an instance.
@@ -54,7 +58,7 @@ export type LocalInstanceInfo = {
  * - Keys: Returns Key object(s)
  * - Info: Returns LocalInstanceInfo object(s)
  */
-class InstancesModel extends EventEmitter {
+class InstancesModel extends Model {
     /**
      * Event emitted when a local instance is created.
      */
@@ -62,16 +66,24 @@ class InstancesModel extends EventEmitter {
 
     private secret: string = '';
 
+    constructor() {
+        super();
+    }
+
     /**
      * Initialize this model.
      *
-     * @param {string} secret - The secret used to manage the private instance keys. Note that
+     * @param secret - The secret used to manage the private instance keys. Note that
      * this is bad. The key management shouldn't handle different keys on the same instance
      * differently, then we wouldn't have to do such a thing as storing the secret ... but
      * someday we will do it right ... yes we can ...
-     * @returns {Promise<void>}
      */
     public async init(secret: string): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
+        // Init must be triggered here, the init function of this model uses his own function in
+        // order to get initialised
+        this.state.triggerEvent('init');
         this.secret = secret;
 
         // Create the top level LocalInstancesList if it does not exist
@@ -105,19 +117,28 @@ class InstancesModel extends EventEmitter {
         );
     }
 
+    /**
+     * Shutdown the model
+     */
+    public async shutdown() {
+        this.state.triggerEvent('shutdown');
+    }
+
     // ######## Generic query methods for all local instances ########
 
     /**
      * Returns all instance objects that represent your local instance.
      *
-     * @param {boolean} exclude_main
-     * @param {LocalInstancesList} localInstancesList
-     * @returns {Promise<Instance[]>}
+     * @param exclude_main
+     * @param localInstancesList
+     * @returns
      */
     public async localInstances(
         exclude_main: boolean = false,
         localInstancesList?: LocalInstancesList
     ): Promise<Instance[]> {
+        this.state.assertCurrentState('Initialised');
+
         const instanceIdHashes = await this.localInstancesIds(exclude_main);
         const instanceResults = await Promise.all(
             instanceIdHashes.map(hash => getObjectByIdHash(hash))
@@ -128,14 +149,16 @@ class InstancesModel extends EventEmitter {
     /**
      * Returns all ids of instance objects that represent your local instance.
      *
-     * @param {boolean} exclude_main
-     * @param {LocalInstancesList} localInstancesList
-     * @returns {Promise<SHA256IdHash<Instance>[]>}
+     * @param exclude_main
+     * @param localInstancesList
+     * @returns
      */
     public async localInstancesIds(
         exclude_main: boolean = false,
         localInstancesList?: LocalInstancesList
     ): Promise<SHA256IdHash<Instance>[]> {
+        this.state.assertCurrentState('Initialised');
+
         // Obtain the local instances list if not supplied.
         if (!localInstancesList) {
             localInstancesList = await InstancesModel.localInstanceList();
@@ -156,14 +179,16 @@ class InstancesModel extends EventEmitter {
     /**
      * Returns a list of info objects for all local instances.
      *
-     * @param {boolean} exclude_main
-     * @param {LocalInstancesList} localInstancesList
-     * @returns {Promise<LocalInstanceInfo[]>}
+     * @param exclude_main
+     * @param localInstancesList
+     * @returns
      */
     public async localInstancesInfo(
         exclude_main: boolean = false,
         localInstancesList?: LocalInstancesList
     ): Promise<LocalInstanceInfo[]> {
+        this.state.assertCurrentState('Initialised');
+
         const ids = await this.localInstancesIds();
         return Promise.all(ids.map(id => this.localInstanceInfo(id)));
     }
@@ -173,18 +198,22 @@ class InstancesModel extends EventEmitter {
     /**
      * Returns your main instance object.
      *
-     * @returns {Promise<Instance>}
+     * @returns
      */
     public async mainInstance(): Promise<Instance> {
+        this.state.assertCurrentState('Initialised');
+
         return (await getObjectByIdHash(await this.mainInstanceId())).obj;
     }
 
     /**
      * Returns the id of your main instance.
      *
-     * @returns {Promise<SHA256IdHash<Instance>>}
+     * @returns
      */
     public async mainInstanceId(): Promise<SHA256IdHash<Instance>> {
+        // this.state.assertCurrentState('Initialised');
+
         const idHash = await getInstanceIdHash();
         if (!idHash) {
             throw new Error('There is no instance id hash.');
@@ -195,28 +224,34 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the main instance keys.
      *
-     * @returns {Promise<Keys>}
+     * @returns
      */
     public async mainInstanceKeys(): Promise<Keys> {
+        this.state.assertCurrentState('Initialised');
+
         return this.localInstanceKeys(await this.mainInstanceId());
     }
 
     /**
      * Returns multiple information of your main instance.
      *
-     * @returns {Promise<LocalInstanceInfo>}
+     * @returns
      */
     public async mainInstanceInfo(): Promise<LocalInstanceInfo> {
+        this.state.assertCurrentState('Initialised');
+
         return this.localInstanceInfo(await this.mainInstanceId());
     }
 
     // ######## Instance query methods based on instance ID ########
 
     /**
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<Instance>}
+     * @param instanceId
+     * @returns
      */
     public async localInstance(instanceId: SHA256IdHash<Instance>): Promise<Instance> {
+        this.state.assertCurrentState('Initialised');
+
         if (!(await this.isLocalInstance(instanceId))) {
             throw new Error('Passed instance is not a local instance');
         }
@@ -226,24 +261,42 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the instance keys for a specific person.
      *
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<Keys>}
+     * @param instanceId
+     * @returns
      */
     public async localInstanceKeys(instanceId: SHA256IdHash<Instance>): Promise<Keys> {
+        this.state.assertCurrentState('Initialised');
+
+        return await getObjectWithType(await this.localInstanceKeysHash(instanceId), 'Keys');
+    }
+
+    /**
+     * Get the instance key hash for a specific person.
+     *
+     * @param instanceId
+     * @returns
+     */
+    public async localInstanceKeysHash(
+        instanceId: SHA256IdHash<Instance>
+    ): Promise<SHA256Hash<Keys>> {
+        this.state.assertCurrentState('Initialised');
+
         if (!(await this.isLocalInstance(instanceId))) {
             throw new Error('Passed instance is not a local instance');
         }
-        const instanceKeyLink = await getAllValues(instanceId, true, 'Keys');
-        return await getObjectWithType(instanceKeyLink[instanceKeyLink.length - 1].toHash, 'Keys');
+        const instanceKeyLink = await getAllEntries(instanceId, 'Keys');
+        return instanceKeyLink[instanceKeyLink.length - 1];
     }
 
     /**
      * Obtain the instance info for a certain locale instance.
      *
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<LocalInstanceInfo>}
+     * @param instanceId
+     * @returns
      */
     public async localInstanceInfo(instanceId: SHA256IdHash<Instance>): Promise<LocalInstanceInfo> {
+        this.state.assertCurrentState('Initialised');
+
         if (!(await this.isLocalInstance(instanceId))) {
             throw new Error('Passed instance is not a local instance');
         }
@@ -262,10 +315,12 @@ class InstancesModel extends EventEmitter {
     /**
      * Checks whether the instance is local.
      *
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<boolean>}
+     * @param instanceId
+     * @returns
      */
     public async isLocalInstance(instanceId: SHA256IdHash<Instance>): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         const list = await this.localInstancesIds();
         return list.find(instances => instances === instanceId) !== undefined;
     }
@@ -275,10 +330,12 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the local instance for a specific person.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<Instance>}
+     * @param personId
+     * @returns
      */
     public async localInstanceForPerson(personId: SHA256IdHash<Person>): Promise<Instance> {
+        this.state.assertCurrentState('Initialised');
+
         const localInstance = await this.localInstances();
         const instance = localInstance.find(instance => instance.owner === personId);
         if (!instance) {
@@ -290,12 +347,14 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the local instance id hash for a specific person.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<Instance>}
+     * @param personId
+     * @returns
      */
     public async localInstanceIdForPerson(
         personId: SHA256IdHash<Person>
     ): Promise<SHA256IdHash<Instance>> {
+        this.state.assertCurrentState('Initialised');
+
         const instanceIdHashes = await this.localInstancesIds();
         const instanceResults = await Promise.all(
             instanceIdHashes.map(hash => getObjectByIdHash(hash))
@@ -310,32 +369,38 @@ class InstancesModel extends EventEmitter {
     /**
      * Get the instance keys for a specific person.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<Keys>}
+     * @param personId
+     * @returns
      */
     public async localInstanceKeysForPerson(personId: SHA256IdHash<Person>): Promise<Keys> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.localInstanceKeys(await this.localInstanceIdForPerson(personId));
     }
 
     /**
      * Get the instance info related to the local info of the passed person
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<LocalInstanceInfo>}
+     * @param personId
+     * @returns
      */
     public async localInstanceInfoForPerson(
         personId: SHA256IdHash<Person>
     ): Promise<LocalInstanceInfo> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.localInstanceInfo(await this.localInstanceIdForPerson(personId));
     }
 
     /**
      * Check whether a person has a local instance object.
      *
-     * @param {SHA256IdHash<Person>} personId
-     * @returns {Promise<boolean>}
+     * @param personId
+     * @returns
      */
     public async hasPersonLocalInstance(personId: SHA256IdHash<Person>): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         const instanceIdHashes = await this.localInstancesIds();
         const instanceResults = await Promise.all(
             instanceIdHashes.map(hash => getObjectByIdHash(hash))
@@ -349,13 +414,14 @@ class InstancesModel extends EventEmitter {
     /**
      * Creates a local instance for the specified owner.
      *
-     * @param {SHA256IdHash<Person>} owner
-     * @returns {Promise<void>}
+     * @param owner
+     * @returns
      */
     public async createLocalInstance(owner: SHA256IdHash<Person>): Promise<SHA256IdHash<Instance>> {
+        this.state.assertCurrentState('Initialised');
+
         const person = await getObjectByIdHash(owner);
         const instance = await this.createLocalInstanceByEMail(person.obj.email);
-        this.emit('instance_created', instance);
         this.onInstanceCreated.emit(instance);
         return instance;
     }
@@ -367,10 +433,13 @@ class InstancesModel extends EventEmitter {
      * then it will be generated with additional person keys. (It just forwards everything to
      * @one/instance-creator. This is only a workaround for now).
      *
-     * @param {string} email
-     * @returns {Promise<void>}
+     * This also registers the instance in a list that stores whether an instance is local.
+     *
+     * @param email
      */
     public async createLocalInstanceByEMail(email: string): Promise<SHA256IdHash<Instance>> {
+        this.state.assertCurrentState('Initialised');
+
         // Check that the person does not yet have a instance
         const personId = await calculateIdHashOfObj({
             $type$: 'Person',
@@ -408,10 +477,11 @@ class InstancesModel extends EventEmitter {
      *
      * This fails, if an instance with the same owner already is marked as local.
      *
-     * @param {SHA256IdHash<Instance>} instanceId
-     * @returns {Promise<void>}
+     * @param instanceId
      */
     public async markInstanceAsLocal(instanceId: SHA256IdHash<Instance>): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await serializeWithType('InstancesModel', async () => {
             // Obtain the local instances list
             const localInstancesList = await InstancesModel.localInstanceList();
@@ -448,7 +518,7 @@ class InstancesModel extends EventEmitter {
     /**
      * Obtain the local instance list.
      *
-     * @returns {Promise<LocalInstancesList>}
+     * @returns
      */
     private static async localInstanceList(): Promise<LocalInstancesList> {
         return (

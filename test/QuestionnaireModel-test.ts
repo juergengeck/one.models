@@ -2,31 +2,25 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from './_helpers';
+import TestModel, {importModules, removeDir} from './utils/TestModel';
 import {QuestionnaireModel} from '../lib/models';
 
 let testModel: TestModel;
 
 describe('Questionnaire model test', () => {
     before(async () => {
-        // TODO: clean test initialization up!
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
     });
 
     after(async () => {
         await testModel.shutdown();
-        closeInstance();
-        await StorageTestInit.deleteTestDB();
-        await removeDir(`./test/${dbKey}`);
+        await closeAndDeleteCurrentInstance();
     });
 
     it('post a questionnaire reponse', async () => {

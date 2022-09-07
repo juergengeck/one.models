@@ -1,6 +1,6 @@
-import type {Instance, Recipe} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {Instance, Recipe} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {
@@ -24,18 +24,23 @@ const LocalInstancesListRecipie: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            regexp: /^LocalInstancesList$/,
+            itemtype: {type: 'string', regexp: /^LocalInstancesList$/},
             isId: true
         },
         {
             itemprop: 'instances',
-            list: ORDERED_BY.APP,
-            rule: [
-                {
-                    itemprop: 'instance',
-                    referenceToId: new Set(['Instance'])
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'object',
+                    rules: [
+                        {
+                            itemprop: 'instance',
+                            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Instance'])}
+                        }
+                    ]
                 }
-            ]
+            }
         }
     ]
 };

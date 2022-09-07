@@ -1,30 +1,24 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import RecipesStable from '../../lib/recipes/recipes-stable';
-import RecipesExperimental from '../../lib/recipes/recipes-experimental';
-import {closeInstance, initInstance} from 'one.core/lib/instance';
+
+import {closeInstance} from '@refinio/one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
     ChannelManager,
-    ConnectionsModel,
-    ConsentFileModel,
-    ContactModel,
+    LeuteModel,
     ECGModel,
     InstancesModel
 } from '../../lib/models';
-import {createRandomString} from 'one.core/lib/system/crypto-helpers';
 import oneModules from '../../lib/generated/oneModules';
 import {
     createSingleObjectThroughPurePlan,
     VersionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {Module, Person} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+} from '@refinio/one.core/lib/storage';
+import type {Module} from '@refinio/one.core/lib/recipes';
 
-export const dbKey = 'testDb';
 const path = require('path');
 const fs = require('fs');
 const util = require('util');
@@ -83,64 +77,22 @@ export async function importModules(): Promise<VersionedObjectResult<Module>[]> 
 }
 export default class TestModel {
     private readonly secret: string;
-    private readonly directoryPath: string;
 
     ecgModel: ECGModel;
-    consentFile: ConsentFileModel;
     instancesModel: InstancesModel;
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;
-    contactModel: ContactModel;
+    leuteModel: LeuteModel;
     accessModel: AccessModel;
 
-    constructor(commServerUrl: string, directoryPath: string) {
+    constructor(commServerUrl: string) {
         this.secret = 'test-secret';
         this.instancesModel = new InstancesModel();
-        this.directoryPath = directoryPath;
         this.accessModel = new AccessModel();
-        this.channelManager = new ChannelManager(this.accessModel);
-        this.consentFile = new ConsentFileModel(this.channelManager);
-        this.contactModel = new ContactModel(this.instancesModel, commServerUrl);
+        this.channelManager = new ChannelManager();
+        this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
-    }
-
-    private async setupMyIds(
-        anonymousEmail?: string,
-        takeOver?: boolean
-    ): Promise<{
-        mainId: SHA256IdHash<Person>;
-        anonymousId: SHA256IdHash<Person>;
-    }> {
-        // Setup identities if necessary
-        let anonymousId;
-        const mainId = await this.contactModel.myMainIdentity();
-        const myIdentities = await this.contactModel.myIdentities();
-        if (myIdentities.length === 2) {
-            anonymousId = myIdentities[0] === mainId ? myIdentities[1] : myIdentities[0];
-        } else if (anonymousEmail) {
-            anonymousId = await this.contactModel.createNewIdentity(true, anonymousEmail, takeOver);
-        } else {
-            anonymousId = await this.contactModel.createNewIdentity(true);
-        }
-
-        return {
-            mainId,
-            anonymousId
-        };
-    }
-
-    async createInstance(directory: string) {
-        const email = await createRandomString(64);
-        const instanceName = await createRandomString(64);
-        await initInstance({
-            name: `test-${instanceName}`,
-            email: `test-${email}`,
-            secret: this.secret,
-            ownerName: `test-${email}`,
-            initialRecipes: [...RecipesStable, ...RecipesExperimental],
-            directory: directory
-        });
     }
 
     async init(
@@ -148,33 +100,16 @@ export default class TestModel {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
-        /**
-         * In instance take over and in recovery process the main person and
-         * the anonymous person keys will be overwritten, so the first generated
-         * keys can be ignored, because they will not be used after the overwrite
-         * process is completed.
-         *
-         * This is just a temporary workaround! (only a hack!)
-         */
-        const ownerWillBeOverwritten = takeOver || recoveryState;
-
-        // Initialize contact model. This is the base for identity handling and everything
-        await this.contactModel.init(ownerWillBeOverwritten);
-        await this.accessModel.init();
         await this.instancesModel.init(this.secret);
-        // Setup the identities
-        const {mainId, anonymousId} = await this.setupMyIds(anonymousEmail, ownerWillBeOverwritten);
-
-        // Initialize the rest of the models
-        await this.channelManager.init(anonymousId);
+        await this.accessModel.init();
+        await this.leuteModel.init();
+        await this.channelManager.init();
         await this.ecgModel.init();
         await this.bodyTemperature.init();
     }
 
     /**
      * Shutdown the models.
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
         try {
@@ -190,10 +125,9 @@ export default class TestModel {
         }
 
         try {
-            await this.contactModel.shutdown();
+            await this.leuteModel.shutdown();
         } catch (e) {
             console.error(e);
         }
-        closeInstance();
     }
 }

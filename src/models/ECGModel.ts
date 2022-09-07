@@ -2,22 +2,16 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {getObject} from 'one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import {Model} from './Model';
 
-export default class ECGModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when ecg data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 
+export default class ECGModel extends Model {
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
     public static readonly channelId = 'electrocardiogram';
@@ -25,10 +19,11 @@ export default class ECGModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
+
         this.channelManager = channelManager;
     }
 
@@ -36,16 +31,21 @@ export default class ECGModel extends EventEmitter implements Model {
      * Initialize this instance
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(ECGModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleChannelUpdate.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      *
-     * @param {Electrocardiogram} ECGObject
-     * @returns {Promise<void>}
+     * @param ECGObject
      */
     async postECG(ECGObject: Electrocardiogram): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.channelManager.postToChannel(
             ECGModel.channelId,
             ECGObject,
@@ -56,9 +56,11 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *
-     * @returns {Promise<ObjectData<Electrocardiogram>[]>}
+     * @returns
      */
     async retrieveAllWithoutData(): Promise<ObjectData<Electrocardiogram>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('Electrocardiogram', {
             omitData: true,
             channelId: ECGModel.channelId
@@ -68,6 +70,8 @@ export default class ECGModel extends EventEmitter implements Model {
     async retrieveWithQueryOptions(
         queryOptions: QueryOptions
     ): Promise<ObjectData<Electrocardiogram>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('Electrocardiogram', {
             ...queryOptions,
             channelId: ECGModel.channelId
@@ -76,12 +80,14 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @returns {Promise<ObjectData<Electrocardiogram>>}
+     * @param electrocardiogramHash
+     * @returns
      */
     async retrieveElectrocardiogramByHash(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
     ): Promise<Electrocardiogram> {
+        this.state.assertCurrentState('Initialised');
+
         return await getObject(electrocardiogramHash);
     }
 
@@ -92,6 +98,8 @@ export default class ECGModel extends EventEmitter implements Model {
     async *electrocardiogramsIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<Electrocardiogram>> {
+        this.state.assertCurrentState('Initialised');
+
         yield* this.channelManager.objectIteratorWithType('Electrocardiogram', {
             ...queryOptions,
             channelId: ECGModel.channelId
@@ -100,12 +108,14 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Retrieve all the readings from an ECG
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @returns {Promise<ElectrocardiogramReadings[]>}
+     * @param electrocardiogramHash
+     * @returns
      */
     async retrieveAllECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>
     ): Promise<ElectrocardiogramReadings[]> {
+        this.state.assertCurrentState('Initialised');
+
         const {readings} = await getObject(electrocardiogramHash);
         return readings ? readings : [];
     }
@@ -115,6 +125,8 @@ export default class ECGModel extends EventEmitter implements Model {
      * @private
      */
     async getLastECGTimestamp(): Promise<number> {
+        this.state.assertCurrentState('Initialised');
+
         let lastECGStartimestamp = 0;
         const ecgs = await this.channelManager.getObjectsWithType('Electrocardiogram', {
             count: 1,
@@ -130,16 +142,18 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Paginated
-     * @param {SHA256Hash<Electrocardiogram>} electrocardiogramHash
-     * @param {number} pageSize - DEFAULT = 100
-     * @param {number} from - (Returned by this function) use only the returned value of nextFrom field for this parameter
-     * @returns {Promise<{readings: ElectrocardiogramReadings[], nextFrom?: number}>}
+     * @param electrocardiogramHash
+     * @param pageSize - DEFAULT = 100
+     * @param from - (Returned by this function) use only the returned value of nextFrom field for this parameter
+     * @returns
      */
     async retrieveECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>,
         from = -1,
         pageSize = 100
     ): Promise<{readings: ElectrocardiogramReadings[]; nextFrom?: number}> {
+        this.state.assertCurrentState('Initialised');
+
         const ecgReadings: ElectrocardiogramReadings[] = await this.retrieveAllECGReadings(
             electrocardiogramHash
         );
@@ -162,20 +176,21 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
      * Binary Search since elements in the readings are sorted
-     * @param {ElectrocardiogramReadings[]} readings
-     * @param {number} target
-     * @returns {number | undefined}
+     * @param readings
+     * @param target
+     * @returns
      * @private
      */
     private static findReadingIndex(
@@ -201,18 +216,14 @@ export default class ECGModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     *  @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param data
      */
     private async handleChannelUpdate(
         id: string,
-        owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === ECGModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }

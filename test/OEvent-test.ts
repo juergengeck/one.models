@@ -1,22 +1,24 @@
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import TestModel, {importModules} from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {expect} from 'chai';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import * as StorageTestInit from './_helpers';
 import {EventTypes, OEvent} from '../lib/misc/OEvent';
-import {wait} from 'one.core/lib/util/promise';
+import {wait} from '@refinio/one.core/lib/util/promise';
 
 let testModel: TestModel;
 
 describe('OEvent test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
+    });
+
+    after(async () => {
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('emit sync - check listener handle is called sequentially ', async () => {
@@ -384,10 +386,85 @@ describe('OEvent test', () => {
         disconnect3();
     }).timeout(1000);
 
-    after(async () => {
-        await wait(1000);
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-    });
+    it('check onListen and onStopListen listeners are triggered', async () => {
+        const onEvent = new OEvent<() => void>(EventTypes.Default, true);
+
+        let onListenListenerCalled1 = 0;
+        let onListenListenerCalled2 = 0;
+        let onStopListenListenerCalled = 0;
+
+        const disconnectOnListenListener1 = onEvent.onListen(() => {
+            return new Promise<void>(resolve => {
+                onListenListenerCalled1++;
+            });
+        });
+
+        const disconnectOnListenListener2 = onEvent.onListen(() => {
+            return new Promise<void>(resolve => {
+                onListenListenerCalled2++;
+            });
+        });
+
+        const disconnectOnStopListenListener = onEvent.onStopListen(() => {
+            return new Promise<void>(resolve => {
+                onStopListenListenerCalled++;
+            });
+        });
+
+        expect(onListenListenerCalled1).to.be.equal(0);
+        expect(onListenListenerCalled2).to.be.equal(0);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect1 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(1);
+        expect(onListenListenerCalled2).to.be.equal(1);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect2 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 2 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(2);
+        expect(onListenListenerCalled2).to.be.equal(2);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        const disconnect3 = onEvent(() => {
+            return new Promise<void>(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, 3 * 100);
+            });
+        });
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(0);
+
+        disconnect1();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(1);
+
+        disconnect2();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(2);
+
+        disconnect3();
+        expect(onListenListenerCalled1).to.be.equal(3);
+        expect(onListenListenerCalled2).to.be.equal(3);
+        expect(onStopListenListenerCalled).to.be.equal(3);
+
+        disconnectOnListenListener1();
+        disconnectOnListenListener2();
+        disconnectOnStopListenListener();
+    }).timeout(1000);
 });

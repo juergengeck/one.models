@@ -1,27 +1,27 @@
-import * as StorageTestInit from 'one.core/test/_helpers';
-
-import {closeInstance, getInstanceOwnerIdHash, registerRecipes} from 'one.core/lib/instance';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+import * as StorageTestInit from './_helpers';
+import {
+    closeAndDeleteCurrentInstance,
+    getInstanceOwnerIdHash
+} from '@refinio/one.core/lib/instance';
+import TestModel, {importModules, removeDir} from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import type {RawChannelEntry} from '../lib/models/ChannelManager';
 import {ObjectData, Order} from '../lib/models/ChannelManager';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import {getAllVersionMapEntries} from 'one.core/lib/version-map-query';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {
     createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
 import type {CreationTime} from '../lib/recipes/MetaRecipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
-import {wait} from 'one.core/lib/util/promise';
+import {wait} from '@refinio/one.core/lib/util/promise';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -38,9 +38,9 @@ let indentationMap = new Map<string, number>(); // Map that stores indention lev
  * - colors the channel owner (second value) blue
  * - indents the third value based on START / END string
  *
- * @param {string} message
- * @param {number} color
- * @returns {string[]}
+ * @param message
+ * @param color
+ * @returns
  */
 function format(message: string, color: number): string[] {
     const m = message as string;
@@ -112,13 +112,19 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 
 describe('Channel Manager test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         channelManager = model.channelManager;
+    });
+
+    after(async () => {
+        // Wait for the hooks to run to completion
+        await wait(1000);
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
     });
 
     it('should create channels and init channelManager', async () => {
@@ -230,7 +236,7 @@ describe('Channel Manager test', () => {
             }
         ];
 
-        const iter = await ChannelManager.mergeIteratorMostCurrent(
+        const iter = await ChannelManager['mergeIteratorMostCurrent'](
             [
                 valueGenerator(W as RawChannelEntry[]),
                 //valueGenerator(X as RawChannelEntry[]),
@@ -293,7 +299,8 @@ describe('Channel Manager test', () => {
 
         console.log([await channelManager.getObjects({ channelId: 'mergetest' })]);
     });
-*/
+    */
+
     it('should get objects with iterator', async () => {
         async function arrayFromAsync(
             iter: AsyncIterable<ObjectData<BodyTemperature>>
@@ -487,14 +494,5 @@ describe('Channel Manager test', () => {
         const channelInfoHash = await channelManager.getLatestMergedChannelInfoHash({id, owner});
         const channelInfo = await getObject(channelInfoHash);
         expect(channelInfo.$type$).to.equal('ChannelInfo');
-    });
-
-    after(async () => {
-        // Wait for the hooks to run to completion
-        await wait(1000);
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-        //await StorageTestInit.deleteTestDB();
     });
 });

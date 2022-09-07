@@ -1,4 +1,4 @@
-import type {Recipe} from 'one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {
@@ -22,12 +22,12 @@ export const ApplicationSettingsRecipe: Recipe = {
     rule: [
         {
             itemprop: 'id',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             isId: true
         },
         {
             itemprop: 'properties',
-            valueType: 'Map'
+            itemtype: {type: 'map', key: {type: 'string'}, value: {type: 'stringifiable'}}
         }
     ]
 };

@@ -4,16 +4,14 @@
 
 import {expect} from 'chai';
 
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from './_helpers';
 import {
     createSingleObjectThroughPurePlan,
     getObjectByIdObj,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
+} from '@refinio/one.core/lib/storage';
+import TestModel, {importModules} from './utils/TestModel';
 import type AccessModel from '../lib/models/AccessModel';
 
 let accessModel: AccessModel;
@@ -21,17 +19,20 @@ let testModel: TestModel;
 
 describe('AccessRights model test', () => {
     before(async () => {
-        await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes([...RecipesStable, ...RecipesExperimental]);
+        await StorageTestInit.init();
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
         accessModel = model.accessModel;
     });
 
+    after(async () => {
+        await testModel.shutdown();
+        await closeAndDeleteCurrentInstance();
+    });
+
     it('should see if the access groups were created on init', async () => {
-        await accessModel.init();
         await accessModel.createAccessGroup('partners');
         await accessModel.createAccessGroup('clinic');
 
@@ -123,12 +124,5 @@ describe('AccessRights model test', () => {
         await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
         const persons = await accessModel.getAccessGroupPersons('partners');
         expect(persons).to.have.length(1);
-    });
-
-    after(async () => {
-        await testModel.shutdown();
-        closeInstance();
-        await removeDir(`./test/${dbKey}`);
-        await StorageTestInit.deleteTestDB();
     });
 });

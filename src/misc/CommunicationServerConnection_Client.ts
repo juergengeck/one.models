@@ -1,13 +1,18 @@
-import WebSocket from 'isomorphic-ws';
-import WebSocketPromiseBased from './WebSocketPromiseBased';
 import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
-import {fromByteArray, toByteArray} from 'base64-js';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import PromisePlugin from './Connections/plugins/PromisePlugin';
+import Connection from './Connections/Connection';
+import {PongPlugin} from './Connections/plugins/PingPongPlugin';
 
 /**
  * This class implements the client side of communication server communication
  */
 class CommunicationServerConnection_Client {
-    public webSocketPB: WebSocketPromiseBased; // The websocket used for the communication
+    public connection: Connection; // The websocket used for the communication
 
     /**
      * Creates a client connection to a communication server for registering connection listeners.
@@ -15,7 +20,12 @@ class CommunicationServerConnection_Client {
      * @param url
      */
     constructor(url: string) {
-        this.webSocketPB = new WebSocketPromiseBased(new WebSocket(url));
+        this.connection = new Connection(createWebSocket(url));
+        this.connection.addPlugin(new PromisePlugin());
+    }
+
+    get id(): number {
+        return this.connection.id;
     }
 
     // ######## Socket Management & Settings ########
@@ -23,13 +33,14 @@ class CommunicationServerConnection_Client {
     /**
      * Get the underlying web socket instance
      *
-     * @returns {WebSocket}
+     * @returns
      */
     get webSocket(): WebSocket {
-        if (!this.webSocketPB.webSocket) {
+        const webSocket = this.connection.websocketPlugin().webSocket;
+        if (!webSocket) {
             throw new Error('No Websocket is assigned to connection.');
         }
-        return this.webSocketPB.webSocket;
+        return webSocket;
     }
 
     /**
@@ -38,26 +49,26 @@ class CommunicationServerConnection_Client {
      * Attention: If messages arrive in the meantime they might get lost.
      */
     public releaseWebSocket(): WebSocket {
-        return this.webSocketPB.releaseWebSocket();
+        this.stopPingPong();
+        return this.connection.websocketPlugin().releaseWebSocket();
     }
 
     /**
      * Closes the websocket
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public close(reason?: string): void {
-        return this.webSocketPB.close(reason);
+        return this.connection.close(reason);
     }
-
 
     /**
      * Terminates the web socket.
      *
-     * @param {string} reason - The reason for closing. If specified it is sent unencrypted to the remote side!
+     * @param reason - The reason for closing. If specified it is sent unencrypted to the remote side!
      */
     public terminate(reason?: string): void {
-        return this.webSocketPB.terminate(reason);
+        return this.connection.terminate(reason);
     }
 
     /**
@@ -65,28 +76,27 @@ class CommunicationServerConnection_Client {
      *
      * This timeout specifies how long the connection will wait for new messages in the wait* methods.
      *
-     * @param {number} timeout - The new timeout. -1 means forever, > 0 is the time in ms.
+     * @param timeout - The new timeout. -1 means forever, > 0 is the time in ms.
      */
-    set requestTimeout(timeout: number) {
-        this.webSocketPB.defaultTimeout = timeout;
-    }
+    /*set requestTimeout(timeout: number) {
+        this.connection.defaultTimeout = timeout;
+    }*/
 
     /**
      * Get the current request timeout.
      *
-     * @returns {number}
+     * @returns
      */
-    get requestTimeout(): number {
-        return this.webSocketPB.defaultTimeout;
-    }
+    /*get requestTimeout(): number {
+        return this.connection.defaultTimeout;
+    }*/
 
     // ######## Message sending ########
 
     /**
      * Send a register message to the communication server.
      *
-     * @param {Uint8Array} publicKey
-     * @returns {Promise<void>}
+     * @param publicKey
      */
     public async sendRegisterMessage(publicKey: Uint8Array): Promise<void> {
         await this.sendMessage({
@@ -98,8 +108,7 @@ class CommunicationServerConnection_Client {
     /**
      * Send response to authentication request message.
      *
-     * @param {Uint8Array} response
-     * @returns {Promise<void>}
+     * @param response
      */
     public async sendAuthenticationResponseMessage(response: Uint8Array): Promise<void> {
         await this.sendMessage({
@@ -108,26 +117,19 @@ class CommunicationServerConnection_Client {
         });
     }
 
-    /**
-     * Send Pong Message
-     */
-    public async sendPongMessage(): Promise<void> {
-        await this.sendMessage({command: 'comm_pong'});
-    }
-
     // ######## Message receiving ########
 
     /**
      * Wait for a message with the specified command.
      *
-     * @param {T} command - The expected command of the next message
-     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
+     * @param  command - The expected command of the next message
+     * @returns
      */
     public async waitForMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
         command: T
     ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
         const message = this.unpackBinaryFields(
-            await this.webSocketPB.waitForJSONMessageWithType(command, 'command')
+            await this.connection.promisePlugin().waitForJSONMessageWithType(command, 'command')
         );
         if (isServerMessage(message, command)) {
             return message;
@@ -136,70 +138,28 @@ class CommunicationServerConnection_Client {
     }
 
     /**
-     * Wait for a message with the specified command while also answering comm_pings.
+     * Starts answering pings of the server.
      *
-     * @param {T} command - The expected command of the next message
-     * @param {number} pingTimeout - Pings in the given interval are expected. If pings do not arrive in this
-     *                               time the connection is closed.
-     * @returns {Promise<CommunicationServerProtocol.ServerMessages[T]>}
+     * @param pingInterval - Interval since last pong when to send another ping.
+     * @param pongTimeout - Time to wait for the pong (after a ping) before severing the connection.
      */
-    public async waitForMessagePingPong<T extends keyof CommunicationServerProtocol.ServerMessages>(
-        command: T,
-        pingTimeout: number
-    ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
-        let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-        // Schedules a timeout at pingTimeout interval
-        const schedulePingTimeout = () => {
-            cancelPingTimeout();
-            timeoutHandle = setTimeout(() => {
-                this.webSocketPB.terminate('Ping timeout');
-            }, pingTimeout);
-        };
-
-        // Cancels the ping timeout
-        const cancelPingTimeout = () => {
-            if (timeoutHandle) {
-                clearTimeout(timeoutHandle);
-            }
-        };
-
-        // Wait while answering pings for the requested message
-        try {
-            while (true) {
-                // Schedule the ping timeout
-                schedulePingTimeout();
-
-                // Wait for new message
-                const message = this.unpackBinaryFields(
-                    await this.webSocketPB.waitForJSONMessage()
-                );
-
-                // On ping send a pong and reiterate the loop
-                if (isServerMessage(message, 'comm_ping')) {
-                    await this.sendPongMessage();
-                }
-
-                // On requested command return from this function
-                else if (isServerMessage(message, command)) {
-                    cancelPingTimeout();
-                    return message;
-                }
-
-                // On unknown message throw
-                else {
-                    throw Error(
-                        "Received data does not match the data expected for command '" +
-                            command +
-                            "'"
-                    );
-                }
-            }
-        } catch (e) {
-            // Cancel the ping timeout e.g. on error (e.g. when the connection closes)
-            cancelPingTimeout();
-            throw e;
+    public startPingPong(pingInterval: number, pongTimeout: number): void {
+        if (this.connection.hasPlugin('pong')) {
+            throw new Error('Already ping / ponging');
         }
+
+        this.connection.addPlugin(new PongPlugin(pingInterval, pongTimeout), {before: 'promise'});
+    }
+
+    /**
+     * Stops answering pings of the server.
+     */
+    public stopPingPong(): void {
+        if (!this.connection.hasPlugin('pong')) {
+            return;
+        }
+        this.connection.pongPlugin().disable();
+        this.connection.removePlugin('pong');
     }
 
     // ######## Private ########
@@ -207,17 +167,16 @@ class CommunicationServerConnection_Client {
     /**
      * Send a message to the communication server.
      *
-     * @param {T} message - The message to send
-     * @returns {Promise<void>}
+     * @param message - The message to send
      */
     private async sendMessage<T extends CommunicationServerProtocol.ClientMessageTypes>(
         message: T
     ): Promise<void> {
-        await this.webSocketPB.waitForOpen();
-        await this.webSocketPB.send(
+        await this.connection.waitForOpen();
+        await this.connection.send(
             JSON.stringify(message, function (key, value) {
                 if (value.constructor === Uint8Array) {
-                    return fromByteArray(value);
+                    return uint8arrayToHexString(value);
                 } else {
                     return value;
                 }
@@ -226,10 +185,10 @@ class CommunicationServerConnection_Client {
     }
 
     /**
-     * Convert fields from base64 encoding to Uint8Array.
+     * Convert fields from Hex encoding to Uint8Array.
      *
-     * @param {any} message - The message to convert
-     * @returns {any} - The converted message
+     * @param message - The message to convert
+     * @returns The converted message
      */
     public unpackBinaryFields(message: any): any {
         if (typeof message.command !== 'string') {
@@ -238,18 +197,18 @@ class CommunicationServerConnection_Client {
 
         if (message.command === 'authentication_request') {
             if (message.publicKey && typeof message.publicKey === 'string') {
-                message.publicKey = toByteArray(message.publicKey);
+                message.publicKey = hexToUint8Array(message.publicKey);
             }
             if (message.challenge && typeof message.challenge === 'string') {
-                message.challenge = toByteArray(message.challenge);
+                message.challenge = hexToUint8Array(message.challenge);
             }
         }
         if (message.command === 'communication_request') {
             if (message.sourcePublicKey && typeof message.sourcePublicKey === 'string') {
-                message.sourcePublicKey = toByteArray(message.sourcePublicKey);
+                message.sourcePublicKey = hexToUint8Array(message.sourcePublicKey);
             }
             if (message.targetPublicKey && typeof message.targetPublicKey === 'string') {
-                message.targetPublicKey = toByteArray(message.targetPublicKey);
+                message.targetPublicKey = hexToUint8Array(message.targetPublicKey);
             }
         }
 

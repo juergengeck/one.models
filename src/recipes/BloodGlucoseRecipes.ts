@@ -1,4 +1,4 @@
-import type {Recipe} from 'one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -21,26 +21,26 @@ const BloodGlucoseRecipe: Recipe = {
     rule: [
         {
             itemprop: 'typeDescription',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             optional: true
         },
         {
             itemprop: 'value',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'unit',
-            valueType: 'string',
+            itemtype: {type: 'string'},
             optional: true
         },
         {
             itemprop: 'startTimestamp',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         },
         {
             itemprop: 'endTimestamp',
-            valueType: 'number',
+            itemtype: {type: 'number'},
             optional: true
         }
     ]

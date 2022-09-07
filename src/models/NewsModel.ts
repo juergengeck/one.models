@@ -1,9 +1,7 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
+import {Model} from './Model';
 
 /**
  * This represents the model of a news for now
@@ -15,8 +13,8 @@ export type News = {
 
 /**
  * Convert from model representation to one representation.
- * @param {News} modelObject - the model object
- * @returns {OneNews} The corresponding one object
+ * @param modelObject - the model object
+ * @returns The corresponding one object
  *
  */
 
@@ -34,15 +32,10 @@ function convertFromOne(oneObject: OneNews): News {
 /**
  * This model implements a broadcast channel.
  */
-export default class NewsModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when news data is updated.
-     */
-    public onNewsEvent = new OEvent<() => void>();
+export default class NewsModel extends Model {
     /**
      * Event emitted when news or feedback data is updated.
      */
-    public onUpdated = new OEvent<() => void>();
 
     channelManager: ChannelManager;
 
@@ -50,6 +43,7 @@ export default class NewsModel extends EventEmitter implements Model {
 
     constructor(channelManager: ChannelManager) {
         super();
+
         this.channelManager = channelManager;
     }
 
@@ -58,34 +52,37 @@ export default class NewsModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel('feedbackChannel');
         await this.channelManager.createChannel('newsChannel');
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     async addNews(content: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.postContent('newsChannel', content);
     }
 
     async addFeedback(content: string): Promise<void> {
-        await this.postContent('feedbackChannel', content);
-    }
+        this.state.assertCurrentState('Initialised');
 
-    private async postContent(channelId: string, content: string): Promise<void> {
-        await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
-        this.emit('news');
-        this.onNewsEvent.emit();
+        await this.postContent('feedbackChannel', content);
     }
 
     /**
@@ -93,6 +90,8 @@ export default class NewsModel extends EventEmitter implements Model {
      * retrieve the news or feedback depending on the channel id provided
      */
     async entries(channelId: string): Promise<ObjectData<News>[]> {
+        this.state.assertCurrentState('Initialised');
+
         const objects: ObjectData<News>[] = [];
 
         const oneObjects = await this.channelManager.getObjectsWithType('News', {
@@ -107,14 +106,17 @@ export default class NewsModel extends EventEmitter implements Model {
         return objects;
     }
 
+    private async postContent(channelId: string, content: string): Promise<void> {
+        await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
+        this.onUpdated.emit();
+    }
+
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
+     * @param id
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === 'feedbackChannel' || id === 'newsChannel') {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }

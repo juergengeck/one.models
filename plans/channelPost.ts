@@ -1,9 +1,9 @@
-import {getObject, getObjectByIdHash} from 'one.core/lib/storage';
-import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
+import {getObject, getObjectByIdHash} from '@refinio/one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
 
 /**
  * Post a new entry in a channel.
@@ -14,12 +14,12 @@ import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
  * Attention: This is an impure plan, because it always generates a new element
  *            with a new creation time even if the payload was posted before
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} channelId - The channel to post to
- * @param {SHA256IdHash<Person>} channelOwner - Owner of the channel to post to
- * @param {OneUnversionedObjectTypes} payload - Payload of the post
- * @param {number} [timestamp]
- * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+ * @param WriteStorage
+ * @param channelId - The channel to post to
+ * @param channelOwner - Owner of the channel to post to
+ * @param payload - Payload of the post
+ * @param [timestamp]
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

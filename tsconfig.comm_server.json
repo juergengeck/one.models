@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "module": "CommonJS",
+        "target": "esnext",
+        "esModuleInterop": true,
+        "moduleResolution": "node"
+    },
+    "include": [
+        "src/@OneObjectInterfaces.d.ts",
+    ],
+    "exclude": ["node_modules"]
+}

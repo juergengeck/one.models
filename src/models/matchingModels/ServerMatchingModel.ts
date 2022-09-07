@@ -12,12 +12,12 @@ import {
     UnversionedObjectResult,
     VERSION_UPDATES,
     VersionedObjectResult
-} from 'one.core/lib/storage';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this
@@ -56,9 +56,10 @@ export default class ServerMatchingModel extends MatchingModel {
      *
      * 3. share the channel with the matching clients
      *
-     * @returns {Promise<void>}
      */
     async init() {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.updateInstanceInfo();
         await this.initialiseMaps();
         await this.initNotifiedUsersList();
@@ -82,6 +83,8 @@ export default class ServerMatchingModel extends MatchingModel {
 
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
         });
+
+        this.state.triggerEvent('init');
     }
 
     // ################ PRIVATE API ################
@@ -98,7 +101,10 @@ export default class ServerMatchingModel extends MatchingModel {
                     const receivedObject = await getObject(res.obj.data);
                     if (receivedObject.$type$ === 'Supply') {
                         console.log('Supply Obj Received:', receivedObject);
-                        await this.channelManager.postToChannelIfNotExist(this.channelId, res.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            MatchingModel.channelId,
+                            res.obj
+                        );
                         await this.identifyMatching(
                             receivedObject,
                             this.suppliesMap,
@@ -106,7 +112,10 @@ export default class ServerMatchingModel extends MatchingModel {
                         );
                     } else if (receivedObject.$type$ === 'Demand') {
                         console.log('Demand Obj Received:', receivedObject);
-                        await this.channelManager.postToChannelIfNotExist(this.channelId, res.obj);
+                        await this.channelManager.postToChannelIfNotExist(
+                            MatchingModel.channelId,
+                            res.obj
+                        );
                         await this.identifyMatching(
                             receivedObject,
                             this.demandsMap,
@@ -125,8 +134,6 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Initialising the notified users object in order to load all
      * data about the previously notified users.
-     *
-     * @returns {Promise<void>}
      */
     private async initNotifiedUsersList(): Promise<void> {
         try {
@@ -159,10 +166,9 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Search for a match in the available Supply and Demand objects.
      *
-     * @param {T} object
-     * @param {Map<string, T[]>} sourceMap
-     * @param {Map<string, Supply[] | Demand[]>} destinationMap
-     * @returns {Promise<void>}
+     * @param object
+     * @param sourceMap
+     * @param destinationMap
      * @private
      */
     private async identifyMatching<T extends Demand | Supply>(
@@ -196,9 +202,9 @@ export default class ServerMatchingModel extends MatchingModel {
     /**
      * Send a Match Response object to the corresponding persons.
      *
-     * @param {Supply|Demand} source
-     * @param {Supply|Demand} dest
-     * @returns {Promise<UnversionedObjectResult>}
+     * @param source
+     * @param dest
+     * @returns
      */
     private async sendMatchResponse(
         source: Supply | Demand,

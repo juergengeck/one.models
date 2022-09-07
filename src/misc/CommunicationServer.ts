@@ -1,13 +1,13 @@
-import WebSocket from 'isomorphic-ws';
+import WebSocketWS from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
-
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
-import {decryptWithPublicKey, encryptWithPublicKey} from 'one.core/lib/instance-crypto';
+import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import {wslogId} from './LogUtils';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import WebSocketListener from './WebSocketListener';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type Connection from './Connections/Connection';
+import PromisePlugin from './Connections/plugins/PromisePlugin';
 
 const MessageBus = createMessageBus('CommunicationServer');
 
@@ -47,16 +47,15 @@ class CommunicationServer {
     /**
      * Start the communication server.
      *
-     * @param {string} host - The host to bind to.
-     * @param {number} port - The port to bind to.
-     * @param {number} pingInterval - The interfval in which pings are sent for spare connections.
-     * @param {number} pongTimeout - The timeout used to wait for pongs.
-     * @returns {Promise<void>}
+     * @param host - The host to bind to.
+     * @param port - The port to bind to.
+     * @param pingInterval - The interfval in which pings are sent for spare connections.
+     * @param pongTimeout - The timeout used to wait for pongs.
      */
     public async start(
         host: string,
         port: number,
-        pingInterval: number = 5000,
+        pingInterval: number = 25000,
         pongTimeout = 1000
     ): Promise<void> {
         this.pingInterval = pingInterval;
@@ -66,13 +65,9 @@ class CommunicationServer {
 
     /**
      * Stop the communication server.
-     *
-     * @returns {Promise<void>}
      */
     public async stop(): Promise<void> {
-        await this.webSocketListener.stop();
-
-        MessageBus.send('log', `Closing remaining connections`);
+        MessageBus.send('log', `Stop communication server`);
 
         // Close spare connections
         for (const connectionContainers of this.listeningConnectionsMap.values()) {
@@ -83,12 +78,15 @@ class CommunicationServer {
 
         // Close forwarded connections
         for (const ws of this.openedConnections) {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws.readyState === WebSocketWS.OPEN) {
                 ws.close();
             }
         }
 
-        MessageBus.send('log', `Closing remaining connections done`);
+        MessageBus.send('log', `Closing websocker listener`);
+        await this.webSocketListener.stop();
+
+        MessageBus.send('log', `Stop communication server complete`);
     }
 
     /**
@@ -98,32 +96,27 @@ class CommunicationServer {
      * 1) a client wants to register
      * 2) somebody wants a relay to a registered client
      *
-     * @param {WebSocket} ws - The accepted websocket
-     * @returns {Promise<void>}
+     * @param connection
      */
-    private async acceptConnection(ws: WebSocketPromiseBased): Promise<void> {
-        MessageBus.send(
-            'log',
-            `${wslogId(ws.webSocket)}: Accepted WebSocket - Waiting for message`
-        );
+    private async acceptConnection(connection: Connection): Promise<void> {
+        MessageBus.send('log', `${connection.id}: Accepted WebSocket - Waiting for message`);
+        connection.addPlugin(new PromisePlugin());
+
         try {
-            const conn = new CommunicationServerConnection_Server(ws);
+            const conn = new CommunicationServerConnection_Server(connection);
             const message = await conn.waitForAnyMessage();
 
             // For register, let's authenticate the client
             if (isClientMessage(message, 'register')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Registering connection for ${Buffer.from(
+                    `${connection.id}: Registering connection for ${uint8arrayToHexString(
                         message.publicKey
-                    ).toString('hex')}`
+                    )}`
                 );
 
                 // Step 1: Create, encrypt and send the challenge
-                MessageBus.send(
-                    'log',
-                    `${wslogId(ws.webSocket)}: Register Step 1: Sending auth request`
-                );
+                MessageBus.send('log', `${connection.id}: Register Step 1: Sending auth request`);
                 const challenge = tweetnacl.randomBytes(64);
                 const encryptedChallenge = encryptWithPublicKey(
                     message.publicKey,
@@ -144,7 +137,7 @@ class CommunicationServer {
                 // Step 2: Wait for authentication_response, decrypt and verify
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Register Step 2: Waiting for auth response`
+                    `${connection.id}: Register Step 2: Waiting for auth response`
                 );
                 const authResponseMessage = await conn.waitForMessage('authentication_response');
                 const decryptedChallenge = decryptWithPublicKey(
@@ -157,7 +150,7 @@ class CommunicationServer {
                 }
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Register Step 2: Authentication successful`
+                    `${connection.id}: Register Step 2: Authentication successful`
                 );
 
                 // Step 3: Add to spare map and return success message
@@ -165,10 +158,7 @@ class CommunicationServer {
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
 
                 // Step 4: Start PingPong
-                MessageBus.send(
-                    'log',
-                    `${wslogId(ws.webSocket)}: Register Step 3: Starting Ping Pong`
-                );
+                MessageBus.send('log', `${connection.id}: Register Step 3: Starting Ping Pong`);
                 conn.startPingPong(this.pingInterval, this.pongTimeout);
             }
 
@@ -176,25 +166,25 @@ class CommunicationServer {
             else if (isClientMessage(message, 'communication_request')) {
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Requesting Relay to ${Buffer.from(
+                    `${connection.id}: Requesting Relay to ${uint8arrayToHexString(
                         message.targetPublicKey
-                    ).toString('hex')}`
+                    )}`
                 );
 
                 const connOther = this.popListeningConnection(message.targetPublicKey);
 
                 // Step 1: Stop the ping ponging
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 1: Stop ping pong`);
+                MessageBus.send('log', `${connection.id}: Relay Step 1: Stop ping pong`);
                 await connOther.stopPingPong();
 
                 // Step 2: Send the handover message
-                MessageBus.send('log', `${wslogId(ws.webSocket)}: Relay Step 2: Send Handover`);
+                MessageBus.send('log', `${connection.id}: Relay Step 1: Send Handover`);
                 await connOther.sendConnectionHandoverMessage();
 
                 // Step 3: Forward the communication request
                 MessageBus.send(
                     'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 3: Forward connection request`
+                    `${connection.id}: Relay Step 2: Forward connection request`
                 );
                 await connOther.sendCommunicationRequestMessage(
                     message.sourcePublicKey,
@@ -211,10 +201,7 @@ class CommunicationServer {
                 // processed by the kernel. This is so unlikely it seems impossible.
                 // A fix would be to call the send after the events have been rewired. But then we cannot use the
                 // connection class with the current architecture. So we will do that probably later when we see problems
-                MessageBus.send(
-                    'log',
-                    `${wslogId(ws.webSocket)}: Relay Step 4: Connect both sides`
-                );
+                MessageBus.send('log', `${connection.id}: Relay Step 3: Connect both sides`);
                 let wsThis = conn.releaseWebSocket();
                 let wsOther = connOther.releaseWebSocket();
                 wsThis.addEventListener('message', (msg: any) => {
@@ -224,20 +211,26 @@ class CommunicationServer {
                     wsThis.send(msg.data);
                 });
                 wsThis.addEventListener('error', (e: any) => {
-                    MessageBus.send('log', `${wslogId(wsThis)}: Error - ${e}`);
+                    MessageBus.send('log', `${conn.connection.id}: Error - ${e}`);
                 });
                 wsOther.addEventListener('error', (e: any) => {
-                    MessageBus.send('log', `${wslogId(wsOther)}: Error - ${e}`);
+                    MessageBus.send('log', `${connOther.connection.id}: Error - ${e}`);
                 });
                 wsThis.addEventListener('close', (e: any) => {
                     this.openedConnections.delete(wsThis);
-                    MessageBus.send('log', `${wslogId(wsThis)}: Relay closed - ${e.reason}`);
-                    wsOther.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
+                    MessageBus.send(
+                        'log',
+                        `${conn.connection.id}: Requesting connection closed - ${e.message}`
+                    );
+                    wsOther.close(1000, e.message);
                 });
                 wsOther.addEventListener('close', (e: any) => {
                     this.openedConnections.delete(wsOther);
-                    MessageBus.send('log', `${wslogId(wsOther)}: Relay closed - ${e.reason}`);
-                    wsThis.close(1000, `Closed by relay: ${e.reason.substr(0, 100)}`);
+                    MessageBus.send(
+                        'log',
+                        `${connOther.connection.id}: Listening connection closed - ${e.message}`
+                    );
+                    wsThis.close(1000, e.message);
                 });
 
                 this.openedConnections.add(wsThis);
@@ -249,10 +242,8 @@ class CommunicationServer {
                 throw new Error('Received unexpected or malformed message from client.');
             }
         } catch (e) {
-            MessageBus.send('log', `${wslogId(ws.webSocket)}: ${e}`);
-            // TODO: Perhaps we should send the client the reason. Perhaps not, because this would
-            // expose whether he is communicating via a commserver or directly. But would it be that bad?
-            ws.close();
+            MessageBus.send('log', `${connection.id}: ${e}`);
+            connection.close(e.message);
         }
     }
 
@@ -262,18 +253,15 @@ class CommunicationServer {
      * This also adds an event listener to the 'close' event, so that the connection is automatically
      * removed from the listeningConnections list when the websocket is closed.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client.
-     * @param {CommunicationServerConnection_Server} conn - The connection that is registered.
+     * @param publicKey - The public key of the registering client.
+     * @param conn - The connection that is registered.
      */
     private pushListeningConnection(
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
     ): void {
-        const strPublicKey = Buffer.from(publicKey).toString('hex');
-        MessageBus.send(
-            'debug',
-            `${wslogId(conn.webSocket)}: pushListeningConnection(${strPublicKey})`
-        );
+        const strPublicKey = uint8arrayToHexString(publicKey);
+        MessageBus.send('debug', `${conn.id}: pushListeningConnection(${strPublicKey})`);
 
         // Add handler that removes the connection from the listening list when the ws closes
         const boundRemoveHandler = this.removeListeningConnection.bind(this, publicKey, conn);
@@ -302,18 +290,15 @@ class CommunicationServer {
      *
      * This is used to remove it when the websocket is closed before a relay with it has been established.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client.
-     * @param {CommunicationServerConnection_Server} conn - The connection that is removed.
+     * @param publicKey - The public key of the registering client.
+     * @param conn - The connection that is removed.
      */
     private removeListeningConnection(
         publicKey: Uint8Array,
         conn: CommunicationServerConnection_Server
     ): void {
-        const strPublicKey = Buffer.from(publicKey).toString('hex');
-        MessageBus.send(
-            'debug',
-            `${wslogId(conn.webSocket)}: removeListeningConnection(${strPublicKey})`
-        );
+        const strPublicKey = uint8arrayToHexString(publicKey);
+        MessageBus.send('debug', `${conn.id}: removeListeningConnection(${strPublicKey})`);
 
         const connectionList = this.listeningConnectionsMap.get(strPublicKey);
         if (connectionList) {
@@ -328,16 +313,16 @@ class CommunicationServer {
      * Pops one listening / spare connection from the listenningConnections list that matches the
      * public key. This is used to find a relay match.
      *
-     * @param {Uint8Array} publicKey - The public key of the registering client / the target of the requested relay.
-     * @returns {CommunicationServerConnection_Server} The found connection.
+     * @param publicKey - The public key of the registering client / the target of the requested relay.
+     * @returns The found connection.
      */
     private popListeningConnection(publicKey: Uint8Array): CommunicationServerConnection_Server {
-        const strPublicKey = Buffer.from(publicKey).toString('hex');
+        const strPublicKey = uint8arrayToHexString(publicKey);
         MessageBus.send('debug', `popListeningConnection(${strPublicKey})`);
 
         // Get the connection list for the current public key
         const connectionList = this.listeningConnectionsMap.get(strPublicKey);
-        if (!connectionList) {
+        if (connectionList === undefined) {
             throw new Error('No listening connection for the specified publicKey.');
         }
 
@@ -355,9 +340,7 @@ class CommunicationServer {
         }
         MessageBus.send(
             'debug',
-            `${wslogId(
-                connContainer.conn.webSocket
-            )}: popListeningConnection(${strPublicKey}) - Returned`
+            `${connContainer.conn.id}: popListeningConnection(${strPublicKey}) - Returned`
         );
 
         // Remove the close listener

@@ -8,8 +8,12 @@ test/*.d.ts
 test/**/*.d.ts
 test/*.d.ts.map
 test/**/*.d.ts.map
+test/testStorage
+passwordRecoveryRequests
 
 test/testDb
+store-dir/*
+*.id.json
 
 # Generated code
 *.contact
@@ -24,6 +28,10 @@ lib/
 OneDB
 dist/
 ./test/testDb
+comm_server.*
+password_recovery_server.*
+generate_identity.*
+
 #########
 # Node.js
 #########

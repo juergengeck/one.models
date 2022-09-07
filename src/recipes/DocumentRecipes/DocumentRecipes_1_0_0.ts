@@ -1,5 +1,5 @@
-import type {BLOB, Recipe} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
+import type {BLOB, Recipe} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         DocumentInfo: DocumentInfo;
@@ -16,7 +16,7 @@ const DocumentInfoRecipe: Recipe = {
     rule: [
         {
             itemprop: 'document',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         }
     ]
 };

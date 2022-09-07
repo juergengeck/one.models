@@ -1,12 +1,11 @@
-import {EventEmitter} from 'events';
-import {getObjectByIdObj, onVersionedObj} from 'one.core/lib/storage-versioned-objects';
+import {getObjectByIdObj, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
-import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
-import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {calculateIdHashOfObj} from 'one.core/lib/util/object';
+import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
+import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
-import type {VersionedObjectResult} from 'one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 
 // -------- LOW LEVEL API -----------
 
@@ -15,7 +14,7 @@ export type Settings = {
     properties: Map<string, string>;
 };
 
-export abstract class PropertyTree extends EventEmitter {
+export abstract class PropertyTree {
     /**
      * Event is emitted when the settings are updated.
      */
@@ -108,7 +107,6 @@ export default class PropertyTreeStore extends PropertyTree {
         // or: if map was empty then emit only a single event with empty key
         if (this.keyValueStore.size === 0) {
             this.keyValueStore = new Map<string, string>(oneSettings.properties);
-            this.emit('update', '');
             this.onSettingChange.emit('', undefined);
         } else {
             // diff the oneSettings with the keyValueStore
@@ -117,7 +115,6 @@ export default class PropertyTreeStore extends PropertyTree {
                     // update the keyValueStore with changes
                     this.keyValueStore.set(key, value);
                     // emit only the remembered changes
-                    this.emit('update', key, value);
                     this.onSettingChange.emit(key, value);
                 }
             }

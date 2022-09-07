@@ -1,4 +1,4 @@
-import { Functor } from "./Functor";
+import {Functor} from './Functor';
 
 /**
  * Represents the behaviour when there are no listeners.
@@ -58,19 +58,31 @@ export enum EventTypes {
  *      }
  *  }
  *
- *  // Use the events provided by the class:
  *  const coffeeMachine = new CoffeeMachine();
+ *
+ *  // Register onListenListener
+ *  const disconnectOnListen = coffeeMachine.onPowerChange.onListen( () => {
+ *      console.log('Somebody started listening for the powerChange events.')
+ *  })
+ *
+ *  // Register onStopListenListener
+ *  const disconnectOnStopListen = coffeeMachine.onPowerChange.onStopListen( () => {
+ *      console.log('Somebody stopped listening for the powerChange events.')
+ *  })
+ *
+ *  // Use the events provided by the class:
  *  const disconnect = coffeeMachine.onPowerChange(state => {
  *      if (state) {
  *          console.log('Coffee machine was turned on')
  *      } else {
  *          console.log('Coffee machine was turned off')
  *      }
- *  });
+ *  }); // This will print 'Somebody started listening for the powerChange events.'
  *
  *  coffeeMachine.turnOn(); // This will print 'Coffee machine was turned on'
  *  coffeeMachine.turnOff(); // This will print 'Coffee machine was turned off'
- *  disconnect(); // This will disconnect the connection
+ *  disconnect(); // This will disconnect the connection and will print 'Somebody stopped
+ *  listening for the powerChange events.'
  *  coffeeMachine.turnOn(); // This will print nothing
  *  coffeeMachine.turnOff(); // This will print nothing
  * ```
@@ -79,13 +91,17 @@ export enum EventTypes {
  *
  * @param T - The expected type (function signature) of the event listeners.
  */
-export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) => (() => void)> {
+export class OEvent<T extends (...arg: any) => any> extends Functor<
+    (listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) => () => void
+> {
     // TODO: Add proper listenOnError handler - this member based approach is bad.
     public onError: ((err: any) => void) | null = null;
 
     private listeners = new Set<
         (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>
     >();
+    private onListenListeners = new Set<() => Promise<void> | void>();
+    private onStopListenListeners = new Set<() => Promise<void> | void>();
     private readonly type: EventTypes;
     private readonly executeSequentially: boolean;
 
@@ -96,7 +112,9 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
      * @param executeSequentially - Type of execution. See class descriptions for more detail.
      */
     constructor(type: EventTypes = EventTypes.Default, executeSequentially: boolean = true) {
-        super((listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) => this.listen(listener));
+        super((listener: (...args: Parameters<T>) => Promise<ReturnType<T>> | ReturnType<T>) =>
+            this.listen(listener)
+        );
         this.type = type;
         this.executeSequentially = executeSequentially;
     }
@@ -120,9 +138,16 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
         if (this.type === EventTypes.ExactlyOneListener && this.listeners.size > 0) {
             throw new Error('There already is a listener for this event.');
         }
+
+        OEvent.executeAndIgnoreListeners(this.onListenListeners);
+
         this.listeners.add(listener);
+
         return () => {
             const found = this.listeners.delete(listener);
+
+            OEvent.executeAndIgnoreListeners(this.onStopListenListeners);
+
             if (!found) {
                 console.error('callback was not registered');
             }
@@ -147,9 +172,9 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
     /**
      * Invokes all event listeners and returns the results of all listeners.
      *
-     * Even if the listeners ha a return value of void / Promise<void> this function is useful. The returned promise of
-     * emitAll resolves after all event listeners have been executed, so this method can be used to wait for the
-     * execution of all event handlers.
+     * Even if the listeners have a return value of void / Promise<void> this function is useful.
+     * The returned promise of emitAll resolves after all event listeners have been executed,
+     * so this method can be used to wait for the execution of all event handlers.
      *
      * It behaves like Promise.all() over all event listeners.
      *
@@ -159,7 +184,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
         this.checkListenerCount();
 
         if (!this.executeSequentially) {
-            return Promise.all(this.executeAndPromisifyListeners(listenerArguments));
+            return Promise.all(this.executeAndPromisifyEventListeners(listenerArguments));
         }
         let listenerResults: ReturnType<T>[] = [];
 
@@ -202,8 +227,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
             if (this.onError) {
                 try {
                     this.onError(e);
-                }
-                catch(e) {
+                } catch (e) {
                     console.error('onError listener failed:', e);
                 }
             } else {
@@ -217,6 +241,40 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
      */
     public listenerCount(): number {
         return this.listeners.size;
+    }
+
+    /**
+     * Register a listener to be triggered when a new listener is registered for this event.
+     *
+     * @param onListenListenerHandler
+     * @returns
+     */
+    public onListen(onListenListenerHandler: () => Promise<void> | void): () => void {
+        this.onListenListeners.add(onListenListenerHandler);
+        return () => {
+            const found = this.onListenListeners.delete(onListenListenerHandler);
+
+            if (!found) {
+                console.error('callback was not registered');
+            }
+        };
+    }
+
+    /**
+     * Register a listener to be triggered when a listener is unregistered from this event.
+     *
+     * @param onStopListenListenerHandler
+     * @returns
+     */
+    public onStopListen(onStopListenListenerHandler: () => Promise<void> | void): () => void {
+        this.onStopListenListeners.add(onStopListenListenerHandler);
+        return () => {
+            const found = this.onStopListenListeners.delete(onStopListenListenerHandler);
+
+            if (!found) {
+                console.error('callback was not registered');
+            }
+        };
     }
 
     // ------------------- PRIVATE API -------------------
@@ -233,7 +291,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
     ): Promise<ReturnType<T>>[] {
         const promises: Promise<ReturnType<T>>[] = [];
 
-        for (const listenerResult of this.executeAndPromisifyListeners(listenerArguments)) {
+        for (const listenerResult of this.executeAndPromisifyEventListeners(listenerArguments)) {
             promises.push(
                 (async (): Promise<ReturnType<T>> => {
                     return listenerResult;
@@ -251,7 +309,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
      *
      * @param listenerArguments - Arguments are passed to the invoked listeners.
      */
-    private executeAndPromisifyListeners(
+    private executeAndPromisifyEventListeners(
         listenerArguments: Parameters<T>
     ): (Promise<ReturnType<T>> | ReturnType<T>)[] {
         let promises: (Promise<ReturnType<T>> | ReturnType<T>)[] = [];
@@ -269,6 +327,32 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<(listener: (
         }
 
         return promises;
+    }
+
+    /**
+     * Trigger all the listeners given as parameter.
+     *
+     * If a listener fails it writes the error to console.error.
+     *
+     * @param listeners
+     * @private
+     */
+    private static executeAndIgnoreListeners(listeners: Set<() => Promise<void> | void>): void {
+        let promises: (Promise<void> | void)[] = [];
+
+        // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
+        // parallel.
+        const listenerSet = [...listeners];
+
+        for (const listener of listenerSet) {
+            try {
+                promises.push(listener());
+            } catch (e) {
+                promises.push(Promise.reject(e));
+            }
+        }
+
+        Promise.all(promises).catch(err => console.error('A listener failed execution', err));
     }
 
     /**

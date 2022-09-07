@@ -1,19 +1,44 @@
-const path =  require('path');
+const path = require('path');
 
 module.exports = {
-    entry: ["./src/cli/CommunicationServer.ts"],
+    mode: 'production',
     output: {
-        filename: 'commServer.bundle.js',
-        path: path.resolve(__dirname,"dist")
+        path: path.resolve(__dirname)
     },
+    entry: {
+        comm_server: {
+            import: './src/tools/CommunicationServer.ts',
+            filename: '[name].bundle.js'
+        },
+        password_recovery_server: {
+            import: './src/tools/PasswordRecoveryService/PasswordRecoveryServer.ts',
+            filename: '[name].bundle.js'
+        },
+        generate_identity: {
+            import: './src/tools/identity/GenerateIdentity.ts',
+            filename: '[name].bundle.js'
+        }
+    },
+    devtool: 'inline-source-map',
     module: {
         rules: [
-            { test: /\.tsx?$/, loader: 'ts-loader',exclude: /node_modules/,},
-            { test: /\.json/, loader: "json-loader", exclude:/node_modules/,}
+            {
+                test: /\.tsx?$/,
+                use: [
+                    {
+                        loader: 'ts-loader',
+                        options: {
+                            configFile: 'tsconfig.comm_server.json'
+                        }
+                    }
+                ],
+                exclude: /node_modules/
+            }
         ]
     },
+
     resolve: {
-        extensions: [".tsx", ".ts", ".js",".json"]
+        extensions: ['.ts', '.js']
     },
     target: 'node',
     node: {

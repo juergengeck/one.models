@@ -8,38 +8,45 @@ jobs:
     tests:
         runs-on: ubuntu-20.04
 
-        # select all the node versions you want to test
-        strategy:
-            matrix:
-                node-version: [14.x]
-
         steps:
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: echo "::set-output name=dir::$(yarn cache dir)"
-
-            - name: Populate yarn cache
-              uses: actions/cache@v2
-              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-              with:
-                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-yarn-
-
             # Setup env
             - uses: actions/checkout@v2
             - uses: webfactory/ssh-agent@v0.4.1
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-            - uses: actions/setup-node@v1
-              with:
-                  node-version: ${{ matrix.node-version }}
 
-            - name: Install and build sources
+            - name: Setup Node
+              uses: actions/setup-node@v1
+              with:
+                  node-version: 16.x
+
+            - name: Cache Node Modules
+              id: cache-node-modules
+              uses: actions/cache@v2
+              with:
+                  path: node_modules
+                  key: node-modules-${{ hashFiles('package-lock.json') }}
+
+            - name: Install if cache-miss
+              env:
+                  GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN_FOR_PACKAGE_REGISTRY }}
+              if: steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: npm install
+
+            - name: Build if cache-hit
+              if: steps.cache-node-modules.outputs.cache-hit == 'true'
+              run: npm run build
+
+            - name: Check mode of the files
+              run: if git ls-files --stage | grep -q '100755'; then
+                echo "You have files that are executable in the project. Please run git ls-files --stage to find out
+                which files are, then run git update-index --chmod=-x 'name-of-shell-script' in order to change the mode
+                of the files back to 100644. If not, it will cause integrity errors on Windows users, since Windows cannot handle
+                the x byte, resulting in a different checksum when NPM computes it. For more questions about this issue,
+                please contact Sebastian or Erik. :)" && exit 1;
+                fi;
+
+            - name: Run Tests
               run: |
-                  yarn install
-                  node build
-           
-            - name: Run tests
-              run: yarn test
+                  npm run test                  
+                  npm run bundle

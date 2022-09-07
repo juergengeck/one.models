@@ -1,4 +1,4 @@
-import type WebSocket from 'isomorphic-ws';
+import type WebSocketWS from 'isomorphic-ws';
 
 /**
  * This is a wrapper for the web socket server to use it with async / await instead of having to
@@ -9,16 +9,16 @@ import type WebSocket from 'isomorphic-ws';
  * of those.
  */
 export default class WebSocketServerPromiseBased {
-    public webSocketServer: WebSocket.Server | null; // The web socket server instance
+    public webSocketServer: WebSocketWS.Server | null; // The web socket server instance
     private acceptConnectionFn: (() => void) | null; // The function that is used to resolve the promise in waitForConnection call.
     private lastConnection: WebSocket | null; // The last accepted connection that is pending collection (by a waitForConnection call).
     private deregisterHandlers: () => void; // function that deregisters all event handler registered on the websocket server.
 
     /**
      * Constructs the convenience wrapper around the passed websoket server instance.
-     * @param {WebSocket.Server} webSocketServer - The instance to wrap.
+     * @param webSocketServer - The instance to wrap.
      */
-    public constructor(webSocketServer: WebSocket.Server) {
+    public constructor(webSocketServer: WebSocketWS.Server) {
         this.acceptConnectionFn = null;
         this.lastConnection = null;
         this.webSocketServer = webSocketServer;
@@ -36,9 +36,9 @@ export default class WebSocketServerPromiseBased {
      * Releases the websocket server instance by deregistering all events and removing
      * any reference to it from this wrapper.
      *
-     * @returns {WebSocket.Server}
+     * @returns
      */
-    public releaseWebSocketServer(): WebSocket.Server {
+    public releaseWebSocketServer(): WebSocketWS.Server {
         if (!this.webSocketServer) {
             throw Error('No websocket is bound to this instance.');
         }
@@ -52,7 +52,7 @@ export default class WebSocketServerPromiseBased {
     /**
      * Wait for a new connection.
      *
-     * @returns {Promise<WebSocket>}
+     * @returns
      */
     public async waitForConnection(): Promise<WebSocket> {
         if (this.acceptConnectionFn) {
@@ -84,7 +84,7 @@ export default class WebSocketServerPromiseBased {
      *
      * It resolves the promise of somebody waiting in the waitForConnection function.
      *
-     * @param {WebSocket} ws - The websocket that was accepted.
+     * @param ws - The websocket that was accepted.
      */
     private handleConnection(ws: WebSocket) {
         // Add connection to member, so that it can be obtained by waitForConnection

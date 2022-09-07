@@ -1,4 +1,4 @@
-import type {Recipe} from 'one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -17,7 +17,7 @@ export const NewsRecipe: Recipe = {
     rule: [
         {
             itemprop: 'content',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };

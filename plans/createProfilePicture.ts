@@ -1,5 +1,5 @@
-import type {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import type {ProfileImage} from '../src/recipes/ContactRecipes';
+import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
+import type {ProfileImage} from '../lib/recipes/Leute/PersonDescriptions';
 
 export async function createObjects(
     WriteStorage: WriteStorageApi,

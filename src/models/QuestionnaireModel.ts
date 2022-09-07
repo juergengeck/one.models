@@ -1,11 +1,10 @@
-import {EventEmitter} from 'events';
-
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import type {OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
+import {Model} from './Model';
+
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
 import type {
     QuestionnaireResponses,
@@ -28,7 +27,7 @@ export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
  * At the moment this model is just managing questionnaire responses.
  * In the future this will most probably also manage questionnaires.
  */
-export default class QuestionnaireModel extends EventEmitter implements Model {
+export default class QuestionnaireModel extends Model {
     /**
      * Event is emitted when the incomplete questionnaire response data is updated.
      */
@@ -37,7 +36,6 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     /**
      * Event is emitted when the questionnaire response data is updated.
      */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
 
     private channelManager: ChannelManager;
     public static readonly channelId = 'questionnaireResponse';
@@ -52,6 +50,7 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
+
         this.channelManager = channelManager;
         this.availableQuestionnaires = [];
         this.incompleteResponsesChannelId = 'incompleteQuestionnaireResponse';
@@ -63,6 +62,9 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     public async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+        this.state.triggerEvent('init');
+
         await this.channelManager.createChannel(QuestionnaireModel.channelId);
         await this.channelManager.createChannel(this.incompleteResponsesChannelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
@@ -72,9 +74,12 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     // #### Questionnaire functions ####
@@ -83,6 +88,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Get a list of available questionnaires
      */
     public async questionnaires(): Promise<Questionnaire[]> {
+        this.state.assertCurrentState('Initialised');
+
         return this.availableQuestionnaires;
     }
 
@@ -96,6 +103,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param url - The url of the questionnaire
      */
     public async questionnaireByUrl(url: string): Promise<Questionnaire> {
+        this.state.assertCurrentState('Initialised');
+
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.url === url) {
                 return questionnaire;
@@ -111,6 +120,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param language - Language of questionnaire. If empty, just return the first in any language.
      */
     public async questionnaireByName(name: string, language?: string): Promise<Questionnaire> {
+        this.state.assertCurrentState('Initialised');
+
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.name === name && (!language || questionnaire.language === language)) {
                 return questionnaire;
@@ -128,6 +139,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param language
      */
     public async questionnaireUrlByName(name: string, language?: string): Promise<string> {
+        this.state.assertCurrentState('Initialised');
+
         for (const questionnaire of this.availableQuestionnaires) {
             if (
                 questionnaire.name === name &&
@@ -148,6 +161,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param url - Url of the questionnaire
      */
     public async hasQuestionnaireWithUrl(url: string): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.url === url) {
                 return true;
@@ -163,6 +178,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param language - Language of questionnaire. If empty, just check in any language.
      */
     public async hasQuestionnaireWithName(name: string, language?: string): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         for (const questionnaire of this.availableQuestionnaires) {
             if (questionnaire.name === name && (!language || questionnaire.language === language)) {
                 return true;
@@ -180,6 +197,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param questionnaires - The list of the questionnaires that will be added
      */
     public registerQuestionnaires(questionnaires: Questionnaire[]): void {
+        this.state.assertCurrentState('Initialised');
+
         this.availableQuestionnaires.push(...questionnaires);
     }
 
@@ -199,6 +218,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         type?: string,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.postResponseCollection([response], name, type, owner);
     }
 
@@ -219,6 +240,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         type?: string,
         owner?: SHA256IdHash<Person>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // We decided not to do any validation here, because it is done by the questionnaire builder.
         // If you post something wrong, then shame on you :-)
 
@@ -239,6 +262,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Get a list of responses.
      */
     public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
             channelId: QuestionnaireModel.channelId
         });
@@ -251,6 +276,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     async *responsesIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
+        this.state.assertCurrentState('Initialised');
+
         yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             ...queryOptions,
             channelId: QuestionnaireModel.channelId
@@ -263,13 +290,15 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @param id - the id of the questionnaire response. It is the id field of the ObjectData.
      */
     public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
+        this.state.assertCurrentState('Initialised');
+
         return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
     }
 
     /**
      * Getting the number of completed questionnaire by questionnaire type.
      *
-     * @param {string} questionnaireResponseId - questionnaire response identifier
+     * @param questionnaireResponseId - questionnaire response identifier
      * TODO: Why do we need this? I disabled it, because it assumes a language suffix - we should rethink this!
      */
     /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
@@ -301,6 +330,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         type: string,
         name?: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.postIncompleteResponseCollection([response], type, name);
     }
 
@@ -316,6 +347,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         type: string,
         name?: string
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // Post the result to the one instance
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
             $type$: 'QuestionnaireResponses',
@@ -336,6 +369,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
         type: string,
         since?: Date
     ): Promise<ObjectData<QuestionnaireResponses> | null> {
+        this.state.assertCurrentState('Initialised');
+
         // Construct iterator
         const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
             channelId: this.incompleteResponsesChannelId,
@@ -366,6 +401,8 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * @returns
      */
     public async hasIncompleteResponse(type: string, since?: Date): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
         return (await this.incompleteResponse(type, since)) !== null;
     }
 
@@ -375,9 +412,10 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
      * Note: This simply posts an empty responses object to the incomplete channel.
      *
      * @param type - The type of the incomplete response collection.
-     * @returns
      */
     public async markIncompleteResponseAsComplete(type: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
             $type$: 'QuestionnaireResponses',
             type: type,
@@ -386,22 +424,19 @@ export default class QuestionnaireModel extends EventEmitter implements Model {
     }
 
     /**
-     *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * Handler function for the 'updated' event
+     * @param id
+     * @param data
      */
     private async handleOnUpdated(
         id: string,
-        owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (id === QuestionnaireModel.channelId || id === this.incompleteResponsesChannelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
             if (id === this.incompleteResponsesChannelId) {
-                this.emit('updatedIncomplete');
                 this.onIncompleteResponse.emit();
             }
         }

@@ -1,13 +1,14 @@
 import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
 import type InstancesModel from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
-import {serializeWithType} from 'one.core/lib/util/promise';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {
     createSingleObjectThroughPurePlan,
     UnversionedObjectResult,
     VERSION_UPDATES
-} from 'one.core/lib/storage';
+} from '@refinio/one.core/lib/storage';
 import type {Demand, Supply} from '../../recipes/MatchingRecipes';
+import MatchingModel from './MatchingModel';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(instanceModel: InstancesModel, channelManager: ChannelManager) {
@@ -19,9 +20,11 @@ export default class ServerUserModel extends ClientMatchingModel {
      * information about them (match value, active status, and many more)
      * in case this information is required.
      *
-     * @returns {Array<Supply | Demand>}
+     * @returns
      */
     getAllAvailableTagsObjects(): Array<Supply | Demand> {
+        this.state.assertCurrentState('Initialised');
+
         const allobjects: (Supply | Demand)[] = [];
 
         this.demandsMap.forEach(allDemands => {
@@ -44,10 +47,11 @@ export default class ServerUserModel extends ClientMatchingModel {
      * more exactly, if this function is called for a tag, that tag will be
      * active or inactive for all user who ever sent this tag
      *
-     * @param {string} supplyMatch
-     * @returns {Promise<void>}
+     * @param supplyMatch
      */
     async changeSupplyCategoryStatus(supplyMatch: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // get all supplies
         const supplyArray = this.suppliesMap.get(supplyMatch);
 
@@ -81,10 +85,8 @@ export default class ServerUserModel extends ClientMatchingModel {
                 await this.addNewValueToSupplyMap(newSupply.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
-                await this.channelManager.postToChannel(this.channelId, newSupply.obj);
+                await this.channelManager.postToChannel(MatchingModel.channelId, newSupply.obj);
             }
-
-            this.emit(MatchingEvents.SupplyUpdate);
         });
     }
 
@@ -93,10 +95,11 @@ export default class ServerUserModel extends ClientMatchingModel {
      * more exactly, if this function is called for a tag, that tag will be
      * active or inactive for all user who ever sent this tag
      *
-     * @param {string} demandMatch - demand value
-     * @returns {Promise<void>}
+     * @param demandMatch - demand value
      */
     async changeDemandCategoryStatus(demandMatch: string): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         // get all supplies
         const demandArray = this.demandsMap.get(demandMatch);
 
@@ -130,10 +133,8 @@ export default class ServerUserModel extends ClientMatchingModel {
                 await this.addNewValueToDemandMap(newDemand.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
-                await this.channelManager.postToChannel(this.channelId, newDemand.obj);
+                await this.channelManager.postToChannel(MatchingModel.channelId, newDemand.obj);
             }
-
-            this.emit(MatchingEvents.DemandUpdate);
         });
     }
 }

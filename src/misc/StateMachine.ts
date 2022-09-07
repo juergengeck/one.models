@@ -266,17 +266,39 @@ export class StateMachine<StateT, EventT> {
         if (!transitionsForEvent) {
             // propagate event to sub state machines
             const subStateMachine = this.subStateMachines.get(this.crtState);
-            if (subStateMachine) {
-                const srcStates = this.currentStates;
 
-                subStateMachine.triggerEvent(event);
-
-                this.notifyListeners(srcStates, this.currentStates, event);
-
-                return;
+            if (!subStateMachine) {
+                throw new Error('Event is not valid in the current state.');
             }
 
+            const srcStates = this.currentStates;
+
+            subStateMachine.triggerEvent(event);
+
+            this.notifyListeners(srcStates, this.currentStates, event);
+
             return;
+        }
+
+        const sourceStatesForEvent = Array.from(transitionsForEvent.keys());
+
+        // make sure the transition exists from the current state
+        if (
+            !sourceStatesForEvent.includes(this.crtState) &&
+            !sourceStatesForEvent.includes(this.currentState)
+        ) {
+            // from now, search for a sub state machine that may have the transition
+            if (
+                !this.doesTransitionExistInSubStateMachine(
+                    this.subStateMachines.get(this.crtState),
+                    event
+                )
+            ) {
+                throw new Error(
+                    'The transition does not exists from the current state with the' +
+                        ' specified event'
+                );
+            }
         }
 
         this.currentStates.forEach(state => {
@@ -337,6 +359,22 @@ export class StateMachine<StateT, EventT> {
 
         return localState.reverse();
     }
+
+    /**
+     * Checks if the current state is the one passed, if not, throws an error.
+     *
+     * @param state - The state to check the current state.
+     */
+    assertCurrentState(state: StateT): void {
+        const currentStates = this.getCurrentStates();
+        if (!currentStates.includes(state)) {
+            throw new Error(`The current state of the state machine is not ${state}`);
+        }
+    }
+
+    /*waitForState(state: StateT, timeout?: number): Promise<void> {
+
+    }*/
 
     // ------------------------------- PRIVATE API -------------------------------
 
@@ -424,6 +462,52 @@ export class StateMachine<StateT, EventT> {
         }
 
         return null;
+    }
+
+    /**
+     * Search recursively for transition for the given event in the sub state machines.
+     * @param subStateMachine
+     * @param event
+     * @private
+     */
+    private doesTransitionExistInSubStateMachine(
+        subStateMachine: StateMachine<StateT, EventT> | undefined,
+        event: EventT
+    ): boolean {
+        if (this.crtState === undefined) {
+            throw new Error('Current state is undefined.');
+        }
+
+        if (subStateMachine === undefined) {
+            return false;
+        }
+
+        const subStateMachineTransitions = subStateMachine.transitions.get(event);
+
+        if (subStateMachineTransitions === undefined) {
+            return false;
+        }
+
+        if (subStateMachine.crtState === undefined) {
+            throw new Error('Current sub state machine state is undefined.');
+        }
+
+        const subStateMachineSourceStates = Array.from(subStateMachineTransitions.keys());
+
+        const isTransitionValid = subStateMachineSourceStates.includes(subStateMachine.crtState);
+
+        if (!isTransitionValid) {
+            const nextSubStateMachine = subStateMachine.subStateMachines.get(
+                subStateMachine.crtState
+            );
+            if (nextSubStateMachine === undefined) {
+                return false;
+            }
+            // search in the sub-sub state machine
+            return this.doesTransitionExistInSubStateMachine(nextSubStateMachine, event);
+        }
+
+        return true;
     }
 
     /**

@@ -1,7 +1,7 @@
-import type {BLOB, Recipe} from 'one.core/lib/recipes';
-import {ORDERED_BY} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {BLOB, Recipe} from '@refinio/one.core/lib/recipes';
+import {ORDERED_BY} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -33,51 +33,53 @@ export interface BlobDescriptor {
     type: string;
 }
 
-export const BlobCollection: Recipe = {
+export const BlobCollectionRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobCollection',
     rule: [
         {
             itemprop: 'name',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             itemprop: 'blobs',
-            referenceToObj: new Set(['BlobDescriptor']),
-            list: ORDERED_BY.APP
+            itemtype: {
+                type: 'array',
+                item: {type: 'referenceToObj', allowedTypes: new Set(['BlobDescriptor'])}
+            }
         }
     ]
 };
 
-export const BlobDescriptor: Recipe = {
+export const BlobDescriptorRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'BlobDescriptor',
     rule: [
         {
             itemprop: 'data',
-            referenceToBlob: true
+            itemtype: {type: 'referenceToBlob'}
         },
         {
             itemprop: 'lastModified',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             itemprop: 'name',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         },
         {
             // size in bytes
             itemprop: 'size',
-            valueType: 'number'
+            itemtype: {type: 'number'}
         },
         {
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Types
             itemprop: 'type',
-            valueType: 'string'
+            itemtype: {type: 'string'}
         }
     ]
 };
 
-const BlobRecipes: Recipe[] = [BlobCollection, BlobDescriptor];
+const BlobRecipes: Recipe[] = [BlobCollectionRecipe, BlobDescriptorRecipe];
 
 export default BlobRecipes;

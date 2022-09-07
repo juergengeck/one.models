@@ -47,7 +47,6 @@ const BABEL_MODULE_TARGETS = {
     commonjs: [
         '@babel/plugin-transform-modules-commonjs',
         {
-            // We disallow default exports in ONE.core (eslint rule)
             noInterop: false
         }
     ],
@@ -88,39 +87,57 @@ const BABEL_OPTS = {
 };
 
 /**
+ * @param {unknown} thing
+ * @returns {thing is Record<string, any>}
+ */
+function isObject(thing) {
+    return typeof thing === 'object' && thing !== null;
+}
+
+/**
+ * @param {string} s
+ * @returns {s is 'nodejs'|'browser'|'rn'}
+ */
+function isValidPlatformString(s) {
+    return s === 'nodejs' || s === 'browser' || s === 'rn';
+}
+
+/**
  * @returns {void}
  */
 function usage() {
     console.log(`
 Usage: node build.js or directly call ./build.js
 
-Options: [help]
+Options: [h | help | -h | --help]
          [node|browser|rn|low|moddable]
          [-m es2015|commonjs|systemjs|umd]
          [-t target directory]
-         [-f script.js]
+         [-f script.ts]
 
 Options:
 
-  h | help | -h | --help   Show this usage text.
-
-  Target:
+  Platform target:
 
   nodejs     Build for node.js
   browser    Build for webbrowsers
   rn         Build for React Native
 
-  NOTE: The target can also be given in environment variable ONE_TARGET_PLATFORM
-        Specifying a target platform as command line argument overrides the environment variable.
+  The target can also be given in package.json's refinio.platform.
+  All package.json starting from the current project root to the highest
+  (root) directory are searched for refinio.platform. The highest pakage.json
+  that contains this setting is used.
+  Specifying a target platform as command line argument takes precedence.
+  If no platform is provided "nodejs" will be the default.
 
-  -m Choose the target module system. Default is CommonJS, other options are ES2015,
+  -m Choose the target module system. Default is CommonJS. Other options are ES2015,
      SystemJS and UMD (all names need to be without any capitalization).
 
   -t target directory Default is ./lib/
 
   The -f option is for processing source files individually, usually by a watcher process:
 
-  -f relative/path/script.js
+  -f relative/path/script.ts
 
   Example for how to use it to build for the "node.js" target in a WebStorm watcher process that
   watches source files for changes and calls build.js when it detects a change:
@@ -170,7 +187,7 @@ async function deleteDirectory(dir) {
 
     try {
         files = await readdir(dir, {withFileTypes: true});
-    } catch (err) {
+    } catch (/** @type any */ err) {
         if (err.code === 'ENOENT') {
             // Nothing to remove? That's okay!
             return;
@@ -198,9 +215,7 @@ function transform(code, options) {
                 return reject(err);
             }
 
-            return resolve(
-                result.code.replace(/(\nimport [^"']+["'])([^"']+).[tj]s(["'];)/gm, '$1$2$3')
-            );
+            return resolve(result.code);
         });
     });
 }
@@ -236,14 +251,14 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         console.log(`Copying file ${join(srcDir, file)} ⇒ ${destination}.ts`);
         await writeFile(destination + '.ts', code, {flag: 'w'});
     } else {
-        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}[.ts]`);
-
         BABEL_OPTS.filename = file;
 
         const fileExtension =
             targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
                 ? '.mjs'
                 : '.js';
+
+        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
 
         const transformedCode = await transform(code, BABEL_OPTS);
         await writeFile(destination + fileExtension, transformedCode, {flag: 'w'});
@@ -270,14 +285,7 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            if (file.includes('system-' + system) || !file.startsWith('system')) {
-                await processAllFiles(
-                    join(srcDir, file),
-                    join(targetDir, file),
-                    system,
-                    moduleTarget
-                );
-            }
+            await processAllFiles(join(srcDir, file), join(targetDir, file), system, moduleTarget);
         } else {
             await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
         }
@@ -286,9 +294,11 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
 
 /**
  * @param {string} targetDir
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 async function createDeclarationFiles(targetDir) {
+    let failed = false;
+
     for (const dir of ['src', 'test']) {
         console.log(`Calling tsc for ${dir} to create declaration and map files...`);
 
@@ -296,7 +306,7 @@ async function createDeclarationFiles(targetDir) {
         // run, possibly because the target directory is deleted first.
         try {
             await unlink(join('.', `tsconfig.${dir}.tsbuildinfo`));
-        } catch (err) {
+        } catch (/** @type any */ err) {
             if (err.code !== 'ENOENT') {
                 throw err;
             }
@@ -304,12 +314,14 @@ async function createDeclarationFiles(targetDir) {
 
         try {
             execSync(
-                `tsc -p ${dir}/tsconfig.json --outDir ` + (dir === 'test' ? 'test' : targetDir),
+                `npx --no-install tsc -p ${dir}/tsconfig.json --outDir ` +
+                    (dir === 'test' ? 'test' : targetDir),
                 {
                     stdio: 'inherit'
                 }
             );
-        } catch (err) {
+        } catch (/** @type any */ err) {
+            failed = true;
             console.error(
                 '\ntsc failed with ' +
                     err.message +
@@ -317,29 +329,79 @@ async function createDeclarationFiles(targetDir) {
             );
         }
     }
+
+    return failed;
+}
+
+/**
+ * @param {string} dir
+ * @returns {Promise<Record<string, any>|undefined>}
+ */
+async function readPkgJsonRefinio(dir) {
+    const file = join(dir, 'package.json');
+
+    try {
+        const pJson = await readFile(file, 'utf8');
+        const pkgJson = JSON.parse(pJson);
+        return isObject(pkgJson) && isObject(pkgJson.refinio) ? pkgJson.refinio : undefined;
+    } catch (_err) {
+        // It is not a task of this build script to check for errors in package.json, and not
+        // finding the file is not an error to begin with.
+        return;
+    }
+}
+
+/**
+ * Iterare directories starting with the project directory and then upwards all the was to "/".
+ * Check for a `package.json` file. Check for `refinio.platform` (string property). Remember the
+ * last find. Sop iterating at the top and return the last find or undefined.
+ * @returns {Promise<string|undefined>}
+ */
+async function findHighestPkgJsonRefinioPlatform() {
+    /** @type {('nodejs' | 'browser' | 'rn' | undefined)} */
+    let system;
+    let dir = __dirname;
+    let prevDir = '';
+
+    while (dir !== prevDir) {
+        const refinio = await readPkgJsonRefinio(dir);
+
+        if (isObject(refinio)) {
+            if (isValidPlatformString(refinio.platform)) {
+                system = refinio.platform;
+                console.log(
+                    `Found refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                );
+            } else {
+                console.log(
+                    `Invalid refinio.platform "${refinio.platform}" in ${join(dir, 'package.json')}`
+                );
+            }
+        }
+
+        prevDir = dir;
+        dir = join(dir, '..');
+    }
+
+    return system;
 }
 
 /**
  * The target platform. This determines which src/system-* folder is used and becomes
  * targetDir/system/
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function getSystem() {
-    let system = 'nodejs';
+async function getSystem() {
+    let system;
 
-    if (process.argv.includes('browser')) {
+    if (process.argv.includes('nodejs')) {
+        system = 'nodejs';
+    } else if (process.argv.includes('browser')) {
         system = 'browser';
     } else if (process.argv.includes('rn') || process.argv.includes('react-native')) {
         system = 'rn';
-    } else if (typeof process.env.ONE_TARGET_PLATFORM === 'string') {
-        if (Object.keys(PLATFORMS).includes(process.env.ONE_TARGET_PLATFORM)) {
-            system = process.env.ONE_TARGET_PLATFORM;
-        } else {
-            throw new Error(
-                `ONE_TARGET_PLATFORM is set to ${process.env.ONE_TARGET_PLATFORM}, but it must ` +
-                    `be one of ${Object.keys(PLATFORMS).join(', ')}`
-            );
-        }
+    } else {
+        system = (await findHighestPkgJsonRefinioPlatform()) || 'nodejs';
     }
 
     return system;
@@ -419,24 +481,16 @@ function calledForSingleFile() {
  * @returns {Promise<void>}
  */
 async function run() {
-    const system = getSystem();
+    const system = await getSystem();
     const targetDir = getTargetDir();
     const moduleTarget = setModuleTarget(); // Call with side effect
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
-        if (singleFile.startsWith('src/system') && !singleFile.startsWith(`src/system-${system}`)) {
-            return;
-        }
-
         let destination = join(targetDir, dirname(singleFile).replace(/^src[\\/]?/, ''));
 
         if (singleFile.startsWith('test' + sep)) {
             destination = destination.replace('lib' + sep, '');
-        }
-
-        if (singleFile.startsWith(`src${sep}system-${system}${sep}`)) {
-            destination = join(targetDir, 'system');
         }
 
         return transformAndWriteJsFile(
@@ -454,10 +508,19 @@ async function run() {
 
     await deleteDirectory(targetDir);
     await processAllFiles('src', targetDir, system, moduleTarget);
-    await createDeclarationFiles(targetDir);
+    const failed = await createDeclarationFiles(targetDir);
     await processAllFiles('test', 'test', system, moduleTarget);
 
     console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
+
+    // Only fail on nodejs - browser still has some errors because of node specific code in
+    // tests and other files
+    if (failed && system === 'nodejs') {
+        throw new Error(
+            'Tsc failed for at least one source file. Look at the console output for' +
+                ' further information.'
+        );
+    }
 }
 
 /**

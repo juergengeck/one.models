@@ -1,5 +1,3 @@
-import {EventEmitter} from 'events';
-
 import type {
     BlobCollection as OneBlobCollection,
     BlobDescriptor as OneBlobDescriptor
@@ -9,11 +7,11 @@ import {
     createSingleObjectThroughPurePlan,
     getObject,
     readBlobAsArrayBuffer
-} from 'one.core/lib/storage';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
+} from '@refinio/one.core/lib/storage';
+import {Model} from './Model';
+
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -40,12 +38,7 @@ export interface BlobCollection {
  * Storing: call addCollections with an array of files containing one element and a name.
  * Loading: call getCollection(name)[0]
  */
-export default class BlobCollectionModel extends EventEmitter implements Model {
-    /**
-     * Event is emitted when blob collection data is updated.
-     */
-    public onUpdated = new OEvent<() => void>();
-
+export default class BlobCollectionModel extends Model {
     private channelManager: ChannelManager;
     private channelOwner: SHA256IdHash<Person> | undefined;
     public static readonly channelId = 'blobCollections';
@@ -59,7 +52,7 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * allows to set the channel owner so that not all channels of all owners will be loaded
-     * @param {SHA256IdHash<Person>} channelOwner
+     * @param channelOwner
      */
     setChannelOwner(channelOwner: SHA256IdHash<Person>): void {
         this.channelOwner = channelOwner;
@@ -69,22 +62,29 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
      * Used to init the model to receive the updates.
      */
     async init() {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(BlobCollectionModel.channelId);
         this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const blobCollection = await createSingleObjectThroughPurePlan(
             {module: '@module/createBlobCollection'},
             files,
@@ -95,6 +95,8 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     }
 
     async getCollection(name: OneBlobCollection['name']): Promise<BlobCollection> {
+        this.state.assertCurrentState('Initialised');
+
         const collections = await this.channelManager.getObjectsWithType('BlobCollection', {
             owner: this.channelOwner,
             channelId: BlobCollectionModel.channelId
@@ -108,6 +110,8 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
     }
 
     async getLatestCollection(): Promise<BlobCollection> {
+        this.state.assertCurrentState('Initialised');
+
         const collection = await this.channelManager.getObjectsWithType('BlobCollection', {
             channelId: BlobCollectionModel.channelId,
             count: 1,
@@ -122,20 +126,18 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @return {Promise<void>}
+     * @param id
      */
     private async handleOnUpdated(id: string): Promise<void> {
         if (id === BlobCollectionModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit();
         }
     }
 
     /**
      * Resolves the OneBlobCollection.blobs hash references to the actual ONE objects
-     * @param {OneBlobCollection} blobCollection
-     * @return {Promise<BlobCollection>}
+     * @param blobCollection
+     * @return
      * @private
      */
     private async resolveBlobCollection(
@@ -154,11 +156,11 @@ export default class BlobCollectionModel extends EventEmitter implements Model {
 
     /**
      * Resolves the OneBlobDescriptor.data blob reference to tha actual ArrayBuffer data
-     * @param {OneBlobDescriptor} blobDescriptor
-     * @return {Promise<BlobDescriptor>}
+     * @param blobDescriptor
+     * @return
      * @private
      */
-    private static async resolveBlobDescriptor(
+    public static async resolveBlobDescriptor(
         blobDescriptor: OneBlobDescriptor
     ): Promise<BlobDescriptor> {
         const blobData = await readBlobAsArrayBuffer(blobDescriptor.data);

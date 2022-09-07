@@ -9,7 +9,6 @@ const jsesc = require('jsesc');
 
 /**
  * @param {string} dir
- * @returns {Promise<unknown>}
  */
 function mkDirExistOkay(dir) {
     return mkDir(dir, {recursive: true}).catch(err => {
@@ -61,7 +60,6 @@ const additionalOnePlanModules = path.join(outputDirectory, '/oneModules.ts');
  * @param {string} file
  * @param {Record<string, string>} nameCodeMap
  * @param {string} inputDirectory
- * @returns {void}
  */
 function addFileToNameCodeMap(file, nameCodeMap, inputDirectory) {
     const filePath = path.join(inputDirectory, file);

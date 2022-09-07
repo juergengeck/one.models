@@ -1,9 +1,17 @@
-import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from 'one.core/lib/storage';
-import type {WriteStorageApi, VersionedObjectResult} from 'one.core/lib/storage';
-import {getInstanceIdHash} from 'one.core/lib/instance';
-import type {SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {Person} from 'one.core/lib/recipes';
-import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
+import {getObjectByIdHash, SET_ACCESS_MODE, SetAccessParam} from '@refinio/one.core/lib/storage';
+import type {WriteStorageApi, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import type {ChannelInfo} from '../lib/recipes/ChannelRecipes';
+
+// TODO move to another file if channels become obsolete
+// NOOP TS-only import - that is a .d.ts file - so that when tsc checks declaration files in
+// lib/ this file is included. It looks like it was not when running tsc with the top level
+// tsconfig.json, which only checks scripts/*.js but apparently it also checked lib even with
+// the references to src/ and test/ removed and explicitly told (via "exclude") to ignore that
+// folder. This line tells tsc to include this file so that there are no problems.
+// import './@OneObjectInterfaces';
 
 /**
  * Create a channel by writing a ChannelInfo object with an empty head.
@@ -23,10 +31,10 @@ import type {ChannelInfo} from '../src/recipes/ChannelRecipes';
  *            then take care of this. This might happen if the chum was started before a channel was
  *            created and other instances sync their channel versions.
  *
- * @param {WriteStorageApi} WriteStorage
- * @param {string} channelId - Name of the channel
- * @param {SHA256IdHash<Person>} channelOwner - Owner of the channel
- * @returns {Promise<VersionedObjectResult<ChannelInfo>>}
+ * @param WriteStorage
+ * @param channelId - Name of the channel
+ * @param channelOwner - Owner of the channel
+ * @returns
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,

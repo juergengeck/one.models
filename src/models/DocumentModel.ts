@@ -1,13 +1,12 @@
-import {EventEmitter} from 'events';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import type {WriteStorageApi} from 'one.core/lib/storage';
-import * as Storage from 'one.core/lib/storage';
-import {OEvent} from '../misc/OEvent';
-import type {Model} from './Model';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
+import * as Storage from '@refinio/one.core/lib/storage';
+import {Model} from './Model';
+
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
@@ -17,8 +16,8 @@ export type DocumentInfo = DocumentInfo_1_1_0;
 /**
  * Saving the document in ONE as a BLOB and returning the reference for it.
  *
- * @param {ArrayBuffer} document - the document that is saved in ONE as a BLOB.
- * @returns {Promise<SHA256Hash<BLOB>>} The reference to the saved BLOB.
+ * @param document - the document that is saved in ONE as a BLOB.
+ * @returns The reference to the saved BLOB.
  */
 async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
     const minimalWriteStorageApiObj = {
@@ -37,12 +36,7 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
  * This model implements the possibility of adding a document into a journal
  * and keeping track of the list of the documents.
  */
-export default class DocumentModel extends EventEmitter implements Model {
-    /**
-     * Event emitted when document data is updated.
-     */
-    public onUpdated = new OEvent<(data: ObjectData<OneUnversionedObjectTypes>) => void>();
-
+export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
     private disconnect: (() => void) | undefined;
@@ -50,7 +44,7 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Construct a new instance
      *
-     * @param {ChannelManager} channelManager - The channel manager instance
+     * @param channelManager - The channel manager instance
      */
     constructor(channelManager: ChannelManager) {
         super();
@@ -65,27 +59,32 @@ export default class DocumentModel extends EventEmitter implements Model {
      * This must be done after the one instance was initialized.
      */
     async init(): Promise<void> {
+        this.state.assertCurrentState('Uninitialised');
+
         await this.channelManager.createChannel(DocumentModel.channelId);
+
+        this.state.triggerEvent('init');
     }
 
     /**
      * Shutdown module
-     *
-     * @returns {Promise<void>}
      */
     async shutdown(): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         if (this.disconnect) {
             this.disconnect();
         }
+        this.state.triggerEvent('shutdown');
     }
 
     /**
      * Create a new reference to a document.
      *
-     * @param {ArrayBuffer} document - The document.
-     * @param {DocumentInfo['mimeType']} mimeType
-     * @param {DocumentInfo['documentName']} documentName
-     * @param {string} channelId - The default is DocumentModel.channelId
+     * @param document - The document.
+     * @param mimeType
+     * @param documentName
+     * @param channelId - The default is DocumentModel.channelId
      */
     async addDocument(
         document: ArrayBuffer,
@@ -93,6 +92,8 @@ export default class DocumentModel extends EventEmitter implements Model {
         documentName: DocumentInfo['documentName'],
         channelId: string = DocumentModel.channelId
     ): Promise<void> {
+        this.state.assertCurrentState('Initialised');
+
         const oneDocument = await saveDocumentAsBLOB(document);
         await this.channelManager.postToChannel(channelId, {
             $type$: 'DocumentInfo_1_1_0',
@@ -105,9 +106,11 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Getting all the documents stored in ONE.
      *
-     * @returns {Promise<ObjectData<ArrayBuffer>[]>} - an array of documents.
+     * @returns an array of documents.
      */
     async documents(): Promise<ObjectData<DocumentInfo_1_1_0>[]> {
+        this.state.assertCurrentState('Initialised');
+
         const documentsData = (await this.channelManager.getObjects({
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
             channelId: DocumentModel.channelId
@@ -139,6 +142,8 @@ export default class DocumentModel extends EventEmitter implements Model {
     async *documentsIterator(
         queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<DocumentInfo_1_1_0>> {
+        this.state.assertCurrentState('Initialised');
+
         for await (const document of this.channelManager.objectIteratorWithType('DocumentInfo', {
             ...queryOptions,
             channelId: DocumentModel.channelId
@@ -166,10 +171,12 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Getting a document with a specific id.
      *
-     * @param {string} id - the id of the document.
-     * @returns {Promise<ObjectData<ArrayBuffer>>} the document.
+     * @param id - the id of the document.
+     * @returns the document.
      */
     async getDocumentById(id: string): Promise<ObjectData<DocumentInfo_1_1_0>> {
+        this.state.assertCurrentState('Initialised');
+
         const documentsData = await this.channelManager.getObjects({
             id: id,
             types: ['DocumentInfo_1_1_0', 'DocumentInfo'],
@@ -202,10 +209,12 @@ export default class DocumentModel extends EventEmitter implements Model {
     /**
      * Convert from one representation to model representation.
      *
-     * @param {DocumentInfo} oneObject - the one object
-     * @returns {ArrayBuffer} The corresponding model object
+     * @param oneObject - the one object
+     * @returns The corresponding model object
      */
     async blobHashToArrayBuffer(oneObject: DocumentInfo): Promise<ArrayBuffer> {
+        this.state.assertCurrentState('Initialised');
+
         let document: ArrayBuffer = {} as ArrayBuffer;
         const stream = Storage.createFileReadStream(oneObject.document);
         stream.onData.addListener((data: ArrayBuffer) => {
@@ -218,18 +227,14 @@ export default class DocumentModel extends EventEmitter implements Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
-     * @return {Promise<void>}
+     * @param id
+     * @param data
      */
     private async handleOnUpdated(
         id: string,
-        owner: SHA256IdHash<Person>,
         data: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         if (id === DocumentModel.channelId) {
-            this.emit('updated');
             this.onUpdated.emit(data);
         }
     }

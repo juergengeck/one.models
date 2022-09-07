@@ -1,6 +1,30 @@
-import type {RecipeRule} from 'one.core/lib/recipes';
+import type {ObjectValue, RecipeRule} from '@refinio/one.core/lib/recipes';
+import {clone} from '@refinio/one.core/lib/util/clone-object';
 
 // ######## Modifying functions ########
+/**
+ *
+ * @param object
+ * @param key
+ * @returns
+ */
+function deepSearchKeyInObject(object: any, key: string): any {
+    if (Object.prototype.hasOwnProperty.call(object, key)) {
+        return object;
+    }
+
+    for (const objectKey of Object.keys(object)) {
+        const value = object[objectKey];
+        if (typeof value === 'object' && value !== null) {
+            const foundObj = deepSearchKeyInObject(value, key);
+            if (foundObj !== undefined) {
+                return foundObj;
+            }
+        }
+    }
+
+    return undefined;
+}
 
 /**
  * Clones the whole rule array.
@@ -14,15 +38,7 @@ import type {RecipeRule} from 'one.core/lib/recipes';
  * @param rules - The rule array to deep copy
  */
 export function cloneRule(rules: RecipeRule[]): RecipeRule[] {
-    const clonedRules: RecipeRule[] = [];
-    for (const rule of rules) {
-        const newRule = {...rule};
-        if (newRule.rule !== undefined) {
-            newRule.rule = cloneRule(newRule.rule);
-        }
-        clonedRules.push(newRule);
-    }
-    return clonedRules;
+    return clone(rules);
 }
 
 /**
@@ -52,7 +68,6 @@ export function addRule(rules: RecipeRule[], path: string, rule: RecipeRule): vo
  */
 export function overwriteRule(rules: RecipeRule[], path: string, rule: RecipeRule): void {
     const completePath = [path, rule.itemprop].join('.');
-
     if (!hasRule(rules, completePath)) {
         throw new Error(`overwriteRule: A rule ${completePath} does not exist.`);
     }
@@ -102,14 +117,16 @@ export function getRule(rules: RecipeRule[], path: string): RecipeRule {
         return foundRule;
     }
 
+    const foundObjectDefinition: ObjectValue = deepSearchKeyInObject(foundRule, 'rules');
+
     // If the path stack has more than one element we assume that
     // the picked rule itself has a rule as child. So we follow that
-    if (!foundRule.rule) {
+    if (foundObjectDefinition === undefined) {
         throw new Error('Rule element does not have a nested rule.');
     }
 
     // Get the rule of the child
-    return getRule(foundRule.rule, pathStack.slice(1).join('.'));
+    return getRule(foundObjectDefinition.rules, pathStack.slice(1).join('.'));
 }
 
 /**
@@ -121,6 +138,7 @@ export function getRule(rules: RecipeRule[], path: string): RecipeRule {
 export function hasRule(rules: RecipeRule[], path: string): boolean {
     const pathStack = path.split('.');
     const foundRule = rules.find(rule => rule.itemprop === pathStack[0]);
+
     if (!foundRule) {
         return false;
     }
@@ -129,15 +147,15 @@ export function hasRule(rules: RecipeRule[], path: string): boolean {
     if (pathStack.length === 1) {
         return true;
     }
-
+    const foundObjectDefinition: ObjectValue = deepSearchKeyInObject(foundRule, 'rules');
     // If the path stack has more than one element we assume that
     // the picked rule itself has a rule as child. So we follow that
-    if (!foundRule.rule) {
+    if (foundObjectDefinition === undefined) {
         return false;
     }
 
     // Get the rule of the child
-    return hasRule(foundRule.rule, pathStack.slice(1).join('.'));
+    return hasRule(foundObjectDefinition.rules, pathStack.slice(1).join('.'));
 }
 
 /**
@@ -157,9 +175,10 @@ export function getRuleRules(rules: RecipeRule[], path: string): RecipeRule[] {
     }
 
     const rule = getRule(rules, path);
-    if (!rule.rule) {
+    const foundObjectType = deepSearchKeyInObject(rule, 'rules');
+    if (foundObjectType === undefined) {
         throw new Error('Rule element does not have a nested rule.');
     }
 
-    return rule.rule;
+    return foundObjectType.rules;
 }

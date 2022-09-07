@@ -1,9 +1,8 @@
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
-import WebSocket from 'isomorphic-ws';
-import {createMessageBus} from 'one.core/lib/message-bus';
-import {wslogId} from './LogUtils';
-import type WebSocketPromiseBased from './WebSocketPromiseBased';
+import WebSocketWS from 'isomorphic-ws';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent, EventTypes} from './OEvent';
+import type Connection from './Connections/Connection';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -26,7 +25,7 @@ class CommunicationServerListener {
     /**
      * Event is emitted after a connection between two instances has been established.
      */
-    public onConnection = new OEvent<(webSocket: WebSocketPromiseBased) => void>();
+    public onConnection = new OEvent<(connection: Connection) => void>();
 
     /**
      * Event is emitted  for proving that the instance that has asked to register on the
@@ -66,8 +65,8 @@ class CommunicationServerListener {
     /**
      * Creates a new listener.
      *
-     * @param {number} spareConnectionLimit - Number of spare connections to use simultaneously.
-     * @param {number} reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
+     * @param spareConnectionLimit - Number of spare connections to use simultaneously.
+     * @param reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
      */
     constructor(spareConnectionLimit: number, reconnectTimeout = 5000) {
         this.spareConnectionLimit = spareConnectionLimit;
@@ -81,9 +80,8 @@ class CommunicationServerListener {
     /**
      * Start the listener through the specified comm server.
      *
-     * @param {string} server - The communication server to use.
-     * @param {string} publicKey - The public key via which this instance can be reached.
-     * @returns {Promise<void>}
+     * @param server - The communication server to use.
+     * @param publicKey - The public key via which this instance can be reached.
      */
     public start(server: string, publicKey: Uint8Array): void {
         MessageBus.send('log', `start(${server})`);
@@ -172,7 +170,7 @@ class CommunicationServerListener {
 
             // Do not schedule if already stopped
             if (!this.running) {
-                if (connection.webSocket.readyState === WebSocket.OPEN) {
+                if (connection.webSocket.readyState === WebSocketWS.OPEN) {
                     connection.close();
                 }
                 return;
@@ -186,7 +184,7 @@ class CommunicationServerListener {
             // On success schedule a new spare connection and give the outside world the connection via event
             else {
                 this.scheduleSpareConnection(server, publicKey, false);
-                this.onConnection.emit(connection.webSocketPB);
+                this.onConnection.emit(connection.connection);
             }
         };
 
@@ -215,10 +213,10 @@ class CommunicationServerListener {
     /**
      * Adds a spare connection to the spareConnection list and updates the connection state.
      *
-     * @param {CommunicationServerConnection_Client} connection
+     * @param connection
      */
     private addSpareConnection(connection: CommunicationServerConnection_Client): void {
-        MessageBus.send('debug', `addSpareConnection(${wslogId(connection.webSocket)})`);
+        MessageBus.send('debug', `addSpareConnection(${connection.id})`);
         this.spareConnections.push(connection);
         this.updateState();
     }
@@ -226,10 +224,10 @@ class CommunicationServerListener {
     /**
      * Removes a spare connection from the spareConnection list and updates the connection state.
      *
-     * @param {CommunicationServerConnection_Client} connection
+     * @param connection
      */
     private removeSpareConnection(connection: CommunicationServerConnection_Client): void {
-        MessageBus.send('debug', `removeSpareConnection(${wslogId(connection.webSocket)})`);
+        MessageBus.send('debug', `removeSpareConnection(${connection.id})`);
         this.spareConnections = this.spareConnections.filter(elem => elem !== connection);
         this.updateState();
     }
@@ -255,8 +253,8 @@ class CommunicationServerListener {
      * in order for the connector caller to be aware of the changes that happen
      * in the registration process.
      *
-     * @param {CommunicationServerListenerState} newState
-     * @param {string} reason
+     * @param newState
+     * @param reason
      */
     private changeCurrentState(newState: CommunicationServerListenerState, reason?: string): void {
         const oldState = this.state;
@@ -279,14 +277,14 @@ class CommunicationServerListener {
      * - <- authentication_success
      * - <- connection_handover
      *
-     * @param {string} server - Server where to register the connection.
-     * @param {Uint8Array} publicKey - public key for which to accept connections.
-     * @param {(ws: CommunicationServerConnection_Client, err?: Error) => void} onConnect -
+     * @param server - Server where to register the connection.
+     * @param publicKey - public key for which to accept connections.
+     * @param onConnect -
      * Handler called when a relay is handed over. (asynchronously after this call has finished)
-     * @param {(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array} onChallengeEvent -
+     * @param onChallengeEvent -
      * Callback that needs to decrypt / re-encrypt the challenge for authentication. (during
      * this call)
-     * @returns {Promise<CommunicationServerConnection_Client>} - The spare connection that is
+     * @returns The spare connection that is
      * now registered, but not yet connected to a relay (this is done later by the onConnect
      * callback).
      */
@@ -296,34 +294,28 @@ class CommunicationServerListener {
         onConnect: (ws: CommunicationServerConnection_Client, err?: Error) => void,
         onChallengeEvent: OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
     ): Promise<CommunicationServerConnection_Client> {
-        MessageBus.send('log', `establishConnection(${server})`);
+        MessageBus.send('debug', `establishConnection(${server})`);
 
         // Open websocket to communication server
         const connection = new CommunicationServerConnection_Client(server);
-        await connection.webSocketPB.waitForOpen(); // not so nice to do it on webSocketPB
+        await connection.connection.waitForOpen(); // not so nice to do it on webSocketPB
 
         let pingTimeout;
 
         // Phase 1: Register and authenticate the connection
         try {
             // Step1: Register at comm server
-            MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 1: Send 'register' message`
-            );
+            MessageBus.send('debug', `${connection.id}: Step 1: Send 'register' message`);
             await connection.sendRegisterMessage(publicKey);
 
             // Step2: Wait for authentication request of comm-server and check parameters
-            MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 2: Wait for authentication_request`
-            );
+            MessageBus.send('debug', `${connection.id}: Step 2: Wait for authentication_request`);
             const authRequest = await connection.waitForMessage('authentication_request');
 
             // Step3: Send authentication response
             MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 3: Send authentication_response message`
+                'debug',
+                `${connection.id}: Step 3: Send authentication_response message`
             );
             const response = await onChallengeEvent.emitAll(
                 authRequest.challenge,
@@ -333,14 +325,13 @@ class CommunicationServerListener {
 
             // Step4: Wait for authentication success message
             MessageBus.send(
-                'log',
-                `${wslogId(connection.webSocket)}: Step 4: Wait for authentication_success message`
+                'debug',
+                `${connection.id}: Step 4: Wait for authentication_success message`
             );
             let authSuccess = await connection.waitForMessage('authentication_success');
 
-            // The ping interval communicated by the server * 3 should be a good timeout. It can handle a short delay of
-            // twice the ping interval.
-            pingTimeout = authSuccess.pingInterval * 3;
+            // Step 5: Start answering the ping messages (todo check the pongTimeout again)
+            connection.startPingPong(authSuccess.pingInterval, 2000);
         } catch (e) {
             // If an error happened, close the websocket
             connection.close(e.toString());
@@ -349,20 +340,16 @@ class CommunicationServerListener {
 
         // Phase 2: Listen for connection while ping / ponging the server
         // Step 5: Wait for connection
-        MessageBus.send(
-            'log',
-            `${wslogId(connection.webSocket)}: Step 5: Wait for connection_handover message`
-        );
+        MessageBus.send('debug', `${connection.id}: Step 5: Wait for connection_handover message`);
         connection
-            .waitForMessagePingPong('connection_handover', pingTimeout)
+            .waitForMessage('connection_handover')
             .then(() => {
-                MessageBus.send(
-                    'log',
-                    `${wslogId(connection.webSocket)}: Received connection_handover message`
-                );
+                MessageBus.send('debug', `${connection.id}: Received connection_handover message`);
+                connection.stopPingPong();
                 onConnect(connection);
             })
             .catch((err: Error) => {
+                connection.stopPingPong();
                 onConnect(connection, err);
             });
 
