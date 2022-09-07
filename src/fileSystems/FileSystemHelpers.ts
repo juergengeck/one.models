@@ -1,4 +1,4 @@
-import {createError} from 'one.core/lib/errors';
+import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 
 /**

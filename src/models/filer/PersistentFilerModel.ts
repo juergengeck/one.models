@@ -7,20 +7,18 @@
 
 import {EventEmitter} from 'events';
 
-import {ChannelManager} from '../index';
+import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
-import {createSingleObjectThroughPurePlan} from 'one.core/lib/plan';
-import {getObject, VERSION_UPDATES} from 'one.core/lib/storage';
-import {
-    OneUnversionedObjectTypes,
+import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
+import {getObject, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import type {ObjectData} from '../ChannelManager';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {
     PersistentFileSystemDirectory,
-    PersistentFileSystemRoot,
-    Person,
-    SHA256Hash,
-    SHA256IdHash
-} from '@OneCoreTypes';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import {ObjectData} from "../ChannelManager";
+    PersistentFileSystemRoot
+} from '../../recipes/PersistentFileSystemRecipes';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).
@@ -81,7 +79,6 @@ export default class PersistentFilerModel extends EventEmitter {
             this.disconnect();
         }
     }
-
 
     /** ########################################## Private ########################################## **/
 
@@ -162,9 +159,11 @@ export default class PersistentFilerModel extends EventEmitter {
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated( id: string,
-                                   owner: SHA256IdHash<Person>,
-                                   data?: ObjectData<OneUnversionedObjectTypes>): Promise<void> {
+    private async handleOnUpdated(
+        id: string,
+        owner: SHA256IdHash<Person>,
+        data?: ObjectData<OneUnversionedObjectTypes>
+    ): Promise<void> {
         if (id === this.fileSystemChannelId) {
             await serializeWithType('FileSystemLock', async () => {
                 if (!this.fs) {

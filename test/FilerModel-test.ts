@@ -1,23 +1,26 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, registerRecipes} from 'one.core/lib/instance';
-import * as StorageTestInit from 'one.core/test/_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from './_helpers';
 import {expect} from 'chai';
 
-import Recipes from '../lib/recipes/recipes';
-import TestModel, {dbKey, importModules, removeDir} from './utils/TestModel';
-import {createFileWriteStream} from 'one.core/lib/system/storage-streams';
-import {FilerModel} from '../lib/models';
+import Recipes from '../lib/recipes/recipes-experimental';
+import TestModel, {importModules, removeDir} from './utils/TestModel';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import type {FilerModel} from '../lib/models/filer';
 
 let fileSystem;
 let testModel;
+
+const dbKey = 'testDb';
+
 describe('FilerModel model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes(Recipes);
         await importModules();
-        const model = new TestModel('ws://localhost:8000', dbKey);
+        const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
 
@@ -32,14 +35,12 @@ describe('FilerModel model test', () => {
     });
     it('should see if directories can be created and retrieved', async () => {
         await fileSystem.createDir('/', 'dir1');
-
-         await fileSystem.createDir('/dir1', 'dir2');
-
+        await fileSystem.createDir('/dir1', 'dir2');
         await fileSystem.createDir('/dir1/dir2', 'dir3');
-        const firstResult =  await fileSystem.readDir('/')
-        const secondResult =await fileSystem.readDir('/dir1')
-        const thirdResult =await fileSystem.readDir('/dir1/dir2')
-            expect(firstResult).to.not.be.equal(undefined);
+        const firstResult = await fileSystem.readDir('/');
+        const secondResult = await fileSystem.readDir('/dir1');
+        const thirdResult = await fileSystem.readDir('/dir1/dir2');
+        expect(firstResult).to.not.be.equal(undefined);
         expect(secondResult).to.not.be.equal(undefined);
         expect(thirdResult).to.not.be.equal(undefined);
 
@@ -67,7 +68,7 @@ describe('FilerModel model test', () => {
     it('should see if files can be created and retrieved', async () => {
         await fileSystem.createDir('/', 'files');
         const firstResult = fileSystem.readDir('/');
-            expect(firstResult).to.not.be.equal(undefined);
+        expect(firstResult).to.not.be.equal(undefined);
         const stream = createFileWriteStream();
         stream.write(new ArrayBuffer(64));
         const blob = await stream.end();

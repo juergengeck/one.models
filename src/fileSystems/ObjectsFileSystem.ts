@@ -5,15 +5,18 @@ import type {
     IFileSystem
 } from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
-import {getFileType, getObject, getTextFile, listAllObjectHashes} from 'one.core/lib/storage';
-import {createError} from 'one.core/lib/errors';
+import {
+    getFileType,
+    getObject,
+    getTextFile,
+    listAllObjectHashes
+} from '@refinio/one.core/lib/storage';
+import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
-import type {BLOB, HashTypes} from 'one.core/lib/recipes';
-import type {OneObjectTypes} from 'one.core/src/recipes';
-import {getIdObjectByIdHash} from 'one.core/lib/storage-versioned-objects';
-import {OneIdObjectInterfaces} from '@OneObjectInterfaces';
-import {OneVersionedObjectTypeNames} from 'one.core/src/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, HashTypes} from '@refinio/one.core/lib/recipes';
+import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 /**
  * Json format for the objects parsed path
@@ -419,7 +422,7 @@ export default class ObjectsFileSystem implements IFileSystem {
             // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
             if (err) {
                 // allowed cast since it's the hash of an idObject
-                obj = await getIdObjectByIdHash(parsedPath.hash as unknown as SHA256IdHash);
+                obj = await getIdObject(parsedPath.hash as unknown as SHA256IdHash);
             }
 
             return JSON.stringify(obj, null, '  ');
@@ -435,7 +438,7 @@ export default class ObjectsFileSystem implements IFileSystem {
                 // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
                 if (err) {
                     // allowed cast since it's the hash of an idObject
-                    obj = await getIdObjectByIdHash(parsedPath.hash as unknown as SHA256IdHash);
+                    obj = await getIdObject(parsedPath.hash as unknown as SHA256IdHash);
                 }
 
                 return obj.$type$;

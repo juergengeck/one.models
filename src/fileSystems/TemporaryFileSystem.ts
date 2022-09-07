@@ -5,12 +5,17 @@
  * @version 0.0.1
  */
 
-import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
-import {createError} from 'one.core/lib/errors';
+import type {
+    FileDescription,
+    FileSystemDirectory,
+    FileSystemFile,
+    IFileSystem
+} from './IFileSystem';
+import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import FileSystemHelpers from './FileSystemHelpers';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
-import type {BLOB} from 'one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB} from '@refinio/one.core/lib/recipes';
 
 /**
  * This represents a special File System that maps the given path to the specific file system implementation

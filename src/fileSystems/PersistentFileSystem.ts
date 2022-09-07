@@ -5,31 +5,37 @@
  * @version 0.0.1
  */
 
-
 import {
     createSingleObjectThroughPurePlan,
     createSingleObjectThroughImpurePlan,
     getObject,
     readBlobAsArrayBuffer
-} from 'one.core/lib/storage';
-import {VERSION_UPDATES} from 'one.core/lib/storage-base-common';
-import {calculateHashOfObj} from 'one.core/lib/util/object';
-import {serializeWithType} from 'one.core/lib/util/promise';
-import type {FileDescription, FileSystemDirectory, FileSystemFile, IFileSystem} from './IFileSystem';
+} from '@refinio/one.core/lib/storage';
+import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import type {
+    FileDescription,
+    FileSystemDirectory,
+    FileSystemFile,
+    IFileSystem
+} from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
-import {getInstanceIdHash} from 'one.core/lib/instance';
-import {platform} from 'one.core/lib/system/platform';
-import {createError} from 'one.core/lib/errors';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
+import {platform} from '@refinio/one.core/lib/system/platform';
+import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import {PLATFORMS} from 'one.core/lib/platforms';
-import {OEvent} from "../misc/OEvent";
-import type { SHA256Hash } from 'one.core/lib/util/type-checks';
-import type {BLOB, HashTypes, OneObjectTypes} from "one.core/lib/recipes";
+import {PLATFORMS} from '@refinio/one.core/lib/platforms';
+import {OEvent} from '../misc/OEvent';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {
     PersistentFileSystemChild,
-    PersistentFileSystemDirectory, PersistentFileSystemDirectoryEntry, PersistentFileSystemFile,
+    PersistentFileSystemDirectory,
+    PersistentFileSystemDirectoryEntry,
+    PersistentFileSystemFile,
     PersistentFileSystemRoot
-} from "../recipes/PersistentFileSystemRecipes";
+} from '../recipes/PersistentFileSystemRecipes';
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -37,8 +43,9 @@ import type {
  * to accomplish this FileSystem structure.
  */
 export default class PersistentFileSystem implements IFileSystem {
-    public onFilePersisted = new OEvent<(data: {fileHash: SHA256Hash<BLOB>; fileName: string}) => void>();
-
+    public onFilePersisted = new OEvent<
+        (data: {fileHash: SHA256Hash<BLOB>; fileName: string}) => void
+    >();
 
     /**
      * @global the root of the file system
@@ -63,9 +70,8 @@ export default class PersistentFileSystem implements IFileSystem {
      * @global
      * @type {((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null}
      */
-    public onRootUpdate:
-        | ((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void)
-        | null = null;
+    public onRootUpdate: ((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null =
+        null;
 
     /**
      * Overwrites a file if the file already exist in the folder, otherwise, adds the file.
@@ -133,9 +139,11 @@ export default class PersistentFileSystem implements IFileSystem {
                 }
             );
 
-            const foundIndex = targetDirectory.children.findIndex((child: PersistentFileSystemChild) => child.path === `/${fileName}`);
+            const foundIndex = targetDirectory.children.findIndex(
+                (child: PersistentFileSystemChild) => child.path === `/${fileName}`
+            );
 
-            if(foundIndex >= 0){
+            if (foundIndex >= 0) {
                 targetDirectory.children.splice(foundIndex, 1);
             }
 
@@ -168,7 +176,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(directoryPath))
                 );
             }
-            this.onFilePersisted.emit({fileHash: fileHash, fileName: fileName})
+            this.onFilePersisted.emit({fileHash: fileHash, fileName: fileName});
         });
     }
 
@@ -213,16 +221,12 @@ export default class PersistentFileSystem implements IFileSystem {
 
         const blobHash: SHA256Hash<BLOB> = (await this.findFile(filePath)).content;
 
-        const onePath = this.storage ? this.storage : path.resolve(process.cwd(), path.join('data'))
+        const onePath = this.storage
+            ? this.storage
+            : path.resolve(process.cwd(), path.join('data'));
 
         const objFilePath =
-            onePath +
-            path.sep +
-            getInstanceIdHash() +
-            path.sep +
-            'objects' +
-            path.sep +
-            blobHash;
+            onePath + path.sep + getInstanceIdHash() + path.sep + 'objects' + path.sep + blobHash;
 
         const fd = fs.openSync(objFilePath, 'r');
         const content = await new Promise((resolve: (buffer: Buffer) => void, rejected) => {
@@ -462,7 +466,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 /** added it to the dest path **/
                 destParentContent.children.push({
                     ...foundDirectoryEntry,
-                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
+                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest))
                 });
 
                 /** save updated directories **/
@@ -530,7 +534,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 srcParentContent.children.splice(foundIndex, 1);
                 srcParentContent.children.push({
                     ...foundDirectoryEntry,
-                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest)),
+                    path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest))
                 });
 
                 const newDirectory = await createSingleObjectThroughPurePlan(
@@ -1114,7 +1118,9 @@ export default class PersistentFileSystem implements IFileSystem {
         // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
         // @ts-ignore
         if (platform === PLATFORMS.NODE_JS) {
-            const storagePath = this.storage ? `${this.storage}/${getInstanceIdHash()}/objects/${hash}` : `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`
+            const storagePath = this.storage
+                ? `${this.storage}/${getInstanceIdHash()}/objects/${hash}`
+                : `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`;
             const {default: fs} = await import('fs');
             const stat = fs.statSync(storagePath);
             return stat.size;

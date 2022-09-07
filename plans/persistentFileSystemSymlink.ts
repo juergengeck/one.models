@@ -2,24 +2,17 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    BLOB,
-    PersistentFileSystemDirectory,
-    PersistentFileSystemRoot,
-    SHA256Hash,
-    BlobDescriptor,
-    BlobCollection
-} from '@OneCoreTypes';
-import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
-import {FileCreation} from "one.core/src/storage";
+import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
+import type {BlobDescriptor} from '../src/recipes/BlobRecipes';
 
 /**
  * @description Pure plan for updating the root directory
  *
  * @param {WriteStorageApi} WriteStorage
- * @param outdatedRoot
- * @param updatedRootDirectoryHash
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @param content
+ * @param name
+ * @param type
+ * @returns {Promise<UnversionedObjectResult<BlobDescriptor>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
@@ -34,7 +27,7 @@ export async function createObjects(
         name: name,
         size: content.byteLength,
         type: type
-    }
+    } as const;
 
     return await WriteStorage.storeUnversionedObject(blobDescriptor);
 }

@@ -2,8 +2,12 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {PersistentFileSystemDirectory, PersistentFileSystemRoot, SHA256Hash} from '@OneCoreTypes';
-import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {
+    PersistentFileSystemDirectory,
+    PersistentFileSystemRoot
+} from '../src/recipes/PersistentFileSystemRecipes';
 
 /**
  * @description Pure plan for updating the root directory
@@ -11,7 +15,7 @@ import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
  * @param {WriteStorageApi} WriteStorage
  * @param outdatedRoot
  * @param updatedRootDirectoryHash
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @returns {Promise<VersionedObjectResult<PersistentFileSystemRoot>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi,
@@ -19,5 +23,5 @@ export async function createObjects(
     updatedRootDirectoryHash: SHA256Hash<PersistentFileSystemDirectory>
 ): Promise<UnversionedObjectResult<PersistentFileSystemRoot>> {
     outdatedRoot.root.entry = updatedRootDirectoryHash;
-    return await WriteStorage.storeUnversionedObject(outdatedRoot)
+    return await WriteStorage.storeUnversionedObject(outdatedRoot);
 }

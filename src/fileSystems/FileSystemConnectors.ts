@@ -1,11 +1,11 @@
 import type {ChannelManager} from '../models';
 import type PersistentFileSystem from './PersistentFileSystem';
 import type {ObjectData} from '../models/ChannelManager';
-import {platform} from 'one.core/lib/system/platform';
-import {PLATFORMS} from 'one.core/lib/platforms';
+import {platform} from '@refinio/one.core/lib/system/platform';
+import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import type {BLOB, OneUnversionedObjectTypes, Person} from 'one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from 'one.core/lib/util/type-checks';
+import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {DocumentModel} from '../models';
 
 export type AllowedChannel = {channelId: string; folder?: string};
@@ -95,7 +95,7 @@ export class PWAConnector {
                         await this.persistedFileSystem.createFile(
                             `/${viewingFolder}`,
                             // dataHash is actually the BLOB of the object
-                            (data.dataHash as unknown) as SHA256Hash<BLOB>,
+                            data.dataHash as unknown as SHA256Hash<BLOB>,
                             `${objectData.$type$}-${data.dataHash}`
                         );
                         break;
@@ -164,7 +164,7 @@ export class FilerConnector {
         let mimeType: AcceptedMimeType | undefined = undefined;
 
         // ignore the empty file hash - don't added it into the channel
-        if(data.fileHash === 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'){
+        if (data.fileHash === 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855') {
             return;
         }
 

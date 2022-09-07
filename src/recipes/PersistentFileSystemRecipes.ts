@@ -1,6 +1,6 @@
-import {BLOB, ORDERED_BY, Recipe, RecipeRule} from 'one.core/lib/recipes';
-import type {SHA256Hash} from 'one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from 'one.core/lib/storage';
+import type {BLOB, Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {BlobDescriptor} from './BlobRecipes';
 
 /**
@@ -42,7 +42,7 @@ export interface PersistentFileSystemFile {
 export interface PersistentFileSystemChild {
     mode: number;
     path: string;
-    content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>
+    content: SHA256Hash<PersistentFileSystemDirectory | PersistentFileSystemFile>;
 }
 
 /**
@@ -75,8 +75,8 @@ declare module '@OneObjectInterfaces' {
         };
         '@module/persistentFileSystemSymlink': {
             args: any;
-            result: UnversionedObjectResult<BlobDescriptor>
-        }
+            result: UnversionedObjectResult<BlobDescriptor>;
+        };
     }
 }
 /**
@@ -86,28 +86,34 @@ declare module '@OneObjectInterfaces' {
 export const PersistentFileSystemRootEntryRule: RecipeRule[] = [
     {
         itemprop: 'mode',
-        valueType: 'number'
+        itemtype: {type: 'number'}
     },
     {
         itemprop: 'entry',
-        referenceToObj: new Set(['PersistentFileSystemDirectory'])
+        itemtype: {
+            type: 'referenceToObj',
+            allowedTypes: new Set(['PersistentFileSystemDirectory'])
+        }
     }
 ];
 
 export const PersistentFileSystemChildrenListRule: RecipeRule[] = [
     {
         itemprop: 'path',
-        valueType: 'string'
+        itemtype: {type: 'string'}
     },
     {
         itemprop: 'mode',
-        valueType: 'number'
+        itemtype: {type: 'number'}
     },
     {
         itemprop: 'content',
-        referenceToObj: new Set(['PersistentFileSystemDirectory', 'PersistentFileSystemFile'])
+        itemtype: {
+            type: 'referenceToObj',
+            allowedTypes: new Set(['PersistentFileSystemDirectory', 'PersistentFileSystemFile'])
+        }
     }
-]
+];
 
 /**
  * used to represent BLOBs
@@ -119,7 +125,9 @@ export const PersistentFileSystemFileRecipe: Recipe = {
     rule: [
         {
             itemprop: 'content',
-            referenceToBlob: true
+            itemtype: {
+                type: 'referenceToBlob'
+            }
         }
     ]
 };
@@ -134,8 +142,13 @@ export const PersistentFileSystemDirectoryRecipe: Recipe = {
     rule: [
         {
             itemprop: 'children',
-            list: ORDERED_BY.ONE,
-            rule: PersistentFileSystemChildrenListRule
+            itemtype: {
+                type: 'bag',
+                item: {
+                    type: 'object',
+                    rules: PersistentFileSystemChildrenListRule
+                }
+            }
         }
     ]
 };
@@ -150,7 +163,10 @@ export const PersistentFileSystemRootRecipe: Recipe = {
     rule: [
         {
             itemprop: 'root',
-            rule: PersistentFileSystemRootEntryRule
+            itemtype: {
+                type: 'object',
+                rules: PersistentFileSystemRootEntryRule
+            }
         }
     ]
 };

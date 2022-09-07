@@ -2,14 +2,14 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {PersistentFileSystemDirectoryEntry, PersistentFileSystemRoot } from '@OneCoreTypes';
-import {UnversionedObjectResult, WriteStorageApi} from 'one.core/lib/storage';
+import type {UnversionedObjectResult, WriteStorageApi} from '@refinio/one.core/lib/storage';
+import type {PersistentFileSystemRoot} from '../src/recipes/PersistentFileSystemRecipes';
 
 /**
  * @description Pure plan for creating the root directory
  *
  * @param {WriteStorageApi} WriteStorage
- * @returns {Promise<VersionedObjectResult<ContactApp>>}
+ * @returns {Promise<UnversionedObjectResult<PersistentFileSystemRoot>>}
  */
 export async function createObjects(
     WriteStorage: WriteStorageApi
@@ -25,5 +25,5 @@ export async function createObjects(
             mode: 0o0040777,
             entry: root.hash
         }
-    })
+    });
 }
