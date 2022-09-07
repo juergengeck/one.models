@@ -59,13 +59,11 @@ export class PWAConnector {
     /**
      *  Handler function for the 'updated' event
      * @param {string} id
-     * @param {SHA256IdHash<Person>} owner
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
     private async handleOnUpdated(
         id: string,
-        owner: SHA256IdHash<Person>,
         data?: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
         const isChannelIdAllowed = this.allowedChannels.find(item => item.channelId === id);
