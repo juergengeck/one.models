@@ -40,7 +40,7 @@
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "0.3.18"
+    "@refinio/one.core": "github:refinio/one.core#keychain_eh"
   },
   "devDependencies": {
     "@babel/core": "*",
