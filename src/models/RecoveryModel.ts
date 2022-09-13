@@ -1,16 +1,8 @@
-import {deriveBinaryKey, scrypt} from '@refinio/one.core/lib/system/crypto-scrypt';
-import {
-    decryptSecretKey,
-    decryptWithSymmetricKey,
-    encryptWithSymmetricKey,
-    stringToUint8Array,
-    Uint8ArrayToString
-} from '@refinio/one.core/lib/instance-crypto';
+import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt';
 import tweetnacl from 'tweetnacl';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -21,6 +13,13 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {
+    createRandomSalt,
+    deriveSymmetricKeyFromSecret,
+    ensureSalt,
+    symmetricDecryptWithEmbeddedNonce,
+    symmetricEncryptAndEmbedNonce
+} from '@refinio/one.core/lib/crypto/encryption';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
@@ -42,6 +41,9 @@ interface PersonInformation {
  * This model is responsible for generating the information which will
  * be added in the recovery url and for extracting the data from the
  * recovery url.
+ *
+ * This does not work at the moment, because we cant read / write private keys because the
+ * keymanagement changed.
  */
 export default class RecoveryModel extends Model {
     private readonly recoveryKeyLength: number;
@@ -103,14 +105,12 @@ export default class RecoveryModel extends Model {
         }
 
         // generate a new nonce which will be used in encrypting the person information
-        const recoveryNonce = uint8arrayToHexString(tweetnacl.randomBytes(64));
+        const recoveryNonce = createRandomSalt(64);
+
         // generate a new key which will be used together with
         // the nonce for encrypting the person information
         const recoveryKey = this.generateRandomReadableString();
-        const derivedKey = await scrypt(
-            stringToUint8Array(recoveryKey),
-            hexToUint8Array(recoveryNonce)
-        );
+        const derivedKey = await deriveSymmetricKeyFromSecret(recoveryKey, recoveryNonce);
 
         // extract all information for main person and anonymous
         // person that will be encrypted and added in the url
@@ -118,12 +118,15 @@ export default class RecoveryModel extends Model {
 
         // encrypt the persons information with the recovery nonce and recovery key
         const encryptedPersonInformation = uint8arrayToHexString(
-            await encryptWithSymmetricKey(derivedKey, objectToEncrypt)
+            await symmetricEncryptAndEmbedNonce(
+                new TextEncoder().encode(JSON.stringify(objectToEncrypt)),
+                derivedKey
+            )
         );
 
         return {
             recoveryKey: recoveryKey,
-            recoveryNonce: recoveryNonce,
+            recoveryNonce: uint8arrayToHexString(recoveryNonce),
             encryptedPersonInformation: encryptedPersonInformation
         };
     }
@@ -155,12 +158,14 @@ export default class RecoveryModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         const objectToDecrypt = hexToUint8Array(encryptedPersonInformation);
-        const derivedKey = await scrypt(
-            stringToUint8Array(recoveryKey),
-            hexToUint8Array(recoveryNonce)
+        const derivedKey = await deriveSymmetricKeyFromSecret(
+            recoveryKey,
+            ensureSalt(hexToUint8Array(recoveryNonce))
         );
         this.decryptedObject = JSON.parse(
-            Uint8ArrayToString(await decryptWithSymmetricKey(derivedKey, objectToDecrypt))
+            new TextDecoder().decode(
+                await symmetricDecryptWithEmbeddedNonce(objectToDecrypt, derivedKey)
+            )
         );
 
         if (!this.decryptedObject) {
@@ -212,7 +217,7 @@ export default class RecoveryModel extends Model {
                 this.decryptedObject.personPrivateSignKey
             )
         };
-        await this.connectionsModel.overwriteExistingPersonKeys(privatePersonInformation);
+        await RecoveryModel.overwriteExistingPersonKeys(privatePersonInformation);
 
         // remove from memory the decrypted person information because it's not important anymore
         this.decryptedObject = undefined;
@@ -256,7 +261,7 @@ export default class RecoveryModel extends Model {
         const personPublicKey = privatePersonInformation.personPublicKey;
         const personPublicSignKey = privatePersonInformation.personPublicSignKey;
         // decrypt main person private keys
-        const personPrivateKeys = await this.extractDecryptedPrivateKeysForPerson(
+        const personPrivateKeys = await RecoveryModel.extractDecryptedPrivateKeysForPerson(
             privatePersonInformation.personId
         );
         const personPrivateKey = personPrivateKeys.privateKey;
@@ -284,35 +289,38 @@ export default class RecoveryModel extends Model {
      * @returns
      * @private
      */
-    private async extractDecryptedPrivateKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
+    private static async extractDecryptedPrivateKeysForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<{
         privateKey: HexString;
         privateSignKey: HexString;
     }> {
-        if (this.password === '') {
-            throw new Error('Can not decrypt person keys without knowing the instance password!');
-        }
-
-        // obtain the person keys
-        const personKeyLink = await getAllEntries(personId, 'Keys');
-        // obtain the decrypted person key
-        const personPrivateEncryptionKey = await decryptSecretKey(
-            this.password,
-            `${personKeyLink[personKeyLink.length - 1]}.owner.encrypt`
-        );
-        // obtain the decrypted person sign key
-        const personPrivateSignKey = await decryptSecretKey(
-            this.password,
-            `${personKeyLink[personKeyLink.length - 1]}.owner.sign`
+        throw new Error(
+            'Retrieving secret keys was disabled, because the keymanagement changed.' +
+                ' If this is needed again, then implement it again after thinking of the' +
+                ' consequences!'
         );
 
-        if (personPrivateEncryptionKey === null || personPrivateSignKey === null) {
-            throw new Error('Person keys could not be decrypted for the recovery information.');
-        }
-
-        return {
+        /*return {
             privateKey: uint8arrayToHexString(personPrivateEncryptionKey),
             privateSignKey: uint8arrayToHexString(personPrivateSignKey)
-        };
+        };*/
+    }
+
+    /**
+     * Change the private keys of the person.
+     *
+     * @param personInfo
+     * @private
+     */
+    private static async overwriteExistingPersonKeys(
+        personInfo: PPersonInformationMessage
+    ): Promise<void> {
+        throw new Error(
+            'Overwriting secret keys was disabled, because the keymanagement changed.' +
+                ' If this is needed again, then implement it again after thinking of the' +
+                ' consequences!'
+        );
     }
 
     /**

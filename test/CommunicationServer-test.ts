@@ -2,7 +2,6 @@ import CommunicationServer from '../lib/misc/CommunicationServer';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from '../lib/misc/CommunicationServerListener';
-import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
@@ -11,6 +10,12 @@ import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import Connection from '../lib/misc/Connections/Connection';
 import PromisePlugin from '../lib/misc/Connections/plugins/PromisePlugin';
+import {
+    decryptWithEmbeddedNonce,
+    encryptAndEmbedNonce,
+    ensurePublicKey,
+    ensureSecretKey
+} from '@refinio/one.core/lib/crypto/encryption';
 
 /*import * as Logger from '@refinio/one.core/lib/logger';
 Logger.start();*/
@@ -48,18 +53,18 @@ describe('communication server tests', () => {
         let commServerListener = new CommunicationServerListener(1, 1000);
         commServerListener.onChallenge(
             (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
-                const decryptedChallenge = decryptWithPublicKey(
-                    publicKey,
+                const decryptedChallenge = decryptWithEmbeddedNonce(
                     challenge,
-                    listenerKeyPair.secretKey
+                    ensureSecretKey(listenerKeyPair.secretKey),
+                    ensurePublicKey(publicKey)
                 );
                 for (let i = 0; i < decryptedChallenge.length; ++i) {
                     decryptedChallenge[i] = ~decryptedChallenge[i];
                 }
-                return encryptWithPublicKey(
-                    publicKey,
+                return encryptAndEmbedNonce(
                     decryptedChallenge,
-                    listenerKeyPair.secretKey
+                    ensureSecretKey(listenerKeyPair.secretKey),
+                    ensurePublicKey(publicKey)
                 );
             }
         );

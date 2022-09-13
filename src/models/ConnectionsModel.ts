@@ -4,7 +4,6 @@ import type InstancesModel from './InstancesModel';
 import type {LocalInstanceInfo} from './InstancesModel';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
-    createSingleObjectThroughImpurePlan,
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
@@ -13,23 +12,13 @@ import {
 } from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {
-    createCryptoAPI,
-    CryptoAPI,
-    decryptWithSymmetricKey,
-    encryptWithSymmetricKey,
-    reloadPersonKeys,
-    stringToUint8Array,
-    Uint8ArrayToString
-} from '@refinio/one.core/lib/instance-crypto';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
     isPeerMessage
 } from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {scrypt} from '@refinio/one.core/lib/system/crypto-scrypt';
-import {readUTF8TextFile, writeUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
+import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
@@ -47,6 +36,9 @@ import {
     convertOneInstanceEndpointToIdentity
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
+import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -478,8 +470,8 @@ class ConnectionsModel extends Model {
         }
 
         const mainInstanceInfo = this.mainInstanceInfo;
-        const remoteInstanceKey = hexToUint8Array(
-            (await getObject(remoteEndpoint.instanceKeys)).publicKey
+        const remoteInstanceKey = ensurePublicKey(
+            hexToUint8Array((await getObject(remoteEndpoint.instanceKeys)).publicKey)
         );
 
         // Connect to target
@@ -488,15 +480,12 @@ class ConnectionsModel extends Model {
             hexToUint8Array(mainInstanceInfo.instanceKeys.publicKey),
             remoteInstanceKey,
             text => {
-                return mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                    remoteInstanceKey,
-                    text
-                );
+                return mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(text, remoteInstanceKey);
             },
             cypherText => {
-                return mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                    remoteInstanceKey,
-                    cypherText
+                return mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
+                    cypherText,
+                    remoteInstanceKey
                 );
             }
         );
@@ -527,11 +516,9 @@ class ConnectionsModel extends Model {
      * Connect to target using pairing information with the goal to pair / being taken over
      *
      * @param pairingInformation
-     * @param password
      */
     public async connectUsingPairingInformation(
-        pairingInformation: PairingInformation,
-        password: string
+        pairingInformation: PairingInformation
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
@@ -542,72 +529,16 @@ class ConnectionsModel extends Model {
             throw new Error('mainInstanceInfo not initialized.');
         }
 
-        const localPublicInstanceKey = hexToUint8Array(
-            this.mainInstanceInfo.instanceKeys.publicKey
+        const localPublicInstanceKey = ensurePublicKey(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey)
         );
-        const remotePublicInstanceKey = hexToUint8Array(pairingInformation.publicKeyLocal);
+        const remotePublicInstanceKey = ensurePublicKey(
+            hexToUint8Array(pairingInformation.publicKeyLocal)
+        );
 
         // Case of takeover
         if (pairingInformation.takeOver) {
-            if (!pairingInformation.takeOverDetails) {
-                throw new Error('Incomplete pairing information');
-            }
-
-            // Connect to target
-            const connInfo = await connectWithEncryption(
-                this.config.commServerUrl,
-                localPublicInstanceKey,
-                remotePublicInstanceKey,
-                text => {
-                    if (!this.mainInstanceInfo) {
-                        throw new Error('mainInstanceInfo not initialized.');
-                    }
-                    return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                        remotePublicInstanceKey,
-                        text
-                    );
-                },
-                cypherText => {
-                    if (!this.mainInstanceInfo) {
-                        throw new Error('mainInstanceInfo not initialized.');
-                    }
-                    return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                        remotePublicInstanceKey,
-                        cypherText
-                    );
-                }
-            );
-
-            // Add this connection to the communication module, so that it becomes the known connection
-            this.communicationModule.addNewUnknownConnection(
-                localPublicInstanceKey,
-                remotePublicInstanceKey,
-                connInfo.connection
-            );
-
-            // Start the takeover protocol
-            try {
-                // Send the other side the protocol we'd like to use
-                await ConnectionsModel.sendMessage(connInfo.connection, {
-                    command: 'start_protocol',
-                    protocol: 'chumAndPkExchange_onetimeauth_withtoken',
-                    version: '1.0'
-                });
-
-                // STart the selected protocol
-                await this.startChumPkExchangeProtocol_Client(
-                    connInfo.connection,
-                    localPublicInstanceKey,
-                    remotePublicInstanceKey,
-                    this.mainInstanceInfo.personId,
-                    pairingInformation.authenticationTag,
-                    hexToUint8Array(pairingInformation.takeOverDetails.nonce),
-                    this.password
-                );
-            } catch (e) {
-                connInfo.connection.close(e.message);
-                throw e;
-            }
+            throw new Error('Takeover is not supported anymore!');
         }
 
         // Case for normal pairing
@@ -621,18 +552,18 @@ class ConnectionsModel extends Model {
                     if (!this.mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                        remotePublicInstanceKey,
-                        text
+                    return this.mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
+                        text,
+                        remotePublicInstanceKey
                     );
                 },
                 cypherText => {
                     if (!this.mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                        remotePublicInstanceKey,
-                        cypherText
+                    return this.mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
+                        cypherText,
+                        remotePublicInstanceKey
                     );
                 }
             );
@@ -699,8 +630,12 @@ class ConnectionsModel extends Model {
             remoteInstanceKeys = await getObject(instanceEndpoints[0].instanceKeys);
         }
 
-        const localPublicInstanceKey = hexToUint8Array(localInstanceKeys.publicKey);
-        const remotePublicInstanceKey = hexToUint8Array(remoteInstanceKeys.publicKey);
+        const localPublicInstanceKey = ensurePublicKey(
+            hexToUint8Array(localInstanceKeys.publicKey)
+        );
+        const remotePublicInstanceKey = ensurePublicKey(
+            hexToUint8Array(remoteInstanceKeys.publicKey)
+        );
 
         // Connect to target
         const connInfo = await connectWithEncryption(
@@ -711,18 +646,18 @@ class ConnectionsModel extends Model {
                 if (!this.mainInstanceInfo) {
                     throw new Error('mainInstanceInfo not initialized.');
                 }
-                return this.mainInstanceInfo.cryptoApi.encryptWithInstancePublicKey(
-                    remotePublicInstanceKey,
-                    text
+                return this.mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
+                    text,
+                    remotePublicInstanceKey
                 );
             },
             cypherText => {
                 if (!this.mainInstanceInfo) {
                     throw new Error('mainInstanceInfo not initialized.');
                 }
-                return this.mainInstanceInfo.cryptoApi.decryptWithInstancePublicKey(
-                    remotePublicInstanceKey,
-                    cypherText
+                return this.mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
+                    cypherText,
+                    remotePublicInstanceKey
                 );
             }
         );
@@ -906,32 +841,6 @@ class ConnectionsModel extends Model {
                     );
                 }
 
-                // A chum and private key exchange protocol.
-                // Used for pairing internet of me devices
-                // Why support this in the known case? If the exchange of contact objects didn't work reliably
-                // we need to be able to pair even if one of the peers thinks it is a known connection.
-                else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
-                    if (!this.config.allowOneTimeAuth) {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(
-                            'chumAndPkExchange_onetimeauth_withtoken protocol is disabled through configuration.'
-                        );
-                    }
-                    if (protocolMsg.version !== '1.0') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(
-                            'Unsupported chumAndPkExchange_onetimeauth_withtoken protocol version.'
-                        );
-                    }
-
-                    await this.startChumPkExchangeProtocol_Server(
-                        conn,
-                        localPublicInstanceKey,
-                        remotePublicInstanceKey,
-                        localPersonId
-                    );
-                }
-
                 // Set the access groups on the remote machine
                 else if (protocolMsg.protocol === 'accessGroup_set') {
                     if (!this.config.allowSetAuthGroup) {
@@ -1063,30 +972,6 @@ class ConnectionsModel extends Model {
                     );
                 }
 
-                // A chum and private key exchange protocol.
-                // Used for pairing internet of me devices
-                else if (protocolMsg.protocol === 'chumAndPkExchange_onetimeauth_withtoken') {
-                    if (!this.config.allowOneTimeAuth) {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(
-                            'chumAndPkExchange_onetimeauth_withtoken protocol is disabled through configuration.'
-                        );
-                    }
-                    if (protocolMsg.version !== '1.0') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(
-                            'Unsupported chumAndPkExchange_onetimeauth_withtoken protocol version.'
-                        );
-                    }
-
-                    await this.startChumPkExchangeProtocol_Server(
-                        conn,
-                        localPublicInstanceKey,
-                        remotePublicInstanceKey,
-                        localPersonId
-                    );
-                }
-
                 // Set the access groups on the remote machine
                 else if (protocolMsg.protocol === 'accessGroup_set') {
                     if (!this.config.allowSetAuthGroup) {
@@ -1151,7 +1036,7 @@ class ConnectionsModel extends Model {
         remotePersonId?: SHA256IdHash<Person>
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(
+        const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
             conn,
             localPersonId,
             isClient,
@@ -1204,7 +1089,11 @@ class ConnectionsModel extends Model {
         }
 
         // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
+        const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            false
+        );
         // We do not need to check whether the person is new, because both new or not new is ok here
 
         // Step 2: Wait for the authentication token and verify it against the token list
@@ -1279,7 +1168,11 @@ class ConnectionsModel extends Model {
         authenticationToken: string
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
-        const personInfo = await this.verifyAndExchangePersonId(conn, localPersonId, true);
+        const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            true
+        );
 
         // Step 2: Send the authentication token
         await ConnectionsModel.sendMessage(conn, {
@@ -1346,7 +1239,11 @@ class ConnectionsModel extends Model {
         }
 
         // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(conn, localPersonId, false);
+        const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            false
+        );
         // We do not need to check whether the person is new, because both new or not new is ok here
 
         // Step 2: Wait for the authentication token and verify it against the token list
@@ -1442,7 +1339,11 @@ class ConnectionsModel extends Model {
         authenticationToken: string
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
-        const personInfo = await this.verifyAndExchangePersonId(conn, localPersonId, true);
+        const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            conn,
+            localPersonId,
+            true
+        );
 
         // Step 2: Send the authentication token
         await ConnectionsModel.sendMessage(conn, {
@@ -1499,215 +1400,6 @@ class ConnectionsModel extends Model {
         conn.close();
     }
 
-    // ################ ONE TIME AUTH PROTOCOL (TAKEOVER) ################
-
-    /**
-     * Start a chum by authentication with a one time auth token and the local peer password.
-     *
-     * This function will not only setup the chum, but it will also transfer the person private keys
-     * to the peer, so that he can integrate himself into the internet of me.
-     *
-     * Step 1: Verify / exchange the remote person id (and check the keys against the ones stored in the database)
-     * Step 2: Wait for and verify authentication token by comparing to local list
-     * Step 3: Wait for and verify with password encrypted authentication token by using a password derived key for de/encryption
-     * Step 4: Send the private data (keys and ids and stuff)
-     * Step 5: Setup the chum
-     *
-     * @param conn
-     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
-     * connections.
-     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
-     * connections.
-     * @param localPersonId
-     */
-    private async startChumPkExchangeProtocol_Server(
-        conn: Connection,
-        localPublicInstanceKey: Uint8Array,
-        remotePublicInstanceKey: Uint8Array,
-        localPersonId: SHA256IdHash<Person>
-    ): Promise<void> {
-        // Step 1: Exchange / authenticate person keys & person Id
-        const remotePersonInfo = await this.verifyAndExchangePersonId(
-            conn,
-            localPersonId,
-            false,
-            localPersonId, // Since we have created the instance already with the takeover id it should match
-            true // Skip key verification, because we have an old key
-        );
-        // We cannot know the user, so checking for isNew is not necessary
-
-        // Step 2: Wait for the authentication token and verify it against the token list
-        const authToken = await ConnectionsModel.waitForMessage(conn, 'authentication_token');
-
-        // Verify the auth token
-        const authData = this.pkOneTimeAuthenticationTokens.get(authToken.token);
-        if (authData === undefined) {
-            throw new Error('Authentication token is not existing.');
-        }
-
-        // Verify the received id with the local id used to generate the code
-        if (authData.localPersonId !== localPersonId) {
-            throw new Error('The authentication token was not generated for the requested person.');
-        }
-
-        // Step 3: Wait for encrypted authentication token for verifying the password
-        const encAuthData = await ConnectionsModel.waitForMessage(
-            conn,
-            'encrypted_authentication_token'
-        );
-        const encryptedAuthTag = hexToUint8Array(encAuthData.token);
-        const derivedKey = await scrypt(stringToUint8Array(this.password), authData.salt);
-
-        // Verify if the other instance has the same password as the current instance.
-        // We need to remove the "" that is added by Uint8ArrayToString ....
-        // TODO: do this smarter! Without conversion and stuff.
-        // TODO: think about whether it is a good idea to reuse the authentication token for this stuff
-        const decryptedAuthTag = Uint8ArrayToString(
-            await decryptWithSymmetricKey(derivedKey, encryptedAuthTag)
-            // remove all quotes from the decrypted string
-        ).replace(new RegExp('"', 'g'), '');
-
-        // Verify the decrypted auth token
-        if (authData.token !== decryptedAuthTag) {
-            throw new Error('Decrypted authentication token doe not match.');
-        }
-
-        // Step 4: Send private data
-        await ConnectionsModel.sendMessage(conn, await this.extractExistingPersonKeys());
-
-        // Done, so remove the one time authentication token from the list
-        clearTimeout(authData.expirationTimeoutHandle);
-        this.pkOneTimeAuthenticationTokens.delete(authToken.token);
-
-        // emit the one_time_auth_success event with the corresponding authentication token
-        await this.onOneTimeAuthSuccess.emitAll(
-            authToken.token,
-            true,
-            localPersonId,
-            remotePersonInfo.personId
-        );
-
-        // Step 5: Start the chum
-        try {
-            await this.startChum(
-                conn,
-                localPublicInstanceKey,
-                remotePublicInstanceKey,
-                localPersonId,
-                remotePersonInfo.personId,
-                'chumAndPkExchange_onetimeauth_withtoken',
-                false,
-                false
-            );
-        } catch (e) {
-            console.error('Short chum for pairing failed', e);
-        }
-
-        await this.onOneTimeAuthSuccessFirstSync.emitAll(
-            authToken.token,
-            true,
-            localPersonId,
-            remotePersonInfo.personId
-        );
-
-        conn.close();
-    }
-
-    /**
-     * Start a chum by authentication with a one time auth token and the remote peer password.
-     *
-     * This function will not only setup the chum, but it will also receive the person private keys and apply
-     * it to this instance, so that it is integrated into the internet of me.
-     *
-     * Step 1: Verify / exchange the remote person id (and check the keys against the ones stored in the database)
-     * Step 2: Send authentication token
-     * Step 3: Send encrypted authentication token by using a password derived key for encryption
-     * Step 4: Wait for / apply the private data / keys
-     * Step 5: Setup the chum with the new identity
-     *
-     * @param conn
-     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
-     * connections.
-     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
-     * connections.
-     * @param localPersonId
-     * @param authenticationToken
-     * @param kdfSalt
-     * @param password
-     */
-    private async startChumPkExchangeProtocol_Client(
-        conn: Connection,
-        localPublicInstanceKey: Uint8Array,
-        remotePublicInstanceKey: Uint8Array,
-        localPersonId: SHA256IdHash<Person>,
-        authenticationToken: string,
-        kdfSalt: Uint8Array,
-        password: string
-    ): Promise<void> {
-        // Step 1: Exchange / authenticate person keys & person Id
-        const personInfo = await this.verifyAndExchangePersonId(
-            conn,
-            localPersonId,
-            true,
-            localPersonId, // Since we have created the instance already with the takeover id it should match
-            true // Skip key verification, because we have an old key
-        );
-
-        // Step 2: Send the authentication token
-        await ConnectionsModel.sendMessage(conn, {
-            command: 'authentication_token',
-            token: authenticationToken
-        });
-
-        // Step 3: Authenticate by sending the token
-        const derivedKey = await scrypt(stringToUint8Array(password), kdfSalt);
-        const encryptedAuthTag = await encryptWithSymmetricKey(derivedKey, authenticationToken);
-        await ConnectionsModel.sendMessage(conn, {
-            command: 'encrypted_authentication_token',
-            token: uint8arrayToHexString(encryptedAuthTag)
-        });
-
-        // Step 4: Wait for the private keys and then takeover the instance
-        const privatePersonInfo = await ConnectionsModel.waitForMessage(
-            conn,
-            'private_person_information'
-        );
-        await this.overwriteExistingPersonKeys(privatePersonInfo);
-
-        // emit the one_time_auth_success event with the corresponding authentication token
-        await this.onOneTimeAuthSuccess.emitAll(
-            authenticationToken,
-            true,
-            localPersonId,
-            personInfo.personId
-        );
-
-        // Step 5: Start the short running chum
-        try {
-            await this.startChum(
-                conn,
-                localPublicInstanceKey,
-                remotePublicInstanceKey,
-                localPersonId,
-                personInfo.personId,
-                'chumAndPkExchange_onetimeauth_withtoken',
-                true,
-                false
-            );
-        } catch (e) {
-            console.error('Short chum for pairing failed', e);
-        }
-
-        await this.onOneTimeAuthSuccessFirstSync.emitAll(
-            authenticationToken,
-            true,
-            localPersonId,
-            personInfo.personId
-        );
-
-        conn.close();
-    }
-
     // ################ SET AUTH GROUP ################
 
     private async startSetAccessGroup_Server(
@@ -1720,7 +1412,7 @@ class ConnectionsModel extends Model {
             }
 
             // Step 1: Exchange / authenticate person keys & person Id
-            const remotePersonInfo = await this.verifyAndExchangePersonId(
+            const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
                 conn,
                 localPersonId,
                 false
@@ -1794,7 +1486,12 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         try {
             // Step 1: Exchange / authenticate person keys & person Id
-            await this.verifyAndExchangePersonId(conn, localPersonId, true, remotePersonId);
+            await ConnectionsModel.verifyAndExchangePersonId(
+                conn,
+                localPersonId,
+                true,
+                remotePersonId
+            );
 
             // Step 2: Send the group members
             const personObjs = await Promise.all(
@@ -1911,75 +1608,6 @@ class ConnectionsModel extends Model {
         };
     }
 
-    /**
-     * Overwrites the existing person keys with the received ones - this is
-     * required in order for all instances to have the same person keys for the
-     * same person object.
-     *
-     * IMPORTANT: this function is used also in RecoveryModel.
-     *            For using this function the password has to be set.
-     *
-     * @param privatePersonInformation
-     */
-    async overwriteExistingPersonKeys(
-        privatePersonInformation: CommunicationInitiationProtocol.PrivatePersonInformationMessage
-    ): Promise<void> {
-        let thisMainInstanceInfo: LocalInstanceInfo | undefined;
-
-        // Setup the public key to instanceInfo map
-        const infos = await this.instancesModel.localInstancesInfo();
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                if (instanceInfo.isMain) {
-                    thisMainInstanceInfo = instanceInfo;
-                }
-            })
-        );
-
-        if (!thisMainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
-
-        const overwritePrivateKeys = async (
-            encryptedHexKey: HexString,
-            filename: string
-        ): Promise<void> => {
-            await writeUTF8TextFile(encryptedHexKey, filename, 'private');
-        };
-
-        if (thisMainInstanceInfo.personId !== privatePersonInformation.personId) {
-            throw new Error('Users not match from one instance to the other!');
-        }
-
-        // Save the public keys of main id
-        const savedOwnerKeys = await createSingleObjectThroughImpurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Keys',
-                owner: privatePersonInformation.personId,
-                publicKey: privatePersonInformation.personPublicKey,
-                publicSignKey: privatePersonInformation.personPublicSignKey
-            }
-        );
-        await overwritePrivateKeys(
-            privatePersonInformation.personPrivateKey,
-            `${savedOwnerKeys.hash}.owner.encrypt`
-        );
-        await overwritePrivateKeys(
-            privatePersonInformation.personPrivateSignKey,
-            `${savedOwnerKeys.hash}.owner.sign`
-        );
-
-        await reloadPersonKeys(
-            this.password,
-            thisMainInstanceInfo.personId,
-            thisMainInstanceInfo.instanceId
-        );
-    }
-
     // ######## Update internal state functions #######
 
     /**
@@ -2054,7 +1682,7 @@ class ConnectionsModel extends Model {
      *                              with care!
      * @returns
      */
-    private async verifyAndExchangePersonId(
+    private static async verifyAndExchangePersonId(
         conn: Connection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
@@ -2063,11 +1691,10 @@ class ConnectionsModel extends Model {
     ): Promise<{
         isNew: boolean;
         personId: SHA256IdHash<Person>;
-        personPublicKey: Uint8Array;
+        personPublicKey: PublicKey;
     }> {
         // Initialize the crypto stuff
-        const instanceHash = await this.instancesModel.localInstanceIdForPerson(localPersonId);
-        const crypto = createCryptoAPI(instanceHash);
+        const crypto = await personCryptoApi(localPersonId);
 
         // Get my own person key
         const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
@@ -2077,7 +1704,7 @@ class ConnectionsModel extends Model {
 
         // Exchange and challenge response the person keys
         let remotePersonId: SHA256IdHash<Person>;
-        let remotePersonKey: Uint8Array;
+        let remotePersonKey: PublicKey;
         if (initiatedLocally) {
             // Step1: Send my person information
             await ConnectionsModel.sendMessage(conn, {
@@ -2092,7 +1719,7 @@ class ConnectionsModel extends Model {
                 'person_information'
             );
             remotePersonId = remotePersonInfo.personId;
-            remotePersonKey = hexToUint8Array(remotePersonInfo.personPublicKey);
+            remotePersonKey = ensurePublicKey(hexToUint8Array(remotePersonInfo.personPublicKey));
 
             // Step 3: Perform challenge / response
             await ConnectionsModel.challengePersonKey(conn, remotePersonKey, crypto);
@@ -2106,7 +1733,7 @@ class ConnectionsModel extends Model {
                 'person_information'
             );
             remotePersonId = remotePersonInfo.personId;
-            remotePersonKey = hexToUint8Array(remotePersonInfo.personPublicKey);
+            remotePersonKey = ensurePublicKey(hexToUint8Array(remotePersonInfo.personPublicKey));
 
             // Step2: Send my person information
             await ConnectionsModel.sendMessage(conn, {
@@ -2184,15 +1811,12 @@ class ConnectionsModel extends Model {
      */
     private static async challengePersonKey(
         conn: Connection,
-        remotePersonPublicKey: Uint8Array,
-        crypto: CryptoAPI
+        remotePersonPublicKey: PublicKey,
+        crypto: CryptoApi
     ): Promise<void> {
         // Send the challenge
         const challenge = tweetnacl.randomBytes(64);
-        const encryptedChallenge = crypto.encryptWithPersonPublicKey(
-            remotePersonPublicKey,
-            challenge
-        );
+        const encryptedChallenge = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
         await conn.send(encryptedChallenge);
         for (let i = 0; i < challenge.length; ++i) {
             challenge[i] = ~challenge[i];
@@ -2200,10 +1824,7 @@ class ConnectionsModel extends Model {
 
         // Wait for response
         const encryptedResponse = await conn.promisePlugin().waitForBinaryMessage();
-        const response = crypto.decryptWithPersonPublicKey(
-            remotePersonPublicKey,
-            encryptedResponse
-        );
+        const response = crypto.decryptWithEmbeddedNonce(encryptedResponse, remotePersonPublicKey);
         if (!tweetnacl.verify(challenge, response)) {
             conn.close();
             throw new Error('Failed to authenticate connection.');
@@ -2219,22 +1840,19 @@ class ConnectionsModel extends Model {
      */
     private static async challengeRespondPersonKey(
         conn: Connection,
-        remotePersonPublicKey: Uint8Array,
-        crypto: CryptoAPI
+        remotePersonPublicKey: PublicKey,
+        crypto: CryptoApi
     ): Promise<void> {
         // Wait for challenge
         const encryptedChallenge = await conn.promisePlugin().waitForBinaryMessage();
-        const challenge = crypto.decryptWithPersonPublicKey(
-            remotePersonPublicKey,
-            encryptedChallenge
+        const challenge = crypto.decryptWithEmbeddedNonce(
+            encryptedChallenge,
+            remotePersonPublicKey
         );
         for (let i = 0; i < challenge.length; ++i) {
             challenge[i] = ~challenge[i];
         }
-        const encryptedResponse = crypto.encryptWithPersonPublicKey(
-            remotePersonPublicKey,
-            challenge
-        );
+        const encryptedResponse = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
         await conn.send(encryptedResponse);
     }
 

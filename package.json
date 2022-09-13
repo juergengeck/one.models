@@ -40,7 +40,7 @@
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "0.3.18"
+    "@refinio/one.core": "v0.3.20"
   },
   "devDependencies": {
     "@babel/core": "*",
@@ -81,8 +81,6 @@
     "mocha": "*",
     "nyc": "*",
     "prettier": "*",
-    "rimraf": "*",
-    "sinon": "*",
     "ts-node": "*",
     "typedoc": "*",
     "typescript": "*",
