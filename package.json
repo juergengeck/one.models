@@ -81,8 +81,6 @@
     "mocha": "*",
     "nyc": "*",
     "prettier": "*",
-    "rimraf": "*",
-    "sinon": "*",
     "ts-node": "*",
     "typedoc": "*",
     "typescript": "*",
