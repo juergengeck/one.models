@@ -2,7 +2,6 @@ import type {LeuteModel} from '../models';
 import {getObject} from '@refinio/one.core/lib/storage';
 import type InstancesModel from '../models/InstancesModel';
 import type {LocalInstanceInfo} from '../models/InstancesModel';
-import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
@@ -16,6 +15,9 @@ import {
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connections/Connection';
 import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {instanceCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
 
 /**
  * This type represents information about a connection.
@@ -47,7 +49,7 @@ type ConnectionContainer = {
     targetInstanceId: SHA256IdHash<Instance>;
     sourcePersonId: SHA256IdHash<Person>;
     targetPersonId: SHA256IdHash<Person>;
-    cryptoApi: ReturnType<typeof createCryptoAPI>;
+    cryptoApi: CryptoApi;
     isInternetOfMe: boolean;
     dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,
     // otherwise they will override the current connection
@@ -634,15 +636,15 @@ export default class CommunicationModule extends EventEmitter {
                 hexToUint8Array(connContainer.sourcePublicKey),
                 hexToUint8Array(connContainer.targetPublicKey),
                 text => {
-                    return connContainer.cryptoApi.encryptWithInstancePublicKey(
-                        hexToUint8Array(connContainer.targetPublicKey),
-                        text
+                    return connContainer.cryptoApi.encryptAndEmbedNonce(
+                        text,
+                        ensurePublicKey(hexToUint8Array(connContainer.targetPublicKey))
                     );
                 },
                 cypherText => {
-                    return connContainer.cryptoApi.decryptWithInstancePublicKey(
-                        hexToUint8Array(connContainer.targetPublicKey),
-                        cypherText
+                    return connContainer.cryptoApi.decryptWithEmbeddedNonce(
+                        cypherText,
+                        ensurePublicKey(hexToUint8Array(connContainer.targetPublicKey))
                     );
                 }
             );
@@ -705,15 +707,15 @@ export default class CommunicationModule extends EventEmitter {
         instance: SHA256IdHash<Instance>
     ): Promise<void> {
         const keys = await this.instancesModel.localInstanceKeys(instance);
-        const cryptoApi = createCryptoAPI(instance);
+        const cryptoApi = await instanceCryptoApi(instance);
         await this.incomingConnectionManager.listenForCommunicationServerConnections(
             this.commServer,
             hexToUint8Array(keys.publicKey),
             (key, text) => {
-                return cryptoApi.encryptWithInstancePublicKey(key, text);
+                return cryptoApi.encryptAndEmbedNonce(text, ensurePublicKey(key));
             },
             (key, cypherText) => {
-                return cryptoApi.decryptWithInstancePublicKey(key, cypherText);
+                return cryptoApi.decryptWithEmbeddedNonce(cypherText, ensurePublicKey(key));
             }
         );
     }

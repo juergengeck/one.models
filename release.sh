@@ -25,7 +25,7 @@ npm install
 echo "Push to repo"
 git add package.json
 git add package-lock.json
-git commit -m "Set version number to $1"
+git commit -m "Release of version $1"
 git push -u origin release_$1
 
 echo "Press any key when PR is merged"
@@ -34,5 +34,5 @@ read -n 1 -s
 echo "Pull master and create tag"
 git checkout master
 git pull
-git tag -a $1
+git tag -a $1 -m "Release of version $1:" -e
 git push --tags

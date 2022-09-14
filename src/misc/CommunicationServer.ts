@@ -1,13 +1,19 @@
 import WebSocketWS from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
-import {decryptWithPublicKey, encryptWithPublicKey} from '@refinio/one.core/lib/instance-crypto';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import WebSocketListener from './WebSocketListener';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connections/Connection';
 import PromisePlugin from './Connections/plugins/PromisePlugin';
+import {
+    createKeyPair,
+    decryptWithEmbeddedNonce,
+    encryptAndEmbedNonce,
+    ensurePublicKey,
+    KeyPair
+} from '@refinio/one.core/lib/crypto/encryption';
 
 const MessageBus = createMessageBus('CommunicationServer');
 
@@ -24,7 +30,7 @@ type ConnectionContainer = {
  */
 class CommunicationServer {
     private webSocketListener: WebSocketListener; // The web socket server that accepts connections
-    private keyPair: tweetnacl.BoxKeyPair; // The key pair used for the commserver
+    private keyPair: KeyPair; // The key pair used for the commserver
     private listeningConnectionsMap: Map<string, ConnectionContainer[]>; // Map that stores spare connections
     private openedConnections: Set<WebSocket>; // List of established relays
     private pingInterval: number; // Interval used to ping spare connections
@@ -35,7 +41,7 @@ class CommunicationServer {
      */
     constructor() {
         this.webSocketListener = new WebSocketListener();
-        this.keyPair = tweetnacl.box.keyPair();
+        this.keyPair = createKeyPair();
         this.listeningConnectionsMap = new Map<string, ConnectionContainer[]>();
         this.openedConnections = new Set<WebSocket>();
         this.pingInterval = 5000;
@@ -118,10 +124,10 @@ class CommunicationServer {
                 // Step 1: Create, encrypt and send the challenge
                 MessageBus.send('log', `${connection.id}: Register Step 1: Sending auth request`);
                 const challenge = tweetnacl.randomBytes(64);
-                const encryptedChallenge = encryptWithPublicKey(
-                    message.publicKey,
+                const encryptedChallenge = encryptAndEmbedNonce(
                     challenge,
-                    this.keyPair.secretKey
+                    this.keyPair.secretKey,
+                    ensurePublicKey(message.publicKey)
                 );
                 await conn.sendAuthenticationRequestMessage(
                     this.keyPair.publicKey,
@@ -140,10 +146,10 @@ class CommunicationServer {
                     `${connection.id}: Register Step 2: Waiting for auth response`
                 );
                 const authResponseMessage = await conn.waitForMessage('authentication_response');
-                const decryptedChallenge = decryptWithPublicKey(
-                    message.publicKey,
+                const decryptedChallenge = decryptWithEmbeddedNonce(
                     authResponseMessage.response,
-                    this.keyPair.secretKey
+                    this.keyPair.secretKey,
+                    ensurePublicKey(message.publicKey)
                 );
                 if (!tweetnacl.verify(decryptedChallenge, challenge)) {
                     throw new Error('Client authentication failed.');

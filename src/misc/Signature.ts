@@ -1,8 +1,7 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {getObject, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import {createCryptoAPI} from '@refinio/one.core/lib/instance-crypto';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
@@ -12,6 +11,7 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
 
 /**
  * Sign an object with my own key.
@@ -22,16 +22,15 @@ export async function sign(data: SHA256Hash): Promise<UnversionedObjectResult<Si
     // Load instance
     // This is only required, because the cryptoAPI is constructed from the instance and the issued is determined
     // this way at the moment. We need to change that!
-    const instanceIdHash = getInstanceIdHash();
     const instanceOwner = getInstanceOwnerIdHash();
 
-    if (instanceIdHash === undefined || instanceOwner === undefined) {
+    if (instanceOwner === undefined) {
         throw new Error('Instance is not initialized');
     }
 
     // Sign the data hash with the crypto API
-    const cryptoAPI = createCryptoAPI(instanceIdHash);
-    const signatureBinary = cryptoAPI.createSignature(new TextEncoder().encode(data));
+    const cryptoAPI = await personCryptoApi(instanceOwner);
+    const signatureBinary = cryptoAPI.sign(new TextEncoder().encode(data));
     const signatureString = uint8arrayToHexString(signatureBinary);
 
     // Store the signature as meta object.
