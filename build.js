@@ -325,7 +325,7 @@ async function createDeclarationFiles(targetDir) {
             console.error(
                 '\ntsc failed with ' +
                     err.message +
-                    '   ERRORS CAN BE IGNORED if the declaration files were creasted.\n'
+                    '   ERRORS CAN BE IGNORED if the declaration files were created.\n'
             );
         }
     }
