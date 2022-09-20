@@ -1,9 +1,7 @@
 import chai, {expect} from 'chai';
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
-import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import {mkdir, rm, rmdir} from 'fs/promises';
-
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
 import chaiAsPromised from 'chai-as-promised';
 import LeuteRecipes from '../lib/recipes/Leute/recipes';
@@ -48,7 +46,7 @@ describe('identityExchange test one dependent functions', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [...SignatureRecipes, ...MetaObjectMapRecipes, ...LeuteRecipes],
+            initialRecipes: [...SignatureRecipes, ...LeuteRecipes],
             initiallyEnabledReverseMapTypes: new Map([...SignatureReverseMaps])
         });
         await mkdir('test/testId').catch(console.error);

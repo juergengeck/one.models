@@ -1,12 +1,13 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {addMetaObject, getMetaObjectHashesOfType, storeMetaObject} from './MetaObjectMap';
 import {isSignedBy, sign, signedBy} from './Signature';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getObject, onUnversionedObj, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage';
 import type {RelationCertificate} from '../recipes/CertificateRecipes';
 import type {Signature} from '../recipes/SignatureRecipes';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 
 /**
  * Certify with your own sign key, that person1 has the specified relation with person2.
@@ -31,10 +32,7 @@ export async function certifyRelation(
             app
         })
     ).hash;
-    const sigResult = await sign(certificateHash);
-    await addMetaObject(person1, certificateHash);
-    await addMetaObject(person2, certificateHash);
-    return sigResult;
+    return sign(certificateHash);
 }
 
 /**
@@ -77,9 +75,9 @@ export async function relationsCertifiedForPerson1By(
     relation: string,
     app: string
 ): Promise<RelationCertificate[]> {
-    const certificates = await getMetaObjectHashesOfType(person1, 'RelationCertificate');
-    const isSingedArr = await Promise.all(certificates.map(cert => isSignedBy(cert, by)));
-    const signedCertificateHashes = certificates.filter((_value, index) => isSingedArr[index]);
+    const certificateHashes = await getAllEntries(person1, 'RelationCertificate');
+    const isSingedArr = await Promise.all(certificateHashes.map(cert => isSignedBy(cert, by)));
+    const signedCertificateHashes = certificateHashes.filter((_value, index) => isSingedArr[index]);
     const signedCertificates = await Promise.all(signedCertificateHashes.map(getObject));
     return signedCertificates.filter(cert => {
         return cert.person1 === person1 && cert.relation === relation && cert.app === app;
@@ -92,16 +90,12 @@ export async function relationsCertifiedForPerson1By(
  * @param data
  */
 export async function affirm(data: SHA256Hash): Promise<UnversionedObjectResult<Signature>> {
-    const certificateHash = (
-        await storeMetaObject(data, {
-            $type$: 'AffirmationCertificate',
-            data: data
-        })
-    ).hash;
+    const result = await storeUnversionedObject({
+        $type$: 'AffirmationCertificate',
+        data: data
+    });
 
-    const sigResult = await sign(certificateHash);
-    await addMetaObject(data, certificateHash);
-    return sigResult;
+    return sign(result.hash);
 }
 
 /**
@@ -111,7 +105,7 @@ export async function affirm(data: SHA256Hash): Promise<UnversionedObjectResult<
  * @param data
  */
 export async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): Promise<boolean> {
-    const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
+    const certificateHashes = await getAllEntries(data, 'AffirmationCertificate');
     if (certificateHashes.length === 0) {
         return false;
     }
@@ -133,7 +127,7 @@ export async function isAffirmedBy(by: SHA256IdHash<Person>, data: SHA256Hash): 
  * @param data
  */
 export async function affirmedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
-    const certificateHashes = await getMetaObjectHashesOfType(data, 'AffirmationCertificate');
+    const certificateHashes = await getAllEntries(data, 'AffirmationCertificate');
     if (certificateHashes.length === 0) {
         return [];
     }
@@ -172,12 +166,7 @@ export function onNewAffirmation(
         }
     }
 
-    function handleNewObject(result: UnversionedObjectResult): void {
+    return onUnversionedObj.addListener(function (result) {
         handleNewObjectAsync(result).catch(console.error);
-    }
-
-    onUnversionedObj.addListener(handleNewObject);
-    return () => {
-        onUnversionedObj.removeListener(handleNewObject);
-    };
+    });
 }

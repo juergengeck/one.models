@@ -1,9 +1,9 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getObject, UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getObject, getObjectWithType} from '@refinio/one.core/lib/storage';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import {addMetaObject, getMetaObjectsOfType} from './MetaObjectMap';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -17,33 +17,31 @@ import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
  * Sign an object with my own key.
  *
  * @param data - The data which to sign.
+ * @param issuer - the issuer of the signature
  */
-export async function sign(data: SHA256Hash): Promise<UnversionedObjectResult<Signature>> {
-    // Load instance
-    // This is only required, because the cryptoAPI is constructed from the instance and the issued is determined
-    // this way at the moment. We need to change that!
-    const instanceOwner = getInstanceOwnerIdHash();
-
-    if (instanceOwner === undefined) {
-        throw new Error('Instance is not initialized');
+export async function sign(
+    data: SHA256Hash,
+    issuer?: SHA256IdHash<Person>
+): Promise<UnversionedObjectResult<Signature>> {
+    // If not issuer specified use the instance owner
+    if (issuer === undefined) {
+        issuer = getInstanceOwnerIdHash();
+        if (issuer === undefined) {
+            throw new Error('Instance is not initialized');
+        }
     }
 
     // Sign the data hash with the crypto API
-    const cryptoAPI = await personCryptoApi(instanceOwner);
+    const cryptoAPI = await personCryptoApi(issuer);
     const signatureBinary = cryptoAPI.sign(new TextEncoder().encode(data));
     const signatureString = uint8arrayToHexString(signatureBinary);
 
-    // Store the signature as meta object.
-    const sigResult = await storeUnversionedObject({
+    return await storeUnversionedObject({
         $type$: 'Signature',
-        issuer: instanceOwner,
+        issuer: issuer,
         data: data,
         signature: signatureString
     });
-    await addMetaObject(data, sigResult.hash);
-    await addMetaObject(instanceOwner, sigResult.hash);
-
-    return sigResult;
 }
 
 /**
@@ -108,7 +106,10 @@ export async function isSignedByMe(data: SHA256Hash): Promise<boolean> {
  * @param issuer - If specified only return signatures for this issuer.
  */
 async function signatures(data: SHA256Hash, issuer?: SHA256IdHash<Person>): Promise<Signature[]> {
-    const signatureObjects = await getMetaObjectsOfType(data, 'Signature');
+    const signatureObjectHashes = await getAllEntries(data, 'Signature');
+    const signatureObjects = await Promise.all(
+        signatureObjectHashes.map(hash => getObjectWithType(hash))
+    );
     if (issuer === undefined) {
         return signatureObjects;
     } else {

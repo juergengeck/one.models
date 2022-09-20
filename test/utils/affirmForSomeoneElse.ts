@@ -1,8 +1,7 @@
-import type {SHA256Hash, SHA256IdHash} from "@refinio/one.core/lib/util/type-checks";
-import type {Person} from "@refinio/one.core/lib/recipes";
-import {storeMetaObject} from "../../lib/misc/MetaObjectMap";
-import {addMetaObject} from "../../lib/misc/MetaObjectMap";
-import {signForSomeoneElse} from "./signForSomeoneElse";
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {signForSomeoneElse} from './signForSomeoneElse';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * Create an affirmation certificate for another personId.
@@ -14,11 +13,14 @@ import {signForSomeoneElse} from "./signForSomeoneElse";
  * @param issuer
  * @param secretKey
  */
-export async function affirmForSomeoneElse(data: SHA256Hash, issuer: SHA256IdHash<Person>, secretKey: Uint8Array): Promise<void> {
-    const certificateHash = (await storeMetaObject(data, {
+export async function affirmForSomeoneElse(
+    data: SHA256Hash,
+    issuer: SHA256IdHash<Person>,
+    secretKey: Uint8Array
+): Promise<void> {
+    const result = await storeUnversionedObject({
         $type$: 'AffirmationCertificate',
         data: data
-    })).hash;
-    await signForSomeoneElse(certificateHash, issuer, secretKey);
-    await addMetaObject(data, certificateHash);
+    });
+    await signForSomeoneElse(result.hash, issuer, secretKey);
 }
