@@ -16,12 +16,14 @@ import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
  * @param person2
  * @param relation - Relation as defined by the application app.
  * @param app - Application in which context this relation is important.
+ * @param issuer
  */
 export async function certifyRelation(
     person1: SHA256IdHash<Person>,
     person2: SHA256IdHash<Person>,
     relation: string,
-    app: string
+    app: string,
+    issuer?: SHA256IdHash<Person>
 ): Promise<UnversionedObjectResult<Signature>> {
     const certificateHash = (
         await storeUnversionedObject({
@@ -32,7 +34,7 @@ export async function certifyRelation(
             app
         })
     ).hash;
-    return sign(certificateHash);
+    return sign(certificateHash, issuer);
 }
 
 /**
@@ -88,14 +90,18 @@ export async function relationsCertifiedForPerson1By(
  * You affirm that this data ia genuine.
  *
  * @param data
+ * @param issuer
  */
-export async function affirm(data: SHA256Hash): Promise<UnversionedObjectResult<Signature>> {
+export async function affirm(
+    data: SHA256Hash,
+    issuer?: SHA256IdHash<Person>
+): Promise<UnversionedObjectResult<Signature>> {
     const result = await storeUnversionedObject({
         $type$: 'AffirmationCertificate',
         data: data
     });
 
-    return sign(result.hash);
+    return sign(result.hash, issuer);
 }
 
 /**
