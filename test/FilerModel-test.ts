@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
