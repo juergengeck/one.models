@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// noinspection JSValidateTypes
 
 'use strict';
 
@@ -26,10 +25,26 @@ const fs = require('fs');
 const {basename, dirname, join, sep} = require('path');
 const {execSync} = require('child_process');
 
-const {chmod, mkdir, rmdir, readdir, readFile, writeFile, rename, unlink} = fs.promises;
+const {access, chmod, mkdir, rmdir, readdir, readFile, writeFile, rename, unlink} = fs.promises;
 
 // @ts-ignore
 const babel = require('@babel/core');
+
+/**
+ * @param {string} file
+ * @returns {Promise<boolean>}
+ */
+async function fileExists(file) {
+    return access(file, fs.constants.F_OK)
+        .then(() => true)
+        .catch(err => {
+            if (err.code === 'ENOENT') {
+                return false;
+            }
+
+            throw err;
+        });
+}
 
 /** @type {Record<string, string[]>} */
 const PLATFORMS = {
@@ -481,6 +496,12 @@ function calledForSingleFile() {
  * @returns {Promise<void>}
  */
 async function run() {
+    // Package installation: There is no src/ but there already is a lib/
+    if (!(await fileExists('src')) && (await fileExists('lib'))) {
+        console.log('install.js @refinio/one.models: DO NOTHING');
+        return;
+    }
+
     const system = await getSystem();
     const targetDir = getTargetDir();
     const moduleTarget = setModuleTarget(); // Call with side effect
