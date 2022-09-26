@@ -1,5 +1,5 @@
 {
-    "name": "one.models",
+    "name": "@refinio/one.models",
     "version": "10.3.1-filer",
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/"
@@ -36,12 +36,12 @@
         "enable-source-maps": true
     },
     "files": [
-        "src",
-        "plans",
         "lib",
         "test",
-        "build.js",
-        "build_plan_modules.js"
+        "package.json",
+        "package-lock.json",
+        "LICENSE.md",
+        "README.md"
     ],
     "dependencies": {
         "@types/ws": "*",
