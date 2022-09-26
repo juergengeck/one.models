@@ -96,6 +96,7 @@
         "prettier": "*",
         "rimraf": "*",
         "sinon": "*",
+        "source-map-support": "*",
         "ts-node": "*",
         "typedoc": "*",
         "typescript": "*",
