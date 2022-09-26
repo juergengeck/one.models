@@ -1,11 +1,9 @@
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {DiaryEntry as OneDiaryEntry} from '../recipes/DiaryRecipes';
-import i18nModelsInstance from '../i18n';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 
 /**
  * This represents the model of a diary entry
@@ -87,7 +85,7 @@ export default class DiaryModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         if (!diaryEntry) {
-            throw Error(i18nModelsInstance.t('errors:diaryModel.notEmptyField'));
+            throw Error('Diary entry is empty');
         }
         await this.channelManager.postToChannel(DiaryModel.channelId, convertToOne(diaryEntry));
     }
