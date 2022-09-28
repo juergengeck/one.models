@@ -11,16 +11,13 @@ import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {
-    createCryptoAPI,
-    CryptoAPI,
-    loadPersonAndInstanceKeys
-} from '@refinio/one.core/lib/instance-crypto';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
 import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
+import {instanceCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 
 /**
  * This type stores information about an instance.
@@ -30,7 +27,7 @@ export type LocalInstanceInfo = {
     personId: SHA256IdHash<Person>; // Id of person
     instanceId: SHA256IdHash<Instance>; // Id of corresponding local instance
     instanceKeys: Keys; // Keys of corresponding local instance
-    cryptoApi: CryptoAPI; // Crypto api
+    cryptoApi: CryptoApi; // Crypto api
 };
 
 /**
@@ -105,16 +102,6 @@ class InstancesModel extends Model {
                 }
             );
         }
-
-        // Authenticate owner and local instance for private keys
-        await Promise.all(
-            (
-                await this.localInstancesIds(true)
-            ).map(async instanceId => {
-                const instance = await getObjectByIdHash(instanceId);
-                await loadPersonAndInstanceKeys(this.secret, instance.obj.owner, instanceId);
-            })
-        );
     }
 
     /**
@@ -302,7 +289,7 @@ class InstancesModel extends Model {
         }
         const instance = await getObjectByIdHash(instanceId);
         const instanceKeys = await this.localInstanceKeys(instanceId);
-        const cryptoApi = createCryptoAPI(instanceId);
+        const cryptoApi = await instanceCryptoApi(instanceId);
         return {
             isMain: instanceId === (await this.mainInstanceId()),
             personId: instance.obj.owner,
@@ -458,14 +445,10 @@ class InstancesModel extends Model {
                 {module: '@one/instance-creator'},
                 {
                     name: randomInstanceName,
-                    email: email,
-                    secret: this.secret
+                    email: email
                 }
             )
         ).idHash;
-
-        // Authenticate owner - this also should be done somewhere else ... someday
-        await loadPersonAndInstanceKeys(this.secret, personId, instanceIdHash);
 
         // Add it to the local instances list
         await this.markInstanceAsLocal(instanceIdHash);
