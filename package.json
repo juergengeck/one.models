@@ -1,6 +1,6 @@
 {
   "name": "@refinio/one.models",
-  "version": "10.4.2-filer",
+  "version": "10.4.3-filer",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
