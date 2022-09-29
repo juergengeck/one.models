@@ -179,7 +179,7 @@ async function setupOneModels(commServerUrl: string): Promise<{
     const iom = new IoMRequestManager();
 
     // Initialize models
-    await instances.init('dummy');
+    await instances.init();
     await leute.init();
     await channelManager.init();
     await connections.init();

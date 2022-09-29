@@ -61,27 +61,19 @@ class InstancesModel extends Model {
      */
     public onInstanceCreated = new OEvent<(instance: SHA256IdHash<Instance>) => void>();
 
-    private secret: string = '';
-
     constructor() {
         super();
     }
 
     /**
      * Initialize this model.
-     *
-     * @param secret - The secret used to manage the private instance keys. Note that
-     * this is bad. The key management shouldn't handle different keys on the same instance
-     * differently, then we wouldn't have to do such a thing as storing the secret ... but
-     * someday we will do it right ... yes we can ...
      */
-    public async init(secret: string): Promise<void> {
+    public async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
 
         // Init must be triggered here, the init function of this model uses his own function in
         // order to get initialised
         this.state.triggerEvent('init');
-        this.secret = secret;
 
         // Create the top level LocalInstancesList if it does not exist
         // Note: Using exceptions for normal program flow is a bad habit

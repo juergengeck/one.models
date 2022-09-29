@@ -7,7 +7,7 @@ import {
     SET_ACCESS_MODE,
     UnversionedObjectResult
 } from '@refinio/one.core/lib/storage';
-import {affirm, affirmedBy} from '../../misc/Certificate';
+import {affirm, affirmedBy} from '../../misc/Certificates/AffirmationCertificate';
 import {
     getObjectByIdObj,
     storeVersionedObject

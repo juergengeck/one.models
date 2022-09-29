@@ -3,13 +3,8 @@ import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
 import {sign} from '../lib/misc/Signature';
-import {
-    affirm,
-    isAffirmedBy,
-    affirmedBy,
-    certifyRelation,
-    isRelationCertifiedBy
-} from '../lib/misc/Certificate';
+import {affirm, isAffirmedBy, affirmedBy} from '../lib/misc/Certificates/AffirmationCertificate';
+import {certifyRelation, isRelationCertifiedBy} from '../lib/misc/Certificates/RelationCertificate';
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
 import {createTestIdentity} from './utils/createTestIdentity';
 import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse';

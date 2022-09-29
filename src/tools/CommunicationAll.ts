@@ -165,7 +165,7 @@ async function setupOneModels(commServerUrl: string): Promise<{
 
     // Initialize models
     await access.init();
-    await instances.init('dummy');
+    await instances.init();
     await leute.init();
     await channelManager.init();
     await connections.init();

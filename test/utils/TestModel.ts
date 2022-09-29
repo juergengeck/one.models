@@ -2,7 +2,6 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {closeInstance} from '@refinio/one.core/lib/instance';
 import {
     AccessModel,
     BodyTemperatureModel,
@@ -100,7 +99,7 @@ export default class TestModel {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
-        await this.instancesModel.init(this.secret);
+        await this.instancesModel.init();
         await this.accessModel.init();
         await this.leuteModel.init();
         await this.channelManager.init();

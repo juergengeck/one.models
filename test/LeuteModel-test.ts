@@ -14,7 +14,7 @@ describe('LeuteModel test', function () {
 
         instancesModel = new InstancesModel();
         leuteModel = new LeuteModel(instancesModel, 'localhost');
-        await instancesModel.init('abc');
+        await instancesModel.init();
         await leuteModel.init();
     });
 
