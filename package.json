@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "10.4.2",
+  "version": "10.4.3",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
-    "doc": "npx --no-install typedoc && npx --no-install api-extractor run --local",
+    "doc": "echo not available for now",
     "prepare": "node ./build.js",
     "start": "node lib/model/index.js",
     "test": "npx --no-install mocha --exit test/**/**-test.js",
@@ -31,8 +31,8 @@
     "build_plan_modules.js"
   ],
   "dependencies": {
+    "@babel/runtime": "*",
     "@types/ws": "*",
-    "i18next": "*",
     "isomorphic-ws": "*",
     "jsesc": "*",
     "ts-loader": "*",
@@ -40,7 +40,7 @@
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "v0.3.20"
+    "@refinio/one.core": "v0.3.22"
   },
   "devDependencies": {
     "@babel/core": "*",

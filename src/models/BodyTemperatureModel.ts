@@ -1,11 +1,9 @@
-import i18nModelsInstance from '../i18n';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 
 /**
  * This represents the model of a body temperature measurement
@@ -67,7 +65,7 @@ export default class BodyTemperatureModel extends Model {
 
         /** make sure that the supplied body temperature fit the allowed range **/
         if (bodyTemperature < 35 || bodyTemperature > 45) {
-            throw Error(i18nModelsInstance.t('errors:bodyTemperatureModel.entryError'));
+            throw Error('Body temperature is out of sensible range (35..45)');
         }
 
         /** store the body temperature in one **/
