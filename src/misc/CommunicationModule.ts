@@ -17,7 +17,7 @@ import type Connection from './Connections/Connection';
 import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {instanceCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 
 /**
  * This type represents information about a connection.
@@ -707,7 +707,7 @@ export default class CommunicationModule extends EventEmitter {
         instance: SHA256IdHash<Instance>
     ): Promise<void> {
         const keys = await this.instancesModel.localInstanceKeys(instance);
-        const cryptoApi = await instanceCryptoApi(instance);
+        const cryptoApi = await createCryptoApiFromDefaultKeys(instance);
         await this.incomingConnectionManager.listenForCommunicationServerConnections(
             this.commServer,
             hexToUint8Array(keys.publicKey),

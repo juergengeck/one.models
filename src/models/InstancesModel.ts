@@ -16,7 +16,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {LocalInstancesList} from '../recipes/InstancesRecipies';
 import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
-import {instanceCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 
 /**
@@ -281,7 +281,7 @@ class InstancesModel extends Model {
         }
         const instance = await getObjectByIdHash(instanceId);
         const instanceKeys = await this.localInstanceKeys(instanceId);
-        const cryptoApi = await instanceCryptoApi(instanceId);
+        const cryptoApi = await createCryptoApiFromDefaultKeys(instanceId);
         return {
             isMain: instanceId === (await this.mainInstanceId()),
             personId: instance.obj.owner,

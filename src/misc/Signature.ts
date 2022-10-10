@@ -11,7 +11,7 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 
 /**
  * Sign an object with my own key.
@@ -32,7 +32,7 @@ export async function sign(
     }
 
     // Sign the data hash with the crypto API
-    const cryptoAPI = await personCryptoApi(issuer);
+    const cryptoAPI = await createCryptoApiFromDefaultKeys(issuer);
     const signatureBinary = cryptoAPI.sign(new TextEncoder().encode(data));
     const signatureString = uint8arrayToHexString(signatureBinary);
 

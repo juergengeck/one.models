@@ -2,12 +2,12 @@ import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
 import {DummyObjectRecipes} from './utils/createDummyObject';
-import {LeuteModel} from '../src/models';
-import InstancesModel from '../src/models/InstancesModel';
-import LeuteRecipes from '../src/recipes/Leute/recipes';
-import InstancesRecipes from '../src/recipes/InstancesRecipies';
+import {LeuteModel} from '../lib/models';
+import InstancesModel from '../lib/models/InstancesModel';
+import LeuteRecipes from '../lib/recipes/Leute/recipes';
+import InstancesRecipes from '../lib/recipes/InstancesRecipies';
 
-describe('Certificate test', () => {
+describe('Keychains test', () => {
     let instances: InstancesModel;
     let leute: LeuteModel;
 
@@ -45,5 +45,5 @@ describe('Certificate test', () => {
         closeInstance();
     });
 
-    it('Create signatures', async () => {});
+    it('Do stuff', async () => {});
 });

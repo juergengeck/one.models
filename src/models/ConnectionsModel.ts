@@ -37,7 +37,7 @@ import {
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
 import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 
 const MessageBus = createMessageBus('ConnectionsModel');
@@ -1694,7 +1694,7 @@ class ConnectionsModel extends Model {
         personPublicKey: PublicKey;
     }> {
         // Initialize the crypto stuff
-        const crypto = await personCryptoApi(localPersonId);
+        const crypto = await createCryptoApiFromDefaultKeys(localPersonId);
 
         // Get my own person key
         const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
