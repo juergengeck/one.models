@@ -8,7 +8,6 @@ import {
     VersionedObjectResult,
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
-import type InstancesModel from '../InstancesModel';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -75,8 +74,8 @@ export default class ClientMatchingModel extends MatchingModel {
     protected anonInstancePersonEmail: string | null;
     private matchingServerPersonIdHash: SHA256IdHash<Person> | undefined;
 
-    constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
-        super(instancesModel, channelManager);
+    constructor(channelManager: ChannelManager) {
+        super(channelManager);
         this.anonInstancePersonEmail = null;
         this.matchingServerPersonIdHash = undefined;
     }

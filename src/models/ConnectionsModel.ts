@@ -1,7 +1,5 @@
-import type {ConnectionInfo} from '../misc/CommunicationModule';
+import type {ConnectionInfo, LocalInstanceInfo} from '../misc/CommunicationModule';
 import CommunicationModule from '../misc/CommunicationModule';
-import type InstancesModel from './InstancesModel';
-import type {LocalInstanceInfo} from './InstancesModel';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughPurePlan,
@@ -37,8 +35,12 @@ import {
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
 import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {getLocalInstanceOfPerson, hasPersonLocalInstance} from '../misc/instance';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -189,7 +191,6 @@ class ConnectionsModel extends Model {
     >();
 
     // Models
-    private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
     private readonly leuteModel: LeuteModel;
 
@@ -242,14 +243,9 @@ class ConnectionsModel extends Model {
      * Construct a new instance
      *
      * @param leuteModel
-     * @param instancesModel
      * @param config
      */
-    constructor(
-        leuteModel: LeuteModel,
-        instancesModel: InstancesModel,
-        config: Partial<ConnectionsModelConfiguration>
-    ) {
+    constructor(leuteModel: LeuteModel, config: Partial<ConnectionsModelConfiguration>) {
         super();
         // Build configuration object by using default values
         this.config = {
@@ -278,12 +274,10 @@ class ConnectionsModel extends Model {
         };
 
         // Setup / init modules
-        this.instancesModel = instancesModel;
         this.leuteModel = leuteModel;
         this.communicationModule = new CommunicationModule(
             this.config.commServerUrl,
             leuteModel,
-            instancesModel,
             this.config.establishOutgoingConnections
         );
         this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
@@ -1649,17 +1643,20 @@ class ConnectionsModel extends Model {
      * Updates all the instance info related members in the class.
      */
     private async updateInstanceInfos(): Promise<void> {
-        // Extract my local instance infos to build the map
-        const infos = await this.instancesModel.localInstancesInfo();
+        const me = await (await this.leuteModel.me()).mainIdentity();
 
-        // Setup the public key to instanceInfo map
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                if (instanceInfo.isMain) {
-                    this.mainInstanceInfo = instanceInfo;
-                }
-            })
-        );
+        if (!(await hasPersonLocalInstance(me))) {
+            return;
+        }
+
+        const instanceId = await getLocalInstanceOfPerson(me);
+
+        this.mainInstanceInfo = {
+            instanceId,
+            cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+            instanceKeys: await getObject(await getDefaultKeys(instanceId)),
+            personId: me
+        };
     }
 
     // ######## Person key verification #######

@@ -1,12 +1,10 @@
 import type {LeuteModel} from '../models';
 import {getObject} from '@refinio/one.core/lib/storage';
-import type InstancesModel from '../models/InstancesModel';
-import type {LocalInstanceInfo} from '../models/InstancesModel';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Person} from '@refinio/one.core/lib/recipes';
+import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {
     HexString,
@@ -17,7 +15,18 @@ import type Connection from './Connections/Connection';
 import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
+import {getLocalInstanceOfPerson, hasPersonLocalInstance} from './instance';
+
+export type LocalInstanceInfo = {
+    personId: SHA256IdHash<Person>; // Id of person
+    instanceId: SHA256IdHash<Instance>; // Id of corresponding local instance
+    instanceKeys: Keys; // Keys of corresponding local instance
+    cryptoApi: CryptoApi; // Crypto api
+};
 
 /**
  * This type represents information about a connection.
@@ -148,7 +157,6 @@ export default class CommunicationModule extends EventEmitter {
 
     // Other models
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
-    private readonly instancesModel: InstancesModel; // Instance model for getting local instances
     private readonly incomingConnectionManager: IncomingConnectionManager; // Manager for incoming connections
 
     // Internal maps and lists (dynamic)
@@ -185,14 +193,12 @@ export default class CommunicationModule extends EventEmitter {
      *                              Outgoing connections are made based on the contact objects.
      * @param leuteModel - The model managing all contacts. Used for deciding which
      *                                  connections to establish.
-     * @param instancesModel - Instances model used for getting the local instances and keys
      * @param establishOutgoingConnections - If true then make outgoing connections, if false, then don't
      * @param reconnectDelay - The amount of time that needs to pass before another reconnection attempt is done when a connection is closed
      */
     constructor(
         commServer: string,
         leuteModel: LeuteModel,
-        instancesModel: InstancesModel,
         establishOutgoingConnections: boolean = true,
         reconnectDelay: number = 5000
     ) {
@@ -200,7 +206,6 @@ export default class CommunicationModule extends EventEmitter {
 
         // Initialize members
         this.leuteModel = leuteModel;
-        this.instancesModel = instancesModel;
         this.incomingConnectionManager = new IncomingConnectionManager();
 
         this.knownPeerMap = new Map<string, ConnectionContainer>();
@@ -228,12 +233,12 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for instance creation
-        this.instancesModel.onInstanceCreated(instance => {
+        this.leuteModel.onUpdated(() => {
             if (!this.initialized) {
                 return;
             }
 
-            this.setupIncomingConnectionsForInstance(instance).catch(e => console.log(e));
+            this.setupIncomingConnections().catch(e => console.log(e));
             this.updateInstanceInfos().catch(e => console.log(e));
         });
 
@@ -579,21 +584,20 @@ export default class CommunicationModule extends EventEmitter {
      * Updates all the instance info related members in the class.
      */
     private async updateInstanceInfos(): Promise<void> {
-        // Extract my local instance infos to build the map
-        const infos = await this.instancesModel.localInstancesInfo();
+        const me = await (await this.leuteModel.me()).mainIdentity();
 
-        // Setup the public key to instanceInfo map
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                this.myPublicKeyToInstanceInfoMap.set(
-                    instanceInfo.instanceKeys.publicKey,
-                    instanceInfo
-                );
-                if (instanceInfo.isMain) {
-                    this.mainInstanceInfo = instanceInfo;
-                }
-            })
-        );
+        if (!(await hasPersonLocalInstance(me))) {
+            return;
+        }
+
+        const instanceId = await getLocalInstanceOfPerson(me);
+
+        this.mainInstanceInfo = {
+            instanceId,
+            cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+            instanceKeys: await getObject(await getDefaultKeys(instanceId)),
+            personId: me
+        };
     }
 
     // ######## Setup outgoing connections functions ########
@@ -692,9 +696,15 @@ export default class CommunicationModule extends EventEmitter {
      * Set up connection listeners for all local instances
      */
     private async setupIncomingConnections(): Promise<void> {
-        const localInstances = await this.instancesModel.localInstancesIds();
-        for (const instance of localInstances) {
-            await this.setupIncomingConnectionsForInstance(instance);
+        const mes = await this.leuteModel.me();
+
+        for (const me of mes.identities()) {
+            try {
+                const localInstance = await getLocalInstanceOfPerson(me);
+                await this.setupIncomingConnectionsForInstance(localInstance);
+            } catch (e) {
+                console.error(`Failure to setup connection for local instance of owwner: ${me}`, e);
+            }
         }
     }
 
@@ -706,7 +716,7 @@ export default class CommunicationModule extends EventEmitter {
     private async setupIncomingConnectionsForInstance(
         instance: SHA256IdHash<Instance>
     ): Promise<void> {
-        const keys = await this.instancesModel.localInstanceKeys(instance);
+        const keys = await getObject(await getDefaultKeys(instance));
         const cryptoApi = await createCryptoApiFromDefaultKeys(instance);
         await this.incomingConnectionManager.listenForCommunicationServerConnections(
             this.commServer,

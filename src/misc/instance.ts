@@ -2,12 +2,14 @@ import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     createDefaultKeys,
     getDefaultKeys,
     hasDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
+
+// ######## Local & Remote instance management ########
 
 /**
  * Get the instance object representing this instance / device.
@@ -22,7 +24,7 @@ export async function getLocalInstanceOfPerson(
     const localInstances = (await getInstancesOfPerson(owner))
         .filter(i => i.local)
         .map(i => i.instanceId);
-    if (localInstances.length < 0) {
+    if (localInstances.length === 0) {
         throw new Error('There are no local instances for that person');
     } else if (localInstances.length > 1) {
         throw new Error('There are multiple local instances for that person - that is a bug');
@@ -86,7 +88,7 @@ export async function hasPersonLocalInstance(owner: SHA256IdHash<Person>): Promi
  * @param owner
  * @param instanceName
  */
-export async function createLocalInstanceIfNotExist(
+export async function createLocalInstanceIfNoneExists(
     owner: SHA256IdHash<Person>,
     instanceName?: string
 ): Promise<{
@@ -98,35 +100,87 @@ export async function createLocalInstanceIfNotExist(
 
     // If local instance already exists return its information
     if (localInstances.length > 0) {
-        const instanceId = localInstances[0].instanceId;
-
         return {
-            instanceId,
-            instanceKeys: await getDefaultKeys(instanceId),
+            instanceId: localInstances[0].instanceId,
+            instanceKeys: await getDefaultKeys(localInstances[0].instanceId),
             exists: true
         };
+    } else {
+        const result = await createInstanceWithDefaultKeys(owner, instanceName);
+
+        return {
+            ...result,
+            exists: false
+        };
+    }
+}
+
+// ######## Instance management ########
+
+/**
+ * Creates a new instance by creating the Instance IdObject.
+ *
+ * Throws if the instance with this name already exists.
+ *
+ * @param owner
+ * @param instanceName
+ */
+export async function createInstance(
+    owner: SHA256IdHash<Person>,
+    instanceName?: string
+): Promise<SHA256IdHash<Instance>> {
+    const result = await createInstanceIfNotExist(owner, instanceName);
+
+    if (result.exists) {
+        throw new Error('Instance already exists');
     }
 
-    // Create a new instance
+    return result.instanceId;
+}
+
+/**
+ * Creates a new instance by creating the Instance IdObject.
+ *
+ * @param owner
+ * @param instanceName
+ */
+export async function createInstanceIfNotExist(
+    owner: SHA256IdHash<Person>,
+    instanceName?: string
+): Promise<{
+    instanceId: SHA256IdHash<Instance>;
+    exists: boolean;
+}> {
     if (instanceName === undefined) {
         instanceName = await createRandomString(64);
     }
 
-    const instance = await storeVersionedObject({
+    const status = await storeIdObject({
         $type$: 'Instance',
         name: instanceName,
-        owner,
-        recipe: [],
-        module: [],
-        enabledReverseMapTypes: new Map(),
-        enabledReverseMapTypesForIdObjects: new Map()
+        owner
     });
 
-    const keys = await createDefaultKeys(instance.idHash);
-
     return {
-        instanceId: instance.idHash,
-        instanceKeys: keys,
-        exists: false
+        instanceId: status.idHash,
+        exists: status.status === 'exists'
     };
+}
+
+/**
+ * Creates an instance with a default set of keys.
+ *
+ * @param owner
+ * @param instanceName
+ */
+export async function createInstanceWithDefaultKeys(
+    owner: SHA256IdHash<Person>,
+    instanceName?: string
+): Promise<{
+    instanceId: SHA256IdHash<Instance>;
+    instanceKeys: SHA256Hash<Keys>;
+}> {
+    const instanceId = await createInstance(owner, instanceName);
+    const instanceKeys = await createDefaultKeys(instanceId);
+    return {instanceId, instanceKeys};
 }

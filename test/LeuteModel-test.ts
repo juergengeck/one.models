@@ -1,26 +1,22 @@
 import {importModules} from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import {InstancesModel, LeuteModel} from '../lib/models';
+import {LeuteModel} from '../lib/models';
 import {expect} from 'chai';
 
 describe('LeuteModel test', function () {
-    let instancesModel: InstancesModel;
     let leuteModel: LeuteModel;
 
     beforeEach(async () => {
         await StorageTestInit.init();
         await importModules();
 
-        instancesModel = new InstancesModel();
-        leuteModel = new LeuteModel(instancesModel, 'localhost');
-        await instancesModel.init();
+        leuteModel = new LeuteModel('localhost');
         await leuteModel.init();
     });
 
     afterEach(async function () {
         await leuteModel.shutdown();
-        await instancesModel.shutdown();
         await closeAndDeleteCurrentInstance();
     });
 

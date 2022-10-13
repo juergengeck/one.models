@@ -7,8 +7,7 @@ import {
     BodyTemperatureModel,
     ChannelManager,
     LeuteModel,
-    ECGModel,
-    InstancesModel
+    ECGModel
 } from '../../lib/models';
 import oneModules from '../../lib/generated/oneModules';
 import {
@@ -78,7 +77,6 @@ export default class TestModel {
     private readonly secret: string;
 
     ecgModel: ECGModel;
-    instancesModel: InstancesModel;
     channelManager: ChannelManager;
     bodyTemperature: BodyTemperatureModel;
     leuteModel: LeuteModel;
@@ -86,10 +84,9 @@ export default class TestModel {
 
     constructor(commServerUrl: string) {
         this.secret = 'test-secret';
-        this.instancesModel = new InstancesModel();
         this.accessModel = new AccessModel();
         this.channelManager = new ChannelManager();
-        this.leuteModel = new LeuteModel(this.instancesModel, commServerUrl);
+        this.leuteModel = new LeuteModel(commServerUrl);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }
@@ -99,7 +96,6 @@ export default class TestModel {
         takeOver?: boolean,
         recoveryState?: boolean
     ): Promise<void> {
-        await this.instancesModel.init();
         await this.accessModel.init();
         await this.leuteModel.init();
         await this.channelManager.init();
@@ -111,6 +107,12 @@ export default class TestModel {
      * Shutdown the models.
      */
     public async shutdown(): Promise<void> {
+        try {
+            await this.bodyTemperature.shutdown();
+        } catch (e) {
+            console.error(e);
+        }
+
         try {
             await this.ecgModel.shutdown();
         } catch (e) {

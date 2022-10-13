@@ -36,7 +36,6 @@ import yargs from 'yargs';
 
 import * as Logger from '@refinio/one.core/lib/logger';
 import {ChannelManager, ConnectionsModel, LeuteModel} from '../models';
-import InstancesModel from '../models/InstancesModel';
 import {
     closeInstance,
     getInstanceIdHash,
@@ -160,7 +159,6 @@ async function setupOneCore(identity: Identity | IdentityWithSecrets): Promise<{
  * @param commServerUrl
  */
 async function setupOneModels(commServerUrl: string): Promise<{
-    instances: InstancesModel;
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;
@@ -170,16 +168,14 @@ async function setupOneModels(commServerUrl: string): Promise<{
     await importModules(oneModules);
 
     // Construct models
-    const instances = new InstancesModel();
     const channelManager = new ChannelManager();
-    const leute = new LeuteModel(instances, commServerUrl);
-    const connections = new ConnectionsModel(leute, instances, {
+    const leute = new LeuteModel(commServerUrl);
+    const connections = new ConnectionsModel(leute, {
         commServerUrl
     });
     const iom = new IoMRequestManager();
 
     // Initialize models
-    await instances.init();
     await leute.init();
     await channelManager.init();
     await connections.init();
@@ -191,13 +187,11 @@ async function setupOneModels(commServerUrl: string): Promise<{
         await connections.shutdown();
         await channelManager.shutdown();
         await leute.shutdown();
-        await instances.shutdown();
 
         closeInstance();
     }
 
     return {
-        instances,
         leute,
         channelManager,
         connections,
@@ -242,7 +236,6 @@ async function initWithIdentityExchange(
     commServerUrl: string,
     instanceName: string
 ): Promise<{
-    instances: InstancesModel;
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;

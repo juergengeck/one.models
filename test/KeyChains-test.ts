@@ -3,12 +3,10 @@ import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRe
 import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
 import {DummyObjectRecipes} from './utils/createDummyObject';
 import {LeuteModel} from '../lib/models';
-import InstancesModel from '../lib/models/InstancesModel';
 import LeuteRecipes from '../lib/recipes/Leute/recipes';
 import InstancesRecipes from '../lib/recipes/InstancesRecipies';
 
 describe('Keychains test', () => {
-    let instances: InstancesModel;
     let leute: LeuteModel;
 
     beforeEach(async () => {
@@ -32,16 +30,12 @@ describe('Keychains test', () => {
             ])
         });
 
-        instances = new InstancesModel();
-        leute = new LeuteModel(instances, 'ws://localhost:8000');
-
-        await instances.init();
+        leute = new LeuteModel('ws://localhost:8000');
         await leute.init();
     });
 
     afterEach(async () => {
         await leute.shutdown();
-        await instances.shutdown();
         closeInstance();
     });
 
