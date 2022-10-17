@@ -6,7 +6,7 @@ import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {DocumentModel} from '../models';
+import {DocumentModel, PersistentFilerModel} from '../models';
 
 export type AllowedChannel = {channelId: string; folder?: string};
 
@@ -112,13 +112,14 @@ export class PWAConnector {
  */
 export class FilerConnector {
     private channelManager: ChannelManager;
-    private persistedFileSystem: PersistentFileSystem;
+    private persistedFileSystem: PersistentFileSystem | undefined;
+    private persistentFilerModel: PersistentFilerModel;
     private disconnect: (() => void) | undefined;
     private documentModel: DocumentModel;
 
     constructor(
         channelManager: ChannelManager,
-        persistedFileSystem: PersistentFileSystem,
+        persistentFilerModel: PersistentFilerModel,
         documentModel: DocumentModel
     ) {
         // Accepted because of TS2367: This condition will always return 'true' since the types '"node"' and '"browser"' have no overlap.
@@ -129,10 +130,11 @@ export class FilerConnector {
 
         this.documentModel = documentModel;
         this.channelManager = channelManager;
-        this.persistedFileSystem = persistedFileSystem;
+        this.persistentFilerModel = persistentFilerModel;
     }
 
     async init() {
+        this.persistedFileSystem = this.persistentFilerModel.fileSystem;
         this.disconnect = this.persistedFileSystem.onFilePersisted(this.handleOnUpdated.bind(this));
     }
 
