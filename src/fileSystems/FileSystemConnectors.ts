@@ -4,8 +4,8 @@ import type {ObjectData} from '../models/ChannelManager';
 import {platform} from '@refinio/one.core/lib/system/platform';
 import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {DocumentModel, PersistentFilerModel} from '../models';
 
 export type AllowedChannel = {channelId: string; folder?: string};
