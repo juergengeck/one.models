@@ -1,6 +1,6 @@
 {
   "name": "@refinio/one.models",
-  "version": "10.4.3-filer-2",
+  "version": "10.4.3-filer-3",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
@@ -53,7 +53,7 @@
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "v0.3.22"
+    "@refinio/one.core": "v0.3.24"
   },
   "devDependencies": {
     "@babel/core": "*",
