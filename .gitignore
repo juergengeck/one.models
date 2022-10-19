@@ -11,6 +11,8 @@ test/**/*.d.ts.map
 test/testStorage
 passwordRecoveryRequests
 
+!test/@OneObjectInterfaces.d.ts
+
 test/testDb
 store-dir/*
 *.id.json
