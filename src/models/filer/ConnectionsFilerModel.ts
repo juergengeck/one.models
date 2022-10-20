@@ -9,7 +9,6 @@ import {EventEmitter} from 'events';
 
 import ConnectionFileSystem from '../../fileSystems/ConnectionFileSystem';
 
-
 /**
  * This model can bring and handle ConnectionsFilerModel file systems (see {@link ConnectionsFilerModel}).
  */
@@ -24,13 +23,12 @@ export default class ConnectionsFilerModel extends EventEmitter {
     }
 
     /**
-     * create the channel & the root directory if it does not exists
+     * create the channel & the root directory if it does not exist
      * @returns {Promise<void>}
      */
     public async init() {
         this.fs = new ConnectionFileSystem();
     }
-
 
     /**
      *

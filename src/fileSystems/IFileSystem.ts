@@ -107,7 +107,7 @@ export interface IFileSystem {
      * Creates a directory.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a dir type
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exist or the given mode is not a dir type
      * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
      * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
      *
@@ -121,7 +121,7 @@ export interface IFileSystem {
      * Creates a file otherwise
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exist or the given mode is not a file type
      * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
      * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
      *
@@ -142,7 +142,7 @@ export interface IFileSystem {
      * Reads a directory.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the directory does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the directory does not exist
      * - {@link FS_ERRORS.FSE-EACCES-R} if the directory does not have read permission
      *
      * @param {string} dirPath - The directory path
@@ -154,7 +154,7 @@ export interface IFileSystem {
      * Reads a file.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exist
      * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
      *
      * @param {string} filePath - The file path
@@ -166,7 +166,7 @@ export interface IFileSystem {
      * Reads a link.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exist
      * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
      *
      * @param {string} filePath - The file path
@@ -179,7 +179,7 @@ export interface IFileSystem {
      *
      * Can throw:
      * - {@link FS_ERRORS.FSE-CHUNK-R} if the platform does not support chunked reading. This is supported only on Node. This happen if the check for {@link Platform} is not nodejs.
-     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exist
      * - {@link FS_ERRORS.FSE-EACCES-R} if the file does not have read permission
      *
      * @param {string} filePath - The file path
@@ -200,7 +200,7 @@ export interface IFileSystem {
      * Stat a file.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exist
      *
      * @param path
      * @returns {Promise<FileSystemFile>} - The content of the file
@@ -218,7 +218,7 @@ export interface IFileSystem {
      * Deletes a directory
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the dir does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the dir does not exist
      * - {@link FS_ERRORS.FSE-EACCES-W} if the dir does not have write permission
      *
      * @param {string} pathName - the directory path
@@ -230,7 +230,7 @@ export interface IFileSystem {
      * Deletes a file or a symlink.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exists
+     * - {@link FS_ERRORS.FSE-ENOENT} if the file does not exist
      * - {@link FS_ERRORS.FSE-EACCES-W} if the file does not have write permission
      *
      * @param {string} pathName
@@ -251,7 +251,7 @@ export interface IFileSystem {
      * Creates a symlink.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exist or the given mode is not a file type
      * - {@link FS_ERRORS.FSE-EXISTS} when the current path already exists
      * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
      *
@@ -265,7 +265,7 @@ export interface IFileSystem {
      * Rename file.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exist or the given mode is not a file type
      * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
      *
      * @param {string} src - The src path
@@ -278,7 +278,7 @@ export interface IFileSystem {
      * Change the permissions.
      *
      * Can throw:
-     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exists or the given mode is not a file type
+     * - {@link FS_ERRORS.FSE-ENOENT} when the parent dir does not exist or the given mode is not a file type
      * - {@link FS_ERRORS.FSE-EACCES-W} if the parent directory does not have write permission
      *
      * @param {string} pathName - The file path

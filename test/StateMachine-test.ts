@@ -117,8 +117,7 @@ describe('StateMachine test', () => {
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
             expect(error.message).to.include(
-                'The transition does not exists from the current state with the' +
-                    ' specified event'
+                'The transition does not exist from the current state with the' + ' specified event'
             );
             done();
         }
@@ -161,7 +160,7 @@ describe('StateMachine test', () => {
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
             expect(error.message).to.include(
-                'The transition does not exists from the current state with the specified event'
+                'The transition does not exist from the current state with the specified event'
             );
             expect(triggered).to.be.false;
         }

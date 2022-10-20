@@ -16,7 +16,7 @@ export const FS_ERRORS: {[key: string]: {message: string; linuxErrCode: number}}
     // ---------------------------- FS ERRORS ONLY ----------------------------
 
     /**
-     * When the given file or directory does not exists.
+     * When the given file or directory does not exist.
      */
     'FSE-ENOENT': {message: 'No such file or directory', linuxErrCode: -2},
     /**

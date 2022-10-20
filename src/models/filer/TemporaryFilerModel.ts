@@ -22,13 +22,12 @@ export default class TemporaryFilerModel extends EventEmitter {
     }
 
     /**
-     * create the channel & the root directory if it does not exists
+     * create the channel & the root directory if it does not exist
      * @returns {Promise<void>}
      */
     public async init() {
         this.fs = new TemporaryFileSystem();
     }
-
 
     /**
      *

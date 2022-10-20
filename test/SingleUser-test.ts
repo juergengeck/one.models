@@ -91,7 +91,7 @@ describe('SingleUser Test', () => {
             await chai
                 .expect(singleUserWorkflow.logout())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it('should test if login(secret) throws an error when the user was not registered', async () => {
@@ -114,7 +114,7 @@ describe('SingleUser Test', () => {
             await chai
                 .expect(singleUserWorkflow.login(secret))
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it.skip(
@@ -156,7 +156,7 @@ describe('SingleUser Test', () => {
             await chai
                 .expect(singleUserWorkflow.loginOrRegister(secret))
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it.skip(

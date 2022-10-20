@@ -12,7 +12,7 @@ import {
  */
 export default class MultiUser extends Authenticator {
     /**
-     * Registers the user. Register acts as a login if the instance does not exists yet.
+     * Registers the user. Register acts as a login if the instance does not exist yet.
      * @param email
      * @param secret
      * @param instanceName
@@ -70,7 +70,7 @@ export default class MultiUser extends Authenticator {
 
         if (!(await instanceExists(instanceName, email))) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User does not exists.');
+            throw new Error('Error while trying to login. User does not exist.');
         }
 
         try {

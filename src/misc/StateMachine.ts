@@ -295,7 +295,7 @@ export class StateMachine<StateT, EventT> {
                 )
             ) {
                 throw new Error(
-                    'The transition does not exists from the current state with the' +
+                    'The transition does not exist from the current state with the' +
                         ' specified event'
                 );
             }

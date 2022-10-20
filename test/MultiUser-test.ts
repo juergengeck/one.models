@@ -77,7 +77,7 @@ describe('MultiUser Test', () => {
             await chai
                 .expect(multiUserWorkflow.logoutAndErase())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it('should test if erase is successfully', async () => {
@@ -150,7 +150,7 @@ describe('MultiUser Test', () => {
             await chai
                 .expect(multiUserWorkflow.logout())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it('should test if login(email, secret, instanceName) throws an error when the user was not registered', async () => {
@@ -158,9 +158,7 @@ describe('MultiUser Test', () => {
                 .expect(
                     multiUserWorkflow.login('test$email_5', 'test$secret_5', 'test$instanceName_5')
                 )
-                .to.eventually.be.rejectedWith(
-                    'Error while trying to login. User does not exists.'
-                );
+                .to.eventually.be.rejectedWith('Error while trying to login. User does not exist.');
         });
         it('should test if login(email, secret, instanceName) throws an error when the user double logins', async () => {
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
@@ -169,7 +167,7 @@ describe('MultiUser Test', () => {
             await chai
                 .expect(multiUserWorkflow.login(user1.email, user1.secret, user1.instance))
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
 
             await multiUserWorkflow.logout();
@@ -231,7 +229,7 @@ describe('MultiUser Test', () => {
                     multiUserWorkflow.loginOrRegister(user1.email, user1.secret, user1.instance)
                 )
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
 
             await multiUserWorkflow.logout();

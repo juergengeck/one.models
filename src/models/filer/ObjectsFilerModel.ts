@@ -22,13 +22,12 @@ export default class ObjectsFilerModel extends EventEmitter {
     }
 
     /**
-     * create the channel & the root directory if it does not exists
+     * create the channel & the root directory if it does not exist
      * @returns {Promise<void>}
      */
     public async init() {
         this.fs = new ObjectsFileSystem();
     }
-
 
     /**
      *
