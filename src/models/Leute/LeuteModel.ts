@@ -508,9 +508,9 @@ export default class LeuteModel extends Model {
         });
 
         imagesWithPersonId.sort((imageWithPersonId1, imageWIthPersonId2) => {
-            return imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
+            return imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
                 ? 1
-                : imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
+                : imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
                 ? -1
                 : 0;
         });
@@ -559,9 +559,9 @@ export default class LeuteModel extends Model {
         });
 
         statusesWithPersonId.sort((status1, status2) => {
-            return status1.status.timestamp > status2.status.timestamp
+            return status1.status.timestamp < status2.status.timestamp
                 ? 1
-                : status1.status.timestamp < status2.status.timestamp
+                : status1.status.timestamp > status2.status.timestamp
                 ? -1
                 : 0;
         });
