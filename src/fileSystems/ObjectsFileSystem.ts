@@ -241,7 +241,7 @@ export default class ObjectsFileSystem implements IFileSystem {
                 return {mode: 0o0100444, size: file.content.byteLength};
             }
         }
-        if (parsedPath.suffix === '/moduleHash') {
+        if (parsedPath.suffix === '/moduleHash.txt') {
             return {mode: 0o0120000, size: 0};
         }
         throw createError('FSE-ENOENT', {message: FS_ERRORS['FSE-ENOENT'].message, path: path});
