@@ -1,8 +1,9 @@
 import ObjectsFileSystem from './ObjectsFileSystem';
+import TypesFileSystem from './TypesFileSystem';
 import PersistentFileSystem from './PersistentFileSystem';
 import ConnectionsFileSystem from './ConnectionFileSystem';
 import TemporaryFileSystem from './TemporaryFileSystem';
-import {FilerConnector, PWAConnector } from './FileSystemConnectors';
+import {FilerConnector, PWAConnector} from './FileSystemConnectors';
 
 /**
  * @class
@@ -20,6 +21,23 @@ import {FilerConnector, PWAConnector } from './FileSystemConnectors';
  *
  */
 export {ObjectsFileSystem};
+
+/**
+ * @class
+ *
+ * Hooked by the ObjectsFilerModel (see {@link TypesFilerModel})
+ *
+ * See {@link TypesFileSystem}
+ *
+ * This represents a file system structure for one objects sorted by type folders that can open directories / files on the fly.
+ * This class is using {@link TypesFileSystem} from {@link IFileSystem} interface in order
+ * to accomplish this FileSystem structure.
+ *
+ * This file system is **READ-ONLY** and it's simulated. It's not persisted in one and you can't create files/directories
+ * at that moment. It keeps the root directory in state (see {@link rootDirectory}) and preserve the READ-ONLY mode there.
+ *
+ */
+export {TypesFileSystem};
 
 /**
  * @class

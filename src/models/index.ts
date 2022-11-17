@@ -20,6 +20,7 @@ import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
 import TopicModel from './Chat/TopicModel';
 import ConsentModel from './ConsentModel';
+import TypesFilerModel from './filer/TypesFilerModel';
 
 /** for one line imports **/
 export {
@@ -40,6 +41,7 @@ export {
     HeartEventModel,
     ConnectionsFilerModel,
     ObjectsFilerModel,
+    TypesFilerModel,
     PersistentFilerModel,
     TemporaryFilerModel,
     ConnectionsModel,
