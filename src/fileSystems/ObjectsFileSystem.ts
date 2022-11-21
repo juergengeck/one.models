@@ -214,7 +214,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         /** check if its one of those hardcoded file's name **/
         return !(
             parsedPath.suffix &&
-            !['raw.txt', 'type.txt', 'pretty.txt', 'json.txt', 'moduleHash.txt'].includes(
+            !['raw.txt', 'type.txt', 'pretty.html', 'json.txt', 'moduleHash.txt'].includes(
                 parsedPath.suffix
             )
         );
@@ -232,7 +232,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         }
         if (
             parsedPath.suffix === '/raw.txt' ||
-            parsedPath.suffix === '/pretty.txt' ||
+            parsedPath.suffix === '/pretty.html' ||
             parsedPath.suffix === '/json.txt' ||
             parsedPath.suffix === '/type.txt'
         ) {
@@ -351,7 +351,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForPlans(): Promise<FileSystemDirectory> {
         return {
-            children: ['raw.txt', 'pretty.txt', 'json.txt', 'type.txt', 'moduleHash.txt']
+            children: ['raw.txt', 'pretty.html', 'json.txt', 'type.txt', 'moduleHash.txt']
         };
     }
 
@@ -362,7 +362,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForRegularObject(): Promise<FileSystemDirectory> {
         return {
-            children: ['raw.txt', 'pretty.txt', 'json.txt', 'type.txt']
+            children: ['raw.txt', 'pretty.html', 'json.txt', 'type.txt']
         };
     }
 
@@ -412,7 +412,7 @@ export default class ObjectsFileSystem implements IFileSystem {
             return await getTextFile(parsedPath.hash as SHA256Hash);
         }
 
-        if (parsedPath.suffix === '/pretty.txt') {
+        if (parsedPath.suffix === '/pretty.html') {
             return ObjectsFileSystem.stringifyXML(await getTextFile(parsedPath.hash as SHA256Hash));
         }
 
