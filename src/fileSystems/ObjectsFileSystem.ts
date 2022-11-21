@@ -340,7 +340,7 @@ export default class ObjectsFileSystem implements IFileSystem {
      */
     private static async returnDirectoryContentForBLOBS(): Promise<FileSystemDirectory> {
         return {
-            children: ['raw', 'type']
+            children: ['raw.txt', 'type.txt']
         };
     }
 
