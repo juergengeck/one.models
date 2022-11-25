@@ -34,6 +34,7 @@ export default class MultiUser extends Authenticator {
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
                 storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {
@@ -82,6 +83,7 @@ export default class MultiUser extends Authenticator {
                 directory: this.config.directory,
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
                 storageInitTimeout: this.config.storageInitTimeout
             });
         } catch (error) {

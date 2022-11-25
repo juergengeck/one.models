@@ -55,8 +55,11 @@ import {
 import IoMRequestManager from '../models/IoM/IoMRequestManager';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import ReverseMapsStable from '../recipes/reversemaps-stable';
-import ReverseMapsExperimental from '../recipes/reversemaps-experimental';
+import {ReverseMapsForIdObjectsStable, ReverseMapsStable} from '../recipes/reversemaps-stable';
+import {
+    ReverseMapsExperimental,
+    ReverseMapsForIdObjectsExperimental
+} from '../recipes/reversemaps-experimental';
 
 /**
  * Parses command line options for this app.
@@ -142,7 +145,14 @@ async function setupOneCore(identity: Identity | IdentityWithSecrets): Promise<{
         encryptStorage: false,
         directory: 'OneDB',
         initialRecipes: [...RecipesStable, ...RecipesExperimental],
-        initiallyEnabledReverseMapTypes: new Map([...ReverseMapsStable, ...ReverseMapsExperimental])
+        initiallyEnabledReverseMapTypes: new Map([
+            ...ReverseMapsStable,
+            ...ReverseMapsExperimental
+        ]),
+        initiallyEnabledReverseMapTypesForIdObjects: new Map([
+            ...ReverseMapsForIdObjectsStable,
+            ...ReverseMapsForIdObjectsExperimental
+        ])
     });
 
     async function shutdown(): Promise<void> {

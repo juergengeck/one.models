@@ -1,10 +1,11 @@
-import type { Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
 import {
     CommunicationEndpointTypeNameSet,
     CommunicationEndpointTypes
 } from './CommunicationEndpoints';
 import {PersonDescriptionTypeNameSet, PersonDescriptionTypes} from './PersonDescriptions';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
 
 // #### Typescript interfaces ####
 
@@ -55,6 +56,17 @@ export const ProfileRecipe: Recipe = {
         }
     ]
 };
+
+// #### Reverse maps ####
+
+export const ProfileReverseMaps: [OneObjectTypeNames, Set<string>][] = [
+    ['Profile', new Set(['communicationEndpoint', 'personDescription'])],
+    ['OneInstanceEndpoint', new Set(['*'])]
+];
+
+export const ProfileReverseMapsForIdObjects: [OneVersionedObjectTypeNames, Set<string>][] = [
+    ['Profile', new Set(['owner', 'personId'])]
+];
 
 // #### one.core interfaces ####
 

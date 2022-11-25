@@ -1,12 +1,18 @@
-import type {OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import {SignatureReverseMaps} from './SignatureRecipes';
 import {CertificateReverseMaps} from './CertificateRecipes';
-import {InstanceReverseMaps} from './InstanceRecipes';
+import {InstanceReverseMapsForIdObjects} from './InstanceRecipes';
+import {ProfileReverseMaps, ProfileReverseMapsForIdObjects} from './Leute/Profile';
+import {CommunicationEndpointReverseMaps} from './Leute/CommunicationEndpoints';
 
-const ReverseMapsExperimental: [OneObjectTypeNames, Set<string>][] = [
+export const ReverseMapsExperimental: [OneObjectTypeNames, Set<string>][] = [
     ...SignatureReverseMaps,
     ...CertificateReverseMaps,
-    ...InstanceReverseMaps
+    ...ProfileReverseMaps,
+    ...CommunicationEndpointReverseMaps
 ];
 
-export default ReverseMapsExperimental;
+export const ReverseMapsForIdObjectsExperimental: [OneVersionedObjectTypeNames, Set<string>][] = [
+    ...ProfileReverseMapsForIdObjects,
+    ...InstanceReverseMapsForIdObjects
+];
