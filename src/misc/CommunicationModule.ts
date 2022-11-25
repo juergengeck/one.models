@@ -165,7 +165,8 @@ export default class CommunicationModule extends EventEmitter {
 
     // Internal maps and lists (precomputed on init)
     private mainInstanceInfo: LocalInstanceInfo | null; // My person info
-    private myPublicKeyToInstanceInfoMap: Map<string, LocalInstanceInfo>; // A map from my public keys to my id - used to map the public key of the new connection to my ids
+    private myPublicKeyToInstanceInfoMap: Map<HexString, LocalInstanceInfo>; // A map from my
+    // public instance key to my id - used to map the public key of the new connection to my ids
 
     // Global settings
     private readonly commServer: string; // The comm server to use for incoming listening connections. This will be replaced by a instance based config.
@@ -212,7 +213,7 @@ export default class CommunicationModule extends EventEmitter {
         this.unknownPeerMap = new Map<string, Connection>();
 
         this.mainInstanceInfo = null;
-        this.myPublicKeyToInstanceInfoMap = new Map<string, LocalInstanceInfo>();
+        this.myPublicKeyToInstanceInfoMap = new Map<HexString, LocalInstanceInfo>();
 
         this.commServer = commServer;
         this.reconnectDelay = reconnectDelay;
@@ -584,7 +585,8 @@ export default class CommunicationModule extends EventEmitter {
      * Updates all the instance info related members in the class.
      */
     private async updateInstanceInfos(): Promise<void> {
-        const me = await (await this.leuteModel.me()).mainIdentity();
+        const meSomeone = await this.leuteModel.me();
+        const me = await meSomeone.mainIdentity();
 
         if (!(await hasPersonLocalInstance(me))) {
             return;
@@ -598,6 +600,21 @@ export default class CommunicationModule extends EventEmitter {
             instanceKeys: await getObject(await getDefaultKeys(instanceId)),
             personId: me
         };
+
+        Promise.all(
+            meSomeone.identities().map(async identity => {
+                const instanceId = await getLocalInstanceOfPerson(identity);
+                const keysHash = await getDefaultKeys(instanceId);
+                const keys = await getObject(keysHash);
+
+                this.myPublicKeyToInstanceInfoMap.set(keys.publicKey, {
+                    instanceId,
+                    cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+                    instanceKeys: await getObject(await getDefaultKeys(instanceId)),
+                    personId: identity
+                });
+            })
+        );
     }
 
     // ######## Setup outgoing connections functions ########
