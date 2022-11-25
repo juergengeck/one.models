@@ -60,8 +60,7 @@ export const ProfileRecipe: Recipe = {
 // #### Reverse maps ####
 
 export const ProfileReverseMaps: [OneObjectTypeNames, Set<string>][] = [
-    ['Profile', new Set(['communicationEndpoint', 'personDescription'])],
-    ['OneInstanceEndpoint', new Set(['*'])]
+    ['Profile', new Set(['communicationEndpoint', 'personDescription'])]
 ];
 
 export const ProfileReverseMapsForIdObjects: [OneVersionedObjectTypeNames, Set<string>][] = [
