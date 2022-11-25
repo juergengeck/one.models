@@ -30,12 +30,12 @@ export default class TemporaryFileSystem implements IFileSystem {
     private fstab = new Map<string, IFileSystem>();
 
     /**
-     * Attaches a filesystem to a directory. It will return 0 for success or a error code
+     * Attaches a filesystem to a directory. It will return 0 for success or reject the promise.
      * @param {string} storagePath
      * @param {IFileSystem} fileSystem
-     * @returns {Promise<number>}
+     * @returns {Promise<0>}
      */
-    async mountFileSystem(storagePath: string, fileSystem: IFileSystem): Promise<number> {
+    async mountFileSystem(storagePath: string, fileSystem: IFileSystem): Promise<0> {
         if (this.fstab.has(storagePath)) {
             throw createError('FSE-MOUNT1', {
                 message: FS_ERRORS['FSE-MOUNT1'].message,
@@ -59,11 +59,11 @@ export default class TemporaryFileSystem implements IFileSystem {
     }
 
     /**
-     * Attaches a filesystem to a directory. It will return 0 for success or a error code
+     * Attaches a filesystem to a directory. It will return 0 for success or reject the promise.
      * @param {string} storagePath
-     * @returns {Promise<number>}
+     * @returns {Promise<0>}
      */
-    async unmountFileSystem(storagePath: string): Promise<number> {
+    async unmountFileSystem(storagePath: string): Promise<0> {
         if (!this.fstab.has(storagePath)) {
             throw createError('FSE-MOUNT3', {
                 message: FS_ERRORS['FSE-MOUNT3'].message,
@@ -157,6 +157,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(filePath);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.readFile(searchFileSystem.relativePath);
         }
@@ -226,6 +227,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         if (searchFileSystem) {
             return searchFileSystem.fileSystem.supportsChunkedReading();
         }
+
         return false;
     }
 
@@ -240,6 +242,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(checkPath);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.readDir(searchFileSystem.relativePath);
         }
@@ -260,6 +263,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(checkPath);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.stat(searchFileSystem.relativePath);
         }
@@ -281,6 +285,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(pathName);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.chmod(searchFileSystem.relativePath, mode);
         }
@@ -344,6 +349,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(pathName);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.rmdir(searchFileSystem.relativePath);
         }
@@ -368,6 +374,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(pathName);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.unlink(searchFileSystem.relativePath);
         }
@@ -411,6 +418,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const parentCheckPath = FileSystemHelpers.getParentDirectoryFullPath(checkPath);
+
         for (const [dirPath, mountedFileSystem] of this.fstab) {
             if (parentCheckPath.includes(dirPath)) {
                 return {
@@ -443,6 +451,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(dest);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.symlink(src, searchFileSystem.relativePath);
         }
@@ -471,6 +480,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         }
 
         const searchFileSystem = this.search(filePath);
+
         if (searchFileSystem) {
             return await searchFileSystem.fileSystem.readlink(searchFileSystem.relativePath);
         }
@@ -483,8 +493,6 @@ export default class TemporaryFileSystem implements IFileSystem {
     }
 
     public isRootPath(checkPath: string): Boolean {
-        return !Array.from(this.fstab.keys()).find((storagePath: string) =>
-            checkPath.includes(storagePath)
-        );
+        return !Array.from(this.fstab.keys()).some(storagePath => checkPath.includes(storagePath));
     }
 }
