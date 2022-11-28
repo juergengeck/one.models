@@ -238,7 +238,7 @@ export default class JournalModel extends Model {
     }
 
     /**
-     * This function will create & sort in ascending order the event list.
+     * This function will create & sort in descending order regarding timestamps for the event list.
      * @param dataDictionary
      * @private
      */
