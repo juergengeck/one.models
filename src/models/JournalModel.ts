@@ -238,7 +238,7 @@ export default class JournalModel extends Model {
     }
 
     /**
-     * This function will create & sort in ascending order the event list.
+     * This function will create & sort in descending order regarding timestamps for the event list.
      * @param dataDictionary
      * @private
      */
@@ -275,17 +275,17 @@ export default class JournalModel extends Model {
             }
 
             // Let's find the element with the newest date
-            let oldestElement = compareElements[0];
+            let newestElement = compareElements[0];
             for (const compareElement of compareElements) {
-                if (compareElement.data.creationTime < oldestElement.data.creationTime) {
-                    oldestElement = compareElement;
+                if (compareElement.data.creationTime > newestElement.data.creationTime) {
+                    newestElement = compareElement;
                 }
             }
 
-            // Increment the added item. OldestElement.type is the actual key of the object
-            dataDictionary[oldestElement.type].index++;
+            // Increment the added item. newestElement.type is the actual key of the object
+            dataDictionary[newestElement.type].index++;
 
-            eventList.push(oldestElement);
+            eventList.push(newestElement);
         }
 
         // Now all elements should be sorted in the list => return it
