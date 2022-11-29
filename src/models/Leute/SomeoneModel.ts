@@ -249,9 +249,10 @@ export default class SomeoneModel {
         profileId: string,
         personId: SHA256IdHash<Person>,
         owner: SHA256IdHash<Person>
-    ): Promise<void> {
+    ): Promise<ProfileModel> {
         const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
+        return profile;
     }
 
     // ######## Save & Load ########

@@ -305,22 +305,89 @@ export default class LeuteModel extends Model {
     /**
      * Create a new identity and a 'default' profile for myself.
      */
-    public async createProfileAndIdentityForMe(): Promise<void> {
+    public async createProfileAndIdentityForMe(): Promise<ProfileModel> {
         this.state.assertCurrentState('Initialised');
 
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
 
+        const me = await this.me();
         const newPersonId = await LeuteModel.createIdentityWithInstanceAndKeys();
+        const mainIdentity = await this.mainIdentity(me, newPersonId);
+        // add identity first so that the profile creation event has it
+        await me.addIdentity(newPersonId);
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
-            newPersonId,
+            mainIdentity,
             'default'
         );
-        const me = await this.me();
-        await me.addIdentity(newPersonId);
         await me.addProfile(newProfile.idHash);
+        return newProfile;
+    }
+
+    /**
+     * Create a new identity and a 'default' profile for someone.
+     */
+    public async createProfileAndIdentityForSomeone(
+        someoneId: SHA256IdHash<Someone>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+
+        if (me.idHash === someone.idHash) {
+            return this.createProfileAndIdentityForMe();
+        }
+
+        const newPersonId = await LeuteModel.createIdentity();
+        const myIdentity = await me.mainIdentity();
+        // add identity first so that the profile creation event has it
+        await someone.addIdentity(newPersonId);
+        const newProfile = await ProfileModel.constructWithNewProfile(
+            newPersonId,
+            myIdentity,
+            'default'
+        );
+        someone.addProfile(newProfile.idHash);
+        return newProfile;
+    }
+
+    /**
+     * Create a new profile for someone.
+     */
+    public async createProfileForSomeone(
+        someoneId: SHA256IdHash<Someone>,
+        personId: SHA256IdHash<Person>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        // check if identity is already managed
+        if (!someone.identities().find(i => i === personId)) {
+            // add identity first so that the profile creation event has it
+            await someone.addIdentity(personId);
+        }
+
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
+
+        const newProfile = await ProfileModel.constructWithNewProfile(
+            personId,
+            myIdentity,
+            await this.generateProfileId(someone, personId)
+        );
+        someone.addProfile(newProfile.idHash);
+        return newProfile;
     }
 
     /**
@@ -333,21 +400,22 @@ export default class LeuteModel extends Model {
             throw new Error('Leute model is not initialized');
         }
 
-        const myIdentity = await (await this.me()).mainIdentity();
         const newPersonId = await LeuteModel.createIdentity();
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
+
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
             myIdentity,
             'default'
         );
-        const newSomeone = await SomeoneModel.constructWithNewSomeone(
+        const someoneNew = await SomeoneModel.constructWithNewSomeone(
             await createRandomString(32),
             newProfile.idHash
         );
+        await this.addSomeoneElse(someoneNew.idHash);
 
-        await this.addSomeoneElse(newSomeone.idHash);
-
-        return newSomeone.idHash;
+        return someoneNew.idHash;
     }
 
     // ######## Group management ########
@@ -418,7 +486,7 @@ export default class LeuteModel extends Model {
     }
 
     /**
-     * Add a profile to a someone object already managing this persons profile.
+     * Add a profile to a someone object already managing this persons identity.
      *
      * If no such someone object exists a new one is created.
      */
@@ -706,6 +774,59 @@ export default class LeuteModel extends Model {
     }
 
     // ######## Private stuff ########
+
+    /**
+     * Get main identity of someone if such is present, else return defaultIdentity
+     *
+     * @param someone
+     * @param defaultIdentity
+     * @returns
+     */
+    private async mainIdentity(
+        someone: SomeoneModel,
+        defaultIdentity: SHA256IdHash<Person>
+    ): Promise<SHA256IdHash<Person>> {
+        try {
+            return await someone.mainIdentity();
+        } catch (e) {
+            return defaultIdentity;
+        }
+    }
+
+    /**
+     * Only generates, does not store
+     * @param someone
+     * @returns
+     */
+    private async generateProfileId(
+        someone: SomeoneModel,
+        personId: SHA256IdHash<Person>
+    ): Promise<string> {
+        const profiles = await someone.profiles();
+        if (profiles === undefined) {
+            return 'default';
+        }
+
+        const profilesNumber = profiles.reduce(
+            (n, profile) => (profile.personId === personId ? n + 1 : n),
+            0
+        );
+
+        if (profilesNumber <= 0) {
+            return 'default';
+        }
+
+        let profileId = await createRandomString(32);
+        while (
+            profiles.find(
+                profile =>
+                    profile.profileId === profileId && (!personId || profile.personId === personId)
+            ) !== undefined
+        ) {
+            profileId = await createRandomString(32);
+        }
+        return profileId;
+    }
 
     /**
      * Create a new group.
