@@ -108,17 +108,22 @@ export default class SomeoneModel {
         };
         const idHash = await calculateIdHashOfObj(newSomeone);
 
-        const newModel = new SomeoneModel(idHash);
+        // try catch is not required if we have CRDT map support
+        try {
+            return await this.constructFromLatestVersion(idHash);
+        } catch (e) {
+            const newModel = new SomeoneModel(idHash);
 
-        // add mainProfile to identities
-        const profile = await getObjectByIdHash(mainProfile);
-        const identitySet = new Set<SHA256IdHash<Profile>>();
-        identitySet.add(mainProfile);
-        newModel.pIdentities.set(profile.obj.personId, identitySet);
+            // add mainProfile to identities
+            const profile = await getObjectByIdHash(mainProfile);
+            const identitySet = new Set<SHA256IdHash<Profile>>();
+            identitySet.add(mainProfile);
+            newModel.pIdentities.set(profile.obj.personId, identitySet);
 
-        newModel.someone = newSomeone;
-        await newModel.saveAndLoad();
-        return newModel;
+            newModel.someone = newSomeone;
+            await newModel.saveAndLoad();
+            return newModel;
+        }
     }
 
     // ######## Identity management ########
