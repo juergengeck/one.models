@@ -234,7 +234,18 @@ export default class SomeoneModel {
             throw new Error('The someone object does not manage profiles for the specified person');
         }
 
+        // on sync it could happen that the first profile
+        // is not the default one, so when the default
+        // profile is synced, we should correct it.
+        if (profileObj.obj.profileId === 'default') {
+            this.pMainProfile = profile;
+            if (this.someone) {
+                this.someone.mainProfile = profile;
+            }
+        }
+
         profileSet.add(profile);
+
         await this.saveAndLoad();
     }
 
