@@ -41,7 +41,7 @@ export async function getLocalInstanceOfPerson(
  *
  * @param owner - The owner of the instance
  */
-export async function getRemoteInstancesForPerson(
+export async function getRemoteInstancesOfPerson(
     owner: SHA256IdHash<Person>
 ): Promise<Array<SHA256IdHash<Instance>>> {
     return (await getInstancesOfPerson(owner)).filter(i => !i.local).map(i => i.instanceId);

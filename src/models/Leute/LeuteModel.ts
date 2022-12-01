@@ -37,9 +37,18 @@ import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescript
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import GroupModel from './GroupModel';
 import {Model} from '../Model';
-import {getDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
 import {createPerson, createPersonWithDefaultKeys} from '../../misc/person';
-import {createInstanceWithDefaultKeys} from '../../misc/instance';
+import {
+    createInstanceWithDefaultKeys,
+    getInstancesOfPerson,
+    getLocalInstanceOfPerson
+} from '../../misc/instance';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
 
 /**
  * This class manages people - to be precise: their identities including your own.
@@ -461,6 +470,119 @@ export default class LeuteModel extends Model {
             others.map(someone => someone.collectAllEndpointsOfType('OneInstanceEndpoint'))
         );
         return endpoints.reduce((acc, curr) => acc.concat(curr), []);
+    }
+
+    /**
+     * Collect all remote instances of my other devices.
+     */
+    public async getInternetOfMeEndpoints(): Promise<OneInstanceEndpoint[]> {
+        const oneInstanceEndpoints: OneInstanceEndpoint[] = [];
+
+        const me = await this.me();
+
+        for (const identity of me.identities()) {
+            const instances = await getInstancesOfPerson(identity);
+            const instancesMap = new Map(
+                instances.map(instance => [instance.instanceId, instance.local])
+            );
+
+            const endpoints = await me.collectAllEndpointsOfType('OneInstanceEndpoint', identity);
+
+            // Only keep the endpoints for which we do not have a complete keypair => remote
+            oneInstanceEndpoints.push(
+                ...endpoints.filter(endpoint => {
+                    const isLocal = instancesMap.get(endpoint.instanceId);
+
+                    if (isLocal === undefined) {
+                        console.error(
+                            `Internal error: We do not have an instance object for the OneInstanceEndpoint, instanceId: ${endpoint.instanceId}`
+                        );
+                        return false;
+                    }
+
+                    return !isLocal;
+                })
+            );
+        }
+
+        return oneInstanceEndpoints;
+    }
+
+    /**
+     * Collect all remote instances of everyone else.
+     */
+    public async getInternetOfPeopleEndpoints(): Promise<OneInstanceEndpoint[]> {
+        return this.findAllOneInstanceEndpointsForOthers();
+    }
+
+    /**
+     * Collect all IoM and IoP endpoints.
+     */
+    public async getAllRemoteEndpoints(): Promise<
+        {
+            endpoint: OneInstanceEndpoint;
+            isIoM: boolean;
+        }[]
+    > {
+        const iomEndpoints = await this.getInternetOfMeEndpoints();
+        const iopEndpoints = await this.getInternetOfPeopleEndpoints();
+
+        return [
+            ...iomEndpoints.map(endpoint => ({
+                endpoint,
+                isIoM: true
+            })),
+            ...iopEndpoints.map(endpoint => ({
+                endpoint,
+                isIoM: false
+            }))
+        ];
+    }
+
+    /**
+     *  Collect all local instances that represent this device.
+     *
+     *  Note: LeuteModel is probably not the correct place for this ... but instances.ts neither
+     */
+    public async getMyLocalInstances(): Promise<LocalInstanceInfo[]> {
+        const me = await this.me();
+
+        let localInstances: LocalInstanceInfo[] = [];
+        for (const identity of me.identities()) {
+            try {
+                const instanceId = await getLocalInstanceOfPerson(identity);
+
+                localInstances.push({
+                    instanceId,
+                    cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+                    instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+                    personId: identity
+                });
+            } catch (e) {
+                console.error(`Failed to get local instance for identity ${identity}`, e);
+            }
+        }
+
+        return localInstances;
+    }
+
+    /**
+     *  Collect all local instances that represent this device.
+     *
+     *  Note: LeuteModel is probably not the correct place for this ... but instances.ts neither
+     */
+    public async getMyMainInstance(): Promise<LocalInstanceInfo> {
+        const me = await this.me();
+
+        const identity = await me.mainIdentity();
+        const instanceId = await getLocalInstanceOfPerson(identity);
+
+        return {
+            instanceId,
+            cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+            instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+            personId: identity
+        };
     }
 
     /**

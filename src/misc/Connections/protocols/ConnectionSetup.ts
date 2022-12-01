@@ -25,6 +25,8 @@ import {
 import PromisePlugin from '../plugins/PromisePlugin';
 import {KeepAlivePlugin} from '../plugins/KeepAlivePlugin';
 import FragmentationPlugin from '../plugins/FragmentationPlugin';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 
 const KEEPALIVE_TIMER = 20000;
 const KEEPALIVE_TIMEOUT = 25000;
@@ -37,8 +39,8 @@ const MessageBus = createMessageBus('ConnectionSetup');
  */
 type ConnectionInfo = {
     connection: Connection;
-    myKey: Uint8Array;
-    remoteKey: Uint8Array;
+    myKey: PublicKey;
+    remoteKey: PublicKey;
 };
 
 /**
@@ -69,8 +71,8 @@ export type StoppablePromise<T> = Promise<T> & {stop: () => void};
  */
 export async function connectWithEncryption(
     url: string,
-    localPublicKey: Uint8Array,
-    remotePublicKey: Uint8Array,
+    localPublicKey: PublicKey,
+    remotePublicKey: PublicKey,
     encrypt: (text: Uint8Array) => Uint8Array,
     decrypt: (cypher: Uint8Array) => Uint8Array
 ): Promise<ConnectionInfo> {
@@ -155,7 +157,7 @@ export async function connectWithEncryption(
  * Establish an encrypted connection to a target - if not successful retries.
  *
  * This is exactly the same as connectWithEncryption, except that the returned promise does not
- * reject when the connection stablishment failed. In this case it just retires. There is only
+ * reject when the connection establishment failed. In this case it just retires. There is only
  * one way to
  *
  * @param url
@@ -167,8 +169,8 @@ export async function connectWithEncryption(
  */
 export function connectWithEncryptionUntilSuccessful(
     url: string,
-    localPublicKey: Uint8Array,
-    remotePublicKey: Uint8Array,
+    localPublicKey: PublicKey,
+    remotePublicKey: PublicKey,
     encrypt: (text: Uint8Array) => Uint8Array,
     decrypt: (cypher: Uint8Array) => Uint8Array,
     retryTimeout = 5000
@@ -283,8 +285,8 @@ export async function acceptWithEncryption(
         MessageBus.send('debug', `${connection.id}: Phase 1.1: wait for communication_request`);
 
         const request = await waitForUnencryptedClientMessage(connection, 'communication_request');
-        const targetPublicKey = hexToUint8Array(request.targetPublicKey);
-        const sourcePublicKey = hexToUint8Array(request.sourcePublicKey);
+        const targetPublicKey = ensurePublicKey(hexToUint8Array(request.targetPublicKey));
+        const sourcePublicKey = ensurePublicKey(hexToUint8Array(request.sourcePublicKey));
 
         // Phase 1.2: Signal the other side that we are ready to receive messages
         MessageBus.send('debug', `${connection.id}: Phase 1.2: send communication_ready`);
