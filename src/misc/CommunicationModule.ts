@@ -248,14 +248,12 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
-            console.log('>>>>>>>> LeuteModel.onUpdated <<<<<<<<');
             this.reconfigureConnections().catch(e => console.log(e));
         });
 
         // Setup event for new contact objects on contact management
         this.leuteModel.onNewOneInstanceEndpointEvent(
             async (oneInstanceEndpoint: OneInstanceEndpoint) => {
-                console.log('>>>>>>>> LeuteModel.onNewOneInstanceEndpointEvent <<<<<<<<');
                 this.reconfigureConnections().catch(console.error);
             }
         );
@@ -430,7 +428,6 @@ export default class CommunicationModule extends EventEmitter {
     // ######## Setup internal data structures ########
 
     private async reconfigureConnections(): Promise<void> {
-        console.log('>>>>>>>> reconfigureConnections <<<<<<<<');
         await this.updatePeerMap();
         await this.updateLocalInstancesMap();
 
@@ -439,9 +436,6 @@ export default class CommunicationModule extends EventEmitter {
             await this.setupOutgoingConnections();
         }
         await this.setupIncomingConnections();
-        console.log('>>>>>>>> reconfigureConnectionsDone <<<<<<<<');
-        console.log('>>>>', this.knownPeerMap);
-        console.log('>>>>', this.myPublicKeyToInstanceInfoMap);
     }
 
     /**
@@ -462,8 +456,11 @@ export default class CommunicationModule extends EventEmitter {
 
                 // Append to peer map
                 const mapKey = genMapKey(localKey, remoteKey);
+                const connectionInfo = this.knownPeerMap.get(mapKey);
 
-                if (!this.knownPeerMap.has(mapKey)) {
+                if (connectionInfo !== undefined) {
+                    connectionInfo.isInternetOfMe = isIoM;
+                } else {
                     this.knownPeerMap.set(mapKey, {
                         activeConnection: null,
                         url: endpoint.url,
