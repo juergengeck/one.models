@@ -5,12 +5,10 @@ import {
     createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdHash,
-    getObjectWithType,
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import CommunicationInitiationProtocol, {
     isPeerMessage
@@ -34,7 +32,10 @@ import {
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
 import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 
@@ -987,6 +988,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             isClient,
@@ -1038,6 +1040,7 @@ class ConnectionsModel extends Model {
 
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             false
@@ -1117,6 +1120,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             true
@@ -1186,6 +1190,7 @@ class ConnectionsModel extends Model {
 
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             false
@@ -1286,6 +1291,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             true
@@ -1357,6 +1363,7 @@ class ConnectionsModel extends Model {
 
             // Step 1: Exchange / authenticate person keys & person Id
             const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+                this.leuteModel,
                 conn,
                 localPersonId,
                 false
@@ -1431,6 +1438,7 @@ class ConnectionsModel extends Model {
         try {
             // Step 1: Exchange / authenticate person keys & person Id
             await ConnectionsModel.verifyAndExchangePersonId(
+                this.leuteModel,
                 conn,
                 localPersonId,
                 true,
@@ -1527,7 +1535,9 @@ class ConnectionsModel extends Model {
         const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Obtain the main keys
-        const mainPersonKeys = await this.extractKeysForPerson(mainInstanceInfo.personId);
+        const mainPersonKeys = await ConnectionsModel.extractKeysForPerson(
+            mainInstanceInfo.personId
+        );
         const mainPublicKeys = mainPersonKeys.personPublicKeys;
         const mainPrivateEncryptionKey = mainPersonKeys.personPrivateEncryptionKey;
         const mainPrivateSignKey = mainPersonKeys.personPrivateSignKey;
@@ -1556,7 +1566,7 @@ class ConnectionsModel extends Model {
      * @returns
      * @private
      */
-    private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
+    private static async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: HexString;
         personPrivateSignKey: HexString;
@@ -1598,6 +1608,7 @@ class ConnectionsModel extends Model {
      * - Does the person id communicated by the peer match the expected person id
      *   -> Only checked if matchRemotePersonId is specified
      *
+     * @param leute
      * @param conn - The connection used to exchange this data
      * @param localPersonId - The local person id (used for getting keys)
      * @param initiatedLocally
@@ -1607,6 +1618,7 @@ class ConnectionsModel extends Model {
      * @returns
      */
     private static async verifyAndExchangePersonId(
+        leute: LeuteModel,
         conn: Connection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
@@ -1621,10 +1633,8 @@ class ConnectionsModel extends Model {
         const crypto = await createCryptoApiFromDefaultKeys(localPersonId);
 
         // Get my own person key
-        const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
-        const localPersonKey = (
-            await getObjectWithType(localPersonKeyReverse[localPersonKeyReverse.length - 1], 'Keys')
-        ).publicKey;
+        const localPersonKey = (await getPublicKeys(await getDefaultKeys(localPersonId)))
+            .publicEncryptionKey;
 
         // Exchange and challenge response the person keys
         let remotePersonId: SHA256IdHash<Person>;
@@ -1634,7 +1644,7 @@ class ConnectionsModel extends Model {
             await ConnectionsModel.sendMessage(conn, {
                 command: 'person_information',
                 personId: localPersonId,
-                personPublicKey: localPersonKey
+                personPublicKey: uint8arrayToHexString(localPersonKey)
             });
 
             // Step 2: Wait for remote information
@@ -1663,7 +1673,7 @@ class ConnectionsModel extends Model {
             await ConnectionsModel.sendMessage(conn, {
                 command: 'person_information',
                 personId: localPersonId,
-                personPublicKey: localPersonKey
+                personPublicKey: uint8arrayToHexString(localPersonKey)
             });
 
             // Step 3: Answer challenge response
@@ -1681,28 +1691,20 @@ class ConnectionsModel extends Model {
         // Verify that the transmitted key matches the one we already have
         let keyComparisionFailed: boolean = true;
         try {
-            // Lookup key objects of the person he claims to be
-            const remotePersonKeyReverse = await getAllEntries(remotePersonId, 'Keys');
-            if (!remotePersonKeyReverse || remotePersonKeyReverse.length === 0) {
-                // This means that we have no key belonging to this person
-                return {
-                    isNew: true,
-                    personId: remotePersonId,
-                    personPublicKey: remotePersonKey
-                };
-            }
+            const remoteEndpoints = await leute.findAllOneInstanceEndpointsForPerson(
+                remotePersonId
+            );
 
-            // Load the stored key from storage
-            const remotePersonKeyStored = (
-                await getObjectWithType(
-                    remotePersonKeyReverse[remotePersonKeyReverse.length - 1],
-                    'Keys'
-                )
-            ).publicKey;
+            for (const remoteEndpoint of remoteEndpoints) {
+                if (remoteEndpoint.personKeys === undefined) {
+                    continue;
+                }
 
-            // Compare the key to the transmitted one
-            if (uint8arrayToHexString(remotePersonKey) === remotePersonKeyStored) {
-                keyComparisionFailed = false;
+                const keys = await getPublicKeys(remoteEndpoint.personKeys);
+                if (tweetnacl.verify(remotePersonKey, keys.publicEncryptionKey)) {
+                    keyComparisionFailed = false;
+                    // we do not break here - for constant execution times
+                }
             }
         } catch (e) {
             // This means that we have not encountered the person, yet.

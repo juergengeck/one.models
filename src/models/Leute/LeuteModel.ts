@@ -460,6 +460,23 @@ export default class LeuteModel extends Model {
     }
 
     /**
+     * Get all instance endpoints for person.
+     *
+     * @param personId
+     */
+    public async findAllOneInstanceEndpointsForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<OneInstanceEndpoint[]> {
+        this.state.assertCurrentState('Initialised');
+
+        const someone = await this.getSomeone(personId);
+        if (someone === undefined) {
+            throw new Error('');
+        }
+        return someone.collectAllEndpointsOfType('OneInstanceEndpoint', personId);
+    }
+
+    /**
      * Get instance endpoints from all contacts.
      */
     public async findAllOneInstanceEndpointsForOthers(): Promise<OneInstanceEndpoint[]> {
