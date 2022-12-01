@@ -248,13 +248,14 @@ export default class CommunicationModule extends EventEmitter {
                 return;
             }
 
-            this.setupIncomingConnections().catch(e => console.log(e));
+            console.log('>>>>>>>> LeuteModel.onUpdated <<<<<<<<');
             this.reconfigureConnections().catch(e => console.log(e));
         });
 
         // Setup event for new contact objects on contact management
         this.leuteModel.onNewOneInstanceEndpointEvent(
             async (oneInstanceEndpoint: OneInstanceEndpoint) => {
+                console.log('>>>>>>>> LeuteModel.onNewOneInstanceEndpointEvent <<<<<<<<');
                 this.reconfigureConnections().catch(console.error);
             }
         );
@@ -429,6 +430,7 @@ export default class CommunicationModule extends EventEmitter {
     // ######## Setup internal data structures ########
 
     private async reconfigureConnections(): Promise<void> {
+        console.log('>>>>>>>> reconfigureConnections <<<<<<<<');
         await this.updatePeerMap();
         await this.updateLocalInstancesMap();
 
@@ -437,6 +439,9 @@ export default class CommunicationModule extends EventEmitter {
             await this.setupOutgoingConnections();
         }
         await this.setupIncomingConnections();
+        console.log('>>>>>>>> reconfigureConnectionsDone <<<<<<<<');
+        console.log('>>>>', this.knownPeerMap);
+        console.log('>>>>', this.myPublicKeyToInstanceInfoMap);
     }
 
     /**
