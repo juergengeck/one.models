@@ -314,12 +314,12 @@ export default class LeuteModel extends Model {
 
         const me = await this.me();
         const newPersonId = await LeuteModel.createIdentityWithInstanceAndKeys();
-        const mainIdentity = await this.mainIdentity(me, newPersonId);
+        const myIdentity = await me.mainIdentity();
         // add identity first so that the profile creation event has it
         await me.addIdentity(newPersonId);
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
-            mainIdentity,
+            myIdentity,
             'default'
         );
         await me.addProfile(newProfile.idHash);
@@ -759,24 +759,6 @@ export default class LeuteModel extends Model {
     }
 
     // ######## Private stuff ########
-
-    /**
-     * Get main identity of someone if such is present, else return defaultIdentity
-     *
-     * @param someone
-     * @param defaultIdentity
-     * @returns
-     */
-    private async mainIdentity(
-        someone: SomeoneModel,
-        defaultIdentity: SHA256IdHash<Person>
-    ): Promise<SHA256IdHash<Person>> {
-        try {
-            return await someone.mainIdentity();
-        } catch (e) {
-            return defaultIdentity;
-        }
-    }
 
     /**
      * Create a new group.
