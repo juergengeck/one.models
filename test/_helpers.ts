@@ -1,21 +1,27 @@
 import {initInstance} from '@refinio/one.core/lib/instance';
-import type {Instance, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
+import type {
+    Instance,
+    OneObjectTypeNames,
+    OneVersionedObjectTypeNames,
+    Recipe
+} from '@refinio/one.core/lib/recipes';
 import RecipesStable from '../lib/recipes/recipes-stable';
 import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {statSync} from 'fs';
 import path from 'path';
 import {readFile} from 'fs/promises';
+import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption';
+import type {SignKeyPair} from '@refinio/one.core/lib/crypto/sign';
 
 export const defaultDbName = 'testDb';
 
 export interface StorageHelpersInitOpts {
     email?: string;
     secret?: string;
-    secretEncryptionKey?: HexString;
-    publicEncryptionKey?: HexString;
-    secretSignKey?: HexString;
-    publicSignKey?: HexString;
+    personEncryptionKeyPair?: KeyPair;
+    personSignKeyPair?: SignKeyPair;
+    instanceEncryptionKeyPair?: KeyPair;
+    instanceSignKeyPair?: SignKeyPair;
     name?: string;
     dbKey?: string;
     addTypes?: boolean;
@@ -23,6 +29,7 @@ export interface StorageHelpersInitOpts {
     encryptStorage?: boolean;
     initialRecipes?: readonly Recipe[];
     initiallyEnabledReverseMapTypes?: Array<[OneObjectTypeNames, Set<string>]>;
+    initiallyEnabledReverseMapTypesForIdObjects?: Array<[OneVersionedObjectTypeNames, Set<string>]>;
 }
 
 /**
@@ -35,39 +42,46 @@ export interface StorageHelpersInitOpts {
  * @param {boolean} [options.deleteDb=true]
  * @param {boolean} [options.encryptStorage=false]
  * @param {Array} [options.initiallyEnabledReverseMapTypes]
- * @param {string|undefined} options.publicEncryptionKey
- * @param {string|undefined} options.publicSignKey
- * @param {Recipe[]} options.initialRecipes
+ * @param {Array} [options.initiallyEnabledReverseMapTypesForIdObjects]
+ * @param {KeyPair|undefined} [options.personEncryptionKeyPair]
+ * @param {SignKeyPair|undefined} [options.personSignKeyPair]
+ * @param {KeyPair|undefined} [options.instanceEncryptionKeyPair]
+ * @param {SignKeyPair|undefined} [options.instanceSignKeyPair]
+ * @param {Recipe[]} [options.initialRecipes]
  * @returns {Promise<Instance>}
  */
 export async function init({
     email = 'test@test.com',
     secret = 'SECRET PASSWORD',
-    secretEncryptionKey,
-    publicEncryptionKey,
-    secretSignKey,
-    publicSignKey,
+    personEncryptionKeyPair,
+    personSignKeyPair,
+    instanceEncryptionKeyPair,
+    instanceSignKeyPair,
     name = 'test',
     dbKey = defaultDbName,
     addTypes = true,
     deleteDb = true,
     encryptStorage = false,
     initialRecipes = [],
-    initiallyEnabledReverseMapTypes = [['Plan', new Set(['*'])]]
+    initiallyEnabledReverseMapTypes = [['Plan', new Set(['*'])]],
+    initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
     return await initInstance({
         name,
         email,
         secret,
-        secretEncryptionKey,
-        publicEncryptionKey,
-        secretSignKey,
-        publicSignKey,
+        personEncryptionKeyPair,
+        personSignKeyPair,
+        instanceEncryptionKeyPair,
+        instanceSignKeyPair,
         wipeStorage: deleteDb,
         encryptStorage,
         directory: 'test/' + dbKey,
         initialRecipes: [...RecipesStable, ...RecipesExperimental],
-        initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes)
+        initiallyEnabledReverseMapTypes: new Map(initiallyEnabledReverseMapTypes),
+        initiallyEnabledReverseMapTypesForIdObjects: new Map(
+            initiallyEnabledReverseMapTypesForIdObjects
+        )
     });
 }
 

@@ -1,5 +1,4 @@
-import type {OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
 
-const ReverseMapsStable: [OneObjectTypeNames, Set<string>][] = [];
-
-export default ReverseMapsStable;
+export const ReverseMapsStable: [OneObjectTypeNames, Set<string>][] = [];
+export const ReverseMapsForIdObjectsStable: [OneVersionedObjectTypeNames, Set<string>][] = [];

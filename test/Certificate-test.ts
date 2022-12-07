@@ -1,28 +1,17 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
-import {useExperimentalReverseMaps} from '../lib/misc/MetaObjectMap';
 import {sign} from '../lib/misc/Signature';
-import {
-    affirm,
-    isAffirmedBy,
-    affirmedBy,
-    certifyRelation,
-    isRelationCertifiedBy
-} from '../lib/misc/Certificate';
+import {affirm, isAffirmedBy, affirmedBy} from '../lib/misc/Certificates/AffirmationCertificate';
+import {certifyRelation, isRelationCertifiedBy} from '../lib/misc/Certificates/RelationCertificate';
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
 import {createTestIdentity} from './utils/createTestIdentity';
 import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse';
 import {certifyRelationForSomeoneElse} from './utils/certifyRelationForSomeoneElse';
 
-// If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
-const experimentalReverseMaps = false;
-
 describe('Certificate test', () => {
     beforeEach(async () => {
-        useExperimentalReverseMaps(experimentalReverseMaps);
         return await initInstance({
             name: 'testname',
             email: 'test@test.com',
@@ -30,15 +19,11 @@ describe('Certificate test', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [
-                ...CertificateRecipes,
-                ...SignatureRecipes,
-                ...MetaObjectMapRecipes,
-                ...DummyObjectRecipes
-            ],
-            initiallyEnabledReverseMapTypes: experimentalReverseMaps
-                ? undefined
-                : new Map([...SignatureReverseMaps, ...CertificateReverseMaps])
+            initialRecipes: [...CertificateRecipes, ...SignatureRecipes, ...DummyObjectRecipes],
+            initiallyEnabledReverseMapTypes: new Map([
+                ...SignatureReverseMaps,
+                ...CertificateReverseMaps
+            ])
         });
     });
 

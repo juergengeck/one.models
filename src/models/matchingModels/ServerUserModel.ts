@@ -1,5 +1,4 @@
-import ClientMatchingModel, {MatchingEvents} from './ClientMatchingModel';
-import type InstancesModel from '../InstancesModel';
+import ClientMatchingModel from './ClientMatchingModel';
 import type ChannelManager from '../ChannelManager';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {
@@ -11,8 +10,8 @@ import type {Demand, Supply} from '../../recipes/MatchingRecipes';
 import MatchingModel from './MatchingModel';
 
 export default class ServerUserModel extends ClientMatchingModel {
-    constructor(instanceModel: InstancesModel, channelManager: ChannelManager) {
-        super(instanceModel, channelManager);
+    constructor(channelManager: ChannelManager) {
+        super(channelManager);
     }
 
     /**

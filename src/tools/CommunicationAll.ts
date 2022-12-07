@@ -36,7 +36,6 @@ import yargs from 'yargs';
 
 import * as Logger from '@refinio/one.core/lib/logger';
 import {AccessModel, ChannelManager, ConnectionsModel, LeuteModel} from '../models';
-import InstancesModel from '../models/InstancesModel';
 import {
     closeInstance,
     getInstanceIdHash,
@@ -53,6 +52,12 @@ import {
     Identity,
     IdentityWithSecrets
 } from '../misc/IdentityExchange';
+import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../misc/instance';
+import {getListOfKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {getObject} from '@refinio/one.core/lib/storage';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * Parses command line options for this app.
@@ -131,6 +136,15 @@ async function setupOneCore(identity: Identity | IdentityWithSecrets): Promise<{
         initialRecipes: [...RecipesStable, ...RecipesExperimental]
     });
 
+    const owner = getInstanceOwnerIdHash();
+    if (owner === undefined) {
+        throw new Error('blablabl');
+    }
+    const hasDKeys = await hasDefaultKeys(owner);
+    const instances = await getInstancesOfPerson(owner);
+    const instance = await getLocalInstanceOfPerson(owner);
+    console.log(`##### instance ${instance} ${hasDKeys}`, instances);
+
     async function shutdown(): Promise<void> {
         closeInstance();
     }
@@ -146,7 +160,6 @@ async function setupOneCore(identity: Identity | IdentityWithSecrets): Promise<{
  */
 async function setupOneModels(commServerUrl: string): Promise<{
     access: AccessModel;
-    instances: InstancesModel;
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;
@@ -156,16 +169,14 @@ async function setupOneModels(commServerUrl: string): Promise<{
 
     // Construct models
     const access = new AccessModel();
-    const instances = new InstancesModel();
     const channelManager = new ChannelManager();
-    const leute = new LeuteModel(instances, commServerUrl);
-    const connections = new ConnectionsModel(leute, instances, {
+    const leute = new LeuteModel(commServerUrl);
+    const connections = new ConnectionsModel(leute, {
         commServerUrl
     });
 
     // Initialize models
     await access.init();
-    await instances.init('dummy');
     await leute.init();
     await channelManager.init();
     await connections.init();
@@ -175,7 +186,6 @@ async function setupOneModels(commServerUrl: string): Promise<{
         await connections.shutdown();
         await channelManager.shutdown();
         await leute.shutdown();
-        await instances.shutdown();
         await access.shutdown();
 
         closeInstance();
@@ -183,7 +193,6 @@ async function setupOneModels(commServerUrl: string): Promise<{
 
     return {
         access,
-        instances,
         leute,
         channelManager,
         connections,
@@ -228,7 +237,6 @@ async function initWithIdentityExchange(
     instanceName: string
 ): Promise<{
     access: AccessModel;
-    instances: InstancesModel;
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;
@@ -269,6 +277,57 @@ async function initWithIdentityExchange(
 }
 
 /**
+ * Print instances and keys of the passed owner.
+ *
+ * @param owner
+ */
+async function printInstancesAndKeys(owner: SHA256IdHash<Person>) {
+    console.log(`## Owner: ${owner} ##`);
+
+    const keys = await getListOfKeys(owner);
+    console.log(`- Owner keys`, await transformKeys(keys));
+
+    const instances = await getInstancesOfPerson(owner);
+    for (const instance of instances) {
+        const instanceKeys = await getListOfKeys(instance.instanceId);
+        console.log(`- Instance: ${instance.instanceId} ${instance.local}`);
+        console.log(`- Instance keys`, await transformKeys(instanceKeys));
+    }
+}
+
+/**
+ * Add the keys themselves to the object, so that it can be printed.
+ *
+ * @param keys
+ */
+async function transformKeys(
+    keys: Array<{
+        keys: SHA256Hash<Keys>;
+        complete: boolean;
+        default: boolean;
+    }>
+): Promise<
+    Array<{
+        keys: SHA256Hash<Keys>;
+        complete: boolean;
+        default: boolean;
+        encryptionKey: HexString;
+        signKey: HexString;
+    }>
+> {
+    return Promise.all(
+        keys.map(async key => {
+            const keyObj = await getObject(key.keys);
+            return {
+                ...key,
+                encryptionKey: keyObj.publicKey,
+                signKey: keyObj.publicSignKey
+            };
+        })
+    );
+}
+
+/**
  * Main function. This exists to be able to use await here.
  *
  * This main function just establishes connections to multiple instances and prints the
@@ -287,7 +346,7 @@ async function main(): Promise<void> {
     // Print connection status continuously
     console.log('Owner:', getInstanceOwnerIdHash());
     console.log('Instance:', getInstanceIdHash());
-    const intervalHandle = setInterval(() => {
+    const intervalHandle = setInterval(async () => {
         const connectionInfos = models.connections.connectionsInfo();
         const connCount = connectionInfos.filter(info => info.isConnected).length;
         connectionInfos.map(info => info.isConnected);
@@ -295,6 +354,21 @@ async function main(): Promise<void> {
         console.log(`Connections established: ${connCount}`);
         if (displayDetails) {
             console.log(connectionInfos);
+
+            // Owner
+            const me = await models.leute.me();
+            console.log('#### Me Someone ####');
+            for (const identity of me.identities()) {
+                await printInstancesAndKeys(identity);
+            }
+
+            const others = await models.leute.others();
+            for (const other of others) {
+                console.log('#### Other Someone ####');
+                for (const identity of other.identities()) {
+                    await printInstancesAndKeys(identity);
+                }
+            }
         }
     }, 3000);
 }

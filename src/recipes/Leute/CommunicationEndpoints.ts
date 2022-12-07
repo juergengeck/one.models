@@ -116,6 +116,12 @@ export const PhoneNumberRecipe: Recipe = {
     ]
 };
 
+// #### Reverse maps ####
+
+export const CommunicationEndpointReverseMaps: [OneObjectTypeNames, Set<string>][] = [
+    ['OneInstanceEndpoint', new Set(['*'])]
+];
+
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
