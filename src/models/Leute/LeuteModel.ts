@@ -176,6 +176,10 @@ export default class LeuteModel extends Model {
 
         if (this.createEveryoneGroup) {
             const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
+            if (group.persons.find(person => person === personId) === undefined) {
+                group.persons.push(personId);
+                await group.saveAndLoad();
+            }
             disconnectFns.push(
                 onVersionedObj.addListener(this.addPersonToEveryoneGroup.bind(this))
             );
