@@ -239,16 +239,6 @@ export default class SomeoneModel {
             throw new Error('The someone object does not manage profiles for the specified person');
         }
 
-        // on sync it could happen that the first profile
-        // is not the default one, so when the default
-        // profile is synced, we should correct it.
-        if (profileObj.obj.profileId === 'default') {
-            this.pMainProfile = profile;
-            if (this.someone) {
-                this.someone.mainProfile = profile;
-            }
-        }
-
         profileSet.add(profile);
 
         await this.saveAndLoad();
@@ -269,6 +259,45 @@ export default class SomeoneModel {
         const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
         return profile;
+    }
+
+    /**
+     * Set the correct main profile for a specific person.
+     *
+     * on sync it could happen that the first profile
+     * is not the default one, so when the default
+     * profile is synced, this method is used to correct it.
+     *
+     * @param profile
+     */
+    public async updateMainProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+        const profileObj = await getObjectByIdHash(profile);
+        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+
+        if (profileSet === undefined) {
+            throw new Error('The someone object does not manage profiles for the specified person');
+        }
+
+        if (this.pMainProfile === undefined) {
+            throw new Error('The someone object does not have a main profile');
+        }
+
+        const mainProfileObj = await getObjectByIdHash(this.pMainProfile);
+
+        if (mainProfileObj.obj.profileId === 'default') {
+            throw new Error('The someone object already has a main profile');
+        }
+
+        if (profileObj.obj.profileId !== 'default') {
+            throw new Error('The profile is not a main profile');
+        }
+
+        this.pMainProfile = profile;
+        if (this.someone) {
+            this.someone.mainProfile = profile;
+        }
+
+        profileSet.add(profile);
     }
 
     // ######## Save & Load ########

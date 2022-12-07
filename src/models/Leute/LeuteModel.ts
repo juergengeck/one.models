@@ -480,13 +480,13 @@ export default class LeuteModel extends Model {
 
         const profileObj = await getObjectByIdHash(profile);
         const others = await this.others();
+        const me = await this.me();
 
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
             // TODO: it might happen that it's in the process of creating the someone, but the
             //  profile was saved first. Maybe a lock is a better solution?
             // Current workaround: ignore the profiles written by the owner of this instance
-            const me = await this.me();
             if (!me.identities().includes(profileObj.obj.owner)) {
                 const someoneNew = await SomeoneModel.constructWithNewSomeone(
                     await createRandomString(32),
@@ -496,7 +496,22 @@ export default class LeuteModel extends Model {
                 this.onProfileUpdate.emit(profileObj.obj);
             }
         } else {
+            // on sync it could happen that the first profile
+            // is not the default one, so when the default
+            // profile is synced, we should correct it.
+            if (
+                profileObj.obj.profileId === 'default' &&
+                !me.identities().includes(profileObj.obj.owner)
+            ) {
+                try {
+                    await someone.updateMainProfile(profile);
+                } catch (_e) {
+                    // if there is an error, than no update is needed
+                }
+            }
+
             await someone.addProfile(profile);
+
             this.onProfileUpdate.emit(profileObj.obj);
         }
     }
