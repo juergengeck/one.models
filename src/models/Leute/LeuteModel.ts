@@ -349,13 +349,7 @@ export default class LeuteModel extends Model {
         const myIdentity = await me.mainIdentity();
         // add identity first so that the profile creation event has it
         await someone.addIdentity(newPersonId);
-        const newProfile = await ProfileModel.constructWithNewProfile(
-            newPersonId,
-            myIdentity,
-            'default'
-        );
-        someone.addProfile(newProfile.idHash);
-        return newProfile;
+        return someone.createProfile('default', newPersonId, myIdentity);
     }
 
     /**
@@ -372,22 +366,14 @@ export default class LeuteModel extends Model {
         }
 
         const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
         // check if identity is already managed
         if (!someone.identities().find(i => i === personId)) {
             // add identity first so that the profile creation event has it
             await someone.addIdentity(personId);
         }
-
-        const me = await this.me();
-        const myIdentity = await me.mainIdentity();
-
-        const newProfile = await ProfileModel.constructWithNewProfile(
-            personId,
-            myIdentity,
-            await this.generateProfileId(someone, personId)
-        );
-        someone.addProfile(newProfile.idHash);
-        return newProfile;
+        return someone.createProfile(await createRandomString(32), personId, myIdentity);
     }
 
     /**
@@ -403,7 +389,6 @@ export default class LeuteModel extends Model {
         const newPersonId = await LeuteModel.createIdentity();
         const me = await this.me();
         const myIdentity = await me.mainIdentity();
-
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
             myIdentity,
@@ -791,41 +776,6 @@ export default class LeuteModel extends Model {
         } catch (e) {
             return defaultIdentity;
         }
-    }
-
-    /**
-     * Only generates, does not store
-     * @param someone
-     * @returns
-     */
-    private async generateProfileId(
-        someone: SomeoneModel,
-        personId: SHA256IdHash<Person>
-    ): Promise<string> {
-        const profiles = await someone.profiles();
-        if (profiles === undefined) {
-            return 'default';
-        }
-
-        const profilesNumber = profiles.reduce(
-            (n, profile) => (profile.personId === personId ? n + 1 : n),
-            0
-        );
-
-        if (profilesNumber <= 0) {
-            return 'default';
-        }
-
-        let profileId = await createRandomString(32);
-        while (
-            profiles.find(
-                profile =>
-                    profile.profileId === profileId && (!personId || profile.personId === personId)
-            ) !== undefined
-        ) {
-            profileId = await createRandomString(32);
-        }
-        return profileId;
     }
 
     /**
