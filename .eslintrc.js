@@ -6,30 +6,20 @@ module.exports = {
         'plugin:@typescript-eslint/eslint-recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:@typescript-eslint/recommended-requiring-type-checking',
-        'plugin:prettier/recommended',
         'prettier'
     ],
     parser: '@typescript-eslint/parser',
     parserOptions: {
-        ecmaVersion: 2018,
+        ecmaVersion: 2022,
         ecmaFeatures: {impliedStrict: true},
         project: ['./tsconfig.json', './src/tsconfig.json', './test/tsconfig.json']
     },
+    ignorePatterns: ['*.js'],
     env: {
         es6: true,
         mocha: true,
         node: true,
         browser: true
-    },
-    globals: {
-        NodeJS: 'readonly',
-        name: 'off',
-        self: 'off',
-        status: 'off',
-        length: 'off',
-        history: 'off',
-        event: 'off',
-        top: 'off'
     },
     plugins: ['@typescript-eslint', 'jsdoc', 'prettier'],
     rules: {
@@ -49,26 +39,25 @@ module.exports = {
         'jsdoc/require-description': 'off',
         'jsdoc/require-example': 'off',
         'jsdoc/require-hyphen-before-param-description': 'error',
-        'jsdoc/require-jsdoc': ['error', {publicOnly: true}],
+        'jsdoc/require-jsdoc': ['off', {publicOnly: true}],
         'jsdoc/require-param-description': 'off',
-        'jsdoc/require-param-name': 'error',
+        'jsdoc/require-param-name': 'off',
         'jsdoc/require-param-type': 'off',
-        'jsdoc/require-param': 'error',
+        'jsdoc/require-param': 'off',
         'jsdoc/require-returns-check': 'error',
         'jsdoc/require-returns-description': 'off',
-        'jsdoc/require-returns-type': 'off',
+        'jsdoc/require-returns-type': 'error',
         'jsdoc/require-returns': 'off',
-        'jsdoc/valid-types': 'error',
+        'jsdoc/valid-types': 'off',
 
-        '@typescript-eslint/array-type': ['off', {default: 'array-simple'}],
+        '@typescript-eslint/array-type': ['error', {default: 'array-simple'}],
         '@typescript-eslint/brace-style': ['error', '1tbs', {allowSingleLine: false}],
-        // '@typescript-eslint/camelcase': ['error', {properties: 'never'}],
         '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
         '@typescript-eslint/consistent-type-imports': ['error', {prefer: 'type-imports'}],
-        '@typescript-eslint/consistent-type-assertions': 'off',
         'func-call-spacing': 'off',
         '@typescript-eslint/func-call-spacing': ['error'],
         '@typescript-eslint/no-extra-parens': 'off', // 'all',{'nestedBinaryExpressions': false}
+        '@typescript-eslint/consistent-type-assertions': 'off',
         '@typescript-eslint/explicit-function-return-type': [
             'error',
             {
@@ -105,7 +94,7 @@ module.exports = {
 
         // Disallow async functions which have no await expression
         'require-await': 'off',
-        '@typescript-eslint/require-await': 'error',
+        '@typescript-eslint/require-await': 'off',
 
         // '@typescript-eslint/semi': ['error', 'always'],
         '@typescript-eslint/semi': 'off',
@@ -114,21 +103,13 @@ module.exports = {
         // eslint rules
         // -------------------------------------------------------------------------
 
-        'no-restricted-syntax': [
-            'error',
-            // {
-            //     selector: 'ExportDefaultDeclaration',
-            //     message: 'Prefer named exports'
-            // },
-            'WithStatement',
-            "BinaryExpression[operator='in']"
-        ],
+        'no-restricted-syntax': ['error', 'WithStatement'],
         // enforce line breaks after opening and before closing array brackets
         'array-bracket-newline': 'off',
         // Enforces return statements in callbacks of array's methods
         'array-callback-return': 'error',
         // Require parens in arrow function arguments
-        'arrow-parens': ['warn', 'as-needed'],
+        'arrow-parens': ['off', 'as-needed'],
         // Enforces getter/setter pairs in objects
         'accessor-pairs': ['off', {setWithoutGet: true, getWithoutSet: false}],
         // Require space before/after arrow functions arrow
@@ -175,7 +156,7 @@ module.exports = {
         'no-alert': 'error',
         // Disallow using an async function as a Promise executor
         'no-async-promise-executor': 'error',
-        // Disallow await inside of loops
+        // Disallow await inside of loops: OFF
         'no-await-in-loop': 'off',
         // disallow use of the Buffer() constructor
         'no-buffer-constructor': 'error',
@@ -190,7 +171,7 @@ module.exports = {
         // Disallow arrow functions where they could be confused with comparisons
         'no-confusing-arrow': 'off',
         // Disallow the use of console
-        'no-console': 'error',
+        'no-console': 'off',
         // Disallow modifying variables that are declared using const
         'no-const-assign': 'error',
         // Disallow use of constant expressions in conditions
@@ -203,7 +184,7 @@ module.exports = {
         'no-dupe-keys': 'error',
         // Rule to disallow a duplicate case label
         'no-duplicate-case': 'error',
-        // Disallow duplicate imports
+        // Disallow duplicate imports: OFF - TypeScript conflict with "import type"
         'no-duplicate-imports': 'off',
         // Disallow empty block statements
         'no-empty': 'error',
@@ -262,8 +243,8 @@ module.exports = {
         'no-template-curly-in-string': 'error',
         'no-trailing-spaces': 'error',
         'no-throw-literal': 'error',
-        // Disallow Undeclared Variables
-        'no-undef': 'error',
+        // Disallow Undeclared Variables OFF: Typescript takes care of these
+        'no-undef': 'off',
         'no-underscore-dangle': 'off',
         // Avoid code that looks like two expressions but is actually one
         'no-unexpected-multiline': 'error',
