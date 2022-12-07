@@ -4,7 +4,7 @@ import {
     ValueRules as ValueRules_1_0_0
 } from './QuestionnaireRecipes_1_0_0';
 import type {Questionnaire_1_1_0} from './QuestionnaireRecipes_1_1_0';
-import {addRule, cloneRule, overwriteRule} from '../RecipeUtils';
+import {cloneRule, overwriteRule} from '../RecipeUtils';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -24,7 +24,7 @@ export module Questionnaire_1_2_0 {
     /**
      * Question of a questionnaire.
      */
-    export type Question = Omit<Questionnaire_1_1_0.Question, 'item'> & {
+    export type Question = Omit<Questionnaire_1_1_0.Question, 'item' | 'initial'> & {
         initial?: QuestionnaireValue[];
         item?: Question[];
     };
@@ -102,7 +102,8 @@ export const AtachmentRules: RecipeRule[] = [
 ];
 
 export const ValueRules = cloneRule(ValueRules_1_0_0);
-addRule(ValueRules, 'valueAttachment', {
+// FHIR Type: Attachment
+ValueRules.push({
     itemprop: 'valueAttachment',
     itemtype: {type: 'object', rules: AtachmentRules},
     optional: true
@@ -117,7 +118,7 @@ overwriteRule(QuestionnaireRules, 'item', {
     inheritFrom: 'Questionnaire_1_2_0.item',
     optional: true
 });
-addRule(QuestionnaireRules, 'item', {
+overwriteRule(QuestionnaireRules, 'item', {
     itemprop: 'initial',
     itemtype: {
         type: 'bag',
