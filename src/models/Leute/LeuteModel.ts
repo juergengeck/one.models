@@ -503,11 +503,7 @@ export default class LeuteModel extends Model {
                 profileObj.obj.profileId === 'default' &&
                 !me.identities().includes(profileObj.obj.owner)
             ) {
-                try {
-                    await someone.updateMainProfile(profile);
-                } catch (_e) {
-                    // if there is an error, than no update is needed
-                }
+                await someone.setMainProfileIfNotDefault(profile);
             }
 
             await someone.addProfile(profile);

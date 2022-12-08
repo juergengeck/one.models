@@ -262,34 +262,31 @@ export default class SomeoneModel {
     }
 
     /**
-     * Set the correct main profile for a specific person.
-     *
-     * on sync it could happen that the first profile
-     * is not the default one, so when the default
-     * profile is synced, this method is used to correct it.
+     * Set the main profile only when the saved profile is not the main profile.
+     * the profile supplied should be the main profile of the person.
      *
      * @param profile
      */
-    public async updateMainProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+    public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('The someone object does not have a main profile');
+        }
+
         const profileObj = await getObjectByIdHash(profile);
         const profileSet = this.pIdentities.get(profileObj.obj.personId);
 
         if (profileSet === undefined) {
-            throw new Error('The someone object does not manage profiles for the specified person');
-        }
-
-        if (this.pMainProfile === undefined) {
-            throw new Error('The someone object does not have a main profile');
+            return;
         }
 
         const mainProfileObj = await getObjectByIdHash(this.pMainProfile);
 
         if (mainProfileObj.obj.profileId === 'default') {
-            throw new Error('The someone object already has a main profile');
+            return;
         }
 
         if (profileObj.obj.profileId !== 'default') {
-            throw new Error('The profile is not a main profile');
+            return;
         }
 
         this.pMainProfile = profile;
