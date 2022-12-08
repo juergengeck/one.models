@@ -10,17 +10,16 @@ import {
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import tweetnacl from 'tweetnacl';
-import CommunicationInitiationProtocol, {
-    isPeerMessage
-} from '../misc/CommunicationInitiationProtocol';
+import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import {isPeerMessage} from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
-    HexString,
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
@@ -31,7 +30,8 @@ import {
     convertOneInstanceEndpointToIdentity
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
-import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
@@ -1036,7 +1036,7 @@ class ConnectionsModel extends Model {
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
-        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
+        // const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
@@ -1359,7 +1359,7 @@ class ConnectionsModel extends Model {
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         try {
-            const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
+            // const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
             // Step 1: Exchange / authenticate person keys & person Id
             const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
@@ -1743,7 +1743,7 @@ class ConnectionsModel extends Model {
         // Send the challenge
         const challenge = tweetnacl.randomBytes(64);
         const encryptedChallenge = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
-        await conn.send(encryptedChallenge);
+        conn.send(encryptedChallenge);
         for (let i = 0; i < challenge.length; ++i) {
             challenge[i] = ~challenge[i];
         }
@@ -1779,7 +1779,7 @@ class ConnectionsModel extends Model {
             challenge[i] = ~challenge[i];
         }
         const encryptedResponse = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
-        await conn.send(encryptedResponse);
+        conn.send(encryptedResponse);
     }
 
     // ######## Low level io functions (should probably part of a class??? #######
@@ -1794,7 +1794,7 @@ class ConnectionsModel extends Model {
         conn: Connection,
         message: T
     ): Promise<void> {
-        await conn.send(JSON.stringify(message));
+        conn.send(JSON.stringify(message));
     }
 
     /**
