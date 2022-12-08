@@ -1,5 +1,8 @@
 import {mkdir} from 'fs/promises';
 import PasswordRecoveryClient from '../../misc/PasswordRecoveryService/PasswordRecoveryClient';
+// @ts-ignore The getBaseDirName is only available for node.js. The next line shows an ts error,
+// because the storage-base.d.ts file is generated from the system/storage-base.ts file and not
+// from the system-nodejs/storage-base.ts
 import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 import {generateNewIdentity} from '../../misc/IdentityExchange';
 
