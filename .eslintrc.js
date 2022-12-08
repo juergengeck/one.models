@@ -21,45 +21,45 @@ module.exports = {
         node: true,
         browser: true
     },
-    plugins: ['@typescript-eslint', 'jsdoc', 'prettier'],
+    plugins: ['@typescript-eslint', 'prettier'],
     rules: {
-        'jsdoc/check-alignment': 'error',
-        'jsdoc/check-examples': 'off',
-        'jsdoc/check-indentation': 'off',
-        'jsdoc/check-param-names': 'error',
-        'jsdoc/check-syntax': 'error',
-        'jsdoc/check-tag-names': 'error',
-        'jsdoc/check-types': 'error',
-        'jsdoc/implements-on-classes': 'error',
-        'jsdoc/match-description': 'off',
-        'jsdoc/newline-after-description': 'off',
-        'jsdoc/no-types': 'off',
-        'jsdoc/no-undefined-types': 'off',
-        'jsdoc/require-description-complete-sentence': 'off',
-        'jsdoc/require-description': 'off',
-        'jsdoc/require-example': 'off',
-        'jsdoc/require-hyphen-before-param-description': 'error',
-        'jsdoc/require-jsdoc': ['off', {publicOnly: true}],
-        'jsdoc/require-param-description': 'off',
-        'jsdoc/require-param-name': 'off',
-        'jsdoc/require-param-type': 'off',
-        'jsdoc/require-param': 'off',
-        'jsdoc/require-returns-check': 'error',
-        'jsdoc/require-returns-description': 'off',
-        'jsdoc/require-returns-type': 'error',
-        'jsdoc/require-returns': 'off',
-        'jsdoc/valid-types': 'off',
+        // 'jsdoc/check-alignment': 'error',
+        // 'jsdoc/check-examples': 'off',
+        // 'jsdoc/check-indentation': 'off',
+        // 'jsdoc/check-param-names': 'error',
+        // 'jsdoc/check-syntax': 'error',
+        // 'jsdoc/check-tag-names': 'error',
+        // 'jsdoc/check-types': 'off',
+        // 'jsdoc/implements-on-classes': 'error',
+        // 'jsdoc/match-description': 'off',
+        // 'jsdoc/newline-after-description': 'off',
+        // 'jsdoc/no-types': 'off',
+        // 'jsdoc/no-undefined-types': 'off',
+        // 'jsdoc/require-description-complete-sentence': 'off',
+        // 'jsdoc/require-description': 'off',
+        // 'jsdoc/require-example': 'off',
+        // 'jsdoc/require-hyphen-before-param-description': 'error',
+        // 'jsdoc/require-jsdoc': ['off', {publicOnly: true}],
+        // 'jsdoc/require-param-description': 'off',
+        // 'jsdoc/require-param-name': 'off',
+        // 'jsdoc/require-param-type': 'off',
+        // 'jsdoc/require-param': 'off',
+        // 'jsdoc/require-returns-check': 'error',
+        // 'jsdoc/require-returns-description': 'off',
+        // 'jsdoc/require-returns-type': 'error',
+        // 'jsdoc/require-returns': 'off',
+        // 'jsdoc/valid-types': 'off',
 
-        '@typescript-eslint/array-type': ['error', {default: 'array-simple'}],
-        '@typescript-eslint/brace-style': ['error', '1tbs', {allowSingleLine: false}],
-        '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+        '@typescript-eslint/array-type': ['off', {default: 'array-simple'}],
+        '@typescript-eslint/brace-style': ['off', '1tbs', {allowSingleLine: false}],
+        '@typescript-eslint/consistent-type-definitions': ['off', 'interface'],
         '@typescript-eslint/consistent-type-imports': ['error', {prefer: 'type-imports'}],
         'func-call-spacing': 'off',
         '@typescript-eslint/func-call-spacing': ['error'],
         '@typescript-eslint/no-extra-parens': 'off', // 'all',{'nestedBinaryExpressions': false}
         '@typescript-eslint/consistent-type-assertions': 'off',
         '@typescript-eslint/explicit-function-return-type': [
-            'error',
+            'off',
             {
                 allowExpressions: true,
                 allowTypedFunctionExpressions: true
@@ -73,6 +73,7 @@ module.exports = {
         '@typescript-eslint/no-namespace': 'error',
         '@typescript-eslint/no-misused-promises': ['error', {checksVoidReturn: false}],
         '@typescript-eslint/no-require-imports': 'off',
+        '@typescript-eslint/no-shadow': 'warn',
         '@typescript-eslint/no-unused-vars': [
             'warn',
             {
@@ -84,8 +85,21 @@ module.exports = {
                 caughtErrorsIgnorePattern: '^ignore'
             }
         ],
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-return': 'off',
         '@typescript-eslint/no-use-before-define': 'off',
         '@typescript-eslint/prefer-for-of': ['error'],
+        '@typescript-eslint/restrict-template-expressions': [
+            'error',
+            {
+                allowNumber: true,
+                allowBoolean: true,
+                allowAny: true
+            }
+        ],
         // ENABLE TEMPORARILY: Used to check the whole code, but left disabled because we have
         // too many false positives which we don't want to disable individually
         '@typescript-eslint/return-await': ['off', 'always'],
@@ -114,7 +128,7 @@ module.exports = {
         'accessor-pairs': ['off', {setWithoutGet: true, getWithoutSet: false}],
         // Require space before/after arrow functions arrow
         'arrow-spacing': ['error', {before: true, after: true}],
-        'brace-style': ['error', '1tbs', {allowSingleLine: false}],
+        'brace-style': ['off', '1tbs', {allowSingleLine: false}],
         'consistent-this': ['error', 'self'],
         // Disallow trailing commas
         'comma-dangle': [
@@ -210,7 +224,7 @@ module.exports = {
         'no-mixed-operators': 'error',
         'no-mixed-spaces-and-tabs': 'error',
         'no-multi-spaces': ['error', {ignoreEOLComments: true}],
-        'no-negated-condition': 'error',
+        'no-negated-condition': 'warn',
         // Disallow negation of the left operand of an in expression
         'no-negated-in-lhs': 'error',
         // Disallow Symbol Constructor
@@ -235,8 +249,9 @@ module.exports = {
         'no-self-assign': 'error',
         'no-self-compare': 'error',
         // Disallow variable declarations from shadowing variables declared in the outer scope
-        'no-shadow': 'error',
-        'no-sync': 'error',
+        'no-shadow': 'off',
+        // OFF because this produced a false positive for some "await somePromiseReturningFunc"
+        'no-sync': 'off',
         // Disallow tabs in file
         'no-tabs': 'error',
         // Disallow template literal placeholder syntax in regular strings
@@ -273,7 +288,7 @@ module.exports = {
         'operator-linebreak': ['error', 'after', {overrides: {'?': 'ignore', ':': 'ignore'}}],
         'padded-blocks': ['off', 'never'],
         'padding-line-between-statements': [
-            'error',
+            'off',
             {blankLine: 'always', prev: 'directive', next: 'import'},
             {blankLine: 'always', prev: 'import', next: '*'},
             {blankLine: 'any', prev: 'import', next: 'import'},
@@ -319,7 +334,7 @@ module.exports = {
         ],
         // Requires or disallows a whitespace (space or tab) beginning a comment
         'spaced-comment': [
-            'warn',
+            'off',
             'always',
             {
                 line: {
