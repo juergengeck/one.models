@@ -24,7 +24,7 @@ export enum EventTypes {
  * emitter wants to wait until all listeners have completed their execution.
  * - emitRace(args): Use when the emitter is interested only in the first settled promise from the listeners.
  *
- * Executing handlers sequentially vs parallelly:
+ * Executing handlers sequentially vs parallel:
  * -----------------------------------------------
  * emit & emitAll offer the possibility to execute the listeners handlers in parallel or sequentially.This is
  * configurable through the 'executeSequentially' optional parameter in the constructor. 'executeSequentially'
@@ -186,7 +186,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
         if (!this.executeSequentially) {
             return Promise.all(this.executeAndPromisifyEventListeners(listenerArguments));
         }
-        let listenerResults: ReturnType<T>[] = [];
+        const listenerResults: ReturnType<T>[] = [];
 
         let promiseRejected = null;
 
@@ -227,8 +227,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
             if (this.onError) {
                 try {
                     this.onError(e);
-                } catch (e) {
-                    console.error('onError listener failed:', e);
+                } catch (ee) {
+                    console.error('onError listener failed:', ee);
                 }
             } else {
                 console.error('Event listener failed:', e);
@@ -312,7 +312,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
     private executeAndPromisifyEventListeners(
         listenerArguments: Parameters<T>
     ): (Promise<ReturnType<T>> | ReturnType<T>)[] {
-        let promises: (Promise<ReturnType<T>> | ReturnType<T>)[] = [];
+        const promises: (Promise<ReturnType<T>> | ReturnType<T>)[] = [];
 
         // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
         // parallel.
@@ -338,7 +338,7 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * @private
      */
     private static executeAndIgnoreListeners(listeners: Set<() => Promise<void> | void>): void {
-        let promises: (Promise<void> | void)[] = [];
+        const promises: (Promise<void> | void)[] = [];
 
         // Eliminate non deterministic behaviour when listeners disconnect other listeners while being invoked in
         // parallel.
