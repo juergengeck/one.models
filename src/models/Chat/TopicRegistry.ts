@@ -1,13 +1,10 @@
-import {
-    getIdObject,
-    getObject,
-    UnversionedObjectResult,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getIdObject, getObject} from '@refinio/one.core/lib/storage';
 import {
     getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
 
 /**
@@ -18,6 +15,7 @@ export default class TopicRegistry {
 
     private static instance: TopicRegistry;
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() {}
 
     public static async load(): Promise<TopicRegistry> {
@@ -86,6 +84,21 @@ export default class TopicRegistry {
         }
 
         return await getObject(foundTopic);
+    }
+
+    /**
+     * Retrieve topic hash by the channel id.
+     * @param topicID
+     */
+    public async queryHashById(topicID: string): Promise<SHA256Hash<Topic> | undefined> {
+        const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
+        const foundTopic = registry.obj.topics.get(topicID);
+
+        if (foundTopic === undefined) {
+            return undefined;
+        }
+
+        return foundTopic;
     }
 
     // --------------------------------- private ---------------------------------
