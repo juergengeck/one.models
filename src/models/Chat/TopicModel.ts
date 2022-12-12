@@ -103,6 +103,7 @@ export default class TopicModel extends Model {
         return {
             all: topicRegistry.all,
             queryById: topicRegistry.queryById,
+            queryHashById: topicRegistry.queryHashById,
             queryByName: topicRegistry.queryByName
         };
     }
