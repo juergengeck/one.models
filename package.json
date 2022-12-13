@@ -1,6 +1,6 @@
 {
   "name": "one.models",
-  "version": "11.0.2",
+  "version": "11.0.3",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
@@ -36,6 +36,7 @@
     "isomorphic-ws": "*",
     "jsesc": "*",
     "ts-loader": "*",
+    "tweetnacl": "*",
     "ws": "*",
     "yargs": "*"
   },
