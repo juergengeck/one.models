@@ -79,11 +79,11 @@ export default class TopicRegistry {
 
     /**
      * Retrieve topic by the channel id.
-     * @param topicID
+     * @param channelID
      */
-    public async queryById(topicID: string): Promise<Topic | undefined> {
+    public async queryById(channelID: string): Promise<Topic | undefined> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        const foundTopic = registry.obj.topics.get(topicID);
+        const foundTopic = registry.obj.topics.get(channelID);
 
         if (foundTopic === undefined) {
             return undefined;
@@ -94,11 +94,11 @@ export default class TopicRegistry {
 
     /**
      * Retrieve topic hash by the channel id.
-     * @param topicID
+     * @param channelID
      */
-    public async queryHashById(topicID: string): Promise<SHA256Hash<Topic> | undefined> {
+    public async queryHashById(channelID: string): Promise<SHA256Hash<Topic> | undefined> {
         const registry = await getObjectByIdObj({$type$: 'TopicAppRegistry', id: TopicRegistry.id});
-        const foundTopic = registry.obj.topics.get(topicID);
+        const foundTopic = registry.obj.topics.get(channelID);
 
         if (foundTopic === undefined) {
             return undefined;
