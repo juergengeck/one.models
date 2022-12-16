@@ -305,22 +305,75 @@ export default class LeuteModel extends Model {
     /**
      * Create a new identity and a 'default' profile for myself.
      */
-    public async createProfileAndIdentityForMe(): Promise<void> {
+    public async createProfileAndIdentityForMe(): Promise<ProfileModel> {
         this.state.assertCurrentState('Initialised');
 
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
 
+        const me = await this.me();
         const newPersonId = await LeuteModel.createIdentityWithInstanceAndKeys();
+        const myIdentity = await me.mainIdentity();
+        // add identity first so that the profile creation event has it
+        await me.addIdentity(newPersonId);
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
-            newPersonId,
+            myIdentity,
             'default'
         );
-        const me = await this.me();
-        await me.addIdentity(newPersonId);
         await me.addProfile(newProfile.idHash);
+        return newProfile;
+    }
+
+    /**
+     * Create a new identity and a 'default' profile for someone.
+     */
+    public async createProfileAndIdentityForSomeone(
+        someoneId: SHA256IdHash<Someone>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+
+        if (me.idHash === someone.idHash) {
+            return this.createProfileAndIdentityForMe();
+        }
+
+        const newPersonId = await LeuteModel.createIdentity();
+        const myIdentity = await me.mainIdentity();
+        // add identity first so that the profile creation event has it
+        await someone.addIdentity(newPersonId);
+        return someone.createProfile('default', newPersonId, myIdentity);
+    }
+
+    /**
+     * Create a new profile for someone.
+     */
+    public async createProfileForSomeone(
+        someoneId: SHA256IdHash<Someone>,
+        personId: SHA256IdHash<Person>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
+        // check if identity is already managed
+        if (!someone.identities().find(i => i === personId)) {
+            // add identity first so that the profile creation event has it
+            await someone.addIdentity(personId);
+        }
+        return someone.createProfile(await createRandomString(32), personId, myIdentity);
     }
 
     /**
@@ -333,21 +386,21 @@ export default class LeuteModel extends Model {
             throw new Error('Leute model is not initialized');
         }
 
-        const myIdentity = await (await this.me()).mainIdentity();
         const newPersonId = await LeuteModel.createIdentity();
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
             myIdentity,
             'default'
         );
-        const newSomeone = await SomeoneModel.constructWithNewSomeone(
+        const someoneNew = await SomeoneModel.constructWithNewSomeone(
             await createRandomString(32),
             newProfile.idHash
         );
+        await this.addSomeoneElse(someoneNew.idHash);
 
-        await this.addSomeoneElse(newSomeone.idHash);
-
-        return newSomeone.idHash;
+        return someoneNew.idHash;
     }
 
     // ######## Group management ########
@@ -418,7 +471,7 @@ export default class LeuteModel extends Model {
     }
 
     /**
-     * Add a profile to a someone object already managing this persons profile.
+     * Add a profile to a someone object already managing this persons identity.
      *
      * If no such someone object exists a new one is created.
      */
@@ -427,13 +480,13 @@ export default class LeuteModel extends Model {
 
         const profileObj = await getObjectByIdHash(profile);
         const others = await this.others();
+        const me = await this.me();
 
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
             // TODO: it might happen that it's in the process of creating the someone, but the
             //  profile was saved first. Maybe a lock is a better solution?
             // Current workaround: ignore the profiles written by the owner of this instance
-            const me = await this.me();
             if (!me.identities().includes(profileObj.obj.owner)) {
                 const someoneNew = await SomeoneModel.constructWithNewSomeone(
                     await createRandomString(32),
@@ -443,7 +496,18 @@ export default class LeuteModel extends Model {
                 this.onProfileUpdate.emit(profileObj.obj);
             }
         } else {
+            // on sync it could happen that the first profile
+            // is not the default one, so when the default
+            // profile is synced, we should correct it.
+            if (
+                profileObj.obj.profileId === 'default' &&
+                !me.identities().includes(profileObj.obj.owner)
+            ) {
+                await someone.setMainProfileIfNotDefault(profile);
+            }
+
             await someone.addProfile(profile);
+
             this.onProfileUpdate.emit(profileObj.obj);
         }
     }

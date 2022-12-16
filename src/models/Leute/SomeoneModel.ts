@@ -108,17 +108,22 @@ export default class SomeoneModel {
         };
         const idHash = await calculateIdHashOfObj(newSomeone);
 
-        const newModel = new SomeoneModel(idHash);
+        // try catch is not required if we have CRDT map support
+        try {
+            return await this.constructFromLatestVersion(idHash);
+        } catch (e) {
+            const newModel = new SomeoneModel(idHash);
 
-        // add mainProfile to identities
-        const profile = await getObjectByIdHash(mainProfile);
-        const identitySet = new Set<SHA256IdHash<Profile>>();
-        identitySet.add(mainProfile);
-        newModel.pIdentities.set(profile.obj.personId, identitySet);
+            // add mainProfile to identities
+            const profile = await getObjectByIdHash(mainProfile);
+            const identitySet = new Set<SHA256IdHash<Profile>>();
+            identitySet.add(mainProfile);
+            newModel.pIdentities.set(profile.obj.personId, identitySet);
 
-        newModel.someone = newSomeone;
-        await newModel.saveAndLoad();
-        return newModel;
+            newModel.someone = newSomeone;
+            await newModel.saveAndLoad();
+            return newModel;
+        }
     }
 
     // ######## Identity management ########
@@ -235,6 +240,7 @@ export default class SomeoneModel {
         }
 
         profileSet.add(profile);
+
         await this.saveAndLoad();
     }
 
@@ -249,9 +255,46 @@ export default class SomeoneModel {
         profileId: string,
         personId: SHA256IdHash<Person>,
         owner: SHA256IdHash<Person>
-    ): Promise<void> {
+    ): Promise<ProfileModel> {
         const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
+        return profile;
+    }
+
+    /**
+     * Set the main profile only when the saved profile is not the main profile.
+     * the profile supplied should be the main profile of the person.
+     *
+     * @param profile
+     */
+    public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('The someone object does not have a main profile');
+        }
+
+        const profileObj = await getObjectByIdHash(profile);
+        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+
+        if (profileSet === undefined) {
+            return;
+        }
+
+        const mainProfileObj = await getObjectByIdHash(this.pMainProfile);
+
+        if (mainProfileObj.obj.profileId === 'default') {
+            return;
+        }
+
+        if (profileObj.obj.profileId !== 'default') {
+            return;
+        }
+
+        this.pMainProfile = profile;
+        if (this.someone) {
+            this.someone.mainProfile = profile;
+        }
+
+        profileSet.add(profile);
     }
 
     // ######## Save & Load ########
