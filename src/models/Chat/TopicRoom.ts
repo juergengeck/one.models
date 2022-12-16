@@ -167,7 +167,7 @@ export default class TopicRoom {
      * @param message
      * @param attachments
      */
-    async sendAttachmentMessage(message: string, attachments: File[]): Promise<void> {
+    async sendMessageAttachment(message: string, attachments: File[]): Promise<void> {
         const instanceIdHash = getInstanceOwnerIdHash();
 
         if (instanceIdHash === undefined) {

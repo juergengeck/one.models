@@ -64,13 +64,13 @@ describe('Consent', () => {
             topicRoom.onNewMessageReceived(msg => resolve(msg));
         });
         const file = buildTestFile();
-        await topicRoom.sendMessage('with attachment', [file]);
+        await topicRoom.sendMessageAttachment('with attachment', [file]);
         const message = await messagePromise;
         expect(message.data.attachments?.length).to.not.equal(0);
     });
 
     it('should recover the file from BlobDescriptors', async function () {
-        const messages = await topicRoom.retrieveAllMessagesWithAttachmentsAsBlobDescriptors();
+        const messages = await topicRoom.retrieveAllMessagesWithAttachments();
         const messageWithAttachment = messages[1];
 
         expect(messageWithAttachment.data.attachments).to.not.be.undefined;
