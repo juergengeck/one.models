@@ -8,6 +8,7 @@ import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescripto
 import {getObject} from '@refinio/one.core/lib/storage';
 import BlobCollectionModel from '../BlobCollectionModel';
 import type {BlobDescriptor} from '../BlobCollectionModel';
+import {BlobDescriptorRecipe} from '../../recipes/BlobRecipes';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 import type LeuteModel from '../Leute/LeuteModel';
 
@@ -103,7 +104,7 @@ export default class TopicRoom {
         const resolvedMessages = [];
         for (const message of messages) {
             if (message.data.attachments) {
-                if (message.data.attachments[0].type.$type$ === 'BlobDescriptor') {
+                if (message.data.attachments[0].type.$type$ === BlobDescriptorRecipe.name) {
                     const blobDescriptors = await Promise.all(
                         message.data.attachments.map(blobDescriptorHash =>
                             getObject(blobDescriptorHash)
