@@ -104,7 +104,8 @@ export default class TopicRoom {
         const resolvedMessages = [];
         for (const message of messages) {
             if (message.data.attachments) {
-                if (message.data.attachments[0].type.$type$ === BlobDescriptorRecipe.name) {
+                const attachmentObj = await getObject(message.data.attachments[0]);
+                if (attachmentObj.$type$ === BlobDescriptorRecipe.name) {
                     const blobDescriptors = await Promise.all(
                         message.data.attachments.map(blobDescriptorHash =>
                             getObject(blobDescriptorHash)
