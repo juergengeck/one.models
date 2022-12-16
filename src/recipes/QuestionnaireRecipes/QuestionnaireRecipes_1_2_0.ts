@@ -62,8 +62,15 @@ export module Questionnaire_1_2_0 {
     };
 }
 
+export const AttachmentContentTypesMap = {
+    'image/png': 'png',
+    'image/jpeg': 'jpeg',
+    'image/webp': 'webp',
+    'image/gif': 'gif'
+};
+
 export type Attachment = {
-    contentType: 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif'; // Mime type of the content, with charset etc.
+    contentType: keyof typeof AttachmentContentTypesMap; // Mime type of the content, with charset etc.
     language?: string; // Human language of the content (BCP-47)
     data: string; // Data inline, base64ed
     // url?: string; // Uri where the data can be found
