@@ -136,13 +136,14 @@ export default class TopicRoom {
     }
 
     /**
-     * Sends the message in the chat room.
+     * Sends the message with hash data in the chat room.
+     *
      * @param message
-     * @param attachments
+     * @param hashes array of attached hashes
      */
-    async sendMessageHashes(
+    async sendMesageWithAttachmentAsHash(
         message: string,
-        attachments?: SHA256Hash[] | undefined
+        attachments: SHA256Hash[]
     ): Promise<void> {
         const instanceIdHash = getInstanceOwnerIdHash();
 
@@ -163,11 +164,11 @@ export default class TopicRoom {
     }
 
     /**
-     * Sends the message in the chat room.
+     * Sends the message with attachments in the chat room.
      * @param message
-     * @param attachments
+     * @param attachments array of attached files
      */
-    async sendMessageAttachment(message: string, attachments: File[]): Promise<void> {
+    async sendMessageWithAttachmentAsFile(message: string, attachments: File[]): Promise<void> {
         const instanceIdHash = getInstanceOwnerIdHash();
 
         if (instanceIdHash === undefined) {
