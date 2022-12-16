@@ -12,7 +12,7 @@ import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipe
 import type LeuteModel from '../Leute/LeuteModel';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
-    attachments: BlobDescriptor[];
+    attachments: BlobDescriptor[] | SHA256Hash[];
 }
 
 export default class TopicRoom {
@@ -94,32 +94,39 @@ export default class TopicRoom {
     }
 
     /**
-     * Retrieves all chat messages and resolves the blobs so the binary data can be used.
+     * Retrieves all chat messages and resolves the blobs, if any, so the binary data can be used.
      */
-    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
-        ObjectData<ChatMessage>[]
-    > {
+    async retrieveAllMessagesWithAttachments(): Promise<ObjectData<ChatMessage>[]> {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
         const resolvedMessages = [];
         for (const message of messages) {
             if (message.data.attachments) {
-                const blobDescriptors = await Promise.all(
-                    message.data.attachments.map(blobDescriptorHash =>
-                        getObject(blobDescriptorHash)
-                    )
-                );
-                const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
-                    blobDescriptors.map(blobDescriptor =>
-                        BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
-                    )
-                );
+                if (message.data.attachments[0].type.$type$ === 'BlobDescriptor') {
+                    const blobDescriptors = await Promise.all(
+                        message.data.attachments.map(blobDescriptorHash =>
+                            getObject(blobDescriptorHash)
+                        )
+                    );
+                    const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
+                        blobDescriptors.map(blobDescriptor =>
+                            BlobCollectionModel.resolveBlobDescriptor(
+                                blobDescriptor as OneBlobDescriptor
+                            )
+                        )
+                    );
 
-                resolvedMessages.push({
-                    ...message,
-                    data: {...message.data, attachments: resolvedBlobDescriptors}
-                });
+                    resolvedMessages.push({
+                        ...message,
+                        data: {...message.data, attachments: resolvedBlobDescriptors}
+                    });
+                } else {
+                    resolvedMessages.push({
+                        ...message,
+                        data: {...message.data, attachments: message.data.attachments}
+                    });
+                }
             } else {
                 resolvedMessages.push({...message, data: {...message.data, attachments: []}});
             }
@@ -132,15 +139,45 @@ export default class TopicRoom {
      * @param message
      * @param attachments
      */
-    async sendMessage(message: string, attachments?: File[] | undefined): Promise<void> {
+    async sendMessageHashes(
+        message: string,
+        attachments?: SHA256Hash[] | undefined
+    ): Promise<void> {
+        const instanceIdHash = getInstanceOwnerIdHash();
+
+        if (instanceIdHash === undefined) {
+            throw new Error('Error: instance id hash could not be found');
+        }
+
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: instanceIdHash,
+                attachments: attachments
+            },
+            null
+        );
+    }
+
+    /**
+     * Sends the message in the chat room.
+     * @param message
+     * @param attachments
+     */
+    async sendAttachmentMessage(message: string, attachments: File[]): Promise<void> {
+        const instanceIdHash = getInstanceOwnerIdHash();
+
+        if (instanceIdHash === undefined) {
+            throw new Error('Error: instance id hash could not be found');
+        }
         let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
 
-        if (attachments) {
-            const blobDescriptors = await Promise.all(
-                attachments.map(file => storeFileWithBlobDescriptor(file))
-            );
-            writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
-        }
+        const blobDescriptors = await Promise.all(
+            attachments.map(file => storeFileWithBlobDescriptor(file))
+        );
+        writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
 
         await this.channelManager.postToChannel(
             this.topic.id,
@@ -149,6 +186,28 @@ export default class TopicRoom {
                 text: message,
                 sender: await this.leuteModel.myMainIdentity(),
                 attachments: writtenAttachments
+            },
+            null
+        );
+    }
+
+    /**
+     * Sends the message in the chat room.
+     * @param message
+     */
+    async sendMessage(message: string): Promise<void> {
+        const instanceIdHash = getInstanceOwnerIdHash();
+
+        if (instanceIdHash === undefined) {
+            throw new Error('Error: instance id hash could not be found');
+        }
+
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: instanceIdHash
             },
             null
         );

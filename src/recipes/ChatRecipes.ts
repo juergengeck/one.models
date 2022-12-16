@@ -29,7 +29,7 @@ export interface Topic {
 export interface ChatMessage {
     $type$: 'ChatMessage';
     text: string;
-    attachments?: SHA256Hash<BlobDescriptor>[];
+    attachments?: SHA256Hash[];
     sender: SHA256IdHash<Person>;
 }
 
@@ -55,7 +55,7 @@ export const ChatMessageRecipe: Recipe = {
                 type: 'array',
                 item: {
                     type: 'referenceToObj',
-                    allowedTypes: new Set(['BlobDescriptor'])
+                    allowedTypes: new Set(['*'])
                 }
             },
             optional: true
