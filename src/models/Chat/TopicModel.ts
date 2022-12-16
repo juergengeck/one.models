@@ -287,7 +287,6 @@ export default class TopicModel extends Model {
      */
     private async emitNewTopicEvent(result: UnversionedObjectResult): Promise<void> {
         if (result.obj.$type$ === 'Topic' && result.status === 'new') {
-            const {channel, name} = result.obj;
             await serializeWithType(this.TopicRegistryLOCK, async () => {
                 if (this.Topics === undefined) {
                     throw new Error(

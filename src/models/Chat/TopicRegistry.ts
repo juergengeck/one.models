@@ -1,9 +1,5 @@
-import {
-    getIdObject,
-    getObject,
-    UnversionedObjectResult,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {getIdObject, getObject} from '@refinio/one.core/lib/storage';
 import {
     getObjectByIdObj,
     storeVersionedObject
@@ -18,6 +14,7 @@ export default class TopicRegistry {
 
     private static instance: TopicRegistry;
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() {}
 
     public static async load(): Promise<TopicRegistry> {

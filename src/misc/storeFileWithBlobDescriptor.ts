@@ -6,8 +6,6 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
 export async function storeFileWithBlobDescriptor(
     file: File
 ): Promise<UnversionedObjectResult<BlobDescriptor>> {
-    const blobs: UnversionedObjectResult<BlobDescriptor>[] = [];
-
     const stream = createFileWriteStream();
     stream.write(await file.arrayBuffer());
     const blob = await stream.end();
