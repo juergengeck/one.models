@@ -5,15 +5,13 @@ import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
-import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
-import {
-    HexString,
-    uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connections/Connection';
 import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
@@ -252,11 +250,13 @@ export default class CommunicationModule extends EventEmitter {
         });
 
         // Setup event for new contact objects on contact management
-        this.leuteModel.onNewOneInstanceEndpointEvent(
+        // At the moment this line is a bug, because it fires when OneInstanceEndpoints are
+        // written, but the OneInstanceEndpoint is not yet in the tree of leute objects.
+        /*this.leuteModel.onNewOneInstanceEndpointEvent(
             async (oneInstanceEndpoint: OneInstanceEndpoint) => {
                 this.reconfigureConnections().catch(console.error);
             }
-        );
+        );*/
     }
 
     /**
@@ -283,12 +283,12 @@ export default class CommunicationModule extends EventEmitter {
                 v.stopConnecting = undefined;
             }
             if (v.activeConnection) {
-                await v.activeConnection.close();
+                v.activeConnection.close();
             }
         }
         // Kill all unknown peer map connections
         for (const v of this.unknownPeerMap.values()) {
-            await v.close();
+            v.close();
         }
 
         // Stop all reconnect timeouts
