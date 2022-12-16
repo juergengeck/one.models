@@ -15,6 +15,12 @@ export default class TopicRegistry {
 
     private static instance: TopicRegistry;
 
+    /**
+     * Singleton design pattern
+     *
+     * To get the instance use
+     * @see this.load()
+     */
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() {}
 
