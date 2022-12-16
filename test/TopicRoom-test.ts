@@ -64,7 +64,7 @@ describe('Consent', () => {
             topicRoom.onNewMessageReceived(msg => resolve(msg));
         });
         const file = buildTestFile();
-        await topicRoom.sendMessageAttachment('with attachment', [file]);
+        await topicRoom.sendMessageWithAttachmentAsFile('with attachment', [file]);
         const message = await messagePromise;
         expect(message.data.attachments?.length).to.not.equal(0);
     });
