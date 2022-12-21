@@ -4,12 +4,12 @@ import type ChannelManager from '../ChannelManager';
 import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
 import {getObject} from '@refinio/one.core/lib/storage';
 import BlobCollectionModel from '../BlobCollectionModel';
 import type {BlobDescriptor} from '../BlobCollectionModel';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
+import type LeuteModel from '../Leute/LeuteModel';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
     attachments: BlobDescriptor[];
@@ -36,10 +36,12 @@ export default class TopicRoom {
     ) => Promise<void>;
 
     private channelManager: ChannelManager;
+    private leuteModel: LeuteModel;
 
-    constructor(topic: Topic, channelManager: ChannelManager) {
+    constructor(topic: Topic, channelManager: ChannelManager, leuteModel: LeuteModel) {
         this.topic = topic;
         this.channelManager = channelManager;
+        this.leuteModel = leuteModel;
 
         this.boundOnChannelUpdated = this.emitNewMessageEvent.bind(this);
 
@@ -131,11 +133,6 @@ export default class TopicRoom {
      * @param attachments
      */
     async sendMessage(message: string, attachments?: File[] | undefined): Promise<void> {
-        const instanceIdHash = await getInstanceOwnerIdHash();
-
-        if (instanceIdHash === undefined) {
-            throw new Error('Error: instance id hash could not be found');
-        }
         let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
 
         if (attachments) {
@@ -150,7 +147,7 @@ export default class TopicRoom {
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: instanceIdHash,
+                sender: await this.leuteModel.myMainIdentity(),
                 attachments: writtenAttachments
             },
             null

@@ -85,8 +85,8 @@ export default class TestModel {
     constructor(commServerUrl: string) {
         this.secret = 'test-secret';
         this.accessModel = new AccessModel();
-        this.channelManager = new ChannelManager();
         this.leuteModel = new LeuteModel(commServerUrl);
+        this.channelManager = new ChannelManager(this.leuteModel);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }

@@ -18,8 +18,7 @@ import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {Plan} from '@refinio/one.core/lib/recipes';
+import type LeuteModel from '../Leute/LeuteModel';
 
 /**
  * Model that manages the creation of chat topics.
@@ -40,6 +39,8 @@ export default class TopicModel extends Model {
 
     private readonly channelManager: ChannelManager;
 
+    private readonly leuteModel: LeuteModel;
+
     private readonly TopicRegistryLOCK = 'ON_TOPIC_REGISTRY_OPERATION';
 
     private Topics: TopicRegistry | undefined;
@@ -55,9 +56,10 @@ export default class TopicModel extends Model {
 
     private channelDisconnect: (() => void) | undefined;
 
-    constructor(channelManager: ChannelManager) {
+    constructor(channelManager: ChannelManager, leuteModel: LeuteModel) {
         super();
         this.channelManager = channelManager;
+        this.leuteModel = leuteModel;
         this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
         this.boundNewTopicFromResult = this.emitNewTopicEvent.bind(this);
     }
@@ -124,7 +126,7 @@ export default class TopicModel extends Model {
             throw new Error('Error while trying to retrieve the topic. The topic does not exist.');
         }
 
-        return new TopicRoom(foundTopic, this.channelManager);
+        return new TopicRoom(foundTopic, this.channelManager, this.leuteModel);
     }
 
     /**

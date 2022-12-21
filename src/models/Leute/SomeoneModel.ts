@@ -170,6 +170,59 @@ export default class SomeoneModel {
         return this.identities().filter(id => id !== mainIdentity);
     }
 
+    /**
+     * Sets the main identity by guessing which profile to use as mainProfile
+     *
+     * @param identity
+     */
+    public async setMainIdentity(identity: SHA256IdHash<Person>): Promise<void> {
+        if (this.someone === undefined) {
+            throw new Error('Nothing was loaded, yet');
+        }
+
+        const mainIdentity = await this.mainIdentity();
+
+        if (identity === mainIdentity) {
+            return;
+        }
+
+        if (!this.pIdentities.has(identity)) {
+            throw new Error(
+                'The designated new main identity is not managed by this someone' + ' object'
+            );
+        }
+
+        const profiles = await this.profiles(identity);
+
+        if (profiles.length === 0) {
+            throw new Error('We have no profiles to assign as main profile :-(');
+        }
+
+        // FIRST CHOICE: A 'default' profile that is owned by the person itself
+        const firstChoice = profiles.find(
+            profile => profile.profileId === 'default' && profile.owner === identity
+        );
+
+        if (firstChoice !== undefined) {
+            this.someone.mainProfile = firstChoice.idHash;
+            await this.saveAndLoad();
+            return;
+        }
+
+        // SECOND CHOICE: Another 'default' profile
+        for (const profile of profiles) {
+            if (profile.profileId === 'default') {
+                this.someone.mainProfile = profile.idHash;
+                await this.saveAndLoad();
+                return;
+            }
+        }
+
+        // THIRD CHOICE: Any other profile
+        this.someone.mainProfile = profiles[0].idHash;
+        await this.saveAndLoad();
+    }
+
     // ######## Main profile management ########
 
     public mainProfile(): Promise<ProfileModel> {
