@@ -2,7 +2,7 @@ import chai, {expect} from 'chai';
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import {mkdir, rm, rmdir} from 'fs/promises';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
+import {getIdObject} from '@refinio/one.core/lib/storage';
 import chaiAsPromised from 'chai-as-promised';
 import LeuteRecipes from '../lib/recipes/Leute/recipes';
 import {
@@ -64,10 +64,10 @@ describe('identityExchange test one dependent functions', () => {
         const oneInstanceEndpoint = await importIdentityFileAsOneInstanceEndpoint(
             idOrig.publicFileName
         );
-        const person = await getObjectByIdHash(oneInstanceEndpoint.obj.personId);
-        const instance = await getObjectByIdHash(oneInstanceEndpoint.obj.instanceId);
+        const person = await getIdObject(oneInstanceEndpoint.obj.personId);
+        const instance = await getIdObject(oneInstanceEndpoint.obj.instanceId);
 
-        expect(idOrig.public.personEmail).to.be.equal(person.obj.email);
-        expect(idOrig.public.instanceName).to.be.equal(instance.obj.name);
+        expect(idOrig.public.personEmail).to.be.equal(person.email);
+        expect(idOrig.public.instanceName).to.be.equal(instance.name);
     });
 });

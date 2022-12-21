@@ -3,8 +3,8 @@ import CommunicationModule from '../misc/CommunicationModule';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughPurePlan,
+    getIdObject,
     getObject,
-    getObjectByIdHash,
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
@@ -353,7 +353,7 @@ class ConnectionsModel extends Model {
         const authenticationToken = token ? token : await createRandomString();
 
         if (takeOver) {
-            const myEmail = (await getObjectByIdHash(mainInstanceInfo.personId)).obj.email;
+            const myEmail = (await getIdObject(mainInstanceInfo.personId)).email;
             const salt = tweetnacl.randomBytes(64);
 
             // Set up the expiration of the token
@@ -1212,7 +1212,7 @@ class ConnectionsModel extends Model {
         }
 
         // Step 3: Exchange person objects (first send, second receive)
-        const localPersonObj = (await getObjectByIdHash(mainInstanceInfo.personId)).obj;
+        const localPersonObj = await getIdObject(mainInstanceInfo.personId);
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
             obj: localPersonObj
@@ -1312,7 +1312,7 @@ class ConnectionsModel extends Model {
             },
             remotePersonObj
         );
-        const localPersonObj = (await getObjectByIdHash(localPersonId)).obj;
+        const localPersonObj = await getIdObject(localPersonId);
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
             obj: localPersonObj
@@ -1447,9 +1447,9 @@ class ConnectionsModel extends Model {
 
             // Step 2: Send the group members
             const personObjs = await Promise.all(
-                accessGroupMembers.map(person => getObjectByIdHash(person))
+                accessGroupMembers.map(person => getIdObject(person))
             );
-            const personEmails = personObjs.map(personObj => personObj.obj.email);
+            const personEmails = personObjs.map(personObj => personObj.email);
             await ConnectionsModel.sendMessage(conn, {
                 command: 'access_group_members',
                 persons: personEmails
