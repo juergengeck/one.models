@@ -35,7 +35,7 @@ import type {
 } from '../recipes/ChannelRecipes';
 import type {CreationTime} from '../recipes/MetaRecipes';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import {storeVersionedObject} from '../../../one.core/lib/storage-versioned-objects';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type LeuteModel from './Leute/LeuteModel';
 
 const MessageBus = createMessageBus('ChannelManager');
