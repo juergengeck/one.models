@@ -178,8 +178,8 @@ async function setupOneModels(commServerUrl: string): Promise<{
     await importModules(oneModules);
 
     // Construct models
-    const channelManager = new ChannelManager();
     const leute = new LeuteModel(commServerUrl);
+    const channelManager = new ChannelManager(leute);
     const connections = new ConnectionsModel(leute, {
         commServerUrl
     });

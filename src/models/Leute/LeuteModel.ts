@@ -94,6 +94,8 @@ export default class LeuteModel extends Model {
     public onNewOneInstanceEndpointEvent = new OEvent<
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
+    public beforeMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public afterMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
 
     public static readonly EVERYONE_GROUP_NAME = 'everyone';
 
@@ -471,6 +473,24 @@ export default class LeuteModel extends Model {
     }
 
     /**
+     * Change the main identity by setting a new mainProfile.
+     *
+     * @param newIdentity
+     */
+    public async changeMyMainIdentity(newIdentity: SHA256IdHash<Person>) {
+        const mySomeone = await this.me();
+        const oldIdentity = await mySomeone.mainIdentity();
+        this.beforeMainIdSwitch.emit(oldIdentity);
+        await mySomeone.setMainIdentity(newIdentity);
+        this.afterMainIdSwitch.emit(newIdentity);
+    }
+
+    public async myMainIdentity(): Promise<SHA256IdHash<Person>> {
+        const mySomeone = await this.me();
+        return mySomeone.mainIdentity();
+    }
+
+    /**
      * Add a profile to a someone object already managing this persons identity.
      *
      * If no such someone object exists a new one is created.
@@ -779,7 +799,7 @@ export default class LeuteModel extends Model {
      * @param name - If specified use this name, otherwise create a group with a random id.
      * @returns the created group or the existing one if it already existed.
      */
-    public async createGroupInternal(name?: string): Promise<GroupModel> {
+    private async createGroupInternal(name?: string): Promise<GroupModel> {
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
