@@ -2,7 +2,6 @@ import tweetnacl from 'tweetnacl';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {addMetaObject} from '../../lib/misc/MetaObjectMap';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 /**
@@ -22,12 +21,10 @@ export async function signForSomeoneElse(
 ): Promise<void> {
     const signatureBinary = tweetnacl.sign.detached(new TextEncoder().encode(data), secretKey);
     const signatureString = uint8arrayToHexString(signatureBinary);
-    const result = await storeUnversionedObject({
+    await storeUnversionedObject({
         $type$: 'Signature',
         issuer,
         data,
         signature: signatureString
     });
-    await addMetaObject(issuer, result.hash);
-    await addMetaObject(data, result.hash);
 }

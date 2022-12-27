@@ -10,7 +10,6 @@ import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
 import SignatureRecipes from './SignatureRecipes';
-import MetaObjectMapRecipes from './MetaObjectMapRecipes';
 import ChatRecipes from './ChatRecipes';
 import ConsentRecipes from './ConsentRecipes';
 import IoMRequestRecipes from './IoM/IoMRequest';
@@ -29,7 +28,6 @@ const RecipesExperimental: Recipe[] = [
     ...ChatRecipes,
     ...LeuteRecipes,
     ...SignatureRecipes,
-    ...MetaObjectMapRecipes,
     ...ConsentRecipes,
     ...IoMRequestRecipes,
     ...IoMRequestsRegistryRecipes

@@ -1,5 +1,3 @@
-import type InstancesModel from '../InstancesModel';
-import type {LocalInstanceInfo} from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {
@@ -12,11 +10,11 @@ import {
 } from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 
-import {OEvent} from '../../misc/OEvent';
 import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from '../Model';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -30,27 +28,27 @@ export default abstract class MatchingModel extends Model {
      * Event emitted when matching data is updated.
      */
 
-    protected instancesModel: InstancesModel;
     protected channelManager: ChannelManager;
-    protected anonInstanceInfo: LocalInstanceInfo | null;
+    protected me: SHA256IdHash<Person>;
     public static readonly channelId = 'matching';
 
-    protected suppliesMap: Map<string, Supply[]>;
-    protected demandsMap: Map<string, Demand[]>;
+    protected suppliesMap = new Map<string, Supply[]>();
+    protected demandsMap = new Map<string, Demand[]>();
 
     protected supplyMapName = 'SupplyMap';
     protected demandMapName = 'DemandMap';
 
     private disconnect: (() => void) | undefined;
 
-    protected constructor(instancesModel: InstancesModel, channelManager: ChannelManager) {
+    protected constructor(channelManager: ChannelManager) {
         super();
 
-        this.instancesModel = instancesModel;
         this.channelManager = channelManager;
-        this.anonInstanceInfo = null;
-        this.suppliesMap = new Map<string, Supply[]>();
-        this.demandsMap = new Map<string, Demand[]>();
+        const me = getInstanceOwnerIdHash();
+        if (me === undefined) {
+            throw new Error('There is no instance owner.');
+        }
+        this.me = me;
     }
 
     /**
@@ -83,22 +81,8 @@ export default abstract class MatchingModel extends Model {
      *
      * @protected
      */
-    protected async updateInstanceInfo(): Promise<void> {
+    protected async updateMe(): Promise<void> {
         this.state.assertCurrentState('Initialised');
-
-        const infos = await this.instancesModel.localInstancesInfo();
-
-        if (infos.length !== 2) {
-            throw new Error('This application needs exactly one alternate identity!');
-        }
-
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                if (!instanceInfo.isMain) {
-                    this.anonInstanceInfo = instanceInfo;
-                }
-            })
-        );
     }
 
     /**
@@ -112,15 +96,11 @@ export default abstract class MatchingModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         try {
-            if (!this.anonInstanceInfo) {
-                throw new Error('Anon instance info is not initialized!');
-            }
-
             const setAccessParam = {
                 id: await calculateIdHashOfObj({
                     $type$: 'ChannelInfo',
                     id: MatchingModel.channelId,
-                    owner: this.anonInstanceInfo.personId
+                    owner: this.me
                 }),
                 person,
                 group: [],
@@ -135,7 +115,7 @@ export default abstract class MatchingModel extends Model {
             setAccessParam.id = await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
                 id: 'contacts',
-                owner: this.anonInstanceInfo.personId
+                owner: this.me
             });
             // check whether a channel with this id exists
             await getObjectByIdHash(setAccessParam.id);

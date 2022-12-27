@@ -1,15 +1,13 @@
 {
   "name": "@refinio/one.models",
-  "version": "10.4.3-filer-5",
+  "version": "10.0.5-filer-5",
+  "repository": "https://github.com/refinio/one.models",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "private": true,
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
   "author": "REFINIO GmbH (https://refinio.net/)",
-  "license": "SEE LICENSE IN LICENSE.md",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/refinio/one.models.git"
-  },
   "bugs": {
     "url": "https://github.com/refinio/one.models/issues"
   },
@@ -49,11 +47,12 @@
     "isomorphic-ws": "*",
     "jsesc": "*",
     "ts-loader": "*",
+    "tweetnacl": "*",
     "ws": "*",
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "v0.3.24"
+   "@refinio/one.core": "0.3.25"
   },
   "devDependencies": {
     "@babel/core": "*",
@@ -66,18 +65,15 @@
     "@babel/plugin-transform-typescript": "*",
     "@babel/preset-typescript": "*",
     "@istanbuljs/nyc-config-typescript": "*",
-    "@microsoft/api-extractor": "*",
     "@types/babel__core": "*",
     "@types/chai": "*",
     "@types/chai-as-promised": "*",
     "@types/jsesc": "*",
-    "@types/lodash": "*",
     "@types/mocha": "*",
     "@types/node": "*",
     "@types/passport-http": "*",
     "@types/qrcode": "*",
     "@types/rimraf": "*",
-    "@types/uuid": "*",
     "@types/yargs": "*",
     "@typescript-eslint/eslint-plugin": "*",
     "@typescript-eslint/parser": "*",
@@ -88,7 +84,7 @@
     "chai-as-promised": "*",
     "eslint": "*",
     "eslint-config-prettier": "*",
-    "eslint-plugin-import": "*",
+    "eslint-plugin-jsdoc": "*",
     "eslint-plugin-prettier": "*",
     "isomorphic-ws": "*",
     "mocha": "*",

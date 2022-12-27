@@ -5,7 +5,12 @@ import {
     VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
-import type {Module, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {
+    Module,
+    Recipe,
+    OneObjectTypeNames,
+    OneVersionedObjectTypeNames
+} from '@refinio/one.core/lib/recipes';
 import oneModules from '../../generated/oneModules';
 import {closeInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../../recipes/recipes-stable';
@@ -24,6 +29,8 @@ export type AuthenticatorOptions = {
     recipes: Recipe[];
     /**  Reverse Maps - default is undefined  **/
     reverseMaps?: Map<OneObjectTypeNames, Set<string>>;
+    /**  Id Reverse Maps - default is undefined  **/
+    reverseMapsForIdObjects?: Map<OneVersionedObjectTypeNames, Set<string>>;
     /** Timeout for init storage */
     storageInitTimeout?: number;
 };
@@ -101,6 +108,10 @@ export default abstract class Authenticator {
                     ? [...RecipesStable, ...RecipesExperimental]
                     : options.recipes,
             reverseMaps: options.reverseMaps === undefined ? undefined : options.reverseMaps,
+            reverseMapsForIdObjects:
+                options.reverseMapsForIdObjects === undefined
+                    ? undefined
+                    : options.reverseMapsForIdObjects,
             storageInitTimeout: options.storageInitTimeout
         };
     }

@@ -120,7 +120,9 @@ export default class Connection implements IConnection, EncryptedConnectionInter
      * Add a plugin to the connection.
      *
      * @param plugin
-     * @param options
+     * @param [options]
+     * @param [options.after]
+     * @param [options.before]
      */
     public addPlugin(
         plugin: ConnectionPlugin,
@@ -130,10 +132,10 @@ export default class Connection implements IConnection, EncryptedConnectionInter
         }
     ): void {
         if (options && options.after !== undefined) {
-            const idx = this.plugins.findIndex(plugin => plugin.name === options.after);
+            const idx = this.plugins.findIndex(p => p.name === options.after);
             this.plugins.splice(idx + 1, 0, plugin);
         } else if (options && options.before) {
-            const idx = this.plugins.findIndex(plugin => plugin.name === options.before);
+            const idx = this.plugins.findIndex(p => p.name === options.before);
             this.plugins.splice(idx, 0, plugin);
         } else {
             this.plugins.push(plugin);
@@ -170,7 +172,7 @@ export default class Connection implements IConnection, EncryptedConnectionInter
     }
 
     public plugin(name: string): ConnectionPlugin {
-        const plugin = this.plugins.find(plugin => plugin.name === name);
+        const plugin = this.plugins.find(p => p.name === name);
         if (plugin === undefined) {
             throw new Error(`Requested plugin '${name}' was not added.`);
         }
@@ -359,11 +361,11 @@ export default class Connection implements IConnection, EncryptedConnectionInter
     }
 
     private debugForPlugin(
-        pluginName: string,
-        functionName: string,
-        event: ConnectionIncomingEvent | ConnectionOutgoingEvent
+        _pluginName: string,
+        _functionName: string,
+        _event: ConnectionIncomingEvent | ConnectionOutgoingEvent
     ) {
-        //MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
+        // MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
     }
 
     private formatForPlugin(
@@ -375,7 +377,7 @@ export default class Connection implements IConnection, EncryptedConnectionInter
             12,
             ' '
         )} ${functionName.padEnd(24, ' ')} ${event.type} ${
-            event.type === 'message' ? typeof event.data + ' ' + event.data.length : ''
+            event.type === 'message' ? typeof event.data + ' ' + String(event.data.length) : ''
         }`;
     }
 }

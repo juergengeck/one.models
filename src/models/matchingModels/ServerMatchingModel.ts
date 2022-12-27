@@ -1,5 +1,4 @@
 import MatchingModel from './MatchingModel';
-import type InstancesModel from '../InstancesModel';
 import type ChannelManager from '../ChannelManager';
 import type AccessModel from '../AccessModel';
 import type ConnectionsModel from '../ConnectionsModel';
@@ -35,12 +34,11 @@ export default class ServerMatchingModel extends MatchingModel {
     private notifiedUsersObj: VersionedObjectResult<NotifiedUsers>;
 
     constructor(
-        instancesModel: InstancesModel,
         channelManager: ChannelManager,
         connectionsModel: ConnectionsModel,
         accessModel: AccessModel
     ) {
-        super(instancesModel, channelManager);
+        super(channelManager);
         this.connectionsModel = connectionsModel;
         this.accessModel = accessModel;
         this.notifiedUsersObj = {} as VersionedObjectResult<NotifiedUsers>;
@@ -60,7 +58,7 @@ export default class ServerMatchingModel extends MatchingModel {
     async init() {
         this.state.assertCurrentState('Uninitialised');
 
-        await this.updateInstanceInfo();
+        await this.updateMe();
         await this.initialiseMaps();
         await this.initNotifiedUsersList();
 
@@ -77,10 +75,7 @@ export default class ServerMatchingModel extends MatchingModel {
 
         await this.accessModel.onGroupsUpdated(async () => {
             const accessGroup = await this.accessModel.getAccessGroupByName(this.accessGroupName);
-            const personsToGiveAccessTo = this.anonInstanceInfo
-                ? [...accessGroup.obj.person, this.anonInstanceInfo.personId]
-                : accessGroup.obj.person;
-
+            const personsToGiveAccessTo = [...accessGroup.obj.person, this.me];
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
         });
 

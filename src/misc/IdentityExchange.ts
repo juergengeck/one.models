@@ -1,14 +1,9 @@
 /**
  * This file implements helper functions to generate and import / export identities.
  */
-import tweetnacl from 'tweetnacl';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Person, Plan} from '@refinio/one.core/lib/recipes';
-import {
-    getObjectByIdHash,
-    getObjectByIdObj,
-    storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 
@@ -19,10 +14,21 @@ import ProfileModel from '../models/Leute/ProfileModel';
 import type {InstanceOptions} from '@refinio/one.core/lib/instance';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
+    hexToUint8ArrayWithCheck,
     isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {isHash} from '@refinio/one.core/lib/util/type-checks';
+import {
+    createKeyPair,
+    ensurePublicKey,
+    ensureSecretKey
+} from '@refinio/one.core/lib/crypto/encryption';
+import {
+    createSignKeyPair,
+    ensurePublicSignKey,
+    ensureSecretSignKey
+} from '@refinio/one.core/lib/crypto/sign';
 
 // ######## Identity types ########
 
@@ -36,6 +42,7 @@ export type Identity = {
     personKeyPublic: HexString;
     personSignKeyPublic: HexString;
     instanceKeyPublic: HexString;
+    instanceSignKeyPublic: HexString;
     commServerUrl: string;
 };
 
@@ -54,6 +61,8 @@ export type IdentityWithSecrets = {
     personSignKeyPublic: HexString;
     instanceKeySecret: HexString;
     instanceKeyPublic: HexString;
+    instanceSignKeySecret: HexString;
+    instanceSignKeyPublic: HexString;
     commServerUrl: string;
 };
 
@@ -71,6 +80,7 @@ export function isIdentity(arg: any): arg is Identity {
         isHexString(arg.personKeyPublic) &&
         isHexString(arg.personSignKeyPublic) &&
         isHexString(arg.instanceKeyPublic) &&
+        isHexString(arg.instanceSignKeyPublic) &&
         typeof arg.commServerUrl === 'string'
     );
 }
@@ -92,6 +102,8 @@ export function isIdentityWithSecrets(arg: any): arg is IdentityWithSecrets {
         isHexString(arg.personSignKeyPublic) &&
         isHexString(arg.instanceKeySecret) &&
         isHexString(arg.instanceKeyPublic) &&
+        isHexString(arg.instanceSignKeySecret) &&
+        isHexString(arg.instanceSignKeyPublic) &&
         typeof arg.commServerUrl === 'string'
     );
 }
@@ -120,9 +132,10 @@ export async function generateNewIdentity(
     if (instanceName === undefined) {
         instanceName = await createRandomString();
     }
-    const personKeyPair = tweetnacl.box.keyPair();
-    const personSignKeyPair = tweetnacl.sign.keyPair();
-    const instanceKeyPair = tweetnacl.box.keyPair();
+    const personKeyPair = createKeyPair();
+    const personSignKeyPair = createSignKeyPair();
+    const instanceKeyPair = createKeyPair();
+    const instanceSignKeyPair = createSignKeyPair();
 
     const identityWithSecrets: IdentityWithSecrets = {
         type: 'secret',
@@ -134,6 +147,8 @@ export async function generateNewIdentity(
         personSignKeyPublic: uint8arrayToHexString(personSignKeyPair.publicKey),
         instanceKeySecret: uint8arrayToHexString(instanceKeyPair.secretKey),
         instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
+        instanceSignKeySecret: uint8arrayToHexString(instanceSignKeyPair.secretKey),
+        instanceSignKeyPublic: uint8arrayToHexString(instanceSignKeyPair.publicKey),
         commServerUrl
     };
 
@@ -144,6 +159,7 @@ export async function generateNewIdentity(
         personKeyPublic: uint8arrayToHexString(personKeyPair.publicKey),
         personSignKeyPublic: uint8arrayToHexString(personSignKeyPair.publicKey),
         instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
+        instanceSignKeyPublic: uint8arrayToHexString(instanceSignKeyPair.publicKey),
         commServerUrl
     };
 
@@ -164,23 +180,12 @@ export async function convertIdentityToOneInstanceEndpoint(
     identity: Identity
 ): Promise<UnversionedObjectResult<OneInstanceEndpoint>> {
     // Step 1: Create person object if it does not exist, yet
-    let personHash: SHA256IdHash<Person>;
-
-    try {
-        personHash = (
-            await getObjectByIdObj({
-                $type$: 'Person',
-                email: identity.personEmail
-            })
-        ).idHash;
-    } catch (_ignore) {
-        personHash = (
-            await storeVersionedObject({
-                $type$: 'Person',
-                email: identity.personEmail
-            })
-        ).idHash;
-    }
+    let personHash = (
+        await storeIdObject({
+            $type$: 'Person',
+            email: identity.personEmail
+        })
+    ).idHash;
 
     // Step 2: Create person keys object
     const personKeysHash = (
@@ -193,37 +198,21 @@ export async function convertIdentityToOneInstanceEndpoint(
     ).hash;
 
     // Step 3: Create person object if it does not exist, yet
-    let instanceHash: SHA256IdHash<Instance>;
-    try {
-        instanceHash = (
-            await getObjectByIdObj({
-                $type$: 'Instance',
-                name: identity.instanceName,
-                owner: personHash,
-                recipe: [],
-                module: [],
-                enabledReverseMapTypes: new Map()
-            })
-        ).idHash;
-    } catch (_ignore) {
-        instanceHash = (
-            await storeVersionedObject({
-                $type$: 'Instance',
-                name: identity.instanceName,
-                owner: personHash,
-                recipe: [],
-                module: [],
-                enabledReverseMapTypes: new Map()
-            })
-        ).idHash;
-    }
+    let instanceHash = (
+        await storeIdObject({
+            $type$: 'Instance',
+            name: identity.instanceName,
+            owner: personHash
+        })
+    ).idHash;
 
     // Step 4: Create instance keys object
     const instanceKeysHash = (
         await storeUnversionedObject({
             $type$: 'Keys',
             owner: instanceHash,
-            publicKey: identity.instanceKeyPublic
+            publicKey: identity.instanceKeyPublic,
+            publicSignKey: identity.instanceSignKeyPublic
         })
     ).hash;
 
@@ -256,9 +245,9 @@ export async function convertOneInstanceEndpointToIdentity(
     if (oneInstanceEndpoint.personKeys === undefined) {
         throw new Error('Person keys must not be undefined when exporting a OneInstanceEndpoint.');
     }
-    const person = await getObjectByIdHash(oneInstanceEndpoint.personId);
+    const person = await getIdObject(oneInstanceEndpoint.personId);
     const personKeys = await getObject(oneInstanceEndpoint.personKeys);
-    const instance = await getObjectByIdHash(oneInstanceEndpoint.instanceId);
+    const instance = await getIdObject(oneInstanceEndpoint.instanceId);
     const instanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
     if (personKeys.publicSignKey === undefined) {
         throw new Error('Person needs a sign key when exporting a OneInstanceEndpoint.');
@@ -266,11 +255,12 @@ export async function convertOneInstanceEndpointToIdentity(
 
     return {
         type: 'public',
-        personEmail: person.obj.email,
-        instanceName: instance.obj.name,
+        personEmail: person.email,
+        instanceName: instance.name,
         personKeyPublic: personKeys.publicKey,
         personSignKeyPublic: personKeys.publicSignKey,
         instanceKeyPublic: instanceKeys.publicKey,
+        instanceSignKeyPublic: instanceKeys.publicSignKey,
         commServerUrl: oneInstanceEndpoint.url
     };
 }
@@ -320,12 +310,30 @@ export function convertIdentityToInstanceOptions(
         return {
             name: identity.instanceName,
             email: identity.personEmail,
-            publicEncryptionKey: identity.personKeyPublic,
-            secretEncryptionKey: identity.personKeySecret,
-            publicSignKey: identity.personSignKeyPublic,
-            secretSignKey: identity.personSignKeySecret,
-            publicInstanceEncryptionKey: identity.instanceKeyPublic,
-            secretInstanceEncryptionKey: identity.instanceKeySecret,
+            personEncryptionKeyPair: {
+                publicKey: ensurePublicKey(hexToUint8ArrayWithCheck(identity.personKeyPublic)),
+                secretKey: ensureSecretKey(hexToUint8ArrayWithCheck(identity.personKeySecret))
+            },
+            personSignKeyPair: {
+                publicKey: ensurePublicSignKey(
+                    hexToUint8ArrayWithCheck(identity.personSignKeyPublic)
+                ),
+                secretKey: ensureSecretSignKey(
+                    hexToUint8ArrayWithCheck(identity.personSignKeySecret)
+                )
+            },
+            instanceEncryptionKeyPair: {
+                publicKey: ensurePublicKey(hexToUint8ArrayWithCheck(identity.instanceKeyPublic)),
+                secretKey: ensureSecretKey(hexToUint8ArrayWithCheck(identity.instanceKeySecret))
+            },
+            instanceSignKeyPair: {
+                publicKey: ensurePublicSignKey(
+                    hexToUint8ArrayWithCheck(identity.instanceSignKeyPublic)
+                ),
+                secretKey: ensureSecretSignKey(
+                    hexToUint8ArrayWithCheck(identity.instanceSignKeySecret)
+                )
+            },
             secret
         };
     }

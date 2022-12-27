@@ -1,19 +1,13 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import MetaObjectMapRecipes from '../lib/recipes/MetaObjectMapRecipes';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import {useExperimentalReverseMaps} from '../lib/misc/MetaObjectMap';
 import {sign, signedBy, isSignedBy} from '../lib/misc/Signature';
 import {createTestIdentity} from './utils/createTestIdentity';
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
 import {signForSomeoneElse} from './utils/signForSomeoneElse';
 
-// If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
-const experimentalReverseMaps = false;
-
 describe('Signature test', () => {
     beforeEach(async () => {
-        useExperimentalReverseMaps(experimentalReverseMaps);
         return await initInstance({
             name: 'testname',
             email: 'test@test.com',
@@ -21,10 +15,8 @@ describe('Signature test', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [...SignatureRecipes, ...MetaObjectMapRecipes, ...DummyObjectRecipes],
-            initiallyEnabledReverseMapTypes: experimentalReverseMaps
-                ? undefined
-                : new Map([...SignatureReverseMaps])
+            initialRecipes: [...SignatureRecipes, ...DummyObjectRecipes],
+            initiallyEnabledReverseMapTypes: new Map([...SignatureReverseMaps])
         });
     });
 

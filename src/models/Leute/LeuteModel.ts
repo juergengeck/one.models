@@ -8,20 +8,14 @@ import {
     UnversionedObjectResult,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
-import {
-    getObjectByIdHash,
-    storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import SomeoneModel from './SomeoneModel';
 import type {Someone} from '../../recipes/Leute/Someone';
 import type {Leute} from '../../recipes/Leute/Leute';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import type InstancesModel from '../InstancesModel';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import type {
-    Keys,
     OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
@@ -29,7 +23,6 @@ import type {
     Person
 } from '@refinio/one.core/lib/recipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import ProfileModel from './ProfileModel';
 import type {
@@ -44,6 +37,18 @@ import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescript
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import GroupModel from './GroupModel';
 import {Model} from '../Model';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
+import {createPerson, createPersonWithDefaultKeys} from '../../misc/person';
+import {
+    createInstanceWithDefaultKeys,
+    getInstancesOfPerson,
+    getLocalInstanceOfPerson
+} from '../../misc/instance';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
 
 /**
  * This class manages people - to be precise: their identities including your own.
@@ -89,10 +94,11 @@ export default class LeuteModel extends Model {
     public onNewOneInstanceEndpointEvent = new OEvent<
         (communicationEndpoints: OneInstanceEndpoint) => void
     >();
+    public beforeMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public afterMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
 
     public static readonly EVERYONE_GROUP_NAME = 'everyone';
 
-    private readonly instancesModel: InstancesModel;
     private readonly commserverUrl: string;
 
     private pLoadedVersion?: SHA256Hash<Leute>;
@@ -103,19 +109,13 @@ export default class LeuteModel extends Model {
     /**
      * Constructor
      *
-     * @param instancesModel - The instances model used to create new local instances for a new 'me' identity
      * @param commserverUrl - when creating the default oneInstanceEndpoint this url is used
      * @param createEveryoneGroup -  If true then init() should create an everyone group and add
      * listeners for new 'Person' objects and add them if they are not in the everyone group.
      * (default: false)
      */
-    constructor(
-        instancesModel: InstancesModel,
-        commserverUrl: string,
-        createEveryoneGroup: boolean = false
-    ) {
+    constructor(commserverUrl: string, createEveryoneGroup: boolean = false) {
         super();
-        this.instancesModel = instancesModel;
         this.commserverUrl = commserverUrl;
         this.createEveryoneGroup = createEveryoneGroup;
     }
@@ -147,8 +147,8 @@ export default class LeuteModel extends Model {
             personId,
             url: this.commserverUrl,
             instanceId: instanceId,
-            instanceKeys: await this.instancesModel.localInstanceKeysHash(instanceId),
-            personKeys: await LeuteModel.personKeysHashForPerson(personId)
+            instanceKeys: await getDefaultKeys(instanceId),
+            personKeys: await getDefaultKeys(personId)
         };
 
         // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
@@ -178,6 +178,10 @@ export default class LeuteModel extends Model {
 
         if (this.createEveryoneGroup) {
             const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
+            if (group.persons.find(person => person === personId) === undefined) {
+                group.persons.push(personId);
+                await group.saveAndLoad();
+            }
             disconnectFns.push(
                 onVersionedObj.addListener(this.addPersonToEveryoneGroup.bind(this))
             );
@@ -303,22 +307,75 @@ export default class LeuteModel extends Model {
     /**
      * Create a new identity and a 'default' profile for myself.
      */
-    public async createProfileAndIdentityForMe(): Promise<void> {
+    public async createProfileAndIdentityForMe(): Promise<ProfileModel> {
         this.state.assertCurrentState('Initialised');
 
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
 
-        const newPersonId = await this.createIdentityWithInstanceAndKeys();
+        const me = await this.me();
+        const newPersonId = await LeuteModel.createIdentityWithInstanceAndKeys();
+        const myIdentity = await me.mainIdentity();
+        // add identity first so that the profile creation event has it
+        await me.addIdentity(newPersonId);
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
-            newPersonId,
+            myIdentity,
             'default'
         );
-        const me = await this.me();
-        await me.addIdentity(newPersonId);
         await me.addProfile(newProfile.idHash);
+        return newProfile;
+    }
+
+    /**
+     * Create a new identity and a 'default' profile for someone.
+     */
+    public async createProfileAndIdentityForSomeone(
+        someoneId: SHA256IdHash<Someone>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+
+        if (me.idHash === someone.idHash) {
+            return this.createProfileAndIdentityForMe();
+        }
+
+        const newPersonId = await LeuteModel.createIdentity();
+        const myIdentity = await me.mainIdentity();
+        // add identity first so that the profile creation event has it
+        await someone.addIdentity(newPersonId);
+        return someone.createProfile('default', newPersonId, myIdentity);
+    }
+
+    /**
+     * Create a new profile for someone.
+     */
+    public async createProfileForSomeone(
+        someoneId: SHA256IdHash<Someone>,
+        personId: SHA256IdHash<Person>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
+        // check if identity is already managed
+        if (!someone.identities().find(i => i === personId)) {
+            // add identity first so that the profile creation event has it
+            await someone.addIdentity(personId);
+        }
+        return someone.createProfile(await createRandomString(32), personId, myIdentity);
     }
 
     /**
@@ -331,21 +388,21 @@ export default class LeuteModel extends Model {
             throw new Error('Leute model is not initialized');
         }
 
-        const myIdentity = await (await this.me()).mainIdentity();
         const newPersonId = await LeuteModel.createIdentity();
+        const me = await this.me();
+        const myIdentity = await me.mainIdentity();
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
             myIdentity,
             'default'
         );
-        const newSomeone = await SomeoneModel.constructWithNewSomeone(
+        const someoneNew = await SomeoneModel.constructWithNewSomeone(
             await createRandomString(32),
             newProfile.idHash
         );
+        await this.addSomeoneElse(someoneNew.idHash);
 
-        await this.addSomeoneElse(newSomeone.idHash);
-
-        return newSomeone.idHash;
+        return someoneNew.idHash;
     }
 
     // ######## Group management ########
@@ -416,7 +473,25 @@ export default class LeuteModel extends Model {
     }
 
     /**
-     * Add a profile to a someone object already managing this persons profile.
+     * Change the main identity by setting a new mainProfile.
+     *
+     * @param newIdentity
+     */
+    public async changeMyMainIdentity(newIdentity: SHA256IdHash<Person>) {
+        const mySomeone = await this.me();
+        const oldIdentity = await mySomeone.mainIdentity();
+        this.beforeMainIdSwitch.emit(oldIdentity);
+        await mySomeone.setMainIdentity(newIdentity);
+        this.afterMainIdSwitch.emit(newIdentity);
+    }
+
+    public async myMainIdentity(): Promise<SHA256IdHash<Person>> {
+        const mySomeone = await this.me();
+        return mySomeone.mainIdentity();
+    }
+
+    /**
+     * Add a profile to a someone object already managing this persons identity.
      *
      * If no such someone object exists a new one is created.
      */
@@ -425,13 +500,13 @@ export default class LeuteModel extends Model {
 
         const profileObj = await getObjectByIdHash(profile);
         const others = await this.others();
+        const me = await this.me();
 
         const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
         if (someone === undefined) {
             // TODO: it might happen that it's in the process of creating the someone, but the
             //  profile was saved first. Maybe a lock is a better solution?
             // Current workaround: ignore the profiles written by the owner of this instance
-            const me = await this.me();
             if (!me.identities().includes(profileObj.obj.owner)) {
                 const someoneNew = await SomeoneModel.constructWithNewSomeone(
                     await createRandomString(32),
@@ -441,7 +516,18 @@ export default class LeuteModel extends Model {
                 this.onProfileUpdate.emit(profileObj.obj);
             }
         } else {
+            // on sync it could happen that the first profile
+            // is not the default one, so when the default
+            // profile is synced, we should correct it.
+            if (
+                profileObj.obj.profileId === 'default' &&
+                !me.identities().includes(profileObj.obj.owner)
+            ) {
+                await someone.setMainProfileIfNotDefault(profile);
+            }
+
             await someone.addProfile(profile);
+
             this.onProfileUpdate.emit(profileObj.obj);
         }
     }
@@ -462,6 +548,23 @@ export default class LeuteModel extends Model {
     }
 
     /**
+     * Get all instance endpoints for person.
+     *
+     * @param personId
+     */
+    public async findAllOneInstanceEndpointsForPerson(
+        personId: SHA256IdHash<Person>
+    ): Promise<OneInstanceEndpoint[]> {
+        this.state.assertCurrentState('Initialised');
+
+        const someone = await this.getSomeone(personId);
+        if (someone === undefined) {
+            throw new Error('');
+        }
+        return someone.collectAllEndpointsOfType('OneInstanceEndpoint', personId);
+    }
+
+    /**
      * Get instance endpoints from all contacts.
      */
     public async findAllOneInstanceEndpointsForOthers(): Promise<OneInstanceEndpoint[]> {
@@ -475,16 +578,116 @@ export default class LeuteModel extends Model {
     }
 
     /**
-     * Return the person keys for a specific person.
-     *
-     * @param personId - the given person id
-     * @returns the list of keys
+     * Collect all remote instances of my other devices.
      */
-    public static async personKeysHashForPerson(
-        personId: SHA256IdHash<Person>
-    ): Promise<SHA256Hash<Keys>> {
-        const personKeyLink = await getAllEntries(personId, 'Keys');
-        return personKeyLink[personKeyLink.length - 1];
+    public async getInternetOfMeEndpoints(): Promise<OneInstanceEndpoint[]> {
+        const oneInstanceEndpoints: OneInstanceEndpoint[] = [];
+
+        const me = await this.me();
+
+        for (const identity of me.identities()) {
+            const instances = await getInstancesOfPerson(identity);
+            const instancesMap = new Map(
+                instances.map(instance => [instance.instanceId, instance.local])
+            );
+
+            const endpoints = await me.collectAllEndpointsOfType('OneInstanceEndpoint', identity);
+
+            // Only keep the endpoints for which we do not have a complete keypair => remote
+            oneInstanceEndpoints.push(
+                ...endpoints.filter(endpoint => {
+                    const isLocal = instancesMap.get(endpoint.instanceId);
+
+                    if (isLocal === undefined) {
+                        console.error(
+                            `Internal error: We do not have an instance object for the OneInstanceEndpoint, instanceId: ${endpoint.instanceId}`
+                        );
+                        return false;
+                    }
+
+                    return !isLocal;
+                })
+            );
+        }
+
+        return oneInstanceEndpoints;
+    }
+
+    /**
+     * Collect all remote instances of everyone else.
+     */
+    public async getInternetOfPeopleEndpoints(): Promise<OneInstanceEndpoint[]> {
+        return this.findAllOneInstanceEndpointsForOthers();
+    }
+
+    /**
+     * Collect all IoM and IoP endpoints.
+     */
+    public async getAllRemoteEndpoints(): Promise<
+        {
+            endpoint: OneInstanceEndpoint;
+            isIoM: boolean;
+        }[]
+    > {
+        const iomEndpoints = await this.getInternetOfMeEndpoints();
+        const iopEndpoints = await this.getInternetOfPeopleEndpoints();
+
+        return [
+            ...iomEndpoints.map(endpoint => ({
+                endpoint,
+                isIoM: true
+            })),
+            ...iopEndpoints.map(endpoint => ({
+                endpoint,
+                isIoM: false
+            }))
+        ];
+    }
+
+    /**
+     *  Collect all local instances that represent this device.
+     *
+     *  Note: LeuteModel is probably not the correct place for this ... but instances.ts neither
+     */
+    public async getMyLocalInstances(): Promise<LocalInstanceInfo[]> {
+        const me = await this.me();
+
+        let localInstances: LocalInstanceInfo[] = [];
+        for (const identity of me.identities()) {
+            try {
+                const instanceId = await getLocalInstanceOfPerson(identity);
+
+                localInstances.push({
+                    instanceId,
+                    cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+                    instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+                    personId: identity
+                });
+            } catch (e) {
+                console.error(`Failed to get local instance for identity ${identity}`, e);
+            }
+        }
+
+        return localInstances;
+    }
+
+    /**
+     *  Collect all local instances that represent this device.
+     *
+     *  Note: LeuteModel is probably not the correct place for this ... but instances.ts neither
+     */
+    public async getMyMainInstance(): Promise<LocalInstanceInfo> {
+        const me = await this.me();
+
+        const identity = await me.mainIdentity();
+        const instanceId = await getLocalInstanceOfPerson(identity);
+
+        return {
+            instanceId,
+            cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+            instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+            personId: identity
+        };
     }
 
     /**
@@ -508,9 +711,9 @@ export default class LeuteModel extends Model {
         });
 
         imagesWithPersonId.sort((imageWithPersonId1, imageWIthPersonId2) => {
-            return imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
+            return imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
                 ? 1
-                : imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
+                : imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
                 ? -1
                 : 0;
         });
@@ -559,9 +762,9 @@ export default class LeuteModel extends Model {
         });
 
         statusesWithPersonId.sort((status1, status2) => {
-            return status1.status.timestamp > status2.status.timestamp
+            return status1.status.timestamp < status2.status.timestamp
                 ? 1
-                : status1.status.timestamp < status2.status.timestamp
+                : status1.status.timestamp > status2.status.timestamp
                 ? -1
                 : 0;
         });
@@ -596,7 +799,7 @@ export default class LeuteModel extends Model {
      * @param name - If specified use this name, otherwise create a group with a random id.
      * @returns the created group or the existing one if it already existed.
      */
-    public async createGroupInternal(name?: string): Promise<GroupModel> {
+    private async createGroupInternal(name?: string): Promise<GroupModel> {
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
@@ -612,29 +815,17 @@ export default class LeuteModel extends Model {
     /**
      * Create an identity and an instance and corresponding keys
      */
-    private async createIdentityWithInstanceAndKeys(): Promise<SHA256IdHash<Person>> {
-        const newPersonEmail = await createRandomString(32);
-
-        // Note that createLocalInstanceByEMail also creates the person and keys if they do not
-        // exist. From the architecture point of view this is bullshit, so we should reconcile
-        // it. But this also requires some decent key management ... which comes later
-        await this.instancesModel.createLocalInstanceByEMail(newPersonEmail);
-        return await calculateIdHashOfObj({
-            $type$: 'Person',
-            email: newPersonEmail
-        });
+    private static async createIdentityWithInstanceAndKeys(): Promise<SHA256IdHash<Person>> {
+        const personResult = await createPersonWithDefaultKeys();
+        const instanceResult = createInstanceWithDefaultKeys(personResult.personId);
+        return personResult.personId;
     }
 
     /**
      * Create an identity without any keys instance objects, etc.
      */
     private static async createIdentity(): Promise<SHA256IdHash<Person>> {
-        const newPersonEmail = await createRandomString(32);
-        const result = await storeVersionedObject({
-            $type$: 'Person',
-            email: newPersonEmail
-        });
-        return result.idHash;
+        return createPerson();
     }
 
     // ######## Hooks for one.core ########

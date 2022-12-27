@@ -6,14 +6,7 @@ import type {
 } from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
-declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
-        AccessUnversionedObjectCertificate: AccessUnversionedObjectCertificate;
-        AccessVersionedObjectCertificate: AccessVersionedObjectCertificate;
-        RelationCertificate: RelationCertificate;
-        AffirmationCertificate: AffirmationCertificate;
-    }
-}
+// #### Typescript interfaces  & Recipes ####
 
 /**
  * TS Interface for AccessUnversionedObjectCertificateRecipe
@@ -148,9 +141,23 @@ const CertificateRecipes: Recipe[] = [
     RelationCertificateRecipe,
     AffirmationCertificateRecipe
 ];
+
+// #### Reverse maps ####
+
 export const CertificateReverseMaps: [OneObjectTypeNames, Set<string>][] = [
     ['RelationCertificate', new Set(['person1', 'person2'])],
     ['AffirmationCertificate', new Set(['data'])]
 ];
+
+// #### one.core interfaces ####
+
+declare module '@OneObjectInterfaces' {
+    export interface OneUnversionedObjectInterfaces {
+        AccessUnversionedObjectCertificate: AccessUnversionedObjectCertificate;
+        AccessVersionedObjectCertificate: AccessVersionedObjectCertificate;
+        RelationCertificate: RelationCertificate;
+        AffirmationCertificate: AffirmationCertificate;
+    }
+}
 
 export default CertificateRecipes;

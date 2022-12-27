@@ -2,7 +2,7 @@ import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt';
 import tweetnacl from 'tweetnacl';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
+import {getIdObject} from '@refinio/one.core/lib/storage';
 import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -267,8 +267,8 @@ export default class RecoveryModel extends Model {
         const personPrivateKey = personPrivateKeys.privateKey;
         const personPrivateSignKey = personPrivateKeys.privateSignKey;
         // extract the main person email
-        const person = await getObjectByIdHash(privatePersonInformation.personId);
-        const personEmail = person.obj.email;
+        const person = await getIdObject(privatePersonInformation.personId);
+        const personEmail = person.email;
 
         // create the person information object which will be encrypted and added in the url
         return {

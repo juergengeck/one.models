@@ -6,6 +6,7 @@ import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
 export interface IoMRequest {
     $type$: 'IoMRequest';
     timestamp: number;
+    initiator: SHA256IdHash<Person>;
     participants: Set<SHA256IdHash<Person>>;
 }
 
@@ -18,6 +19,10 @@ export const IoMRequestRecipe: Recipe = {
         {
             itemprop: 'timestamp',
             itemtype: {type: 'number'}
+        },
+        {
+            itemprop: 'initiator',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
             itemprop: 'participants',

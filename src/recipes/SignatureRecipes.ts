@@ -5,11 +5,7 @@ import {
     HexStringRegex
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
-declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
-        Signature: Signature;
-    }
-}
+// #### Typescript interfaces ####
 
 /**
  * TS interface for SignatureRecipe.
@@ -20,6 +16,8 @@ export interface Signature {
     data: SHA256Hash;
     signature: HexString;
 }
+
+// #### Recipes ####
 
 /**
  * Represents a digital signature.
@@ -54,9 +52,18 @@ export const SignatureRecipe: Recipe = {
     ]
 };
 
-const SignatureRecipes: Recipe[] = [SignatureRecipe];
+// #### Reverse maps ####
+
 export const SignatureReverseMaps: [OneObjectTypeNames, Set<string>][] = [
     ['Signature', new Set(['issuer', 'data'])]
 ];
 
-export default SignatureRecipes;
+// #### one.core interfaces ####
+
+declare module '@OneObjectInterfaces' {
+    export interface OneUnversionedObjectInterfaces {
+        Signature: Signature;
+    }
+}
+
+export default [SignatureRecipe];

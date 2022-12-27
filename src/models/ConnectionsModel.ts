@@ -1,31 +1,25 @@
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import CommunicationModule from '../misc/CommunicationModule';
-import type InstancesModel from './InstancesModel';
-import type {LocalInstanceInfo} from './InstancesModel';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {
     createSingleObjectThroughPurePlan,
+    getIdObject,
     getObject,
-    getObjectByIdHash,
-    getObjectWithType,
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
-import CommunicationInitiationProtocol, {
-    isPeerMessage
-} from '../misc/CommunicationInitiationProtocol';
+import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
+import {isPeerMessage} from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {OEvent} from '../misc/OEvent';
 import {countEnumerableProperties, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
-    HexString,
     hexToUint8Array,
     isHexString,
     uint8arrayToHexString
@@ -37,10 +31,15 @@ import {
     convertOneInstanceEndpointToIdentity
 } from '../misc/IdentityExchange';
 import {createChum} from '@refinio/one.core/lib/chum-sync';
-import {ensurePublicKey, PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {personCryptoApi} from '@refinio/one.core/lib/keychain/keychain';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -221,7 +220,6 @@ class ConnectionsModel extends Model {
     >();
 
     // Models
-    private readonly instancesModel: InstancesModel;
     private communicationModule: CommunicationModule;
     private readonly leuteModel: LeuteModel;
 
@@ -231,15 +229,9 @@ class ConnectionsModel extends Model {
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
 
-    // Internal maps and lists (precomputed on init)
-    private mainInstanceInfo: LocalInstanceInfo | null; // My person info
-
     // Other stuff
     private oneTimeAuthenticationTokens: Map<string, AuthenticationTokenInfo>;
     private pkOneTimeAuthenticationTokens: Map<string, PkAuthenticationTokenInfo>;
-
-    // TODO: try to remove the password dependency
-    private password: string;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -274,14 +266,9 @@ class ConnectionsModel extends Model {
      * Construct a new instance
      *
      * @param leuteModel
-     * @param instancesModel
      * @param config
      */
-    constructor(
-        leuteModel: LeuteModel,
-        instancesModel: InstancesModel,
-        config: Partial<ConnectionsModelConfiguration>
-    ) {
+    constructor(leuteModel: LeuteModel, config: Partial<ConnectionsModelConfiguration>) {
         super();
         // Build configuration object by using default values
         this.config = {
@@ -310,12 +297,10 @@ class ConnectionsModel extends Model {
         };
 
         // Setup / init modules
-        this.instancesModel = instancesModel;
         this.leuteModel = leuteModel;
         this.communicationModule = new CommunicationModule(
             this.config.commServerUrl,
             leuteModel,
-            instancesModel,
             this.config.establishOutgoingConnections
         );
         this.communicationModule.onKnownConnection(this.onKnownConnection.bind(this));
@@ -329,11 +314,8 @@ class ConnectionsModel extends Model {
 
         // Changed by init
         this.initialized = false;
-        this.mainInstanceInfo = null;
         this.oneTimeAuthenticationTokens = new Map<string, AuthenticationTokenInfo>();
         this.pkOneTimeAuthenticationTokens = new Map<string, PkAuthenticationTokenInfo>();
-
-        this.password = '';
     }
 
     /**
@@ -344,12 +326,7 @@ class ConnectionsModel extends Model {
 
         this.initialized = true;
 
-        await this.updateInstanceInfos();
         await this.communicationModule.init();
-
-        if (!this.mainInstanceInfo) {
-            throw new Error('Programming error: mainInstanceInfo is not initialized');
-        }
 
         this.state.triggerEvent('init');
     }
@@ -373,7 +350,6 @@ class ConnectionsModel extends Model {
         }
         this.pkOneTimeAuthenticationTokens.clear();
 
-        this.mainInstanceInfo = null;
         this.state.triggerEvent('shutdown');
     }
 
@@ -385,19 +361,6 @@ class ConnectionsModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         return this.communicationModule.connectionsInfo();
-    }
-
-    /**
-     * The password needs to be memorised for personal cloud connections authentication.
-     *
-     * TODO: remove me and ask the user instead. Long term storage is a bad idea!
-     *
-     * @param password
-     */
-    public setPassword(password: string) {
-        this.state.assertCurrentState('Initialised');
-
-        this.password = password;
     }
 
     /**
@@ -416,14 +379,13 @@ class ConnectionsModel extends Model {
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
+
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         const authenticationToken = token ? token : await createRandomString();
 
         if (takeOver) {
-            const myEmail = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj.email;
+            const myEmail = (await getIdObject(mainInstanceInfo.personId)).email;
             const salt = tweetnacl.randomBytes(64);
 
             // Set up the expiration of the token
@@ -435,7 +397,7 @@ class ConnectionsModel extends Model {
             // Add the token to the list of valid tokens
             this.pkOneTimeAuthenticationTokens.set(authenticationToken, {
                 token: authenticationToken,
-                localPersonId: this.mainInstanceInfo.personId,
+                localPersonId: mainInstanceInfo.personId,
                 salt: salt,
                 expirationTimeoutHandle
             });
@@ -443,7 +405,9 @@ class ConnectionsModel extends Model {
             // Build and return the pairing information that is transferred to the other instance e.g. by qr code
             return {
                 authenticationTag: authenticationToken,
-                publicKeyLocal: this.mainInstanceInfo.instanceKeys.publicKey,
+                publicKeyLocal: uint8arrayToHexString(
+                    mainInstanceInfo.instanceKeys.publicEncryptionKey
+                ),
                 url: this.config.commServerUrl,
                 takeOver: true,
                 takeOverDetails: {
@@ -461,14 +425,16 @@ class ConnectionsModel extends Model {
             // Add the token to the list of valid tokens
             this.oneTimeAuthenticationTokens.set(authenticationToken, {
                 token: authenticationToken,
-                localPersonId: this.mainInstanceInfo.personId,
+                localPersonId: mainInstanceInfo.personId,
                 expirationTimeoutHandle
             });
 
             // Build and return the pairing information that is transferred to the other instance e.g. by qr code
             return {
                 authenticationTag: authenticationToken,
-                publicKeyLocal: this.mainInstanceInfo.instanceKeys.publicKey,
+                publicKeyLocal: uint8arrayToHexString(
+                    mainInstanceInfo.instanceKeys.publicEncryptionKey
+                ),
                 url: this.config.commServerUrl,
                 takeOver: false
             };
@@ -494,14 +460,11 @@ class ConnectionsModel extends Model {
         if (!remoteEndpoint) {
             throw new Error('Could not find pairing information.');
         }
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
         if (!remoteEndpoint.personKeys) {
             throw new Error('Endpoint does not have a person key.');
         }
 
-        const mainInstanceInfo = this.mainInstanceInfo;
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
         const remoteInstanceKey = ensurePublicKey(
             hexToUint8Array((await getObject(remoteEndpoint.instanceKeys)).publicKey)
         );
@@ -509,7 +472,7 @@ class ConnectionsModel extends Model {
         // Connect to target
         const connInfo = await connectWithEncryption(
             remoteEndpoint.url,
-            hexToUint8Array(mainInstanceInfo.instanceKeys.publicKey),
+            mainInstanceInfo.instanceKeys.publicEncryptionKey,
             remoteInstanceKey,
             text => {
                 return mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(text, remoteInstanceKey);
@@ -557,13 +520,9 @@ class ConnectionsModel extends Model {
         if (!this.initialized) {
             throw new Error('Module is not initialized!');
         }
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
 
-        const localPublicInstanceKey = ensurePublicKey(
-            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey)
-        );
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
+        const localPublicInstanceKey = mainInstanceInfo.instanceKeys.publicEncryptionKey;
         const remotePublicInstanceKey = ensurePublicKey(
             hexToUint8Array(pairingInformation.publicKeyLocal)
         );
@@ -579,21 +538,21 @@ class ConnectionsModel extends Model {
             const connInfo = await connectWithEncryption(
                 this.config.commServerUrl,
                 localPublicInstanceKey,
-                hexToUint8Array(pairingInformation.publicKeyLocal),
+                remotePublicInstanceKey,
                 text => {
-                    if (!this.mainInstanceInfo) {
+                    if (!mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
+                    return mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
                         text,
                         remotePublicInstanceKey
                     );
                 },
                 cypherText => {
-                    if (!this.mainInstanceInfo) {
+                    if (!mainInstanceInfo) {
                         throw new Error('mainInstanceInfo not initialized.');
                     }
-                    return this.mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
+                    return mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
                         cypherText,
                         remotePublicInstanceKey
                     );
@@ -621,7 +580,7 @@ class ConnectionsModel extends Model {
                     connInfo.connection,
                     localPublicInstanceKey,
                     remotePublicInstanceKey,
-                    this.mainInstanceInfo.personId,
+                    mainInstanceInfo.personId,
                     pairingInformation.authenticationTag
                 );
             } catch (e) {
@@ -641,13 +600,11 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Load the remote instance keys
-        let localInstanceKeys = this.mainInstanceInfo.instanceKeys;
-        let remoteInstanceKeys: Keys;
+        const localPublicInstanceKey = mainInstanceInfo.instanceKeys.publicEncryptionKey;
+        let remotePublicInstanceKey: PublicKey;
         {
             const remoteSomeone = await this.leuteModel.getSomeone(remotePersonId);
             if (remoteSomeone === undefined) {
@@ -659,15 +616,9 @@ class ConnectionsModel extends Model {
                 throw new Error('No endpoint exists for the specified person');
             }
 
-            remoteInstanceKeys = await getObject(instanceEndpoints[0].instanceKeys);
+            remotePublicInstanceKey = (await getPublicKeys(instanceEndpoints[0].instanceKeys))
+                .publicEncryptionKey;
         }
-
-        const localPublicInstanceKey = ensurePublicKey(
-            hexToUint8Array(localInstanceKeys.publicKey)
-        );
-        const remotePublicInstanceKey = ensurePublicKey(
-            hexToUint8Array(remoteInstanceKeys.publicKey)
-        );
 
         // Connect to target
         const connInfo = await connectWithEncryption(
@@ -675,19 +626,19 @@ class ConnectionsModel extends Model {
             localPublicInstanceKey,
             remotePublicInstanceKey,
             text => {
-                if (!this.mainInstanceInfo) {
+                if (!mainInstanceInfo) {
                     throw new Error('mainInstanceInfo not initialized.');
                 }
-                return this.mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
+                return mainInstanceInfo.cryptoApi.encryptAndEmbedNonce(
                     text,
                     remotePublicInstanceKey
                 );
             },
             cypherText => {
-                if (!this.mainInstanceInfo) {
+                if (!mainInstanceInfo) {
                     throw new Error('mainInstanceInfo not initialized.');
                 }
-                return this.mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
+                return mainInstanceInfo.cryptoApi.decryptWithEmbeddedNonce(
                     cypherText,
                     remotePublicInstanceKey
                 );
@@ -715,7 +666,7 @@ class ConnectionsModel extends Model {
                 connInfo.connection,
                 localPublicInstanceKey,
                 remotePublicInstanceKey,
-                this.mainInstanceInfo.personId,
+                mainInstanceInfo.personId,
                 true,
                 true,
                 false,
@@ -1069,6 +1020,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             isClient,
@@ -1116,12 +1068,11 @@ class ConnectionsModel extends Model {
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
-        if (!this.mainInstanceInfo) {
-            throw new Error('Identities were not initialized correctly.');
-        }
+        // const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             false
@@ -1201,6 +1152,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             true
@@ -1266,12 +1218,11 @@ class ConnectionsModel extends Model {
         remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
-        if (!this.mainInstanceInfo) {
-            throw new Error('Identities were not initialized correctly.');
-        }
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Step 1: Exchange / authenticate person keys & person Id
         const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             false
@@ -1293,7 +1244,7 @@ class ConnectionsModel extends Model {
         }
 
         // Step 3: Exchange person objects (first send, second receive)
-        const localPersonObj = (await getObjectByIdHash(this.mainInstanceInfo.personId)).obj;
+        const localPersonObj = await getIdObject(mainInstanceInfo.personId);
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
             obj: localPersonObj
@@ -1372,6 +1323,7 @@ class ConnectionsModel extends Model {
     ): Promise<void> {
         // Step 1: Exchange / authenticate person keys & person Id
         const personInfo = await ConnectionsModel.verifyAndExchangePersonId(
+            this.leuteModel,
             conn,
             localPersonId,
             true
@@ -1392,7 +1344,7 @@ class ConnectionsModel extends Model {
             },
             remotePersonObj
         );
-        const localPersonObj = (await getObjectByIdHash(localPersonId)).obj;
+        const localPersonObj = await getIdObject(localPersonId);
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
             obj: localPersonObj
@@ -1439,12 +1391,11 @@ class ConnectionsModel extends Model {
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         try {
-            if (!this.mainInstanceInfo) {
-                throw new Error('Identities were not initialized correctly.');
-            }
+            // const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
             // Step 1: Exchange / authenticate person keys & person Id
             const remotePersonInfo = await ConnectionsModel.verifyAndExchangePersonId(
+                this.leuteModel,
                 conn,
                 localPersonId,
                 false
@@ -1519,6 +1470,7 @@ class ConnectionsModel extends Model {
         try {
             // Step 1: Exchange / authenticate person keys & person Id
             await ConnectionsModel.verifyAndExchangePersonId(
+                this.leuteModel,
                 conn,
                 localPersonId,
                 true,
@@ -1527,9 +1479,9 @@ class ConnectionsModel extends Model {
 
             // Step 2: Send the group members
             const personObjs = await Promise.all(
-                accessGroupMembers.map(person => getObjectByIdHash(person))
+                accessGroupMembers.map(person => getIdObject(person))
             );
-            const personEmails = personObjs.map(personObj => personObj.obj.email);
+            const personEmails = personObjs.map(personObj => personObj.email);
             await ConnectionsModel.sendMessage(conn, {
                 command: 'access_group_members',
                 persons: personEmails
@@ -1612,15 +1564,12 @@ class ConnectionsModel extends Model {
      * @returns
      */
     async extractExistingPersonKeys(): Promise<CommunicationInitiationProtocol.PrivatePersonInformationMessage> {
-        if (!this.mainInstanceInfo) {
-            throw new Error('mainInstanceInfo not initialized.');
-        }
-        if (!this.mainInstanceInfo) {
-            throw new Error('anonInstanceInfo not initialized.');
-        }
+        const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
 
         // Obtain the main keys
-        const mainPersonKeys = await this.extractKeysForPerson(this.mainInstanceInfo.personId);
+        const mainPersonKeys = await ConnectionsModel.extractKeysForPerson(
+            mainInstanceInfo.personId
+        );
         const mainPublicKeys = mainPersonKeys.personPublicKeys;
         const mainPrivateEncryptionKey = mainPersonKeys.personPrivateEncryptionKey;
         const mainPrivateSignKey = mainPersonKeys.personPrivateSignKey;
@@ -1632,7 +1581,7 @@ class ConnectionsModel extends Model {
 
         return {
             command: 'private_person_information',
-            personId: this.mainInstanceInfo.personId,
+            personId: mainInstanceInfo.personId,
             personPublicKey: mainPublicKeys.publicKey,
             personPublicSignKey: mainPublicKeys.publicSignKey,
             personPrivateKey: mainPrivateEncryptionKey,
@@ -1649,12 +1598,14 @@ class ConnectionsModel extends Model {
      * @returns
      * @private
      */
-    private async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
+    private static async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: HexString;
         personPrivateSignKey: HexString;
     }> {
-        const readPrivateKeys = async (filename: string): Promise<HexString> => {
+        throw new Error('This will not work anymore, because the key files changed');
+
+        /*const readPrivateKeys = async (filename: string): Promise<HexString> => {
             return (await readUTF8TextFile(filename, 'private')) as HexString;
         };
 
@@ -1674,24 +1625,7 @@ class ConnectionsModel extends Model {
             personPublicKeys: personPublicKeys,
             personPrivateEncryptionKey: personPrivateEncryptionKey,
             personPrivateSignKey: personPrivateSignKey
-        };
-    }
-
-    /**
-     * Updates all the instance info related members in the class.
-     */
-    private async updateInstanceInfos(): Promise<void> {
-        // Extract my local instance infos to build the map
-        const infos = await this.instancesModel.localInstancesInfo();
-
-        // Setup the public key to instanceInfo map
-        await Promise.all(
-            infos.map(async instanceInfo => {
-                if (instanceInfo.isMain) {
-                    this.mainInstanceInfo = instanceInfo;
-                }
-            })
-        );
+        };*/
     }
 
     // ######## Person key verification #######
@@ -1706,6 +1640,7 @@ class ConnectionsModel extends Model {
      * - Does the person id communicated by the peer match the expected person id
      *   -> Only checked if matchRemotePersonId is specified
      *
+     * @param leute
      * @param conn - The connection used to exchange this data
      * @param localPersonId - The local person id (used for getting keys)
      * @param initiatedLocally
@@ -1715,6 +1650,7 @@ class ConnectionsModel extends Model {
      * @returns
      */
     private static async verifyAndExchangePersonId(
+        leute: LeuteModel,
         conn: Connection,
         localPersonId: SHA256IdHash<Person>,
         initiatedLocally: boolean,
@@ -1726,13 +1662,11 @@ class ConnectionsModel extends Model {
         personPublicKey: PublicKey;
     }> {
         // Initialize the crypto stuff
-        const crypto = await personCryptoApi(localPersonId);
+        const crypto = await createCryptoApiFromDefaultKeys(localPersonId);
 
         // Get my own person key
-        const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
-        const localPersonKey = (
-            await getObjectWithType(localPersonKeyReverse[localPersonKeyReverse.length - 1], 'Keys')
-        ).publicKey;
+        const localPersonKey = (await getPublicKeys(await getDefaultKeys(localPersonId)))
+            .publicEncryptionKey;
 
         // Exchange and challenge response the person keys
         let remotePersonId: SHA256IdHash<Person>;
@@ -1742,7 +1676,7 @@ class ConnectionsModel extends Model {
             await ConnectionsModel.sendMessage(conn, {
                 command: 'person_information',
                 personId: localPersonId,
-                personPublicKey: localPersonKey
+                personPublicKey: uint8arrayToHexString(localPersonKey)
             });
 
             // Step 2: Wait for remote information
@@ -1771,7 +1705,7 @@ class ConnectionsModel extends Model {
             await ConnectionsModel.sendMessage(conn, {
                 command: 'person_information',
                 personId: localPersonId,
-                personPublicKey: localPersonKey
+                personPublicKey: uint8arrayToHexString(localPersonKey)
             });
 
             // Step 3: Answer challenge response
@@ -1789,28 +1723,20 @@ class ConnectionsModel extends Model {
         // Verify that the transmitted key matches the one we already have
         let keyComparisionFailed: boolean = true;
         try {
-            // Lookup key objects of the person he claims to be
-            const remotePersonKeyReverse = await getAllEntries(remotePersonId, 'Keys');
-            if (!remotePersonKeyReverse || remotePersonKeyReverse.length === 0) {
-                // This means that we have no key belonging to this person
-                return {
-                    isNew: true,
-                    personId: remotePersonId,
-                    personPublicKey: remotePersonKey
-                };
-            }
+            const remoteEndpoints = await leute.findAllOneInstanceEndpointsForPerson(
+                remotePersonId
+            );
 
-            // Load the stored key from storage
-            const remotePersonKeyStored = (
-                await getObjectWithType(
-                    remotePersonKeyReverse[remotePersonKeyReverse.length - 1],
-                    'Keys'
-                )
-            ).publicKey;
+            for (const remoteEndpoint of remoteEndpoints) {
+                if (remoteEndpoint.personKeys === undefined) {
+                    continue;
+                }
 
-            // Compare the key to the transmitted one
-            if (uint8arrayToHexString(remotePersonKey) === remotePersonKeyStored) {
-                keyComparisionFailed = false;
+                const keys = await getPublicKeys(remoteEndpoint.personKeys);
+                if (tweetnacl.verify(remotePersonKey, keys.publicEncryptionKey)) {
+                    keyComparisionFailed = false;
+                    // we do not break here - for constant execution times
+                }
             }
         } catch (e) {
             // This means that we have not encountered the person, yet.
@@ -1849,7 +1775,7 @@ class ConnectionsModel extends Model {
         // Send the challenge
         const challenge = tweetnacl.randomBytes(64);
         const encryptedChallenge = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
-        await conn.send(encryptedChallenge);
+        conn.send(encryptedChallenge);
         for (let i = 0; i < challenge.length; ++i) {
             challenge[i] = ~challenge[i];
         }
@@ -1885,7 +1811,7 @@ class ConnectionsModel extends Model {
             challenge[i] = ~challenge[i];
         }
         const encryptedResponse = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
-        await conn.send(encryptedResponse);
+        conn.send(encryptedResponse);
     }
 
     // ######## Low level io functions (should probably part of a class??? #######
@@ -1900,7 +1826,7 @@ class ConnectionsModel extends Model {
         conn: Connection,
         message: T
     ): Promise<void> {
-        await conn.send(JSON.stringify(message));
+        conn.send(JSON.stringify(message));
     }
 
     /**

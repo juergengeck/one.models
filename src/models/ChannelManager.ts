@@ -13,7 +13,6 @@ import {
     VERSION_UPDATES
 } from '@refinio/one.core/lib/storage';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {getNthVersionMapHash} from '@refinio/one.core/lib/version-map-query';
@@ -36,6 +35,8 @@ import type {
 } from '../recipes/ChannelRecipes';
 import type {CreationTime} from '../recipes/MetaRecipes';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type LeuteModel from './Leute/LeuteModel';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -45,7 +46,6 @@ const MessageBus = createMessageBus('ChannelManager');
  * @param channelId
  * @param owner
  * @param message
- * @parammessage
  */
 function logWithId(
     channelId: string | null,
@@ -237,19 +237,19 @@ export default class ChannelManager {
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
     // Default owner for post calls
-    private defaultOwner: SHA256IdHash<Person> | null;
     private readonly boundOnVersionedObjHandler: (
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
+    private leuteModel: LeuteModel;
 
     /**
      * Create the channel manager instance.
      */
-    constructor() {
+    constructor(leuteModel: LeuteModel) {
         this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
-        this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
         this.promiseTrackers = new Set<Promise<void>>();
+        this.leuteModel = leuteModel;
     }
 
     /**
@@ -260,18 +260,7 @@ export default class ChannelManager {
      *
      * Note: This has to be called after the one instance is initialized.
      */
-    public async init(defaultOwner?: SHA256IdHash<Person>): Promise<void> {
-        // Set the default owner the the instance owner if it was not specified.
-        if (defaultOwner) {
-            this.defaultOwner = defaultOwner;
-        } else {
-            const instanceOwner = getInstanceOwnerIdHash();
-            if (!instanceOwner) {
-                throw new Error('The instance does not have an owner. Is it initialized?');
-            }
-            this.defaultOwner = instanceOwner;
-        }
-
+    public async init(): Promise<void> {
         // Load the cache from the registry
         await this.loadRegistryCacheFromOne();
 
@@ -290,7 +279,6 @@ export default class ChannelManager {
 
         // Resolve the pending promises
         await Promise.all(this.promiseTrackers.values());
-        this.defaultOwner = null;
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
 
@@ -303,19 +291,16 @@ export default class ChannelManager {
      *
      * @param channelId - The id of the channel. See class description for more details
      * on how ids and channels are handled.
-     * @param owner - If the owner it's not passed, then the {@link this.defaultOwner} is
-     * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
-     * will be used as an owner.
+     * @param owner - If the owner is not passed, then your own main identity is used. If the
+     * owner is NULL, then no owner is set. If a value is given, then the value will be used as
+     * an owner.
      */
     public async createChannel(
         channelId: string,
         owner?: SHA256IdHash<Person> | null
     ): Promise<void> {
-        if (!this.defaultOwner) {
-            throw Error('Not initialized');
-        }
         if (owner === undefined) {
-            owner = this.defaultOwner;
+            owner = await this.leuteModel.myMainIdentity();
         }
 
         if (owner === null) {
@@ -334,12 +319,11 @@ export default class ChannelManager {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, owner, `createChannel - END: Existed`);
         } catch (ignore) {
-            // Create a new one if getting it failed
-            await createSingleObjectThroughPurePlan(
-                {module: '@module/channelCreate'},
-                channelId,
+            await storeVersionedObject({
+                $type$: 'ChannelInfo',
+                id: channelId,
                 owner
-            );
+            });
 
             // Create the cache entry.
             // We cannot wait for the hook to make the entry, because following posts
@@ -371,9 +355,10 @@ export default class ChannelManager {
      *
      * @param channelId - The id of the channel to post to
      * @param data - The object to post to the channel
-     * @param channelOwner - If the owner it's not passed, then the {@link this.defaultOwner} is
-     * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
-     * will be used as an owner.
+     * @param channelOwner - If the owner is not passed, then your own main identity is used.
+     * If the
+     * owner is NULL, then no owner is set. If a value is given, then the value will be used as
+     * an owner.
      * @param timestamp
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
@@ -394,10 +379,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            if (!this.defaultOwner) {
-                throw new Error('Default owner is not initialized');
-            }
-            owner = this.defaultOwner;
+            owner = await this.leuteModel.myMainIdentity();
         }
 
         // Post the data
@@ -479,10 +461,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            if (!this.defaultOwner) {
-                throw new Error('Default owner is not initialized');
-            }
-            owner = this.defaultOwner;
+            owner = await this.leuteModel.myMainIdentity();
         }
 
         try {
@@ -992,7 +971,7 @@ export default class ChannelManager {
      * When two or more iterators reach the same history, then the first iterator in the iterator
      * list will continue iterating. The other iterators will stop. This is relevant if one
      * iterator is faster than the other (because one iterator iterates over cached values
-     * instead of one objects -> e.g. an elemnt cache in ui elements.)
+     * instead of one objects -> e.g. an element cache in ui elements.)
      *
      * @param  iterators
      * @param terminateOnSingleIterator - If true, then stop iteration when all but
@@ -1905,11 +1884,13 @@ export default class ChannelManager {
         const channels = await this.getMatchingChannelInfos({channelId});
 
         if (to === undefined) {
+            const myMainIdentity = await this.leuteModel.myMainIdentity();
+
             const accessChannels = await Promise.all(
                 channels.map(async channelInfo => {
                     return {
                         id: await calculateIdHashOfObj(channelInfo),
-                        person: [this.defaultOwner],
+                        person: [myMainIdentity],
                         group: [],
                         mode: SET_ACCESS_MODE.REPLACE
                     };

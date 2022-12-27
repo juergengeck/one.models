@@ -38,10 +38,10 @@ describe('Consent', () => {
         testModel = model;
 
         // Prep to the topic room
-        topicModel = new TopicModel(testModel.channelManager);
+        topicModel = new TopicModel(testModel.channelManager, testModel.leuteModel);
         await topicModel.init();
         const everyoneTopic = await topicModel.createEveryoneTopic();
-        topicRoom = new TopicRoom(everyoneTopic, testModel.channelManager);
+        topicRoom = new TopicRoom(everyoneTopic, testModel.channelManager, testModel.leuteModel);
     });
     after(async () => {
         await testModel.shutdown();

@@ -108,17 +108,22 @@ export default class SomeoneModel {
         };
         const idHash = await calculateIdHashOfObj(newSomeone);
 
-        const newModel = new SomeoneModel(idHash);
+        // try catch is not required if we have CRDT map support
+        try {
+            return await this.constructFromLatestVersion(idHash);
+        } catch (e) {
+            const newModel = new SomeoneModel(idHash);
 
-        // add mainProfile to identities
-        const profile = await getObjectByIdHash(mainProfile);
-        const identitySet = new Set<SHA256IdHash<Profile>>();
-        identitySet.add(mainProfile);
-        newModel.pIdentities.set(profile.obj.personId, identitySet);
+            // add mainProfile to identities
+            const profile = await getObjectByIdHash(mainProfile);
+            const identitySet = new Set<SHA256IdHash<Profile>>();
+            identitySet.add(mainProfile);
+            newModel.pIdentities.set(profile.obj.personId, identitySet);
 
-        newModel.someone = newSomeone;
-        await newModel.saveAndLoad();
-        return newModel;
+            newModel.someone = newSomeone;
+            await newModel.saveAndLoad();
+            return newModel;
+        }
     }
 
     // ######## Identity management ########
@@ -163,6 +168,59 @@ export default class SomeoneModel {
     public async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
         const mainIdentity = await this.mainIdentity();
         return this.identities().filter(id => id !== mainIdentity);
+    }
+
+    /**
+     * Sets the main identity by guessing which profile to use as mainProfile
+     *
+     * @param identity
+     */
+    public async setMainIdentity(identity: SHA256IdHash<Person>): Promise<void> {
+        if (this.someone === undefined) {
+            throw new Error('Nothing was loaded, yet');
+        }
+
+        const mainIdentity = await this.mainIdentity();
+
+        if (identity === mainIdentity) {
+            return;
+        }
+
+        if (!this.pIdentities.has(identity)) {
+            throw new Error(
+                'The designated new main identity is not managed by this someone' + ' object'
+            );
+        }
+
+        const profiles = await this.profiles(identity);
+
+        if (profiles.length === 0) {
+            throw new Error('We have no profiles to assign as main profile :-(');
+        }
+
+        // FIRST CHOICE: A 'default' profile that is owned by the person itself
+        const firstChoice = profiles.find(
+            profile => profile.profileId === 'default' && profile.owner === identity
+        );
+
+        if (firstChoice !== undefined) {
+            this.someone.mainProfile = firstChoice.idHash;
+            await this.saveAndLoad();
+            return;
+        }
+
+        // SECOND CHOICE: Another 'default' profile
+        for (const profile of profiles) {
+            if (profile.profileId === 'default') {
+                this.someone.mainProfile = profile.idHash;
+                await this.saveAndLoad();
+                return;
+            }
+        }
+
+        // THIRD CHOICE: Any other profile
+        this.someone.mainProfile = profiles[0].idHash;
+        await this.saveAndLoad();
     }
 
     // ######## Main profile management ########
@@ -235,6 +293,7 @@ export default class SomeoneModel {
         }
 
         profileSet.add(profile);
+
         await this.saveAndLoad();
     }
 
@@ -249,9 +308,46 @@ export default class SomeoneModel {
         profileId: string,
         personId: SHA256IdHash<Person>,
         owner: SHA256IdHash<Person>
-    ): Promise<void> {
+    ): Promise<ProfileModel> {
         const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
+        return profile;
+    }
+
+    /**
+     * Set the main profile only when the saved profile is not the main profile.
+     * the profile supplied should be the main profile of the person.
+     *
+     * @param profile
+     */
+    public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('The someone object does not have a main profile');
+        }
+
+        const profileObj = await getObjectByIdHash(profile);
+        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+
+        if (profileSet === undefined) {
+            return;
+        }
+
+        const mainProfileObj = await getObjectByIdHash(this.pMainProfile);
+
+        if (mainProfileObj.obj.profileId === 'default') {
+            return;
+        }
+
+        if (profileObj.obj.profileId !== 'default') {
+            return;
+        }
+
+        this.pMainProfile = profile;
+        if (this.someone) {
+            this.someone.mainProfile = profile;
+        }
+
+        profileSet.add(profile);
     }
 
     // ######## Save & Load ########
