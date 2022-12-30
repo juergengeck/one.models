@@ -8,6 +8,9 @@ import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {createDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+
+const MessageBus = createMessageBus('IoMManager');
 
 /**
  * This class sets up the Internet Of Me (IoM), after both parties approved the IoM.
@@ -57,8 +60,8 @@ export default class IoMManager {
         await this.initIomGroup();
         await this.requestManager.init();
 
-        /* Commented this code, because we only want to resign profiles, that were signed by another IoM identity. 
-           At the moment this will sign everything.
+        /* Commented this code, because we only want to re-sign profiles, that were signed by
+         another IoM identity. At the moment this will sign everything.
         
         this.disconnectProfileListener = onVersionedObj.addListener(
             async (result: VersionedObjectResult) => {
@@ -106,12 +109,12 @@ export default class IoMManager {
         _requestHash: SHA256Hash<IoMRequest>,
         request: IoMRequest
     ): Promise<void> {
-        if (request.participants.size !== 1) {
-            throw new Error('Only 1:1 IoM Requests supported for now. Skipping.');
-        }
+        MessageBus.send('log', 'setupIoM', request);
 
         // Extract the other identity and create a complete set of person and instance keys
-        const {other} = await this.whoIsMeAndOther(request.initiator, [...request.participants][0]);
+        const {me, other} = await this.whoIsMeAndOther(request.mainId, request.alternateId);
+        MessageBus.send('log', `setupIom - me ${me}, other ${other}`);
+
         const newPersonKeys = await createDefaultKeys(other);
         const newLocalInstance = await createLocalInstanceIfNoneExists(other);
 
@@ -130,7 +133,7 @@ export default class IoMManager {
         await this.addPersonToIomGroup(other);
 
         // Switch my main identity if the other side was the initiator
-        if (other === request.initiator) {
+        if (other === request.mainId) {
             await this.leuteModel.changeMyMainIdentity(other);
         }
     }
@@ -157,9 +160,11 @@ export default class IoMManager {
      * @param personId
      */
     private async addPersonToIomGroup(personId: SHA256IdHash<Person>): Promise<void> {
+        MessageBus.send('log', `addPersonToIomGroup ${personId}`);
         const group = await this.iomGroup();
         group.persons.push(personId);
         await group.saveAndLoad();
+        MessageBus.send('log', `addPersonToIomGroup ${personId} - done`);
     }
 
     // ######## Leute related helpers ########
@@ -220,6 +225,7 @@ export default class IoMManager {
      * @param identity
      */
     private async moveIdentityToMySomeone(identity: SHA256IdHash<Person>): Promise<void> {
+        MessageBus.send('log', `moveIdentityToMySomeone ${identity}`);
         const from = await this.getSomeoneOrThrow(identity);
         const to = await this.leuteModel.me();
 
@@ -238,6 +244,8 @@ export default class IoMManager {
         if (from.identities().length === 0) {
             await this.leuteModel.removeSomeoneElse(from.idHash);
         }
+
+        MessageBus.send('log', `moveIdentityToMySomeone ${identity} - done`);
     }
 
     /**
@@ -250,6 +258,7 @@ export default class IoMManager {
         identity: SHA256IdHash<Person>,
         endpoint: CommunicationEndpointTypes
     ) {
+        MessageBus.send('log', `addEndpointToDefaultProfile ${identity}`, endpoint);
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
 
@@ -257,10 +266,16 @@ export default class IoMManager {
         const defaultProfile = profiles.find(profile => profile.profileId === 'default');
 
         if (defaultProfile === undefined) {
+            MessageBus.send(
+                'log',
+                `addEndpointToDefaultProfile ${identity} - failure (default profile not found)`
+            );
             throw new Error('Default profile of other person not found');
         }
 
         defaultProfile.communicationEndpoints.push(endpoint);
         await defaultProfile.saveAndLoad();
+
+        MessageBus.send('log', `addEndpointToDefaultProfile ${identity} - done`);
     }
 }

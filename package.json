@@ -1,12 +1,17 @@
 {
-  "name": "one.models",
-  "version": "11.0.5",
+  "name": "@refinio/one.models",
+  "version": "10.0.5-filer-5",
   "repository": "https://github.com/refinio/one.models",
   "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
+  "author": "REFINIO GmbH (https://refinio.net/)",
+  "bugs": {
+    "url": "https://github.com/refinio/one.models/issues"
+  },
+  "homepage": "https://github.com/refinio/one.models/",
   "scripts": {
     "build": "node ./build.js",
     "build-plans": "node ./build_plan_modules.js",
@@ -22,26 +27,33 @@
     "start-state-machine": "node lib/tools/StateMachine",
     "bundle": "npx --no-install webpack"
   },
+  "mocha": {
+    "require": [
+      "source-map-support/register"
+    ],
+    "enable-source-maps": true
+  },
   "files": [
-    "src",
-    "plans",
     "lib",
     "test",
-    "build.js",
-    "build_plan_modules.js"
+    "package.json",
+    "package-lock.json",
+    "LICENSE.md",
+    "README.md"
   ],
   "dependencies": {
     "@babel/runtime": "*",
     "@types/ws": "*",
     "isomorphic-ws": "*",
     "jsesc": "*",
+    "qrcode": "*",
     "ts-loader": "*",
     "tweetnacl": "*",
     "ws": "*",
     "yargs": "*"
   },
   "peerDependencies": {
-    "@refinio/one.core": "0.3.25"
+    "@refinio/one.core": "0.3.28"
   },
   "devDependencies": {
     "@babel/core": "*",
@@ -79,6 +91,7 @@
     "mocha": "*",
     "nyc": "*",
     "prettier": "*",
+    "source-map-support": "*",
     "ts-node": "*",
     "typedoc": "*",
     "typescript": "*",

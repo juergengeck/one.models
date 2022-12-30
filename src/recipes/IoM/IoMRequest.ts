@@ -7,7 +7,8 @@ export interface IoMRequest {
     $type$: 'IoMRequest';
     timestamp: number;
     initiator: SHA256IdHash<Person>;
-    participants: Set<SHA256IdHash<Person>>;
+    mainId: SHA256IdHash<Person>;
+    alternateId: SHA256IdHash<Person>;
 }
 
 // #### Recipes ####
@@ -25,11 +26,12 @@ export const IoMRequestRecipe: Recipe = {
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
         {
-            itemprop: 'participants',
-            itemtype: {
-                type: 'set',
-                item: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
-            }
+            itemprop: 'mainId',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'alternateId',
+            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         }
     ]
 };

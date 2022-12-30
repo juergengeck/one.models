@@ -85,7 +85,7 @@ describe('SingleUserNoAuth Test', () => {
             await chai
                 .expect(singleUserNoAuthWorkflow.logout())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
         it('should test if login() throws an error when the user was not registered', async () => {
@@ -108,7 +108,7 @@ describe('SingleUserNoAuth Test', () => {
             await chai
                 .expect(singleUserNoAuthWorkflow.login())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
     });
@@ -137,7 +137,7 @@ describe('SingleUserNoAuth Test', () => {
             await chai
                 .expect(singleUserNoAuthWorkflow.loginOrRegister())
                 .to.eventually.be.rejectedWith(
-                    'The transition does not exists from the current state with the specified event'
+                    'The transition does not exist from the current state with the specified event'
                 );
         });
     });

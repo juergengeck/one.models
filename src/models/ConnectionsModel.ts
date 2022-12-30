@@ -14,13 +14,14 @@ import type CommunicationInitiationProtocol from '../misc/CommunicationInitiatio
 import {isPeerMessage} from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {countEnumerableProperties, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
     hexToUint8Array,
+    isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {connectWithEncryption} from '../misc/Connections/protocols/ConnectionSetup';
@@ -37,9 +38,32 @@ import {
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 
 const MessageBus = createMessageBus('ConnectionsModel');
+
+/**
+ * Additional information for instance takeover.
+ */
+export type TakeOverInformation = {
+    nonce: HexString;
+    email: string;
+};
+
+/**
+ * Checks if the given parameter is a `TakeOverInformation` object
+ * @param thing
+ * @returns {boolean}
+ */
+export function isTakeOverInformation(thing: unknown): thing is TakeOverInformation {
+    return (
+        isObject(thing) &&
+        isHexString(thing.nonce) &&
+        isString(thing.email) &&
+        countEnumerableProperties(thing) === 2
+    );
+}
 
 /**
  * This is the information that needs to pe transmitted securely to the device that shall be paired
@@ -55,12 +79,20 @@ export type PairingInformation = {
 };
 
 /**
- * Additional information for instance takeover.
+ * Checks if the given parameter is a `PairingInformation` object
+ * @param thing
+ * @returns {boolean}
  */
-export type TakeOverInformation = {
-    nonce: HexString;
-    email: string;
-};
+export function isPairingInformation(thing: unknown): thing is PairingInformation {
+    return (
+        isObject(thing) &&
+        isString(thing.authenticationTag) &&
+        isHexString(thing.publicKeyLocal) &&
+        typeof thing.takeOver === 'boolean' &&
+        (thing.takeOverDetails === undefined || isTakeOverInformation(thing.takeOverDetails)) &&
+        (countEnumerableProperties(thing) === 4 || countEnumerableProperties(thing) === 5)
+    );
+}
 
 /**
  * Configuration parameters for the ConnectionsModel
@@ -336,7 +368,7 @@ class ConnectionsModel extends Model {
      *
      * @param takeOver
      * @param token supply a token instead generating a new one
-     * @returns
+     * @returns {Promise<PairingInformation>}
      */
     public async generatePairingInformation(
         takeOver: boolean,

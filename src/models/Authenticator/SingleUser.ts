@@ -102,7 +102,7 @@ export default class SingleUser extends Authenticator {
 
         if (!(await instanceExists(instanceName, email))) {
             this.authState.triggerEvent('login_failure');
-            throw new Error('Error while trying to login. User instance does not exists.');
+            throw new Error('Error while trying to login. User instance does not exist.');
         }
 
         try {

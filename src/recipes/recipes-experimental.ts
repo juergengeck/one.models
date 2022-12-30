@@ -5,6 +5,7 @@ import MatchingRecipes from './MatchingRecipes';
 import WbcRecipes from './WbcDiffRecipes';
 import ECGRecipes from './ECGRecipes';
 import BloodGlucoseRecipes from './BloodGlucoseRecipes';
+import PersistentFileSystemRecipes from './PersistentFileSystemRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
 import CertificateRecipes from './CertificateRecipes';
@@ -21,6 +22,7 @@ const RecipesExperimental: Recipe[] = [
     ...WbcRecipes,
     ...ECGRecipes,
     ...BloodGlucoseRecipes,
+    ...PersistentFileSystemRecipes,
     ...AudioExerciseRecipes,
     ...CertificateRecipes,
     ...ChatRecipes,

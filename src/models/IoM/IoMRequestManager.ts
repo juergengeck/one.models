@@ -104,21 +104,22 @@ export default class IoMRequestManager {
      * Creates a new IoM request.
      *
      * @param initiator - The person who initiated the request
-     * @param participants - Additional persons that shall be part of the IoM
+     * @param mainId - The identity that becomes the main identity on both sides
+     * @param alternateId - The identity that will become an alternate identity (not main)
      */
-    async createIoMRequest(initiator: SHA256IdHash<Person>, participants: SHA256IdHash<Person>[]) {
-        messageBus.send('debug', `createIoMReuqest ${initiator} ${JSON.stringify(participants)}`);
+    async createIoMRequest(
+        initiator: SHA256IdHash<Person>,
+        mainId: SHA256IdHash<Person>,
+        alternateId: SHA256IdHash<Person>
+    ) {
+        messageBus.send('debug', `createIoMReuqest ${initiator} ${mainId} ${alternateId}`);
         const requestResult = await storeUnversionedObject({
             $type$: 'IoMRequest',
             timestamp: Date.now(),
             initiator,
-            participants: new Set(participants)
+            mainId,
+            alternateId
         });
-
-        messageBus.send(
-            'log',
-            `Create IoM Request ${requestResult.hash} with participants ${initiator} ${participants}`
-        );
 
         await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
     }
@@ -159,34 +160,36 @@ export default class IoMRequestManager {
         requestHash: SHA256Hash<IoMRequest>,
         request: IoMRequest
     ): Promise<boolean> {
-        messageBus.send(
-            'debug',
-            `isRequestCompleted ${requestHash} ${JSON.stringify(request)} ${[
-                request.initiator,
-                ...request.participants
-            ]}`
-        );
+        messageBus.send('debug', `isRequestCompleted ${requestHash} ${JSON.stringify(request)}`);
         const affirmedByPersons = new Set(await affirmedBy(requestHash));
         messageBus.send(
             'debug',
-            `isRequestCompleted - affirmed by ${requestHash} ${JSON.stringify([
+            `isRequestCompleted - ${requestHash} affirmed by ${JSON.stringify([
                 ...affirmedByPersons
             ])}`
         );
 
         // Check that the sets are equal
-        if (affirmedByPersons.size !== request.participants.size + 1) {
+        if (affirmedByPersons.size !== 2) {
             messageBus.send(
                 'debug',
-                `isRequestCompleted - size mismatch ${requestHash} ${affirmedByPersons.size} !== ${
-                    request.participants.size + 1
-                }`
+                `isRequestCompleted - ${requestHash} size mismatch ${affirmedByPersons.size} !== 2`
+            );
+            return false;
+        }
+
+        const participants = [request.mainId, request.alternateId];
+
+        if (!participants.includes(request.initiator)) {
+            messageBus.send(
+                'debug',
+                `isRequestCompleted - ${requestHash} initiator ${request.initiator} is not main or alternate id ${request.mainId} ${request.alternateId}`
             );
             return false;
         }
 
         // Now check all the elements
-        for (const participant of [request.initiator, ...request.participants]) {
+        for (const participant of participants) {
             if (!affirmedByPersons.has(participant)) {
                 messageBus.send(
                     'debug',
@@ -308,7 +311,7 @@ export default class IoMRequestManager {
             [
                 {
                     object: requestCertificateSignature.hash,
-                    person: [request.initiator, ...request.participants],
+                    person: [request.mainId, request.alternateId],
                     group: [],
                     mode: SET_ACCESS_MODE.REPLACE
                 }
