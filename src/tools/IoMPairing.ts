@@ -332,7 +332,9 @@ async function main(): Promise<void> {
     // Do the IoMPairing
     if (createRequest) {
         const [me, ...others] = models.contacts;
-        await models.iom.createIoMRequest(me, others);
+        for (const other of others) {
+            await models.iom.createIoMRequest(me, me, other);
+        }
     } else {
         models.iom.onNewRequest((requestHash, request) => {
             console.log(`New request ${requestHash} received. Created at ${request.timestamp}.`);

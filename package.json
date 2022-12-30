@@ -49,7 +49,10 @@
     "ts-loader": "*",
     "tweetnacl": "*",
     "ws": "*",
-    "yargs": "*"
+    "yargs": "*",
+    "jsqr": "*",
+    "qrcode": "*",
+    "jimp": "*"
   },
   "peerDependencies": {
    "@refinio/one.core": "0.3.25"

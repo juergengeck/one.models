@@ -10,16 +10,12 @@ import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
 import ECGModel from './ECGModel';
-import ConnectionsFilerModel from './filer/ConnectionsFilerModel';
-import ObjectsFilerModel from './filer/ObjectsFilerModel';
 import PersistentFilerModel from './filer/PersistentFilerModel';
-import TemporaryFilerModel from './filer/TemporaryFilerModel';
 import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
 import TopicModel from './Chat/TopicModel';
 import ConsentModel from './ConsentModel';
-import TypesFilerModel from './filer/TypesFilerModel';
 
 /** for one line imports **/
 export {
@@ -37,11 +33,7 @@ export {
     BlobCollectionModel,
     ECGModel,
     HeartEventModel,
-    ConnectionsFilerModel,
-    ObjectsFilerModel,
-    TypesFilerModel,
     PersistentFilerModel,
-    TemporaryFilerModel,
     ConnectionsModel,
     LeuteModel,
     TopicModel,
