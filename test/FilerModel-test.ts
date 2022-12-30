@@ -8,8 +8,8 @@ import {expect} from 'chai';
 import Recipes from '../lib/recipes/recipes-experimental';
 import TestModel, {importModules, removeDir} from './utils/TestModel';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import {PersistentFilerModel} from '../lib/models';
 import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem';
+import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel';
 
 let fileSystem: PersistentFileSystem;
 let testModel: TestModel;
