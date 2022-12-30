@@ -8,7 +8,7 @@ import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {createDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
-import {createMessageBus} from '../../../../one.core/lib/message-bus';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 
 const MessageBus = createMessageBus('IoMManager');
 
