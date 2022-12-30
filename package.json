@@ -46,16 +46,14 @@
     "@types/ws": "*",
     "isomorphic-ws": "*",
     "jsesc": "*",
+    "qrcode": "*",
     "ts-loader": "*",
     "tweetnacl": "*",
     "ws": "*",
-    "yargs": "*",
-    "jsqr": "*",
-    "qrcode": "*",
-    "jimp": "*"
+    "yargs": "*"
   },
   "peerDependencies": {
-   "@refinio/one.core": "0.3.25"
+    "@refinio/one.core": "0.3.28"
   },
   "devDependencies": {
     "@babel/core": "*",
