@@ -6,7 +6,8 @@ import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {BLOB, OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import {DocumentModel, PersistentFilerModel} from '../models';
+import type PersistentFilerModel from '../models/filer/PersistentFilerModel';
+import {DocumentModel} from '../models';
 
 export type AllowedChannel = {channelId: string; folder?: string};
 
