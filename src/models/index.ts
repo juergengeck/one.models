@@ -10,7 +10,6 @@ import PropertyTreeStore, {PropertyTree} from './SettingsModel';
 import AccessModel from './AccessModel';
 import BlobCollectionModel from './BlobCollectionModel';
 import ECGModel from './ECGModel';
-import PersistentFilerModel from './filer/PersistentFilerModel';
 import HeartEventModel from './HeartEventModel';
 import ConnectionsModel from './ConnectionsModel';
 import LeuteModel from './Leute/LeuteModel';
@@ -33,7 +32,6 @@ export {
     BlobCollectionModel,
     ECGModel,
     HeartEventModel,
-    PersistentFilerModel,
     ConnectionsModel,
     LeuteModel,
     TopicModel,
