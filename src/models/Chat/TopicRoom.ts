@@ -146,18 +146,12 @@ export default class TopicRoom {
         message: string,
         attachments: SHA256Hash[]
     ): Promise<void> {
-        const instanceIdHash = getInstanceOwnerIdHash();
-
-        if (instanceIdHash === undefined) {
-            throw new Error('Error: instance id hash could not be found');
-        }
-
         await this.channelManager.postToChannel(
             this.topic.id,
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: instanceIdHash,
+                sender: await this.leuteModel.myMainIdentity(),
                 attachments: attachments
             },
             null
@@ -170,11 +164,6 @@ export default class TopicRoom {
      * @param attachments array of attached files
      */
     async sendMessageWithAttachmentAsFile(message: string, attachments: File[]): Promise<void> {
-        const instanceIdHash = getInstanceOwnerIdHash();
-
-        if (instanceIdHash === undefined) {
-            throw new Error('Error: instance id hash could not be found');
-        }
         let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
 
         const blobDescriptors = await Promise.all(
@@ -199,18 +188,12 @@ export default class TopicRoom {
      * @param message
      */
     async sendMessage(message: string): Promise<void> {
-        const instanceIdHash = getInstanceOwnerIdHash();
-
-        if (instanceIdHash === undefined) {
-            throw new Error('Error: instance id hash could not be found');
-        }
-
         await this.channelManager.postToChannel(
             this.topic.id,
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: instanceIdHash
+                sender: await this.leuteModel.myMainIdentity()
             },
             null
         );
