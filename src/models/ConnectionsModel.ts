@@ -14,7 +14,8 @@ import type CommunicationInitiationProtocol from '../misc/CommunicationInitiatio
 import {isPeerMessage} from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
-import {countEnumerableProperties, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {countEnumerableProperties} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
