@@ -691,6 +691,73 @@ export default class LeuteModel extends Model {
     }
 
     /**
+     * Get the profile name from the main profile.
+     *
+     * @param person
+     */
+    public async getMainProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
+        try {
+            const profile = await this.getMainProfile(person);
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length === 0) {
+                return 'undefined';
+            }
+            return personNames[0].name;
+        } catch (e) {
+            return 'undefined';
+        }
+    }
+
+    /**
+     * Get the profile name from one of the default profiles.
+     *
+     * It will first try to find the profile that we edited (I am owner).
+     * Then it will try to find the profile that the person itself edited (He is owner)
+     * Then it will look for a default profile from any owner.
+     *
+     * @param person
+     */
+    public async getDefaultProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
+        try {
+            const someone = await this.getSomeone(person);
+            if (someone === undefined) {
+                return 'undefined';
+            }
+            const profiles = await someone.profiles(person);
+            const defaultProfiles = profiles.filter(profile => profile.profileId === 'default');
+
+            const myId = await this.myMainIdentity();
+            const meOwner = LeuteModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === myId
+            );
+            if (meOwner !== undefined) {
+                return meOwner;
+            }
+
+            const selfOwner = LeuteModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === person
+            );
+            if (selfOwner !== undefined) {
+                return selfOwner;
+            }
+
+            const anyOwner = LeuteModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => true
+            );
+            if (anyOwner !== undefined) {
+                return anyOwner;
+            }
+
+            return person;
+        } catch (e) {
+            return person;
+        }
+    }
+
+    /**
      * Returns items for pictures that were updated.
      *
      * @param queryOptions
@@ -918,6 +985,20 @@ export default class LeuteModel extends Model {
             this.pLoadedVersion = result.hash;
             this.onUpdated.emit();
         }
+    }
+
+    private static getPersonNameFromFilteredProfiles(
+        profiles: ProfileModel[],
+        predicate: (profile: ProfileModel) => boolean
+    ): string | undefined {
+        const filteredProfiles = profiles.filter(predicate);
+        for (const profile of filteredProfiles) {
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length > 0) {
+                return personNames[0].name;
+            }
+        }
+        return undefined;
     }
 
     // ######## private stuff - Load & Save ########
