@@ -20,6 +20,14 @@ export const FS_ERRORS: {[key: string]: {message: string; linuxErrCode: number}}
      */
     'FSE-ENOENT': {message: 'No such file or directory', linuxErrCode: -2},
     /**
+     * When a directory was expected, but something else was found.
+     */
+    'FSE-ENOTDIR': {message: 'Directory part of path is not a directory', linuxErrCode: -20},
+    /**
+     * When something else was expected, but a directory was found.
+     */
+    'FSE-EISDIR': {message: 'File is a directory', linuxErrCode: -21},
+    /**
      * When the given file or directory does not have write permission.
      */
     'FSE-EACCES-W': {message: 'Write permissions required', linuxErrCode: -13},

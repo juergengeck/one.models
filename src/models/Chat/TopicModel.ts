@@ -15,7 +15,7 @@ import {OEvent} from '../../misc/OEvent';
 import type {Topic} from '../../recipes/ChatRecipes';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type LeuteModel from '../Leute/LeuteModel';
@@ -197,6 +197,20 @@ export default class TopicModel extends Model {
                 }
             ]
         );
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
+                    person: participants,
+                    group: [],
+                    mode: SET_ACCESS_MODE.ADD
+                }
+            ]
+        );
     }
 
     /**
@@ -213,6 +227,20 @@ export default class TopicModel extends Model {
             [
                 {
                     id: topic.channel,
+                    person: [],
+                    group: [groupIdHash],
+                    mode: SET_ACCESS_MODE.ADD
+                }
+            ]
+        );
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
                     person: [],
                     group: [groupIdHash],
                     mode: SET_ACCESS_MODE.ADD
@@ -263,6 +291,8 @@ export default class TopicModel extends Model {
             }),
             name: topicName
         });
+        
+        console.log('TOPIC CREATION', savedTopic.hash, savedTopic.obj, savedTopic.status);
 
         return savedTopic.obj;
     }
