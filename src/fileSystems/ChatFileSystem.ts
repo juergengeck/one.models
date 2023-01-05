@@ -2,8 +2,6 @@ import type LeuteModel from '../models/Leute/LeuteModel';
 import type {TopicModel, ChannelManager} from '../models';
 import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
-import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
 
 /**
  * This file systems provides an interface to all chats.
@@ -24,7 +22,7 @@ export default class ChatFileSystem extends EasyFileSystem {
         super(true);
         this.setRootDirectory(
             new Map<string, EasyDirectoryEntry>([
-                ['1on1_chats', {type: 'directory', content: this.loadOneOnOneChats.bind(this)}],
+                ['1to1_chats', {type: 'directory', content: this.loadOneToOneChats.bind(this)}],
                 ['all_topics', {type: 'directory', content: this.loadAllTopics.bind(this)}]
             ])
         );
@@ -36,36 +34,23 @@ export default class ChatFileSystem extends EasyFileSystem {
     /**
      * Returns all one<->one chats as directory structure.
      */
-    async loadOneOnOneChats(): Promise<EasyDirectoryContent> {
+    async loadOneToOneChats(): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
         const topics = await this.topicModel.topics.all();
 
         for (const topic of topics) {
-            const m = topic.id.match(/([0-9a-f]{64})<->([0-9a-f]{64})/);
-
-            if (m === null || m.length !== 3) {
+            if (!this.topicModel.isOneToOneChat(topic.id)) {
                 continue;
             }
 
-            const person1 = ensureIdHash<Person>(m[1]);
-            const person2 = ensureIdHash<Person>(m[2]);
+            let [meHash, otherHash] = await this.topicModel.getOneToOneChatParticipantsMeFirst(
+                topic.id
+            );
 
-            const myIds = await this.leuteModel.me();
-            let meHash;
-            let otherHash;
-
-            if (myIds.identities().includes(person1)) {
-                meHash = person1;
-                otherHash = person2;
-            } else {
-                meHash = person2;
-                otherHash = person1;
-            }
-
-            const me = await this.leuteModel.getDefaultProfileDisplayName(meHash);
-            const other = await this.leuteModel.getDefaultProfileDisplayName(otherHash);
-            const chatString = `${me}<->${other}`; // This way duplicates may happen
+            const myName = await this.leuteModel.getDefaultProfileDisplayName(meHash);
+            const otherName = await this.leuteModel.getDefaultProfileDisplayName(otherHash);
+            const chatString = `${myName}<->${otherName}`; // This way duplicates may happen
 
             if (dir.has(chatString)) {
                 continue;
