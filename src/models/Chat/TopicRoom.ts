@@ -8,11 +8,12 @@ import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescripto
 import {getObject} from '@refinio/one.core/lib/storage';
 import BlobCollectionModel from '../BlobCollectionModel';
 import type {BlobDescriptor} from '../BlobCollectionModel';
+import {BlobDescriptorRecipe} from '../../recipes/BlobRecipes';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 import type LeuteModel from '../Leute/LeuteModel';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
-    attachments: BlobDescriptor[];
+    attachments: BlobDescriptor[] | SHA256Hash[];
 }
 
 export default class TopicRoom {
@@ -94,32 +95,40 @@ export default class TopicRoom {
     }
 
     /**
-     * Retrieves all chat messages and resolves the blobs so the binary data can be used.
+     * Retrieves all chat messages and resolves the blobs, if any, so the binary data can be used.
      */
-    async retrieveAllMessagesWithAttachmentsAsBlobDescriptors(): Promise<
-        ObjectData<ChatMessage>[]
-    > {
+    async retrieveAllMessagesWithAttachments(): Promise<ObjectData<ChatMessage>[]> {
         const messages = await this.channelManager.getObjectsWithType('ChatMessage', {
             channelId: this.topic.id
         });
         const resolvedMessages = [];
         for (const message of messages) {
             if (message.data.attachments) {
-                const blobDescriptors = await Promise.all(
-                    message.data.attachments.map(blobDescriptorHash =>
-                        getObject(blobDescriptorHash)
-                    )
-                );
-                const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
-                    blobDescriptors.map(blobDescriptor =>
-                        BlobCollectionModel.resolveBlobDescriptor(blobDescriptor)
-                    )
-                );
+                const attachmentObj = await getObject(message.data.attachments[0]);
+                if (attachmentObj.$type$ === BlobDescriptorRecipe.name) {
+                    const blobDescriptors = await Promise.all(
+                        message.data.attachments.map(blobDescriptorHash =>
+                            getObject(blobDescriptorHash)
+                        )
+                    );
+                    const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
+                        blobDescriptors.map(blobDescriptor =>
+                            BlobCollectionModel.resolveBlobDescriptor(
+                                blobDescriptor as OneBlobDescriptor
+                            )
+                        )
+                    );
 
-                resolvedMessages.push({
-                    ...message,
-                    data: {...message.data, attachments: resolvedBlobDescriptors}
-                });
+                    resolvedMessages.push({
+                        ...message,
+                        data: {...message.data, attachments: resolvedBlobDescriptors}
+                    });
+                } else {
+                    resolvedMessages.push({
+                        ...message,
+                        data: {...message.data, attachments: message.data.attachments}
+                    });
+                }
             } else {
                 resolvedMessages.push({...message, data: {...message.data, attachments: []}});
             }
@@ -128,19 +137,39 @@ export default class TopicRoom {
     }
 
     /**
-     * Sends the message in the chat room.
+     * Sends the message with hash data in the chat room.
+     *
      * @param message
-     * @param attachments
+     * @param hashes array of attached hashes
      */
-    async sendMessage(message: string, attachments?: File[] | undefined): Promise<void> {
+    async sendMesageWithAttachmentAsHash(
+        message: string,
+        attachments: SHA256Hash[]
+    ): Promise<void> {
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: await this.leuteModel.myMainIdentity(),
+                attachments: attachments
+            },
+            null
+        );
+    }
+
+    /**
+     * Sends the message with attachments in the chat room.
+     * @param message
+     * @param attachments array of attached files
+     */
+    async sendMessageWithAttachmentAsFile(message: string, attachments: File[]): Promise<void> {
         let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
 
-        if (attachments) {
-            const blobDescriptors = await Promise.all(
-                attachments.map(file => storeFileWithBlobDescriptor(file))
-            );
-            writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
-        }
+        const blobDescriptors = await Promise.all(
+            attachments.map(file => storeFileWithBlobDescriptor(file))
+        );
+        writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
 
         await this.channelManager.postToChannel(
             this.topic.id,
@@ -149,6 +178,22 @@ export default class TopicRoom {
                 text: message,
                 sender: await this.leuteModel.myMainIdentity(),
                 attachments: writtenAttachments
+            },
+            null
+        );
+    }
+
+    /**
+     * Sends the message in the chat room.
+     * @param message
+     */
+    async sendMessage(message: string): Promise<void> {
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: await this.leuteModel.myMainIdentity()
             },
             null
         );

@@ -9,6 +9,10 @@ import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
 
 /**
  * Registry that holds references to all the created topics.
+ *
+ * Singleton design pattern. To get the instance use @see this.load()
+ * Note: This singleton way is bad, because it is bound to happen, that someone just calls the
+ * constructor which will not create the registry if it does not exist, which will lead to errors.
  */
 export default class TopicRegistry {
     private static readonly id = 'TopicAppRegistry';
@@ -16,14 +20,10 @@ export default class TopicRegistry {
     private static instance: TopicRegistry;
 
     /**
-     * Singleton design pattern
+     * Load and initialize the registry.
      *
-     * To get the instance use
-     * @see this.load()
+     * Use this function to get an instance instead of using the constructor!
      */
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    private constructor() {}
-
     public static async load(): Promise<TopicRegistry> {
         if (!TopicRegistry.instance) {
             TopicRegistry.instance = new TopicRegistry();
