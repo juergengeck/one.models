@@ -5,21 +5,21 @@ import {Model} from './Model';
 
 import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Questionnaire_1_1_0} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_1_0';
+import type {Questionnaire_1_2_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_2_0';
 import type {
     QuestionnaireResponses,
     QuestionnaireResponse
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 
 // Export the Questionnaire types
-export interface Questionnaire extends Omit<Questionnaire_1_1_0, '$type$'> {}
-export type Question = Questionnaire_1_1_0.Question;
-export type QuestionnaireAnswerMinMaxValue = Questionnaire_1_1_0.QuestionnaireAnswerMinMaxValue;
-export type AnswerRestriction = Questionnaire_1_1_0.AnswerRestriction;
-export type Coding = Questionnaire_1_1_0.Coding;
-export type QuestionnaireEnableWhenAnswer = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
-export type QuestionnaireAnswerOptionValue = Questionnaire_1_1_0.QuestionnaireEnableWhenAnswer;
-export type QuestionnaireValue = Questionnaire_1_1_0.QuestionnaireValue;
+export interface Questionnaire extends Omit<QuestionnaireRecipe, '$type$'> {}
+export type Question = QuestionnaireRecipe.Question;
+export type QuestionnaireAnswerMinMaxValue = QuestionnaireRecipe.QuestionnaireAnswerMinMaxValue;
+export type AnswerRestriction = QuestionnaireRecipe.AnswerRestriction;
+export type Coding = QuestionnaireRecipe.Coding;
+export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
+export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
 
 /**
  * This model represents everything related to Questionnaires.

@@ -13,12 +13,12 @@ import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
 import {getObject, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {ObjectData} from '../ChannelManager';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {
     PersistentFileSystemDirectory,
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).
@@ -30,8 +30,8 @@ export default class PersistentFilerModel extends EventEmitter {
     private readonly fileSystemChannelId: string;
 
     private fs: PersistentFileSystem | null = null;
-    private disconnect: (() => void) | undefined;
-    private storage: string | undefined;
+    private readonly disconnect: (() => void) | undefined;
+    private readonly storage: string | undefined;
 
     /**
      *
@@ -149,7 +149,7 @@ export default class PersistentFilerModel extends EventEmitter {
             return root.obj;
         }
         const rootHash = rootDirectory[rootDirectory.length - 1].dataHash;
-        return (await getObject(rootHash)) as PersistentFileSystemRoot;
+        return await getObject(rootHash);
     }
 
     /**

@@ -15,17 +15,16 @@ import {OEvent} from '../../misc/OEvent';
 import type {Topic} from '../../recipes/ChatRecipes';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import TopicRoom from './TopicRoom';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type LeuteModel from '../Leute/LeuteModel';
+import LeuteModel from '../Leute/LeuteModel';
+import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
  * Model that manages the creation of chat topics.
  */
 export default class TopicModel extends Model {
-    public static readonly EVERYONE_TOPIC_ID = 'EveryoneTopic';
-
     /**
      * Notify the user whenever a new topic is created or received.
      */
@@ -38,30 +37,15 @@ export default class TopicModel extends Model {
     public onNewChatMessageEvent = this.onUpdated;
 
     private readonly channelManager: ChannelManager;
-
     private readonly leuteModel: LeuteModel;
-
     private readonly TopicRegistryLOCK = 'ON_TOPIC_REGISTRY_OPERATION';
-
-    private Topics: TopicRegistry | undefined;
-
-    private readonly boundOnChannelUpdated: (
-        channelId: string,
-        data: ObjectData<OneUnversionedObjectTypes>
-    ) => Promise<void>;
-
-    private readonly boundNewTopicFromResult: (
-        unversionedObjectResult: UnversionedObjectResult
-    ) => void;
-
-    private channelDisconnect: (() => void) | undefined;
+    private topicRegistry: TopicRegistry | undefined;
+    private disconnectFns: Array<() => void> = [];
 
     constructor(channelManager: ChannelManager, leuteModel: LeuteModel) {
         super();
         this.channelManager = channelManager;
         this.leuteModel = leuteModel;
-        this.boundOnChannelUpdated = this.onChannelUpdated.bind(this);
-        this.boundNewTopicFromResult = this.emitNewTopicEvent.bind(this);
     }
 
     /**
@@ -70,10 +54,9 @@ export default class TopicModel extends Model {
     async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
 
-        this.Topics = await TopicRegistry.load();
-        this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
-
-        onUnversionedObj.addListener(this.boundNewTopicFromResult);
+        this.topicRegistry = await TopicRegistry.load();
+        this.disconnectFns.push(this.channelManager.onUpdated(this.onChannelUpdated.bind(this)));
+        this.disconnectFns.push(onUnversionedObj.addListener(this.addTopicToRegistry.bind(this)));
 
         this.state.triggerEvent('init');
     }
@@ -83,13 +66,13 @@ export default class TopicModel extends Model {
      */
     async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
-
-        if (this.channelDisconnect !== undefined) {
-            this.channelDisconnect();
-        }
-
-        onUnversionedObj.removeListener(this.boundNewTopicFromResult);
         this.state.triggerEvent('shutdown');
+
+        for (const disconnectFn of this.disconnectFns) {
+            disconnectFn();
+        }
+        this.disconnectFns = [];
+        this.topicRegistry = undefined;
     }
 
     /**
@@ -100,11 +83,12 @@ export default class TopicModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         // assertCurrentState ensures that the model was initialised - so topics are not undefined
-        const topicRegistry = this.Topics as TopicRegistry;
+        const topicRegistry = this.topicRegistry as TopicRegistry;
 
         return {
             all: topicRegistry.all,
             queryById: topicRegistry.queryById,
+            queryHashById: topicRegistry.queryHashById,
             queryByName: topicRegistry.queryByName
         };
     }
@@ -116,52 +100,17 @@ export default class TopicModel extends Model {
     public async enterTopicRoom(topicID: string): Promise<TopicRoom> {
         this.state.assertCurrentState('Initialised');
 
-        if (this.Topics === undefined) {
+        if (this.topicRegistry === undefined) {
             throw new Error('Error while retrieving topic registry, model not initialised.');
         }
 
-        const foundTopic = await this.Topics.queryById(topicID);
+        const foundTopic = await this.topicRegistry.queryById(topicID);
 
         if (foundTopic === undefined) {
             throw new Error('Error while trying to retrieve the topic. The topic does not exist.');
         }
 
         return new TopicRoom(foundTopic, this.channelManager, this.leuteModel);
-    }
-
-    /**
-     * Creates the default everyone topic
-     */
-    public async createEveryoneTopic(): Promise<Topic> {
-        this.state.assertCurrentState('Initialised');
-
-        if (this.Topics === undefined) {
-            throw new Error('Error while retrieving topic registry, model not initialised.');
-        }
-
-        const foundTopic = (await this.Topics.queryById(TopicModel.EVERYONE_TOPIC_ID)) as Topic;
-
-        if (foundTopic) {
-            return foundTopic;
-        }
-
-        return await this.createNewTopic('Everyone', TopicModel.EVERYONE_TOPIC_ID);
-    }
-
-    /**
-     * Creates one to one topic (person to person)
-     * @param topicName
-     * @param from
-     * @param to
-     */
-    public async createOneToOneTopic(
-        topicName: string,
-        from: SHA256IdHash<Person>,
-        to: SHA256IdHash<Person>
-    ): Promise<Topic> {
-        this.state.assertCurrentState('Initialised');
-
-        return await this.createNewTopic(topicName, [from, to].sort().join('<->'));
     }
 
     /**
@@ -197,6 +146,20 @@ export default class TopicModel extends Model {
                 }
             ]
         );
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
+                    person: participants,
+                    group: [],
+                    mode: SET_ACCESS_MODE.ADD
+                }
+            ]
+        );
     }
 
     /**
@@ -219,6 +182,161 @@ export default class TopicModel extends Model {
                 }
             ]
         );
+        await createSingleObjectThroughPurePlan(
+            {
+                module: '@one/access',
+                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            },
+            [
+                {
+                    object: await calculateHashOfObj(topic),
+                    person: [],
+                    group: [groupIdHash],
+                    mode: SET_ACCESS_MODE.ADD
+                }
+            ]
+        );
+    }
+
+    // ######## Everyone chat stuff ########
+    // Note that the everyone chat is just a temporary thing until we resolved some kinks in the
+    // generic topics.
+
+    public static readonly EVERYONE_TOPIC_ID = 'EveryoneTopic';
+
+    /**
+     * Creates the default everyone topic if it does not exist.
+     *
+     * Note: Access rights will be automatically given to the "leute everyone" group by the
+     * addTopicToRegistry hook, that listens for new Topic objects.
+     */
+    public async createEveryoneTopic(): Promise<Topic> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
+
+        const foundTopic = await this.topicRegistry.queryById(TopicModel.EVERYONE_TOPIC_ID);
+
+        if (foundTopic) {
+            return foundTopic;
+        }
+
+        return await this.createNewTopic('Everyone', TopicModel.EVERYONE_TOPIC_ID);
+    }
+
+    /**
+     * Return whether the topicId refers to the everyone chat or not.
+     *
+     * @param topicId
+     */
+    public isEveryoneChat(topicId: string): boolean {
+        return topicId === TopicModel.EVERYONE_TOPIC_ID;
+    }
+
+    /**
+     * Shares the topic and channel with the person that participate in this 1:1 chat.
+     *
+     * @param topic
+     */
+    private async applyAccessRightsIfEveryoneChat(topic: Topic): Promise<void> {
+        if (!this.isEveryoneChat(topic.id)) {
+            return;
+        }
+
+        const everyoneGroupModel = (await this.leuteModel.groups()).find(
+            groupModel => groupModel.name === LeuteModel.EVERYONE_GROUP_NAME
+        );
+
+        if (everyoneGroupModel === undefined) {
+            throw new Error('You can only create a eeryone chat if leute has an everyone group.');
+        }
+
+        await this.addGroupToTopic(everyoneGroupModel.groupIdHash, topic);
+    }
+
+    // ######## One To One chat stuff ########
+    // Note that 1:1 chats are just a temporary thing until we resolved some kinks in the
+    // generic topics.
+
+    private static readonly oneToOneTopicRegexp = /^([0-9a-f]{64})<->([0-9a-f]{64})$/;
+
+    /**
+     * Creates one to one topic (person to person)
+     *
+     * Note: Access rights will be automatically given to the participants by the
+     * addTopicToRegistry hook, that listens for new Topic objects.
+     *
+     * @param from
+     * @param to
+     */
+    public async createOneToOneTopic(
+        from: SHA256IdHash<Person>,
+        to: SHA256IdHash<Person>
+    ): Promise<Topic> {
+        this.state.assertCurrentState('Initialised');
+
+        const nameAndId = [from, to].sort().join('<->');
+        return await this.createNewTopic(nameAndId, nameAndId);
+    }
+
+    /**
+     * Return whether the topicId refers to a 1:1 chat or not.
+     *
+     * @param topicId
+     */
+    public isOneToOneChat(topicId: string): boolean {
+        return TopicModel.oneToOneTopicRegexp.test(topicId);
+    }
+
+    /**
+     * Get participants of a 1:1 topic.
+     *
+     * @param topicId
+     */
+    public getOneToOneChatParticipants(
+        topicId: string
+    ): [SHA256IdHash<Person>, SHA256IdHash<Person>] {
+        const m = topicId.match(TopicModel.oneToOneTopicRegexp);
+
+        if (m === null || m.length !== 3) {
+            throw new Error('This is not a OneToOne Chat');
+        }
+
+        return [ensureIdHash<Person>(m[1]), ensureIdHash<Person>(m[2])];
+    }
+
+    /**
+     * Get participants of a 1:1 topic, but return my identity first if I am a participant.
+     *
+     * @param topicId
+     */
+    public async getOneToOneChatParticipantsMeFirst(
+        topicId: string
+    ): Promise<[SHA256IdHash<Person>, SHA256IdHash<Person>]> {
+        let [meHash, otherHash] = this.getOneToOneChatParticipants(topicId);
+
+        const myIds = await this.leuteModel.me();
+
+        if (myIds.identities().includes(otherHash)) {
+            [meHash, otherHash] = [otherHash, meHash];
+        }
+
+        return [meHash, otherHash];
+    }
+
+    /**
+     * Shares the topic and channel with the person that participate in this 1:1 chat.
+     *
+     * @param topic
+     */
+    private async applyAccessRightsIfOneToOneChat(topic: Topic): Promise<void> {
+        if (!this.isOneToOneChat(topic.id)) {
+            return;
+        }
+        const participants = this.getOneToOneChatParticipants(topic.id);
+        await this.addPersonsToTopic(participants, topic);
     }
 
     // --------------------------------- private ---------------------------------
@@ -264,6 +382,8 @@ export default class TopicModel extends Model {
             name: topicName
         });
 
+        console.log('TOPIC CREATION', savedTopic.hash, savedTopic.obj, savedTopic.status);
+
         return savedTopic.obj;
     }
 
@@ -281,22 +401,36 @@ export default class TopicModel extends Model {
     }
 
     /**
-     * Emit the appropriate event for a new topic. Add it to the topic registry.
+     * This adds the topic to the registry and notifies the user of a new topic and also sets up
+     * the sharing.
+     *
      * @param result
-     * @private
      */
-    private async emitNewTopicEvent(result: UnversionedObjectResult): Promise<void> {
-        if (result.obj.$type$ === 'Topic' && result.status === 'new') {
-            await serializeWithType(this.TopicRegistryLOCK, async () => {
-                if (this.Topics === undefined) {
-                    throw new Error(
-                        'Error while retrieving topic registry, model not initialised.'
-                    );
-                }
+    private async addTopicToRegistry(result: UnversionedObjectResult): Promise<void> {
+        const topic = result.obj;
 
-                await this.Topics.add(result as UnversionedObjectResult<Topic>);
-            });
-            this.onNewTopicEvent.emit();
+        if (result.status !== 'new') {
+            return;
         }
+
+        if (topic.$type$ !== 'Topic') {
+            return;
+        }
+
+        await serializeWithType(this.TopicRegistryLOCK, async () => {
+            if (this.topicRegistry === undefined) {
+                throw new Error('Error while retrieving topic registry, model not initialised.');
+            }
+
+            await this.topicRegistry.add(result as UnversionedObjectResult<Topic>);
+            await this.applyAccessRightsIfOneToOneChat(topic);
+            try {
+                await this.applyAccessRightsIfEveryoneChat(topic);
+            } catch (e) {
+                // This might happen if leute was not created with an everyone group
+                console.error(e);
+            }
+        });
+        this.onNewTopicEvent.emit();
     }
 }
