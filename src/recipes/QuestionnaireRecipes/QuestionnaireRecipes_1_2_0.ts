@@ -62,15 +62,8 @@ export module Questionnaire_1_2_0 {
     };
 }
 
-export const AttachmentContentTypesMap = {
-    'image/png': 'png',
-    'image/jpeg': 'jpeg',
-    'image/webp': 'webp',
-    'image/gif': 'gif'
-};
-
 export type Attachment = {
-    contentType: keyof typeof AttachmentContentTypesMap; // Mime type of the content, with charset etc.
+    contentType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; // Mime type of the content, with charset etc.
     language?: string; // Human language of the content (BCP-47)
     data: string; // Data inline, base64ed
     // url?: string; // Uri where the data can be found
@@ -83,7 +76,7 @@ export type Attachment = {
 export const AtachmentRules: RecipeRule[] = [
     {
         itemprop: 'contentType',
-        itemtype: {type: 'string', regexp: /^(png|jpg|jpeg|webp|gif)$/},
+        itemtype: {type: 'string', regexp: /^(image\/png|image\/jpeg|image\/webp|image\/gif)$/},
         optional: false
     },
     {
