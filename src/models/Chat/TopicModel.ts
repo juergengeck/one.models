@@ -382,8 +382,7 @@ export default class TopicModel extends Model {
             name: topicName
         });
 
-        console.log('TOPIC CREATION', savedTopic.hash, savedTopic.obj, savedTopic.status);
-
+        await this.addTopicToRegistry(savedTopic);
         return savedTopic.obj;
     }
 
