@@ -115,19 +115,25 @@ export default class IoMManager {
         const {me, other} = await this.whoIsMeAndOther(request.mainId, request.alternateId);
         MessageBus.send('log', `setupIom - me ${me}, other ${other}`);
 
-        const newPersonKeys = await createDefaultKeys(other);
-        const newLocalInstance = await createLocalInstanceIfNoneExists(other);
+        // If light mode, then only generate keys and instance if the other identity becomes the
+        // main id
+        if (request.mode === 'full' || other === request.mainId) {
+            const newPersonKeys = await createDefaultKeys(other);
+            const newLocalInstance = await createLocalInstanceIfNoneExists(other);
 
-        // Incorporate the other identity in our own someone object and create endpoints with the new instance and keys
-        await this.moveIdentityToMySomeone(other);
-        await this.addEndpointToDefaultProfile(other, {
-            $type$: 'OneInstanceEndpoint',
-            personId: other,
-            url: this.commServerUrl,
-            instanceId: newLocalInstance.instanceId,
-            instanceKeys: newLocalInstance.instanceKeys,
-            personKeys: newPersonKeys
-        });
+            // Incorporate the other identity in our own someone object and create endpoints with the new instance and keys
+            await this.moveIdentityToMySomeone(other);
+            await this.addEndpointToDefaultProfile(other, {
+                $type$: 'OneInstanceEndpoint',
+                personId: other,
+                url: this.commServerUrl,
+                instanceId: newLocalInstance.instanceId,
+                instanceKeys: newLocalInstance.instanceKeys,
+                personKeys: newPersonKeys
+            });
+        } else {
+            await this.moveIdentityToMySomeone(other);
+        }
 
         // Update the IoM group with the other identity
         await this.addPersonToIomGroup(other);

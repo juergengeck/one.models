@@ -9,6 +9,7 @@ export interface IoMRequest {
     initiator: SHA256IdHash<Person>;
     mainId: SHA256IdHash<Person>;
     alternateId: SHA256IdHash<Person>;
+    mode: 'full' | 'light';
 }
 
 // #### Recipes ####
@@ -32,6 +33,10 @@ export const IoMRequestRecipe: Recipe = {
         {
             itemprop: 'alternateId',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'mode',
+            itemtype: {type: 'string', regexp: /^(full|light)$/}
         }
     ]
 };

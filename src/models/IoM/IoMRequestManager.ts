@@ -106,11 +106,14 @@ export default class IoMRequestManager {
      * @param initiator - The person who initiated the request
      * @param mainId - The identity that becomes the main identity on both sides
      * @param alternateId - The identity that will become an alternate identity (not main)
+     * @param mode - 'full' means that both identities will get private keys on both sides
+     *               'light' means that only the main identity will get private keys on both sides
      */
     async createIoMRequest(
         initiator: SHA256IdHash<Person>,
         mainId: SHA256IdHash<Person>,
-        alternateId: SHA256IdHash<Person>
+        alternateId: SHA256IdHash<Person>,
+        mode: 'full' | 'light' = 'full'
     ) {
         messageBus.send('debug', `createIoMReuqest ${initiator} ${mainId} ${alternateId}`);
         const requestResult = await storeUnversionedObject({
@@ -118,7 +121,8 @@ export default class IoMRequestManager {
             timestamp: Date.now(),
             initiator,
             mainId,
-            alternateId
+            alternateId,
+            mode
         });
 
         await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
