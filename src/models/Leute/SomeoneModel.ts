@@ -1,6 +1,11 @@
 import ProfileModel from './ProfileModel';
 import type {Profile} from '../../recipes/Leute/Profile';
-import {getObject, onVersionedObj, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import {
+    getIdObject,
+    getObject,
+    onVersionedObj,
+    VersionedObjectResult
+} from '@refinio/one.core/lib/storage';
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Someone} from '../../recipes/Leute/Someone';
@@ -239,6 +244,74 @@ export default class SomeoneModel {
         return new ProfileModel(this.pMainProfile);
     }
 
+    /**
+     * Set the main profile.
+     *
+     * Throws if the identity referenced by this profile is not managed by this someone object.
+     *
+     * @param profile
+     */
+    public async setMainProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('SomeoneModel has no data (mainProfile)');
+        }
+
+        const profileObj = await getIdObject(profile);
+        const profileSet = this.pIdentities.get(profileObj.personId);
+
+        if (profileSet === undefined) {
+            throw new Error(
+                'This someone object does not manage the identity of the passed profile.'
+            );
+        }
+
+        this.pMainProfile = profile;
+        if (this.someone) {
+            this.someone.mainProfile = profile;
+        }
+
+        profileSet.add(profile);
+    }
+
+    /**
+     * Set the main profile only when the saved profile is not the main profile.
+     *
+     * Throws if the identity referenced by this profile is not managed by this someone object.
+     *
+     * @param profile
+     */
+    public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
+        if (this.pMainProfile === undefined) {
+            throw new Error('SomeoneModel has no data (mainProfile)');
+        }
+
+        const profileObj = await getIdObject(profile);
+        const profileSet = this.pIdentities.get(profileObj.personId);
+
+        if (profileSet === undefined) {
+            throw new Error(
+                'This someone object does not manage the identity of the passed profile.'
+            );
+        }
+
+        const mainProfileObj = await getIdObject(this.pMainProfile);
+
+        if (mainProfileObj.profileId === 'default') {
+            return;
+        }
+
+        if (profileObj.profileId !== 'default') {
+            return;
+        }
+
+        this.pMainProfile = profile;
+        if (this.someone) {
+            this.someone.mainProfile = profile;
+        }
+
+        profileSet.add(profile);
+    }
+
     // ######## Profile management ########
 
     /**
@@ -312,42 +385,6 @@ export default class SomeoneModel {
         const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
         await this.addProfile(profile.idHash);
         return profile;
-    }
-
-    /**
-     * Set the main profile only when the saved profile is not the main profile.
-     * the profile supplied should be the main profile of the person.
-     *
-     * @param profile
-     */
-    public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
-        if (this.pMainProfile === undefined) {
-            throw new Error('The someone object does not have a main profile');
-        }
-
-        const profileObj = await getObjectByIdHash(profile);
-        const profileSet = this.pIdentities.get(profileObj.obj.personId);
-
-        if (profileSet === undefined) {
-            return;
-        }
-
-        const mainProfileObj = await getObjectByIdHash(this.pMainProfile);
-
-        if (mainProfileObj.obj.profileId === 'default') {
-            return;
-        }
-
-        if (profileObj.obj.profileId !== 'default') {
-            return;
-        }
-
-        this.pMainProfile = profile;
-        if (this.someone) {
-            this.someone.mainProfile = profile;
-        }
-
-        profileSet.add(profile);
     }
 
     // ######## Save & Load ########
