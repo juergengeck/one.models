@@ -19,6 +19,7 @@ import {
 import {getLocalInstanceOfPerson, hasPersonLocalInstance} from './instance';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
+import {isPersonComplete} from './person';
 
 export type LocalInstanceInfo = {
     personId: SHA256IdHash<Person>; // Id of person
@@ -497,6 +498,10 @@ export default class CommunicationModule extends EventEmitter {
 
         await Promise.all(
             meSomeone.identities().map(async identity => {
+                if (!(await isPersonComplete(identity))) {
+                    return;
+                }
+
                 const instanceId = await getLocalInstanceOfPerson(identity);
                 const keysHash = await getDefaultKeys(instanceId);
                 const keys = await getObject(keysHash);
