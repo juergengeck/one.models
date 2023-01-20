@@ -50,11 +50,13 @@ export default class PairingFileSystem implements IFileSystem {
      * @param connectionsModel
      * @param iomManager
      * @param inviteUrlPrefix
+     * @param iomRequestMode
      */
     constructor(
         connectionsModel: ConnectionsModel,
         iomManager: IoMManager,
-        inviteUrlPrefix: string
+        inviteUrlPrefix: string,
+        iomRequestMode: 'full' | 'light' = 'full'
     ) {
         this.connectionsModel = connectionsModel;
         this.iomManager = iomManager;
@@ -70,7 +72,7 @@ export default class PairingFileSystem implements IFileSystem {
                 if (this.iomInvite && token === this.iomInvite.authenticationTag) {
                     this.refreshIomInvite().catch(console.error);
                     this.iomManager.requestManager
-                        .createIoMRequest(localPersonId, personId, localPersonId)
+                        .createIoMRequest(localPersonId, personId, localPersonId, iomRequestMode)
                         .catch(console.error);
                 }
                 if (this.iopInvite && token === this.iopInvite.authenticationTag) {
