@@ -2,7 +2,8 @@ import type {Keys, Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {createDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {hasPersonLocalInstance} from './instance';
 
 /**
  * Creates a new person by creating a Person IdObject.
@@ -57,4 +58,23 @@ export async function createPersonWithDefaultKeys(email?: string): Promise<{
     const personId = await createPerson(email);
     const personKeys = await createDefaultKeys(personId);
     return {personId, personKeys};
+}
+
+/**
+ * Checks if a person is a 'complete' person.
+ *
+ * What does 'complete' mean? It means that you can impersonate this person because you have secret
+ * keys that should prove that you are this person. And you also have an instance with private
+ * keys so that you can open connections with this person.
+ *
+ * @param person
+ */
+export async function isPersonComplete(person: SHA256IdHash<Person>): Promise<boolean> {
+    if (!(await hasDefaultKeys(person))) {
+        return false;
+    }
+    if (!(await hasPersonLocalInstance(person))) {
+        return false;
+    }
+    return true;
 }

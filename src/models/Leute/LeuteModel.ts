@@ -41,11 +41,12 @@ import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
-import {createPerson, createPersonWithDefaultKeys} from '../../misc/person';
+import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
 import {
     createInstanceWithDefaultKeys,
     getInstancesOfPerson,
-    getLocalInstanceOfPerson
+    getLocalInstanceOfPerson,
+    hasPersonLocalInstance
 } from '../../misc/instance';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
@@ -473,6 +474,39 @@ export default class LeuteModel extends Model {
     }
 
     /**
+     * Sets a new profile for myself.
+     *
+     * If the profile has a different identity, than the old one the main identity will change!
+     *
+     * @param profileHash
+     */
+    public async setMyMainProfile(profileHash: SHA256IdHash<Profile>) {
+        const profile = await getIdObject(profileHash);
+        const mySomeone = await this.me();
+        const oldIdentity = await mySomeone.mainIdentity();
+        const newIdentity = profile.personId;
+
+        if (oldIdentity !== newIdentity) {
+            this.beforeMainIdSwitch.emit(oldIdentity);
+            if (!(await isPersonComplete(newIdentity))) {
+                throw new Error('Person is not complete!');
+            }
+            await mySomeone.setMainProfile(profileHash);
+            this.afterMainIdSwitch.emit(newIdentity);
+        } else {
+            await mySomeone.setMainProfile(profileHash);
+        }
+    }
+
+    /**
+     * Get my own main profile.
+     */
+    public async getMyMainProfile(): Promise<void> {
+        const mySomeone = await this.me();
+        await mySomeone.mainProfile();
+    }
+
+    /**
      * Change the main identity by setting a new mainProfile.
      *
      * @param newIdentity
@@ -481,10 +515,16 @@ export default class LeuteModel extends Model {
         const mySomeone = await this.me();
         const oldIdentity = await mySomeone.mainIdentity();
         this.beforeMainIdSwitch.emit(oldIdentity);
+        if (!(await isPersonComplete(newIdentity))) {
+            throw new Error('Person is not complete!');
+        }
         await mySomeone.setMainIdentity(newIdentity);
         this.afterMainIdSwitch.emit(newIdentity);
     }
 
+    /**
+     * Get my own main identity (at the moment from the main profile).
+     */
     public async myMainIdentity(): Promise<SHA256IdHash<Person>> {
         const mySomeone = await this.me();
         return mySomeone.mainIdentity();
@@ -654,18 +694,18 @@ export default class LeuteModel extends Model {
 
         let localInstances: LocalInstanceInfo[] = [];
         for (const identity of me.identities()) {
-            try {
-                const instanceId = await getLocalInstanceOfPerson(identity);
-
-                localInstances.push({
-                    instanceId,
-                    cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
-                    instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
-                    personId: identity
-                });
-            } catch (e) {
-                console.error(`Failed to get local instance for identity ${identity}`, e);
+            if (!(await hasPersonLocalInstance(identity))) {
+                continue;
             }
+
+            const instanceId = await getLocalInstanceOfPerson(identity);
+
+            localInstances.push({
+                instanceId,
+                cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+                instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+                personId: identity
+            });
         }
 
         return localInstances;
