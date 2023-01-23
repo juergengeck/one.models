@@ -20,6 +20,9 @@ import {getLocalInstanceOfPerson, hasPersonLocalInstance} from './instance';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import {isPersonComplete} from './person';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+
+const MessageBus = createMessageBus('CommunicationModule');
 
 export type LocalInstanceInfo = {
     personId: SHA256IdHash<Person>; // Id of person
@@ -443,6 +446,8 @@ export default class CommunicationModule extends EventEmitter {
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
      */
     private async updatePeerMap(): Promise<void> {
+        MessageBus.send('log', 'updatePeerMap');
+
         const localInstances = await this.leuteModel.getMyLocalInstances();
         const remoteEndpoints = await this.leuteModel.getAllRemoteEndpoints();
 
@@ -460,8 +465,16 @@ export default class CommunicationModule extends EventEmitter {
                 const connectionInfo = this.knownPeerMap.get(mapKey);
 
                 if (connectionInfo !== undefined) {
+                    MessageBus.send(
+                        'log',
+                        `updatePeerMap - ${localInstance.instanceId} -> ${remoteEndpoint.endpoint.instanceId}: Exists isIoM: ${isIoM}`
+                    );
                     connectionInfo.isInternetOfMe = isIoM;
                 } else {
+                    MessageBus.send(
+                        'log',
+                        `updatePeerMap - ${localInstance.instanceId} -> ${remoteEndpoint.endpoint.instanceId}: New isIoM: ${isIoM}`
+                    );
                     this.knownPeerMap.set(mapKey, {
                         activeConnection: null,
                         url: endpoint.url,
@@ -690,7 +703,7 @@ export default class CommunicationModule extends EventEmitter {
                 // To clean up we terminate the current connection. Which will remove the
                 // probably orphaned connection from the unknownPeerMap.
                 // The next try from the client will then run trough.
-                conn.terminate('duplicate connection');
+                conn.terminate('duplicate connection - drop new connection (unknown peer map)');
             }
 
             // register this connection on an internal list, so that when a new contact object arrives we can take this
@@ -719,7 +732,7 @@ export default class CommunicationModule extends EventEmitter {
             // Check if we are in the 200ms window where we drop new connections
             if (endpoint.dropDuplicates) {
                 // Close the new connection. No further action is required.
-                conn.close('duplicate connection');
+                conn.close('duplicate connection - drop new connection (<2000 ms window)');
                 return;
             }
 
@@ -730,7 +743,9 @@ export default class CommunicationModule extends EventEmitter {
             } else {
                 throw new Error('closeHandler is out of sync with activeConnection');
             }
-            endpoint.activeConnection.close('duplicate connection');
+            endpoint.activeConnection.close(
+                'duplicate connection - drop old connection (>2000 ms window)'
+            );
         }
 
         // Stop the outgoing connection attempts
