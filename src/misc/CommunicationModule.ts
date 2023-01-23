@@ -553,6 +553,9 @@ export default class CommunicationModule extends EventEmitter {
         if (!this.establishOutgoingConnections) {
             return;
         }
+        if (connContainer.activeConnection !== null) {
+            return;
+        }
 
         // This function does the connect
         const connect = async () => {
@@ -604,7 +607,15 @@ export default class CommunicationModule extends EventEmitter {
                         ' the jitter hack.'
                 );
             }
-            delay = delay + (Math.random() * 4000 - 2000);
+
+            if (
+                uint8arrayToHexString(connContainer.sourcePublicKey) <
+                uint8arrayToHexString(connContainer.targetPublicKey)
+            ) {
+                delay = delay + 3000;
+            }
+
+            /*delay = delay + (Math.random() * 4000 - 2000);*/
 
             connContainer.reconnectTimeoutHandle = setTimeout(() => {
                 connContainer.reconnectTimeoutHandle = null;
