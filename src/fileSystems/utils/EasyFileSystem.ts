@@ -12,13 +12,16 @@ import {escapeFileName} from './FileNameEscaping';
 
 export type EasyDirectoryContent = Map<string, EasyDirectoryEntry>;
 export type EasyRegularFileContent = Uint8Array | string;
+export type EasySymlinkContent = string;
 
 export type EasyDirectory = EasyDirectoryContent | (() => Promise<EasyDirectoryContent>);
 export type EasyRegularFile = EasyRegularFileContent | (() => Promise<EasyRegularFileContent>);
+export type EasySymlink = EasySymlinkContent | (() => Promise<EasySymlinkContent>);
 
 export type EasyDirectoryEntry =
     | {type: 'directory'; content: EasyDirectory}
-    | {type: 'regularFile'; content: EasyRegularFile};
+    | {type: 'regularFile'; content: EasyRegularFile}
+    | {type: 'symlink'; content: EasySymlink};
 
 interface EasyDirectoryLookupError {
     type: 'error';
@@ -97,7 +100,9 @@ export default class EasyFileSystem implements IFileSystem {
             elem.content,
             this.escapeFileNames
         );
-        return {children: [...content.keys()]};
+        return {
+            children: [...content.keys()]
+        };
     }
 
     async readFile(path: string): Promise<FileSystemFile> {
@@ -106,6 +111,16 @@ export default class EasyFileSystem implements IFileSystem {
         if (elem.type === 'directory') {
             throw createError('FSE-EISDIR', {
                 message: FS_ERRORS['FSE-EISDIR'].message,
+                path
+            });
+        } else if (elem.type === 'symlink') {
+            // The open man page states, that if an 'open' is made on a symlink with
+            // O_PATH and O_NOFOLLOW the read call should return EBADF. Other ways of getting a
+            // read on a symlink should not be possible.
+            // Let's hope, that the symlink following is done by fuse itself and we don't have
+            // to do it!
+            throw createError('FSE-EBADF', {
+                message: FS_ERRORS['FSE-EBADF'].message,
                 path
             });
         }
@@ -142,11 +157,14 @@ export default class EasyFileSystem implements IFileSystem {
     async stat(path: string): Promise<FileDescription> {
         const elem = await this.getDirectoryEntryThrows(path);
 
-        if (elem.type === 'directory') {
-            return {mode: 0o0040555, size: 0};
-        } else if (elem.type === 'regularFile') {
-            const content = await EasyFileSystem.loadRegularFileContentAsBinary(elem.content);
-            return {mode: 0o0100444, size: content.byteLength};
+        switch (elem.type) {
+            case 'directory':
+                return {mode: 0o0040555, size: 0};
+            case 'regularFile':
+                const content = await EasyFileSystem.loadRegularFileContentAsBinary(elem.content);
+                return {mode: 0o0100444, size: content.byteLength};
+            case 'symlink':
+                return {mode: 0o0120777, size: 0};
         }
 
         throw createError('FSE-ENOENT', {
@@ -164,11 +182,17 @@ export default class EasyFileSystem implements IFileSystem {
     }
 
     async readlink(path: string): Promise<FileSystemFile> {
-        throw createError('FSE-ENOSYS', {
-            message: FS_ERRORS['FSE-ENOSYS'].message,
-            functionName: 'readLink()',
-            path: path
-        });
+        const elem = await this.getDirectoryEntryThrows(path);
+
+        if (elem.type !== 'symlink') {
+            // See readlink(2) man page
+            throw createError('FSE-EINVAL', {
+                message: FS_ERRORS['FSE-EINVAL'].message,
+                path
+            });
+        }
+
+        return {content: await EasyFileSystem.loadSymlinkContentAsBinary(elem.content)};
     }
 
     supportsChunkedReading(path?: string): boolean {
@@ -374,5 +398,28 @@ export default class EasyFileSystem implements IFileSystem {
         }
 
         return content;
+    }
+
+    /**
+     * Load the content of a symlink.
+     *
+     * @param link
+     */
+    private static async loadSymlinkContent(link: EasySymlink): Promise<EasySymlinkContent> {
+        if (typeof link === 'function') {
+            return link();
+        } else {
+            return link;
+        }
+    }
+
+    /**
+     * Load the content of a symlink as binary.
+     *
+     * @param link
+     */
+    private static async loadSymlinkContentAsBinary(link: EasySymlink): Promise<Uint8Array> {
+        let content = await EasyFileSystem.loadSymlinkContent(link);
+        return new TextEncoder().encode(content);
     }
 }

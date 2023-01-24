@@ -48,6 +48,14 @@ export const FS_ERRORS: {[key: string]: {message: string; linuxErrCode: number}}
      */
     'FSE-EXISTS': {message: 'Path already exists', linuxErrCode: -17},
     /**
+     * Invalid value of several syscalls
+     */
+    'FSE-EINVAL': {message: 'Invalid value', linuxErrCode: -22},
+    /**
+     * Bad file descriptor
+     */
+    'FSE-EBADF': {message: 'Bad file descriptor', linuxErrCode: -9},
+    /**
      * When a hidden file and/or extended attributes are creating on MacOS.
      */
     'FSE-MACH': {
