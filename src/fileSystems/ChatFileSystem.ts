@@ -2,10 +2,10 @@ import type LeuteModel from '../models/Leute/LeuteModel';
 import type {TopicModel, ChannelManager} from '../models';
 import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
-import type {SHA256Hash} from '../../../one.core/lib/util/type-checks';
-import {getObject} from '../../../one.core/lib/storage';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import {getObject} from '@refinio/one.core/lib/storage';
 import {BlobCollectionModel} from '../models';
-import type {OneObjectTypes} from '../../../one.core/lib/recipes';
+import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
 
 /**
  * This file systems provides an interface to all chats.
