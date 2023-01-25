@@ -10,15 +10,15 @@ jobs:
 
         steps:
             # Setup env
-            - uses: actions/checkout@v2
-            - uses: webfactory/ssh-agent@v0.4.1
+            - uses: actions/checkout@v3
+            - uses: webfactory/ssh-agent@v0.7.0
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
             - name: Setup Node
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v3
               with:
-                  node-version: 16.x
+                  node-version: 18
 
             - name: Run audit only high
               run: npm audit --no-color --level high > audit-high.txt || true
@@ -27,7 +27,7 @@ jobs:
               run: npm audit --no-color > audit-all.txt || true
 
             - name: Send mail
-              uses: dawidd6/action-send-mail@v2
+              uses: dawidd6/action-send-mail@v3.7.1
               with:
                   server_address: smtp.mailbox.org
                   server_port: 465

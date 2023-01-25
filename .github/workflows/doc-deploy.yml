@@ -15,19 +15,19 @@ jobs:
 
         steps:
             # Setup env
-            - uses: actions/checkout@v2
-            - uses: webfactory/ssh-agent@v0.4.1
+            - uses: actions/checkout@v3
+            - uses: webfactory/ssh-agent@v0.7.0
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
             - name: Setup Node
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v3
               with:
-                  node-version: 16.x
+                  node-version: 18
 
             - name: Cache Node Modules
               id: cache-node-modules
-              uses: actions/cache@v2
+              uses: actions/cache@v3
               with:
                   path: node_modules
                   key: node-modules-${{ hashFiles('package-lock.json') }}
