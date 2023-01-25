@@ -6,6 +6,12 @@ import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {getObject} from '@refinio/one.core/lib/storage';
 import {BlobCollectionModel} from '../models';
 import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {ChatMessage} from '../recipes/ChatRecipes';
+import type {ObjectData} from '../models/ChannelManager';
+import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
+
+const emojiNumberMap = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '*️⃣'];
 
 /**
  * This file systems provides an interface to all chats.
@@ -33,8 +39,11 @@ export default class ChatFileSystem extends EasyFileSystem {
         super(true);
         this.setRootDirectory(
             new Map<string, EasyDirectoryEntry>([
-                ['1to1_chats', {type: 'directory', content: this.loadOneToOneChats.bind(this)}],
-                ['all_topics', {type: 'directory', content: this.loadAllTopics.bind(this)}]
+                [
+                    '1to1_chats',
+                    {type: 'directory', content: this.createOneToOneChatsFolder.bind(this)}
+                ],
+                ['all_topics', {type: 'directory', content: this.createAllTopicsFolder.bind(this)}]
             ])
         );
         this.topicModel = topicModel;
@@ -46,7 +55,7 @@ export default class ChatFileSystem extends EasyFileSystem {
     /**
      * Returns all one<->one chats as directory structure.
      */
-    private async loadOneToOneChats(): Promise<EasyDirectoryContent> {
+    private async createOneToOneChatsFolder(): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
         const topics = await this.topicModel.topics.all();
@@ -70,7 +79,7 @@ export default class ChatFileSystem extends EasyFileSystem {
 
             dir.set(chatString, {
                 type: 'directory',
-                content: this.loadChatMessages.bind(this, topic.id)
+                content: this.createTopicRoomFolder.bind(this, topic.id)
             });
         }
 
@@ -80,7 +89,7 @@ export default class ChatFileSystem extends EasyFileSystem {
     /**
      * Returns all topics as directory structure.
      */
-    private async loadAllTopics(): Promise<EasyDirectoryContent> {
+    private async createAllTopicsFolder(): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
         const topics = await this.topicModel.topics.all();
@@ -88,7 +97,7 @@ export default class ChatFileSystem extends EasyFileSystem {
         for (const topic of topics) {
             dir.set(topic.id, {
                 type: 'directory',
-                content: this.loadChatMessages.bind(this, topic.id)
+                content: this.createTopicRoomFolder.bind(this, topic.id)
             });
         }
 
@@ -110,82 +119,146 @@ export default class ChatFileSystem extends EasyFileSystem {
      *
      * @param topicId
      */
-    private async loadChatMessages(topicId: string): Promise<EasyDirectoryContent> {
+    private async createTopicRoomFolder(topicId: string): Promise<EasyDirectoryContent> {
         const rootDir = new Map<string, EasyDirectoryEntry>();
         const attachmentsDir = new Map<string, EasyDirectoryEntry>();
         const imagesDir = new Map<string, EasyDirectoryEntry>();
-        rootDir.set('images', {type: 'directory', content: imagesDir});
-        rootDir.set('attachments', {type: 'directory', content: attachmentsDir});
+        rootDir.set('_attachments', {
+            type: 'directory',
+            content: this.createAttachmentsFolder.bind(this, topicId, false)
+        });
+        rootDir.set('_images', {
+            type: 'directory',
+            content: this.createAttachmentsFolder.bind(this, topicId, true)
+        });
 
         const room = await this.topicModel.enterTopicRoom(topicId);
-        const msgs = await room.retrieveAllMessages();
+        const messages = await room.retrieveAllMessages();
+        const messagesWithAuthorName = await this.addAuthorToChatMessages(messages);
 
-        // Add authorName property to each chat message. The author name is grabbed from the
-        // default profile of the person in leute.
-        const messages = await Promise.all(
-            msgs.map(async msg => {
-                try {
-                    return {
-                        ...msg,
-                        authorName: await this.leuteModel.getDefaultProfileDisplayName(
-                            msg.data.sender
-                        )
-                    };
-                } catch (e) {
-                    return {
-                        ...msg,
-                        authorName: 'unknown'
-                    };
-                }
-            })
-        );
+        for (const message of messagesWithAuthorName) {
+            const attachmentCount =
+                message.data.attachments === undefined ? 0 : message.data.attachments.length;
+            const attachmentCountChar =
+                emojiNumberMap[attachmentCount <= 10 ? attachmentCount : 11];
 
-        for (const msg of messages) {
-            // On the root directory: Create a folder for each message with this name:
-            // "<creationtime> <authorname>: text". The content are the attachments.
-            const dirname = `${msg.creationTime.toLocaleString()} ${msg.authorName}: ${
-                msg.data.text
-            }`;
-
-            let attachments = msg.data.attachments
-                ? [
-                      ...(await Promise.all(
-                          msg.data.attachments.map(attachment => this.loadAttachment(attachment))
-                      ))
-                  ]
-                : [];
-
-            attachments
-                .filter(
-                    attachment =>
-                        attachment.object.$type$ === 'BlobDescriptor' &&
-                        attachment.object.type.startsWith('image/')
-                )
-                .forEach(attachment =>
-                    imagesDir.set(`${dirname} ${attachment.name}`, attachment.dirent)
-                );
-
-            attachments.forEach(attachment =>
-                attachmentsDir.set(`${dirname} ${attachment.name}`, attachment.dirent)
-            );
-
-            rootDir.set(dirname, {
-                type: 'directory',
-                content: new Map<string, EasyDirectoryEntry>(
-                    attachments.map(a => [a.name, a.dirent])
-                )
-            });
+            // Fill the "/<chatmessage>" folder with all attachments including raw one objects
+            const messageDirName = `${message.creationTime.toLocaleString()} ${attachmentCountChar} ${
+                message.authorName
+            }${message.data.text === '' ? '' : ': ' + message.data.text}`;
+            rootDir.set(messageDirName, await this.createChatMessageFolder(message));
         }
 
         return rootDir;
+    }
+
+    private async createAttachmentsFolder(
+        topicId: string,
+        imagesOnly: boolean
+    ): Promise<EasyDirectoryContent> {
+        const room = await this.topicModel.enterTopicRoom(topicId);
+        const messages = await room.retrieveAllMessages();
+        //const messagesWithAuthorName = await this.addAuthorToChatMessages(messages);
+        const messagesWithAttachments = await Promise.all(
+            messages.map(async message => ({
+                message,
+                attachments: await this.loadAttachments(message.data.attachments, imagesOnly)
+            }))
+        );
+
+        const attachmentsDir = new Map<string, EasyDirectoryEntry>();
+        for (const messageWithAttachments of messagesWithAttachments) {
+            const message = messageWithAttachments.message;
+            for (const attachment of messageWithAttachments.attachments) {
+                attachmentsDir.set(
+                    `${message.creationTime.toLocaleString()} ${attachment.name}`,
+                    attachment.dirent
+                );
+            }
+        }
+
+        return attachmentsDir;
+    }
+
+    private async createChatMessageFolder(
+        message: ObjectData<ChatMessage> & {authorName: string}
+    ): Promise<EasyDirectoryEntry> {
+        const content = new Map<string, EasyDirectoryEntry>();
+
+        // Add raw views
+        const channelEntryHash = message.channelEntryHash;
+        const channelEntryObject = await getObject(channelEntryHash);
+        const channelEntryMicrodata = await readUTF8TextFile(channelEntryHash);
+        const dateTimeHash = channelEntryObject.data;
+        const dateTimeObject = await getObject(dateTimeHash);
+        const dateTimeMicrodata = await readUTF8TextFile(dateTimeHash);
+        const chatMessageHash = message.dataHash;
+        const chatMessageObject = message.data;
+        const chatMessageMicrodata = await readUTF8TextFile(chatMessageHash);
+
+        content.set('message.microdata.txt', {
+            type: 'regularFile',
+            content: new TextEncoder().encode(chatMessageMicrodata)
+        });
+        content.set('message.json', {
+            type: 'regularFile',
+            content: new TextEncoder().encode(JSON.stringify(chatMessageObject))
+        });
+
+        // Add signatures
+        content.set('signatures', {
+            type: 'directory',
+            content: this.loadSignatures.bind(this, [
+                channelEntryHash,
+                dateTimeHash,
+                chatMessageHash
+            ])
+        });
+
+        // Add attachments
+        const attachments = await this.loadAttachments(message.data.attachments, false);
+        attachments.forEach(a => content.set(a.name, a.dirent));
+
+        return {
+            type: 'directory',
+            content
+        };
+    }
+
+    /**
+     *
+     * @param attachments
+     * @param imagesOnly
+     */
+    private async loadAttachments(
+        attachments: SHA256Hash[] | undefined,
+        imagesOnly: boolean
+    ): Promise<
+        Array<{
+            name: string;
+            dirent: EasyDirectoryEntry;
+            object: OneObjectTypes;
+            hash: SHA256Hash;
+        }>
+    > {
+        if (attachments === undefined) {
+            return [];
+        }
+        return Promise.all(
+            attachments.map(attachment => this.loadAttachment(attachment, imagesOnly))
+        );
     }
 
     /**
      * Load the attachments
      *
      * @param attachment
+     * @param imagesOnly
      */
-    private async loadAttachment(attachment: SHA256Hash): Promise<{
+    private async loadAttachment(
+        attachment: SHA256Hash,
+        imagesOnly: boolean
+    ): Promise<{
         name: string;
         dirent: EasyDirectoryEntry;
         object: OneObjectTypes;
@@ -217,5 +290,58 @@ export default class ChatFileSystem extends EasyFileSystem {
                 hash: attachment
             };
         }
+    }
+
+    private async loadSignatures(objects: SHA256Hash[]): Promise<EasyDirectoryContent> {
+        const dir = new Map<string, EasyDirectoryEntry>();
+        for (const object of objects) {
+            const certificateHashes = await getAllEntries(object, 'AffirmationCertificate');
+            for (const certificateHash of certificateHashes) {
+                const cert = await getObject(certificateHash);
+                const signatureObjectHashes = await getAllEntries(certificateHash, 'Signature');
+                const signatures = await Promise.all(
+                    signatureObjectHashes.map(async signatureObjectHash => {
+                        const signature = await getObject(signatureObjectHash);
+                        const issuer = await this.leuteModel.getDefaultProfileDisplayName(
+                            signature.issuer
+                        );
+                        return {
+                            cert,
+                            signature,
+                            issuer
+                        };
+                    })
+                );
+                for (const signature of signatures) {
+                    dir.set(`${signature.issuer} ${objects.findIndex(o => o === object)}`, {
+                        type: 'regularFile',
+                        content: JSON.stringify(signature)
+                    });
+                }
+            }
+        }
+        return dir;
+    }
+
+    private async addAuthorToChatMessages(
+        chatMessages: ObjectData<ChatMessage>[]
+    ): Promise<Array<ObjectData<ChatMessage> & {authorName: string}>> {
+        return await Promise.all(
+            chatMessages.map(async msg => {
+                try {
+                    return {
+                        ...msg,
+                        authorName: await this.leuteModel.getDefaultProfileDisplayName(
+                            msg.data.sender
+                        )
+                    };
+                } catch (e) {
+                    return {
+                        ...msg,
+                        authorName: 'unknown'
+                    };
+                }
+            })
+        );
     }
 }
