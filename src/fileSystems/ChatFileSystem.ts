@@ -8,8 +8,8 @@ import {BlobCollectionModel} from '../models';
 import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {ChatMessage} from '../recipes/ChatRecipes';
 import type {ObjectData} from '../models/ChannelManager';
-import {readUTF8TextFile} from '../../../one.core/lib/system/storage-base';
-import {getAllEntries} from '../../../one.core/lib/reverse-map-query';
+import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 
 const emojiNumberMap = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '*️⃣'];
 
