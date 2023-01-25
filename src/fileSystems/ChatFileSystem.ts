@@ -145,7 +145,7 @@ export default class ChatFileSystem extends EasyFileSystem {
             // Fill the "/<chatmessage>" folder with all attachments including raw one objects
             const messageDirName = `${message.creationTime.toLocaleString()} ${attachmentCountChar} ${
                 message.authorName
-            }: ${message.data.text}`;
+            }${message.data.text === '' ? '' : ': ' + message.data.text}`;
             rootDir.set(messageDirName, await this.createChatMessageFolder(message));
         }
 
