@@ -80,7 +80,7 @@ export default class ChatFileSystem extends EasyFileSystem {
             const notificationCount = this.notifications.getNotificationCountForTopic(topic.id);
             const notificationCountEmoji = ChatFileSystem.countToEmoji(notificationCount);
             const chatString = `${myName}<->${otherName}`; // This way duplicates may happen
-            const chatStringWithNotification = `${notificationCount} ${myName}<->${otherName}`; // This way duplicates may happen
+            const chatStringWithNotification = `${notificationCountEmoji} ${myName}<->${otherName}`; // This way duplicates may happen
 
             if (dir.has(chatString)) {
                 continue;
