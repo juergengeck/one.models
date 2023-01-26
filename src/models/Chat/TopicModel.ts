@@ -250,7 +250,7 @@ export default class TopicModel extends Model {
         );
 
         if (everyoneGroupModel === undefined) {
-            throw new Error('You can only create a eeryone chat if leute has an everyone group.');
+            throw new Error('You can only create a everyone chat if leute has an everyone group.');
         }
 
         await this.addGroupToTopic(everyoneGroupModel.groupIdHash, topic);

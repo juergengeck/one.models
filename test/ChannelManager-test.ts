@@ -435,6 +435,7 @@ describe('Channel Manager test', () => {
             'first',
             channels[0].owner,
             {$type$: 'BodyTemperature', temperature: 9},
+            undefined,
             firstValuesAsc[1].creationTime.getTime() - 1
         );
 
