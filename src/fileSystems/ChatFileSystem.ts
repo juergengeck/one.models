@@ -10,6 +10,7 @@ import type {ChatMessage} from '../recipes/ChatRecipes';
 import type {ObjectData} from '../models/ChannelManager';
 import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
+import type Notifications from '../models/Notifications';
 
 const emojiNumberMap = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '*️⃣'];
 
@@ -21,6 +22,7 @@ export default class ChatFileSystem extends EasyFileSystem {
     private readonly leuteModel: LeuteModel;
     private readonly channelManager: ChannelManager;
     private readonly objectFileSystemPath: string;
+    private readonly notifications: Notifications;
 
     /**
      * Constructor
@@ -28,12 +30,14 @@ export default class ChatFileSystem extends EasyFileSystem {
      * @param leuteModel
      * @param topicModel
      * @param channelManager
+     * @param notifications
      * @param objectFileSystemPath
      */
     constructor(
         leuteModel: LeuteModel,
         topicModel: TopicModel,
         channelManager: ChannelManager,
+        notifications: Notifications,
         objectFileSystemPath: string
     ) {
         super(true);
@@ -49,6 +53,7 @@ export default class ChatFileSystem extends EasyFileSystem {
         this.topicModel = topicModel;
         this.leuteModel = leuteModel;
         this.channelManager = channelManager;
+        this.notifications = notifications;
         this.objectFileSystemPath = objectFileSystemPath;
     }
 
@@ -71,7 +76,11 @@ export default class ChatFileSystem extends EasyFileSystem {
 
             const myName = await this.leuteModel.getDefaultProfileDisplayName(meHash);
             const otherName = await this.leuteModel.getDefaultProfileDisplayName(otherHash);
+
+            const notificationCount = this.notifications.getNotificationCountForTopic(topic.id);
+            const notificationCountEmoji = ChatFileSystem.countToEmoji(notificationCount);
             const chatString = `${myName}<->${otherName}`; // This way duplicates may happen
+            const chatStringWithNotification = `${notificationCount} ${myName}<->${otherName}`; // This way duplicates may happen
 
             if (dir.has(chatString)) {
                 continue;
@@ -81,6 +90,13 @@ export default class ChatFileSystem extends EasyFileSystem {
                 type: 'directory',
                 content: this.createTopicRoomFolder.bind(this, topic.id)
             });
+
+            if (notificationCount > 0) {
+                dir.set(chatStringWithNotification, {
+                    type: 'regularFile',
+                    content: ''
+                });
+            }
         }
 
         return dir;
@@ -99,6 +115,15 @@ export default class ChatFileSystem extends EasyFileSystem {
                 type: 'directory',
                 content: this.createTopicRoomFolder.bind(this, topic.id)
             });
+
+            const notificationCount = this.notifications.getNotificationCountForTopic(topic.id);
+            if (notificationCount > 0) {
+                const notificationCountEmoji = ChatFileSystem.countToEmoji(notificationCount);
+                dir.set(`${notificationCountEmoji} ${topic.id}`, {
+                    type: 'regularFile',
+                    content: ''
+                });
+            }
         }
 
         return dir;
@@ -137,17 +162,27 @@ export default class ChatFileSystem extends EasyFileSystem {
         const messagesWithAuthorName = await this.addAuthorToChatMessages(messages);
 
         for (const message of messagesWithAuthorName) {
-            const attachmentCount =
-                message.data.attachments === undefined ? 0 : message.data.attachments.length;
-            const attachmentCountChar =
-                emojiNumberMap[attachmentCount <= 10 ? attachmentCount : 11];
+            const attachmentCount = ChatFileSystem.countToEmoji(message.data.attachments?.length);
 
             // Fill the "/<chatmessage>" folder with all attachments including raw one objects
-            const messageDirName = `${message.creationTime.toLocaleString()} ${attachmentCountChar} ${
+            const messageDirName = `${message.creationTime.toLocaleString()} ${attachmentCount} ${
                 message.authorName
             }${message.data.text === '' ? '' : ': ' + message.data.text}`;
             rootDir.set(messageDirName, await this.createChatMessageFolder(message));
         }
+
+        /*if (this.notifications.getNotificationCountForTopic(topicId) > 0) {
+            rootDir.set('Desktop.ini', {
+                type: 'regularFile',
+                content:
+                    '[.ShellClassInfo]\n' +
+                    'IconResource=C:\\WINDOWS\\System32\\SHELL32.dll,45\n' +
+                    '[ViewState]\n' +
+                    'Mode=\n' +
+                    'Vid=\n' +
+                    'FolderType=Generic'
+            });
+        }*/
 
         return rootDir;
     }
@@ -202,7 +237,7 @@ export default class ChatFileSystem extends EasyFileSystem {
         });
         content.set('message.json', {
             type: 'regularFile',
-            content: new TextEncoder().encode(JSON.stringify(chatMessageObject))
+            content: new TextEncoder().encode(JSON.stringify(chatMessageObject, null, 4))
         });
 
         // Add signatures
@@ -281,10 +316,11 @@ export default class ChatFileSystem extends EasyFileSystem {
             };
         } else {
             return {
-                name: attachment,
+                name: data.$type$ + '.json',
                 dirent: {
-                    type: 'symlink',
-                    content: `../../../..${this.objectFileSystemPath}/${attachment}`
+                    type: 'regularFile',
+                    content: JSON.stringify(data, null, 4)
+                    //content: `../../../..${this.objectFileSystemPath}/${attachment}`
                 },
                 object: data,
                 hash: attachment
@@ -343,5 +379,17 @@ export default class ChatFileSystem extends EasyFileSystem {
                 }
             })
         );
+    }
+
+    /**
+     *
+     * @param count
+     * @private
+     */
+    private static countToEmoji(count: number | undefined): string {
+        if (count === undefined) {
+            count = 0;
+        }
+        return emojiNumberMap[count <= 10 ? count : 11];
     }
 }
