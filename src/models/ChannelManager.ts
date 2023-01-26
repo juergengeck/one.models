@@ -36,6 +36,7 @@ import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type LeuteModel from './Leute/LeuteModel';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {affirm} from '../misc/Certificates/AffirmationCertificate';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -370,6 +371,7 @@ export default class ChannelManager {
         // The owner can be the passed one, or the default one if none was passed.
         // It is no owner if null is passed.
         let owner: SHA256IdHash<Person> | undefined;
+        let myMainId = await this.leuteModel.myMainIdentity();
 
         if (channelOwner === null) {
             owner = undefined;
@@ -378,7 +380,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            owner = await this.leuteModel.myMainIdentity();
+            owner = myMainId;
         }
 
         // Post the data
@@ -407,7 +409,13 @@ export default class ChannelManager {
                     // Post the data
                     await serializeWithType(ChannelManager.postLockName, async () => {
                         logWithId(channelId, owner, `postToChannel - START`);
-                        await ChannelManager.internalChannelPost(channelId, owner, data, timestamp);
+                        await ChannelManager.internalChannelPost(
+                            channelId,
+                            owner,
+                            data,
+                            myMainId,
+                            timestamp
+                        );
                         logWithId(channelId, owner, `postToChannel - END`);
                     });
                 }
@@ -1994,6 +2002,7 @@ export default class ChannelManager {
      * @param channelId - The channel to post to
      * @param channelOwner - Owner of the channel to post to
      * @param payload - Payload of the post
+     * @param issuer
      * @param [timestamp]
      * @returns
      */
@@ -2001,6 +2010,7 @@ export default class ChannelManager {
         channelId: string,
         channelOwner: SHA256IdHash<Person> | undefined,
         payload: OneUnversionedObjectTypes,
+        issuer?: SHA256IdHash<Person>,
         timestamp?: number
     ): Promise<VersionedObjectResult<ChannelInfo>> {
         // Get the latest ChannelInfo from the database
@@ -2033,6 +2043,8 @@ export default class ChannelManager {
             data: payloadResult.hash
         });
 
+        const affirmationResult = await affirm(creationTimeResult.hash, issuer);
+
         // If the creation time of the previous entry is larger, it means that the clock of one of the
         // participating devices is wrong. We can't then just set the new element as new head, because
         // this would invalidate the assumption that all items are sorted by creation time.
@@ -2051,7 +2063,8 @@ export default class ChannelManager {
         const channelEntryResult = await storeUnversionedObject({
             $type$: 'ChannelEntry',
             previous: previousPointer,
-            data: creationTimeResult.hash
+            data: creationTimeResult.hash,
+            metadata: [affirmationResult.hash]
         });
 
         // Write the channel info with the new channel entry as head
