@@ -44,8 +44,7 @@ import {
 } from '@refinio/one.core/lib/instance';
 import RecipesStable from '../recipes/recipes-stable';
 import RecipesExperimental from '../recipes/recipes-experimental';
-import oneModules from '../generated/oneModules';
-import {importModules, waitForKeyPress} from './cliHelpers';
+import {waitForKeyPress} from './cliHelpers';
 import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
 import {
     convertIdentityToInstanceOptions,
@@ -175,8 +174,6 @@ async function setupOneModels(commServerUrl: string): Promise<{
     iom: IoMRequestManager;
     shutdown: () => Promise<void>;
 }> {
-    await importModules(oneModules);
-
     // Construct models
     const leute = new LeuteModel(commServerUrl);
     const channelManager = new ChannelManager(leute);

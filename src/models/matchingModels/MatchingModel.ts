@@ -5,7 +5,6 @@ import {
     getObjectByIdHash,
     getObjectByIdObj,
     SET_ACCESS_MODE,
-    VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -15,6 +14,7 @@ import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from '../Model';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -260,17 +260,11 @@ export default abstract class MatchingModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         await serializeWithType('SupplyMap', async () => {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'SupplyMap',
-                    name: this.supplyMapName,
-                    map: this.suppliesMap
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'SupplyMap',
+                name: this.supplyMapName,
+                map: this.suppliesMap
+            });
         });
     }
 
@@ -282,17 +276,11 @@ export default abstract class MatchingModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         await serializeWithType('DemandMap', async () => {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'DemandMap',
-                    name: this.demandMapName,
-                    map: this.demandsMap
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'DemandMap',
+                name: this.demandMapName,
+                map: this.demandsMap
+            });
         });
     }
 

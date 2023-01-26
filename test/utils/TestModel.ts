@@ -9,13 +9,6 @@ import {
     LeuteModel,
     ECGModel
 } from '../../lib/models';
-import oneModules from '../../lib/generated/oneModules';
-import {
-    createSingleObjectThroughPurePlan,
-    VersionedObjectResult,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
-import type {Module} from '@refinio/one.core/lib/recipes';
 
 const path = require('path');
 const fs = require('fs');
@@ -48,30 +41,6 @@ export async function removeDir(dir: string) {
     } catch (err) {
         console.error(err);
     }
-}
-/**
- * Import all plan modules
- */
-export async function importModules(): Promise<VersionedObjectResult<Module>[]> {
-    const modules = Object.keys(oneModules).map(key => ({
-        moduleName: key,
-        code: oneModules[key as keyof typeof oneModules]
-    }));
-
-    return await Promise.all(
-        modules.map(
-            async module =>
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/module-importer',
-                        versionMapPolicy: {
-                            '*': VERSION_UPDATES.NONE_IF_LATEST
-                        }
-                    },
-                    module
-                )
-        )
-    );
 }
 export default class TestModel {
     private readonly secret: string;

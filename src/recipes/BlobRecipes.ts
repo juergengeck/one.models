@@ -1,18 +1,10 @@
 import type {BLOB, Recipe} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         BlobCollection: BlobCollection;
         BlobDescriptor: BlobDescriptor;
-    }
-
-    export interface PlanResultTypes {
-        '@module/createBlobCollection': {
-            args: any;
-            result: UnversionedObjectResult<BlobCollection>;
-        };
     }
 }
 

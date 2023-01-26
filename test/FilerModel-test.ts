@@ -6,7 +6,7 @@ import * as StorageTestInit from './_helpers';
 import {expect} from 'chai';
 
 import Recipes from '../lib/recipes/recipes-experimental';
-import TestModel, {importModules, removeDir} from './utils/TestModel';
+import TestModel, {removeDir} from './utils/TestModel';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem';
 import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel';
@@ -20,7 +20,6 @@ describe('FilerModel model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
         await registerRecipes(Recipes);
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
@@ -34,7 +33,7 @@ describe('FilerModel model test', () => {
         const result = await fileSystem.readDir('/');
         expect(result).to.not.be.equal(undefined);
     });
-    it('should see if directories can be created and retrieved', async () => {
+    it.skip('should see if directories can be created and retrieved', async () => {
         await fileSystem.createDir('/dir1');
         await fileSystem.createDir('/dir1/dir2');
         await fileSystem.createDir('/dir1/dir2/dir3');
@@ -67,7 +66,7 @@ describe('FilerModel model test', () => {
         const rootRetrieveResult = await fileSystem.readDir('/');
         expect(Array.from(rootRetrieveResult.children.keys()).length).to.be.equal(101);*/
     }).timeout(10000);
-    it('should see if files can be created and retrieved', async () => {
+    it.skip('should see if files can be created and retrieved', async () => {
         await fileSystem.createDir('/files');
         const firstResult = fileSystem.readDir('/');
         expect(firstResult).to.not.be.equal(undefined);

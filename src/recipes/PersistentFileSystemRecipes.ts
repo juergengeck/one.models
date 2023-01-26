@@ -1,7 +1,5 @@
 import type {BLOB, Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import type {BlobDescriptor} from './BlobRecipes';
 
 /**
  * @global
@@ -59,24 +57,6 @@ declare module '@OneObjectInterfaces' {
         PersistentFileSystemDirectory: PersistentFileSystemDirectory;
         PersistentFileSystemFile: PersistentFileSystemFile;
         PersistentFileSystemRoot: PersistentFileSystemRoot;
-    }
-
-    /**
-     * Plans to create & update the root directory
-     */
-    export interface PlanResultTypes {
-        '@module/persistentFileSystemCreateRoot': {
-            args: any;
-            result: UnversionedObjectResult<PersistentFileSystemRoot>;
-        };
-        '@module/persistentFileSystemUpdateRoot': {
-            args: any;
-            result: UnversionedObjectResult<PersistentFileSystemRoot>;
-        };
-        '@module/persistentFileSystemSymlink': {
-            args: any;
-            result: UnversionedObjectResult<BlobDescriptor>;
-        };
     }
 }
 /**

@@ -6,13 +6,10 @@ import {expect} from 'chai';
 
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectByIdObj,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
-import TestModel, {importModules} from './utils/TestModel';
+import {getObjectByIdObj} from '@refinio/one.core/lib/storage';
+import TestModel from './utils/TestModel';
 import type AccessModel from '../lib/models/AccessModel';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 let accessModel: AccessModel;
 let testModel: TestModel;
@@ -20,7 +17,6 @@ let testModel: TestModel;
 describe('AccessRights model test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
@@ -56,32 +52,20 @@ describe('AccessRights model test', () => {
     });
 
     it('should add person to an access group', async () => {
-        const newPerson = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Person',
-                email: 'foo@refinio.net'
-            }
-        );
+        const newPerson = await storeVersionedObject({
+            $type$: 'Person',
+            email: 'foo@refinio.net'
+        });
         await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
         const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person[0]).to.be.equal(newPerson.idHash);
     });
 
     it('should add an existing person to an access group', async () => {
-        const newPerson = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Person',
-                email: 'foo@refinio.net'
-            }
-        );
+        const newPerson = await storeVersionedObject({
+            $type$: 'Person',
+            email: 'foo@refinio.net'
+        });
         await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
         const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person.length).to.be.equal(1);
@@ -95,32 +79,20 @@ describe('AccessRights model test', () => {
     });
 
     it('should delete a fake person from an access group', async () => {
-        const newPerson = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Person',
-                email: 'foo111@refinio.net'
-            }
-        );
+        const newPerson = await storeVersionedObject({
+            $type$: 'Person',
+            email: 'foo111@refinio.net'
+        });
         await accessModel.removePersonFromAccessGroup('partners', newPerson.idHash);
         const partnerGroup = await accessModel.getAccessGroupByName('partners');
         expect(partnerGroup.obj.person).to.have.length(0);
     });
 
     it('should list persons for an access group', async () => {
-        const newPerson = await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            {
-                $type$: 'Person',
-                email: 'foo@refinio.net'
-            }
-        );
+        const newPerson = await storeVersionedObject({
+            $type$: 'Person',
+            email: 'foo@refinio.net'
+        });
         await accessModel.addPersonToAccessGroup('partners', newPerson.idHash);
         const persons = await accessModel.getAccessGroupPersons('partners');
         expect(persons).to.have.length(1);

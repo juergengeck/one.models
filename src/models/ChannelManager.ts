@@ -1,8 +1,6 @@
 import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import {
     createManyObjectsThroughPurePlan,
-    createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
     getAllVersionMapEntries,
     getObject,
     getObjectByIdHash,
@@ -37,6 +35,7 @@ import type {CreationTime} from '../recipes/MetaRecipes';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type LeuteModel from './Leute/LeuteModel';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -408,15 +407,7 @@ export default class ChannelManager {
                     // Post the data
                     await serializeWithType(ChannelManager.postLockName, async () => {
                         logWithId(channelId, owner, `postToChannel - START`);
-
-                        await createSingleObjectThroughImpurePlan(
-                            {module: '@module/channelPost'},
-                            channelId,
-                            owner,
-                            data,
-                            timestamp
-                        );
-
+                        await ChannelManager.internalChannelPost(channelId, owner, data, timestamp);
                         logWithId(channelId, owner, `postToChannel - END`);
                     });
                 }
@@ -1292,13 +1283,10 @@ export default class ChannelManager {
                     // common history if we have unmerged entries
                     let rebuiltHead;
                     if (unmergedElements.length > 0) {
-                        const result = (await createSingleObjectThroughPurePlan(
-                            {module: '@module/channelRebuildEntries'},
-                            channelId,
-                            channelOwner,
+                        const result = await ChannelManager.rebuildEntries(
                             commonHistoryHead,
                             unmergedElements
-                        )) as UnversionedObjectResult<ChannelEntry>;
+                        );
                         rebuiltHead = result.hash;
                     } else {
                         rebuiltHead = commonHistoryHead;
@@ -1306,15 +1294,12 @@ export default class ChannelManager {
 
                     // Write the new channel head only if it differs from the previous one
                     if (rebuiltHead !== channelInfosToMerge[channelInfosToMerge.length - 1].head) {
-                        const newVersion = (await createSingleObjectThroughPurePlan(
-                            {
-                                module: '@module/channelSetHead',
-                                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                            },
-                            channelId,
-                            channelOwner,
-                            rebuiltHead
-                        )) as VersionedObjectResult<ChannelInfo>;
+                        const newVersion = await storeVersionedObject({
+                            $type$: 'ChannelInfo',
+                            id: channelId,
+                            owner: channelOwner,
+                            head: rebuiltHead
+                        });
 
                         // Let's calculate the position of the generated version in the version map
                         let newVersionIndex = lastVersionToMerge;
@@ -1770,17 +1755,11 @@ export default class ChannelManager {
             }
 
             // Write the registry version
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'ChannelRegistry',
-                    id: 'ChannelRegistry',
-                    channels: channels
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'ChannelRegistry',
+                id: 'ChannelRegistry',
+                channels: channels
+            });
         });
     }
 
@@ -1974,5 +1953,113 @@ export default class ChannelManager {
 
         // Remove duplicate persons and return the result
         return [...new Set(personsFlat)];
+    }
+
+    private static async rebuildEntries(
+        oldHead: SHA256Hash<ChannelEntry>,
+        newElementsReversed: SHA256Hash<CreationTime>[]
+    ): Promise<UnversionedObjectResult<ChannelEntry>> {
+        // Create the new channel entries linked list from the array elements
+        let lastChannelEntry = oldHead;
+        let newEntryResult;
+        for (let i = newElementsReversed.length - 1; i >= 0; --i) {
+            newEntryResult = await storeUnversionedObject({
+                $type$: 'ChannelEntry',
+                data: newElementsReversed[i],
+                previous: lastChannelEntry
+            });
+            lastChannelEntry = newEntryResult.hash;
+        }
+
+        // If newEntryResult is undefined this means, that the newElementsReserved list was empty
+        // Usually we could just return the oldHead, but we need an UnversionedObjectResult from
+        // a SHA256Hash<ChannelEntry> and I have no clue how to get it, so throw.
+        if (!newEntryResult) {
+            throw new Error('It does not make sense to rebuild a channel with 0 elements.');
+        }
+
+        // Create the new channel version
+        return newEntryResult;
+    }
+
+    /**
+     * Post a new entry in a channel.
+     *
+     * This creates a new channel entry with the current time as creation time and
+     * inserts it to the channel.
+     *
+     * Attention: This is an impure plan, because it always generates a new element
+     *            with a new creation time even if the payload was posted before
+     *
+     * @param channelId - The channel to post to
+     * @param channelOwner - Owner of the channel to post to
+     * @param payload - Payload of the post
+     * @param [timestamp]
+     * @returns
+     */
+    public static async internalChannelPost(
+        channelId: string,
+        channelOwner: SHA256IdHash<Person> | undefined,
+        payload: OneUnversionedObjectTypes,
+        timestamp?: number
+    ): Promise<VersionedObjectResult<ChannelInfo>> {
+        // Get the latest ChannelInfo from the database
+        let latestChannelInfo;
+        {
+            const channelInfoIdHash = await calculateIdHashOfObj({
+                $type$: 'ChannelInfo',
+                id: channelId,
+                owner: channelOwner
+            });
+            latestChannelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
+        }
+
+        // Get the creation time of the last element
+        let previousCreationTime = 0;
+        if (latestChannelInfo.head) {
+            const channelEntry = await getObject(latestChannelInfo.head);
+            const creationTimeObj = await getObject(channelEntry.data);
+            previousCreationTime = creationTimeObj.timestamp;
+        }
+
+        // Write the payload.
+        // If it already exists, then ... it doesn't matter, because it will have the same hash
+        const payloadResult = await storeUnversionedObject(payload);
+
+        // Write creation time meta information
+        const creationTimeResult = await storeUnversionedObject({
+            $type$: 'CreationTime',
+            timestamp: timestamp ? timestamp : Date.now(),
+            data: payloadResult.hash
+        });
+
+        // If the creation time of the previous entry is larger, it means that the clock of one of the
+        // participating devices is wrong. We can't then just set the new element as new head, because
+        // this would invalidate the assumption that all items are sorted by creation time.
+        // In this special case we need to insert the element at the correct position in the chain by
+        // iterating and rebuilding the chain after the correct insertion point.
+        // The merge algorithm does exactly that, so we just post a new version with exactly one element
+        // (=> undefined previous element) and let the merge algorithm take care of the iteration.
+        let previousPointer;
+        if (creationTimeResult.obj.timestamp > previousCreationTime) {
+            previousPointer = latestChannelInfo.head;
+        } else {
+            previousPointer = undefined;
+        }
+
+        // Write the channel entry
+        const channelEntryResult = await storeUnversionedObject({
+            $type$: 'ChannelEntry',
+            previous: previousPointer,
+            data: creationTimeResult.hash
+        });
+
+        // Write the channel info with the new channel entry as head
+        return storeVersionedObject({
+            $type$: 'ChannelInfo',
+            id: channelId,
+            owner: channelOwner,
+            head: channelEntryResult.hash
+        });
     }
 }

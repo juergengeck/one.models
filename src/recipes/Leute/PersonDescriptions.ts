@@ -1,5 +1,4 @@
 import type {BLOB, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
@@ -136,13 +135,6 @@ declare module '@OneObjectInterfaces' {
         PersonStatus: PersonStatus;
         ProfileImage: ProfileImage;
         PersonImage: PersonImage;
-    }
-
-    export interface PlanResultTypes {
-        '@module/createProfilePicture': {
-            args: any;
-            result: UnversionedObjectResult<ProfileImage>;
-        };
     }
 }
 export default [PersonNameRecipe, PersonStatusRecipe, ProfileImageRecipe, PersonImageRecipe];

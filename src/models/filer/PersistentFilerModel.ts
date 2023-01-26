@@ -9,8 +9,7 @@ import {EventEmitter} from 'events';
 
 import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
-import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
-import {getObject, VERSION_UPDATES} from '@refinio/one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {ObjectData} from '../ChannelManager';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
@@ -19,6 +18,7 @@ import type {
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).
@@ -102,14 +102,19 @@ export default class PersistentFilerModel extends EventEmitter {
             if (rootDirectory[0]) {
                 const rootDir = await getObject(rootDirectory[0].dataHash);
                 if ('root' in rootDir) {
-                    const updatedRoot = await createSingleObjectThroughPurePlan(
-                        {
-                            module: '@module/persistentFileSystemUpdateRoot',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        rootDir,
-                        rootHash
-                    );
+                    const rootStored = await storeUnversionedObject({
+                        $type$: 'PersistentFileSystemDirectory',
+                        children: []
+                    });
+
+                    const updatedRoot = await storeUnversionedObject({
+                        $type$: 'PersistentFileSystemRoot',
+                        root: {
+                            mode: 0o0040777,
+                            entry: rootStored.hash
+                        }
+                    });
+
                     await this.channelManager.postToChannel(
                         this.fileSystemChannelId,
                         updatedRoot.obj
@@ -141,9 +146,17 @@ export default class PersistentFilerModel extends EventEmitter {
         );
 
         if (rootDirectory.length === 0) {
-            const root = await createSingleObjectThroughPurePlan({
-                module: '@module/persistentFileSystemCreateRoot',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
+            const rootStored = await storeUnversionedObject({
+                $type$: 'PersistentFileSystemDirectory',
+                children: []
+            });
+
+            const root = await storeUnversionedObject({
+                $type$: 'PersistentFileSystemRoot',
+                root: {
+                    mode: 0o0040777,
+                    entry: rootStored.hash
+                }
             });
             await this.channelManager.postToChannel(this.fileSystemChannelId, root.obj);
             return root.obj;

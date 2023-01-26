@@ -9,7 +9,6 @@ import {
     onUnversionedObj,
     SET_ACCESS_MODE,
     UnversionedObjectResult,
-    VERSION_UPDATES,
     VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -17,6 +16,8 @@ import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this
@@ -138,20 +139,11 @@ export default class ServerMatchingModel extends MatchingModel {
             })) as VersionedObjectResult<NotifiedUsers>;
         } catch (err) {
             if (err.name === 'FileNotFoundError') {
-                this.notifiedUsersObj = (await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'NotifiedUsers',
-                        name: this.notifiedUsersName,
-                        existingMatches: new Map<
-                            SHA256IdHash<Person>,
-                            Set<SHA256Hash<MatchResponse>>
-                        >()
-                    }
-                )) as VersionedObjectResult<NotifiedUsers>;
+                this.notifiedUsersObj = (await storeVersionedObject({
+                    $type$: 'NotifiedUsers',
+                    name: this.notifiedUsersName,
+                    existingMatches: new Map<SHA256IdHash<Person>, Set<SHA256Hash<MatchResponse>>>()
+                })) as VersionedObjectResult<NotifiedUsers>;
             } else {
                 throw err;
             }
@@ -207,19 +199,13 @@ export default class ServerMatchingModel extends MatchingModel {
     ): Promise<UnversionedObjectResult<MatchResponse>> {
         const identityOfDemand = source.$type$ === 'Demand';
         const matchResponse = (await serializeWithType('MatchResponse', async () => {
-            return await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'MatchResponse',
-                    identity: source.identity,
-                    match: source.match,
-                    identityOfDemand,
-                    creationTimestamp: Date.now()
-                }
-            );
+            return await storeUnversionedObject({
+                $type$: 'MatchResponse',
+                identity: source.identity,
+                match: source.match,
+                identityOfDemand,
+                creationTimestamp: Date.now()
+            });
         })) as UnversionedObjectResult<MatchResponse>;
 
         const destPerson = await calculateIdHashOfObj({
@@ -264,7 +250,7 @@ export default class ServerMatchingModel extends MatchingModel {
 
         if (this.notifiedUsersObj) {
             await serializeWithType(this.notifiedUsersObj.idHash, async () => {
-                await createSingleObjectThroughPurePlan(
+                /*await createSingleObjectThroughPurePlan(
                     {
                         module: '@module/notifiedUsers',
                         versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
@@ -273,7 +259,8 @@ export default class ServerMatchingModel extends MatchingModel {
                         ...this.notifiedUsersObj.obj,
                         existingMatches: existingMatchesMap
                     }
-                );
+                );*/
+                throw new Error('Commented, because plan does not exist!');
             });
         }
 

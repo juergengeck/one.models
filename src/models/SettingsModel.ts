@@ -1,7 +1,9 @@
-import {getObjectByIdObj, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdObj,
+    onVersionedObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
-import {createSingleObjectThroughPurePlan} from '@refinio/one.core/lib/plan';
-import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
@@ -136,17 +138,11 @@ export default class PropertyTreeStore extends PropertyTree {
             // change the value
             keyValueStoreCopy.set(key, value);
             // store the object in instance
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'Settings',
-                    id: this.oneId,
-                    properties: keyValueStoreCopy
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'Settings',
+                id: this.oneId,
+                properties: keyValueStoreCopy
+            });
         });
     }
 

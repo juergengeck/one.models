@@ -1,4 +1,4 @@
-import TestModel, {importModules} from './utils/TestModel';
+import TestModel from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {expect} from 'chai';
 import * as StorageTestInit from './_helpers';
@@ -10,7 +10,6 @@ let testModel: TestModel;
 describe('OEvent test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;

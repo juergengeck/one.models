@@ -1,12 +1,10 @@
 import MatchingModel from './MatchingModel';
 import {
-    createSingleObjectThroughPurePlan,
     getObject,
     getObjectByIdObj,
     onUnversionedObj,
     UnversionedObjectResult,
-    VersionedObjectResult,
-    VERSION_UPDATES
+    VersionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {OEvent} from '../../misc/OEvent';
@@ -14,6 +12,8 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type ChannelManager from '../ChannelManager';
 import type {Demand, MatchMap, MatchResponse, Supply} from '../../recipes/MatchingRecipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 /**
  * This represents a MatchingEvents
@@ -133,19 +133,16 @@ export default class ClientMatchingModel extends MatchingModel {
      */
     async sendSupplyObject(supplyInput: string): Promise<void> {
         await serializeWithType('Supply', async () => {
-            const supply = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'Supply',
-                    identity: this.anonInstancePersonEmail,
-                    match: supplyInput,
-                    isActive: true,
-                    timestamp: Date.now()
-                }
-            )) as UnversionedObjectResult<Supply>;
+            if (this.anonInstancePersonEmail === null) {
+                return;
+            }
+            const supply = (await storeUnversionedObject({
+                $type$: 'Supply',
+                identity: this.anonInstancePersonEmail,
+                match: supplyInput,
+                isActive: true,
+                timestamp: Date.now()
+            })) as UnversionedObjectResult<Supply>;
 
             // remember the Supply object that was created
             this.addNewValueToSupplyMap(supply.obj);
@@ -164,19 +161,16 @@ export default class ClientMatchingModel extends MatchingModel {
      */
     async sendDemandObject(demandInput: string): Promise<void> {
         await serializeWithType('Demand', async () => {
-            const demand = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'Demand',
-                    identity: this.anonInstancePersonEmail,
-                    match: demandInput,
-                    isActive: true,
-                    timestamp: Date.now()
-                }
-            )) as UnversionedObjectResult<Demand>;
+            if (this.anonInstancePersonEmail === null) {
+                return;
+            }
+            const demand = (await storeUnversionedObject({
+                $type$: 'Demand',
+                identity: this.anonInstancePersonEmail,
+                match: demandInput,
+                isActive: true,
+                timestamp: Date.now()
+            })) as UnversionedObjectResult<Demand>;
 
             // remember the Demand object that was created
             this.addNewValueToDemandMap(demand.obj);
@@ -325,6 +319,10 @@ export default class ClientMatchingModel extends MatchingModel {
         }
 
         await serializeWithType('Supply', async () => {
+            if (this.anonInstancePersonEmail === null) {
+                return;
+            }
+
             // a person can create only one Supply object with a specific match
             const availableSupply = supplyArray.find(
                 supplyObj => supplyObj.identity === this.anonInstancePersonEmail
@@ -337,19 +335,13 @@ export default class ClientMatchingModel extends MatchingModel {
             }
 
             // create the new version of the Supply object
-            const newSupply = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'Supply',
-                    identity: this.anonInstancePersonEmail,
-                    match: supplyMatch,
-                    isActive: !availableSupply.isActive,
-                    timestamp: availableSupply.timestamp
-                }
-            )) as UnversionedObjectResult<Supply>;
+            const newSupply = (await storeUnversionedObject({
+                $type$: 'Supply',
+                identity: this.anonInstancePersonEmail,
+                match: supplyMatch,
+                isActive: !availableSupply.isActive,
+                timestamp: availableSupply.timestamp
+            })) as UnversionedObjectResult<Supply>;
 
             // delete the old version of the Supply object
             this.suppliesMap.delete(availableSupply.match);
@@ -386,6 +378,10 @@ export default class ClientMatchingModel extends MatchingModel {
         }
 
         await serializeWithType('Demand', async () => {
+            if (this.anonInstancePersonEmail === null) {
+                return;
+            }
+
             // a person can create only one Demand object with a specific match
             const availableDemand = demandArray.find(
                 demandObj => demandObj.identity === this.anonInstancePersonEmail
@@ -398,19 +394,13 @@ export default class ClientMatchingModel extends MatchingModel {
             }
 
             // create the new version of the Demand object
-            const newDemand = (await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                },
-                {
-                    $type$: 'Demand',
-                    identity: this.anonInstancePersonEmail,
-                    match: value,
-                    isActive: !availableDemand.isActive,
-                    timestamp: availableDemand.timestamp
-                }
-            )) as UnversionedObjectResult<Demand>;
+            const newDemand = (await storeUnversionedObject({
+                $type$: 'Demand',
+                identity: this.anonInstancePersonEmail,
+                match: value,
+                isActive: !availableDemand.isActive,
+                timestamp: availableDemand.timestamp
+            })) as UnversionedObjectResult<Demand>;
 
             // delete the old version of the Demand object
             this.demandsMap.delete(availableDemand.match);
@@ -506,29 +496,17 @@ export default class ClientMatchingModel extends MatchingModel {
                     existingMatches = [matchResponseHash];
                 }
 
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'MatchMap',
-                        name: this.matchMapName,
-                        array: existingMatches
-                    }
-                );
+                await storeVersionedObject({
+                    $type$: 'MatchMap',
+                    name: this.matchMapName,
+                    array: existingMatches
+                });
             } catch (err) {
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'MatchMap',
-                        name: this.matchMapName,
-                        array: [matchResponseHash]
-                    }
-                );
+                await storeVersionedObject({
+                    $type$: 'MatchMap',
+                    name: this.matchMapName,
+                    array: [matchResponseHash]
+                });
             }
             this.onMatchUpdate.emit();
         });

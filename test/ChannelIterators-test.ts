@@ -4,12 +4,8 @@
 
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import TestModel, {importModules} from './utils/TestModel';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectByIdHash,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+import TestModel from './utils/TestModel';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
 import type {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
@@ -17,6 +13,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -36,18 +33,11 @@ async function getChannelRegistry() {
 describe('Channel Iterators test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         owner = (
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'Person',
-                    email: 'foo@refinio.net'
-                }
-            )
+            await storeVersionedObject({
+                $type$: 'Person',
+                email: 'foo@refinio.net'
+            })
         ).idHash;
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);

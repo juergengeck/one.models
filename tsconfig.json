@@ -36,9 +36,6 @@
     },
     "references": [
         {
-            "path": "./plans"
-        },
-        {
             "path": "./src"
         },
         {

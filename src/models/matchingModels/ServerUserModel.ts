@@ -1,13 +1,10 @@
 import ClientMatchingModel from './ClientMatchingModel';
 import type ChannelManager from '../ChannelManager';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {
-    createSingleObjectThroughPurePlan,
-    UnversionedObjectResult,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {Demand, Supply} from '../../recipes/MatchingRecipes';
 import MatchingModel from './MatchingModel';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(channelManager: ChannelManager) {
@@ -63,19 +60,13 @@ export default class ServerUserModel extends ClientMatchingModel {
             // change the status for all existing supplies
             for (const supply of supplyArray) {
                 // save new supply, but with 'isActive' status up to date
-                const newSupply = (await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'Supply',
-                        identity: supply.identity,
-                        match: supplyMatch,
-                        isActive: !supply.isActive,
-                        timestamp: supply.timestamp
-                    }
-                )) as UnversionedObjectResult<Supply>;
+                const newSupply = (await storeUnversionedObject({
+                    $type$: 'Supply',
+                    identity: supply.identity,
+                    match: supplyMatch,
+                    isActive: !supply.isActive,
+                    timestamp: supply.timestamp
+                })) as UnversionedObjectResult<Supply>;
 
                 // delete the old version of the Supply object
                 this.suppliesMap.delete(supply.match);
@@ -111,19 +102,13 @@ export default class ServerUserModel extends ClientMatchingModel {
             // change the status for all existing supplies
             for (const demand of demandArray) {
                 // save new supply, but with 'isActive' status up to date
-                const newDemand = (await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-                    },
-                    {
-                        $type$: 'Demand',
-                        identity: demand.identity,
-                        match: demandMatch,
-                        isActive: !demand.isActive,
-                        timestamp: demand.timestamp
-                    }
-                )) as UnversionedObjectResult<Demand>;
+                const newDemand = (await storeUnversionedObject({
+                    $type$: 'Demand',
+                    identity: demand.identity,
+                    match: demandMatch,
+                    isActive: !demand.isActive,
+                    timestamp: demand.timestamp
+                })) as UnversionedObjectResult<Demand>;
 
                 // delete the old version of the Supply object
                 this.demandsMap.delete(demand.match);

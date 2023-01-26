@@ -5,13 +5,7 @@
  * @version 0.0.1
  */
 
-import {
-    createSingleObjectThroughPurePlan,
-    createSingleObjectThroughImpurePlan,
-    getObject,
-    readBlobAsArrayBuffer
-} from '@refinio/one.core/lib/storage';
-import {VERSION_UPDATES} from '@refinio/one.core/lib/storage-base-common';
+import {getObject, readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage';
 import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {
@@ -36,6 +30,8 @@ import type {
     PersistentFileSystemFile,
     PersistentFileSystemRoot
 } from '../recipes/PersistentFileSystemRecipes';
+import {storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -128,16 +124,10 @@ export default class PersistentFileSystem implements IFileSystem {
                 });
             }
 
-            const savedFile = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'PersistentFileSystemFile',
-                    content: fileHash
-                }
-            );
+            const savedFile = await storeUnversionedObject({
+                $type$: 'PersistentFileSystemFile',
+                content: fileHash
+            });
 
             const foundIndex = targetDirectory.children.findIndex(
                 (child: PersistentFileSystemChild) => child.path === `/${fileName}`
@@ -153,13 +143,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 path: `/${fileName}`
             });
             /** update the directory **/
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                targetDirectory
-            );
+            await storeUnversionedObject(targetDirectory);
             const updatedTargetDirectoryHash = await calculateHashOfObj(targetDirectory);
             /** if the file is added on root, don't go recursive on the tree **/
             if (directoryPath === '/') {
@@ -290,16 +274,10 @@ export default class PersistentFileSystem implements IFileSystem {
                 });
             }
 
-            const newDirectory = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'PersistentFileSystemDirectory',
-                    children: []
-                }
-            );
+            const newDirectory = await storeUnversionedObject({
+                $type$: 'PersistentFileSystemDirectory',
+                children: []
+            });
 
             const newDirectoryHash = await calculateHashOfObj(newDirectory.obj);
             /** Intentionally the same hash because this directory was created now **/
@@ -385,13 +363,7 @@ export default class PersistentFileSystem implements IFileSystem {
 
             desiredTarget.mode = mode;
 
-            const newDirectory = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                parentContent
-            );
+            const newDirectory = await storeUnversionedObject(parentContent);
 
             if (parentPath === '/') {
                 /* update the channel with the updated root directory */
@@ -470,20 +442,8 @@ export default class PersistentFileSystem implements IFileSystem {
                 });
 
                 /** save updated directories **/
-                const srcNewDirectory = await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    srcParentContent
-                );
-                const destNewDirectory = await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    destParentContent
-                );
+                const srcNewDirectory = await storeUnversionedObject(srcParentContent);
+                const destNewDirectory = await storeUnversionedObject(destParentContent);
 
                 /** if the src is root **/
                 if (srcParentPath === '/') {
@@ -537,13 +497,7 @@ export default class PersistentFileSystem implements IFileSystem {
                     path: FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(dest))
                 });
 
-                const newDirectory = await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    srcParentContent
-                );
+                const newDirectory = await storeUnversionedObject(srcParentContent);
                 /** Update the File System Tree **/
                 if (srcParentPath === '/') {
                     /** update the channel with the updated root directory **/
@@ -622,13 +576,7 @@ export default class PersistentFileSystem implements IFileSystem {
             );
             parentContent.children.splice(foundIndex, 1);
 
-            const newDirectory = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                parentContent
-            );
+            const newDirectory = await storeUnversionedObject(parentContent);
             /** Update the File System Tree **/
             if (parentPath === '/') {
                 /** update the channel with the updated root directory **/
@@ -695,13 +643,7 @@ export default class PersistentFileSystem implements IFileSystem {
             );
             parentContent.children.splice(foundIndex, 1);
 
-            const newDirectory = await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                parentContent
-            );
+            const newDirectory = await storeUnversionedObject(parentContent);
             if (parentPath === '/') {
                 /** update the channel with the updated root directory **/
                 if (this.onRootUpdate) {
@@ -769,15 +711,17 @@ export default class PersistentFileSystem implements IFileSystem {
         }
 
         const fileName = FileSystemHelpers.getLastItem(dest);
-        const fileDescriptor = await createSingleObjectThroughImpurePlan(
-            {
-                module: '@module/persistentFileSystemSymlink',
-                versionMapPolicy: {'*': VERSION_UPDATES.ALWAYS}
-            },
-            view,
-            fileName,
-            'Plain text file'
-        );
+
+        const blobDescriptor = {
+            $type$: 'BlobDescriptor',
+            data: (await storeArrayBufferAsBlob(view)).hash,
+            lastModified: Date.now(),
+            name: fileName,
+            size: view.byteLength,
+            type: 'Plain text file'
+        } as const;
+
+        const fileDescriptor = await storeUnversionedObject(blobDescriptor);
 
         await this.createFile(
             FileSystemHelpers.getParentDirectoryFullPath(dest),
@@ -979,13 +923,7 @@ export default class PersistentFileSystem implements IFileSystem {
                 )
             });
             /** save the parent **/
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                currentDirectoryParent
-            );
+            await storeUnversionedObject(currentDirectoryParent);
             /** get the updated parent hash **/
             const updatedCurrentDirectoryParent = await calculateHashOfObj(currentDirectoryParent);
             const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(updateToPath);
