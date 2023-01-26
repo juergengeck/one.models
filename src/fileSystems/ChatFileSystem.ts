@@ -349,9 +349,9 @@ export default class ChatFileSystem extends EasyFileSystem {
                     })
                 );
                 for (const signature of signatures) {
-                    dir.set(`${signature.issuer} ${objects.findIndex(o => o === object)}`, {
+                    dir.set(`${signature.issuer} ${objects.findIndex(o => o === object)}.json`, {
                         type: 'regularFile',
-                        content: JSON.stringify(signature)
+                        content: JSON.stringify(signature, null, 4)
                     });
                 }
             }
