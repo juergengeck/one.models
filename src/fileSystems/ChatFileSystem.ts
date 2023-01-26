@@ -244,9 +244,9 @@ export default class ChatFileSystem extends EasyFileSystem {
         content.set('signatures', {
             type: 'directory',
             content: this.loadSignatures.bind(this, [
-                channelEntryHash,
-                dateTimeHash,
-                chatMessageHash
+                //channelEntryHash,
+                dateTimeHash
+                //chatMessageHash
             ])
         });
 
@@ -349,9 +349,9 @@ export default class ChatFileSystem extends EasyFileSystem {
                     })
                 );
                 for (const signature of signatures) {
-                    dir.set(`${signature.issuer} ${objects.findIndex(o => o === object)}`, {
+                    dir.set(`${signature.issuer}.json`, {
                         type: 'regularFile',
-                        content: JSON.stringify(signature)
+                        content: JSON.stringify(signature, null, 4)
                     });
                 }
             }
