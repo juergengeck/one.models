@@ -362,7 +362,6 @@ async function readPkgJsonRefinio(dir) {
     } catch (_err) {
         // It is not a task of this build script to check for errors in package.json, and not
         // finding the file is not an error to begin with.
-        return;
     }
 }
 
@@ -524,8 +523,6 @@ async function run() {
     }
 
     console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
-
-    execSync('node ./build_plan_modules.js');
 
     await deleteDirectory(targetDir);
     await processAllFiles('src', targetDir, system, moduleTarget);

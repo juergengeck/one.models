@@ -3,7 +3,7 @@ import {
     closeAndDeleteCurrentInstance,
     getInstanceOwnerIdHash
 } from '@refinio/one.core/lib/instance';
-import TestModel, {importModules, removeDir} from './utils/TestModel';
+import TestModel from './utils/TestModel';
 import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
 import type {RawChannelEntry} from '../lib/models/ChannelManager';
@@ -11,17 +11,13 @@ import {ObjectData, Order} from '../lib/models/ChannelManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {
-    createSingleObjectThroughImpurePlan,
-    createSingleObjectThroughPurePlan,
-    getObject,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+import {getObject} from '@refinio/one.core/lib/storage';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
 import type {CreationTime} from '../lib/recipes/MetaRecipes';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import {wait} from '@refinio/one.core/lib/util/promise';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -83,21 +79,15 @@ if (enableLogging) {
     });
 }
 
-async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<ChannelInfo> {
+async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>[]): Promise<ChannelInfo> {
     let previous: SHA256Hash<ChannelEntry> | undefined = undefined;
     for (const dataHash of dataHashes) {
         previous = (
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'ChannelEntry',
-                    data: dataHash,
-                    previous
-                }
-            )
+            await storeUnversionedObject({
+                $type$: 'ChannelEntry',
+                data: dataHash,
+                previous
+            })
         ).hash;
     }
     return {
@@ -113,7 +103,6 @@ async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>): Promise<C
 describe('Channel Manager test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
@@ -442,8 +431,7 @@ describe('Channel Manager test', () => {
         //console.log(firstValuesAsc);
 
         // Post other elements
-        await createSingleObjectThroughImpurePlan(
-            {module: '@module/channelPost'},
+        await ChannelManager.internalChannelPost(
             'first',
             channels[0].owner,
             {$type$: 'BodyTemperature', temperature: 9},

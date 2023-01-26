@@ -4,7 +4,7 @@
 import {expect} from 'chai';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import TestModel, {importModules, removeDir} from './utils/TestModel';
+import TestModel from './utils/TestModel';
 import {QuestionnaireModel} from '../lib/models';
 
 let testModel: TestModel;
@@ -12,7 +12,6 @@ let testModel: TestModel;
 describe('Questionnaire model test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;

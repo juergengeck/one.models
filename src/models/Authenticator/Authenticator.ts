@@ -1,17 +1,10 @@
 import {StateMachine} from '../../misc/StateMachine';
 import {OEvent} from '../../misc/OEvent';
-import {
-    createSingleObjectThroughPurePlan,
-    VERSION_UPDATES,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
 import type {
-    Module,
     Recipe,
     OneObjectTypeNames,
     OneVersionedObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
-import oneModules from '../../generated/oneModules';
 import {closeInstance} from '@refinio/one.core/lib/instance';
 import RecipesStable from '../../recipes/recipes-stable';
 import RecipesExperimental from '../../recipes/recipes-experimental';
@@ -114,29 +107,6 @@ export default abstract class Authenticator {
                     : options.reverseMapsForIdObjects,
             storageInitTimeout: options.storageInitTimeout
         };
-    }
-
-    /**
-     * This function will import generated modules.
-     */
-    protected async importModules(): Promise<VersionedObjectResult<Module>[]> {
-        const modules = Object.keys(oneModules).map(key => ({
-            moduleName: key,
-            code: oneModules[key as keyof typeof oneModules]
-        }));
-        return await Promise.all(
-            modules.map(module =>
-                createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/module-importer',
-                        versionMapPolicy: {
-                            '*': VERSION_UPDATES.NONE_IF_LATEST
-                        }
-                    },
-                    module
-                )
-            )
-        );
     }
 
     /**

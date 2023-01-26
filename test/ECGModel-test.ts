@@ -2,9 +2,9 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 import {expect} from 'chai';
-import {closeAndDeleteCurrentInstance, registerRecipes} from '@refinio/one.core/lib/instance';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
-import TestModel, {importModules} from './utils/TestModel';
+import TestModel from './utils/TestModel';
 import type ECGModel from '../lib/models/ECGModel';
 import type {Electrocardiogram} from '../lib/recipes/ECGRecipes';
 
@@ -14,7 +14,6 @@ let testModel: TestModel;
 describe('ECG Model test', () => {
     before(async () => {
         await StorageTestInit.init();
-        await importModules();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;

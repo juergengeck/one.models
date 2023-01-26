@@ -64,7 +64,6 @@ export default class SingleUserNoAuth extends Authenticator {
         }
 
         try {
-            await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
@@ -127,7 +126,6 @@ export default class SingleUserNoAuth extends Authenticator {
         }
 
         try {
-            await this.importModules();
             await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
 

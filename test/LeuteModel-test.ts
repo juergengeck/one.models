@@ -1,4 +1,3 @@
-import {importModules} from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import * as StorageTestInit from './_helpers';
 import {LeuteModel} from '../lib/models';
@@ -9,7 +8,6 @@ describe('LeuteModel test', function () {
 
     beforeEach(async () => {
         await StorageTestInit.init();
-        await importModules();
 
         leuteModel = new LeuteModel('localhost');
         await leuteModel.init();

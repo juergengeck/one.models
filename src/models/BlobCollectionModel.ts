@@ -4,14 +4,16 @@ import type {
 } from '../recipes/BlobRecipes';
 import type ChannelManager from './ChannelManager';
 import {
-    createSingleObjectThroughPurePlan,
     getObject,
-    readBlobAsArrayBuffer
+    readBlobAsArrayBuffer,
+    UnversionedObjectResult
 } from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -85,13 +87,44 @@ export default class BlobCollectionModel extends Model {
     async addCollection(files: File[], name: OneBlobCollection['name']): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        const blobCollection = await createSingleObjectThroughPurePlan(
-            {module: '@module/createBlobCollection'},
-            files,
-            name
-        );
+        const blobCollection = await BlobCollectionModel.createBlobCollection(files, name);
 
         await this.channelManager.postToChannel(BlobCollectionModel.channelId, blobCollection.obj);
+    }
+
+    private static async createBlobCollection(
+        files: File[],
+        name: string
+    ): Promise<UnversionedObjectResult<OneBlobCollection>> {
+        const blobs: UnversionedObjectResult<OneBlobDescriptor>[] = [];
+
+        for (const file of files) {
+            const stream = createFileWriteStream();
+            stream.write(await file.arrayBuffer());
+            const blob = await stream.end();
+
+            const {lastModified, name, size, type} = file;
+
+            const blobDescriptor: OneBlobDescriptor = {
+                $type$: 'BlobDescriptor',
+                data: blob.hash,
+                lastModified,
+                name,
+                size,
+                type
+            };
+            blobs.push(await storeUnversionedObject(blobDescriptor));
+        }
+
+        const blobCollection: OneBlobCollection = {
+            $type$: 'BlobCollection',
+            blobs: blobs.map(
+                (blobResult: UnversionedObjectResult<OneBlobDescriptor>) => blobResult.hash
+            ),
+            name
+        };
+
+        return storeUnversionedObject(blobCollection);
     }
 
     async getCollection(name: OneBlobCollection['name']): Promise<BlobCollection> {

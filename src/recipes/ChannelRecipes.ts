@@ -21,6 +21,7 @@ declare module '@OneObjectInterfaces' {
 export interface ChannelEntry {
     $type$: 'ChannelEntry';
     data: SHA256Hash<CreationTime>;
+    metadata?: Array<SHA256Hash>;
     previous?: SHA256Hash<ChannelEntry>;
 }
 
@@ -50,6 +51,14 @@ export const ChannelEntryRecipie: Recipe = {
         {
             itemprop: 'data',
             itemtype: {type: 'referenceToObj', allowedTypes: new Set(['CreationTime'])}
+        },
+        {
+            itemprop: 'metadata',
+            itemtype: {
+                type: 'bag',
+                item: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
+            },
+            optional: true
         },
         {
             itemprop: 'previous',

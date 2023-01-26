@@ -14,6 +14,7 @@ import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {Model} from './Model';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
@@ -90,13 +91,7 @@ export default class AccessModel extends Model {
         );
         if (foundIndex !== undefined) {
             group.obj.person.splice(foundIndex, 1);
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                group.obj
-            );
+            await storeVersionedObject(group.obj);
             this.onGroupsUpdated.emit();
         }
     }
@@ -117,13 +112,7 @@ export default class AccessModel extends Model {
                 ) === undefined
             ) {
                 group.obj.person.push(personId);
-                await createSingleObjectThroughPurePlan(
-                    {
-                        module: '@one/identity',
-                        versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                    },
-                    group.obj
-                );
+                await storeVersionedObject(group.obj);
 
                 this.onGroupsUpdated.emit();
             }
@@ -174,17 +163,11 @@ export default class AccessModel extends Model {
         try {
             await getObjectByIdObj({$type$: 'Group', name: name});
         } catch (ignored) {
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'Group',
-                    name: name,
-                    person: []
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'Group',
+                name: name,
+                person: []
+            });
             this.onGroupsUpdated.emit();
         }
     }

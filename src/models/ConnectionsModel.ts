@@ -1,12 +1,7 @@
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import CommunicationModule from '../misc/CommunicationModule';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
-import {
-    createSingleObjectThroughPurePlan,
-    getIdObject,
-    getObject,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
+import {getIdObject, getObject} from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import tweetnacl from 'tweetnacl';
@@ -41,6 +36,7 @@ import {
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -1251,13 +1247,7 @@ class ConnectionsModel extends Model {
             obj: localPersonObj
         });
         const remotePersonObj = (await ConnectionsModel.waitForMessage(conn, 'person_object')).obj;
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            remotePersonObj
-        );
+        await storeVersionedObject(remotePersonObj);
 
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
@@ -1338,13 +1328,7 @@ class ConnectionsModel extends Model {
 
         // Step 3: Exchange person objects (first receive, second send)
         const remotePersonObj = (await ConnectionsModel.waitForMessage(conn, 'person_object')).obj;
-        await createSingleObjectThroughPurePlan(
-            {
-                module: '@one/identity',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            remotePersonObj
-        );
+        await storeVersionedObject(remotePersonObj);
         const localPersonObj = await getIdObject(localPersonId);
         await ConnectionsModel.sendMessage(conn, {
             command: 'person_object',
@@ -1411,29 +1395,17 @@ class ConnectionsModel extends Model {
             // Store the new group members and send success
             const personObjs = await Promise.all(
                 accessGroupMembers.persons.map(person =>
-                    createSingleObjectThroughPurePlan(
-                        {
-                            module: '@one/identity',
-                            versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                        },
-                        {
-                            $type$: 'Person',
-                            email: person
-                        }
-                    )
+                    storeVersionedObject({
+                        $type$: 'Person',
+                        email: person
+                    })
                 )
             );
-            await createSingleObjectThroughPurePlan(
-                {
-                    module: '@one/identity',
-                    versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-                },
-                {
-                    $type$: 'Group',
-                    name: 'person_' + remotePersonInfo.personId,
-                    person: personObjs.map(personObj => personObj.idHash)
-                }
-            );
+            await storeVersionedObject({
+                $type$: 'Group',
+                name: 'person_' + remotePersonInfo.personId,
+                person: personObjs.map(personObj => personObj.idHash)
+            });
 
             // Step 3: Send success message
             await ConnectionsModel.sendMessage(conn, {
