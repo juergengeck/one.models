@@ -34,7 +34,7 @@ export default class Notifications {
     }
 
     private increaseNotificatioinCountForTopic(topicId: string): void {
-        this.notificationCounters.set(topicId, this.getNotificationCountForTopic(topicId));
+        this.notificationCounters.set(topicId, this.getNotificationCountForTopic(topicId) + 1);
         this.onNewNotification.emit();
     }
 }
