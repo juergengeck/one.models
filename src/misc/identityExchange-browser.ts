@@ -1,7 +1,8 @@
-import {convertIdentityToOneInstanceEndpoint, Identity, isIdentity} from './IdentityExchange';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {Identity} from './IdentityExchange';
+import {convertIdentityToOneInstanceEndpoint, isIdentity} from './IdentityExchange';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {fetchFile} from './fetchFile';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 // ######## Identity I/O ########
 

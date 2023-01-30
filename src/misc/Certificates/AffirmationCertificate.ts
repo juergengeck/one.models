@@ -1,9 +1,12 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {isSignedBy, sign, signedBy} from '../Signature';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    getObject,
+    onUnversionedObj,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {Signature} from '../../recipes/SignatureRecipes';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 
@@ -93,7 +96,7 @@ export function onNewAffirmation(
         }
     }
 
-    return onUnversionedObj.addListener(function (result) {
+    return onUnversionedObj.addListener(result => {
         handleNewObjectAsync(result).catch(console.error);
     });
 }

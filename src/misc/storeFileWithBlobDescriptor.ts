@@ -1,6 +1,6 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {BlobDescriptor} from '../recipes/BlobRecipes';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 export async function storeFileWithBlobDescriptor(

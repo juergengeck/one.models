@@ -1,17 +1,15 @@
-import ProfileModel from './ProfileModel';
-import type {Profile} from '../../recipes/Leute/Profile';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     getIdObject,
-    getObject,
-    onVersionedObj,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
+    getObjectByIdHash,
+    onVersionedObj
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {Someone} from '../../recipes/Leute/Someone';
-import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import {OEvent} from '../../misc/OEvent';
 import type {
     CommunicationEndpointInterfaces,
     CommunicationEndpointTypeNames
@@ -20,7 +18,9 @@ import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames
 } from '../../recipes/Leute/PersonDescriptions';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
+import type {Profile} from '../../recipes/Leute/Profile';
+import type {Someone} from '../../recipes/Leute/Someone';
+import ProfileModel from './ProfileModel';
 
 /**
  * This class is a nicer frontend for the Someone recipe.
@@ -116,7 +116,7 @@ export default class SomeoneModel {
         // try catch is not required if we have CRDT map support
         try {
             return await this.constructFromLatestVersion(idHash);
-        } catch (e) {
+        } catch (_) {
             const newModel = new SomeoneModel(idHash);
 
             // add mainProfile to identities
@@ -193,7 +193,7 @@ export default class SomeoneModel {
 
         if (!this.pIdentities.has(identity)) {
             throw new Error(
-                'The designated new main identity is not managed by this someone' + ' object'
+                'The designated new main identity is not managed by this someone object'
             );
         }
 

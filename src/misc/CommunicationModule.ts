@@ -1,5 +1,4 @@
 import type {LeuteModel} from '../models';
-import {getObject} from '@refinio/one.core/lib/storage';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import {EventEmitter} from 'events';
 import {OEvent} from './OEvent';
@@ -21,6 +20,7 @@ import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import {isPersonComplete} from './person';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 const MessageBus = createMessageBus('CommunicationModule');
 
@@ -332,7 +332,7 @@ export default class CommunicationModule extends EventEmitter {
     ): void {
         const mapKey = genMapKey(localPublicKey, remotePublicKey);
         this.unknownPeerMap.set(mapKey, conn);
-        const webSocket = conn.websocketPlugin().webSocket;
+        // const webSocket = conn.websocketPlugin().webSocket;
         conn.state.onEnterState(newState => {
             if (newState === 'closed') {
                 this.unknownPeerMap.delete(mapKey);
@@ -619,12 +619,12 @@ export default class CommunicationModule extends EventEmitter {
 
             connContainer.reconnectTimeoutHandle = setTimeout(() => {
                 connContainer.reconnectTimeoutHandle = null;
-                connect().catch(e => {
+                connect().catch(_ => {
                     /* ignore this error - this is usually stopped by user */
                 });
             }, delay);
         } else {
-            connect().catch(e => {
+            connect().catch(_ => {
                 /* ignore this error - this is usually stopped by user */
             });
         }

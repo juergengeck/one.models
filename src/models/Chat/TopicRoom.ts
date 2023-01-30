@@ -5,12 +5,12 @@ import type {ObjectData} from '../ChannelManager';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
-import {getObject} from '@refinio/one.core/lib/storage';
 import BlobCollectionModel from '../BlobCollectionModel';
 import type {BlobDescriptor} from '../BlobCollectionModel';
 import {BlobDescriptorRecipe} from '../../recipes/BlobRecipes';
 import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
 import type LeuteModel from '../Leute/LeuteModel';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
     attachments: BlobDescriptor[] | SHA256Hash[];
@@ -140,7 +140,7 @@ export default class TopicRoom {
      * Sends the message with hash data in the chat room.
      *
      * @param message
-     * @param hashes array of attached hashes
+     * @param attachments array of attached hashes
      */
     async sendMesageWithAttachmentAsHash(
         message: string,
@@ -164,12 +164,10 @@ export default class TopicRoom {
      * @param attachments array of attached files
      */
     async sendMessageWithAttachmentAsFile(message: string, attachments: File[]): Promise<void> {
-        let writtenAttachments: SHA256Hash<OneBlobDescriptor>[] = [];
-
         const blobDescriptors = await Promise.all(
             attachments.map(file => storeFileWithBlobDescriptor(file))
         );
-        writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
+        const writtenAttachments = blobDescriptors.map(blobDescriptor => blobDescriptor.hash);
 
         await this.channelManager.postToChannel(
             this.topic.id,

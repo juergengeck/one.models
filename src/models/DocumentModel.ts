@@ -1,36 +1,15 @@
+import {readBlobAsArrayBuffer, storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import type {WriteStorageApi} from '@refinio/one.core/lib/storage';
-import * as Storage from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
-
-/**
- * Saving the document in ONE as a BLOB and returning the reference for it.
- *
- * @param document - the document that is saved in ONE as a BLOB.
- * @returns The reference to the saved BLOB.
- */
-async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLOB>> {
-    const minimalWriteStorageApiObj = {
-        createFileWriteStream: createFileWriteStream
-    } as WriteStorageApi;
-
-    const stream = minimalWriteStorageApiObj.createFileWriteStream();
-    stream.write(document);
-
-    const blob = await stream.end();
-
-    return blob.hash;
-}
 
 /**
  * This model implements the possibility of adding a document into a journal
@@ -39,7 +18,7 @@ async function saveDocumentAsBLOB(document: ArrayBuffer): Promise<SHA256Hash<BLO
 export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
-    private disconnect: (() => void) | undefined;
+    private readonly disconnect: (() => void) | undefined;
 
     /**
      * Construct a new instance
@@ -94,12 +73,12 @@ export default class DocumentModel extends Model {
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        const oneDocument = await saveDocumentAsBLOB(document);
+        const oneDocument = await storeArrayBufferAsBlob(document);
         await this.channelManager.postToChannel(channelId, {
             $type$: 'DocumentInfo_1_1_0',
             mimeType: mimeType,
             documentName: documentName,
-            document: oneDocument
+            document: oneDocument.hash
         });
     }
 
@@ -214,15 +193,7 @@ export default class DocumentModel extends Model {
      */
     async blobHashToArrayBuffer(oneObject: DocumentInfo): Promise<ArrayBuffer> {
         this.state.assertCurrentState('Initialised');
-
-        let document: ArrayBuffer = {} as ArrayBuffer;
-        const stream = Storage.createFileReadStream(oneObject.document);
-        stream.onData.addListener((data: ArrayBuffer) => {
-            document = data;
-        });
-        await stream.promise;
-
-        return document;
+        return await readBlobAsArrayBuffer(oneObject.document);
     }
 
     /**

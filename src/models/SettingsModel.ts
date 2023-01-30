@@ -7,7 +7,6 @@ import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {OEvent} from '../misc/OEvent';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 
 // -------- LOW LEVEL API -----------
 
@@ -35,7 +34,9 @@ export class PropertyTreeProxy extends PropertyTree {
     separator: string;
     parent: PropertyTree;
 
-    async init(): Promise<void> {}
+    async init(): Promise<void> {
+        /*...*/
+    }
 
     constructor(prefix: string, separator: string, parent: PropertyTree) {
         super();
@@ -87,7 +88,7 @@ export default class PropertyTreeStore extends PropertyTree {
                 id: this.oneId
             });
             this.storageUpdated(oneKeyValueStore.obj);
-        } catch (e) {
+        } catch (_) {
             this.keyValueStore = new Map<string, string>();
         }
     }
@@ -97,7 +98,7 @@ export default class PropertyTreeStore extends PropertyTree {
         this.oneId = oneId;
         this.separator = separator;
         // register storageUpdated hook at one storage
-        onVersionedObj.addListener((caughtObject: VersionedObjectResult) => {
+        onVersionedObj.addListener(caughtObject => {
             if (caughtObject.obj.$type$ === 'Settings') {
                 this.storageUpdated(caughtObject.obj);
             }

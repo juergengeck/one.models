@@ -1,13 +1,15 @@
 /**
  * This file implements helper functions to generate and import / export identities.
+ * @module
  */
+
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {isHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {sign} from './Signature';
 import ProfileModel from '../models/Leute/ProfileModel';
@@ -18,7 +20,6 @@ import {
     isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {isHash} from '@refinio/one.core/lib/util/type-checks';
 import {
     createKeyPair,
     ensurePublicKey,
@@ -73,7 +74,7 @@ export type IdentityWithSecrets = {
  */
 export function isIdentity(arg: any): arg is Identity {
     return (
-        arg != null &&
+        arg !== null &&
         arg.type === 'public' &&
         typeof arg.personEmail === 'string' &&
         typeof arg.instanceName === 'string' &&
@@ -92,7 +93,7 @@ export function isIdentity(arg: any): arg is Identity {
  */
 export function isIdentityWithSecrets(arg: any): arg is IdentityWithSecrets {
     return (
-        arg != null &&
+        arg !== null &&
         arg.type === 'secret' &&
         typeof arg.personEmail === 'string' &&
         typeof arg.instanceName === 'string' &&
@@ -180,7 +181,7 @@ export async function convertIdentityToOneInstanceEndpoint(
     identity: Identity
 ): Promise<UnversionedObjectResult<OneInstanceEndpoint>> {
     // Step 1: Create person object if it does not exist, yet
-    let personHash = (
+    const personHash = (
         await storeIdObject({
             $type$: 'Person',
             email: identity.personEmail
@@ -198,7 +199,7 @@ export async function convertIdentityToOneInstanceEndpoint(
     ).hash;
 
     // Step 3: Create person object if it does not exist, yet
-    let instanceHash = (
+    const instanceHash = (
         await storeIdObject({
             $type$: 'Instance',
             name: identity.instanceName,

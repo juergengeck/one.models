@@ -5,7 +5,6 @@
  * @version 0.0.1
  */
 
-import {getObject, readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage';
 import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {
@@ -16,13 +15,11 @@ import type {
 } from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
 import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
-import {platform} from '@refinio/one.core/lib/system/platform';
 import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
-import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {BLOB, OneObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {
     PersistentFileSystemChild,
     PersistentFileSystemDirectory,
@@ -30,8 +27,10 @@ import type {
     PersistentFileSystemFile,
     PersistentFileSystemRoot
 } from '../recipes/PersistentFileSystemRecipes';
-import {storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {readBlobAsArrayBuffer, storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {fileSize} from '@refinio/one.core/lib/system/storage-base';
+
 /**
  * This represents a FileSystem Structure that can create and open directories/files and persist them in one.
  * This class is using {@link PersistentFileSystemRoot}, {@link PersistentFileSystemDirectory} and {@link PersistentFileSystemFile} Recipes &
@@ -50,7 +49,7 @@ export default class PersistentFileSystem implements IFileSystem {
      */
     private rootDirectoryContent: PersistentFileSystemRoot['root'];
 
-    private storage: string | undefined;
+    private readonly storage: string | undefined;
 
     /**
      *
@@ -66,8 +65,9 @@ export default class PersistentFileSystem implements IFileSystem {
      * @global
      * @type {((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null}
      */
-    public onRootUpdate: ((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => void) | null =
-        null;
+    public onRootUpdate:
+        | null
+        | ((rootHash: SHA256Hash<PersistentFileSystemDirectory>) => Promise<void>) = null;
 
     /**
      * Overwrites a file if the file already exist in the folder, otherwise, adds the file.
@@ -178,7 +178,7 @@ export default class PersistentFileSystem implements IFileSystem {
         };
     }
 
-    public supportsChunkedReading(path?: string): boolean {
+    public supportsChunkedReading(_path?: string): boolean {
         return typeof global !== 'undefined' && {}.toString.call(global) === '[object global]';
     }
 
@@ -209,14 +209,19 @@ export default class PersistentFileSystem implements IFileSystem {
             ? this.storage
             : path.resolve(process.cwd(), path.join('data'));
 
-        const objFilePath =
-            onePath + path.sep + getInstanceIdHash() + path.sep + 'objects' + path.sep + blobHash;
+        const instanceIdHash = getInstanceIdHash();
+
+        if (instanceIdHash === undefined) {
+            throw new Error('Instance ID is undefined, not initialized?');
+        }
+
+        const objFilePath = path.join(onePath, instanceIdHash, 'objects', blobHash);
 
         const fd = fs.openSync(objFilePath, 'r');
-        const content = await new Promise((resolve: (buffer: Buffer) => void, rejected) => {
-            fs.read(fd, Buffer.alloc(length), 0, length, position, (err, bytesRead, buffer) => {
+        const content = await new Promise((resolve: (buffer: Buffer) => void, reject) => {
+            fs.read(fd, Buffer.alloc(length), 0, length, position, (err, _bytesRead, buffer) => {
                 if (err) {
-                    rejected('Error: could not read from file.');
+                    return reject(new Error('Error: could not read from file.'));
                 }
                 resolve(buffer);
             });
@@ -675,12 +680,7 @@ export default class PersistentFileSystem implements IFileSystem {
         }
         const resolvedDirectoryEntry = await getObject(foundFile.content);
         if (PersistentFileSystem.isFile(resolvedDirectoryEntry)) {
-            const objectSize =
-                // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
-                // @ts-ignore
-                platform === PLATFORMS.NODE_JS
-                    ? await this.getObjectSize(resolvedDirectoryEntry.content)
-                    : (await readBlobAsArrayBuffer(resolvedDirectoryEntry.content)).byteLength;
+            const objectSize = await fileSize(resolvedDirectoryEntry.content);
             return {mode: foundFile.mode, size: objectSize};
         }
         return {mode: foundFile.mode, size: 0};
@@ -874,8 +874,7 @@ export default class PersistentFileSystem implements IFileSystem {
             });
         }
         const child = parentDirectory.children.find(
-            (child: PersistentFileSystemChild) =>
-                child.path === FileSystemHelpers.pathJoin('/', directoryName)
+            ch => ch.path === FileSystemHelpers.pathJoin('/', directoryName)
         );
 
         if (!child) {
@@ -940,11 +939,9 @@ export default class PersistentFileSystem implements IFileSystem {
                     directoryMode,
                     FileSystemHelpers.pathJoin('/', FileSystemHelpers.getLastItem(updateToPath))
                 );
-            } else {
+            } else if (this.onRootUpdate) {
                 /** update the channel with the updated root directory **/
-                if (this.onRootUpdate) {
-                    await this.onRootUpdate(await calculateHashOfObj(currentDirectoryParent));
-                }
+                await this.onRootUpdate(await calculateHashOfObj(currentDirectoryParent));
             }
         }
     }
@@ -971,9 +968,7 @@ export default class PersistentFileSystem implements IFileSystem {
         /** if the given path it's not the root but it's a final path, e.g '/dir1' **/
         if (givenPath !== '/' && PersistentFileSystem.hasFoldersAboveExceptRoot(givenPath)) {
             if (PersistentFileSystem.isDir(parentDirectory)) {
-                const child = parentDirectory.children.find(
-                    (child: PersistentFileSystemChild) => child.path === givenPath
-                );
+                const child = parentDirectory.children.find(ch => ch.path === givenPath);
                 if (child) {
                     return child;
                 }
@@ -1045,25 +1040,5 @@ export default class PersistentFileSystem implements IFileSystem {
         } else {
             return splitedPath[0];
         }
-    }
-
-    /**
-     * Read the object's file size only when node
-     * @param {SHA256Hash<HashTypes>} hash
-     * @returns {Promise<number>}
-     */
-    private async getObjectSize(hash: SHA256Hash<HashTypes>): Promise<number> {
-        // Accepted because browser ts will complain platform === PLATFORMS.NODE_JS is always false
-        // @ts-ignore
-        if (platform === PLATFORMS.NODE_JS) {
-            const storagePath = this.storage
-                ? `${this.storage}/${getInstanceIdHash()}/objects/${hash}`
-                : `${process.cwd()}/data/${getInstanceIdHash()}/objects/${hash}`;
-            const {default: fs} = await import('fs');
-            const stat = fs.statSync(storagePath);
-            return stat.size;
-        }
-
-        throw createError('FSE-OBJS', {message: FS_ERRORS['FSE-OBJS'].message});
     }
 }

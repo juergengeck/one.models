@@ -1,20 +1,18 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes';
-import {
-    getObject,
-    onVersionedObj,
-    readBlobAsArrayBuffer,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     getObjectByIdHash,
+    onVersionedObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
 import {Model} from '../Model';
 
 const DUMMY_BLOB_HASH = '0'.repeat(64) as SHA256Hash<BLOB>;
@@ -136,7 +134,7 @@ export default class GroupModel extends Model {
         try {
             const groupIdHash = await calculateIdHashOfObj(newGroup);
             groupResult = await getObjectByIdHash(groupIdHash);
-        } catch (e) {
+        } catch (_) {
             groupResult = await storeVersionedObject(newGroup);
         }
 
@@ -152,7 +150,7 @@ export default class GroupModel extends Model {
         try {
             const profileIdHash = await calculateIdHashOfObj(newProfile);
             profileResult = await getObjectByIdHash(profileIdHash);
-        } catch (e) {
+        } catch (_) {
             profileResult = await storeVersionedObjectCRDT(newProfile, undefined);
         }
 
@@ -306,9 +304,9 @@ export default class GroupModel extends Model {
     ): Promise<void> {
         this.name = profile.name;
         this.picture =
-            profile.picture !== DUMMY_BLOB_HASH
-                ? await readBlobAsArrayBuffer(profile.picture)
-                : undefined;
+            profile.picture === DUMMY_BLOB_HASH
+                ? undefined
+                : await readBlobAsArrayBuffer(profile.picture);
         this.persons = group.person;
         this.profile = profile;
         this.group = group;

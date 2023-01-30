@@ -46,17 +46,14 @@ import RecipesStable from '../recipes/recipes-stable';
 import RecipesExperimental from '../recipes/recipes-experimental';
 import {waitForKeyPress} from './cliHelpers';
 import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
-import {
-    convertIdentityToInstanceOptions,
-    Identity,
-    IdentityWithSecrets
-} from '../misc/IdentityExchange';
+import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange';
+import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange';
 import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../misc/instance';
 import {getListOfKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {getObject} from '@refinio/one.core/lib/storage';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * Parses command line options for this app.
@@ -282,13 +279,13 @@ async function printInstancesAndKeys(owner: SHA256IdHash<Person>) {
     console.log(`## Owner: ${owner} ##`);
 
     const keys = await getListOfKeys(owner);
-    console.log(`- Owner keys`, await transformKeys(keys));
+    console.log('- Owner keys', await transformKeys(keys));
 
     const instances = await getInstancesOfPerson(owner);
     for (const instance of instances) {
         const instanceKeys = await getListOfKeys(instance.instanceId);
         console.log(`- Instance: ${instance.instanceId} ${instance.local}`);
-        console.log(`- Instance keys`, await transformKeys(instanceKeys));
+        console.log('- Instance keys', await transformKeys(instanceKeys));
     }
 }
 
@@ -370,7 +367,6 @@ async function main(): Promise<void> {
     }, 3000);
 }
 
-// Execute main function
 main().catch(e => {
-    console.log('Error happened: ' + e.toString(), e.stack);
+    console.log(`Error happened: ${String(e)}, ${e.stack}`);
 });

@@ -1,16 +1,16 @@
 import type LeuteModel from '../models/Leute/LeuteModel';
-import type {TopicModel, ChannelManager} from '../models';
+import type {ChannelManager, TopicModel} from '../models';
+import {BlobCollectionModel} from '../models';
 import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import {getObject} from '@refinio/one.core/lib/storage';
-import {BlobCollectionModel} from '../models';
 import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {ChatMessage} from '../recipes/ChatRecipes';
 import type {ObjectData} from '../models/ChannelManager';
 import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import type Notifications from '../models/Notifications';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 const emojiNumberMap = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '*️⃣'];
 
@@ -70,7 +70,7 @@ export default class ChatFileSystem extends EasyFileSystem {
                 continue;
             }
 
-            let [meHash, otherHash] = await this.topicModel.getOneToOneChatParticipantsMeFirst(
+            const [meHash, otherHash] = await this.topicModel.getOneToOneChatParticipantsMeFirst(
                 topic.id
             );
 
@@ -146,8 +146,8 @@ export default class ChatFileSystem extends EasyFileSystem {
      */
     private async createTopicRoomFolder(topicId: string): Promise<EasyDirectoryContent> {
         const rootDir = new Map<string, EasyDirectoryEntry>();
-        const attachmentsDir = new Map<string, EasyDirectoryEntry>();
-        const imagesDir = new Map<string, EasyDirectoryEntry>();
+        // const attachmentsDir = new Map<string, EasyDirectoryEntry>();
+        // const imagesDir = new Map<string, EasyDirectoryEntry>();
         rootDir.set('_attachments', {
             type: 'directory',
             content: this.createAttachmentsFolder.bind(this, topicId, false)
@@ -223,10 +223,10 @@ export default class ChatFileSystem extends EasyFileSystem {
         // Add raw views
         const channelEntryHash = message.channelEntryHash;
         const channelEntryObject = await getObject(channelEntryHash);
-        const channelEntryMicrodata = await readUTF8TextFile(channelEntryHash);
+        // const channelEntryMicrodata = await readUTF8TextFile(channelEntryHash);
         const dateTimeHash = channelEntryObject.data;
-        const dateTimeObject = await getObject(dateTimeHash);
-        const dateTimeMicrodata = await readUTF8TextFile(dateTimeHash);
+        // const dateTimeObject = await getObject(dateTimeHash);
+        // const dateTimeMicrodata = await readUTF8TextFile(dateTimeHash);
         const chatMessageHash = message.dataHash;
         const chatMessageObject = message.data;
         const chatMessageMicrodata = await readUTF8TextFile(chatMessageHash);
@@ -288,11 +288,11 @@ export default class ChatFileSystem extends EasyFileSystem {
      * Load the attachments
      *
      * @param attachment
-     * @param imagesOnly
+     * @param _imagesOnly
      */
     private async loadAttachment(
         attachment: SHA256Hash,
-        imagesOnly: boolean
+        _imagesOnly: boolean
     ): Promise<{
         name: string;
         dirent: EasyDirectoryEntry;
@@ -371,7 +371,7 @@ export default class ChatFileSystem extends EasyFileSystem {
                             msg.data.sender
                         )
                     };
-                } catch (e) {
+                } catch (_) {
                     return {
                         ...msg,
                         authorName: 'unknown'
@@ -386,10 +386,7 @@ export default class ChatFileSystem extends EasyFileSystem {
      * @param count
      * @private
      */
-    private static countToEmoji(count: number | undefined): string {
-        if (count === undefined) {
-            count = 0;
-        }
+    private static countToEmoji(count: number | undefined = 0): string {
         return emojiNumberMap[count <= 10 ? count : 11];
     }
 }

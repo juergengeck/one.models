@@ -1,20 +1,19 @@
-import type ChannelManager from '../ChannelManager';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {createAccess} from '@refinio/one.core/lib/access';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import {
-    createSingleObjectThroughPurePlan,
     getObjectByIdHash,
     getObjectByIdObj,
-    SET_ACCESS_MODE,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-
-import type {Demand, DemandMap, Supply, SupplyMap} from '../../recipes/MatchingRecipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
+
+import type {Demand, Supply} from '../../recipes/MatchingRecipes';
+import type ChannelManager from '../ChannelManager';
 import {Model} from '../Model';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 /**
  * This class contains the common behaviour used both by clients and
@@ -109,7 +108,7 @@ export default abstract class MatchingModel extends Model {
             // check whether a channel with this id exists
             await getObjectByIdHash(setAccessParam.id);
             // if it exists, set the access rights
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            await createAccess([setAccessParam]);
 
             // TODO: should we give access to matching server to the contacts channel?
             setAccessParam.id = await calculateIdHashOfObj({
@@ -120,7 +119,7 @@ export default abstract class MatchingModel extends Model {
             // check whether a channel with this id exists
             await getObjectByIdHash(setAccessParam.id);
             // if it exists, set the access rights
-            await createSingleObjectThroughPurePlan({module: '@one/access'}, [setAccessParam]);
+            await createAccess([setAccessParam]);
         } catch (error) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (error.name !== 'FileNotFoundError') {
@@ -138,19 +137,19 @@ export default abstract class MatchingModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         try {
-            const supplyMapObj = (await getObjectByIdObj({
+            const supplyMapObj = await getObjectByIdObj({
                 $type$: 'SupplyMap',
                 name: this.supplyMapName
-            })) as VersionedObjectResult<SupplyMap>;
+            });
 
             if (supplyMapObj.obj.map) {
                 this.suppliesMap = supplyMapObj.obj.map;
             }
 
-            const demandMapObj = (await getObjectByIdObj({
+            const demandMapObj = await getObjectByIdObj({
                 $type$: 'DemandMap',
                 name: this.demandMapName
-            })) as VersionedObjectResult<DemandMap>;
+            });
 
             if (demandMapObj.obj.map) {
                 this.demandsMap = demandMapObj.obj.map;
@@ -218,7 +217,7 @@ export default abstract class MatchingModel extends Model {
     protected updateSupplyInSupplyMap(newSupply: Supply) {
         this.state.assertCurrentState('Initialised');
 
-        let availableSupplies = this.suppliesMap.get(newSupply.match);
+        const availableSupplies = this.suppliesMap.get(newSupply.match);
 
         if (availableSupplies) {
             const supplyIndex = availableSupplies.findIndex(
@@ -239,7 +238,7 @@ export default abstract class MatchingModel extends Model {
     protected updateDemandInDemandMap(newDemand: Demand) {
         this.state.assertCurrentState('Initialised');
 
-        let availableDemands = this.demandsMap.get(newDemand.match);
+        const availableDemands = this.demandsMap.get(newDemand.match);
 
         if (availableDemands) {
             const demandIndex = availableDemands.findIndex(
@@ -303,13 +302,13 @@ export default abstract class MatchingModel extends Model {
         const objectsArray = objectsMap.get(tagObject.match);
 
         if (objectsArray !== undefined) {
-            for (let i = 0; i < objectsArray.length; i++) {
+            for (const obj of objectsArray) {
                 if (
-                    objectsArray[i].$type$ === tagObject.$type$ &&
-                    objectsArray[i].identity === tagObject.identity &&
-                    objectsArray[i].match === tagObject.match &&
-                    objectsArray[i].isActive !== tagObject.isActive &&
-                    objectsArray[i].timestamp === tagObject.timestamp
+                    obj.$type$ === tagObject.$type$ &&
+                    obj.identity === tagObject.identity &&
+                    obj.match === tagObject.match &&
+                    obj.isActive !== tagObject.isActive &&
+                    obj.timestamp === tagObject.timestamp
                 ) {
                     return true;
                 }
@@ -335,13 +334,13 @@ export default abstract class MatchingModel extends Model {
         objectsArray: Supply[] | Demand[],
         object: Supply | Demand
     ): boolean {
-        for (let i = 0; i < objectsArray.length; i++) {
+        for (const obj of objectsArray) {
             if (
-                objectsArray[i].$type$ === object.$type$ &&
-                objectsArray[i].identity === object.identity &&
-                objectsArray[i].match === object.match &&
-                objectsArray[i].isActive === object.isActive &&
-                objectsArray[i].timestamp === object.timestamp
+                obj.$type$ === object.$type$ &&
+                obj.identity === object.identity &&
+                obj.match === object.match &&
+                obj.isActive === object.isActive &&
+                obj.timestamp === object.timestamp
             ) {
                 return true;
             }

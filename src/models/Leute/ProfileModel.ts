@@ -11,16 +11,15 @@ import type {
     PersonImage,
     PersonStatus
 } from '../../recipes/Leute/PersonDescriptions';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, onVersionedObj, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObjectByIdHash, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {OEvent} from '../../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints';
 import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions';
-import type {Plan} from '@refinio/one.core/lib/recipes';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {BLOB} from '@refinio/one.core/lib/recipes';
 
@@ -227,12 +226,11 @@ export default class ProfileModel {
 
     public getStatus(): PersonStatus {
         const statuses = this.descriptionsOfType('PersonStatus');
-        const latestStatus = statuses.reduce(
+        return statuses.reduce(
             (status: PersonStatus, latestStatus: PersonStatus) =>
                 status.timestamp > latestStatus.timestamp ? status : latestStatus,
             statuses[0]
         );
-        return latestStatus;
     }
 
     public setStatus(statusValue: string, location: string): void {
@@ -255,12 +253,11 @@ export default class ProfileModel {
 
     public getImage(): PersonImage {
         const images = this.descriptionsOfType('PersonImage');
-        const latestImage = images.reduce(
+        return images.reduce(
             (image1: PersonImage, image2: PersonImage) =>
                 image1.timestamp > image2.timestamp ? image1 : image2,
             images[0]
         );
-        return latestImage;
     }
 
     public setImage(image: SHA256Hash<BLOB>, location: string): void {
