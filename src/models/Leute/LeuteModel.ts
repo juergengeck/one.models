@@ -501,9 +501,9 @@ export default class LeuteModel extends Model {
     /**
      * Get my own main profile.
      */
-    public async getMyMainProfile(): Promise<void> {
+    public async getMyMainProfile(): Promise<ProfileModel> {
         const mySomeone = await this.me();
-        await mySomeone.mainProfile();
+        return await mySomeone.mainProfile();
     }
 
     /**
