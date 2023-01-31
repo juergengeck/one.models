@@ -271,6 +271,7 @@ export default class SomeoneModel {
         }
 
         profileSet.add(profile);
+        await this.saveAndLoad();
     }
 
     /**
