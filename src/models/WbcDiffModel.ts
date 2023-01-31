@@ -3,8 +3,7 @@ import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {WbcObservation} from '../recipes/WbcDiffRecipes';
 
 const MessageBus = createMessageBus('WbcDiffModel');
@@ -58,7 +57,7 @@ export default class WbcDiffModel extends Model {
     async postObservation(wbcObservation: WbcObservation): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        MessageBus.send('log', `postMeasurement()`);
+        MessageBus.send('log', 'postMeasurement()');
 
         // Verify number format of *Count fields
         const numberRegex = /^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$/;

@@ -1,10 +1,10 @@
-import ClientMatchingModel from './ClientMatchingModel';
-import type ChannelManager from '../ChannelManager';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import type {Demand, Supply} from '../../recipes/MatchingRecipes';
-import MatchingModel from './MatchingModel';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import type {Demand, Supply} from '../../recipes/MatchingRecipes';
+import type ChannelManager from '../ChannelManager';
+import ClientMatchingModel from './ClientMatchingModel';
+import MatchingModel from './MatchingModel';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(channelManager: ChannelManager) {
@@ -72,7 +72,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 this.suppliesMap.delete(supply.match);
 
                 // remember the new version of the Supply object
-                await this.addNewValueToSupplyMap(newSupply.obj);
+                this.addNewValueToSupplyMap(newSupply.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
                 await this.channelManager.postToChannel(MatchingModel.channelId, newSupply.obj);
@@ -114,7 +114,7 @@ export default class ServerUserModel extends ClientMatchingModel {
                 this.demandsMap.delete(demand.match);
 
                 // remember the new version of the Supply object
-                await this.addNewValueToDemandMap(newDemand.obj);
+                this.addNewValueToDemandMap(newDemand.obj);
                 await this.memoriseLatestVersionOfSupplyMap();
 
                 await this.channelManager.postToChannel(MatchingModel.channelId, newDemand.obj);

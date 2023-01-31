@@ -19,14 +19,13 @@ function buildTestFile(): File {
     const filePath = './test/consent.pdf';
     const stats = statSync(filePath);
 
-    // @ts-ignore enough for the test
     return {
         lastModified: stats.ctimeMs,
         name: path.basename(filePath),
         size: stats.size,
         type: 'application/pdf',
         arrayBuffer: () => readFile(filePath)
-    };
+    } as unknown as File;
 }
 
 describe('Consent', () => {
@@ -44,7 +43,7 @@ describe('Consent', () => {
     });
     after(async () => {
         await testModel.shutdown();
-        await topicModel;
+        await topicModel.shutdown();
         await closeAndDeleteCurrentInstance();
     });
 
@@ -73,8 +72,7 @@ describe('Consent', () => {
         const messageWithAttachment = messages[1];
 
         expect(messageWithAttachment.data.attachments).to.not.be.undefined;
-        // @ts-ignore
-        const blobDescriptor: BlobDescriptor = messageWithAttachment.data.attachments[0];
+        const blobDescriptor = messageWithAttachment.data.attachments[0] as BlobDescriptor;
 
         expect(blobDescriptor.data instanceof ArrayBuffer);
     });

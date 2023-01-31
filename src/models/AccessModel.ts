@@ -3,18 +3,17 @@
  */
 
 import type {Access, Group, IdAccess, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import {
-    createSingleObjectThroughPurePlan,
-    getObjectByIdObj,
-    SET_ACCESS_MODE,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {createAccess} from '@refinio/one.core/lib/access';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {Model} from './Model';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'
@@ -126,20 +125,16 @@ export default class AccessModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         const group = await this.getAccessGroupByName(groupName);
-        return await createSingleObjectThroughPurePlan(
+        const [accResult] = await createAccess([
             {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            [
-                {
-                    object: objectHash,
-                    person: [],
-                    group: [...group.obj.person],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
+                object: objectHash,
+                person: [],
+                group: [group.idHash],
+                mode: SET_ACCESS_MODE.REPLACE
+            }
+        ]);
+
+        return accResult;
     }
 
     /**

@@ -2,14 +2,14 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
-import {getObject} from '@refinio/one.core/lib/storage';
-import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
-import {Model} from './Model';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
+import type {ObjectData, QueryOptions} from './ChannelManager';
+import type ChannelManager from './ChannelManager';
+import {Model} from './Model';
 
 export default class ECGModel extends Model {
     private disconnect: (() => void) | undefined;
@@ -143,14 +143,14 @@ export default class ECGModel extends Model {
     /**
      * Paginated
      * @param electrocardiogramHash
-     * @param pageSize - DEFAULT = 100
+     * @param _pageSize - DEFAULT = 100
      * @param from - (Returned by this function) use only the returned value of nextFrom field for this parameter
      * @returns
      */
     async retrieveECGReadings(
         electrocardiogramHash: SHA256Hash<Electrocardiogram>,
         from = -1,
-        pageSize = 100
+        _pageSize = 100
     ): Promise<{readings: ElectrocardiogramReadings[]; nextFrom?: number}> {
         this.state.assertCurrentState('Initialised');
 
@@ -200,7 +200,7 @@ export default class ECGModel extends Model {
         let startIndex = 0;
         let endIndex = readings.length - 1;
         while (startIndex <= endIndex) {
-            let middleIndex = Math.floor((startIndex + endIndex) / 2);
+            const middleIndex = Math.floor((startIndex + endIndex) / 2);
             if (target === readings[middleIndex].timeSinceSampleStart) {
                 return middleIndex;
             }

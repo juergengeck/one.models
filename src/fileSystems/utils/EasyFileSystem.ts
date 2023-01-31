@@ -68,15 +68,15 @@ export default class EasyFileSystem implements IFileSystem {
 
     // ######## IFileSystem interface implementation ########
 
-    async createDir(directoryPath: string, dirMode: number): Promise<void> {
+    async createDir(directoryPath: string, _dirMode: number): Promise<void> {
         throw await this.getNoWritePermissionError(directoryPath);
     }
 
     async createFile(
         directoryPath: string,
-        fileHash: SHA256Hash<BLOB>,
-        fileName: string,
-        fileMode: number
+        _fileHash: SHA256Hash<BLOB>,
+        _fileName: string,
+        _fileMode: number
     ): Promise<void> {
         throw await this.getNoWritePermissionError(directoryPath);
     }
@@ -138,11 +138,11 @@ export default class EasyFileSystem implements IFileSystem {
         };
     }
 
-    async chmod(path: string, mode: number): Promise<number> {
+    async chmod(path: string, _mode: number): Promise<number> {
         throw await this.getNoWritePermissionError(path);
     }
 
-    async rename(src: string, dest: string): Promise<number> {
+    async rename(_src: string, dest: string): Promise<number> {
         throw await this.getNoWritePermissionError(dest);
     }
 
@@ -160,9 +160,10 @@ export default class EasyFileSystem implements IFileSystem {
         switch (elem.type) {
             case 'directory':
                 return {mode: 0o0040555, size: 0};
-            case 'regularFile':
+            case 'regularFile': {
                 const content = await EasyFileSystem.loadRegularFileContentAsBinary(elem.content);
                 return {mode: 0o0100444, size: content.byteLength};
+            }
             case 'symlink':
                 return {mode: 0o0120777, size: 0};
         }
@@ -173,7 +174,7 @@ export default class EasyFileSystem implements IFileSystem {
         });
     }
 
-    async symlink(src: string, dest: string): Promise<void> {
+    async symlink(src: string, _dest: string): Promise<void> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'symlink()',
@@ -195,7 +196,7 @@ export default class EasyFileSystem implements IFileSystem {
         return {content: await EasyFileSystem.loadSymlinkContentAsBinary(elem.content)};
     }
 
-    supportsChunkedReading(path?: string): boolean {
+    supportsChunkedReading(_path?: string): boolean {
         return true;
     }
 
@@ -419,7 +420,7 @@ export default class EasyFileSystem implements IFileSystem {
      * @param link
      */
     private static async loadSymlinkContentAsBinary(link: EasySymlink): Promise<Uint8Array> {
-        let content = await EasyFileSystem.loadSymlinkContent(link);
+        const content = await EasyFileSystem.loadSymlinkContent(link);
         return new TextEncoder().encode(content);
     }
 }

@@ -3,9 +3,6 @@ import type {RecoveryInformation} from '../lib/misc/PasswordRecoveryService/Pass
 import PasswordRecoveryClient from '../lib/misc/PasswordRecoveryService/PasswordRecoveryClient';
 import PasswordRecoveryServer from '../lib/misc/PasswordRecoveryService/PasswordRecoveryServer';
 import {generateNewIdentity} from '../lib/misc/IdentityExchange';
-// @ts-ignore The getBaseDirName is only available for node.js. The next line shows an ts error,
-// because the storage-base.d.ts file is generated from the system/storage-base.ts file and not
-// from the system-nodejs/storage-base.ts
 import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
 import {mkdir} from 'fs/promises';
 import {defaultDbName} from './_helpers';
@@ -15,7 +12,7 @@ describe('Password recovery test over server', () => {
     let client: PasswordRecoveryClient;
 
     beforeEach(async () => {
-        await setBaseDirOrName(`test/${defaultDbName}`);
+        setBaseDirOrName(`test/${defaultDbName}`);
         await mkdir(getBaseDirOrName(), {recursive: true});
         const identity = await generateNewIdentity('http://localhost:8080');
         server = new PasswordRecoveryServer(identity.secret, 8080);

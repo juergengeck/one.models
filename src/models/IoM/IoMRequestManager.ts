@@ -1,24 +1,25 @@
+import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
+import {createAccess} from '@refinio/one.core/lib/access';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {OneUnversionedObjectTypeNames, Person} from '@refinio/one.core/lib/recipes';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
-    createSingleObjectThroughPurePlan,
+    getObject,
     onUnversionedObj,
-    SET_ACCESS_MODE,
-    UnversionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import {affirm, affirmedBy} from '../../misc/Certificates/AffirmationCertificate';
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
     getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry';
-import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {affirm, affirmedBy} from '../../misc/Certificates/AffirmationCertificate';
 import {OEvent} from '../../misc/OEvent';
-import type {AffirmationCertificate} from '../../recipes/CertificateRecipes';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
+import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry';
 import type {Signature} from '../../recipes/SignatureRecipes';
+
 const messageBus = createMessageBus('IoMRequestManager');
 
 function isUnversionedObjectResultOfType<T extends OneUnversionedObjectTypeNames>(
@@ -73,10 +74,14 @@ export default class IoMRequestManager {
         messageBus.send('debug', 'init');
         this.disconnectListener = onUnversionedObj.addListener(result => {
             if (isUnversionedObjectResultOfType(result, 'IoMRequest')) {
-                this.processNewIomRequest(result);
+                this.processNewIomRequest(result).catch(_err => {
+                    // TODO Report where, how?
+                });
             }
             if (isUnversionedObjectResultOfType(result, 'Signature')) {
-                this.processNewIoMRequestCertificate(result);
+                this.processNewIoMRequestCertificate(result).catch(_err => {
+                    // TODO Report where, how?
+                });
             }
         });
 
@@ -264,7 +269,7 @@ export default class IoMRequestManager {
                     appId: 'one.iom'
                 })
             ).obj;
-        } catch (e) {
+        } catch (_) {
             // Ignore file not found error and just use the empty default IoMRequests. Persist
             // the empty registry.
             await this.saveRegistry();
@@ -308,18 +313,13 @@ export default class IoMRequestManager {
         );
 
         // Share it with all the participants
-        await createSingleObjectThroughPurePlan(
+        await createAccess([
             {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: requestCertificateSignature.hash,
-                    person: [request.mainId, request.alternateId],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
+                object: requestCertificateSignature.hash,
+                person: [request.mainId, request.alternateId],
+                group: [],
+                mode: SET_ACCESS_MODE.REPLACE
+            }
+        ]);
     }
 }

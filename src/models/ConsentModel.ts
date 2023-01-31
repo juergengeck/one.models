@@ -1,9 +1,11 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {Consent} from '../recipes/ConsentRecipes';
-import {getObjectWithType} from '@refinio/one.core/lib/storage';
 import {StateMachine} from '../misc/StateMachine';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    getObjectWithType,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {sign} from '../misc/Signature';
 import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor';
 
@@ -75,7 +77,7 @@ export default class ConsentModel extends Model {
         await this.channelManager.createChannel(ConsentModel.channelId);
 
         // Update state from storage if no queued consents are present
-        if (this.consentsToWrite.length == 0) {
+        if (this.consentsToWrite.length === 0) {
             const latestChannelEntry = await this.channelManager.getObjects({
                 channelId: ConsentModel.channelId,
                 count: 1
@@ -143,15 +145,19 @@ export default class ConsentModel extends Model {
      * @private
      */
     private setState(status: Consent['status']) {
-        if (status == 'given') {
+        if (status === 'given') {
             this.consentState.triggerEvent('giveConsent');
         }
-        if (status == 'revoked') {
+        if (status === 'revoked') {
             this.consentState.triggerEvent('revokeConsent');
         }
     }
 
     private async writeConsent(file: File, status: Consent['status']) {
+        if (this.channelManager === undefined) {
+            throw new Error('init() has not been called yet');
+        }
+
         const blobDescriptor = await storeFileWithBlobDescriptor(file);
 
         const consent: Consent = {
@@ -165,7 +171,6 @@ export default class ConsentModel extends Model {
         const consentResult = await storeUnversionedObject(consent);
         const signedConsent = await sign(consentResult.hash);
 
-        // @ts-ignore writeConsent is only called after the channelManger is set
         await this.channelManager.postToChannel(
             ConsentModel.channelId,
             signedConsent.obj,

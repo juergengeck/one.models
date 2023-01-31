@@ -1,12 +1,15 @@
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-import {getObject, getObjectWithType} from '@refinio/one.core/lib/storage';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    getObject,
+    getObjectWithType,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
     hexToUint8Array,
     uint8arrayToHexString
@@ -53,7 +56,7 @@ export async function sign(
  * @param issuer
  */
 export async function isSignedBy(data: SHA256Hash, issuer: SHA256IdHash<Person>): Promise<boolean> {
-    return verifySignaturesLowLevel(await trustedKeys(issuer), await signatures(data, issuer));
+    return verifySignaturesLowLevel(await trustedKeys(issuer), await getSignatures(data, issuer));
 }
 
 /**
@@ -62,7 +65,7 @@ export async function isSignedBy(data: SHA256Hash, issuer: SHA256IdHash<Person>)
  * @param data
  */
 export async function signedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
-    const sigs = await signatures(data);
+    const sigs = await getSignatures(data);
 
     // Create map from issuer to signatures
     const sigMapPerIssuer = new Map<SHA256IdHash<Person>, Signature[]>();
@@ -105,7 +108,10 @@ export async function isSignedByMe(data: SHA256Hash): Promise<boolean> {
  * @param data - signatures for this object are returned.
  * @param issuer - If specified only return signatures for this issuer.
  */
-async function signatures(data: SHA256Hash, issuer?: SHA256IdHash<Person>): Promise<Signature[]> {
+async function getSignatures(
+    data: SHA256Hash,
+    issuer?: SHA256IdHash<Person>
+): Promise<Signature[]> {
     const signatureObjectHashes = await getAllEntries(data, 'Signature');
     const signatureObjects = await Promise.all(
         signatureObjectHashes.map(hash => getObjectWithType(hash))
@@ -133,7 +139,7 @@ async function filterSignedByMe<T extends OneObjectTypes>(
         dataList.map(async data => {
             return {
                 data: data,
-                signatures: await signatures(data, key.owner as SHA256IdHash<Person>)
+                signatures: await getSignatures(data, key.owner as SHA256IdHash<Person>)
             };
         })
     );
@@ -188,7 +194,7 @@ function verifySignaturesLowLevel(keys: Keys[], signatures: Signature[]): boolea
     return false;
 }
 
-// ######## Keymanagement ########
+// ######## Key management ########
 
 /**
  * Returns a list of keys for that person that I chose to trust by signing them.

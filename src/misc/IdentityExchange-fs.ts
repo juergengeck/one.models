@@ -1,21 +1,22 @@
 /**
  * This file implements helper functions to generate and import / export identities from / to the file system.
+ * @module
  */
+
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import {readdir, readFile, writeFile} from 'fs/promises';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
-
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import type {Identity, IdentityWithSecrets} from './IdentityExchange';
 import {
+    convertIdentityToOneInstanceEndpoint,
+    convertIdentityToProfile,
+    convertOneInstanceEndpointToIdentity,
     generateNewIdentity,
     isIdentity,
-    isIdentityWithSecrets,
-    convertOneInstanceEndpointToIdentity,
-    convertIdentityToOneInstanceEndpoint,
-    convertIdentityToProfile
+    isIdentityWithSecrets
 } from './IdentityExchange';
 import type ProfileModel from '../models/Leute/ProfileModel';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 // ######## Identity I/O ########
 
@@ -182,7 +183,7 @@ export async function readOrCreateIdentityFile(
 ): Promise<Identity | IdentityWithSecrets> {
     try {
         return await readIdentityFile(fileName);
-    } catch (error) {
+    } catch (_) {
         const identity = await generateNewIdentity(commServerUrl, personEmail, instanceName);
         await writeIdentityFile(fileName, identity.public);
         return identity.secret;

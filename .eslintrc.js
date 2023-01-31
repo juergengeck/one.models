@@ -157,7 +157,7 @@ module.exports = {
         'func-style': ['error', 'declaration'],
         // Enforce consistent line breaks inside function parentheses - off, conflicts with prettier
         'function-paren-newline': ['off'],
-        'generator-star-spacing': ['error', {before: true, after: false}],
+        'generator-star-spacing': ['off', {before: true, after: false}],
         // Disallow require() outside of the top-level module scope
         'global-require': 'error',
         'key-spacing': ['error', {beforeColon: false, afterColon: true}],
@@ -232,7 +232,7 @@ module.exports = {
         // Disallow the use of object properties of the global object (Math and JSON) as functions
         'no-obj-calls': 'error',
         // Disallow reassignment of function parameters
-        'no-param-reassign': ['error', {props: false}],
+        'no-param-reassign': ['off', {props: false}],
         // Disallow string concatenation when using _dirname and _filename
         'no-path-concat': 'error',
         // Disallow the unary operators ++ and --
@@ -351,7 +351,7 @@ module.exports = {
         'space-before-function-paren': [
             'error',
             {
-                anonymous: 'never',
+                anonymous: 'always',
                 named: 'never',
                 asyncArrow: 'always'
             }

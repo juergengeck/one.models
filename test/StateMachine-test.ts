@@ -59,15 +59,15 @@ describe('StateMachine test', () => {
     // @todo implement test case where transition doesn't exist for the triggered event.
 
     it('Trigger invalid event ', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let triggered = false;
-        sm.onStateChange((state: SMStates, newState: SMStates, event: SMEvents) => {
+        sm.onStateChange((_state: SMStates, _newState: SMStates, _event: SMEvents) => {
             triggered = true;
         });
 
         try {
             // Trigger state machine with non-existing event
-            // @ts-expect-error
+            // @ts-expect-error Non-existing event
             sm.triggerEvent('nonexisting_event');
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
@@ -77,7 +77,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Trigger valid event with missing transition for current state ', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let triggered = false;
         sm.onStateChange(() => {
             triggered = true;
@@ -116,7 +116,7 @@ describe('StateMachine test', () => {
         } catch (error) {
             expect(error, error).to.be.instanceof(Error);
             expect(error.message).to.include(
-                'The transition does not exist from the current state with the' + ' specified event'
+                'The transition does not exist from the current state with the specified event'
             );
             done();
         }
@@ -150,7 +150,7 @@ describe('StateMachine test', () => {
         sm.triggerEvent('init');
 
         let triggered = false;
-        sm.onStateChange((state: SMStates, newState: SMStates, event: SMEvents) => {
+        sm.onStateChange((_state: SMStates, _newState: SMStates, _event: SMEvents) => {
             triggered = true;
         });
 
@@ -166,7 +166,7 @@ describe('StateMachine test', () => {
     });
 
     it('Check events for init', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = false;
         let onLeaveStateTriggered = false;
         let onStateChangeTriggered = false;
@@ -193,7 +193,7 @@ describe('StateMachine test', () => {
             expect(event).to.be.eql('init');
         });
 
-        // trigger state machine with unexisting event
+        // trigger state machine with non-existing event
         sm.triggerEvent('init');
 
         await wait(100);
@@ -205,7 +205,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check events for startListen', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = 0;
         let onLeaveStateTriggered = 0;
         let onStateChangeTriggered = 0;
@@ -243,7 +243,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check events for AtoB', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = 0;
         let onLeaveStateTriggered = 0;
         let onStateChangeTriggered = 0;
@@ -282,7 +282,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check events for BtoA', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = 0;
         let onLeaveStateTriggered = 0;
         let onStateChangeTriggered = 0;
@@ -323,7 +323,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check events for stopListen from state B', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = 0;
         let onLeaveStateTriggered = 0;
         let onStateChangeTriggered = 0;
@@ -364,7 +364,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check events for shutdown from state B', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
         let onEnterStateTriggered = 0;
         let onLeaveStateTriggered = 0;
         let onStateChangeTriggered = 0;
@@ -405,7 +405,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check history is not kept for state machine without history', async () => {
-        let sm = createStateMachineWithoutHistory(false);
+        const sm = createStateMachineWithoutHistory(false);
 
         sm.triggerEvent('init');
         sm.triggerEvent('startListen');
@@ -424,7 +424,7 @@ describe('StateMachine test', () => {
     }).timeout(1000);
 
     it('Check history is kept for state machine with history', async () => {
-        let sm = createStateMachineWithoutHistory(true);
+        const sm = createStateMachineWithoutHistory(true);
 
         sm.triggerEvent('init');
         sm.triggerEvent('startListen');

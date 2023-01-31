@@ -1,25 +1,24 @@
-import {Model} from '../Model';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {createAccess} from '@refinio/one.core/lib/access';
 import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import type ChannelManager from '../ChannelManager';
-import type {ObjectData} from '../ChannelManager';
-import TopicRegistry from './TopicRegistry';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
-    createSingleObjectThroughPurePlan,
     onUnversionedObj,
-    SET_ACCESS_MODE,
-    VERSION_UPDATES
-} from '@refinio/one.core/lib/storage';
-import {OEvent} from '../../misc/OEvent';
-import type {Topic} from '../../recipes/ChatRecipes';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import TopicRoom from './TopicRoom';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import LeuteModel from '../Leute/LeuteModel';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
+import {OEvent} from '../../misc/OEvent';
+import type {Topic} from '../../recipes/ChatRecipes';
+import type {ObjectData} from '../ChannelManager';
+import type ChannelManager from '../ChannelManager';
+import LeuteModel from '../Leute/LeuteModel';
+import {Model} from '../Model';
+import TopicRegistry from './TopicRegistry';
+import TopicRoom from './TopicRoom';
 
 /**
  * Model that manages the creation of chat topics.
@@ -132,34 +131,22 @@ export default class TopicModel extends Model {
         participants: SHA256IdHash<Person>[],
         topic: Topic
     ): Promise<void> {
-        await createSingleObjectThroughPurePlan(
+        await createAccess([
             {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            [
-                {
-                    id: topic.channel,
-                    person: participants,
-                    group: [],
-                    mode: SET_ACCESS_MODE.ADD
-                }
-            ]
-        );
-        await createSingleObjectThroughPurePlan(
+                id: topic.channel,
+                person: participants,
+                group: [],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
+        await createAccess([
             {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            [
-                {
-                    object: await calculateHashOfObj(topic),
-                    person: participants,
-                    group: [],
-                    mode: SET_ACCESS_MODE.ADD
-                }
-            ]
-        );
+                object: await calculateHashOfObj(topic),
+                person: participants,
+                group: [],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
     }
 
     /**
@@ -168,34 +155,22 @@ export default class TopicModel extends Model {
      * @param topic
      */
     public async addGroupToTopic(groupIdHash: SHA256IdHash<Group>, topic: Topic): Promise<void> {
-        await createSingleObjectThroughPurePlan(
+        await createAccess([
             {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            [
-                {
-                    id: topic.channel,
-                    person: [],
-                    group: [groupIdHash],
-                    mode: SET_ACCESS_MODE.ADD
-                }
-            ]
-        );
-        await createSingleObjectThroughPurePlan(
+                id: topic.channel,
+                person: [],
+                group: [groupIdHash],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
+        await createAccess([
             {
-                module: '@one/access',
-                versionMapPolicy: {'*': VERSION_UPDATES.NONE_IF_LATEST}
-            },
-            [
-                {
-                    object: await calculateHashOfObj(topic),
-                    person: [],
-                    group: [groupIdHash],
-                    mode: SET_ACCESS_MODE.ADD
-                }
-            ]
-        );
+                object: await calculateHashOfObj(topic),
+                person: [],
+                group: [groupIdHash],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
     }
 
     // ######## Everyone chat stuff ########

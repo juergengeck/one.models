@@ -1,20 +1,14 @@
-import type {Profile} from '../../recipes/Leute/Profile';
-import {
-    getIdObject,
-    IdFileCreation,
-    onIdObj,
-    onUnversionedObj,
-    onVersionedObj,
-    UnversionedObjectResult,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import SomeoneModel from './SomeoneModel';
-import type {Someone} from '../../recipes/Leute/Someone';
-import type {Leute} from '../../recipes/Leute/Leute';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {
+    OneUnversionedObjectInterfaces,
+    OneVersionedObjectInterfaces
+} from '@OneObjectInterfaces';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '@refinio/one.core/lib/keychain/keychain';
 import type {
     OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
@@ -22,34 +16,42 @@ import type {
     OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
-import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import ProfileModel from './ProfileModel';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
-    OneUnversionedObjectInterfaces,
-    OneVersionedObjectInterfaces
-} from '@OneObjectInterfaces';
-import {OEvent} from '../../misc/OEvent';
+    IdFileCreation,
+    VersionedObjectResult
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getIdObject,
+    getObjectByIdHash,
+    onIdObj,
+    onVersionedObj
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-
-import type {ObjectData, QueryOptions} from '../ChannelManager';
-import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
-import type {ChannelEntry} from '../../recipes/ChannelRecipes';
-import GroupModel from './GroupModel';
-import {Model} from '../Model';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
 import {
-    createCryptoApiFromDefaultKeys,
-    getDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
-import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
-import {
-    createInstanceWithDefaultKeys,
     getInstancesOfPerson,
     getLocalInstanceOfPerson,
     hasPersonLocalInstance
 } from '../../misc/instance';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
+import {OEvent} from '../../misc/OEvent';
+import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
+import type {ChannelEntry} from '../../recipes/ChannelRecipes';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
+import type {Leute} from '../../recipes/Leute/Leute';
+import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
+import type {Profile} from '../../recipes/Leute/Profile';
+import type {Someone} from '../../recipes/Leute/Someone';
+import type {ObjectData, QueryOptions} from '../ChannelManager';
+import {Model} from '../Model';
+import GroupModel from './GroupModel';
+import ProfileModel from './ProfileModel';
+import SomeoneModel from './SomeoneModel';
+
+const ZERO_HASH = '0'.repeat(64);
 
 /**
  * This class manages people - to be precise: their identities including your own.
@@ -105,7 +107,9 @@ export default class LeuteModel extends Model {
     private pLoadedVersion?: SHA256Hash<Leute>;
     private leute?: Leute;
     private readonly createEveryoneGroup: boolean;
-    private shutdownInternal: () => Promise<void> = async () => {};
+    private shutdownInternal: () => Promise<void> = async () => {
+        /*...*/
+    };
 
     /**
      * Constructor
@@ -137,7 +141,7 @@ export default class LeuteModel extends Model {
             throw new Error('The instance has no owner.');
         }
 
-        const instanceId = await getInstanceIdHash();
+        const instanceId = getInstanceIdHash();
         if (instanceId === undefined) {
             throw new Error('The instance is not initialized.');
         }
@@ -195,7 +199,9 @@ export default class LeuteModel extends Model {
             }
             this.leute = undefined;
             this.pLoadedVersion = undefined;
-            this.shutdownInternal = async () => {};
+            this.shutdownInternal = async () => {
+                /*...*/
+            };
         };
 
         this.state.triggerEvent('init');
@@ -299,7 +305,7 @@ export default class LeuteModel extends Model {
             throw new Error('Leute model is not initialized');
         }
 
-        this.leute.other = this.leute.other.filter(o => o != other);
+        this.leute.other = this.leute.other.filter(o => o !== other);
         await this.saveAndLoad();
     }
 
@@ -486,15 +492,15 @@ export default class LeuteModel extends Model {
         const oldIdentity = await mySomeone.mainIdentity();
         const newIdentity = profile.personId;
 
-        if (oldIdentity !== newIdentity) {
+        if (oldIdentity === newIdentity) {
+            await mySomeone.setMainProfile(profileHash);
+        } else {
             this.beforeMainIdSwitch.emit(oldIdentity);
             if (!(await isPersonComplete(newIdentity))) {
                 throw new Error('Person is not complete!');
             }
             await mySomeone.setMainProfile(profileHash);
             this.afterMainIdSwitch.emit(newIdentity);
-        } else {
-            await mySomeone.setMainProfile(profileHash);
         }
     }
 
@@ -692,7 +698,7 @@ export default class LeuteModel extends Model {
     public async getMyLocalInstances(): Promise<LocalInstanceInfo[]> {
         const me = await this.me();
 
-        let localInstances: LocalInstanceInfo[] = [];
+        const localInstances: LocalInstanceInfo[] = [];
         for (const identity of me.identities()) {
             if (!(await hasPersonLocalInstance(identity))) {
                 continue;
@@ -743,7 +749,7 @@ export default class LeuteModel extends Model {
                 return 'undefined';
             }
             return personNames[0].name;
-        } catch (e) {
+        } catch (_) {
             return 'undefined';
         }
     }
@@ -785,14 +791,14 @@ export default class LeuteModel extends Model {
 
             const anyOwner = LeuteModel.getPersonNameFromFilteredProfiles(
                 defaultProfiles,
-                profile => true
+                _profile => true
             );
             if (anyOwner !== undefined) {
                 return anyOwner;
             }
 
             return person;
-        } catch (e) {
+        } catch (_) {
             return person;
         }
     }
@@ -800,10 +806,10 @@ export default class LeuteModel extends Model {
     /**
      * Returns items for pictures that were updated.
      *
-     * @param queryOptions
+     * @param _queryOptions
      */
     public async *retrievePersonImagesForJournal(
-        queryOptions?: QueryOptions
+        _queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonImage>> {
         this.state.assertCurrentState('Initialised');
 
@@ -828,17 +834,14 @@ export default class LeuteModel extends Model {
         const objectDatas = imagesWithPersonId.map(imageWithPersonId => {
             return {
                 channelId: '',
-                channelOwner:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
-                channelEntryHash:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<ChannelEntry>,
+                channelOwner: ZERO_HASH as SHA256IdHash<Person>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
                 id: '',
                 creationTime: new Date(imageWithPersonId.image.timestamp),
                 author: imageWithPersonId.personId,
                 sharedWith: [],
                 data: imageWithPersonId.image,
-                dataHash:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<PersonImage>
+                dataHash: ZERO_HASH as SHA256Hash<PersonImage>
             };
         });
 
@@ -848,10 +851,10 @@ export default class LeuteModel extends Model {
     /**
      * Returns items for statuses that were updated.
      *
-     * @param queryOptions
+     * @param _queryOptions
      */
     public async *retrieveStatusesForJournal(
-        queryOptions?: QueryOptions
+        _queryOptions?: QueryOptions
     ): AsyncIterableIterator<ObjectData<PersonStatus>> {
         this.state.assertCurrentState('Initialised');
 
@@ -879,17 +882,14 @@ export default class LeuteModel extends Model {
         const objectDatas = statusesWithPersonId.map(statusWithPersonId => {
             return {
                 channelId: '',
-                channelOwner:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256IdHash<Person>,
-                channelEntryHash:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<ChannelEntry>,
+                channelOwner: ZERO_HASH as SHA256IdHash<Person>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
                 id: '',
                 creationTime: new Date(statusWithPersonId.status.timestamp),
                 author: statusWithPersonId.personId,
                 sharedWith: [],
                 data: statusWithPersonId.status,
-                dataHash:
-                    '0000000000000000000000000000000000000000000000000000000000000000' as SHA256Hash<PersonStatus>
+                dataHash: ZERO_HASH as SHA256Hash<PersonStatus>
             };
         });
 
@@ -924,7 +924,7 @@ export default class LeuteModel extends Model {
      */
     private static async createIdentityWithInstanceAndKeys(): Promise<SHA256IdHash<Person>> {
         const personResult = await createPersonWithDefaultKeys();
-        const instanceResult = createInstanceWithDefaultKeys(personResult.personId);
+        // const instanceResult = createInstanceWithDefaultKeys(personResult.personId);
         return personResult.personId;
     }
 
@@ -1000,7 +1000,7 @@ export default class LeuteModel extends Model {
     }
 
     /**
-     * Emit the appropiate event for the CommunicationModule. Otherwise it's not added to the
+     * Emit the appropriate event for the CommunicationModule. Otherwise it's not added to the
      * list of known connections.
      * @param result
      * @private
@@ -1055,7 +1055,7 @@ export default class LeuteModel extends Model {
             })
         );
 
-        return profileModels2d.reduce(function (prev, next) {
+        return profileModels2d.reduce((prev, next) => {
             return prev.concat(next);
         });
     }

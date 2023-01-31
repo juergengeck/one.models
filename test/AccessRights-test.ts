@@ -5,11 +5,13 @@
 import {expect} from 'chai';
 
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
-import {getObjectByIdObj} from '@refinio/one.core/lib/storage';
-import TestModel from './utils/TestModel';
+import {
+    getObjectByIdObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
 import type AccessModel from '../lib/models/AccessModel';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import * as StorageTestInit from './_helpers';
+import TestModel from './utils/TestModel';
 
 let accessModel: AccessModel;
 let testModel: TestModel;
@@ -44,7 +46,6 @@ describe('AccessRights model test', () => {
         expect(partnerGroup).to.not.be.undefined;
         expect(clinicGroup).to.not.be.undefined;
         try {
-            //@ts-ignore
             await accessModel.getAccessGroupByName('undefined');
         } catch (e) {
             expect(e).to.be.not.undefined;

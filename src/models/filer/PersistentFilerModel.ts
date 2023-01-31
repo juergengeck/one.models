@@ -9,7 +9,6 @@ import {EventEmitter} from 'events';
 
 import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
-import {getObject} from '@refinio/one.core/lib/storage';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {ObjectData} from '../ChannelManager';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
@@ -18,7 +17,7 @@ import type {
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes';
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).
@@ -84,12 +83,12 @@ export default class PersistentFilerModel extends EventEmitter {
 
     /**
      *
-     * @param {SHA256Hash<PersistentFileSystemDirectory>} rootHash
+     * @param {SHA256Hash<PersistentFileSystemDirectory>} _rootHash
      * @returns {Promise<void>}
      * @private
      */
     private async boundOnFileSystemUpdateHandler(
-        rootHash: SHA256Hash<PersistentFileSystemDirectory>
+        _rootHash: SHA256Hash<PersistentFileSystemDirectory>
     ): Promise<void> {
         await serializeWithType('FileSystemLock', async () => {
             const rootDirectory = await this.channelManager.getObjectsWithType(

@@ -2,14 +2,13 @@ import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt';
 import tweetnacl from 'tweetnacl';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getIdObject} from '@refinio/one.core/lib/storage';
 import {randomBytes} from 'crypto';
 import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
-    HexString,
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
@@ -20,6 +19,7 @@ import {
     symmetricDecryptWithEmbeddedNonce,
     symmetricEncryptAndEmbedNonce
 } from '@refinio/one.core/lib/crypto/encryption';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
@@ -43,7 +43,7 @@ interface PersonInformation {
  * recovery url.
  *
  * This does not work at the moment, because we cant read / write private keys because the
- * keymanagement changed.
+ * key-management changed.
  */
 export default class RecoveryModel extends Model {
     private readonly recoveryKeyLength: number;
@@ -118,7 +118,7 @@ export default class RecoveryModel extends Model {
 
         // encrypt the persons information with the recovery nonce and recovery key
         const encryptedPersonInformation = uint8arrayToHexString(
-            await symmetricEncryptAndEmbedNonce(
+            symmetricEncryptAndEmbedNonce(
                 new TextEncoder().encode(JSON.stringify(objectToEncrypt)),
                 derivedKey
             )
@@ -163,9 +163,7 @@ export default class RecoveryModel extends Model {
             ensureSalt(hexToUint8Array(recoveryNonce))
         );
         this.decryptedObject = JSON.parse(
-            new TextDecoder().decode(
-                await symmetricDecryptWithEmbeddedNonce(objectToDecrypt, derivedKey)
-            )
+            new TextDecoder().decode(symmetricDecryptWithEmbeddedNonce(objectToDecrypt, derivedKey))
         );
 
         if (!this.decryptedObject) {
@@ -285,12 +283,12 @@ export default class RecoveryModel extends Model {
      *
      * The password must be set before this function is called.
      *
-     * @param personId
+     * @param _personId
      * @returns
      * @private
      */
     private static async extractDecryptedPrivateKeysForPerson(
-        personId: SHA256IdHash<Person>
+        _personId: SHA256IdHash<Person>
     ): Promise<{
         privateKey: HexString;
         privateSignKey: HexString;
@@ -310,11 +308,11 @@ export default class RecoveryModel extends Model {
     /**
      * Change the private keys of the person.
      *
-     * @param personInfo
+     * @param _personInfo
      * @private
      */
     private static async overwriteExistingPersonKeys(
-        personInfo: PPersonInformationMessage
+        _personInfo: PPersonInformationMessage
     ): Promise<void> {
         throw new Error(
             'Overwriting secret keys was disabled, because the keymanagement changed.' +

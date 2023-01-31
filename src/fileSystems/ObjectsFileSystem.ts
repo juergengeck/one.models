@@ -5,18 +5,17 @@ import type {
     IFileSystem
 } from './IFileSystem';
 import FileSystemHelpers from './FileSystemHelpers';
-import {
-    getFileType,
-    getObject,
-    getTextFile,
-    listAllObjectHashes
-} from '@refinio/one.core/lib/storage';
 import {createError} from '@refinio/one.core/lib/errors';
 import {FS_ERRORS} from './FileSystemErrors';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, HashTypes} from '@refinio/one.core/lib/recipes';
-import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes';
 import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    getFileType,
+    listAllObjectHashes,
+    readUTF8TextFile
+} from '@refinio/one.core/lib/system/storage-base';
 
 /**
  * Json format for the objects parsed path
@@ -38,7 +37,6 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @type {FileSystemDirectory}
      * @private
      */
-    //@ts-ignore
     private readonly rootDirectory: FileSystemDirectory;
 
     private readonly rootMode: number = 0o0040555;
@@ -50,23 +48,24 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * The current Object File System is not supporting the creation of directories.
      * @param {string} directoryPath
-     * @param {number} dirMode
+     * @param {number} _dirMode
      * @returns {Promise<FileSystemDirectory>}
      */
-    createDir(directoryPath: string, dirMode: number): Promise<void> {
+    createDir(directoryPath: string, _dirMode: number): Promise<void> {
         const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
+
         if (!rootMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
                 path: directoryPath
             });
-        } else {
-            throw createError('FSE-ENOSYS', {
-                message: FS_ERRORS['FSE-ENOSYS'].message,
-                functionName: 'createDir()',
-                path: directoryPath
-            });
         }
+
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'createDir()',
+            path: directoryPath
+        });
     }
 
     /**
@@ -105,40 +104,41 @@ export default class ObjectsFileSystem implements IFileSystem {
 
     /**
      *
-     * @param {string} path
+     * @param {string} _path
      * @returns {boolean}
      */
-    supportsChunkedReading(path?: string): boolean {
+    supportsChunkedReading(_path?: string): boolean {
         return typeof global !== 'undefined' && {}.toString.call(global) === '[object global]';
     }
 
     /**
      * The current Object File System is not supporting the creation of files.
      * @param {string} directoryPath
-     * @param {SHA256Hash<BLOB>} fileHash
-     * @param {string} fileName
-     * @param {number} fileMode
+     * @param {SHA256Hash<BLOB>} _fileHash
+     * @param {string} _fileName
+     * @param {number} _fileMode
      * @returns {Promise<FileSystemFile>}
      */
     async createFile(
         directoryPath: string,
-        fileHash: SHA256Hash<BLOB>,
-        fileName: string,
-        fileMode: number
+        _fileHash: SHA256Hash<BLOB>,
+        _fileName: string,
+        _fileMode: number
     ): Promise<void> {
         const rootMode = FileSystemHelpers.retrieveFileMode(this.rootMode);
+
         if (!rootMode.permissions.owner.write) {
             throw createError('FSE-EACCES-W', {
                 message: FS_ERRORS['FSE-EACCES-W'].message,
                 path: directoryPath
             });
-        } else {
-            throw createError('FSE-ENOSYS', {
-                message: FS_ERRORS['FSE-ENOSYS'].message,
-                functionName: 'createFile()',
-                path: directoryPath
-            });
         }
+
+        throw createError('FSE-ENOSYS', {
+            message: FS_ERRORS['FSE-ENOSYS'].message,
+            functionName: 'createFile()',
+            path: directoryPath
+        });
     }
 
     /**
@@ -164,7 +164,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         }
 
         if (parsedPath.suffix === '/' || parsedPath.suffix === '') {
-            /** different behaviour for BLOB and CBLOB **/
+            /** different behaviour for BLOB and CLOB **/
             if (
                 hashMap.get(parsedPath.hash) === 'BLOB' ||
                 hashMap.get(parsedPath.hash) === 'CBLOB'
@@ -198,7 +198,6 @@ export default class ObjectsFileSystem implements IFileSystem {
     }
 
     /**
-     *
      * @param {string} path
      * @returns {Promise<void>}
      */
@@ -266,7 +265,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         const containsValidHash = path.match(isHash);
 
         /** if it does not contains a valid hash or no hash at all **/
-        if (!containsValidHash || containsValidHash.length != 3) {
+        if (!containsValidHash || containsValidHash.length !== 3) {
             return {
                 isRoot: false,
                 hash: null,
@@ -284,9 +283,9 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * Not implemented because of Read Only FS
      * @param pathName
-     * @param mode
+     * @param _mode
      */
-    chmod(pathName: string, mode: number): Promise<number> {
+    chmod(pathName: string, _mode: number): Promise<number> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'chmod()',
@@ -297,9 +296,9 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * Not implemented because of Read Only FS
      * @param src
-     * @param dest
+     * @param _dest
      */
-    rename(src: string, dest: string): Promise<number> {
+    rename(src: string, _dest: string): Promise<number> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'rename()',
@@ -404,16 +403,19 @@ export default class ObjectsFileSystem implements IFileSystem {
     private async retrieveContentAboutHash(path: string): Promise<string | undefined> {
         const parsedPath = this.parsePath(path);
 
+        // TODO ???
         function promiseHandler<T extends OneObjectTypes>(promise: Promise<T>) {
             return promise.then(data => [null, data]).catch(err => [err]);
         }
 
         if (parsedPath.suffix === '/raw.txt') {
-            return await getTextFile(parsedPath.hash as SHA256Hash);
+            return await readUTF8TextFile(parsedPath.hash as SHA256Hash);
         }
 
         if (parsedPath.suffix === '/pretty.html') {
-            return ObjectsFileSystem.stringifyXML(await getTextFile(parsedPath.hash as SHA256Hash));
+            return ObjectsFileSystem.stringifyXML(
+                await readUTF8TextFile(parsedPath.hash as SHA256Hash)
+            );
         }
 
         if (parsedPath.suffix === '/json.txt') {
@@ -506,10 +508,10 @@ export default class ObjectsFileSystem implements IFileSystem {
     /**
      * Not implemented
      * @param {string} src
-     * @param {string} dest
+     * @param {string} _dest
      * @returns {Promise<void>}
      */
-    symlink(src: string, dest: string): Promise<void> {
+    symlink(src: string, _dest: string): Promise<void> {
         throw createError('FSE-ENOSYS', {
             message: FS_ERRORS['FSE-ENOSYS'].message,
             functionName: 'symlink()',

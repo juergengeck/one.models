@@ -1,6 +1,8 @@
-import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
-import {getIdObject, getObject} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
+    getIdObject,
     getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';

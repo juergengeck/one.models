@@ -10,9 +10,9 @@ import {
     ECGModel
 } from '../../lib/models';
 
-const path = require('path');
-const fs = require('fs');
-const util = require('util');
+import * as path from 'path';
+import * as fs from 'fs';
+import * as util from 'util';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -54,16 +54,16 @@ export default class TestModel {
     constructor(commServerUrl: string) {
         this.secret = 'test-secret';
         this.accessModel = new AccessModel();
-        this.leuteModel = new LeuteModel(commServerUrl);
+        this.leuteModel = new LeuteModel(commServerUrl, true);
         this.channelManager = new ChannelManager(this.leuteModel);
         this.ecgModel = new ECGModel(this.channelManager);
         this.bodyTemperature = new BodyTemperatureModel(this.channelManager);
     }
 
     async init(
-        anonymousEmail?: string,
-        takeOver?: boolean,
-        recoveryState?: boolean
+        _anonymousEmail?: string,
+        _takeOver?: boolean,
+        _recoveryState?: boolean
     ): Promise<void> {
         await this.accessModel.init();
         await this.leuteModel.init();

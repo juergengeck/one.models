@@ -1,7 +1,6 @@
 import type {ConnectionInfo} from '../misc/CommunicationModule';
 import CommunicationModule from '../misc/CommunicationModule';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
-import {getIdObject, getObject} from '@refinio/one.core/lib/storage';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import tweetnacl from 'tweetnacl';
@@ -36,7 +35,8 @@ import {
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getIdObject, storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -270,27 +270,27 @@ class ConnectionsModel extends Model {
         // Build configuration object by using default values
         this.config = {
             commServerUrl:
-                config.commServerUrl !== undefined ? config.commServerUrl : 'ws://localhost:8000',
+                config.commServerUrl === undefined ? 'ws://localhost:8000' : config.commServerUrl,
             acceptIncomingConnections:
-                config.acceptIncomingConnections !== undefined
-                    ? config.acceptIncomingConnections
-                    : true,
+                config.acceptIncomingConnections === undefined
+                    ? true
+                    : config.acceptIncomingConnections,
             acceptUnknownInstances:
-                config.acceptUnknownInstances !== undefined ? config.acceptUnknownInstances : false,
+                config.acceptUnknownInstances === undefined ? false : config.acceptUnknownInstances,
             acceptUnknownPersons:
-                config.acceptUnknownPersons !== undefined ? config.acceptUnknownPersons : false,
+                config.acceptUnknownPersons === undefined ? false : config.acceptUnknownPersons,
             allowOneTimeAuth:
-                config.allowOneTimeAuth !== undefined ? config.allowOneTimeAuth : true,
+                config.allowOneTimeAuth === undefined ? true : config.allowOneTimeAuth,
             authTokenExpirationDuration:
-                config.authTokenExpirationDuration !== undefined
-                    ? config.authTokenExpirationDuration
-                    : 60000,
+                config.authTokenExpirationDuration === undefined
+                    ? 60000
+                    : config.authTokenExpirationDuration,
             allowSetAuthGroup:
-                config.allowSetAuthGroup !== undefined ? config.allowSetAuthGroup : false,
+                config.allowSetAuthGroup === undefined ? false : config.allowSetAuthGroup,
             establishOutgoingConnections:
-                config.establishOutgoingConnections !== undefined
-                    ? config.establishOutgoingConnections
-                    : true
+                config.establishOutgoingConnections === undefined
+                    ? true
+                    : config.establishOutgoingConnections
         };
 
         // Setup / init modules
@@ -1053,16 +1053,16 @@ class ConnectionsModel extends Model {
      * Step 3&4: Exchange identity, so that profiles re generated
      *
      * @param conn - Connection to the peer.
-     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * @param _localPublicInstanceKey - This key is just used to get unique chum objects for
      * connections.
-     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * @param _remotePublicInstanceKey - This key is just used to get unique chum objects for
      * connections.
      * @param localPersonId - The local person id used to setup the chum
      */
     private async startPairingProtocol_Server(
         conn: Connection,
-        localPublicInstanceKey: Uint8Array,
-        remotePublicInstanceKey: Uint8Array,
+        _localPublicInstanceKey: Uint8Array,
+        _remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>
     ): Promise<void> {
         // const mainInstanceInfo = await this.leuteModel.getMyMainInstance();
@@ -1132,9 +1132,9 @@ class ConnectionsModel extends Model {
      * Step 3&4: Exchange identity, so that profiles re generated
      *
      * @param conn - Connection to the peer.
-     * @param localPublicInstanceKey - This key is just used to get unique chum objects for
+     * @param _localPublicInstanceKey - This key is just used to get unique chum objects for
      * connections.
-     * @param remotePublicInstanceKey - This key is just used to get unique chum objects for
+     * @param _remotePublicInstanceKey - This key is just used to get unique chum objects for
      * connections.
      * @param localPersonId - The local person id used to setup the chum
      * @param authenticationToken - The authentication token received via a secure channel from
@@ -1142,8 +1142,8 @@ class ConnectionsModel extends Model {
      */
     private async startPairingProtocol_Client(
         conn: Connection,
-        localPublicInstanceKey: Uint8Array,
-        remotePublicInstanceKey: Uint8Array,
+        _localPublicInstanceKey: Uint8Array,
+        _remotePublicInstanceKey: Uint8Array,
         localPersonId: SHA256IdHash<Person>,
         authenticationToken: string
     ): Promise<void> {
@@ -1567,11 +1567,11 @@ class ConnectionsModel extends Model {
     /**
      * Extract public ans encrypted private keys for the person received as parameter.
      *
-     * @param personId
+     * @param _personId
      * @returns
      * @private
      */
-    private static async extractKeysForPerson(personId: SHA256IdHash<Person>): Promise<{
+    private static async extractKeysForPerson(_personId: SHA256IdHash<Person>): Promise<{
         personPublicKeys: Keys;
         personPrivateEncryptionKey: HexString;
         personPrivateSignKey: HexString;
@@ -1618,7 +1618,7 @@ class ConnectionsModel extends Model {
      * @param localPersonId - The local person id (used for getting keys)
      * @param initiatedLocally
      * @param matchRemotePersonId - It is verified that the transmitted person id matches this one.
-     * @param skipLocalKeyCompare - Skips the comparision of local keys. Defaults to false. Use
+     * @param skipLocalKeyCompare - Skips the comparison of local keys. Defaults to false. Use
      *                              with care!
      * @returns
      */
@@ -1711,7 +1711,7 @@ class ConnectionsModel extends Model {
                     // we do not break here - for constant execution times
                 }
             }
-        } catch (e) {
+        } catch (_) {
             // This means that we have not encountered the person, yet.
             return {
                 isNew: true,
@@ -1720,7 +1720,7 @@ class ConnectionsModel extends Model {
             };
         }
 
-        // Throw error when key comparision failed.
+        // Throw error when key comparison failed.
         if (keyComparisionFailed && !skipLocalKeyCompare) {
             throw new Error('Key does not match your previous visit');
         }

@@ -3,17 +3,14 @@ import type {
     BlobDescriptor as OneBlobDescriptor
 } from '../recipes/BlobRecipes';
 import type ChannelManager from './ChannelManager';
-import {
-    getObject,
-    readBlobAsArrayBuffer,
-    UnversionedObjectResult
-} from '@refinio/one.core/lib/storage';
 import {Model} from './Model';
 
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
+import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -153,7 +150,7 @@ export default class BlobCollectionModel extends Model {
         if (collection && collection.length > 0) {
             return this.resolveBlobCollection(collection[0].data);
         } else {
-            throw new Error(`No BlobCollection found in channel`);
+            throw new Error('No BlobCollection found in channel');
         }
     }
 

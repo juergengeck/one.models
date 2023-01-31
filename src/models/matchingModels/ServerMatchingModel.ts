@@ -1,23 +1,25 @@
-import MatchingModel from './MatchingModel';
-import type ChannelManager from '../ChannelManager';
-import type AccessModel from '../AccessModel';
-import type ConnectionsModel from '../ConnectionsModel';
-import {
-    createSingleObjectThroughPurePlan,
-    getObject,
-    getObjectByIdObj,
-    onUnversionedObj,
-    SET_ACCESS_MODE,
-    UnversionedObjectResult,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {createAccess} from '@refinio/one.core/lib/access';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {
+    getObject,
+    onUnversionedObj,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {
+    getObjectByIdObj,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
+import type AccessModel from '../AccessModel';
+import type ChannelManager from '../ChannelManager';
+import type ConnectionsModel from '../ConnectionsModel';
+import MatchingModel from './MatchingModel';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this
@@ -64,17 +66,22 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.initNotifiedUsersList();
 
         await this.accessModel.createAccessGroup(this.accessGroupName);
-        await this.connectionsModel.onChumStart(
+        this.connectionsModel.onChumStart(
             (localPersonId: SHA256IdHash<Person>, remotePersonId: SHA256IdHash<Person>) => {
-                this.accessModel.addPersonToAccessGroup(this.accessGroupName, localPersonId);
-                this.accessModel.addPersonToAccessGroup(this.accessGroupName, remotePersonId);
+                Promise.all([
+                    this.accessModel.addPersonToAccessGroup(this.accessGroupName, localPersonId),
+                    this.accessModel.addPersonToAccessGroup(this.accessGroupName, remotePersonId)
+                ]).catch(_err => {
+                    // TODO How to report this error?
+                    // ...
+                });
             }
         );
 
         await this.startMatchingChannel();
         await this.registerHooks();
 
-        await this.accessModel.onGroupsUpdated(async () => {
+        this.accessModel.onGroupsUpdated(async () => {
             const accessGroup = await this.accessModel.getAccessGroupByName(this.accessGroupName);
             const personsToGiveAccessTo = [...accessGroup.obj.person, this.me];
             await this.giveAccessToMatchingChannel(personsToGiveAccessTo);
@@ -133,10 +140,10 @@ export default class ServerMatchingModel extends MatchingModel {
      */
     private async initNotifiedUsersList(): Promise<void> {
         try {
-            this.notifiedUsersObj = (await getObjectByIdObj({
+            this.notifiedUsersObj = await getObjectByIdObj({
                 $type$: 'NotifiedUsers',
                 name: this.notifiedUsersName
-            })) as VersionedObjectResult<NotifiedUsers>;
+            });
         } catch (err) {
             if (err.name === 'FileNotFoundError') {
                 this.notifiedUsersObj = (await storeVersionedObject({
@@ -164,10 +171,10 @@ export default class ServerMatchingModel extends MatchingModel {
         destinationMap: Map<string, Supply[] | Demand[]>
     ): Promise<void> {
         if (object.$type$ === 'Supply') {
-            this.addNewValueToSupplyMap(object as Supply);
+            this.addNewValueToSupplyMap(object);
             await this.memoriseLatestVersionOfSupplyMap();
         } else {
-            this.addNewValueToDemandMap(object as Demand);
+            this.addNewValueToDemandMap(object);
             await this.memoriseLatestVersionOfDemandMap();
         }
 
@@ -232,19 +239,14 @@ export default class ServerMatchingModel extends MatchingModel {
         }
         existingMatchesMap.set(destPerson, existingMatches);
 
-        await createSingleObjectThroughPurePlan(
+        await createAccess([
             {
-                module: '@one/access'
-            },
-            [
-                {
-                    object: matchResponse.hash,
-                    person: [destPerson],
-                    group: [],
-                    mode: SET_ACCESS_MODE.REPLACE
-                }
-            ]
-        );
+                object: matchResponse.hash,
+                person: [destPerson],
+                group: [],
+                mode: SET_ACCESS_MODE.REPLACE
+            }
+        ]);
 
         console.log('Match Response sent to ', dest.$type$, ' client');
 
