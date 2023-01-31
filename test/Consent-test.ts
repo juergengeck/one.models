@@ -1,16 +1,16 @@
-import ConsentModel from '../lib/models/ConsentModel';
 import {expect} from 'chai';
-import * as StorageTestInit from './_helpers';
+
+import {buildTestFile, init} from './_helpers';
+import ConsentModel from '../lib/models/ConsentModel';
 import TestModel from './utils/TestModel';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import {buildTestFile} from './_helpers';
-import {getObjectWithType} from '@refinio/one.core/lib/storage';
+import {getObjectWithType} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 let testModel: TestModel;
 
 describe('Consent', () => {
     before(async () => {
-        await StorageTestInit.init();
+        await init();
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
@@ -75,7 +75,7 @@ describe('Consent', () => {
 
         const onEnterRevokeState = new Promise(resolve => {
             consentModel.consentState.onEnterState(state => {
-                if (state == 'Revoked') {
+                if (state === 'Revoked') {
                     resolve('Close connection to replicant');
                 }
             });
@@ -112,11 +112,12 @@ describe('Consent', () => {
             channelId: ConsentModel.channelId
         });
         const allConsents = await Promise.all(
-            //@ts-ignore
-            allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
+            allChannelEntrys.map(entry => getObjectWithType((entry.data as any).data, 'Consent'))
         );
 
-        // @ts-ignore
+        if (consentModel.firstConsentDate === undefined) {
+            throw new Error('consentModel.firstConsentDate is undefined');
+        }
         expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
             allConsents[0].isoStringDate
         );
@@ -132,11 +133,12 @@ describe('Consent', () => {
             channelId: ConsentModel.channelId
         });
         const allConsents = await Promise.all(
-            //@ts-ignore
-            allChannelEntrys.map(entry => getObjectWithType(entry.data.data, 'Consent'))
+            allChannelEntrys.map(entry => getObjectWithType((entry.data as any).data, 'Consent'))
         );
 
-        // @ts-ignore
+        if (consentModel.firstConsentDate === undefined) {
+            throw new Error('consentModel.firstConsentDate is undefined');
+        }
         expect(consentModel.firstConsentDate.toISOString()).to.be.equal(
             allConsents[0].isoStringDate
         );

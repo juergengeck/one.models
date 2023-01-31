@@ -1,8 +1,8 @@
 import chai, {expect} from 'chai';
+
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
 import {mkdir, rm, rmdir} from 'fs/promises';
-import {getIdObject} from '@refinio/one.core/lib/storage';
 import chaiAsPromised from 'chai-as-promised';
 import LeuteRecipes from '../lib/recipes/Leute/recipes';
 import {
@@ -11,6 +11,8 @@ import {
     readIdentityFile,
     readIdentityWithSecretsFile
 } from '../lib/misc/IdentityExchange-fs';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+
 chai.use(chaiAsPromised);
 
 describe('identityExchange test one independent functions', () => {

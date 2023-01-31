@@ -38,7 +38,6 @@ export interface StorageHelpersInitOpts {
  * @param {string|null} [options.secret]
  * @param {string} [options.name]
  * @param {string} [options.dbKey]
- * @param {boolean} [options.addTypes=true]
  * @param {boolean} [options.deleteDb=true]
  * @param {boolean} [options.encryptStorage=false]
  * @param {Array} [options.initiallyEnabledReverseMapTypes]
@@ -47,7 +46,6 @@ export interface StorageHelpersInitOpts {
  * @param {SignKeyPair|undefined} [options.personSignKeyPair]
  * @param {KeyPair|undefined} [options.instanceEncryptionKeyPair]
  * @param {SignKeyPair|undefined} [options.instanceSignKeyPair]
- * @param {Recipe[]} [options.initialRecipes]
  * @returns {Promise<Instance>}
  */
 export async function init({
@@ -59,11 +57,9 @@ export async function init({
     instanceSignKeyPair,
     name = 'test',
     dbKey = defaultDbName,
-    addTypes = true,
     deleteDb = true,
     encryptStorage = false,
-    initialRecipes = [],
-    initiallyEnabledReverseMapTypes = [['Plan', new Set(['*'])]],
+    initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
     return await initInstance({
@@ -89,12 +85,11 @@ export function buildTestFile(): File {
     const filePath = './test/consent.pdf';
     const stats = statSync(filePath);
 
-    // @ts-ignore enough for the test
     return {
         lastModified: stats.ctimeMs,
         name: path.basename(filePath),
         size: stats.size,
         type: 'application/pdf',
         arrayBuffer: () => readFile(filePath)
-    };
+    } as unknown as File;
 }

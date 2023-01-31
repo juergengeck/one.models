@@ -698,7 +698,7 @@ export default class ChannelManager {
 
         if (!channelInfoNext.head) {
             yield* itCurrent;
-        } else if (!channelInfoCurrent.head) {
+        } else if (channelInfoCurrent.head === undefined) {
             yield* itNext;
         } else {
             yield* ChannelManager.mergeIteratorMostCurrent([itNext, itCurrent], true, false, true);
@@ -1305,7 +1305,20 @@ export default class ChannelManager {
                     }
 
                     // Write the new channel head only if it differs from the previous one
-                    if (rebuiltHead !== channelInfosToMerge[channelInfosToMerge.length - 1].head) {
+                    if (rebuiltHead === channelInfosToMerge[channelInfosToMerge.length - 1].head) {
+                        // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
+                        // state that the merge algorithm wants to create.
+                        cacheEntry.readVersion =
+                            channelInfosToMerge[channelInfosToMerge.length - 1];
+                        cacheEntry.readVersionIndex = lastVersionToMerge;
+                        cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
+
+                        logWithId(
+                            channelId,
+                            channelOwner,
+                            'mergePendingVersions - END: Not writing merge version: Latest version already includes everything'
+                        );
+                    } else {
                         const newVersion = await storeVersionedObject({
                             $type$: 'ChannelInfo',
                             id: channelId,
@@ -1356,19 +1369,6 @@ export default class ChannelManager {
                                 'mergePendingVersions - END: merge successful - intermediate version detected'
                             );
                         }
-                    } else {
-                        // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
-                        // state that the merge algorithm wants to create.
-                        cacheEntry.readVersion =
-                            channelInfosToMerge[channelInfosToMerge.length - 1];
-                        cacheEntry.readVersionIndex = lastVersionToMerge;
-                        cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
-
-                        logWithId(
-                            channelId,
-                            channelOwner,
-                            'mergePendingVersions - END: Not writing merge version: Latest version already includes everything'
-                        );
                     }
                 } else {
                     // We have no entries in any of the channels, this  means that all versions
@@ -1721,7 +1721,13 @@ export default class ChannelManager {
         try {
             await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
                 logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
-                if (!this.channelInfoCache.has(channelInfoIdHash)) {
+                if (this.channelInfoCache.has(channelInfoIdHash)) {
+                    logWithId(
+                        channelId,
+                        channelOwner,
+                        'addChannelIfNotExist - END: already existed'
+                    );
+                } else {
                     this.channelInfoCache.set(channelInfoIdHash, {
                         readVersion: await getObject(
                             await getNthVersionMapHash(channelInfoIdHash, 0)
@@ -1732,12 +1738,6 @@ export default class ChannelManager {
                     });
                     await this.saveRegistryCacheToOne();
                     logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
-                } else {
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        'addChannelIfNotExist - END: already existed'
-                    );
                 }
             });
         } catch (e) {

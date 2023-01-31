@@ -1,23 +1,17 @@
-import * as StorageTestInit from './_helpers';
-import {
-    closeAndDeleteCurrentInstance,
-    getInstanceOwnerIdHash
-} from '@refinio/one.core/lib/instance';
-import TestModel from './utils/TestModel';
-import {ChannelManager} from '../lib/models';
 import {expect} from 'chai';
-import type {RawChannelEntry} from '../lib/models/ChannelManager';
-import {ObjectData, Order} from '../lib/models/ChannelManager';
+
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getObject} from '@refinio/one.core/lib/storage';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelEntry, ChannelInfo} from '../lib/recipes/ChannelRecipes';
-import type {CreationTime} from '../lib/recipes/MetaRecipes';
-import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
 import {wait} from '@refinio/one.core/lib/util/promise';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
+import {ChannelManager} from '../lib/models';
+import type {ObjectData, RawChannelEntry} from '../lib/models/ChannelManager';
+import {Order} from '../lib/models/ChannelManager';
+import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
+import * as StorageTestInit from './_helpers';
+import TestModel from './utils/TestModel';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -25,7 +19,7 @@ let testModel: TestModel;
 // ######## SPECIALLY FORMATTED LOGGING ########
 const enableLogging = false;
 
-let indentationMap = new Map<string, number>(); // Map that stores indention levels based on channels
+const indentationMap = new Map<string, number>(); // Map that stores indention levels based on channels
 
 /**
  * Formats the log message in a special way:
@@ -39,7 +33,7 @@ let indentationMap = new Map<string, number>(); // Map that stores indention lev
  * @returns
  */
 function format(message: string, color: number): string[] {
-    const m = message as string;
+    const m = message;
     const mArr = m.split('#');
     if (m.length >= 3) {
         const mid = mArr[0];
@@ -47,21 +41,18 @@ function format(message: string, color: number): string[] {
             indentationMap.set(mid, 0);
         }
         if (mArr[2].includes('END')) {
-            // @ts-ignore
-            indentationMap.set(mid, indentationMap.get(mid) - 1);
+            indentationMap.set(mid, (indentationMap.get(mid) || 0) - 1);
         }
         mArr[0] = mArr[0].padEnd(10, ' ');
         mArr[0] = `\x1b[${color}m${mArr[0]}\x1b[0m`;
-        // @ts-ignore
-        mArr[1] = mArr[1].padEnd(70 + indentationMap.get(mid), ' ');
+        mArr[1] = mArr[1].padEnd((indentationMap.get(mid) || 0) + 70, ' ');
         mArr[1] = `\x1b[34m${mArr[1]}\x1b[0m`;
         mArr[2] = mArr[2].replace('START', '\x1b[32mSTART\x1b[0m');
         mArr[2] = mArr[2].replace('ENTER', '\x1b[32mENTER\x1b[0m');
         mArr[2] = mArr[2].replace('END', '\x1b[31mEND\x1b[0m');
         mArr[2] = mArr[2].replace('LEAVE', '\x1b[31mLEAVE\x1b[0m');
         if (mArr[2].includes('START')) {
-            // @ts-ignore
-            indentationMap.set(mid, indentationMap.get(mid) + 1);
+            indentationMap.set(mid, (indentationMap.get(mid) || 0) + 1);
         }
     }
     return mArr;
@@ -69,34 +60,34 @@ function format(message: string, color: number): string[] {
 
 const MessageBus = createMessageBus('dummy');
 if (enableLogging) {
-    MessageBus.on('ChannelManager:log', (src: string, message: unknown) => {
+    MessageBus.on('ChannelManager:log', (_src: string, message: unknown) => {
         const m = format(message as string, 33);
         console.log(...m);
     });
-    MessageBus.on('ChannelManager:debug', (src: string, message: unknown) => {
+    MessageBus.on('ChannelManager:debug', (_src: string, message: unknown) => {
         const m = format(message as string, 32);
         console.log(...m);
     });
 }
 
-async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>[]): Promise<ChannelInfo> {
-    let previous: SHA256Hash<ChannelEntry> | undefined = undefined;
-    for (const dataHash of dataHashes) {
-        previous = (
-            await storeUnversionedObject({
-                $type$: 'ChannelEntry',
-                data: dataHash,
-                previous
-            })
-        ).hash;
-    }
-    return {
-        $type$: 'ChannelInfo',
-        owner: getInstanceOwnerIdHash()!,
-        id: 'mergetest',
-        head: previous
-    };
-}
+// async function buildChannelInfo(dataHashes: SHA256Hash<CreationTime>[]): Promise<ChannelInfo> {
+//     let previous: SHA256Hash<ChannelEntry> | undefined = undefined;
+//     for (const dataHash of dataHashes) {
+//         previous = (
+//             await storeUnversionedObject({
+//                 $type$: 'ChannelEntry',
+//                 data: dataHash,
+//                 previous
+//             })
+//         ).hash;
+//     }
+//     return {
+//         $type$: 'ChannelInfo',
+//         owner: getInstanceOwnerIdHash()!,
+//         id: 'mergetest',
+//         head: previous
+//     };
+// }
 
 // ######## SPECIALLY FORMATTED LOGGING - END ########
 
@@ -183,24 +174,24 @@ describe('Channel Manager test', () => {
                 creationTime: 1614170581769
             }
         ];
-        const X = [
-            {
-                channelEntryHash:
-                    '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
-                creationTimeHash:
-                    'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
-                creationTime: 1614174911147
-            }
-        ];
-        const Y = [
-            {
-                channelEntryHash:
-                    '38cb1f4e0059a6f4112ea68f007a1403e75e77129c6575ba735722e25bda07b3',
-                creationTimeHash:
-                    '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
-                creationTime: 1614773672411
-            }
-        ];
+        // const X = [
+        //     {
+        //         channelEntryHash:
+        //             '646f91d9a141227488e5249b09ca23bfb159e9d5b4e5977781581b966b03b363',
+        //         creationTimeHash:
+        //             'b5d0d2ccc210930438d8109466d7816566307b94aa302927c2645a8027abab87',
+        //         creationTime: 1614174911147
+        //     }
+        // ];
+        // const Y = [
+        //     {
+        //         channelEntryHash:
+        //             '38cb1f4e0059a6f4112ea68f007a1403e75e77129c6575ba735722e25bda07b3',
+        //         creationTimeHash:
+        //             '1547e5350908a3de7f655d255cd93af0e7623ad0330bbfbd3aefab7bc98630db',
+        //         creationTime: 1614773672411
+        //     }
+        // ];
         const Z = [
             {
                 channelEntryHash:
@@ -225,7 +216,7 @@ describe('Channel Manager test', () => {
             }
         ];
 
-        const iter = await ChannelManager['mergeIteratorMostCurrent'](
+        const iter = ChannelManager.mergeIteratorMostCurrent(
             [
                 valueGenerator(W as RawChannelEntry[]),
                 //valueGenerator(X as RawChannelEntry[]),
@@ -236,7 +227,7 @@ describe('Channel Manager test', () => {
         );
 
         let i = 0;
-        for await (const item of iter) {
+        for await (const _item of iter) {
             ++i;
         }
         expect(i).to.be.equal(4);
@@ -455,7 +446,7 @@ describe('Channel Manager test', () => {
             console.log('Channel Content', filtered);
         }*/
 
-        let elements1 = [];
+        const elements1 = [];
         for await (const entry of ChannelManager.differencesIteratorMostCurrent(
             versionMap[1].hash,
             versionMap[versionMap.length - 1].hash
@@ -463,7 +454,7 @@ describe('Channel Manager test', () => {
             elements1.push(((await getObject(entry.dataHash)) as BodyTemperature).temperature);
         }
 
-        let elements2 = [];
+        const elements2 = [];
         for await (const entry of ChannelManager.differencesIteratorMostCurrent(
             versionMap[2].hash,
             versionMap[versionMap.length - 1].hash

@@ -1,26 +1,30 @@
+/* eslint-disable no-mixed-operators */
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
+import {expect} from 'chai';
+
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import {
+    getObjectByIdHash,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelManager} from '../lib/models';
+import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
 import * as StorageTestInit from './_helpers';
 import TestModel from './utils/TestModel';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage';
-import type {ChannelManager} from '../lib/models';
-import {expect} from 'chai';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
-import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
 const channelsIdentifiers = ['first', 'second', 'third'];
 const howMany = 20;
 let owner: SHA256IdHash<Person>;
-let specificObjectHash: SHA256Hash<BodyTemperature>;
+
+// let specificObjectHash: SHA256Hash<BodyTemperature>;
 
 async function getChannelRegistry() {
     const registryIdHash: SHA256IdHash<ChannelRegistry> = await calculateIdHashOfObj({
@@ -59,7 +63,7 @@ describe('Channel Iterators test', () => {
     it('should get zero objects by iterator', async () => {
         for (const channelId of channelsIdentifiers) {
             let iterCount = 0;
-            for await (const {} of channelManager.objectIterator({channelId})) {
+            for await (const _ of channelManager.objectIterator({channelId})) {
                 ++iterCount;
             }
             expect(iterCount).to.be.equal(0);
@@ -389,26 +393,20 @@ describe('Channel Iterators test', () => {
         }
     );
 
-    it(
-        'should test getObjectsWithType with specific type and queryOptions.from and' + ' NO-OWNER',
-        async () => {
-            for (const channelId of channelsIdentifiers) {
-                const retrievedObjects = await channelManager.getObjectsWithType(
-                    'BodyTemperature',
-                    {
-                        channelId
-                    }
-                );
-                const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
+    it('should test getObjectsWithType with specific type and queryOptions.from and NO-OWNER', async () => {
+        for (const channelId of channelsIdentifiers) {
+            const retrievedObjects = await channelManager.getObjectsWithType('BodyTemperature', {
+                channelId
+            });
+            const from = retrievedObjects[retrievedObjects.length / 2].creationTime;
 
-                const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
-                    channelId,
-                    from: new Date(from)
-                });
-                expect(objectsFrom).to.have.length((howMany * 2) / 2);
-            }
+            const objectsFrom = await channelManager.getObjectsWithType('BodyTemperature', {
+                channelId,
+                from: new Date(from)
+            });
+            expect(objectsFrom).to.have.length((howMany * 2) / 2);
         }
-    );
+    });
 
     it(
         'should test getObjectsWithType with specific type and queryOptions.from and' +
@@ -472,8 +470,9 @@ describe('Channel Iterators test', () => {
 
     it('should test getObjectsWithType with no specific type and NO-OWNER', async () => {
         for (const channelId of channelsIdentifiers) {
-            //@ts-ignore
-            const retrievedObjects = await channelManager.getObjectsWithType('Person', {channelId});
+            const retrievedObjects = await channelManager.getObjectsWithType('Person' as any, {
+                channelId
+            });
             expect(retrievedObjects).to.have.length(0);
         }
     });

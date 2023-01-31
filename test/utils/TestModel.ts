@@ -10,9 +10,9 @@ import {
     ECGModel
 } from '../../lib/models';
 
-const path = require('path');
-const fs = require('fs');
-const util = require('util');
+import * as path from 'path';
+import * as fs from 'fs';
+import * as util from 'util';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -61,9 +61,9 @@ export default class TestModel {
     }
 
     async init(
-        anonymousEmail?: string,
-        takeOver?: boolean,
-        recoveryState?: boolean
+        _anonymousEmail?: string,
+        _takeOver?: boolean,
+        _recoveryState?: boolean
     ): Promise<void> {
         await this.accessModel.init();
         await this.leuteModel.init();

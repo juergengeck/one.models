@@ -1,6 +1,7 @@
-import type {UnversionedObjectResult, VersionedObjectResult} from '@refinio/one.core/lib/storage';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {Recipe} from '@refinio/one.core/lib/recipes';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 
 declare module '@OneObjectInterfaces' {
