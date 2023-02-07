@@ -259,7 +259,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      */
     public async stat(checkPath: string): Promise<FileDescription> {
         if (this.isRootPath(checkPath)) {
-            return {mode: 16877, size: 4096};
+            return {mode: 0o0040555, size: 0};
         }
 
         const searchFileSystem = this.search(checkPath);
@@ -391,7 +391,7 @@ export default class TemporaryFileSystem implements IFileSystem {
      * @returns {Promise<void>}
      */
     public getRootDirContents(): FileSystemDirectory {
-        let rootChildren = [];
+        const rootChildren = [];
         for (const [dirPath, _] of this.fstab) {
             const parentDirectoryPath = FileSystemHelpers.getParentDirectoryFullPath(dirPath);
             if (parentDirectoryPath === '/') {
@@ -492,7 +492,7 @@ export default class TemporaryFileSystem implements IFileSystem {
         });
     }
 
-    public isRootPath(checkPath: string): Boolean {
+    public isRootPath(checkPath: string): boolean {
         return !Array.from(this.fstab.keys()).some(storagePath => checkPath.includes(storagePath));
     }
 }
