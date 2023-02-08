@@ -1,4 +1,4 @@
-# one.smiler.models
+# one.models
 
 ## Getting started
 
@@ -14,7 +14,7 @@
 ```bash
 git clone https://github.com/refinio/one.models
 cd one.models
-yarn install
+npm install
 ```
 
 ## About the project
