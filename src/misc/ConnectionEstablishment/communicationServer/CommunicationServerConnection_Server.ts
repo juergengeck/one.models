@@ -4,8 +4,8 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connections/Connection';
-import {PingPlugin} from './Connections/plugins/PingPongPlugin';
+import type Connection from '../../Connection/Connection';
+import {PingPlugin} from '../../Connection/plugins/PingPongPlugin';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 

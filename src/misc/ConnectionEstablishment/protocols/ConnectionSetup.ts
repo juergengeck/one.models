@@ -16,15 +16,15 @@ import {
     waitForUnencryptedClientMessage,
     waitForUnencryptedServerMessage
 } from './CommunicationInitiationProtocol';
-import Connection from '../Connection';
-import EncryptionPlugin from '../plugins/EncryptionPlugin';
+import Connection from '../../Connection/Connection';
+import EncryptionPlugin from '../../Connection/plugins/EncryptionPlugin';
 import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import PromisePlugin from '../plugins/PromisePlugin';
-import {KeepAlivePlugin} from '../plugins/KeepAlivePlugin';
-import FragmentationPlugin from '../plugins/FragmentationPlugin';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin';
+import {KeepAlivePlugin} from '../../Connection/plugins/KeepAlivePlugin';
+import FragmentationPlugin from '../../Connection/plugins/FragmentationPlugin';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 
@@ -113,7 +113,7 @@ export async function connectWithEncryption(
         );
 
         const tempKeyPair = tweetnacl.box.keyPair();
-        await connection.send(encrypt(tempKeyPair.publicKey));
+        connection.send(encrypt(tempKeyPair.publicKey));
 
         // Phase 2.2: Wait for the public key from the other side
         MessageBus.send('debug', `${connection.id}: Phase 2.2: wait for and decrypt public key`);
@@ -271,9 +271,9 @@ export function connectWithEncryptionUntilSuccessful(
  */
 export async function acceptWithEncryption(
     connection: Connection,
-    allowedLocalPublicKeys: Uint8Array[],
-    encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-    decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array
+    allowedLocalPublicKeys: PublicKey[],
+    encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
+    decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array
 ): Promise<ConnectionInfo> {
     MessageBus.send('log', `acceptWithEncryption(${connection.id})`);
 
@@ -287,6 +287,13 @@ export async function acceptWithEncryption(
         const request = await waitForUnencryptedClientMessage(connection, 'communication_request');
         const targetPublicKey = ensurePublicKey(hexToUint8Array(request.targetPublicKey));
         const sourcePublicKey = ensurePublicKey(hexToUint8Array(request.sourcePublicKey));
+
+        MessageBus.send(
+            'debug',
+            `${connection.id}: Phase 1.1x: ${request.targetPublicKey} ${
+                request.sourcePublicKey
+            } [${allowedLocalPublicKeys.map(e => uint8arrayToHexString(e)).join(',')}]`
+        );
 
         // Phase 1.2: Signal the other side that we are ready to receive messages
         MessageBus.send('debug', `${connection.id}: Phase 1.2: send communication_ready`);
@@ -351,12 +358,13 @@ export async function acceptWithEncryption(
         );
 
         const tempKeyPair = tweetnacl.box.keyPair();
-        await connection.send(encrypt(sourcePublicKey, tempKeyPair.publicKey));
+        connection.send(encrypt(sourcePublicKey, tempKeyPair.publicKey));
 
         // Phase 2.3: Derive shared key and setup encrypted connection object
         MessageBus.send('debug', `${connection.id}: Phase 2.3: derive shared key`);
 
         const sharedKey = tweetnacl.box.before(publicKeyOther, tempKeyPair.secretKey);
+        MessageBus.send('debug', `${connection.id}: Phase 2.3: derive shared key - END`);
         connection.addPlugin(new EncryptionPlugin(sharedKey, true), {before: 'promise'});
         connection.addPlugin(new KeepAlivePlugin(KEEPALIVE_TIMER, KEEPALIVE_TIMEOUT), {
             before: 'promise'

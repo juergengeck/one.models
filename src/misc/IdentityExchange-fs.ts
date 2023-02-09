@@ -35,14 +35,15 @@ export async function writeNewIdentityToFile(
     fileNamePrefix: string,
     commServerUrl: string,
     personEmail?: string,
-    instanceName?: string
+    instanceName?: string,
+    chumId?: string
 ): Promise<{
     secret: IdentityWithSecrets;
     public: Identity;
     secretFileName: string;
     publicFileName: string;
 }> {
-    const identity = await generateNewIdentity(commServerUrl, personEmail, instanceName);
+    const identity = await generateNewIdentity(commServerUrl, personEmail, instanceName, chumId);
     const secretFileName = fileNamePrefix + '_secret.id.json';
     const publicFileName = fileNamePrefix + '.id.json';
     await writeIdentityWithSecretsFile(secretFileName, identity.secret);

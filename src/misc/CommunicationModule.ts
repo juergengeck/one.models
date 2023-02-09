@@ -1,13 +1,13 @@
 import type {LeuteModel} from '../models';
-import IncomingConnectionManager from './IncomingConnectionManager';
-import {EventEmitter} from 'events';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
+import ConnectionRouteManager from './ConnectionEstablishment/ConnectionRouteManager';
 import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connections/Connection';
-import {connectWithEncryptionUntilSuccessful} from './Connections/protocols/ConnectionSetup';
+import type Connection from './Connection/Connection';
+import {connectWithEncryptionUntilSuccessful} from './ConnectionEstablishment/protocols/ConnectionSetup';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
@@ -54,37 +54,48 @@ export type ConnectionInfo = {
 /**
  * This internal type stores all information tied to a connection.
  */
-type ConnectionContainer = {
-    stopConnecting?: () => void;
-    activeConnection: Connection | null;
-    url: string;
-    sourcePublicKey: PublicKey;
-    targetPublicKey: PublicKey;
-    sourceInstanceId: SHA256IdHash<Instance>;
-    targetInstanceId: SHA256IdHash<Instance>;
-    sourcePersonId: SHA256IdHash<Person>;
-    targetPersonId: SHA256IdHash<Person>;
-    cryptoApi: CryptoApi;
+type PeerInformation = {
+    instancePublicKey: HexString;
+    instanceId: SHA256IdHash<Instance>;
+    personId: SHA256IdHash<Person>;
     isInternetOfMe: boolean;
-    dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,
-    // otherwise they will override the current connection
-    // This flag will change automatically from true to false
-    // after two seconds of an connection to be established.
-    closeHandler?: () => void;
-    disconnectCloseHandler?: () => void;
-    reconnectTimeoutHandle: ReturnType<typeof setTimeout> | null;
 };
 
-/**
- * Generate a string id for map entries based on public keys of both participants.
- *
- * @param localPublicKey
- * @param remotePublicKey
- * @returns
- */
-function genMapKey(localPublicKey: PublicKey, remotePublicKey: PublicKey): string {
-    return `${uint8arrayToHexString(localPublicKey)} + ${uint8arrayToHexString(remotePublicKey)}`;
-}
+export type CommserverConfiguration = {
+    type: 'commserver';
+    url: string;
+};
+
+export type SocketConfiguration = {
+    type: 'socket';
+    host: string; // host to bind to
+    port: number; // port to use
+    url: string; // Url on how to connect to us - used to check if access is allowed
+};
+
+export type IncomingConnectionConfiguration = CommserverConfiguration | SocketConfiguration;
+
+export type OutgoingConnectionConfiguration =
+    | {
+          enabled: true;
+          reconnectDelay: number;
+      }
+    | {
+          enabled: false;
+      };
+
+export type CommunicationModuleConfiguration = {
+    // The configuration for incoming connections
+    // Default: An empty list => do not accept any incoming connections
+    incomingConnectionConfigurations: IncomingConnectionConfiguration[];
+
+    // The configuration for outgoing connections
+    // Default: Use the defaults specified in OutgoingConnectionConfiguration
+    outgoingConnectionConfiguration: OutgoingConnectionConfiguration;
+
+    // Allows that multiple connections to the same instance work
+    allowParallelConnections: boolean;
+};
 
 /**
  * This module manages all connection related stuff.
@@ -124,7 +135,7 @@ function genMapKey(localPublicKey: PublicKey, remotePublicKey: PublicKey): strin
  * - connectionChange - when any connection changes its state
  * - onlineStateChange - when the online state changed
  */
-export default class CommunicationModule extends EventEmitter {
+export default class CommunicationModule {
     /**
      *  Event is emitted when the state of the connector changes. The event contains the value of the online state.
      */
@@ -143,7 +154,8 @@ export default class CommunicationModule extends EventEmitter {
             localPublicKey: Uint8Array,
             remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
-            initiatedLocally: boolean
+            initiatedLocally: boolean,
+            connectionGroupName: string
         ) => void
     >();
 
@@ -157,16 +169,19 @@ export default class CommunicationModule extends EventEmitter {
             remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
             remotePersonId: SHA256IdHash<Person>,
-            initiatedLocally: boolean
+            initiatedLocally: boolean,
+            connectionGroupName: string
         ) => void
     >();
 
     // Other models
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
-    private readonly incomingConnectionManager: IncomingConnectionManager; // Manager for incoming connections
+    public readonly connectionRouteManager: ConnectionRouteManager; // Manager for incoming
+    // connections
 
     // Internal maps and lists (dynamic)
-    private readonly knownPeerMap: Map<string, ConnectionContainer>; // Stores the known peers - Map from srcKey + dstKey
+    public readonly knownPeerMap: Map<HexString, OneInstanceEndpoint>; // Stores the known peers -
+    // Map from srcKey + dstKey
     private readonly unknownPeerMap: Map<string, Connection>; // Stores unknown peers - Map from srcKey + dstKey
 
     // Internal maps and lists (precomputed on init)
@@ -175,9 +190,7 @@ export default class CommunicationModule extends EventEmitter {
     // public instance key to my id - used to map the public key of the new connection to my ids
 
     // Global settings
-    private readonly commServer: string; // The comm server to use for incoming listening connections. This will be replaced by a instance based config.
-    private readonly reconnectDelay: number; // The amount of time that should pass after a connection was closed before retrying to open it again
-    private readonly establishOutgoingConnections: boolean; // Flag that stores whether outgoing connections should be established
+    private readonly config: CommunicationModuleConfiguration;
 
     // State variables
     private initialized: boolean; // Flag that stores whether this module is initialized
@@ -190,57 +203,61 @@ export default class CommunicationModule extends EventEmitter {
      * @returns
      */
     get onlineState(): boolean {
-        return this.incomingConnectionManager.onlineState;
+        return this.connectionRouteManager.onlineState;
     }
 
     /**
      * Create instance.
+     * Outgoing connections are made based on the contact objects.
      *
-     * @param commServer - The comm server that is used to listen for incoming connections
-     *                              Outgoing connections are made based on the contact objects.
      * @param leuteModel - The model managing all contacts. Used for deciding which
-     *                                  connections to establish.
-     * @param establishOutgoingConnections - If true then make outgoing connections, if false, then don't
-     * @param reconnectDelay - The amount of time that needs to pass before another reconnection attempt is done when a connection is closed
+     * connections to establish.
+     * @param config
      */
-    constructor(
-        commServer: string,
-        leuteModel: LeuteModel,
-        establishOutgoingConnections: boolean = true,
-        reconnectDelay: number = 5000
-    ) {
-        super();
+    constructor(leuteModel: LeuteModel, config: Partial<CommunicationModuleConfiguration>) {
+        this.config = {
+            incomingConnectionConfigurations:
+                config.incomingConnectionConfigurations !== undefined
+                    ? config.incomingConnectionConfigurations
+                    : [],
+            outgoingConnectionConfiguration:
+                config.outgoingConnectionConfiguration !== undefined
+                    ? config.outgoingConnectionConfiguration
+                    : {
+                          enabled: true,
+                          reconnectDelay: 5000
+                      },
+
+            // Allows that multiple connections to the same instance work
+            allowParallelConnections:
+                config.allowParallelConnections !== undefined
+                    ? config.allowParallelConnections
+                    : false
+        };
 
         // Initialize members
         this.leuteModel = leuteModel;
-        this.incomingConnectionManager = new IncomingConnectionManager();
+        this.connectionRouteManager = new ConnectionRouteManager(
+            this.config.outgoingConnectionConfiguration.enabled
+                ? this.config.outgoingConnectionConfiguration.reconnectDelay
+                : 5000
+        );
 
-        this.knownPeerMap = new Map<string, ConnectionContainer>();
+        this.knownPeerMap = new Map<HexString, OneInstanceEndpoint>();
         this.unknownPeerMap = new Map<string, Connection>();
 
         this.mainInstanceInfo = null;
-        this.myPublicKeyToInstanceInfoMap = new Map<HexString, LocalInstanceInfo>();
-
-        this.commServer = commServer;
-        this.reconnectDelay = reconnectDelay;
-        this.establishOutgoingConnections = establishOutgoingConnections;
+        this.myPublicKeyToInstanceInfoMap = new Map<string, LocalInstanceInfo>();
 
         this.initialized = false;
 
-        // Setup incoming connection manager events
-        this.incomingConnectionManager.onConnection(
-            (conn: Connection, localPublicKey: Uint8Array, remotePublicKey: Uint8Array) => {
-                this.acceptConnection(
-                    conn,
-                    ensurePublicKey(localPublicKey),
-                    ensurePublicKey(remotePublicKey),
-                    false
-                );
-            }
+        // Setup route manager events
+        this.connectionRouteManager.onConnection(this.acceptConnection.bind(this));
+        this.connectionRouteManager.onConnectionViaCatchAll(
+            this.acceptConnectionCatchAll.bind(this)
         );
 
-        this.incomingConnectionManager.onOnlineStateChange((onlineState: boolean) => {
-            this.emit('onlineStateChange', onlineState);
+        this.connectionRouteManager.onOnlineStateChange((onlineState: boolean) => {
             this.onOnlineStateChange.emit(onlineState);
         });
 
@@ -261,6 +278,36 @@ export default class CommunicationModule extends EventEmitter {
                 this.reconfigureConnections().catch(console.error);
             }
         );*/
+        /*this.leuteModel.onNewOneInstanceEndpointEvent(
+            async (oneInstanceEndpoint: OneInstanceEndpoint) => {
+                try {
+                    if (!this.initialized) {
+                        return;
+                    }
+                    if (!this.mainInstanceInfo) {
+                        console.log(
+                            'AN ERROR HAPPENED HERE. ME IS NOT INITIALIZED, SHOULD NEVER HAPPEN!!!'
+                        );
+                        return;
+                    }
+                    const mainInstanceInfo = this.mainInstanceInfo;
+                    const myIds = (await this.leuteModel.me()).identities();
+
+                    // For my own contact objects, just use the one for the main id. We don't want to
+                    // connect to our own anonymous id
+                    if (
+                        myIds.includes(oneInstanceEndpoint.personId) ||
+                        mainInstanceInfo.personId === oneInstanceEndpoint.personId
+                    ) {
+                        return;
+                    }
+
+                    await this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint);
+                } catch (e) {
+                    console.error('Error in onNewOneInstanceEndpointEvent handler', e);
+                }
+            }
+        );*/
     }
 
     /**
@@ -271,6 +318,10 @@ export default class CommunicationModule extends EventEmitter {
 
         // Setup internal data structures
         await this.reconfigureConnections();
+        // Setup internal data structures
+        await this.updateInstanceInfos(); // Setup this.mainInstanceInfo and this.anonInstanceInfo and this.myPublicKeyToInstanceInfoMap
+        //await this.setupRoutes(); // Setup this.knownPeerMap
+        await this.connectionRouteManager.enableRoutes();
     }
 
     /**
@@ -278,29 +329,7 @@ export default class CommunicationModule extends EventEmitter {
      */
     async shutdown(): Promise<void> {
         this.initialized = false;
-        await this.incomingConnectionManager.shutdown();
-
-        // Stop all knownPeerMap connections
-        for (const v of this.knownPeerMap.values()) {
-            if (v.stopConnecting) {
-                v.stopConnecting();
-                v.stopConnecting = undefined;
-            }
-            if (v.activeConnection) {
-                v.activeConnection.close();
-            }
-        }
-        // Kill all unknown peer map connections
-        for (const v of this.unknownPeerMap.values()) {
-            v.close();
-        }
-
-        // Stop all reconnect timeouts
-        for (const v of this.knownPeerMap.values()) {
-            if (v.reconnectTimeoutHandle !== null) {
-                clearTimeout(v.reconnectTimeoutHandle);
-            }
-        }
+        await this.connectionRouteManager.disableRoutes();
 
         // Clear all other fields
         this.unknownPeerMap.clear();
@@ -429,6 +458,10 @@ export default class CommunicationModule extends EventEmitter {
         return connectionsInfo;
     }
 
+    debugDump(header: string = ''): void {
+        this.connectionRouteManager.debugDump(header);
+    }
+
     // ######## Setup internal data structures ########
 
     private async reconfigureConnections(): Promise<void> {
@@ -445,57 +478,240 @@ export default class CommunicationModule extends EventEmitter {
     /**
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
      */
-    private async updatePeerMap(): Promise<void> {
-        MessageBus.send('log', 'updatePeerMap');
-
-        const localInstances = await this.leuteModel.getMyLocalInstances();
-        const remoteEndpoints = await this.leuteModel.getAllRemoteEndpoints();
-
-        // At the moment we open a connection for all identities to everybody we know
-        for (const localInstance of localInstances) {
-            const localKey = localInstance.instanceKeys.publicEncryptionKey;
-
-            for (const remoteEndpoint of remoteEndpoints) {
-                const remoteKey = (await getPublicKeys(remoteEndpoint.endpoint.instanceKeys))
-                    .publicEncryptionKey;
-                const {endpoint, isIoM} = remoteEndpoint;
-
-                // Append to peer map
-                const mapKey = genMapKey(localKey, remoteKey);
-                const connectionInfo = this.knownPeerMap.get(mapKey);
-
-                if (connectionInfo !== undefined) {
-                    MessageBus.send(
-                        'log',
-                        `updatePeerMap - ${localInstance.instanceId} -> ${remoteEndpoint.endpoint.instanceId}: Exists isIoM: ${isIoM}`
-                    );
-                    connectionInfo.isInternetOfMe = isIoM;
-                } else {
-                    MessageBus.send(
-                        'log',
-                        `updatePeerMap - ${localInstance.instanceId} -> ${remoteEndpoint.endpoint.instanceId}: New isIoM: ${isIoM}`
-                    );
-                    this.knownPeerMap.set(mapKey, {
-                        activeConnection: null,
-                        url: endpoint.url,
-                        sourcePublicKey: localKey,
-                        targetPublicKey: remoteKey,
-                        sourceInstanceId: localInstance.instanceId,
-                        targetInstanceId: endpoint.instanceId,
-                        sourcePersonId: localInstance.personId,
-                        targetPersonId: endpoint.personId,
-                        cryptoApi: localInstance.cryptoApi,
-                        isInternetOfMe: isIoM,
-                        dropDuplicates: true,
-                        reconnectTimeoutHandle: null
-                    });
-                }
-            }
+    private async setupRoutes(): Promise<void> {
+        // Fill all endpoints into this.knownPeerMap and this.establishedConnections
+        for (const endpoint of await this.fetchOtherOneInstanceEndpointsFromLeute()) {
+            this.setupRoutesForOneInstanceEndpoint(endpoint.instanceEndpoint);
         }
 
         // Notify the user of a change in connections
         this.emit('connectionsChange');
         this.onConnectionsChange.emit();
+    }
+
+    async addOutgoingWebsocketRoute(oneInstanceEndpoint: OneInstanceEndpoint) {
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized');
+        }
+
+        const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        this.connectionRouteManager.addOutgoingWebsocketRoute(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+            hexToUint8Array(remoteInstanceKeys.publicKey),
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            oneInstanceEndpoint.url,
+            oneInstanceEndpoint.chumId || 'default'
+        );
+
+        this.knownPeerMap.set(remoteInstanceKeys.publicKey, oneInstanceEndpoint);
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    async addIncomingWebsocketRoute_Direct(
+        oneInstanceEndpoint: OneInstanceEndpoint,
+        host: string,
+        port: number,
+        chumId?: string
+    ) {
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized');
+        }
+
+        const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+            hexToUint8Array(remoteInstanceKeys.publicKey),
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            host,
+            port,
+            chumId || oneInstanceEndpoint.chumId || 'default'
+        );
+
+        this.knownPeerMap.set(remoteInstanceKeys.publicKey, oneInstanceEndpoint);
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    async addIncomingWebsocketRoute_CommServer(
+        oneInstanceEndpoint: OneInstanceEndpoint,
+        commServerUrl: string,
+        chumId?: string
+    ) {
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized');
+        }
+
+        const remoteInstanceKeys = await getObject(oneInstanceEndpoint.instanceKeys);
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+            hexToUint8Array(remoteInstanceKeys.publicKey),
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            commServerUrl,
+            chumId || oneInstanceEndpoint.chumId || 'default'
+        );
+
+        this.knownPeerMap.set(remoteInstanceKeys.publicKey, oneInstanceEndpoint);
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    async addIncomingWebsocketRouteCatchAll_Direct(host: string, port: number) {
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized');
+        }
+
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_Direct(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            host,
+            port
+        );
+
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    async addIncomingWebsocketRouteCatchAll_CommServer(commServerUrl: string) {
+        if (!this.mainInstanceInfo) {
+            throw new Error('mainInstanceInfo not initialized');
+        }
+
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_CommServer(
+            hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey),
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            commServerUrl
+        );
+
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    private async setupRoutesForOneInstanceEndpoint(remoteInstanceEndpoint: OneInstanceEndpoint) {
+        if (!this.mainInstanceInfo) {
+            throw new Error(
+                'otherOneInstanceEndpoints: AN ERROR HAPPENED HERE. ME IS NOT INITIALIZED, SHOULD' +
+                    ' NEVER HAPPEN!!!'
+            );
+        }
+
+        const remoteInstanceKeys = await getObject(remoteInstanceEndpoint.instanceKeys);
+
+        const localInstanceKey = hexToUint8Array(this.mainInstanceInfo.instanceKeys.publicKey);
+        const remoteInstanceKey = hexToUint8Array(remoteInstanceKeys.publicKey);
+        const cryptoApi = this.mainInstanceInfo.cryptoApi;
+
+        // Setup outgoing routes
+        this.connectionRouteManager.addOutgoingWebsocketRoute(
+            localInstanceKey,
+            remoteInstanceKey,
+            (remotePublicKey, text) => {
+                return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+            },
+            (remotePublicKey, cypher) => {
+                return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+            },
+            remoteInstanceEndpoint.url,
+            remoteInstanceEndpoint.chumId || 'default'
+        );
+
+        // Setup incoming routes
+        for (const config of this.config.incomingConnectionConfigurations) {
+            if (config.type === 'commserver') {
+                this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
+                    localInstanceKey,
+                    remoteInstanceKey,
+                    (remotePublicKey, text) => {
+                        return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+                    },
+                    (remotePublicKey, cypher) => {
+                        return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+                    },
+                    config.url,
+                    remoteInstanceEndpoint.chumId || 'default'
+                );
+            } else if (config.type === 'socket') {
+                this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
+                    localInstanceKey,
+                    remoteInstanceKey,
+                    (remotePublicKey, text) => {
+                        return cryptoApi.encryptWithInstancePublicKey(remotePublicKey, text);
+                    },
+                    (remotePublicKey, cypher) => {
+                        return cryptoApi.decryptWithInstancePublicKey(remotePublicKey, cypher);
+                    },
+                    config.host,
+                    config.port,
+                    remoteInstanceEndpoint.chumId || 'default'
+                );
+            }
+        }
+        this.knownPeerMap.set(uint8arrayToHexString(remoteInstanceKey), remoteInstanceEndpoint);
+    }
+
+    private async fetchOtherOneInstanceEndpointsFromLeute(): Promise<
+        {instanceEndpoint: OneInstanceEndpoint; isIom: boolean}[]
+    > {
+        if (!this.mainInstanceInfo) {
+            throw new Error(
+                'otherOneInstanceEndpoints: AN ERROR HAPPENED HERE. ME IS NOT INITIALIZED, SHOULD' +
+                    ' NEVER HAPPEN!!!'
+            );
+        }
+        const mainInstanceInfo = this.mainInstanceInfo;
+
+        // My non local instanceEndpoints
+        const myEndpoints = (await this.leuteModel.findAllOneInstanceEndpointsForMe(true))
+            .map(instanceEndpoint => {
+                return {
+                    instanceEndpoint,
+                    isIom: true
+                };
+            })
+            .filter(info => info.instanceEndpoint.instanceId !== mainInstanceInfo.instanceId);
+
+        // Instance endpoints for all other instances / persons
+        const otherEndpoints = (await this.leuteModel.findAllOneInstanceEndpointsForOthers()).map(
+            instanceEndpoint => {
+                return {
+                    instanceEndpoint,
+                    isIom: false
+                };
+            }
+        );
+
+        // Fill all endpoints into this.knownPeerMap and this.establishedConnections
+        return myEndpoints.concat(otherEndpoints);
     }
 
     /**
@@ -681,12 +897,16 @@ export default class CommunicationModule extends EventEmitter {
      * @param conn - The encrypted connection that was accepted.
      * @param localPublicKey - The public key of the local instance
      * @param remotePublicKey - The public key of the remote peer
+     * @param connectionGroupName
+     * @param routeId
      * @param initiatedLocally - If outgoing connection, then this should be set to true, otherwise false
      */
     private acceptConnection(
         conn: Connection,
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
+        connectionGroupName: string,
+        routeId: string,
         initiatedLocally: boolean
     ): void {
         const mapKey = genMapKey(localPublicKey, remotePublicKey);

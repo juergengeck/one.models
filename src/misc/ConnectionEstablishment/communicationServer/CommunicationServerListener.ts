@@ -1,8 +1,10 @@
+import type {PublicKey} from '../../../../../one.core/lib/crypto/encryption';
+import {hexToUint8Array} from '../../../../../one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
 import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {OEvent, EventTypes} from './OEvent';
-import type Connection from './Connections/Connection';
+import {OEvent, EventTypes} from '../../OEvent';
+import type Connection from '../../Connection/Connection';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 
@@ -57,6 +59,8 @@ class CommunicationServerListener {
     public state: CommunicationServerListenerState; // Current connection state.
     private readonly reconnectTimeout: number; // Reconnect timeout when comm server is not reachable
     private readonly spareConnectionLimit: number; // Maximum number of simultaneously open spare connections
+    private readonly encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array;
+    private readonly decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array;
     private spareConnections: CommunicationServerConnection_Client[]; // List of opened web socket which have no partner for moment.
     private spareConnectionScheduled: boolean; // Stores whether a new spare connection is scheduled with a delay (after an error happened)
     private running: boolean; // Stores whether the listener is currently running
@@ -67,8 +71,17 @@ class CommunicationServerListener {
      *
      * @param spareConnectionLimit - Number of spare connections to use simultaneously.
      * @param reconnectTimeout - Timeout used to reconnect on error / when the server is not reachable.
+     * @param encrypt
+     * @param decrypt
      */
-    constructor(spareConnectionLimit: number, reconnectTimeout = 5000) {
+    constructor(
+        spareConnectionLimit: number,
+        reconnectTimeout = 5000,
+        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
+        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array
+    ) {
+        this.encrypt = encrypt;
+        this.decrypt = decrypt;
         this.spareConnectionLimit = spareConnectionLimit;
         this.spareConnections = [];
         this.spareConnectionScheduled = false;
@@ -101,7 +114,7 @@ class CommunicationServerListener {
      * terminates the spare connections.
      */
     public stop(): void {
-        MessageBus.send('log', `stop()`);
+        MessageBus.send('log', 'stop()');
         this.running = false;
         for (const spareConnection of this.spareConnections) {
             spareConnection.close();
@@ -193,7 +206,8 @@ class CommunicationServerListener {
             server,
             publicKey,
             handoverConnection,
-            this.onChallenge
+            this.encrypt,
+            this.decrypt
         )
 
             // On successful register - add the connection to spare connections
@@ -236,15 +250,13 @@ class CommunicationServerListener {
      * Update the current state by evaluating different variables
      */
     private updateState(): void {
-        MessageBus.send('debug', `updateState()`);
+        MessageBus.send('debug', 'updateState()');
         if (this.spareConnections.length > 0) {
             this.changeCurrentState(CommunicationServerListenerState.Listening);
+        } else if (this.running) {
+            this.changeCurrentState(CommunicationServerListenerState.Connecting);
         } else {
-            if (this.running) {
-                this.changeCurrentState(CommunicationServerListenerState.Connecting);
-            } else {
-                this.changeCurrentState(CommunicationServerListenerState.NotListening);
-            }
+            this.changeCurrentState(CommunicationServerListenerState.NotListening);
         }
     }
 
@@ -260,7 +272,7 @@ class CommunicationServerListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (newState != oldState) {
+        if (newState !== oldState) {
             this.onStateChange.emit(newState, oldState, reason);
         }
     }
@@ -281,7 +293,8 @@ class CommunicationServerListener {
      * @param publicKey - public key for which to accept connections.
      * @param onConnect -
      * Handler called when a relay is handed over. (asynchronously after this call has finished)
-     * @param onChallengeEvent -
+     * @param encrypt
+     * @param decrypt
      * Callback that needs to decrypt / re-encrypt the challenge for authentication. (during
      * this call)
      * @returns The spare connection that is
@@ -292,7 +305,8 @@ class CommunicationServerListener {
         server: string,
         publicKey: Uint8Array,
         onConnect: (ws: CommunicationServerConnection_Client, err?: Error) => void,
-        onChallengeEvent: OEvent<(challenge: Uint8Array, publicKey: Uint8Array) => Uint8Array>
+        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
+        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array
     ): Promise<CommunicationServerConnection_Client> {
         MessageBus.send('debug', `establishConnection(${server})`);
 
@@ -311,24 +325,29 @@ class CommunicationServerListener {
             // Step2: Wait for authentication request of comm-server and check parameters
             MessageBus.send('debug', `${connection.id}: Step 2: Wait for authentication_request`);
             const authRequest = await connection.waitForMessage('authentication_request');
+            const authRequestPublicKey = hexToUint8Array(authRequest.publicKey);
 
             // Step3: Send authentication response
             MessageBus.send(
                 'debug',
                 `${connection.id}: Step 3: Send authentication_response message`
             );
-            const response = await onChallengeEvent.emitAll(
-                authRequest.challenge,
-                authRequest.publicKey
+            const decryptedChallenge = decrypt(
+                authRequestPublicKey,
+                hexToUint8Array(authRequest.challenge)
             );
-            await connection.sendAuthenticationResponseMessage(response[0]);
+            for (let i = 0; i < decryptedChallenge.length; ++i) {
+                decryptedChallenge[i] = ~decryptedChallenge[i];
+            }
+            const response = encrypt(authRequestPublicKey, decryptedChallenge);
+            await connection.sendAuthenticationResponseMessage(response);
 
             // Step4: Wait for authentication success message
             MessageBus.send(
                 'debug',
                 `${connection.id}: Step 4: Wait for authentication_success message`
             );
-            let authSuccess = await connection.waitForMessage('authentication_success');
+            const authSuccess = await connection.waitForMessage('authentication_success');
 
             // Step 5: Start answering the ping messages (todo check the pongTimeout again)
             connection.startPingPong(authSuccess.pingInterval, 2000);

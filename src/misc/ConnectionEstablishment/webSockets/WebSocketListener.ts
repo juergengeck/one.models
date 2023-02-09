@@ -1,7 +1,8 @@
 import WebSocketWS from 'isomorphic-ws';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {OEvent} from './OEvent';
-import Connection from './Connections/Connection';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin';
+import {OEvent} from '../../OEvent';
+import Connection from '../../Connection/Connection';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -91,7 +92,7 @@ class WebSocketListener {
             this.webSocketServer.on('connection', this.acceptConnection.bind(this));
             this.webSocketServer.on('error', this.stop.bind(this));
             this.changeCurrentState(WebSocketListenerState.Listening);
-            MessageBus.send('log', `Successful started WebSocket server`);
+            MessageBus.send('log', 'Successful started WebSocket server');
         } catch (e) {
             this.changeCurrentState(WebSocketListenerState.NotListening, e.toString());
             throw e;
@@ -102,7 +103,7 @@ class WebSocketListener {
      * Stops the listener
      */
     public async stop(): Promise<void> {
-        MessageBus.send('log', `Stopping WebSocket server`);
+        MessageBus.send('log', 'Stopping WebSocket server');
         this.changeCurrentState(WebSocketListenerState.ShuttingDown);
 
         // Shutdown Websocket server
@@ -118,7 +119,7 @@ class WebSocketListener {
         });
 
         this.changeCurrentState(WebSocketListenerState.NotListening);
-        MessageBus.send('log', `Stopped WebSocket server`);
+        MessageBus.send('log', 'Stopped WebSocket server');
     }
 
     /**
@@ -128,6 +129,7 @@ class WebSocketListener {
      */
     private async acceptConnection(ws: WebSocket): Promise<void> {
         const connection = new Connection(ws);
+        connection.addPlugin(new PromisePlugin());
         MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
             this.onConnection.emit(connection);

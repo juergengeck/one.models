@@ -55,7 +55,7 @@ export default class PasswordRecoveryClient {
         }
 
         await postJson(
-            this.identity.commServerUrl + '/passwordRecoveryRequests',
+            this.identity.url + '/passwordRecoveryRequests',
             JSON.stringify(bundledRecoveryInfo)
         );
     }

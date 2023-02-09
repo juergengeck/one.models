@@ -19,8 +19,8 @@ import {
     isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {connectWithEncryption} from '../misc/Connections/protocols/ConnectionSetup';
-import type Connection from '../misc/Connections/Connection';
+import {connectWithEncryption} from '../misc/ConnectionEstablishment/protocols/ConnectionSetup';
+import type Connection from '../misc/Connection/Connection';
 import {
     convertIdentityToProfile,
     convertOneInstanceEndpointToIdentity

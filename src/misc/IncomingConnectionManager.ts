@@ -1,12 +1,12 @@
 import CommunicationServerListener, {
     CommunicationServerListenerState
-} from './CommunicationServerListener';
-import WebSocketListener from './WebSocketListener';
+} from './ConnectionEstablishment/communicationServer/CommunicationServerListener';
+import WebSocketListener from './ConnectionEstablishment/webSockets/WebSocketListener';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from './OEvent';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connections/Connection';
-import {acceptWithEncryption} from './Connections/protocols/ConnectionSetup';
+import type Connection from './Connection/Connection';
+import {acceptWithEncryption} from './ConnectionEstablishment/protocols/ConnectionSetup';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 

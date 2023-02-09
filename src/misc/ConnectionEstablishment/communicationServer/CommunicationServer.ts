@@ -3,16 +3,16 @@ import tweetnacl from 'tweetnacl';
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import WebSocketListener from './WebSocketListener';
+import WebSocketListener from '../webSockets/WebSocketListener';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connections/Connection';
-import PromisePlugin from './Connections/plugins/PromisePlugin';
+import type Connection from '../../Connection/Connection';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin';
+import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption';
 import {
     createKeyPair,
     decryptWithEmbeddedNonce,
     encryptAndEmbedNonce,
-    ensurePublicKey,
-    KeyPair
+    ensurePublicKey
 } from '@refinio/one.core/lib/crypto/encryption';
 
 const MessageBus = createMessageBus('CommunicationServer');
@@ -73,7 +73,7 @@ class CommunicationServer {
      * Stop the communication server.
      */
     public async stop(): Promise<void> {
-        MessageBus.send('log', `Stop communication server`);
+        MessageBus.send('log', 'Stop communication server');
 
         // Close spare connections
         for (const connectionContainers of this.listeningConnectionsMap.values()) {
@@ -89,10 +89,10 @@ class CommunicationServer {
             }
         }
 
-        MessageBus.send('log', `Closing websocker listener`);
+        MessageBus.send('log', 'Closing websocker listener');
         await this.webSocketListener.stop();
 
-        MessageBus.send('log', `Stop communication server complete`);
+        MessageBus.send('log', 'Stop communication server complete');
     }
 
     /**
@@ -208,8 +208,8 @@ class CommunicationServer {
                 // A fix would be to call the send after the events have been rewired. But then we cannot use the
                 // connection class with the current architecture. So we will do that probably later when we see problems
                 MessageBus.send('log', `${connection.id}: Relay Step 3: Connect both sides`);
-                let wsThis = conn.releaseWebSocket();
-                let wsOther = connOther.releaseWebSocket();
+                const wsThis = conn.releaseWebSocket();
+                const wsOther = connOther.releaseWebSocket();
                 wsThis.addEventListener('message', (msg: any) => {
                     wsOther.send(msg.data);
                 });

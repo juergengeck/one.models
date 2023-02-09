@@ -1,3 +1,4 @@
+import type {MessageBusObj} from '@refinio/one.core/lib/message-bus';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {EncryptedConnectionInterface} from '@refinio/one.core/lib/websocket-promisifier';
 import {OEvent} from '../OEvent';
@@ -214,6 +215,16 @@ export default class Connection implements IConnection, EncryptedConnectionInter
         this.createOutogingEvent({type: 'message', data: message});
     }
 
+    // Logging
+
+    public log(bus: MessageBusObj, message: string) {
+        bus.send('log', this.formatForConnection(message));
+    }
+
+    public debug(bus: MessageBusObj, message: string) {
+        bus.send('debug', this.formatForConnection(message));
+    }
+
     // ######## Private API ########
 
     /**
@@ -314,11 +325,13 @@ export default class Connection implements IConnection, EncryptedConnectionInter
 
             const transformedMessage = plugin.transformOutgoingEvent(intermediateEvent);
             if (transformedMessage === null) {
+                this.debugForPlugin('FIN', 'transformOutgoingEvent', transformedMessage);
                 return null;
             }
             intermediateEvent = transformedMessage;
         }
 
+        this.debugForPlugin('FIN', 'transformOutgoingEvent', intermediateEvent);
         return intermediateEvent;
     }
 
@@ -344,18 +357,20 @@ export default class Connection implements IConnection, EncryptedConnectionInter
 
             const transformedMessage = plugin.transformIncomingEvent(intermediateEvent);
             if (transformedMessage === null) {
+                this.debugForPlugin('FIN', 'transformIncomingEvent', transformedMessage);
                 return null;
             }
             intermediateEvent = transformedMessage;
         }
 
+        this.debugForPlugin('FIN', 'transformIncomingEvent', intermediateEvent);
         return intermediateEvent;
     }
 
     private logForPlugin(
         pluginName: string,
         functionName: string,
-        event: ConnectionIncomingEvent | ConnectionOutgoingEvent
+        event: ConnectionIncomingEvent | ConnectionOutgoingEvent | null
     ) {
         MessageBus.send('log', this.formatForPlugin(pluginName, functionName, event));
     }
@@ -363,21 +378,30 @@ export default class Connection implements IConnection, EncryptedConnectionInter
     private debugForPlugin(
         _pluginName: string,
         _functionName: string,
-        _event: ConnectionIncomingEvent | ConnectionOutgoingEvent
+        _event: ConnectionIncomingEvent | ConnectionOutgoingEvent | null
     ) {
-        // MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
+        //MessageBus.send('debug', this.formatForPlugin(pluginName, functionName, event));
     }
 
     private formatForPlugin(
         pluginName: string,
         functionName: string,
-        event: ConnectionIncomingEvent | ConnectionOutgoingEvent
+        event: ConnectionIncomingEvent | ConnectionOutgoingEvent | null
     ) {
+        const evtext =
+            event === null
+                ? 'null'
+                : `${event.type} ${
+                      event.type === 'message' ? `${typeof event.data} ${event.data.length}` : ''
+                  }`;
+
         return `${this.id.toString().padStart(4, ' ')} ${pluginName.padEnd(
             12,
             ' '
-        )} ${functionName.padEnd(24, ' ')} ${event.type} ${
-            event.type === 'message' ? typeof event.data + ' ' + String(event.data.length) : ''
-        }`;
+        )} ${functionName.padEnd(24, ' ')} ${evtext}`;
+    }
+
+    private formatForConnection(message: string) {
+        return `${this.id.toString().padStart(4, ' ')} ${message}`;
     }
 }

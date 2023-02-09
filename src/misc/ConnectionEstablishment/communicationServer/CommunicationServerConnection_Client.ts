@@ -4,9 +4,9 @@ import {
     hexToUint8Array,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import PromisePlugin from './Connections/plugins/PromisePlugin';
-import Connection from './Connections/Connection';
-import {PongPlugin} from './Connections/plugins/PingPongPlugin';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin';
+import Connection from '../../Connection/Connection';
+import {PongPlugin} from '../../Connection/plugins/PingPongPlugin';
 
 /**
  * This class implements the client side of communication server communication
