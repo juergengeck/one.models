@@ -13,7 +13,7 @@ import type LeuteModel from '../Leute/LeuteModel';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
-    attachments: BlobDescriptor[] | SHA256Hash[];
+    attachments: (BlobDescriptor | SHA256Hash)[];
 }
 
 export default class TopicRoom {
@@ -104,31 +104,22 @@ export default class TopicRoom {
         const resolvedMessages = [];
         for (const message of messages) {
             if (message.data.attachments) {
-                const attachmentObj = await getObject(message.data.attachments[0]);
-                if (attachmentObj.$type$ === BlobDescriptorRecipe.name) {
-                    const blobDescriptors = await Promise.all(
-                        message.data.attachments.map(blobDescriptorHash =>
-                            getObject(blobDescriptorHash)
-                        )
-                    );
-                    const resolvedBlobDescriptors: BlobDescriptor[] = await Promise.all(
-                        blobDescriptors.map(blobDescriptor =>
-                            BlobCollectionModel.resolveBlobDescriptor(
-                                blobDescriptor as OneBlobDescriptor
-                            )
-                        )
-                    );
-
-                    resolvedMessages.push({
-                        ...message,
-                        data: {...message.data, attachments: resolvedBlobDescriptors}
-                    });
-                } else {
-                    resolvedMessages.push({
-                        ...message,
-                        data: {...message.data, attachments: message.data.attachments}
-                    });
-                }
+                const resolvedAttachments = await Promise.all(
+                    message.data.attachments.map(async attachmentHash => {
+                        const attachmentObj = await getObject(attachmentHash);
+                        if (attachmentObj.$type$ === BlobDescriptorRecipe.name) {
+                            return BlobCollectionModel.resolveBlobDescriptor(
+                                attachmentObj as OneBlobDescriptor
+                            );
+                        } else {
+                            return attachmentHash;
+                        }
+                    })
+                );
+                resolvedMessages.push({
+                    ...message,
+                    data: {...message.data, attachments: resolvedAttachments}
+                });
             } else {
                 resolvedMessages.push({...message, data: {...message.data, attachments: []}});
             }
