@@ -1,18 +1,16 @@
-import {ensurePublicKey} from '../../../../one.core/lib/crypto/encryption';
+import type {CryptoApi} from '../../../../one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import {createMessageBus} from '../../../../one.core/lib/message-bus';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from './communicationServer/CommunicationServerListener';
 import type Connection from '../Connection/Connection';
-import {acceptWithEncryption} from './protocols/ConnectionSetup';
 import {OEvent} from '../OEvent';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {
-    hexToUint8Array,
-    uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {MapValueType} from '../../utils/MapUtils';
 import {getOrCreate} from '../../utils/MapUtils';
+import {acceptWithEncryption} from './protocols/EncryptedConnectionHandshake';
 import WebSocketListener from './webSockets/WebSocketListener';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
@@ -33,7 +31,7 @@ function castToCommServerUrl(commServerUrl: string): CommServerUrl {
     return commServerUrl as CommServerUrl;
 }
 
-function castToLocalPublicKey(localPublicKey: Uint8Array): LocalPublicKey {
+function castToLocalPublicKey(localPublicKey: PublicKey): LocalPublicKey {
     return uint8arrayToHexString(localPublicKey) as LocalPublicKey;
 }
 
@@ -52,6 +50,7 @@ type WebSocketListenerInfo = {
         LocalPublicKey,
         {
             referenceCount: number;
+            cryptoApi: CryptoApi;
         }
     >;
 };
@@ -107,12 +106,12 @@ export default class IncomingConnectionManager {
 
     public static communicationServerListenerId(
         commServerUrl: string,
-        localPublicKey: Uint8Array,
+        localPublicKey: LocalPublicKey,
         listenerIdPrefix?: string
     ) {
         return `${
             listenerIdPrefix !== undefined ? listenerIdPrefix + ':' : ''
-        }${commServerUrl}:${castToLocalPublicKey(localPublicKey)}`;
+        }${commServerUrl}:${localPublicKey}`;
     }
 
     public static directConnectionListenerId(
@@ -127,25 +126,19 @@ export default class IncomingConnectionManager {
      * Listen for connections using a communication server.
      *
      * @param commServerUrl - The communication server to use. (URL is passed to WebSocket)
-     * @param localPublicKey - The public key to use for registration
-     * @param encrypt - Function to encrypt stuff. This function is used for
-     *      1) Setting up an encrypted connection to the peer (
-     *      2) and authentication against the comm server. For later communication it is not used.
-     * @param decrypt
+     * @param cryptoApi
      * @param listenerIdPrefix - The prefix to add before the listener id
      */
     public async listenForCommunicationServerConnections(
         commServerUrl: string,
-        localPublicKey: PublicKey,
-        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         listenerIdPrefix?: string
     ): Promise<() => Promise<void>> {
+        const localPublicKey = castToLocalPublicKey(cryptoApi.publicEncryptionKey);
+
         MessageBus.send(
             'log',
-            `listenForCommunicationServerConnections(${uint8arrayToHexString(
-                localPublicKey
-            )}, ${commServerUrl})`
+            `listenForCommunicationServerConnections(${localPublicKey}, ${commServerUrl})`
         );
 
         const keyListenerMap = getOrCreate(
@@ -154,16 +147,14 @@ export default class IncomingConnectionManager {
             new Map<LocalPublicKey, CommServerListenerInfo>()
         );
 
-        const keyEntry = keyListenerMap.get(castToLocalPublicKey(localPublicKey));
+        const keyEntry = keyListenerMap.get(localPublicKey);
         if (keyEntry === undefined) {
             // start commserver
             keyListenerMap.set(
-                castToLocalPublicKey(localPublicKey),
+                localPublicKey,
                 await this.startNewCommunicationServerListener(
                     commServerUrl,
-                    localPublicKey,
-                    encrypt,
-                    decrypt,
+                    cryptoApi,
                     IncomingConnectionManager.communicationServerListenerId(
                         commServerUrl,
                         localPublicKey,
@@ -177,20 +168,13 @@ export default class IncomingConnectionManager {
         }
 
         return async () => {
-            await this.stopListeningForCommunicationServerConnections(
-                commServerUrl,
-                localPublicKey,
-                encrypt,
-                decrypt
-            );
+            await this.stopListeningForCommunicationServerConnections(commServerUrl, cryptoApi);
         };
     }
 
     public async stopListeningForCommunicationServerConnections(
         commServerUrl: string,
-        localPublicKey: PublicKey,
-        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array
+        cryptoApi: CryptoApi
     ): Promise<void> {
         const keyListenerMap = this.commServerListener.get(castToCommServerUrl(commServerUrl));
         if (keyListenerMap === undefined) {
@@ -200,7 +184,7 @@ export default class IncomingConnectionManager {
             );
         }
 
-        const keyEntry = keyListenerMap.get(castToLocalPublicKey(localPublicKey));
+        const keyEntry = keyListenerMap.get(castToLocalPublicKey(cryptoApi.publicEncryptionKey));
         if (keyEntry === undefined) {
             throw new Error('Programming error: No publicKey entry.');
         }
@@ -208,7 +192,7 @@ export default class IncomingConnectionManager {
         keyEntry.referenceCount--;
 
         if (keyEntry.referenceCount === 0) {
-            keyListenerMap.delete(castToLocalPublicKey(localPublicKey));
+            keyListenerMap.delete(castToLocalPublicKey(cryptoApi.publicEncryptionKey));
             if (keyListenerMap.keys().next().done) {
                 this.commServerListener.delete(castToCommServerUrl(commServerUrl));
             }
@@ -225,22 +209,20 @@ export default class IncomingConnectionManager {
      *
      * @param host
      * @param port
-     * @param localPublicKey
-     * @param encrypt
-     * @param decrypt
+     * @param cryptoApi
      * @param listenerIdPrefix - The prefix to add before the listener id
      */
     public async listenForDirectConnections(
         host: string,
         port: number,
-        localPublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         listenerIdPrefix?: string
     ): Promise<() => Promise<void>> {
         MessageBus.send(
             'log',
-            `listenForDirectConnections(${uint8arrayToHexString(localPublicKey)}, ${host}, ${port})`
+            `listenForDirectConnections(${uint8arrayToHexString(
+                cryptoApi.publicEncryptionKey
+            )}, ${host}, ${port})`
         );
 
         // Direct connections are not allowed to create the same listener for the same host /
@@ -255,9 +237,7 @@ export default class IncomingConnectionManager {
                 await this.startNewWebsocketListener(
                     host,
                     port,
-                    localPublicKey,
-                    encrypt,
-                    decrypt,
+                    cryptoApi,
                     IncomingConnectionManager.directConnectionListenerId(
                         host,
                         port,
@@ -267,27 +247,31 @@ export default class IncomingConnectionManager {
             );
         } else {
             const publicKeyRefcount = listenerInfo.registeredPublicKeys.get(
-                castToLocalPublicKey(localPublicKey)
+                castToLocalPublicKey(cryptoApi.publicEncryptionKey)
             );
 
             if (publicKeyRefcount === undefined) {
-                listenerInfo.registeredPublicKeys.set(castToLocalPublicKey(localPublicKey), {
-                    referenceCount: 1
-                });
+                listenerInfo.registeredPublicKeys.set(
+                    castToLocalPublicKey(cryptoApi.publicEncryptionKey),
+                    {
+                        cryptoApi,
+                        referenceCount: 1
+                    }
+                );
             } else {
                 publicKeyRefcount.referenceCount++;
             }
         }
 
         return async () => {
-            await this.stopListeningForDirectConnections(host, port, localPublicKey);
+            await this.stopListeningForDirectConnections(host, port, cryptoApi.publicEncryptionKey);
         };
     }
 
     async stopListeningForDirectConnections(
         host: string,
         port: number,
-        localPublicKey: Uint8Array
+        localPublicKey: PublicKey
     ): Promise<void> {
         const listenerInfo = this.webSocketListener.get(castToHostPort(host, port));
 
@@ -347,19 +331,12 @@ export default class IncomingConnectionManager {
     // A list of acceptable public keys for this connection.
     private async acceptConnection(
         connection: Connection,
-        allowedPublicKeys: PublicKey[],
-        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array,
+        cryptoApis: CryptoApi[],
         listenerId: string
     ): Promise<void> {
         MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
-            const conn = await acceptWithEncryption(
-                connection,
-                allowedPublicKeys,
-                encrypt,
-                decrypt
-            );
+            const conn = await acceptWithEncryption(connection, cryptoApis);
 
             // Step 6: E2E encryption is setup correctly. Pass the connection to a listener.
             this.onConnection.emit(conn.connection, conn.myKey, conn.remoteKey, listenerId);
@@ -372,16 +349,12 @@ export default class IncomingConnectionManager {
 
     public async startNewCommunicationServerListener(
         commServerUrl: string,
-        localPublicKey: PublicKey,
-        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         listenerId: string
     ): Promise<CommServerListenerInfo> {
-        const listener = new CommunicationServerListener(2, 10000, encrypt, decrypt);
+        const listener = new CommunicationServerListener(cryptoApi, 2, 10000);
         listener.onConnection((connection: Connection) => {
-            this.acceptConnection(connection, [localPublicKey], encrypt, decrypt, listenerId).catch(
-                console.error
-            );
+            this.acceptConnection(connection, [cryptoApi], listenerId).catch(console.error);
         });
 
         // Connect the stateChanged event to the onelineStateChanged event
@@ -394,7 +367,7 @@ export default class IncomingConnectionManager {
         });
 
         // Start listener
-        await listener.start(commServerUrl, localPublicKey);
+        listener.start(commServerUrl);
 
         return {
             listener,
@@ -405,25 +378,22 @@ export default class IncomingConnectionManager {
     private async startNewWebsocketListener(
         host: string,
         port: number,
-        localPublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         listenerId: string
     ): Promise<WebSocketListenerInfo> {
         // This is the map that will be extended / shrunk later when we listen or stop
         // listening for new public keys.
-        const registeredPublicKeys = new Map<LocalPublicKey, {referenceCount: number}>([
-            [castToLocalPublicKey(localPublicKey), {referenceCount: 1}]
-        ]);
+        const registeredPublicKeys = new Map<
+            LocalPublicKey,
+            MapValueType<WebSocketListenerInfo['registeredPublicKeys']>
+        >([[castToLocalPublicKey(cryptoApi.publicEncryptionKey), {cryptoApi, referenceCount: 1}]]);
 
         // Create and start listener
         const listener = new WebSocketListener();
         listener.onConnection((connection: Connection) => {
             this.acceptConnection(
                 connection,
-                [...registeredPublicKeys.keys()].map(key => ensurePublicKey(hexToUint8Array(key))),
-                encrypt,
-                decrypt,
+                [...registeredPublicKeys.values()].map(v => v.cryptoApi),
                 listenerId
             ).catch(console.error);
         });

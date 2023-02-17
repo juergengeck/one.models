@@ -1,9 +1,8 @@
-import CommunicationServerProtocol, {isServerMessage} from './CommunicationServerProtocol';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import type CommunicationServerProtocol from './CommunicationServerProtocol';
+import {isServerMessage} from './CommunicationServerProtocol';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import {
-    hexToUint8Array,
-    uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import PromisePlugin from '../../Connection/plugins/PromisePlugin';
 import Connection from '../../Connection/Connection';
 import {PongPlugin} from '../../Connection/plugins/PingPongPlugin';
@@ -98,10 +97,10 @@ class CommunicationServerConnection_Client {
      *
      * @param publicKey
      */
-    public async sendRegisterMessage(publicKey: Uint8Array): Promise<void> {
+    public async sendRegisterMessage(publicKey: PublicKey): Promise<void> {
         await this.sendMessage({
             command: 'register',
-            publicKey
+            publicKey: uint8arrayToHexString(publicKey)
         });
     }
 
@@ -113,7 +112,7 @@ class CommunicationServerConnection_Client {
     public async sendAuthenticationResponseMessage(response: Uint8Array): Promise<void> {
         await this.sendMessage({
             command: 'authentication_response',
-            response: response
+            response: uint8arrayToHexString(response)
         });
     }
 
@@ -128,9 +127,9 @@ class CommunicationServerConnection_Client {
     public async waitForMessage<T extends keyof CommunicationServerProtocol.ServerMessages>(
         command: T
     ): Promise<CommunicationServerProtocol.ServerMessages[T]> {
-        const message = this.unpackBinaryFields(
-            await this.connection.promisePlugin().waitForJSONMessageWithType(command, 'command')
-        );
+        const message = await this.connection
+            .promisePlugin()
+            .waitForJSONMessageWithType(command, 'command');
         if (isServerMessage(message, command)) {
             return message;
         }
@@ -173,46 +172,7 @@ class CommunicationServerConnection_Client {
         message: T
     ): Promise<void> {
         await this.connection.waitForOpen();
-        await this.connection.send(
-            JSON.stringify(message, function (key, value) {
-                if (value.constructor === Uint8Array) {
-                    return uint8arrayToHexString(value);
-                } else {
-                    return value;
-                }
-            })
-        );
-    }
-
-    /**
-     * Convert fields from Hex encoding to Uint8Array.
-     *
-     * @param message - The message to convert
-     * @returns The converted message
-     */
-    public unpackBinaryFields(message: any): any {
-        if (typeof message.command !== 'string') {
-            throw Error(`Parsing message failed!`);
-        }
-
-        if (message.command === 'authentication_request') {
-            if (message.publicKey && typeof message.publicKey === 'string') {
-                message.publicKey = hexToUint8Array(message.publicKey);
-            }
-            if (message.challenge && typeof message.challenge === 'string') {
-                message.challenge = hexToUint8Array(message.challenge);
-            }
-        }
-        if (message.command === 'communication_request') {
-            if (message.sourcePublicKey && typeof message.sourcePublicKey === 'string') {
-                message.sourcePublicKey = hexToUint8Array(message.sourcePublicKey);
-            }
-            if (message.targetPublicKey && typeof message.targetPublicKey === 'string') {
-                message.targetPublicKey = hexToUint8Array(message.targetPublicKey);
-            }
-        }
-
-        return message;
+        this.connection.send(JSON.stringify(message));
     }
 }
 

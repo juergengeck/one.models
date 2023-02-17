@@ -1,11 +1,9 @@
-import type {ConnectionInfo} from '../misc/CommunicationModule';
-import CommunicationModule from '../misc/CommunicationModule';
+import type {ConnectionInfo} from '../misc/LeuteConnectionsModule';
+import LeuteConnectionsModule from '../misc/LeuteConnectionsModule';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import tweetnacl from 'tweetnacl';
-import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
-import {isPeerMessage} from '../misc/CommunicationInitiationProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -19,7 +17,6 @@ import {
     isHexString,
     uint8arrayToHexString
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {connectWithEncryption} from '../misc/ConnectionEstablishment/protocols/ConnectionSetup';
 import type Connection from '../misc/Connection/Connection';
 import {
     convertIdentityToProfile,
@@ -217,7 +214,7 @@ class ConnectionsModel extends Model {
     >();
 
     // Models
-    private communicationModule: CommunicationModule;
+    private communicationModule: LeuteConnectionsModule;
     private readonly leuteModel: LeuteModel;
 
     // Global settings
@@ -295,7 +292,7 @@ class ConnectionsModel extends Model {
 
         // Setup / init modules
         this.leuteModel = leuteModel;
-        this.communicationModule = new CommunicationModule(
+        this.communicationModule = new LeuteConnectionsModule(
             this.config.commServerUrl,
             leuteModel,
             this.config.establishOutgoingConnections
@@ -1816,7 +1813,7 @@ class ConnectionsModel extends Model {
         if (isPeerMessage(message, command)) {
             return message;
         }
-        throw Error("Received data does not match the data expected for command '" + command + "'");
+        throw Error(`Received data does not match the data expected for command '${command}'`);
     }
 }
 

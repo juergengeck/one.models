@@ -1,5 +1,6 @@
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
 import {getOrCreate, isLastEntry} from '../../utils/MapUtils';
 import type {ConnectionGroup} from './ConnectionGroup';
 
@@ -15,11 +16,11 @@ export type ConnectionGroupName = string & {
     _: 'RemotePublicKey';
 };
 
-export function castToLocalPublicKey(localPublicKey: Uint8Array): LocalPublicKey {
+export function castToLocalPublicKey(localPublicKey: PublicKey): LocalPublicKey {
     return uint8arrayToHexString(localPublicKey) as LocalPublicKey;
 }
 
-export function castToRemotePublicKey(remotePublicKey: Uint8Array): RemotePublicKey {
+export function castToRemotePublicKey(remotePublicKey: PublicKey): RemotePublicKey {
     return uint8arrayToHexString(remotePublicKey) as RemotePublicKey;
 }
 
@@ -34,8 +35,8 @@ export default class ConnectionGroupMap {
     > = new Map();
 
     entryCreateIfNotExist(
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
+        localPublicKey: PublicKey,
+        remotePublicKey: PublicKey,
         connectionGroupName: string,
         isCatchAllGroup: boolean
     ): ConnectionGroup {
@@ -84,8 +85,8 @@ export default class ConnectionGroupMap {
      * @param connectionGroup
      */
     entry(
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
+        localPublicKey: PublicKey,
+        remotePublicKey: PublicKey,
         connectionGroup: string
     ): ConnectionGroup | undefined {
         const entries = this.entries(localPublicKey, remotePublicKey, connectionGroup);
@@ -99,8 +100,8 @@ export default class ConnectionGroupMap {
     }
 
     entries(
-        localPublicKey?: Uint8Array,
-        remotePublicKey?: Uint8Array,
+        localPublicKey?: PublicKey,
+        remotePublicKey?: PublicKey,
         connectionGroupName?: string,
         catchAll?: boolean
     ): ConnectionGroup[] {
@@ -154,8 +155,8 @@ export default class ConnectionGroupMap {
     }
 
     removeEntry(
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
+        localPublicKey: PublicKey,
+        remotePublicKey: PublicKey,
         connectionGroupName: string
     ): void {
         const localPublicKeyStr = castToLocalPublicKey(localPublicKey);

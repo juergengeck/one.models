@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
+import type {CryptoApi} from '../../../../one.core/lib/crypto/CryptoApi';
 import {ensurePublicKey} from '../../../../one.core/lib/crypto/encryption';
 import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
+import type {SymmetricCryptoApiWithKeys} from '../../../../one.core/lib/crypto/SymmetricCryptoApi';
 import IncomingConnectionManager from './IncomingConnectionManager';
 import type {LocalPublicKey} from './ConnectionGroupMap';
 import ConnectionGroupMap, {castToLocalPublicKey} from './ConnectionGroupMap';
@@ -63,8 +65,8 @@ export default class ConnectionRouteManager {
     public onConnectionViaCatchAll = new OEvent<
         (
             conn: Connection,
-            localPublicKey: Uint8Array,
-            remotePublicKey: Uint8Array,
+            localPublicKey: PublicKey,
+            remotePublicKey: PublicKey,
             connectionGroupName: string,
             routeId: string,
             initiatedLocally: boolean
@@ -101,10 +103,7 @@ export default class ConnectionRouteManager {
     // ######## add routes ########
 
     addOutgoingWebsocketRoute(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey,
-        encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: SymmetricCryptoApiWithKeys,
         url: string,
         connectionGroupName: string = 'default',
         reconnectDelay: number = 10000
@@ -112,13 +111,15 @@ export default class ConnectionRouteManager {
         MessageBus.send(
             'log',
             `addOutgoingWebsocketConnection(${uint8arrayToHexString(
-                localPublicKey
-            )}, ${uint8arrayToHexString(remotePublicKey)}, ${url}, ${connectionGroupName})`
+                cryptoApi.localPublicKey
+            )}, ${uint8arrayToHexString(
+                cryptoApi.remotePublicKey
+            )}, ${url}, ${connectionGroupName})`
         );
 
         const connectionGroup = this.connectionGroupMap.entryCreateIfNotExist(
-            localPublicKey,
-            remotePublicKey,
+            cryptoApi.localPublicKey,
+            cryptoApi.remotePublicKey,
             connectionGroupName,
             false
         );
@@ -127,10 +128,7 @@ export default class ConnectionRouteManager {
             route: new OutgoingWebsocketRoute(
                 url,
                 reconnectDelay,
-                localPublicKey,
-                remotePublicKey,
-                encrypt,
-                decrypt,
+                cryptoApi,
                 (
                     conn: Connection,
                     localPublicKeyInner: PublicKey,
@@ -151,10 +149,8 @@ export default class ConnectionRouteManager {
     }
 
     addIncomingWebsocketRoute_Direct(
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
+        remotePublicKey: PublicKey,
         host: string,
         port: number,
         connectionGroupName: string = 'default'
@@ -162,14 +158,14 @@ export default class ConnectionRouteManager {
         MessageBus.send(
             'log',
             `addIncomingWebsocketConnection_Direct(${uint8arrayToHexString(
-                localPublicKey
+                cryptoApi.publicEncryptionKey
             )}, ${uint8arrayToHexString(
                 remotePublicKey
             )}, ${host}, ${port}, ${connectionGroupName})`
         );
 
         const connectionGroup = this.connectionGroupMap.entryCreateIfNotExist(
-            localPublicKey,
+            cryptoApi.publicEncryptionKey,
             remotePublicKey,
             connectionGroupName,
             false
@@ -180,33 +176,29 @@ export default class ConnectionRouteManager {
                 this.incomingConnectionManager,
                 host,
                 port,
-                localPublicKey,
-                encrypt,
-                decrypt
+                cryptoApi
             ),
             disabled: true
         });
     }
 
     addIncomingWebsocketRoute_CommServer(
-        localPublicKey: Uint8Array,
-        remotePublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
+        remotePublicKey: PublicKey,
         commServerUrl: string,
         connectionGroupName: string = 'default'
     ): void {
         MessageBus.send(
             'log',
             `addIncomingWebsocketConnection_CommServer(${uint8arrayToHexString(
-                localPublicKey
+                cryptoApi.publicEncryptionKey
             )}, ${uint8arrayToHexString(
                 remotePublicKey
             )}, ${commServerUrl}, ${connectionGroupName})`
         );
 
         const connectionGroup = this.connectionGroupMap.entryCreateIfNotExist(
-            localPublicKey,
+            cryptoApi.publicEncryptionKey,
             remotePublicKey,
             connectionGroupName,
             false
@@ -216,9 +208,7 @@ export default class ConnectionRouteManager {
             route: new IncomingWebsocketRouteCommServer(
                 this.incomingConnectionManager,
                 commServerUrl,
-                localPublicKey,
-                encrypt,
-                decrypt
+                cryptoApi
             ),
             disabled: false
         });
@@ -227,24 +217,22 @@ export default class ConnectionRouteManager {
     // ######## Catch all routes ########
 
     addIncomingWebsocketRouteCatchAll_Direct(
-        localPublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         host: string,
         port: number
     ): void {
         MessageBus.send(
             'log',
             `addIncomingWebsocketRouteCatchAll_Direct(${uint8arrayToHexString(
-                localPublicKey
+                cryptoApi.publicEncryptionKey
             )}, ${host}, ${port})`
         );
 
         const catchAllRoute = getOrCreate(
             this.catchAllRoutes,
-            castToLocalPublicKey(localPublicKey),
+            castToLocalPublicKey(cryptoApi.publicEncryptionKey),
             {
-                localPublicKey: castToLocalPublicKey(localPublicKey),
+                localPublicKey: castToLocalPublicKey(cryptoApi.publicEncryptionKey),
                 knownRoutes: []
             }
         );
@@ -254,32 +242,28 @@ export default class ConnectionRouteManager {
                 this.incomingConnectionManager,
                 host,
                 port,
-                localPublicKey,
-                encrypt,
-                decrypt
+                cryptoApi
             ),
             disabled: true
         });
     }
 
     addIncomingWebsocketRouteCatchAll_CommServer(
-        localPublicKey: Uint8Array,
-        encrypt: (pubKeyOther: Uint8Array, text: Uint8Array) => Uint8Array,
-        decrypt: (pubKeyOther: Uint8Array, cypher: Uint8Array) => Uint8Array,
+        cryptoApi: CryptoApi,
         commServerUrl: string
     ): void {
         MessageBus.send(
             'log',
             `addIncomingWebsocketRouteCatchAll_CommServer(${uint8arrayToHexString(
-                localPublicKey
+                cryptoApi.publicEncryptionKey
             )}, ${commServerUrl})`
         );
 
         const catchAllRoute = getOrCreate(
             this.catchAllRoutes,
-            castToLocalPublicKey(localPublicKey),
+            castToLocalPublicKey(cryptoApi.publicEncryptionKey),
             {
-                localPublicKey: castToLocalPublicKey(localPublicKey),
+                localPublicKey: castToLocalPublicKey(cryptoApi.publicEncryptionKey),
                 knownRoutes: []
             }
         );
@@ -288,9 +272,7 @@ export default class ConnectionRouteManager {
             route: new IncomingWebsocketRouteCommServer(
                 this.incomingConnectionManager,
                 commServerUrl,
-                localPublicKey,
-                encrypt,
-                decrypt
+                cryptoApi
             ),
             disabled: false
         });

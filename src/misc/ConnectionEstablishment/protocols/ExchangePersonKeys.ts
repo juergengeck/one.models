@@ -1,21 +1,21 @@
-// ######## Person key verification #######
-
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {createCryptoAPI, CryptoAPI} from '@refinio/one.core/lib/instance-crypto';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {CryptoApi} from '../../../../../one.core/lib/crypto/CryptoApi';
+import {ensurePublicKey} from '../../../../../one.core/lib/crypto/encryption';
+import type {PublicKey} from '../../../../../one.core/lib/crypto/encryption';
+import {getPublicKeys} from '../../../../../one.core/lib/keychain/key-storage-public';
 import {
-    hexToUint8Array,
-    uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+    createCryptoApiFromDefaultKeys,
+    getDefaultKeys
+} from '../../../../../one.core/lib/keychain/keychain';
+import type LeuteModel from '../../../models/Leute/LeuteModel';
 import type Connection from '../../Connection/Connection';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import type {Keys, Person, PersonId} from '@refinio/one.core/lib/recipes';
 import tweetnacl from 'tweetnacl';
-import {getIdObject, getObjectWithType} from '@refinio/one.core/lib/storage';
-import type InstancesModel from '../../../models/InstancesModel';
 import {sendPeerMessage, waitForPeerMessage} from './CommunicationInitiationProtocolMessages';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
  * This process exchanges and verifies person keys.
@@ -23,11 +23,11 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
  * The verification checks the following:
  * - Does the peer have the private key to the corresponding public key
  * - Does the peer use the same key as the last time (key lookup in storage)
- *   -> skipped if
+ *   -> skipped if skipLocalKeyCompare is true
  * - Does the person id communicated by the peer match the expected person id
  *   -> Only checked if matchRemotePersonId is specified
  *
- * @param instancesModel
+ * @param leute
  * @param conn - The connection used to exchange this data
  * @param localPersonId - The local person id (used for getting keys)
  * @param initiatedLocally
@@ -37,7 +37,7 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
  * @returns
  */
 export async function verifyAndExchangePersonId(
-    instancesModel: InstancesModel,
+    leute: LeuteModel,
     conn: Connection,
     localPersonId: SHA256IdHash<Person>,
     initiatedLocally: boolean,
@@ -46,112 +46,162 @@ export async function verifyAndExchangePersonId(
 ): Promise<{
     isNew: boolean;
     personId: SHA256IdHash<Person>;
-    personPublicKey: Uint8Array;
+    personPublicKey: PublicKey;
 }> {
     // Initialize the crypto stuff
-    const instanceHash = await instancesModel.localInstanceIdForPerson(localPersonId);
-    const crypto = createCryptoAPI(instanceHash);
+    const crypto = await createCryptoApiFromDefaultKeys(localPersonId);
 
-    // Get my own person key and id
-    const localPersonKeyReverse = await getAllEntries(localPersonId, 'Keys');
-    const localPersonKeys = await getObjectWithType(
-        localPersonKeyReverse[localPersonKeyReverse.length - 1],
-        'Keys'
-    );
-    const localPersonIdObject = await getIdObject(localPersonId);
+    // Exchange keys and person object
+    const personIds = await exchangePersonIdObjects(conn, localPersonId);
+    const keys = await exchangeDefaultKeysObjects(conn, localPersonId);
+
+    // Sanity check the keys object
+    if (keys.remotePersonKeys.owner !== personIds.remotePersonId) {
+        throw new Error('Received keys object does not belong to the transmitted person id object');
+    }
+
+    // Challenge remote person keys and respond to challenge for own keys
+    // The person who initiates the connection has to prove that he has the key first.
+    if (initiatedLocally) {
+        await challengeRespondPersonKey(conn, keys.remotePersonKey, crypto);
+        await challengePersonKey(conn, keys.remotePersonKey, crypto);
+    } else {
+        await challengePersonKey(conn, keys.remotePersonKey, crypto);
+        await challengeRespondPersonKey(conn, keys.remotePersonKey, crypto);
+    }
+
+    // Verify that the remote person id is the same as the one we have from the callback
+    if (matchRemotePersonId && personIds.remotePersonId !== matchRemotePersonId) {
+        throw new Error('The person id does not match the one we have on record.');
+    }
+
+    // Determine whether the remote person is new by different tests.
+    let isNewPerson = true;
+    let keyComparisionResult: 'nomatch' | 'exception' | 'success' = 'nomatch';
+    try {
+        // This will throw if person was never seen before.
+        await getIdObject(personIds.remotePersonId);
+
+        // Verify that the transmitted key matches the one we already have
+        const remoteEndpoints = await leute.findAllOneInstanceEndpointsForPerson(
+            personIds.remotePersonId
+        );
+
+        for (const remoteEndpoint of remoteEndpoints) {
+            if (remoteEndpoint.personKeys === undefined) {
+                continue;
+            }
+
+            try {
+                const endpointKeys = await getPublicKeys(remoteEndpoint.personKeys);
+
+                // The person is known when we have a single key for that person
+                // TODO: Think about only using trusted keys in order to prevent DOS attacks by
+                // distributing fake profiles with fake keys
+                isNewPerson = false;
+
+                if (tweetnacl.verify(keys.remotePersonKey, endpointKeys.publicEncryptionKey)) {
+                    keyComparisionResult = 'success';
+                    break;
+                }
+            } catch (_e) {
+                keyComparisionResult = 'exception';
+                break;
+            }
+        }
+    } catch (_e) {
+        // This should only happen if the getIdObject fails which means that we have a new person
+        // isNewPerson is set to 'true' by default, so we do not have to do anything
+    }
+
+    // Throw error when key comparison failed.
+    if (keyComparisionResult === 'exception') {
+        throw new Error(`Failed to load keys object for person ${personIds.remotePersonId}`);
+    }
+
+    if (keyComparisionResult === 'nomatch' && !skipLocalKeyCompare) {
+        throw new Error('Key does not match your previous visit');
+    }
+
+    if (isNewPerson) {
+        await storeIdObject(personIds.remotePersonIdObject);
+
+        // We somehow have to define that we trust in this key and probably store it in a
+        // default profile in leute ...
+        // await storeUnversionedObject(keys.remotePersonKeys);
+    }
+
+    return {
+        isNew: isNewPerson,
+        personId: personIds.remotePersonId,
+        personPublicKey: keys.remotePersonKey
+    };
+}
+
+/**
+ * Exchange default key objects with the other side.
+ *
+ * @param conn
+ * @param localPersonId
+ */
+async function exchangeDefaultKeysObjects(
+    conn: Connection,
+    localPersonId: SHA256IdHash<Person>
+): Promise<{
+    localPersonKeys: Keys;
+    localPersonKey: PublicKey;
+    remotePersonKeys: Keys;
+    remotePersonKey: PublicKey;
+}> {
+    // Get my own person key
+    const localPersonKeysHash = await getDefaultKeys(localPersonId);
+    const localPersonKeys = await getObject(localPersonKeysHash);
+    const localPersonKey = ensurePublicKey(hexToUint8Array(localPersonKeys.publicKey));
 
     // Exchange person keys
-    await sendPeerMessage(conn, {
+    sendPeerMessage(conn, {
         command: 'keys_object',
         obj: localPersonKeys
     });
     const remotePersonKeys = (await waitForPeerMessage(conn, 'keys_object')).obj;
-    const remotePersonKey = hexToUint8Array(remotePersonKeys.publicKey);
+    const remotePersonKey = ensurePublicKey(hexToUint8Array(remotePersonKeys.publicKey));
 
-    // Exchange person objects
-    await sendPeerMessage(conn, {
+    return {
+        localPersonKeys,
+        localPersonKey,
+        remotePersonKeys,
+        remotePersonKey
+    };
+}
+
+/**
+ * Exchange person-id objects with the other side.
+ *
+ * @param conn
+ * @param localPersonId
+ */
+async function exchangePersonIdObjects(
+    conn: Connection,
+    localPersonId: SHA256IdHash<Person>
+): Promise<{
+    localPersonId: SHA256IdHash<Person>;
+    localPersonIdObject: PersonId;
+    remotePersonId: SHA256IdHash<Person>;
+    remotePersonIdObject: PersonId;
+}> {
+    const localPersonIdObject = await getIdObject(localPersonId);
+    sendPeerMessage(conn, {
         command: 'person_id_object',
         obj: localPersonIdObject
     });
     const remotePersonIdObject = (await waitForPeerMessage(conn, 'person_id_object')).obj;
     const remotePersonId = await calculateIdHashOfObj(remotePersonIdObject);
 
-    // Sanity check the keys object
-    if (remotePersonKeys.owner !== remotePersonId) {
-        throw new Error('Received keys object does not belong to the transmitted person id object');
-    }
-
-    // Challenge remote person keys and respond to challenge for own keys
-    if (initiatedLocally) {
-        await challengePersonKey(conn, remotePersonKey, crypto);
-        await challengeRespondPersonKey(conn, remotePersonKey, crypto);
-    } else {
-        await challengeRespondPersonKey(conn, remotePersonKey, crypto);
-        await challengePersonKey(conn, remotePersonKey, crypto);
-    }
-
-    // Verify that the remote person id is the same as the one we have from the callback
-    if (matchRemotePersonId && remotePersonId !== matchRemotePersonId) {
-        throw new Error('The person id does not match the one we have on record.');
-    }
-
-    // Verify that the transmitted key matches the one we already have
-    let keyComparisionFailed: boolean = true;
-    try {
-        // Lookup key objects of the person he claims to be
-        const remotePersonKeyReverse = await getAllEntries(remotePersonId, 'Keys');
-        if (!remotePersonKeyReverse || remotePersonKeyReverse.length === 0) {
-            await storeIdObject(remotePersonIdObject);
-            await storeUnversionedObject(remotePersonKeys);
-            console.log('localPerson', localPersonId, localPersonIdObject);
-            console.log('remotePerson', remotePersonId, remotePersonIdObject);
-
-            // This means that we have no key belonging to this person
-            return {
-                isNew: true,
-                personId: remotePersonId,
-                personPublicKey: remotePersonKey
-            };
-        }
-
-        // Load the stored key from storage
-        const remotePersonKeyStored = (
-            await getObjectWithType(
-                remotePersonKeyReverse[remotePersonKeyReverse.length - 1],
-                'Keys'
-            )
-        ).publicKey;
-
-        // Compare the key to the transmitted one
-        if (uint8arrayToHexString(remotePersonKey) === remotePersonKeyStored) {
-            keyComparisionFailed = false;
-        }
-    } catch (e) {
-        await storeIdObject(remotePersonIdObject);
-        await storeUnversionedObject(remotePersonKeys);
-        console.log('localPerson', localPersonId, localPersonIdObject);
-        console.log('remotePerson', remotePersonId, remotePersonIdObject);
-
-        // This means that we have not encountered the person, yet.
-        return {
-            isNew: true,
-            personId: remotePersonId,
-            personPublicKey: remotePersonKey
-        };
-    }
-
-    // Throw error when key comparison failed.
-    if (keyComparisionFailed && !skipLocalKeyCompare) {
-        throw new Error('Key does not match your previous visit');
-    }
-
-    // Store the objects
-
-    // If we made it to here, then everything checked out => person is authenticated against the stored data
     return {
-        isNew: false,
-        personId: remotePersonId,
-        personPublicKey: remotePersonKey
+        localPersonId,
+        localPersonIdObject,
+        remotePersonId,
+        remotePersonIdObject
     };
 }
 
@@ -164,20 +214,20 @@ export async function verifyAndExchangePersonId(
  */
 async function challengePersonKey(
     conn: Connection,
-    remotePersonPublicKey: Uint8Array,
-    crypto: CryptoAPI
+    remotePersonPublicKey: PublicKey,
+    crypto: CryptoApi
 ): Promise<void> {
     // Send the challenge
     const challenge = tweetnacl.randomBytes(64);
-    const encryptedChallenge = crypto.encryptWithPersonPublicKey(remotePersonPublicKey, challenge);
-    await conn.send(encryptedChallenge);
+    const encryptedChallenge = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
+    conn.send(encryptedChallenge);
     for (let i = 0; i < challenge.length; ++i) {
         challenge[i] = ~challenge[i];
     }
 
     // Wait for response
     const encryptedResponse = await conn.promisePlugin().waitForBinaryMessage();
-    const response = crypto.decryptWithPersonPublicKey(remotePersonPublicKey, encryptedResponse);
+    const response = crypto.decryptWithEmbeddedNonce(encryptedResponse, remotePersonPublicKey);
     if (!tweetnacl.verify(challenge, response)) {
         conn.close();
         throw new Error('Failed to authenticate connection.');
@@ -193,15 +243,15 @@ async function challengePersonKey(
  */
 async function challengeRespondPersonKey(
     conn: Connection,
-    remotePersonPublicKey: Uint8Array,
-    crypto: CryptoAPI
+    remotePersonPublicKey: PublicKey,
+    crypto: CryptoApi
 ): Promise<void> {
     // Wait for challenge
     const encryptedChallenge = await conn.promisePlugin().waitForBinaryMessage();
-    const challenge = crypto.decryptWithPersonPublicKey(remotePersonPublicKey, encryptedChallenge);
+    const challenge = crypto.decryptWithEmbeddedNonce(encryptedChallenge, remotePersonPublicKey);
     for (let i = 0; i < challenge.length; ++i) {
         challenge[i] = ~challenge[i];
     }
-    const encryptedResponse = crypto.encryptWithPersonPublicKey(remotePersonPublicKey, challenge);
-    await conn.send(encryptedResponse);
+    const encryptedResponse = crypto.encryptAndEmbedNonce(challenge, remotePersonPublicKey);
+    conn.send(encryptedResponse);
 }

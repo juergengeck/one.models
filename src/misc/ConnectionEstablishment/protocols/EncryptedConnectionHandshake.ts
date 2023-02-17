@@ -10,12 +10,14 @@ import tweetnacl from 'tweetnacl';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {isFunction} from '@refinio/one.core/lib/util/type-checks-basic';
+import type {SymmetricCryptoApiWithKeys} from '../../../../../one.core/lib/crypto/SymmetricCryptoApi';
+import {castToLocalPublicKey, castToRemotePublicKey} from '../ConnectionGroupMap';
 import {
     sendUnencryptedClientMessage,
     sendUnencryptedServerMessage,
     waitForUnencryptedClientMessage,
     waitForUnencryptedServerMessage
-} from './CommunicationInitiationProtocol';
+} from './CommunicationInitiationProtocolMessages';
 import Connection from '../../Connection/Connection';
 import EncryptionPlugin from '../../Connection/plugins/EncryptionPlugin';
 import {
@@ -25,6 +27,7 @@ import {
 import PromisePlugin from '../../Connection/plugins/PromisePlugin';
 import {KeepAlivePlugin} from '../../Connection/plugins/KeepAlivePlugin';
 import FragmentationPlugin from '../../Connection/plugins/FragmentationPlugin';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 
@@ -64,24 +67,19 @@ export type StoppablePromise<T> = Promise<T> & {stop: () => void};
  *       party sees who communicates with whom which hurts privacy.
  *
  * @param url - Url to connect to
- * @param localPublicKey - Public key of ourselves
- * @param remotePublicKey - Public key of the target
- * @param encrypt - Encrypt function for exchanging temporary keys
- * @param decrypt - Decrypt function for exchanging temporary keys
+ * @param cryptoApi
  */
 export async function connectWithEncryption(
     url: string,
-    localPublicKey: PublicKey,
-    remotePublicKey: PublicKey,
-    encrypt: (text: Uint8Array) => Uint8Array,
-    decrypt: (cypher: Uint8Array) => Uint8Array
+    cryptoApi: SymmetricCryptoApiWithKeys
 ): Promise<ConnectionInfo> {
+    const localPublicKey = castToLocalPublicKey(cryptoApi.localPublicKey);
+    const remotePublicKey = castToRemotePublicKey(cryptoApi.remotePublicKey);
+
     const connection = new Connection(createWebSocket(url));
     MessageBus.send(
         'debug',
-        `${connection.id} connectWithEncryption(${url}, ${uint8arrayToHexString(
-            localPublicKey
-        )}, ${uint8arrayToHexString(remotePublicKey)})`
+        `${connection.id} connectWithEncryption(${url}, ${localPublicKey}, ${remotePublicKey})`
     );
 
     connection.addPlugin(new PromisePlugin());
@@ -95,8 +93,8 @@ export async function connectWithEncryption(
         MessageBus.send('debug', `${connection.id}: Phase 1.1: send communication_request`);
         await sendUnencryptedClientMessage(connection, {
             command: 'communication_request',
-            sourcePublicKey: uint8arrayToHexString(localPublicKey),
-            targetPublicKey: uint8arrayToHexString(remotePublicKey)
+            sourcePublicKey: localPublicKey,
+            targetPublicKey: remotePublicKey
         });
 
         // Phase 1.2: Wait for the other side to signal us that it is ready to receive data
@@ -113,12 +111,14 @@ export async function connectWithEncryption(
         );
 
         const tempKeyPair = tweetnacl.box.keyPair();
-        connection.send(encrypt(tempKeyPair.publicKey));
+        connection.send(cryptoApi.encryptAndEmbedNonce(tempKeyPair.publicKey));
 
         // Phase 2.2: Wait for the public key from the other side
         MessageBus.send('debug', `${connection.id}: Phase 2.2: wait for and decrypt public key`);
 
-        const publicKeyOther = decrypt(await connection.promisePlugin().waitForBinaryMessage());
+        const publicKeyOther = cryptoApi.decryptWithEmbeddedNonce(
+            await connection.promisePlugin().waitForBinaryMessage()
+        );
 
         // Phase 2.3: Derive shared key and setup encrypted connection object
         MessageBus.send('debug', `${connection.id}: Phase 2.3: derive shared key`);
@@ -132,21 +132,17 @@ export async function connectWithEncryption(
 
         MessageBus.send(
             'debug',
-            `${connection.id} connectWithEncryption(${url}, ${uint8arrayToHexString(
-                localPublicKey
-            )}, ${uint8arrayToHexString(remotePublicKey)}) - success`
+            `${connection.id} connectWithEncryption(${url}, ${localPublicKey}, ${remotePublicKey}) - success`
         );
         return {
             connection,
-            myKey: localPublicKey,
-            remoteKey: remotePublicKey
+            myKey: cryptoApi.localPublicKey,
+            remoteKey: cryptoApi.remotePublicKey
         };
     } catch (e) {
         MessageBus.send(
             'debug',
-            `${connection.id} connectWithEncryption(${url}, ${uint8arrayToHexString(
-                localPublicKey
-            )}, ${uint8arrayToHexString(remotePublicKey)}) - failure: ${e}`
+            `${connection.id} connectWithEncryption(${url}, ${localPublicKey}, ${remotePublicKey}) - failure: ${e}`
         );
         connection.close(e.toString());
         throw e;
@@ -161,25 +157,20 @@ export async function connectWithEncryption(
  * one way to
  *
  * @param url
- * @param localPublicKey
- * @param remotePublicKey
- * @param encrypt
- * @param decrypt
+ * @param cryptoApi
  * @param retryTimeout
  */
 export function connectWithEncryptionUntilSuccessful(
     url: string,
-    localPublicKey: PublicKey,
-    remotePublicKey: PublicKey,
-    encrypt: (text: Uint8Array) => Uint8Array,
-    decrypt: (cypher: Uint8Array) => Uint8Array,
+    cryptoApi: SymmetricCryptoApiWithKeys,
     retryTimeout = 5000
 ): StoppablePromise<ConnectionInfo> {
+    const localPublicKey = castToLocalPublicKey(cryptoApi.localPublicKey);
+    const remotePublicKey = castToRemotePublicKey(cryptoApi.remotePublicKey);
+
     MessageBus.send(
         'log',
-        `connectWithEncryptionUntilSuccessful(${url}, ${uint8arrayToHexString(
-            localPublicKey
-        )}, ${uint8arrayToHexString(remotePublicKey)})`
+        `connectWithEncryptionUntilSuccessful(${url}, ${localPublicKey}, ${remotePublicKey})`
     );
 
     // eslint-disable-next-line func-style
@@ -196,13 +187,7 @@ export function connectWithEncryptionUntilSuccessful(
             try {
                 // Try to establish a connection
                 // eslint-disable-next-line no-await-in-loop
-                const connInfo = await connectWithEncryption(
-                    url,
-                    localPublicKey,
-                    remotePublicKey,
-                    encrypt,
-                    decrypt
-                );
+                const connInfo = await connectWithEncryption(url, cryptoApi);
 
                 // If a connection was established after stop was called we still reject the
                 // promise, because it makes caller code easier if stop() guarantees a reject.
@@ -213,11 +198,7 @@ export function connectWithEncryptionUntilSuccessful(
 
                 MessageBus.send(
                     'log',
-                    `${
-                        connInfo.connection.id
-                    } connectWithEncryptionUntilSuccessful(${url}, ${uint8arrayToHexString(
-                        localPublicKey
-                    )}, ${uint8arrayToHexString(remotePublicKey)}) - success`
+                    `${connInfo.connection.id} connectWithEncryptionUntilSuccessful(${url}, ${localPublicKey}, ${remotePublicKey}) - success`
                 );
 
                 return connInfo;
@@ -265,15 +246,11 @@ export function connectWithEncryptionUntilSuccessful(
  * If something goes wrong the passed websocket connection will be closed.
  *
  * @param connection
- * @param allowedLocalPublicKeys
- * @param encrypt
- * @param decrypt
+ * @param cryptoApis
  */
 export async function acceptWithEncryption(
     connection: Connection,
-    allowedLocalPublicKeys: PublicKey[],
-    encrypt: (pubKeyOther: PublicKey, text: Uint8Array) => Uint8Array,
-    decrypt: (pubKeyOther: PublicKey, cypher: Uint8Array) => Uint8Array
+    cryptoApis: CryptoApi[]
 ): Promise<ConnectionInfo> {
     MessageBus.send('log', `acceptWithEncryption(${connection.id})`);
 
@@ -285,14 +262,14 @@ export async function acceptWithEncryption(
         MessageBus.send('debug', `${connection.id}: Phase 1.1: wait for communication_request`);
 
         const request = await waitForUnencryptedClientMessage(connection, 'communication_request');
-        const targetPublicKey = ensurePublicKey(hexToUint8Array(request.targetPublicKey));
-        const sourcePublicKey = ensurePublicKey(hexToUint8Array(request.sourcePublicKey));
+        const localPublicKey = ensurePublicKey(hexToUint8Array(request.targetPublicKey));
+        const remotePublicKey = ensurePublicKey(hexToUint8Array(request.sourcePublicKey));
 
         MessageBus.send(
             'debug',
             `${connection.id}: Phase 1.1x: ${request.targetPublicKey} ${
                 request.sourcePublicKey
-            } [${allowedLocalPublicKeys.map(e => uint8arrayToHexString(e)).join(',')}]`
+            } [${cryptoApis.map(api => uint8arrayToHexString(api.publicEncryptionKey)).join(',')}]`
         );
 
         // Phase 1.2: Signal the other side that we are ready to receive messages
@@ -302,18 +279,18 @@ export async function acceptWithEncryption(
         // ######## Special Phase: Check if we want to accept the other side ########
         MessageBus.send('debug', `${connection.id}: Phase 1.3: check our desire to communicate`);
 
-        // Phase 1.3: Check whether the request has come through the right endpoint
-        //            (someone might probe an anonymous endpoint for the real id)
-        let rejectConnection = true;
+        // Phase 1.3: Check whether the request has come through the right endpoint - so if we
+        // have a crypto api that can serve the requested public key
+        let cryptoApi;
 
-        for (const allowedKey of allowedLocalPublicKeys) {
-            if (tweetnacl.verify(targetPublicKey, allowedKey)) {
-                rejectConnection = false;
+        for (const potentialCryptoApi of cryptoApis) {
+            if (tweetnacl.verify(localPublicKey, potentialCryptoApi.publicEncryptionKey)) {
+                cryptoApi = potentialCryptoApi;
                 // No break here, so that the loop execution time stays constant
-                // compared between success and failure.
-                // It is not constant when the
-                // number of allowed public keys changes, but for now it is not so bad, because
-                // anonymous endpoints should only have one element.
+                // compared between success and failure. This constant time doesn't give us much
+                // right now, because the code changed and I cannot proof it against certain
+                // spy scenarios right now, so we need to reevaluate attack vectors. Perhaps we
+                // don't need the constant time ... but let's keep it for now.
             }
         }
 
@@ -325,8 +302,12 @@ export async function acceptWithEncryption(
         // TODO: implement this step (select communication partners)
         MessageBus.send(
             'debug',
-            `${connection.id}: Phase 1.3: ${rejectConnection ? 'rejected' : 'accepted'}`
+            `${connection.id}: Phase 1.3: ${cryptoApi ? 'accepted' : 'rejected'}`
         );
+
+        if (!cryptoApi) {
+            throw new Error('We do not accept connections for this target public key');
+        }
 
         // ######## Phase 2: Setup encryption ########
         MessageBus.send('debug', `${connection.id}: Phase 2: exchange keys`);
@@ -334,22 +315,16 @@ export async function acceptWithEncryption(
         // Phase 2.2: Wait for the public key from the other side
         MessageBus.send('debug', `${connection.id}: Phase 2.1: wait for and decrypt public key`);
 
-        const publicKeyOther = decrypt(
-            sourcePublicKey,
-            await connection.promisePlugin().waitForBinaryMessage()
-        );
+        const encKey = await connection.promisePlugin().waitForBinaryMessage();
+        const publicKeyOther = cryptoApi.decryptWithEmbeddedNonce(encKey, remotePublicKey);
 
         // Note that termination of a connection should always be done after the peer proved,
-        // that it has the public key, but before we proved, that we have our public key. This
+        // that it has the private key, but before we proved, that we have our public key. This
         // means that we don't expose any information about what identities we have, because the
         // following scenarios terminate at the same point in protocol and also if possible at
         // the exact same time (side channel timing attacks!)
         // - we don't know the person and don't want to communicate with it
         // - we are not the identity that the other side wants to connect to
-        if (rejectConnection) {
-            // noinspection ExceptionCaughtLocallyJS
-            throw new Error('Connection request rejected.');
-        }
 
         // Phase 2.2: Generate keypair and send the public key to the other side
         MessageBus.send(
@@ -358,11 +333,10 @@ export async function acceptWithEncryption(
         );
 
         const tempKeyPair = tweetnacl.box.keyPair();
-        connection.send(encrypt(sourcePublicKey, tempKeyPair.publicKey));
+        connection.send(cryptoApi.encryptAndEmbedNonce(tempKeyPair.publicKey, remotePublicKey));
 
         // Phase 2.3: Derive shared key and setup encrypted connection object
         MessageBus.send('debug', `${connection.id}: Phase 2.3: derive shared key`);
-
         const sharedKey = tweetnacl.box.before(publicKeyOther, tempKeyPair.secretKey);
         MessageBus.send('debug', `${connection.id}: Phase 2.3: derive shared key - END`);
         connection.addPlugin(new EncryptionPlugin(sharedKey, true), {before: 'promise'});
@@ -374,13 +348,13 @@ export async function acceptWithEncryption(
         MessageBus.send(
             'log',
             `acceptWithEncryption(${connection.id}, ${uint8arrayToHexString(
-                targetPublicKey
-            )}, ${uint8arrayToHexString(sourcePublicKey)}) - success`
+                localPublicKey
+            )}, ${uint8arrayToHexString(remotePublicKey)}) - success`
         );
         return {
             connection,
-            myKey: targetPublicKey,
-            remoteKey: sourcePublicKey
+            myKey: localPublicKey,
+            remoteKey: remotePublicKey
         };
     } catch (e) {
         MessageBus.send('log', `acceptWithEncryption(${connection.id}) - failure: ${e}`);

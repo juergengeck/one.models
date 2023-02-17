@@ -1,3 +1,4 @@
+import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
 import type Connection from '../Connection/Connection';
 import type ConnectionRoute from './routes/ConnectionRoute';
 
@@ -6,8 +7,8 @@ export type ConnectionRoutes = {route: ConnectionRoute; disabled: boolean}[];
 export type ConnectionGroup = {
     // part of the map key
     connectionGroupName: string;
-    localPublicKey: Uint8Array;
-    remotePublicKey: Uint8Array;
+    localPublicKey: PublicKey;
+    remotePublicKey: PublicKey;
     isCatchAllGroup: boolean;
 
     // Connection & routes

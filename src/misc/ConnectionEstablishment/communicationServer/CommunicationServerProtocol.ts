@@ -1,6 +1,6 @@
 import {isHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {CommunicationRequestMessage} from '../protocols/CommunicationInitiationProtocol';
+import type {CommunicationRequestMessage} from '../protocols/CommunicationInitiationProtocolMessages';
 
 /**
  * Protocol that defines messages used for communication between communication server and registering clients.

@@ -31,7 +31,7 @@ import {
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {LocalInstanceInfo} from '../../misc/CommunicationModule';
+import type {LocalInstanceInfo} from '../../misc/LeuteConnectionsModule';
 import {
     getInstancesOfPerson,
     getLocalInstanceOfPerson,
@@ -605,8 +605,9 @@ export default class LeuteModel extends Model {
 
         const someone = await this.getSomeone(personId);
         if (someone === undefined) {
-            throw new Error('');
+            return [];
         }
+
         return someone.collectAllEndpointsOfType('OneInstanceEndpoint', personId);
     }
 
@@ -708,8 +709,7 @@ export default class LeuteModel extends Model {
 
             localInstances.push({
                 instanceId,
-                cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
-                instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+                instanceCryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
                 personId: identity
             });
         }
