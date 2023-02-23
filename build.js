@@ -27,7 +27,6 @@ const {execSync} = require('child_process');
 
 const {access, chmod, mkdir, rmdir, readdir, readFile, writeFile, rename, unlink} = fs.promises;
 
-// @ts-ignore
 const babel = require('@babel/core');
 
 /**
@@ -71,19 +70,12 @@ const BABEL_MODULE_TARGETS = {
     umd: '@babel/plugin-transform-modules-umd'
 };
 
-/**
- * @type {{
- *   presets: string[],
- *   plugins: any[],
- *   comments: boolean,
- *   filename: string
- * }}
- */
 const BABEL_OPTS = {
     presets: [
         '@babel/preset-typescript'
         // 'minify'
     ],
+    sourceMap: true,
     plugins: [
         [
             '@babel/plugin-transform-typescript',
@@ -219,18 +211,33 @@ async function deleteDirectory(dir) {
 /**
  * @param {string} code
  * @param {object} options - See https://babeljs.io/docs/en/options
- * @returns {Promise<string>} Returns the transformed code string
+ * @returns {Promise<{code:string, map:any}>} Returns the transformed code string
  */
 function transform(code, options) {
     return new Promise((resolve, reject) => {
         // See https://babeljs.io/docs/en/babel-core
         // result: {code, map, ast}
-        babel.transform(code, options, (/** @type {Error|null}*/ err, /** @type {any}*/ result) => {
+        babel.transform(code, options, (err, result) => {
             if (err) {
                 return reject(err);
             }
 
-            return resolve(result.code);
+            if (result === null) {
+                return reject(new Error('transform() result is null'));
+            }
+
+            if (result.code === undefined || result.code === null) {
+                return reject(new Error('transform() result.code is null'));
+            }
+
+            if (result.map === undefined || result.map === null) {
+                return reject(new Error('transform() result.code is null'));
+            }
+
+            return resolve({
+                code: result.code.replace(/(\nimport [^"']+["'])([^"']+).[tj]s(["'];)/gm, '$1$2$3'),
+                map: result.map
+            });
         });
     });
 }
@@ -276,7 +283,13 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
 
         const transformedCode = await transform(code, BABEL_OPTS);
-        await writeFile(destination + fileExtension, transformedCode, {flag: 'w'});
+        transformedCode.code += `\n//# sourceMappingURL=${file.replace(/\.ts$/, '')}.js.map`;
+        await writeFile(destination + fileExtension, transformedCode.code, {flag: 'w'});
+
+        transformedCode.map.sources[0] = `../${srcDir}/` + transformedCode.map.sources[0];
+        await writeFile(destination + '.js.map', JSON.stringify(transformedCode.map), {
+            flag: 'w'
+        });
 
         if (destination.endsWith(join('tools', file.replace(/\.ts$/, '')))) {
             await chmod(destination + fileExtension, '755');
@@ -362,11 +375,12 @@ async function readPkgJsonRefinio(dir) {
     } catch (_err) {
         // It is not a task of this build script to check for errors in package.json, and not
         // finding the file is not an error to begin with.
+        return {};
     }
 }
 
 /**
- * Iterare directories starting with the project directory and then upwards all the was to "/".
+ * Iterate directories starting with the project directory and then upwards all the was to "/".
  * Check for a `package.json` file. Check for `refinio.platform` (string property). Remember the
  * last find. Sop iterating at the top and return the last find or undefined.
  * @returns {Promise<string|undefined>}
