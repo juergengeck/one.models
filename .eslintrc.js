@@ -74,17 +74,7 @@ module.exports = {
         '@typescript-eslint/no-misused-promises': ['error', {checksVoidReturn: false}],
         '@typescript-eslint/no-require-imports': 'off',
         '@typescript-eslint/no-shadow': 'warn',
-        '@typescript-eslint/no-unused-vars': [
-            'warn',
-            {
-                vars: 'all',
-                args: 'all',
-                argsIgnorePattern: '^_|^ignore',
-                varsIgnorePattern: '^_|^ignore',
-                caughtErrors: 'all',
-                caughtErrorsIgnorePattern: '^ignore'
-            }
-        ],
+        '@typescript-eslint/no-unused-vars': ['off'],
         '@typescript-eslint/no-unsafe-argument': 'off',
         '@typescript-eslint/no-unsafe-assignment': 'off',
         '@typescript-eslint/no-unsafe-call': 'off',
@@ -221,10 +211,10 @@ module.exports = {
         'no-irregular-whitespace': 'error',
         'no-lonely-if': 'error',
         // Disallow mixes of different operators
-        'no-mixed-operators': 'error',
+        'no-mixed-operators': 'off',
         'no-mixed-spaces-and-tabs': 'error',
         'no-multi-spaces': ['error', {ignoreEOLComments: true}],
-        'no-negated-condition': 'warn',
+        'no-negated-condition': 'off',
         // Disallow negation of the left operand of an in expression
         'no-negated-in-lhs': 'error',
         // Disallow Symbol Constructor

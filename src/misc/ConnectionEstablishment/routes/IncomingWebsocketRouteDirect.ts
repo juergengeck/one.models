@@ -1,4 +1,4 @@
-import type {CryptoApi} from '../../../../../one.core/lib/crypto/CryptoApi';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type ConnectionRoute from './ConnectionRoute';
 import IncomingConnectionManager from '../IncomingConnectionManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
