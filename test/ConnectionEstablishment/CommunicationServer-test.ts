@@ -1,21 +1,17 @@
-import CommunicationServer from '../lib/misc/CommunicationServer';
+import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import CommunicationServer from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServer';
 import CommunicationServerListener, {
     CommunicationServerListenerState
-} from '../lib/misc/CommunicationServerListener';
+} from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServerListener';
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import Connection from '../lib/misc/Connections/Connection';
-import PromisePlugin from '../lib/misc/Connections/plugins/PromisePlugin';
-import {
-    decryptWithEmbeddedNonce,
-    encryptAndEmbedNonce,
-    ensurePublicKey,
-    ensureSecretKey
-} from '@refinio/one.core/lib/crypto/encryption';
+import Connection from '../../lib/misc/Connection/Connection';
+import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin';
+import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption';
 
 /*import * as Logger from '@refinio/one.core/lib/logger';
 Logger.start();*/
@@ -49,32 +45,16 @@ describe('communication server tests', () => {
     it('Register client open connection to commserver and exchange messages', async function () {
         // Setup the listening connection - it mirrors the messages back
         let listenerFailure: any | null = null;
-        const listenerKeyPair = tweetnacl.box.keyPair();
-        let commServerListener = new CommunicationServerListener(1, 1000);
-        commServerListener.onChallenge(
-            (challenge: Uint8Array, publicKey: Uint8Array): Uint8Array => {
-                const decryptedChallenge = decryptWithEmbeddedNonce(
-                    challenge,
-                    ensureSecretKey(listenerKeyPair.secretKey),
-                    ensurePublicKey(publicKey)
-                );
-                for (let i = 0; i < decryptedChallenge.length; ++i) {
-                    decryptedChallenge[i] = ~decryptedChallenge[i];
-                }
-                return encryptAndEmbedNonce(
-                    decryptedChallenge,
-                    ensureSecretKey(listenerKeyPair.secretKey),
-                    ensurePublicKey(publicKey)
-                );
-            }
-        );
+        const listenerKeyPair = createKeyPair();
+        const cryptoApi = new CryptoApi(listenerKeyPair);
+        const commServerListener = new CommunicationServerListener(cryptoApi, 1, 1000);
         commServerListener.onConnection(async (connection: Connection) => {
             if (connection.websocketPlugin().webSocket === null) {
                 throw new Error('ws.webSocket is null');
             }
             try {
                 while (connection.websocketPlugin().webSocket!.readyState === WebSocketWS.OPEN) {
-                    await connection.send(await connection.promisePlugin().waitForMessage(1000));
+                    connection.send(await connection.promisePlugin().waitForMessage(1000));
                 }
             } catch (e) {
                 // This will also fail on a closing connection, but this is okay, because the listenerFailure
@@ -82,12 +62,12 @@ describe('communication server tests', () => {
                 listenerFailure = e;
             }
         });
-        commServerListener.start('ws://localhost:8080', listenerKeyPair.publicKey);
+        commServerListener.start('ws://localhost:8080');
 
         try {
             // Wait until the state changes to listening.
             let retryCount = 0;
-            while (commServerListener.state != CommunicationServerListenerState.Listening) {
+            while (commServerListener.state !== CommunicationServerListenerState.Listening) {
                 await wait(500);
                 ++retryCount;
                 if (++retryCount >= 5) {
@@ -97,14 +77,14 @@ describe('communication server tests', () => {
 
             // Setup outgoing connection and send something
             const clientKeyPair = tweetnacl.box.keyPair();
-            let clientConn = new Connection(createWebSocket('ws://localhost:8080'));
+            const clientConn = new Connection(createWebSocket('ws://localhost:8080'));
             clientConn.addPlugin(new PromisePlugin());
 
             try {
                 await clientConn.waitForOpen(1000);
 
                 // MESSAGE1 SEND: Send the communication request message that will tell the comm server where to forward the connection to
-                await clientConn.send(
+                clientConn.send(
                     JSON.stringify({
                         command: 'communication_request',
                         sourcePublicKey: uint8arrayToHexString(clientKeyPair.publicKey),
@@ -123,7 +103,7 @@ describe('communication server tests', () => {
                 );
 
                 // MESSAGE2 SEND:
-                await clientConn.send('Hello Friend!');
+                clientConn.send('Hello Friend!');
 
                 // MESSAGE2 RECEIVE:
                 const msg2 = await clientConn.promisePlugin().waitForMessage();
@@ -136,7 +116,7 @@ describe('communication server tests', () => {
                 clientConn.close();
             }
         } finally {
-            await commServerListener.stop();
+            commServerListener.stop();
         }
     }).timeout(10000);
 });

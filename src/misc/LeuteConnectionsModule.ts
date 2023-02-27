@@ -3,17 +3,16 @@ import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints'
 import {
     castToLocalPublicKey,
     castToRemotePublicKey
-} from './ConnectionEstablishment/ConnectionGroupMap';
-import type {LocalPublicKey} from './ConnectionEstablishment/ConnectionGroupMap';
+} from './ConnectionEstablishment/ConnectionRoutesGroupMap';
+import type {LocalPublicKey} from './ConnectionEstablishment/ConnectionRoutesGroupMap';
 import ConnectionRouteManager from './ConnectionEstablishment/ConnectionRouteManager';
+import {exchangeInstanceIdObjects} from './ConnectionEstablishment/protocols/ExchangeInstanceIds';
+import {verifyAndExchangePersonId} from './ConnectionEstablishment/protocols/ExchangePersonIds';
 import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {
-    hexToUint8Array,
-    uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connection/Connection';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
@@ -22,8 +21,7 @@ import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
-import {getLocalInstanceOfPerson, hasPersonLocalInstance} from './instance';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {getLocalInstanceOfPerson} from './instance';
 import {isPersonComplete} from './person';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -79,37 +77,31 @@ export type SocketConfiguration = {
 
 export type IncomingConnectionConfiguration = CommserverConfiguration | SocketConfiguration;
 
-export type OutgoingConnectionConfiguration =
-    | {
-          enabled: true;
-          reconnectDelay: number;
-      }
-    | {
-          enabled: false;
-      };
-
 export type CommunicationModuleConfiguration = {
     // The configuration for incoming connections
     // Default: An empty list => do not accept any incoming connections
     incomingConnectionConfigurations: IncomingConnectionConfiguration[];
 
     // The configuration for outgoing connections
-    // Default: Use the defaults specified in OutgoingConnectionConfiguration
-    outgoingConnectionConfiguration: OutgoingConnectionConfiguration;
+    // Default: No outgoing connections
+    outgoingRoutesGroupIds: string[];
+
+    // The configuration for incoming connections
+    // Default: No incoming connections
+    incomingRoutesGroupIds: string[];
+
+    // The reconnect delay for outgoing connections
+    reconnectDelay: number;
 };
 
 type PeerId = string & {
     _: 'OneInstanceEndpointId';
 };
 
-function createPeerId(
-    localPublicKey: PublicKey,
-    remotePublicKey: PublicKey,
-    connectionGroupName: string
-): PeerId {
+function createPeerId(localPublicKey: PublicKey, remotePublicKey: PublicKey): PeerId {
     return `localKey: ${castToLocalPublicKey(localPublicKey)}, remoteKey: ${castToRemotePublicKey(
         remotePublicKey
-    )}, groupName: ${connectionGroupName}` as PeerId;
+    )}` as PeerId;
 }
 
 /**
@@ -166,11 +158,12 @@ export default class LeuteConnectionsModule {
     public onUnknownConnection = new OEvent<
         (
             conn: Connection,
-            localPublicKey: Uint8Array,
-            remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
+            localInstanceId: SHA256IdHash<Instance>,
+            remotePersonId: SHA256IdHash<Person>,
+            remoteInstanceId: SHA256IdHash<Instance>,
             initiatedLocally: boolean,
-            connectionGroupName: string
+            routeGropuId: string
         ) => void
     >();
 
@@ -180,12 +173,12 @@ export default class LeuteConnectionsModule {
     public onKnownConnection = new OEvent<
         (
             conn: Connection,
-            localPublicKey: Uint8Array,
-            remotePublicKey: Uint8Array,
             localPersonId: SHA256IdHash<Person>,
+            localInstanceId: SHA256IdHash<Instance>,
             remotePersonId: SHA256IdHash<Person>,
+            remoteInstanceId: SHA256IdHash<Instance>,
             initiatedLocally: boolean,
-            connectionGroupName: string
+            routeGropuId: string
         ) => void
     >();
 
@@ -225,21 +218,15 @@ export default class LeuteConnectionsModule {
                 config.incomingConnectionConfigurations !== undefined
                     ? config.incomingConnectionConfigurations
                     : [],
-            outgoingConnectionConfiguration:
-                config.outgoingConnectionConfiguration !== undefined
-                    ? config.outgoingConnectionConfiguration
-                    : {
-                          enabled: true,
-                          reconnectDelay: 5000
-                      }
+            outgoingRoutesGroupIds:
+                config.outgoingRoutesGroupIds !== undefined ? config.outgoingRoutesGroupIds : [],
+            incomingRoutesGroupIds:
+                config.incomingRoutesGroupIds !== undefined ? config.incomingRoutesGroupIds : [],
+            reconnectDelay: config.reconnectDelay !== undefined ? config.reconnectDelay : 5000
         };
 
         this.leuteModel = leuteModel;
-        this.connectionRouteManager = new ConnectionRouteManager(
-            this.config.outgoingConnectionConfiguration.enabled
-                ? this.config.outgoingConnectionConfiguration.reconnectDelay
-                : 5000
-        );
+        this.connectionRouteManager = new ConnectionRouteManager(this.config.reconnectDelay);
 
         this.knownPeerMap = new Map<PeerId, OneInstanceEndpoint>();
         this.unknownPeerMap = new Map<string, Connection>();
@@ -251,7 +238,7 @@ export default class LeuteConnectionsModule {
         // Setup route manager events
         this.connectionRouteManager.onConnection(this.acceptConnection.bind(this));
         this.connectionRouteManager.onConnectionViaCatchAll(
-            this.acceptConnectionCatchAll.bind(this)
+            this.acceptConnectionViaCatchAll.bind(this)
         );
 
         this.connectionRouteManager.onOnlineStateChange((onlineState: boolean) => {
@@ -332,37 +319,6 @@ export default class LeuteConnectionsModule {
     }
 
     /**
-     * Adds an already existing connection to the unknown list, so that it can then be
-     * transferred to the known list, when the corresponding contact object arrives.
-     *
-     * This has one single purpose:
-     * Consider you are currently pairing with a new instance. As soon as you exchange contact objects, this module
-     * will start trying to make an outgoing connection, because it thinks that there is no connection. So you
-     * have two choices:
-     * 1) Kill the original connection and let the module establish a new one (probably hard to find the correct point in time)
-     * 2) Give this module before synchronization of contact objects the connection, so that it knows it does not have to
-     *    establish a new connection. --> This is what this function is for.
-     *
-     * @param localPublicKey - the local public key used to identify the connection
-     * @param remotePublicKey - the remote public key used to identify the connection
-     * @param conn - the connection
-     */
-    public addNewUnknownConnection(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey,
-        conn: Connection
-    ): void {
-        /*const mapKey = genMapKey(localPublicKey, remotePublicKey);
-        this.unknownPeerMap.set(mapKey, conn);
-        // const webSocket = conn.websocketPlugin().webSocket;
-        conn.state.onEnterState(newState => {
-            if (newState === 'closed') {
-                this.unknownPeerMap.delete(mapKey);
-            }
-        });*/
-    }
-
-    /**
      * Return information about all known connections.
      *
      * @returns
@@ -399,7 +355,7 @@ export default class LeuteConnectionsModule {
             await this.setupRoutesForOneInstanceEndpoint(endpoint.instanceEndpoint);
         }
 
-        // Setup incoming routes
+        // Setup incoming catch all routes
         for (const myInfo of this.myPublicKeyToInstanceInfoMap.values()) {
             for (const config of this.config.incomingConnectionConfigurations) {
                 if (!config.catchAll) {
@@ -425,6 +381,11 @@ export default class LeuteConnectionsModule {
         this.onConnectionsChange.emit();
     }
 
+    /**
+     *
+     * @param remoteInstanceEndpoint
+     * @private
+     */
     private async setupRoutesForOneInstanceEndpoint(remoteInstanceEndpoint: OneInstanceEndpoint) {
         const remoteInstanceKeys = await getObject(remoteInstanceEndpoint.instanceKeys);
         const remoteInstanceKey = ensurePublicKey(hexToUint8Array(remoteInstanceKeys.publicKey));
@@ -433,38 +394,41 @@ export default class LeuteConnectionsModule {
         for (const myInfo of this.myPublicKeyToInstanceInfoMap.values()) {
             const peerId = createPeerId(
                 myInfo.instanceCryptoApi.publicEncryptionKey,
-                remoteInstanceKey,
-                remoteInstanceEndpoint.connectionGroupId || 'default'
+                remoteInstanceKey
             );
-
-            if (this.knownPeerMap.get(peerId) !== undefined) {
-                continue;
-            }
 
             // Setup outgoing routes
-            this.connectionRouteManager.addOutgoingWebsocketRoute(
-                myInfo.instanceCryptoApi.createEncryptionApiWithKeysWith(remoteInstanceKey),
-                remoteInstanceEndpoint.url,
-                remoteInstanceEndpoint.connectionGroupId
-            );
+            if (remoteInstanceEndpoint.url !== undefined) {
+                for (const outgoingRoutesGroupId of this.config.outgoingRoutesGroupIds) {
+                    this.connectionRouteManager.addOutgoingWebsocketRoute(
+                        myInfo.instanceCryptoApi.createEncryptionApiWithKeysAndPerson(
+                            remoteInstanceKey
+                        ),
+                        remoteInstanceEndpoint.url,
+                        outgoingRoutesGroupId
+                    );
+                }
+            }
 
             // Setup incoming routes
-            for (const config of this.config.incomingConnectionConfigurations) {
-                if (config.type === 'commserver') {
-                    this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
-                        myInfo.instanceCryptoApi,
-                        remoteInstanceKey,
-                        config.url,
-                        remoteInstanceEndpoint.connectionGroupId
-                    );
-                } else if (config.type === 'socket') {
-                    this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
-                        myInfo.instanceCryptoApi,
-                        remoteInstanceKey,
-                        config.host,
-                        config.port,
-                        remoteInstanceEndpoint.connectionGroupId
-                    );
+            for (const incomingRoutesGroupId of this.config.incomingRoutesGroupIds) {
+                for (const config of this.config.incomingConnectionConfigurations) {
+                    if (config.type === 'commserver') {
+                        this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
+                            myInfo.instanceCryptoApi,
+                            remoteInstanceKey,
+                            config.url,
+                            incomingRoutesGroupId
+                        );
+                    } else if (config.type === 'socket') {
+                        this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
+                            myInfo.instanceCryptoApi,
+                            remoteInstanceKey,
+                            config.host,
+                            config.port,
+                            incomingRoutesGroupId
+                        );
+                    }
                 }
             }
 
@@ -472,6 +436,10 @@ export default class LeuteConnectionsModule {
         }
     }
 
+    /**
+     *
+     * @private
+     */
     private async fetchOtherOneInstanceEndpointsFromLeute(): Promise<
         {instanceEndpoint: OneInstanceEndpoint; isIom: boolean}[]
     > {
@@ -540,7 +508,7 @@ export default class LeuteConnectionsModule {
         );
     }
 
-    // ######## Setup outgoing connections functions ########
+    // ######## Event handlers ########
 
     /**
      * Accept a new connection.
@@ -550,19 +518,17 @@ export default class LeuteConnectionsModule {
      * @param conn - The encrypted connection that was accepted.
      * @param localPublicKey - The public key of the local instance
      * @param remotePublicKey - The public key of the remote peer
-     * @param connectionGroupName
-     * @param routeId
-     * @param initiatedLocally - If outgoing connection, then this should be set to true, otherwise false
+     * @param connectionRoutesGroupName
+     * @param initiatedLocally
      */
-    private acceptConnection(
+    private async acceptConnection(
         conn: Connection,
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        connectionGroupName: string,
-        _routeId: string,
-        _initiatedLocally: boolean
-    ): void {
-        const peerId = createPeerId(localPublicKey, remotePublicKey, connectionGroupName);
+        connectionRoutesGroupName: string,
+        initiatedLocally: boolean
+    ): Promise<void> {
+        const peerId = createPeerId(localPublicKey, remotePublicKey);
 
         const oneInstanceEndpoint = this.knownPeerMap.get(peerId);
         if (oneInstanceEndpoint === undefined) {
@@ -583,31 +549,123 @@ export default class LeuteConnectionsModule {
             return;
         }
 
-        // Veri
+        const personInfo = await verifyAndExchangePersonId(
+            this.leuteModel,
+            conn,
+            myInfo.personId,
+            initiatedLocally,
+            oneInstanceEndpoint.personId
+        );
+
+        const instanceInfo = await exchangeInstanceIdObjects(conn, myInfo.instanceId);
+
+        if (oneInstanceEndpoint.instanceId !== instanceInfo.remoteInstanceId) {
+            throw new Error(
+                'The instance id we have on record for your specified public key does not match' +
+                    ' the instance id that you sent us.'
+            );
+        }
+
+        // Exchange these things:
+        // - Instance keys [already and verified by lower levels]
+        // - Person keys
+        // - Person Id(Obj)
+        // - Instance Id(Obj)
+
+        // ---- Before this ----
+        // receive instance key
+        // -> challenge the key
+        // ---- This ----
+        // receive instance id (hint)
+        // -> lookup key in instance entries
+        // receive person key
+        // -> challenge the key
+        // receive person id (this is a hint to faster find the key)
+        // -> lookup the key in the persons entries
+
+        this.onKnownConnection.emit(
+            conn,
+            myInfo.personId,
+            myInfo.instanceId,
+            oneInstanceEndpoint.personId,
+            oneInstanceEndpoint.instanceId,
+            initiatedLocally,
+            connectionRoutesGroupName
+        );
     }
 
-    private acceptConnectionCatchAll(
+    /**
+     *
+     * @param conn
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     * @param initiatedLocally
+     * @private
+     */
+    private async acceptConnectionViaCatchAll(
         conn: Connection,
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        connectionGroupName: string,
-        routeId: string,
+        connectionRoutesGroupName: string,
         initiatedLocally: boolean
-    ): void {
+    ): Promise<void> {
+        const peerId = createPeerId(localPublicKey, remotePublicKey);
+
+        const oneInstanceEndpoint = this.knownPeerMap.get(peerId);
+
         const myInfo = this.myPublicKeyToInstanceInfoMap.get(castToLocalPublicKey(localPublicKey));
         if (myInfo === undefined) {
             conn.close('Could not find the person that you want to communicate with.');
             return;
         }
 
-        // Notify the outside
-        this.onUnknownConnection.emit(
+        const personInfo = await verifyAndExchangePersonId(
+            this.leuteModel,
+            conn,
+            myInfo.personId,
+            initiatedLocally,
+            oneInstanceEndpoint?.personId
+        );
+
+        const instanceInfo = await exchangeInstanceIdObjects(conn, myInfo.instanceId);
+
+        if (oneInstanceEndpoint !== undefined) {
+            if (oneInstanceEndpoint.instanceId !== instanceInfo.remoteInstanceId) {
+                throw new Error(
+                    'The instance id we have on record for your specified public key does not match' +
+                        ' the instance id that you sent us.'
+                );
+            }
+
+            this.onKnownConnection.emit(
+                conn,
+                myInfo.personId,
+                myInfo.instanceId,
+                oneInstanceEndpoint.personId,
+                oneInstanceEndpoint.instanceId,
+                initiatedLocally,
+                connectionRoutesGroupName
+            );
+        } else {
+            this.onUnknownConnection.emit(
+                conn,
+                myInfo.personId,
+                myInfo.instanceId,
+                personInfo.personId,
+                instanceInfo.remoteInstanceId,
+                initiatedLocally,
+                connectionRoutesGroupName
+            );
+        }
+
+        /*this.onUnknownConnection.emit(
             conn,
             localPublicKey,
             remotePublicKey,
             myInfo.personId,
             initiatedLocally,
             connectionGroupName
-        );
+        );*/
     }
 }

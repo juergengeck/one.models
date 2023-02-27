@@ -1,9 +1,9 @@
 import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt';
 import tweetnacl from 'tweetnacl';
+import type {PrivatePersonInformationMessage} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
 import type ConnectionsModel from './ConnectionsModel';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {randomBytes} from 'crypto';
-import type CommunicationInitiationProtocol from '../misc/CommunicationInitiationProtocol';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {Model} from './Model';
@@ -20,8 +20,6 @@ import {
     symmetricEncryptAndEmbedNonce
 } from '@refinio/one.core/lib/crypto/encryption';
 import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-
-type PPersonInformationMessage = CommunicationInitiationProtocol.PrivatePersonInformationMessage;
 
 /**
  * For the recovery process the person email with the corresponding
@@ -203,7 +201,7 @@ export default class RecoveryModel extends Model {
 
         // overwrite person keys with the old ones
         // for private keys we first need to encrypt them with the new password
-        const privatePersonInformation: PPersonInformationMessage = {
+        const privatePersonInformation: PrivatePersonInformationMessage = {
             command: 'private_person_information',
             personId,
             personPublicKey: this.decryptedObject.personPublicKey,
@@ -254,7 +252,9 @@ export default class RecoveryModel extends Model {
      */
     private async extractPersonInformation(): Promise<PersonInformation> {
         // extract main person and anonymous person public and encrypted private keys
-        const privatePersonInformation = await this.connectionsModel.extractExistingPersonKeys();
+        const privatePersonInformation = {} as PrivatePersonInformationMessage; // Attention,
+        // this was faked, because no method will give us private keys at the moment! You eed to
+        // fix this in order to get the recovery model working again.
         // extract main person public keys
         const personPublicKey = privatePersonInformation.personPublicKey;
         const personPublicSignKey = privatePersonInformation.personPublicSignKey;
@@ -312,7 +312,7 @@ export default class RecoveryModel extends Model {
      * @private
      */
     private static async overwriteExistingPersonKeys(
-        _personInfo: PPersonInformationMessage
+        _personInfo: PrivatePersonInformationMessage
     ): Promise<void> {
         throw new Error(
             'Overwriting secret keys was disabled, because the keymanagement changed.' +

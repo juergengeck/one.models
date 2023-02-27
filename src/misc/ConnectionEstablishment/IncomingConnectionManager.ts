@@ -1,6 +1,6 @@
-import type {CryptoApi} from '../../../../one.core/lib/crypto/CryptoApi';
-import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
-import {createMessageBus} from '../../../../one.core/lib/message-bus';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import CommunicationServerListener, {
     CommunicationServerListenerState
 } from './communicationServer/CommunicationServerListener';
@@ -337,8 +337,6 @@ export default class IncomingConnectionManager {
         MessageBus.send('log', `${connection.id}: Accepted WebSocket`);
         try {
             const conn = await acceptWithEncryption(connection, cryptoApis);
-
-            // Step 6: E2E encryption is setup correctly. Pass the connection to a listener.
             this.onConnection.emit(conn.connection, conn.myKey, conn.remoteKey, listenerId);
         } catch (e) {
             MessageBus.send('log', `${connection.id}: ${e}`);

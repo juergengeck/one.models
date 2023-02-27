@@ -4,7 +4,6 @@ import type {
 } from '@OneObjectInterfaces';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
@@ -627,6 +626,44 @@ export default class LeuteModel extends Model {
     /**
      * Collect all remote instances of my other devices.
      */
+    public async getMyLocalEndpoints(
+        personId?: SHA256IdHash<Person>
+    ): Promise<OneInstanceEndpoint[]> {
+        const oneInstanceEndpoints: OneInstanceEndpoint[] = [];
+
+        const me = await this.me();
+
+        for (const identity of personId === undefined ? me.identities() : [personId]) {
+            const instances = await getInstancesOfPerson(identity);
+            const instancesMap = new Map(
+                instances.map(instance => [instance.instanceId, instance.local])
+            );
+
+            const endpoints = await me.collectAllEndpointsOfType('OneInstanceEndpoint', identity);
+
+            // Only keep the endpoints for which we do not have a complete keypair => remote
+            oneInstanceEndpoints.push(
+                ...endpoints.filter(endpoint => {
+                    const isLocal = instancesMap.get(endpoint.instanceId);
+
+                    if (isLocal === undefined) {
+                        console.error(
+                            `Internal error: We do not have an instance object for the OneInstanceEndpoint, instanceId: ${endpoint.instanceId}`
+                        );
+                        return false;
+                    }
+
+                    return isLocal;
+                })
+            );
+        }
+
+        return oneInstanceEndpoints;
+    }
+
+    /**
+     * Collect all remote instances of my other devices.
+     */
     public async getInternetOfMeEndpoints(): Promise<OneInstanceEndpoint[]> {
         const oneInstanceEndpoints: OneInstanceEndpoint[] = [];
 
@@ -730,8 +767,7 @@ export default class LeuteModel extends Model {
 
         return {
             instanceId,
-            cryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
-            instanceKeys: await getPublicKeys(await getDefaultKeys(instanceId)),
+            instanceCryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
             personId: identity
         };
     }

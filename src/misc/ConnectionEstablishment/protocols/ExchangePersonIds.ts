@@ -1,13 +1,13 @@
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {CryptoApi} from '../../../../../one.core/lib/crypto/CryptoApi';
-import {ensurePublicKey} from '../../../../../one.core/lib/crypto/encryption';
-import type {PublicKey} from '../../../../../one.core/lib/crypto/encryption';
-import {getPublicKeys} from '../../../../../one.core/lib/keychain/key-storage-public';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
-} from '../../../../../one.core/lib/keychain/keychain';
+} from '@refinio/one.core/lib/keychain/keychain';
 import type LeuteModel from '../../../models/Leute/LeuteModel';
 import type Connection from '../../Connection/Connection';
 import type {Keys, Person, PersonId} from '@refinio/one.core/lib/recipes';

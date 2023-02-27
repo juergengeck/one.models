@@ -44,8 +44,7 @@ export type Identity = {
     personSignKeyPublic: HexString;
     instanceKeyPublic: HexString;
     instanceSignKeyPublic: HexString;
-    url: string;
-    chumId?: string;
+    url?: string;
 };
 
 /**
@@ -65,8 +64,7 @@ export type IdentityWithSecrets = {
     instanceKeyPublic: HexString;
     instanceSignKeySecret: HexString;
     instanceSignKeyPublic: HexString;
-    url: string;
-    chumId?: string;
+    url?: string;
 };
 
 /**
@@ -84,8 +82,7 @@ export function isIdentity(arg: any): arg is Identity {
         isHexString(arg.personSignKeyPublic) &&
         isHexString(arg.instanceKeyPublic) &&
         isHexString(arg.instanceSignKeyPublic) &&
-        typeof arg.url === 'string' &&
-        (typeof arg.chumId === 'string' || typeof arg.chumId === 'undefined')
+        (typeof arg.url === 'string' || typeof arg.url === 'undefined')
     );
 }
 
@@ -108,8 +105,7 @@ export function isIdentityWithSecrets(arg: any): arg is IdentityWithSecrets {
         isHexString(arg.instanceKeyPublic) &&
         isHexString(arg.instanceSignKeySecret) &&
         isHexString(arg.instanceSignKeyPublic) &&
-        typeof arg.url === 'string' &&
-        (typeof arg.chumId === 'string' || typeof arg.chumId === 'undefined')
+        (typeof arg.url === 'string' || typeof arg.url === 'undefined')
     );
 }
 
@@ -122,13 +118,11 @@ export function isIdentityWithSecrets(arg: any): arg is IdentityWithSecrets {
  * @param url - The communication server url to include in the identity objects.
  * @param personEmail - The person email to use. If not specified a random string is used.
  * @param instanceName - The instance name to use. If not specified a random string is used.
- * @param chumId
  */
 export async function generateNewIdentity(
-    url: string,
+    url?: string,
     personEmail?: string,
-    instanceName?: string,
-    chumId?: string
+    instanceName?: string
 ): Promise<{
     secret: IdentityWithSecrets;
     public: Identity;
@@ -156,8 +150,7 @@ export async function generateNewIdentity(
         instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
         instanceSignKeySecret: uint8arrayToHexString(instanceSignKeyPair.secretKey),
         instanceSignKeyPublic: uint8arrayToHexString(instanceSignKeyPair.publicKey),
-        url,
-        chumId
+        url
     };
 
     const identity: Identity = {
@@ -168,8 +161,7 @@ export async function generateNewIdentity(
         personSignKeyPublic: uint8arrayToHexString(personSignKeyPair.publicKey),
         instanceKeyPublic: uint8arrayToHexString(instanceKeyPair.publicKey),
         instanceSignKeyPublic: uint8arrayToHexString(instanceSignKeyPair.publicKey),
-        url,
-        chumId
+        url
     };
 
     return {
@@ -236,8 +228,7 @@ export async function convertIdentityToOneInstanceEndpoint(
         personKeys: personKeysHash,
         instanceId: instanceHash,
         instanceKeys: instanceKeysHash,
-        url: identity.url,
-        chumId: identity.chumId
+        url: identity.url
     });
 }
 
@@ -271,8 +262,7 @@ export async function convertOneInstanceEndpointToIdentity(
         personSignKeyPublic: personKeys.publicSignKey,
         instanceKeyPublic: instanceKeys.publicKey,
         instanceSignKeyPublic: instanceKeys.publicSignKey,
-        url: oneInstanceEndpoint.url,
-        chumId: oneInstanceEndpoint.chumId
+        url: oneInstanceEndpoint.url
     };
 }
 

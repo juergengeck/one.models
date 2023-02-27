@@ -27,23 +27,22 @@ import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unvers
  *
  * @param fileNamePrefix - The prefix of the file. ${fileNamePrefix}_secret.id.json is the identity with secret keys,
  *                         ${fileNamePrefix}.id.json is the identity only with public keys.
- * @param commServerUrl - The communication server url to include in the identity file.
+ * @param url - The communication server url to include in the identity file.
  * @param personEmail - The person email to use. If not specified a random string is used.
  * @param instanceName - The instance name to use. If not specified a random string is used.
  */
 export async function writeNewIdentityToFile(
     fileNamePrefix: string,
-    commServerUrl: string,
+    url?: string,
     personEmail?: string,
-    instanceName?: string,
-    chumId?: string
+    instanceName?: string
 ): Promise<{
     secret: IdentityWithSecrets;
     public: Identity;
     secretFileName: string;
     publicFileName: string;
 }> {
-    const identity = await generateNewIdentity(commServerUrl, personEmail, instanceName, chumId);
+    const identity = await generateNewIdentity(url, personEmail, instanceName);
     const secretFileName = fileNamePrefix + '_secret.id.json';
     const publicFileName = fileNamePrefix + '.id.json';
     await writeIdentityWithSecretsFile(secretFileName, identity.secret);
@@ -121,7 +120,7 @@ export async function readIdentityWithSecretsFile(fileName: string): Promise<Ide
  * - abc.id.json
  *
  * @param fileName - The file rom which to read / to which to write the identity to.
- * @param commServerUrl - commserver to include in the randomly generated identity.
+ * @param url - url to include in the randomly generated identity.
  * @param personEmail - The person email to use when a new identity is created. If not specified a
  *                      random string is used.
  * @param instanceName - The instance name to use when a new identity is created. If not specified a
@@ -129,7 +128,7 @@ export async function readIdentityWithSecretsFile(fileName: string): Promise<Ide
  */
 export async function readOrCreateIdentityWithSecretsFile(
     fileName: string,
-    commServerUrl: string,
+    url: string,
     personEmail?: string,
     instanceName?: string
 ): Promise<IdentityWithSecrets> {
@@ -149,7 +148,7 @@ export async function readOrCreateIdentityWithSecretsFile(
         }
         const id = await writeNewIdentityToFile(
             fileName.slice(0, -'_secret.id.json'.length),
-            commServerUrl,
+            url,
             personEmail,
             instanceName
         );
@@ -168,7 +167,7 @@ export async function readOrCreateIdentityWithSecretsFile(
  * is written.
  *
  * @param fileName - The file rom which to read / to which to write the identity to.
- * @param commServerUrl - commserver to include in the randomly generated identity.
+ * @param url - commserver to include in the randomly generated identity.
  * @param personEmail - The person email to use when a new identity is created. If not specified a
  *                      random string is used.
  * @param instanceName - The instance name to use when a new identity is created. If not specified a
@@ -178,14 +177,14 @@ export async function readOrCreateIdentityWithSecretsFile(
  */
 export async function readOrCreateIdentityFile(
     fileName: string,
-    commServerUrl: string,
+    url?: string,
     personEmail?: string,
     instanceName?: string
 ): Promise<Identity | IdentityWithSecrets> {
     try {
         return await readIdentityFile(fileName);
     } catch (_) {
-        const identity = await generateNewIdentity(commServerUrl, personEmail, instanceName);
+        const identity = await generateNewIdentity(url, personEmail, instanceName);
         await writeIdentityFile(fileName, identity.public);
         return identity.secret;
     }

@@ -17,7 +17,7 @@ function isConnectionGroupMessage(arg: any): arg is ConnectionGroupMessage {
  * @param conn
  * @param connectionGroupName
  */
-export function sendConnectionGroupName(conn: Connection, connectionGroupName: string): void {
+function sendConnectionGroupName(conn: Connection, connectionGroupName: string): void {
     conn.debug(MessageBus, `Send connection group ${connectionGroupName}`);
     conn.send(
         JSON.stringify({
@@ -32,7 +32,7 @@ export function sendConnectionGroupName(conn: Connection, connectionGroupName: s
  *
  * @param conn
  */
-export async function waitForConnectionGroupName(conn: Connection): Promise<string> {
+async function waitForConnectionGroupName(conn: Connection): Promise<string> {
     conn.debug(MessageBus, 'Wait for connection group.');
 
     const message = await conn

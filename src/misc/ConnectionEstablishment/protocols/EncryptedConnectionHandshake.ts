@@ -10,8 +10,8 @@ import tweetnacl from 'tweetnacl';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
 import {isFunction} from '@refinio/one.core/lib/util/type-checks-basic';
-import type {SymmetricCryptoApiWithKeys} from '../../../../../one.core/lib/crypto/SymmetricCryptoApi';
-import {castToLocalPublicKey, castToRemotePublicKey} from '../ConnectionGroupMap';
+import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi';
+import {castToLocalPublicKey, castToRemotePublicKey} from '../ConnectionRoutesGroupMap';
 import {
     sendUnencryptedClientMessage,
     sendUnencryptedServerMessage,

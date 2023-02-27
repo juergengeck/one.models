@@ -1,5 +1,5 @@
-import type {PublicKey} from '../../../../../one.core/lib/crypto/encryption';
-import type {SymmetricCryptoApiWithKeys} from '../../../../../one.core/lib/crypto/SymmetricCryptoApi';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi';
 import type Connection from '../../Connection/Connection';
 import {connectWithEncryptionUntilSuccessful} from '../protocols/EncryptedConnectionHandshake';
 import type ConnectionRoute from './ConnectionRoute';
@@ -19,7 +19,7 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
         conn: Connection,
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        routeId: string
+        connectionRouteId: string
     ) => void;
 
     private stopFn: (() => void) | null = null;
@@ -36,7 +36,7 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
             conn: Connection,
             localPublicKey: PublicKey,
             remotePublicKey: PublicKey,
-            routeId: string
+            connectionRouteId: string
         ) => void
     ) {
         this.url = url;

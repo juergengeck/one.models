@@ -1,6 +1,8 @@
-import tweetnacl from 'tweetnacl';
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import ConnectionRouteManager from '../../lib/misc/ConnectionEstablishment/ConnectionRouteManager';
 import type Connection from '../../src/misc/Connection/Connection';
 
@@ -8,10 +10,6 @@ import type Connection from '../../src/misc/Connection/Connection';
 //start({includeTimestamp: true, types: ['log', 'debug', 'alert', 'error']});
 
 describe('CommunicationModule test', () => {
-    beforeEach('Setup connections', async function () {});
-
-    afterEach('Shutdown Connections', async function () {});
-
     it('simple connection', async function () {
         const client = new ConnectionRouteManager(1000);
         const server = new ConnectionRouteManager(1000);
@@ -19,10 +17,9 @@ describe('CommunicationModule test', () => {
         client.onConnection(
             (
                 conn: Connection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array,
-                connectionGroupName: string,
-                routeId: string,
+                localPublicKey: PublicKey,
+                remotePublicKey: PublicKey,
+                connectionRoutesGroupName: string,
                 initiatedLocally: boolean
             ) => {
                 console.log(
@@ -30,7 +27,7 @@ describe('CommunicationModule test', () => {
                         localPublicKey
                     )} to ${uint8arrayToHexString(
                         remotePublicKey
-                    )} wit connection group ${connectionGroupName} over route ${routeId}. Connection was initiated ${
+                    )} with connection group ${connectionRoutesGroupName}. Connection was initiated ${
                         initiatedLocally ? 'locally' : 'remotely'
                     }.`
                 );
@@ -40,10 +37,9 @@ describe('CommunicationModule test', () => {
         client.onConnectionViaCatchAll(
             (
                 conn: Connection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array,
-                connectionGroupName: string,
-                routeId: string,
+                localPublicKey: PublicKey,
+                remotePublicKey: PublicKey,
+                connectionRoutesGroupName: string,
                 initiatedLocally: boolean
             ) => {
                 console.log(
@@ -51,7 +47,7 @@ describe('CommunicationModule test', () => {
                         localPublicKey
                     )} to ${uint8arrayToHexString(
                         remotePublicKey
-                    )} wit connection group ${connectionGroupName} over catch-all route ${routeId}. Connection was initiated ${
+                    )} wit connection group ${connectionRoutesGroupName} over catch-all route. Connection was initiated ${
                         initiatedLocally ? 'locally' : 'remotely'
                     }.`
                 );
@@ -61,10 +57,9 @@ describe('CommunicationModule test', () => {
         server.onConnection(
             (
                 conn: Connection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array,
-                connectionGroupName: string,
-                routeId: string,
+                localPublicKey: PublicKey,
+                remotePublicKey: PublicKey,
+                connectionRoutesGroupName: string,
                 initiatedLocally: boolean
             ) => {
                 console.log(
@@ -72,7 +67,7 @@ describe('CommunicationModule test', () => {
                         localPublicKey
                     )} to ${uint8arrayToHexString(
                         remotePublicKey
-                    )} wit connection group ${connectionGroupName} over route ${routeId}. Connection was initiated ${
+                    )} wit connection group ${connectionRoutesGroupName}. Connection was initiated ${
                         initiatedLocally ? 'locally' : 'remotely'
                     }.`
                 );
@@ -82,10 +77,9 @@ describe('CommunicationModule test', () => {
         server.onConnectionViaCatchAll(
             (
                 conn: Connection,
-                localPublicKey: Uint8Array,
-                remotePublicKey: Uint8Array,
-                connectionGroupName: string,
-                routeId: string,
+                localPublicKey: PublicKey,
+                remotePublicKey: PublicKey,
+                connectionRoutesGroupName: string,
                 initiatedLocally: boolean
             ) => {
                 console.log(
@@ -93,17 +87,17 @@ describe('CommunicationModule test', () => {
                         localPublicKey
                     )} to ${uint8arrayToHexString(
                         remotePublicKey
-                    )} wit connection group ${connectionGroupName} over catch-all route ${routeId}. Connection was initiated ${
+                    )} wit connection group ${connectionRoutesGroupName} over catch-all route. Connection was initiated ${
                         initiatedLocally ? 'locally' : 'remotely'
                     }.`
                 );
             }
         );
 
-        const clientKeys = tweetnacl.box.keyPair();
-        const clientKeys2 = tweetnacl.box.keyPair();
-        const serverKeys = tweetnacl.box.keyPair();
-        const serverKeys2 = tweetnacl.box.keyPair();
+        const clientKeys = createKeyPair();
+        const clientKeys2 = createKeyPair();
+        const serverKeys = createKeyPair();
+        const serverKeys2 = createKeyPair();
 
         console.log(`Key C1 ${uint8arrayToHexString(clientKeys.publicKey)}`);
         console.log(`Key C2 ${uint8arrayToHexString(clientKeys2.publicKey)}`);
@@ -111,31 +105,7 @@ describe('CommunicationModule test', () => {
         console.log(`Key S2 ${uint8arrayToHexString(serverKeys2.publicKey)}`);
 
         client.addOutgoingWebsocketRoute(
-            clientKeys.publicKey,
-            serverKeys.publicKey,
-            (otherKey, text) => {
-                //console.log(`encryptC1 ${uint8arrayToHexString(otherKey)} ${text}`);
-                const e = tweetnacl.box(
-                    text,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    clientKeys.secretKey
-                );
-                //console.log(`encryptC2 ${uint8arrayToHexString(e)}`);
-                return e;
-            },
-            (otherKey, cypher) => {
-                const e = tweetnacl.box.open(
-                    cypher,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    clientKeys.secretKey
-                );
-                if (e === null) {
-                    throw new Error('Failed to decrypt C');
-                }
-                return e;
-            },
+            new CryptoApi(clientKeys).createEncryptionApiWithKeysAndPerson(serverKeys.publicKey),
             'ws://localhost:8500',
             'low_bandwidth',
             1000
@@ -169,62 +139,14 @@ describe('CommunicationModule test', () => {
         );*/
 
         server.addIncomingWebsocketRouteCatchAll_Direct(
-            serverKeys.publicKey,
-            (otherKey, text) => {
-                return tweetnacl.box(
-                    text,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    serverKeys.secretKey
-                );
-            },
-            (otherKey, cypher) => {
-                /*console.log(
-                    `decryptSA1 ${uint8arrayToHexString(otherKey)} ${uint8arrayToHexString(cypher)}`
-                );*/
-                const e = tweetnacl.box.open(
-                    cypher,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    serverKeys.secretKey
-                );
-                //console.log(`decryptSA2 ${e}`);
-                if (e === null) {
-                    throw new Error('Failed to decrypt SA');
-                }
-                return e;
-            },
+            new CryptoApi(serverKeys),
             'localhost',
             8500
         );
 
         server.addIncomingWebsocketRoute_Direct(
-            serverKeys.publicKey,
+            new CryptoApi(serverKeys),
             clientKeys.publicKey,
-            (otherKey, text) => {
-                return tweetnacl.box(
-                    text,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    serverKeys.secretKey
-                );
-            },
-            (otherKey, cypher) => {
-                /*console.log(
-                    `decryptS1 ${uint8arrayToHexString(otherKey)} ${uint8arrayToHexString(cypher)}`
-                );*/
-                const e = tweetnacl.box.open(
-                    cypher,
-                    new Uint8Array(tweetnacl.box.nonceLength),
-                    otherKey,
-                    serverKeys.secretKey
-                );
-                //console.log(`decryptS2 ${e}`);
-                if (e === null) {
-                    throw new Error('Failed to decrypt S');
-                }
-                return e;
-            },
             'localhost',
             8500,
             'high_bandwidth'

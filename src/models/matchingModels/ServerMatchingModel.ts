@@ -1,4 +1,5 @@
 import {createAccess} from '@refinio/one.core/lib/access';
+import type {Instance} from '@refinio/one.core/lib/recipes';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -15,6 +16,7 @@ import {
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Protocols} from '../../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
 import type AccessModel from '../AccessModel';
 import type ChannelManager from '../ChannelManager';
@@ -66,8 +68,19 @@ export default class ServerMatchingModel extends MatchingModel {
         await this.initNotifiedUsersList();
 
         await this.accessModel.createAccessGroup(this.accessGroupName);
-        this.connectionsModel.onChumStart(
-            (localPersonId: SHA256IdHash<Person>, remotePersonId: SHA256IdHash<Person>) => {
+        this.connectionsModel.onProtocolStart(
+            (
+                _initiatedLocally: boolean,
+                localPersonId: SHA256IdHash<Person>,
+                _localInstanceId: SHA256IdHash<Instance>,
+                remotePersonId: SHA256IdHash<Person>,
+                _remoteInstanceId: SHA256IdHash<Instance>,
+                protocol: Protocols
+            ) => {
+                if (protocol !== 'chum') {
+                    return;
+                }
+
                 Promise.all([
                     this.accessModel.addPersonToAccessGroup(this.accessGroupName, localPersonId),
                     this.accessModel.addPersonToAccessGroup(this.accessGroupName, remotePersonId)

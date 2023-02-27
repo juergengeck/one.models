@@ -22,8 +22,7 @@ export interface OneInstanceEndpoint {
     instanceId: SHA256IdHash<Instance>;
     personKeys: SHA256Hash<Keys>;
     instanceKeys: SHA256Hash<Keys>;
-    url: string;
-    connectionGroupId?: string;
+    url?: string;
 }
 
 export interface Email {
@@ -89,12 +88,8 @@ export const OneInstanceEndpointRecipe: Recipe = {
         },
         {
             itemprop: 'url',
-            itemtype: {type: 'string'}
-        },
-        {
-            itemprop: 'connectionGroupId',
-            optional: true,
-            itemtype: {type: 'string'}
+            itemtype: {type: 'string'},
+            optional: true
         }
     ]
 };

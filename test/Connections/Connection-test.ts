@@ -1,13 +1,13 @@
 import {expect} from 'chai';
 import WebSocketWS from 'isomorphic-ws';
-import WebSocketServerPromiseBased from '../../lib/misc/WebSocketServerPromiseBased';
 import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import Connection from '../../lib/misc/Connections/Connection';
-import EncryptionPlugin from '../../lib/misc/Connections/plugins/EncryptionPlugin';
+import Connection from '../../lib/misc/Connection/Connection';
+import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin';
 import tweetnacl from 'tweetnacl';
-import PromisePlugin from '../../lib/misc/Connections/plugins/PromisePlugin';
-import {PingPlugin, PongPlugin} from '../../lib/misc/Connections/plugins/PingPongPlugin';
+import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin';
+import {PingPlugin, PongPlugin} from '../../lib/misc/Connection/plugins/PingPongPlugin';
 import {wait} from '@refinio/one.core/lib/util/promise';
+import WebSocketServerPromiseBased from '../../lib/misc/ConnectionEstablishment/webSockets/WebSocketServerPromiseBased';
 //import {start} from '@refinio/one.core/lib/logger';
 //start({includeTimestamp: true});
 
@@ -133,14 +133,14 @@ describe('Connection test - with promises', () => {
     });
 
     it('tests waitForMessage: no failures in 4 messages', async function () {
-        await connClient.send('DATA1');
+        connClient.send('DATA1');
         expect(await connServer.promisePlugin().waitForMessage()).to.be.equal('DATA1');
-        await connClient.send('DATA2');
+        connClient.send('DATA2');
         expect(await connServer.promisePlugin().waitForMessage()).to.be.equal('DATA2');
 
-        await connServer.send('DATA3');
+        connServer.send('DATA3');
         expect(await connClient.promisePlugin().waitForMessage()).to.be.equal('DATA3');
-        await connServer.send('DATA4');
+        connServer.send('DATA4');
         expect(await connClient.promisePlugin().waitForMessage()).to.be.equal('DATA4');
     });
 
@@ -165,7 +165,7 @@ describe('Connection test - with promises', () => {
             type: 'mytype1',
             message: 'XYZ'
         };
-        await connClient.send(JSON.stringify(message1));
+        connClient.send(JSON.stringify(message1));
         expect(await connServer.promisePlugin().waitForJSONMessageWithType('mytype1')).to.be.eql(
             message1
         );
@@ -174,7 +174,7 @@ describe('Connection test - with promises', () => {
             type: 'mytype2',
             message: 'ABC'
         };
-        await connClient.send(JSON.stringify(message2));
+        connClient.send(JSON.stringify(message2));
         expect(await connServer.promisePlugin().waitForJSONMessageWithType('mytype2')).to.be.eql(
             message2
         );
@@ -185,7 +185,7 @@ describe('Connection test - with promises', () => {
             type: 'mytype1',
             message: 'XYZ'
         };
-        await connClient.send(JSON.stringify(message1));
+        connClient.send(JSON.stringify(message1));
 
         try {
             await connServer.promisePlugin().waitForJSONMessageWithType('mytype2');
@@ -233,7 +233,7 @@ describe('Connection test - with promises', () => {
     });
 
     it('client should close because server ping pong is not enabled', async function () {
-        connServer.pingPlugin().disable();
+        await connServer.pingPlugin().disable();
         expect(connClient.state.currentState).to.be.equal('open');
         await wait(1000);
         expect(connClient.state.currentState).not.to.be.equal('open');

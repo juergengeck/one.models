@@ -1,8 +1,8 @@
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {getOrCreate, isLastEntry} from '../../utils/MapUtils';
-import type {ConnectionGroup} from './ConnectionGroup';
+import type {ConnectionRoutesGroup} from './ConnectionRoutesGroup';
 
 export type LocalPublicKey = HexString & {
     _1: 'LocalPublicKey';
@@ -12,8 +12,8 @@ export type RemotePublicKey = HexString & {
     _1: 'RemotePublicKey';
 };
 
-export type ConnectionGroupName = string & {
-    _: 'RemotePublicKey';
+export type ConnectionRoutesGroupName = string & {
+    _: 'ConnectionRoutesGroupName';
 };
 
 export function castToLocalPublicKey(localPublicKey: PublicKey): LocalPublicKey {
@@ -24,23 +24,23 @@ export function castToRemotePublicKey(remotePublicKey: PublicKey): RemotePublicK
     return uint8arrayToHexString(remotePublicKey) as RemotePublicKey;
 }
 
-export function castToConnectionGroupName(connectionGroup: string): ConnectionGroupName {
-    return connectionGroup as ConnectionGroupName;
+export function castToConnectionRoutesGroupName(groupName: string): ConnectionRoutesGroupName {
+    return groupName as ConnectionRoutesGroupName;
 }
 
-export default class ConnectionGroupMap {
+export default class ConnectionRoutesGroupMap {
     private readonly knownConnectionsMap: Map<
         LocalPublicKey,
-        Map<RemotePublicKey, Map<ConnectionGroupName, ConnectionGroup>>
+        Map<RemotePublicKey, Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>>
     > = new Map();
 
     entryCreateIfNotExist(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        connectionGroupName: string,
+        connectionRoutesGroupName: string,
         isCatchAllGroup: boolean
-    ): ConnectionGroup {
-        const entries = this.entries(localPublicKey, remotePublicKey, connectionGroupName);
+    ): ConnectionRoutesGroup {
+        const entries = this.entries(localPublicKey, remotePublicKey, connectionRoutesGroupName);
         if (entries.length > 1) {
             throw new Error('Multiple connection entries found, this is a bug.');
         }
@@ -57,11 +57,11 @@ export default class ConnectionGroupMap {
             );
             return getOrCreate(
                 connectionGroupEntry,
-                castToConnectionGroupName(connectionGroupName),
+                castToConnectionRoutesGroupName(connectionRoutesGroupName),
                 {
                     remotePublicKey,
                     localPublicKey,
-                    connectionGroupName,
+                    groupName: connectionRoutesGroupName,
                     isCatchAllGroup: isCatchAllGroup,
                     activeConnection: null,
                     activeConnectionRoute: null,
@@ -82,14 +82,14 @@ export default class ConnectionGroupMap {
      *
      * @param localPublicKey
      * @param remotePublicKey
-     * @param connectionGroup
+     * @param connectionRoutesGroupName
      */
     entry(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        connectionGroup: string
-    ): ConnectionGroup | undefined {
-        const entries = this.entries(localPublicKey, remotePublicKey, connectionGroup);
+        connectionRoutesGroupName: string
+    ): ConnectionRoutesGroup | undefined {
+        const entries = this.entries(localPublicKey, remotePublicKey, connectionRoutesGroupName);
         if (entries.length > 1) {
             throw new Error('Multiple connection entries found, this is a bug.');
         }
@@ -102,12 +102,12 @@ export default class ConnectionGroupMap {
     entries(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
-        connectionGroupName?: string,
+        connectionRoutesGroupName?: string,
         catchAll?: boolean
-    ): ConnectionGroup[] {
+    ): ConnectionRoutesGroup[] {
         let filteredByLocalPublicKey: Map<
             RemotePublicKey,
-            Map<ConnectionGroupName, ConnectionGroup>
+            Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>
         >[];
         if (localPublicKey !== undefined) {
             const entry = this.knownConnectionsMap.get(castToLocalPublicKey(localPublicKey));
@@ -116,7 +116,7 @@ export default class ConnectionGroupMap {
             filteredByLocalPublicKey = [...this.knownConnectionsMap.values()];
         }
 
-        let filteredByRemotePublicKey: Map<ConnectionGroupName, ConnectionGroup>[];
+        let filteredByRemotePublicKey: Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>[];
         if (remotePublicKey !== undefined) {
             const temp = filteredByLocalPublicKey.map(map =>
                 map.get(castToRemotePublicKey(remotePublicKey))
@@ -129,10 +129,10 @@ export default class ConnectionGroupMap {
             filteredByRemotePublicKey = temp.reduce((accu, value) => accu.concat(value), []);
         }
 
-        let filteredByConnectionGroup: ConnectionGroup[];
-        if (connectionGroupName !== undefined) {
+        let filteredByConnectionGroup: ConnectionRoutesGroup[];
+        if (connectionRoutesGroupName !== undefined) {
             const temp = filteredByRemotePublicKey.map(map =>
-                map.get(castToConnectionGroupName(connectionGroupName))
+                map.get(castToConnectionRoutesGroupName(connectionRoutesGroupName))
             );
             filteredByConnectionGroup = temp.filter(
                 (e): e is Exclude<typeof e, undefined> => e !== undefined
@@ -142,7 +142,7 @@ export default class ConnectionGroupMap {
             filteredByConnectionGroup = temp.reduce((accu, value) => accu.concat(value), []);
         }
 
-        let filteredByCatchAll: ConnectionGroup[];
+        let filteredByCatchAll: ConnectionRoutesGroup[];
         if (catchAll !== undefined) {
             filteredByCatchAll = filteredByConnectionGroup.filter(
                 e => e.isCatchAllGroup === catchAll
@@ -157,11 +157,11 @@ export default class ConnectionGroupMap {
     removeEntry(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
-        connectionGroupName: string
+        connectionRoutesGroupName: string
     ): void {
         const localPublicKeyStr = castToLocalPublicKey(localPublicKey);
         const remotePublicKeyStr = castToRemotePublicKey(remotePublicKey);
-        const connectionGroupNameStr = castToConnectionGroupName(connectionGroupName);
+        const connectionGroupNameStr = castToConnectionRoutesGroupName(connectionRoutesGroupName);
 
         const localPublicKeyEntry = this.knownConnectionsMap.get(localPublicKeyStr);
         if (localPublicKeyEntry === undefined) {
@@ -188,7 +188,7 @@ export default class ConnectionGroupMap {
         }
     }
 
-    getIpAddress(conn: ConnectionGroup) {
+    getIpAddress(conn: ConnectionRoutesGroup) {
         if (
             conn.activeConnection &&
             conn.activeConnection.websocketPlugin().webSocket &&

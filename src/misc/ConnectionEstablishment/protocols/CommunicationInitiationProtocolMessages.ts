@@ -99,6 +99,14 @@ export interface PersonIdObjectMessage {
 }
 
 /**
+ * Message that transports a person id object.
+ */
+export interface InstanceIdObjectMessage {
+    command: 'instance_id_object';
+    obj: OneIdObjectInterfaces['Instance'];
+}
+
+/**
  * Message that transports a key object.
  */
 export interface KeysObjectMessage {
@@ -168,6 +176,7 @@ export interface EncryptedPeerMessages {
     encrypted_authentication_token: EncryptedAuthenticationTokenMessage;
     person_object: PersonObjectMessage;
     person_id_object: PersonIdObjectMessage;
+    instance_id_object: InstanceIdObjectMessage;
     keys_object: KeysObjectMessage;
     identity: IdentityMessage;
     access_group_members: AccessGroupMembersMessage;
@@ -280,6 +289,10 @@ export function isPeerMessage<T extends keyof EncryptedPeerMessages>(
 
     if (command === 'person_id_object') {
         return arg.obj && arg.obj.$type$ === 'Person';
+    }
+
+    if (command === 'instance_id_object') {
+        return arg.obj && arg.obj.$type$ === 'Instance';
     }
 
     if (command === 'keys_object') {

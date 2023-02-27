@@ -1,5 +1,5 @@
-import type {CryptoApi} from '../../../../../one.core/lib/crypto/CryptoApi';
-import {castToLocalPublicKey} from '../ConnectionGroupMap';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
+import {castToLocalPublicKey} from '../ConnectionRoutesGroupMap';
 import type ConnectionRoute from './ConnectionRoute';
 import IncomingConnectionManager from '../IncomingConnectionManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';

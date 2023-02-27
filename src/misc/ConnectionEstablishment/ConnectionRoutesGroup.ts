@@ -1,12 +1,12 @@
-import type {PublicKey} from '../../../../one.core/lib/crypto/encryption';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import type Connection from '../Connection/Connection';
 import type ConnectionRoute from './routes/ConnectionRoute';
 
 export type ConnectionRoutes = {route: ConnectionRoute; disabled: boolean}[];
 
-export type ConnectionGroup = {
+export type ConnectionRoutesGroup = {
     // part of the map key
-    connectionGroupName: string;
+    groupName: string;
     localPublicKey: PublicKey;
     remotePublicKey: PublicKey;
     isCatchAllGroup: boolean;
