@@ -106,7 +106,7 @@ export default class ConnectionRouteManager {
     addOutgoingWebsocketRoute(
         cryptoApi: SymmetricCryptoApiWithKeys,
         url: string,
-        connectionRoutesGroupName: string = 'default',
+        connectionRoutesGroupName: string,
         reconnectDelay: number = 10000
     ): void {
         MessageBus.send(
@@ -158,7 +158,7 @@ export default class ConnectionRouteManager {
         remotePublicKey: PublicKey,
         host: string,
         port: number,
-        connectionRoutesGroupName: string = 'default'
+        connectionRoutesGroupName: string
     ): void {
         MessageBus.send(
             'log',
@@ -195,7 +195,7 @@ export default class ConnectionRouteManager {
         cryptoApi: CryptoApi,
         remotePublicKey: PublicKey,
         commServerUrl: string,
-        connectionRoutesGroupName: string = 'default'
+        connectionRoutesGroupName: string
     ): void {
         MessageBus.send(
             'log',
@@ -315,26 +315,11 @@ export default class ConnectionRouteManager {
         await this.disableRoutes(localPublicKey, remotePublicKey);
     }
 
-    async enableRoutesForTargetAndSource(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey,
-        connectionRoutesGroupName = 'default'
-    ): Promise<void> {
-        await this.enableRoutes(localPublicKey, remotePublicKey, connectionRoutesGroupName);
-    }
-
-    async disableRoutesForTargetAndSource(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey,
-        connectionGroupName = 'default'
-    ): Promise<void> {
-        await this.disableRoutes(localPublicKey, remotePublicKey, connectionGroupName);
-    }
-
     async enableRoutes(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
-        connectionRoutesGroupName?: string
+        connectionRoutesGroupName?: string,
+        routeId?: string
     ): Promise<void> {
         MessageBus.send(
             'log',
@@ -351,7 +336,7 @@ export default class ConnectionRouteManager {
 
         // handle incoming & outgoing routes for known participants
         for (const connectionGroup of connectionGroups) {
-            ConnectionRouteManager.setRoutesDisableFlags(connectionGroup, false);
+            ConnectionRouteManager.clearRoutesDisableFlags(connectionGroup, routeId);
             await ConnectionRouteManager.startOutgoingRoutes(connectionGroup);
             await ConnectionRouteManager.startIncomingRoutes(connectionGroup);
         }
@@ -372,7 +357,7 @@ export default class ConnectionRouteManager {
             }
 
             for (const catchAllRoute of catchAllRoutes) {
-                ConnectionRouteManager.setCatchAllRoutesDisableFlags(catchAllRoute, false);
+                ConnectionRouteManager.clearCatchAllRoutesDisableFlags(catchAllRoute);
                 await ConnectionRouteManager.startCatchAllRoutes(catchAllRoute);
             }
         }
@@ -381,7 +366,8 @@ export default class ConnectionRouteManager {
     async disableRoutes(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
-        connectionRoutesGroupName?: string
+        connectionRoutesGroupName?: string,
+        routeId?: string
     ): Promise<void> {
         MessageBus.send(
             'log',
@@ -398,13 +384,17 @@ export default class ConnectionRouteManager {
 
         // handle incoming & outgoing routes for known participants
         for (const connectionGroup of connectionGroups) {
-            ConnectionRouteManager.setRoutesDisableFlags(connectionGroup, true);
-            await ConnectionRouteManager.stopOutgoingRoutes(connectionGroup);
-            await ConnectionRouteManager.stopIncomingRoutes(connectionGroup);
+            ConnectionRouteManager.setRoutesDisableFlags(connectionGroup, routeId);
+            await ConnectionRouteManager.stopOutgoingRoutes(connectionGroup, true);
+            await ConnectionRouteManager.stopIncomingRoutes(connectionGroup, true);
         }
 
         // handle catch all routes
-        if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
+        if (
+            remotePublicKey === undefined &&
+            connectionRoutesGroupName === undefined &&
+            routeId === undefined
+        ) {
             let catchAllRoutes: CatchAllRoutes[];
             if (localPublicKey === undefined) {
                 catchAllRoutes = [...this.catchAllRoutes.values()];
@@ -419,7 +409,7 @@ export default class ConnectionRouteManager {
             }
 
             for (const catchAllRoute of catchAllRoutes) {
-                ConnectionRouteManager.setCatchAllRoutesDisableFlags(catchAllRoute, true);
+                ConnectionRouteManager.setCatchAllRoutesDisableFlags(catchAllRoute);
                 await this.stopCatchAllRoutes(catchAllRoute);
             }
         }
@@ -478,24 +468,47 @@ export default class ConnectionRouteManager {
 
     private static setRoutesDisableFlags(
         connectionRoutesGroup: ConnectionRoutesGroup,
-        disabled: boolean
+        routeId?: string
     ): void {
         for (const route of connectionRoutesGroup.knownRoutes) {
-            route.disabled = disabled;
+            if (routeId !== undefined && routeId !== route.route.id) {
+                continue;
+            }
+            route.disabled = true;
         }
     }
 
-    private static setCatchAllRoutesDisableFlags(
-        catchAllRoutes: CatchAllRoutes,
-        disabled: boolean
+    private static clearRoutesDisableFlags(
+        connectionRoutesGroup: ConnectionRoutesGroup,
+        routeId?: string
     ): void {
+        for (const route of connectionRoutesGroup.knownRoutes) {
+            if (routeId !== undefined && routeId !== route.route.id) {
+                continue;
+            }
+            route.disabled = false;
+        }
+    }
+
+    private static setCatchAllRoutesDisableFlags(catchAllRoutes: CatchAllRoutes): void {
         for (const route of catchAllRoutes.knownRoutes) {
-            route.disabled = disabled;
+            route.disabled = true;
+        }
+    }
+
+    private static clearCatchAllRoutesDisableFlags(catchAllRoutes: CatchAllRoutes): void {
+        for (const route of catchAllRoutes.knownRoutes) {
+            route.disabled = false;
         }
     }
 
     // ######## Start / Stop routes ########
 
+    /**
+     * Start all enabled outgoing routes that have not yet been started.
+     *
+     * @param connectionRoutesGroup
+     */
     private static async startOutgoingRoutes(
         connectionRoutesGroup: ConnectionRoutesGroup
     ): Promise<void> {
@@ -529,6 +542,13 @@ export default class ConnectionRouteManager {
         }
     }
 
+    /**
+     * Start all enabled outgoing routes that have not yet been started after a certain amount
+     * of time has expired,
+     *
+     * @param connectionRoutesGroup
+     * @param delay
+     */
     private static async startOutgoingRoutesDelayed(
         connectionRoutesGroup: ConnectionRoutesGroup,
         delay: number
@@ -557,8 +577,15 @@ export default class ConnectionRouteManager {
         }, delay);
     }
 
+    /**
+     * Stop all outgoing routes.
+     *
+     * @param connectionRoutesGroup
+     * @param onlyDisabled - If set to true, then only stop the disabled routes.
+     */
     private static async stopOutgoingRoutes(
-        connectionRoutesGroup: ConnectionRoutesGroup
+        connectionRoutesGroup: ConnectionRoutesGroup,
+        onlyDisabled: boolean = false
     ): Promise<void> {
         MessageBus.send(
             'log',
@@ -572,6 +599,10 @@ export default class ConnectionRouteManager {
         const errors = [];
         for (const route of connectionRoutesGroup.knownRoutes) {
             if (route.route.outgoing) {
+                if (onlyDisabled && !route.disabled) {
+                    continue;
+                }
+
                 // Stop the route if it is active
                 let stopPromise = Promise.resolve();
                 if (route.route.active) {
@@ -603,6 +634,11 @@ export default class ConnectionRouteManager {
         }
     }
 
+    /**
+     * Start all enabled incoming routes that have not yet been started.
+     *
+     * @param connectionRoutesGroup
+     */
     private static async startIncomingRoutes(
         connectionRoutesGroup: ConnectionRoutesGroup
     ): Promise<void> {
@@ -631,8 +667,15 @@ export default class ConnectionRouteManager {
         }
     }
 
+    /**
+     * Stop all incoming routes.
+     *
+     * @param connectionRoutesGroup
+     * @param onlyDisabled - If set to true, then only stop the disabled routes.
+     */
     private static async stopIncomingRoutes(
-        connectionRoutesGroup: ConnectionRoutesGroup
+        connectionRoutesGroup: ConnectionRoutesGroup,
+        onlyDisabled: boolean = false
     ): Promise<void> {
         MessageBus.send(
             'log',
@@ -648,6 +691,10 @@ export default class ConnectionRouteManager {
         const errors = [];
         for (const route of connectionRoutesGroup.knownRoutes) {
             if (!route.route.outgoing) {
+                if (onlyDisabled && !route.disabled) {
+                    continue;
+                }
+
                 // Stop the route if it is active
                 let stopPromise = Promise.resolve();
                 if (route.route.active) {
@@ -679,6 +726,11 @@ export default class ConnectionRouteManager {
         }
     }
 
+    /**
+     * Start all enabled catch-all routes that have not yet been started.
+     *
+     * @param catchAllRoutes
+     */
     private static async startCatchAllRoutes(catchAllRoutes: CatchAllRoutes): Promise<void> {
         MessageBus.send('log', `startCatchAllRoutes(${catchAllRoutes.localPublicKey})`);
         const errors = [];
@@ -702,13 +754,26 @@ export default class ConnectionRouteManager {
         }
     }
 
-    private async stopCatchAllRoutes(catchAllRoutes: CatchAllRoutes): Promise<void> {
+    /**
+     * Stop all catch-all routes.
+     *
+     * @param catchAllRoutes
+     * @param onlyDisabled - If set to true, then only stop the disabled routes.
+     */
+    private async stopCatchAllRoutes(
+        catchAllRoutes: CatchAllRoutes,
+        onlyDisabled: boolean = false
+    ): Promise<void> {
         MessageBus.send('log', `stopIncomingRoutes(${catchAllRoutes.localPublicKey})`);
         const errors = [];
 
         for (const route of catchAllRoutes.knownRoutes) {
             if (route.route.outgoing) {
                 throw new Error('Internal error: catch all routes cannot be outgoing!');
+            }
+
+            if (onlyDisabled && !route.disabled) {
+                continue;
             }
 
             // Stop the route if it is active

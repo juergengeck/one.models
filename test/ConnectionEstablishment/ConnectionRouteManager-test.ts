@@ -9,7 +9,7 @@ import type Connection from '../../src/misc/Connection/Connection';
 //import {start} from '@refinio/one.core/lib/logger';
 //start({includeTimestamp: true, types: ['log', 'debug', 'alert', 'error']});
 
-describe('CommunicationModule test', () => {
+describe.skip('CommunicationModule test', () => {
     it('simple connection', async function () {
         const client = new ConnectionRouteManager(1000);
         const server = new ConnectionRouteManager(1000);

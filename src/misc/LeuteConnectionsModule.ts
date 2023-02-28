@@ -41,7 +41,6 @@ export type LocalInstanceInfo = {
  */
 export type ConnectionInfo = {
     isConnected: boolean;
-    url: string;
     isInternetOfMe: boolean;
     isCatchAll: boolean;
 
@@ -53,10 +52,14 @@ export type ConnectionInfo = {
     remoteInstanceId: SHA256IdHash<Instance>;
     remotePersonId: SHA256IdHash<Person>;
 
+    enabled: boolean;
+    enable: (enable: boolean) => Promise<void>;
+
     routes: {
         name: string;
         active: boolean;
-        disabled: boolean;
+        enabled: boolean;
+        enable: (enable: boolean) => Promise<void>;
     }[];
 };
 
@@ -349,10 +352,6 @@ export default class LeuteConnectionsModule {
 
             connectionsInfo.push({
                 isConnected: routeGroup.activeConnection !== null,
-                url:
-                    routeGroup.activeConnectionRoute === null
-                        ? ''
-                        : routeGroup.activeConnectionRoute.id,
                 isInternetOfMe: myInfo ? myIds.includes(myInfo.personId) : false,
                 isCatchAll: routeGroup.isCatchAllGroup,
 
@@ -364,10 +363,44 @@ export default class LeuteConnectionsModule {
                 remoteInstanceId: peerInfo ? peerInfo.instanceId : dummyInstanceId,
                 remotePersonId: peerInfo ? peerInfo.personId : dummyPersonId,
 
+                enabled: routeGroup.knownRoutes.some(route => !route.disabled),
+                enable: (enable: boolean): Promise<void> => {
+                    if (enable) {
+                        return this.connectionRouteManager.enableRoutes(
+                            routeGroup.localPublicKey,
+                            routeGroup.remotePublicKey,
+                            routeGroup.groupName
+                        );
+                    } else {
+                        return this.connectionRouteManager.disableRoutes(
+                            routeGroup.localPublicKey,
+                            routeGroup.remotePublicKey,
+                            routeGroup.groupName
+                        );
+                    }
+                },
+
                 routes: routeGroup.knownRoutes.map(route => ({
                     name: route.route.id,
                     active: route.route.id === routeGroup.activeConnectionRoute?.id,
-                    disabled: route.disabled
+                    enabled: !route.disabled,
+                    enable: (enable: boolean): Promise<void> => {
+                        if (enable) {
+                            return this.connectionRouteManager.enableRoutes(
+                                routeGroup.localPublicKey,
+                                routeGroup.remotePublicKey,
+                                routeGroup.groupName,
+                                route.route.id
+                            );
+                        } else {
+                            return this.connectionRouteManager.disableRoutes(
+                                routeGroup.localPublicKey,
+                                routeGroup.remotePublicKey,
+                                routeGroup.groupName,
+                                route.route.id
+                            );
+                        }
+                    }
                 }))
             });
         }
