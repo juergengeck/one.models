@@ -53,7 +53,7 @@
         "yargs": "*"
     },
     "peerDependencies": {
-        "@refinio/one.core": "^0.4.2"
+        "@refinio/one.core": "github:refinio/one.core#crypto_extention_eh"
     },
     "devDependencies": {
         "@babel/core": "*",
