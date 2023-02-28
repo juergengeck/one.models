@@ -1,101 +1,101 @@
 {
-  "name": "@refinio/one.models",
-  "version": "11.4.2",
-  "repository": "https://github.com/refinio/one.models",
-  "license": "SEE LICENSE IN LICENSE.md",
-  "private": true,
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
-  "author": "REFINIO GmbH (https://refinio.net/)",
-  "bugs": {
-    "url": "https://github.com/refinio/one.models/issues"
-  },
-  "homepage": "https://github.com/refinio/one.models/",
-  "scripts": {
-    "build": "node ./build.js",
-    "build-plans": "node ./build_plan_modules.js",
-    "doc": "echo not available for now",
-    "prepare": "node ./build.js",
-    "start": "node lib/model/index.js",
-    "test": "npx --no-install mocha --exit test/**/**-test.js",
-    "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**/**-test.js",
-    "start-comm-server": "node lib/tools/CommunicationServer",
-    "start-comm-server-log": "node lib/tools/CommunicationServer -l",
-    "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
-    "start-uke": "node lib/tools/CommunicationServer -p 8000",
-    "start-state-machine": "node lib/tools/StateMachine",
-    "bundle": "npx --no-install webpack"
-  },
-  "mocha": {
-    "require": [
-      "source-map-support/register"
+    "name": "@refinio/one.models",
+    "version": "11.4.2",
+    "repository": "https://github.com/refinio/one.models",
+    "license": "SEE LICENSE IN LICENSE.md",
+    "private": true,
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com/"
+    },
+    "author": "REFINIO GmbH (https://refinio.net/)",
+    "bugs": {
+        "url": "https://github.com/refinio/one.models/issues"
+    },
+    "homepage": "https://github.com/refinio/one.models/",
+    "scripts": {
+        "build": "node ./build.js",
+        "build-plans": "node ./build_plan_modules.js",
+        "doc": "npx --no-install typedoc",
+        "prepare": "node ./build.js",
+        "start": "node lib/model/index.js",
+        "test": "npx --no-install mocha --exit test/**/**-test.js",
+        "testcov": "npx --no-install nyc npx --no-install mocha --exit test/**/**-test.js",
+        "start-comm-server": "node lib/tools/CommunicationServer",
+        "start-comm-server-log": "node lib/tools/CommunicationServer -l",
+        "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
+        "start-uke": "node lib/tools/CommunicationServer -p 8000",
+        "start-state-machine": "node lib/tools/StateMachine",
+        "bundle": "npx --no-install webpack"
+    },
+    "mocha": {
+        "require": [
+            "source-map-support/register"
+        ],
+        "enable-source-maps": true
+    },
+    "files": [
+        "lib",
+        "test",
+        "package.json",
+        "package-lock.json",
+        "LICENSE.md",
+        "README.md"
     ],
-    "enable-source-maps": true
-  },
-  "files": [
-    "lib",
-    "test",
-    "package.json",
-    "package-lock.json",
-    "LICENSE.md",
-    "README.md"
-  ],
-  "dependencies": {
-    "@babel/runtime": "*",
-    "@types/ws": "*",
-    "isomorphic-ws": "*",
-    "jsesc": "*",
-    "qrcode": "*",
-    "ts-loader": "*",
-    "tweetnacl": "*",
-    "ws": "*",
-    "yargs": "*"
-  },
-  "peerDependencies": {
-    "@refinio/one.core": "^0.4.2"
-  },
-  "devDependencies": {
-    "@babel/core": "*",
-    "@babel/plugin-proposal-class-properties": "*",
-    "@babel/plugin-proposal-nullish-coalescing-operator": "*",
-    "@babel/plugin-proposal-object-rest-spread": "*",
-    "@babel/plugin-proposal-optional-chaining": "*",
-    "@babel/plugin-transform-modules-commonjs": "*",
-    "@babel/plugin-transform-runtime": "*",
-    "@babel/plugin-transform-typescript": "*",
-    "@babel/preset-typescript": "*",
-    "@istanbuljs/nyc-config-typescript": "*",
-    "@types/babel__core": "*",
-    "@types/chai": "*",
-    "@types/chai-as-promised": "*",
-    "@types/jsesc": "*",
-    "@types/mocha": "*",
-    "@types/node": "*",
-    "@types/passport-http": "*",
-    "@types/qrcode": "*",
-    "@types/rimraf": "*",
-    "@types/yargs": "*",
-    "@typescript-eslint/eslint-plugin": "*",
-    "@typescript-eslint/parser": "*",
-    "babel-eslint": "*",
-    "babel-loader": "*",
-    "babel-preset-minify": "*",
-    "chai": "*",
-    "chai-as-promised": "*",
-    "eslint": "*",
-    "eslint-config-prettier": "*",
-    "eslint-plugin-jsdoc": "*",
-    "eslint-plugin-prettier": "*",
-    "isomorphic-ws": "*",
-    "mocha": "*",
-    "nyc": "*",
-    "prettier": "*",
-    "source-map-support": "*",
-    "ts-node": "*",
-    "typedoc": "*",
-    "typescript": "*",
-    "webpack": "*",
-    "webpack-cli": "*"
-  }
+    "dependencies": {
+        "@babel/runtime": "*",
+        "@types/ws": "*",
+        "isomorphic-ws": "*",
+        "jsesc": "*",
+        "qrcode": "*",
+        "ts-loader": "*",
+        "tweetnacl": "*",
+        "ws": "*",
+        "yargs": "*"
+    },
+    "peerDependencies": {
+        "@refinio/one.core": "^0.4.2"
+    },
+    "devDependencies": {
+        "@babel/core": "*",
+        "@babel/plugin-proposal-class-properties": "*",
+        "@babel/plugin-proposal-nullish-coalescing-operator": "*",
+        "@babel/plugin-proposal-object-rest-spread": "*",
+        "@babel/plugin-proposal-optional-chaining": "*",
+        "@babel/plugin-transform-modules-commonjs": "*",
+        "@babel/plugin-transform-runtime": "*",
+        "@babel/plugin-transform-typescript": "*",
+        "@babel/preset-typescript": "*",
+        "@istanbuljs/nyc-config-typescript": "*",
+        "@types/babel__core": "*",
+        "@types/chai": "*",
+        "@types/chai-as-promised": "*",
+        "@types/jsesc": "*",
+        "@types/mocha": "*",
+        "@types/node": "*",
+        "@types/passport-http": "*",
+        "@types/qrcode": "*",
+        "@types/rimraf": "*",
+        "@types/yargs": "*",
+        "@typescript-eslint/eslint-plugin": "*",
+        "@typescript-eslint/parser": "*",
+        "babel-eslint": "*",
+        "babel-loader": "*",
+        "babel-preset-minify": "*",
+        "chai": "*",
+        "chai-as-promised": "*",
+        "eslint": "*",
+        "eslint-config-prettier": "*",
+        "eslint-plugin-jsdoc": "*",
+        "eslint-plugin-prettier": "*",
+        "isomorphic-ws": "*",
+        "mocha": "*",
+        "nyc": "*",
+        "prettier": "*",
+        "source-map-support": "*",
+        "ts-node": "*",
+        "typedoc": "*",
+        "typescript": "*",
+        "webpack": "*",
+        "webpack-cli": "*"
+    }
 }
