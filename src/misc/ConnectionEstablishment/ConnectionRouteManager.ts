@@ -118,7 +118,7 @@ export default class ConnectionRouteManager {
             )}, ${url}, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroup = this.connectionRoutesGroupMap.entryCreateIfNotExist(
+        const connectionGroup = this.connectionRoutesGroupMap.createGroupIfNotExist(
             cryptoApi.localPublicKey,
             cryptoApi.remotePublicKey,
             connectionRoutesGroupName,
@@ -169,7 +169,7 @@ export default class ConnectionRouteManager {
             )}, ${host}, ${port}, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroup = this.connectionRoutesGroupMap.entryCreateIfNotExist(
+        const connectionGroup = this.connectionRoutesGroupMap.createGroupIfNotExist(
             cryptoApi.publicEncryptionKey,
             remotePublicKey,
             connectionRoutesGroupName,
@@ -206,7 +206,7 @@ export default class ConnectionRouteManager {
             )}, ${commServerUrl}, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroup = this.connectionRoutesGroupMap.entryCreateIfNotExist(
+        const connectionGroup = this.connectionRoutesGroupMap.createGroupIfNotExist(
             cryptoApi.publicEncryptionKey,
             remotePublicKey,
             connectionRoutesGroupName,
@@ -343,7 +343,7 @@ export default class ConnectionRouteManager {
             }, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroups = this.connectionRoutesGroupMap.entries(
+        const connectionGroups = this.connectionRoutesGroupMap.getGroups(
             localPublicKey,
             remotePublicKey,
             connectionRoutesGroupName
@@ -390,7 +390,7 @@ export default class ConnectionRouteManager {
             }, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroups = this.connectionRoutesGroupMap.entries(
+        const connectionGroups = this.connectionRoutesGroupMap.getGroups(
             localPublicKey,
             remotePublicKey,
             connectionRoutesGroupName
@@ -440,7 +440,7 @@ export default class ConnectionRouteManager {
             }, ${connectionRoutesGroupName})`
         );
 
-        const connectionGroups = this.connectionRoutesGroupMap.entries(
+        const connectionGroups = this.connectionRoutesGroupMap.getGroups(
             localPublicKey,
             remotePublicKey,
             connectionRoutesGroupName,
@@ -452,6 +452,22 @@ export default class ConnectionRouteManager {
                 connectionGroup.activeConnection.close('closeConnections called by user.');
             }
         }
+    }
+
+    /**
+     * This returns all connection routes gorups.
+     *
+     * The returned value is only meant to be used to display information, do not alter anything
+     * in there, because it is not a copy of the internal data structures!
+     */
+    public connectionRoutesInformation(): {
+        connectionsRoutesGroups: ConnectionRoutesGroup[];
+        catchAllRoutes: CatchAllRoutes[];
+    } {
+        return {
+            connectionsRoutesGroups: this.connectionRoutesGroupMap.getGroups(),
+            catchAllRoutes: [...this.catchAllRoutes.values()]
+        };
     }
 
     debugDump(header: string = ''): void {
@@ -763,7 +779,7 @@ export default class ConnectionRouteManager {
             );
 
             // Step 1: Check if we know this peer
-            let connectionGroup = this.connectionRoutesGroupMap.entry(
+            let connectionGroup = this.connectionRoutesGroupMap.getGroup(
                 localPublicKey,
                 remotePublicKey,
                 connectionRoutesGroupName
@@ -780,7 +796,7 @@ export default class ConnectionRouteManager {
 
                 // If we found a catch all route, then we create a new connection group for that
                 // peer which we mark as catchAll connection group
-                connectionGroup = this.connectionRoutesGroupMap.entryCreateIfNotExist(
+                connectionGroup = this.connectionRoutesGroupMap.createGroupIfNotExist(
                     localPublicKey,
                     remotePublicKey,
                     connectionRoutesGroupName,
@@ -860,7 +876,7 @@ export default class ConnectionRouteManager {
                 conn.log(MessageBus, 'closeHandlerCalled');
                 ConnectionRouteManager.removeActiveConnection(connectionRoutesGroup);
                 if (connectionRoutesGroup.isCatchAllGroup) {
-                    this.connectionRoutesGroupMap.removeEntry(
+                    this.connectionRoutesGroupMap.removeGroup(
                         connectionRoutesGroup.localPublicKey,
                         connectionRoutesGroup.remotePublicKey,
                         connectionRoutesGroup.groupName

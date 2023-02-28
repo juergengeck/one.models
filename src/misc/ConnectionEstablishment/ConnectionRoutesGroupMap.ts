@@ -29,52 +29,63 @@ export function castToConnectionRoutesGroupName(groupName: string): ConnectionRo
 }
 
 export default class ConnectionRoutesGroupMap {
-    private readonly knownConnectionsMap: Map<
+    private readonly connectionRoutesGroups: Map<
         LocalPublicKey,
         Map<RemotePublicKey, Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>>
     > = new Map();
 
-    entryCreateIfNotExist(
+    /**
+     * Create a connection route group if it does not exist.
+     *
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     * @param isCatchAllGroup
+     */
+    createGroupIfNotExist(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
         connectionRoutesGroupName: string,
         isCatchAllGroup: boolean
     ): ConnectionRoutesGroup {
-        const entries = this.entries(localPublicKey, remotePublicKey, connectionRoutesGroupName);
+        const entries = this.getGroups(localPublicKey, remotePublicKey, connectionRoutesGroupName);
+
         if (entries.length > 1) {
             throw new Error('Multiple connection entries found, this is a bug.');
         }
-        if (entries.length < 1) {
-            const remotePublicKeyEntry = getOrCreate(
-                this.knownConnectionsMap,
-                castToLocalPublicKey(localPublicKey),
-                new Map()
-            );
-            const connectionGroupEntry = getOrCreate(
-                remotePublicKeyEntry,
-                castToRemotePublicKey(remotePublicKey),
-                new Map()
-            );
-            return getOrCreate(
-                connectionGroupEntry,
-                castToConnectionRoutesGroupName(connectionRoutesGroupName),
-                {
-                    remotePublicKey,
-                    localPublicKey,
-                    groupName: connectionRoutesGroupName,
-                    isCatchAllGroup: isCatchAllGroup,
-                    activeConnection: null,
-                    activeConnectionRoute: null,
-                    knownRoutes: [],
-                    dropDuplicates: false,
-                    closeHandler: null,
-                    disconnectCloseHandler: null,
-                    reconnectTimeoutHandle: null,
-                    dropDuplicatesTimeoutHandle: null
-                }
-            );
+
+        if (entries.length === 1) {
+            return entries[0];
         }
-        return entries[0];
+
+        const remotePublicKeyEntry = getOrCreate(
+            this.connectionRoutesGroups,
+            castToLocalPublicKey(localPublicKey),
+            new Map()
+        );
+        const connectionGroupEntry = getOrCreate(
+            remotePublicKeyEntry,
+            castToRemotePublicKey(remotePublicKey),
+            new Map()
+        );
+        return getOrCreate(
+            connectionGroupEntry,
+            castToConnectionRoutesGroupName(connectionRoutesGroupName),
+            {
+                remotePublicKey,
+                localPublicKey,
+                groupName: connectionRoutesGroupName,
+                isCatchAllGroup: isCatchAllGroup,
+                activeConnection: null,
+                activeConnectionRoute: null,
+                knownRoutes: [],
+                dropDuplicates: false,
+                closeHandler: null,
+                disconnectCloseHandler: null,
+                reconnectTimeoutHandle: null,
+                dropDuplicatesTimeoutHandle: null
+            }
+        );
     }
 
     /**
@@ -84,12 +95,12 @@ export default class ConnectionRoutesGroupMap {
      * @param remotePublicKey
      * @param connectionRoutesGroupName
      */
-    entry(
+    getGroup(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
         connectionRoutesGroupName: string
     ): ConnectionRoutesGroup | undefined {
-        const entries = this.entries(localPublicKey, remotePublicKey, connectionRoutesGroupName);
+        const entries = this.getGroups(localPublicKey, remotePublicKey, connectionRoutesGroupName);
         if (entries.length > 1) {
             throw new Error('Multiple connection entries found, this is a bug.');
         }
@@ -99,7 +110,18 @@ export default class ConnectionRoutesGroupMap {
         return entries[0];
     }
 
-    entries(
+    /**
+     * Get all matching entries.
+     *
+     * If one parameter is omitted, then this parameter is not matched against all entries. So
+     * omitting all parameters means that you will get all entries.
+     *
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     * @param catchAll
+     */
+    getGroups(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
         connectionRoutesGroupName?: string,
@@ -110,10 +132,10 @@ export default class ConnectionRoutesGroupMap {
             Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>
         >[];
         if (localPublicKey !== undefined) {
-            const entry = this.knownConnectionsMap.get(castToLocalPublicKey(localPublicKey));
+            const entry = this.connectionRoutesGroups.get(castToLocalPublicKey(localPublicKey));
             filteredByLocalPublicKey = entry === undefined ? [] : [entry];
         } else {
-            filteredByLocalPublicKey = [...this.knownConnectionsMap.values()];
+            filteredByLocalPublicKey = [...this.connectionRoutesGroups.values()];
         }
 
         let filteredByRemotePublicKey: Map<ConnectionRoutesGroupName, ConnectionRoutesGroup>[];
@@ -154,7 +176,14 @@ export default class ConnectionRoutesGroupMap {
         return filteredByCatchAll;
     }
 
-    removeEntry(
+    /**
+     * Remove a specific entry from the map.
+     *
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     */
+    removeGroup(
         localPublicKey: PublicKey,
         remotePublicKey: PublicKey,
         connectionRoutesGroupName: string
@@ -163,7 +192,7 @@ export default class ConnectionRoutesGroupMap {
         const remotePublicKeyStr = castToRemotePublicKey(remotePublicKey);
         const connectionGroupNameStr = castToConnectionRoutesGroupName(connectionRoutesGroupName);
 
-        const localPublicKeyEntry = this.knownConnectionsMap.get(localPublicKeyStr);
+        const localPublicKeyEntry = this.connectionRoutesGroups.get(localPublicKeyStr);
         if (localPublicKeyEntry === undefined) {
             return;
         }
@@ -183,28 +212,23 @@ export default class ConnectionRoutesGroupMap {
         if (remotePublicKeyEntry.size === 0) {
             localPublicKeyEntry.delete(remotePublicKeyStr);
             if (localPublicKeyEntry.size === 0) {
-                this.knownConnectionsMap.delete(localPublicKeyStr);
+                this.connectionRoutesGroups.delete(localPublicKeyStr);
             }
         }
     }
 
-    getIpAddress(conn: ConnectionRoutesGroup) {
-        if (
-            conn.activeConnection &&
-            conn.activeConnection.websocketPlugin().webSocket &&
-            // @ts-ignore
-            conn.activeConnection.websocketPlugin().webSocket._socket
-        ) {
-            // @ts-ignore
-            return conn.activeConnection.websocketPlugin().webSocket._socket.remoteAddress;
-        }
-    }
+    // ######## Connection information ########
 
+    /**
+     * Dump the content of the map as string to console.
+     *
+     * @param header - Prefix the header with this string
+     */
     debugDump(header: string = ''): void {
         console.log(`------------ ${header}knownConnectionsMap ------------`);
-        for (const localPubliKeyEntry of this.knownConnectionsMap) {
+        for (const localPubliKeyEntry of this.connectionRoutesGroups) {
             console.log(` - ${localPubliKeyEntry[0]}`);
-            const c1 = isLastEntry(this.knownConnectionsMap, localPubliKeyEntry) ? ' ' : '|';
+            const c1 = isLastEntry(this.connectionRoutesGroups, localPubliKeyEntry) ? ' ' : '|';
 
             for (const remotePublicKeyEntry of localPubliKeyEntry[1]) {
                 console.log(`   |- ${remotePublicKeyEntry[0]}`);
@@ -213,14 +237,20 @@ export default class ConnectionRoutesGroupMap {
                 for (const channelIdEntry of remotePublicKeyEntry[1]) {
                     console.log(`   ${c1}  |- ${channelIdEntry[0]}`);
                     console.log(
-                        `   ${c1}  ${c2}  |- activeConnection: ${channelIdEntry[1].activeConnection}`
+                        `   ${c1}  ${c2}  |- activeConnection: ${
+                            channelIdEntry[1].activeConnection !== null
+                        }`
                     );
 
                     console.log(
-                        `   ${c1}  ${c2}  |- ipAddress: ${this.getIpAddress(channelIdEntry[1])}`
+                        `   ${c1}  ${c2}  |- ipAddress: ${ConnectionRoutesGroupMap.getIpAddress(
+                            channelIdEntry[1]
+                        )}`
                     );
                     console.log(
-                        `   ${c1}  ${c2}  |- activeConnectionRoute: ${channelIdEntry[1].activeConnectionRoute?.id}`
+                        `   ${c1}  ${c2}  |- activeConnectionRoute: ${
+                            channelIdEntry[1].activeConnectionRoute?.id || ''
+                        }`
                     );
                     console.log(
                         `   ${c1}  ${c2}  |- isCatchAllGroup: ${channelIdEntry[1].isCatchAllGroup}`
@@ -237,5 +267,25 @@ export default class ConnectionRoutesGroupMap {
             }
         }
         console.log('---------------------------------------------');
+    }
+
+    /**
+     * Extracts the IP address from the connection group
+     *
+     * @param group
+     * @private
+     */
+    private static getIpAddress(group: ConnectionRoutesGroup) {
+        if (
+            group.activeConnection &&
+            group.activeConnection.websocketPlugin().webSocket &&
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            group.activeConnection.websocketPlugin().webSocket._socket
+        ) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return group.activeConnection.websocketPlugin().webSocket._socket.remoteAddress;
+        }
     }
 }

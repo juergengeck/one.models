@@ -42,13 +42,22 @@ export type LocalInstanceInfo = {
 export type ConnectionInfo = {
     isConnected: boolean;
     url: string;
-    sourcePublicKey: HexString;
-    targetPublicKey: HexString;
-    sourceInstanceId: SHA256IdHash<Instance>;
-    targetInstanceId: SHA256IdHash<Instance>;
-    sourcePersonId: SHA256IdHash<Person>;
-    targetPersonId: SHA256IdHash<Person>;
     isInternetOfMe: boolean;
+    isCatchAll: boolean;
+
+    localPublicKey: HexString;
+    localInstanceId: SHA256IdHash<Instance>;
+    localPersonId: SHA256IdHash<Person>;
+
+    remotePublicKey: HexString;
+    remoteInstanceId: SHA256IdHash<Instance>;
+    remotePersonId: SHA256IdHash<Person>;
+
+    routes: {
+        name: string;
+        active: boolean;
+        disabled: boolean;
+    }[];
 };
 
 /**
@@ -188,8 +197,7 @@ export default class LeuteConnectionsModule {
     private readonly connectionRouteManager: ConnectionRouteManager; // Manager for incoming
 
     // Internal maps and lists (dynamic)
-    public readonly knownPeerMap: Map<PeerId, OneInstanceEndpoint>;
-    private readonly unknownPeerMap: Map<string, Connection>; // Stores unknown peers - Map from srcKey + dstKey
+    private readonly knownPeerMap: Map<PeerId, OneInstanceEndpoint>;
     private readonly myPublicKeyToInstanceInfoMap: Map<LocalPublicKey, LocalInstanceInfo>; // A map
     // from my public instance key to my id - used to map the public key of the new connection to my ids
 
@@ -229,8 +237,6 @@ export default class LeuteConnectionsModule {
         this.connectionRouteManager = new ConnectionRouteManager(this.config.reconnectDelay);
 
         this.knownPeerMap = new Map<PeerId, OneInstanceEndpoint>();
-        this.unknownPeerMap = new Map<string, Connection>();
-
         this.myPublicKeyToInstanceInfoMap = new Map<LocalPublicKey, LocalInstanceInfo>();
 
         this.initialized = false;
@@ -313,7 +319,6 @@ export default class LeuteConnectionsModule {
         await this.connectionRouteManager.disableRoutes();
 
         // Clear all other fields
-        this.unknownPeerMap.clear();
         this.knownPeerMap.clear();
         this.myPublicKeyToInstanceInfoMap.clear();
     }
@@ -324,23 +329,55 @@ export default class LeuteConnectionsModule {
      * @returns
      */
     public connectionsInfo(): ConnectionInfo[] {
+        const info = this.connectionRouteManager.connectionRoutesInformation();
+
         const connectionsInfo: ConnectionInfo[] = [];
-        /*for (const container of this.knownPeerMap.values()) {
+        for (const routeGroup of info.connectionsRoutesGroups) {
+            const peerInfo = this.knownPeerMap.get(
+                createPeerId(routeGroup.localPublicKey, routeGroup.remotePublicKey)
+            );
+            const myInfo = this.myPublicKeyToInstanceInfoMap.get(
+                castToLocalPublicKey(routeGroup.localPublicKey)
+            );
+            const dummyInstanceId = '0'.repeat(64) as SHA256IdHash<Instance>;
+            const dummyPersonId = '0'.repeat(64) as SHA256IdHash<Person>;
+
+            const myIds = [];
+            for (const localInstanceInfo of this.myPublicKeyToInstanceInfoMap.values()) {
+                myIds.push(localInstanceInfo.personId);
+            }
+
             connectionsInfo.push({
-                isConnected: container.activeConnection !== null,
-                url: container.url,
-                sourcePublicKey: uint8arrayToHexString(container.sourcePublicKey),
-                targetPublicKey: uint8arrayToHexString(container.targetPublicKey),
-                sourceInstanceId: container.sourceInstanceId,
-                targetInstanceId: container.targetInstanceId,
-                sourcePersonId: container.sourcePersonId,
-                targetPersonId: container.targetPersonId,
-                isInternetOfMe: container.isInternetOfMe
+                isConnected: routeGroup.activeConnection !== null,
+                url:
+                    routeGroup.activeConnectionRoute === null
+                        ? ''
+                        : routeGroup.activeConnectionRoute.id,
+                isInternetOfMe: myInfo ? myIds.includes(myInfo.personId) : false,
+                isCatchAll: routeGroup.isCatchAllGroup,
+
+                localPublicKey: castToLocalPublicKey(routeGroup.localPublicKey),
+                localInstanceId: myInfo ? myInfo.instanceId : dummyInstanceId,
+                localPersonId: myInfo ? myInfo.personId : dummyPersonId,
+
+                remotePublicKey: castToRemotePublicKey(routeGroup.remotePublicKey),
+                remoteInstanceId: peerInfo ? peerInfo.instanceId : dummyInstanceId,
+                remotePersonId: peerInfo ? peerInfo.personId : dummyPersonId,
+
+                routes: routeGroup.knownRoutes.map(route => ({
+                    name: route.route.id,
+                    active: route.route.id === routeGroup.activeConnectionRoute?.id,
+                    disabled: route.disabled
+                }))
             });
-        }*/
+        }
+
         return connectionsInfo;
     }
 
+    /**
+     * Dumps all information about connections and routes in readable form to console.
+     */
     debugDump(header: string = ''): void {
         this.connectionRouteManager.debugDump(header);
     }
@@ -437,32 +474,20 @@ export default class LeuteConnectionsModule {
     }
 
     /**
-     *
-     * @private
+     * Get all instance endpoints that don't represent this instance.
      */
     private async fetchOtherOneInstanceEndpointsFromLeute(): Promise<
         {instanceEndpoint: OneInstanceEndpoint; isIom: boolean}[]
     > {
-        const me = await this.leuteModel.me();
-        const localInstances = await Promise.all(
-            me.identities().map(async personId => {
-                try {
-                    return getLocalInstanceOfPerson(personId);
-                } catch (_e) {
-                    return undefined;
-                }
-            })
-        );
-
         // My non local instanceEndpoints
-        const myEndpoints = (await this.leuteModel.findAllOneInstanceEndpointsForMe(true))
-            .map(instanceEndpoint => {
+        const myEndpoints = (await this.leuteModel.getInternetOfMeEndpoints()).map(
+            instanceEndpoint => {
                 return {
                     instanceEndpoint,
                     isIom: true
                 };
-            })
-            .filter(info => localInstances.includes(info.instanceEndpoint.instanceId));
+            }
+        );
 
         // Instance endpoints for all other instances / persons
         const otherEndpoints = (await this.leuteModel.findAllOneInstanceEndpointsForOthers()).map(
@@ -484,10 +509,6 @@ export default class LeuteConnectionsModule {
     private async updateLocalInstancesMap(): Promise<void> {
         const meSomeone = await this.leuteModel.me();
         const me = await meSomeone.mainIdentity();
-
-        /*if (!(await hasPersonLocalInstance(me))) {
-            return;
-        }*/
 
         await Promise.all(
             meSomeone.identities().map(async identity => {

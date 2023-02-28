@@ -341,13 +341,15 @@ async function main(): Promise<void> {
     console.log('Owner:', getInstanceOwnerIdHash());
     console.log('Instance:', getInstanceIdHash());
     const intervalHandle = setInterval(async () => {
-        const connectionInfos = models.connections.connectionsInfo();
+        console.log(`OnelineState: ${models.connections.onlineState}`);
+        models.connections.debugDump();
+        /*const connectionInfos = models.connections.connectionsInfo();
         const connCount = connectionInfos.filter(info => info.isConnected).length;
         connectionInfos.map(info => info.isConnected);
         console.log(`OnelineState: ${models.connections.onlineState}`);
-        console.log(`Connections established: ${connCount}`);
+        console.log(`Connections established: ${connCount}`);*/
         if (displayDetails) {
-            console.log(connectionInfos);
+            //console.log(connectionInfos);
 
             // Owner
             const me = await models.leute.me();

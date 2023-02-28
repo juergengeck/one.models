@@ -204,13 +204,17 @@ class ConnectionsModel extends Model {
     }
 
     /**
-     *
-     * @returns
+     * Returns information about all connections and routes.
      */
     public connectionsInfo(): ConnectionInfo[] {
-        this.state.assertCurrentState('Initialised');
-
         return this.leuteConnectionsModule.connectionsInfo();
+    }
+
+    /**
+     * Dumps all information about connections and routes in readable form to console.
+     */
+    debugDump(header: string = ''): void {
+        this.leuteConnectionsModule.debugDump(header);
     }
 
     // ######## PAIRING ########
@@ -272,18 +276,20 @@ class ConnectionsModel extends Model {
                     const protocolMsg = await waitForPeerMessage(conn, 'start_protocol');
                     MessageBus.send(
                         'log',
-                        `${conn.id}: Known: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
+                        `${conn.id}: onKnownConnection: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
                     );
 
                     // The normal chum protocol
-                    if (protocolMsg.protocol === 'chum') {
+                    if (protocolMsg.protocol !== 'chum') {
                         // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Unsupported chum protocol version.');
+                        throw new Error(
+                            `Unexpected protocol ${protocolMsg.protocol}. Expected chum protocol.`
+                        );
                     }
 
                     if (protocolMsg.version !== '1.0') {
                         // noinspection ExceptionCaughtLocallyJS
-                        throw new Error('Unsupported chum protocol version.');
+                        throw new Error(`Unsupported chum protocol version ${protocolMsg.version}`);
                     }
 
                     this.onProtocolStart.emit(
@@ -309,7 +315,7 @@ class ConnectionsModel extends Model {
                 const protocolMsg = await waitForPeerMessage(conn, 'start_protocol');
                 MessageBus.send(
                     'log',
-                    `${conn.id}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
+                    `${conn.id}: onKnownConnection: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
                 );
 
                 if (protocolMsg.protocol !== 'pairing') {
@@ -331,7 +337,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId
                 );
             } else {
-                throw new Error(`RoutesGroupName ${connectionRoutesGroupName} not supported`);
+                throw new Error(
+                    `ConnectionRoutesGroupName ${connectionRoutesGroupName} not supported`
+                );
             }
         } catch (e) {
             MessageBus.send('log', `${conn.id}: Known: Error in protocol ${e}`);
@@ -397,7 +405,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId
                 );
             } else {
-                throw new Error(`RoutesGroupName ${connectionRoutesGroupName} not supported`);
+                throw new Error(
+                    `ConnectionRoutesGroupName ${connectionRoutesGroupName} not supported`
+                );
             }
         } catch (e) {
             MessageBus.send('log', `${conn.id}: Unknown: Error in protocol ${e}`);
