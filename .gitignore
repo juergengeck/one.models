@@ -4,6 +4,7 @@
 
 test/*.js
 test/**/*.js
+test/**/*.js.map
 test/*.d.ts
 test/**/*.d.ts
 test/*.d.ts.map
