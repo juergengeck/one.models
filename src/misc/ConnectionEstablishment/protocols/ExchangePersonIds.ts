@@ -119,7 +119,7 @@ export async function verifyAndExchangePersonId(
         throw new Error(`Failed to load keys object for person ${personIds.remotePersonId}`);
     }
 
-    if (keyComparisionResult === 'nomatch' && !skipLocalKeyCompare) {
+    if (!isNewPerson && keyComparisionResult === 'nomatch' && !skipLocalKeyCompare) {
         throw new Error('Key does not match your previous visit');
     }
 
