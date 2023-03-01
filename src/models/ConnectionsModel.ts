@@ -60,19 +60,12 @@ export type ConnectionsModelConfiguration = {
 /**
  * This model manages all connections including pairing scenarios etc.
  *
- * Keeping connections established to other instances is mostly deferred to the CommunicationModule. So have a look
- * at this class to see how connections are established.
+ * The lower levels handle the complete connection establishment based on information found in
+ * Leute. This module just executes the correct protocol when a connection was established (e.g.
+ * the chum, or the pairing protocol ...)
  *
- * So the implementation of this module mostly focuses on two things:
- * 1) For known connections setup chums for data exchange
- * 2) Pair unknown connections/instances so that they become known connections
- *
- * This class will provide multiple pairing mechanisms in the future. Currently only one is supported and it works
- * like this
- * - Pairing information is generated (contains a random authentication tag) that expires in a certain amount of time
- * - If an unknown connection arrives, that carries one of the non-expired pairing information, then a chum is set up
- * - The chum is then used to exchange contact information
- *   => the next connection attempt will then be a known connection, so pairing is done
+ * Pairing:
+ * Pairing is handled by the PairingManager that can be accessed by ".pairing" on this module.
  */
 class ConnectionsModel extends Model {
     /**
@@ -99,7 +92,7 @@ class ConnectionsModel extends Model {
         ) => void
     >();
 
-    public readonly pairing;
+    public readonly pairing: PairingManager;
 
     private readonly config: ConnectionsModelConfiguration;
     private readonly leuteConnectionsModule: LeuteConnectionsModule;
@@ -181,7 +174,7 @@ class ConnectionsModel extends Model {
     /**
      * Initialize this module.
      */
-    public async init(): Promise<void> {
+    async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
         await this.leuteConnectionsModule.init();
         this.state.triggerEvent('init');
@@ -190,7 +183,7 @@ class ConnectionsModel extends Model {
     /**
      * Shutdown module
      */
-    public async shutdown(): Promise<void> {
+    async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
         await this.leuteConnectionsModule.shutdown();
         this.pairing.invalidateAllInvitations();
@@ -198,9 +191,71 @@ class ConnectionsModel extends Model {
     }
 
     /**
+     * Enable all connections to this person.
+     *
+     * @param remotePersonId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     */
+    async enableConnectionsToPerson(
+        remotePersonId: SHA256IdHash<Person>,
+        localPersonId?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.leuteConnectionsModule.enableConnectionsToPerson(remotePersonId, localPersonId);
+    }
+
+    /**
+     * Disable all connections to this person.
+     *
+     * @param remotePersonId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     */
+    async disableConnectionsToPerson(
+        remotePersonId: SHA256IdHash<Person>,
+        localPersonId?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.leuteConnectionsModule.disableConnectionsToPerson(remotePersonId, localPersonId);
+    }
+
+    /**
+     * Enable all connections to this instance.
+     *
+     * @param remoteInstanceId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     */
+    async enableConnectionsToInstance(
+        remoteInstanceId: SHA256IdHash<Instance>,
+        localPersonId?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.leuteConnectionsModule.enableConnectionsToInstance(
+            remoteInstanceId,
+            localPersonId
+        );
+    }
+
+    /**
+     * Disable all connections to this instance.
+     *
+     * @param remoteInstanceId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     */
+    async disableConnectionsToInstance(
+        remoteInstanceId: SHA256IdHash<Instance>,
+        localPersonId?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.leuteConnectionsModule.disableConnectionsToInstance(
+            remoteInstanceId,
+            localPersonId
+        );
+    }
+
+    /**
      * Returns information about all connections and routes.
      */
-    public connectionsInfo(): ConnectionInfo[] {
+    connectionsInfo(): ConnectionInfo[] {
         return this.leuteConnectionsModule.connectionsInfo();
     }
 

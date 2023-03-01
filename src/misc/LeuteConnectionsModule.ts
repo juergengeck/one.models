@@ -1,3 +1,4 @@
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import type {LeuteModel} from '../models';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
 import {
@@ -12,16 +13,20 @@ import {OEvent} from './OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {
+    ensureHexString,
+    hexToUint8Array
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from './Connection/Connection';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {
     createCryptoApiFromDefaultKeys,
-    getDefaultKeys
+    getDefaultKeys,
+    getListOfKeys
 } from '@refinio/one.core/lib/keychain/keychain';
-import {getLocalInstanceOfPerson} from './instance';
+import {getInstancesOfPerson, getLocalInstanceOfPerson} from './instance';
 import {isPersonComplete} from './person';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -116,43 +121,29 @@ function createPeerId(localPublicKey: PublicKey, remotePublicKey: PublicKey): Pe
     )}` as PeerId;
 }
 
+const peerIdRegex = /localKey: ([0-9a-fA-F]*), remoteKey: ([0-9a-fA-F]*)/;
+
+function unpackPeerId(peerId: PeerId): {
+    localPublicKey: PublicKey;
+    remotePublicKey: PublicKey;
+} {
+    const m = peerId.match(peerIdRegex);
+
+    if (m === null || m.length !== 3) {
+        throw new Error('This is not a PeerId');
+    }
+
+    return {
+        localPublicKey: ensurePublicKey(hexToUint8Array(ensureHexString(m[1]))),
+        remotePublicKey: ensurePublicKey(hexToUint8Array(ensureHexString(m[2])))
+    };
+}
+
 /**
- * This module manages all connection related stuff.
+ * This module connects Leute with the lower level connection stuff.
  *
- * The responsibilities are:
- * - Open connections to other instances based on the information found in the contact management
- * - Trying to reestablish connections when they are closed
- * - Match incoming connection to the information found in the contact management
- * - Notify the user of this class of new connections and whether we know the peer. (onKnown/UnknownConnection callback)
- *
- * Those points are not the responsibility of this class:
- * - Pairing new connections -> this can be done by the above level based on the known / unknown callbacks
- * - Doing anything after establishing an encrypted connection
- *
- * So the main focus of this class is to keep being connected to other known instances and to forward the unknown ones
- * (only incoming connections can be unknown) to the upper level.
- *
- * In the current implementation it does two things:
- * 1) Grab all local instances and listen for matching incoming connections via the passed communication server
- *    - Incoming connections from our own devices are always matched against our main id
- *    - Incoming connections from other devices are always matched against the first alternate id, with one exception:
- *      If outgoing connections are disabled we assume at the moment that we are a non anonymous server, so it
- *      matches against the main id.
- *    TODO: We have to match the connection against the id that we whitelisted for that person
- *          The current implementation is just a shortcut while we always communicate with others via our
- *          alternate id. Especially the switch to the main id based on outgoing connection flag is bad.
- * 2) Iterate over all instance endpoints of contact management and try to establish outgoing connections
- *    This is skipped if establishOutgoingConnections is set to false.
- *    - Connections to our own instances are only established via our main id, so endpoints to own instances
- *      with alternate ids are ignored.
- *    - Connections to other instances are always made with the first alternate id (to be always anonymous atm).
- *    TODO: Make the decision with which identity to connect to others based on which identity we exposed to somebody else.
- *
- * If any connection is established (outgoing or incoming) the onKnown/UnknownConnection callbacks are called.
- *
- * Emits Events:
- * - connectionChange - when any connection changes its state
- * - onlineStateChange - when the online state changed
+ * This module basically looks for OneInstanceEndpoints in leute and creates connection routes
+ * for each of them. See the lowe level ConnectionRouteManager for mor details on what routes are.
  */
 export default class LeuteConnectionsModule {
     /**
@@ -276,42 +267,12 @@ export default class LeuteConnectionsModule {
                 this.reconfigureConnections().catch(console.error);
             }
         );*/
-        /*this.leuteModel.onNewOneInstanceEndpointEvent(
-            async (oneInstanceEndpoint: OneInstanceEndpoint) => {
-                try {
-                    if (!this.initialized) {
-                        return;
-                    }
-                    if (!this.mainInstanceInfo) {
-                        console.log(
-                            'AN ERROR HAPPENED HERE. ME IS NOT INITIALIZED, SHOULD NEVER HAPPEN!!!'
-                        );
-                        return;
-                    }
-                    const mainInstanceInfo = this.mainInstanceInfo;
-                    const myIds = (await this.leuteModel.me()).identities();
-
-                    // For my own contact objects, just use the one for the main id. We don't want to
-                    // connect to our own anonymous id
-                    if (
-                        myIds.includes(oneInstanceEndpoint.personId) ||
-                        mainInstanceInfo.personId === oneInstanceEndpoint.personId
-                    ) {
-                        return;
-                    }
-
-                    await this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint);
-                } catch (e) {
-                    console.error('Error in onNewOneInstanceEndpointEvent handler', e);
-                }
-            }
-        );*/
     }
 
     /**
      * Initialize the communication.
      */
-    public async init(): Promise<void> {
+    async init(): Promise<void> {
         this.initialized = true;
 
         await this.updateMyIdentites();
@@ -338,11 +299,92 @@ export default class LeuteConnectionsModule {
     }
 
     /**
+     * Enable all connections to this person.
+     *
+     * @param remotePersonId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     * @param enable - if false, then disable instead
+     */
+    async enableConnectionsToPerson(
+        remotePersonId: SHA256IdHash<Person>,
+        localPersonId?: SHA256IdHash<Person>,
+        enable = true
+    ): Promise<void> {
+        const remoteInstances = await getInstancesOfPerson(remotePersonId);
+
+        for (const remoteInstance of remoteInstances) {
+            if (!remoteInstance.local) {
+                await this.enableConnectionsToInstance(remoteInstance.instanceId, localPersonId);
+            }
+        }
+    }
+
+    /**
+     * Disable all connections to this person.
+     *
+     * @param remotePersonId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     * @param disable - if false, then enable instead
+     */
+    async disableConnectionsToPerson(
+        remotePersonId: SHA256IdHash<Person>,
+        localPersonId?: SHA256IdHash<Person>,
+        disable = true
+    ): Promise<void> {
+        await this.enableConnectionsToPerson(remotePersonId, localPersonId, !disable);
+    }
+
+    /**
+     * Enable all connections to this instance.
+     *
+     * @param remoteInstanceId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     * @param enable - if false, then disable instead
+     */
+    async enableConnectionsToInstance(
+        remoteInstanceId: SHA256IdHash<Instance>,
+        localPersonId?: SHA256IdHash<Person>,
+        enable = true
+    ): Promise<void> {
+        const remoteKeysList = await Promise.all(
+            (await getListOfKeys(remoteInstanceId)).map(keys => getPublicKeys(keys.keys))
+        );
+        const localKeys =
+            localPersonId && (await getPublicKeys(await getDefaultKeys(localPersonId)));
+
+        for (const remoteKeys of remoteKeysList) {
+            await this.connectionRouteManager.enableRoutes(
+                localKeys?.publicEncryptionKey,
+                remoteKeys.publicEncryptionKey
+            );
+        }
+    }
+
+    /**
+     * Disable all connections to this instance.
+     *
+     * @param remoteInstanceId
+     * @param localPersonId - If specified only the connections originating from this person are
+     * affected.
+     * @param disable - if false, then enable instead
+     */
+    async disableConnectionsToInstance(
+        remoteInstanceId: SHA256IdHash<Instance>,
+        localPersonId?: SHA256IdHash<Person>,
+        disable = true
+    ): Promise<void> {
+        await this.enableConnectionsToInstance(remoteInstanceId, localPersonId, !disable);
+    }
+
+    /**
      * Return information about all known connections.
      *
      * @returns
      */
-    public connectionsInfo(): ConnectionInfo[] {
+    connectionsInfo(): ConnectionInfo[] {
         const info = this.connectionRouteManager.connectionRoutesInformation();
 
         const connectionsInfo: ConnectionInfo[] = [];
@@ -421,6 +463,8 @@ export default class LeuteConnectionsModule {
         this.connectionRouteManager.debugDump(header);
     }
 
+    // ######## Private stuff ########
+
     /**
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
      */
@@ -474,9 +518,9 @@ export default class LeuteConnectionsModule {
     }
 
     /**
+     * Creates outgoing / incoming connection routes for the passed OneInstanceEndpoint.
      *
      * @param remoteInstanceEndpoint
-     * @private
      */
     private async setupRoutesForOneInstanceEndpoint(remoteInstanceEndpoint: OneInstanceEndpoint) {
         const remoteInstanceKeys = await getObject(remoteInstanceEndpoint.instanceKeys);
@@ -611,6 +655,9 @@ export default class LeuteConnectionsModule {
         );
     }
 
+    /**
+     * Updates this.myIdentities with my own identities from Leute.
+     */
     private async updateMyIdentites(): Promise<void> {
         const mySomeone = await this.leuteModel.me();
         this.myIdentities = mySomeone.identities();
@@ -770,14 +817,5 @@ export default class LeuteConnectionsModule {
                 connectionRoutesGroupName
             );
         }
-
-        /*this.onUnknownConnection.emit(
-            conn,
-            localPublicKey,
-            remotePublicKey,
-            myInfo.personId,
-            initiatedLocally,
-            connectionGroupName
-        );*/
     }
 }

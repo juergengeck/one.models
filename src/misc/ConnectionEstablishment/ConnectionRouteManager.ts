@@ -33,7 +33,12 @@ export type CatchAllRoutes = {
 /**
  * This module manages incoming and outgoing connections.
  *
- * It will group certain connections together
+ * You can define how a connection between two participants can be reached (called a connection
+ * route) and this module will try to open a single connection between those two participants
+ * using those routes.
+ *
+ * Routes can be enabled / disabled giving the user control of when and how to establish
+ * connections.
  */
 export default class ConnectionRouteManager {
     private readonly connectionRoutesGroupMap = new ConnectionRoutesGroupMap();
