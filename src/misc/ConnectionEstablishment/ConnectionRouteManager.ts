@@ -837,6 +837,8 @@ export default class ConnectionRouteManager {
 
             const initiatedLocally = connectionRoutesGroupName !== undefined;
 
+            MessageBus.send('log', `${conn.id}: acceptConnection: exchangeConnectionGroupName`);
+
             // Exchange connection group name (initiator selects the group)
             connectionRoutesGroupName = await exchangeConnectionGroupName(
                 conn,
@@ -868,6 +870,8 @@ export default class ConnectionRouteManager {
                     true
                 );
             }
+
+            MessageBus.send('log', `${conn.id}: acceptConnection: sync`);
 
             // Have a sync step (misusing the success message at the moment), so that the
             // connection initiator does not emit the event if the other side does not want to

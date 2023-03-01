@@ -603,6 +603,8 @@ export default class LeuteConnectionsModule {
             return;
         }
 
+        MessageBus.send('log', `${conn.id}: acceptConnection: verifyAndExchangePersonId`);
+
         const personInfo = await verifyAndExchangePersonId(
             this.leuteModel,
             conn,
@@ -610,6 +612,8 @@ export default class LeuteConnectionsModule {
             initiatedLocally,
             oneInstanceEndpoint.personId
         );
+
+        MessageBus.send('log', `${conn.id}: acceptConnection: exchangeInstanceIdObjects`);
 
         const instanceInfo = await exchangeInstanceIdObjects(conn, myInfo.instanceId);
 

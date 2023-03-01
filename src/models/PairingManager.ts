@@ -25,6 +25,7 @@ import {connectWithEncryption} from '../misc/ConnectionEstablishment/protocols/E
 import {exchangeConnectionGroupName} from '../misc/ConnectionEstablishment/protocols/ExchangeConnectionGroupName';
 import {exchangeInstanceIdObjects} from '../misc/ConnectionEstablishment/protocols/ExchangeInstanceIds';
 import {verifyAndExchangePersonId} from '../misc/ConnectionEstablishment/protocols/ExchangePersonIds';
+import {sync} from '../misc/ConnectionEstablishment/protocols/Sync';
 import {
     convertIdentityToProfile,
     convertOneInstanceEndpointToIdentity
@@ -33,7 +34,7 @@ import {getLocalInstanceOfPerson} from '../misc/instance';
 import {OEvent} from '../misc/OEvent';
 import type LeuteModel from './Leute/LeuteModel';
 
-const MessageBus = createMessageBus('Protocols/StartChum');
+const MessageBus = createMessageBus('PairingManager');
 
 /**
  * This is the information that needs to pe transmitted securely to the device that shall be paired
@@ -174,25 +175,40 @@ export default class PairingManager {
 
         const conn = connInfo.connection;
 
+        MessageBus.send('log', `${conn.id}: connectUsingInvitation: exchangeConnectionGroupName`);
+
         await exchangeConnectionGroupName(conn, 'pairing');
 
+        MessageBus.send('log', `${conn.id}: connectUsingInvitation: sync`);
+
+        // Have a sync step (misusing the success message at the moment), so that the
+        // connection initiator does not emit the event if the other side does not want to
+        // connect.
+        await sync(conn, true);
+
+        MessageBus.send('log', `${conn.id}: connectUsingInvitation: verifyAndExchangePersonId`);
+
         const personInfo = await verifyAndExchangePersonId(this.leuteModel, conn, myPersonId, true);
+
+        MessageBus.send('log', `${conn.id}: connectUsingInvitation: exchangeInstanceIdObjects`);
 
         const instanceInfo = await exchangeInstanceIdObjects(conn, myInstanceId);
 
         // Start the pairing protocol
         try {
-            // Step 2: Send the authentication token
+            MessageBus.send('log', `${conn.id}: connectUsingInvitation: startPairingProtocol`);
+
+            // Send the authentication token
             sendPeerMessage(conn, {
                 command: 'authentication_token',
                 token: invitation.token
             });
 
-            // Step 3: Wait for remote identity
+            // Wait for remote identity
             const remoteIdentity = (await waitForPeerMessage(conn, 'identity')).obj;
             const remoteProfile = await convertIdentityToProfile(remoteIdentity);
 
-            // Step 4: Send my own identity
+            // Send my own identity
             const oneInstanceEndpoints = await this.leuteModel.getMyLocalEndpoints(myPersonId);
             if (oneInstanceEndpoints.length === 0) {
                 throw new Error(
@@ -204,6 +220,11 @@ export default class PairingManager {
                 command: 'identity',
                 obj: await convertOneInstanceEndpointToIdentity(oneInstanceEndpoints[0])
             });
+
+            MessageBus.send(
+                'log',
+                `${conn.id}: connectUsingInvitation: startPairingProtocol - success`
+            );
 
             // Notify the app of successful pairing and then close the connection.
             this.onPairingSuccess.emit(
@@ -237,6 +258,8 @@ export default class PairingManager {
         remotePersonId: SHA256IdHash<Person>,
         remoteInstanceId: SHA256IdHash<Instance>
     ): Promise<void> {
+        MessageBus.send('log', `${conn.id}: acceptInvitation: startPairingProtocol`);
+
         // Wait for the authentication token and verify it against the token list
         const pairingToken = await waitForPeerMessage(conn, 'authentication_token');
 
@@ -270,6 +293,8 @@ export default class PairingManager {
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);
         this.activeInvitations.delete(pairingToken.token);
+
+        MessageBus.send('log', `${conn.id}: acceptInvitation: startPairingProtocol - success`);
 
         // Notify the app of successful pairing and then close the connection.
         this.onPairingSuccess.emit(
