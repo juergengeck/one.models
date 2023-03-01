@@ -321,20 +321,16 @@ export default class ConnectionRouteManager {
 
     // ######## Enable / disable routes ########
 
-    async enableAllRoutesForTargetAndSource(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey
-    ): Promise<void> {
-        await this.enableRoutes(localPublicKey, remotePublicKey);
-    }
-
-    async disableAllRoutesForTargetAndSource(
-        localPublicKey: PublicKey,
-        remotePublicKey: PublicKey
-    ): Promise<void> {
-        await this.disableRoutes(localPublicKey, remotePublicKey);
-    }
-
+    /**
+     * Enables all routes matching the passed parameters.
+     *
+     * This also includes catch-all routes if only the localPublicKey and / or routeId is set.
+     *
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     * @param routeId
+     */
     async enableRoutes(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
@@ -345,7 +341,7 @@ export default class ConnectionRouteManager {
             'log',
             `enableRoutes(${localPublicKey && uint8arrayToHexString(localPublicKey)}, ${
                 remotePublicKey && uint8arrayToHexString(remotePublicKey)
-            }, ${connectionRoutesGroupName})`
+            }, ${connectionRoutesGroupName}, ${routeId})`
         );
 
         const connectionGroups = this.connectionRoutesGroupMap.getGroups(
@@ -363,26 +359,20 @@ export default class ConnectionRouteManager {
 
         // handle catch all routes
         if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
-            let catchAllRoutes: CatchAllRoutes[];
-            if (localPublicKey === undefined) {
-                catchAllRoutes = [...this.catchAllRoutes.values()];
-            } else {
-                const catchAllRoute = this.catchAllRoutes.get(castToLocalPublicKey(localPublicKey));
-
-                if (catchAllRoute === undefined) {
-                    throw new Error('No catch all routes for the specified localPublicKey found.');
-                }
-
-                catchAllRoutes = [catchAllRoute];
-            }
-
-            for (const catchAllRoute of catchAllRoutes) {
-                ConnectionRouteManager.clearCatchAllRoutesDisableFlags(catchAllRoute);
-                await ConnectionRouteManager.startCatchAllRoutes(catchAllRoute);
-            }
+            await this.enableCatchAllRoutes(localPublicKey, routeId);
         }
     }
 
+    /**
+     * Disables all routes matching the passed parameters.
+     *
+     * This also includes catch-all routes if only the localPublicKey and / or routeId is set.
+     *
+     * @param localPublicKey
+     * @param remotePublicKey
+     * @param connectionRoutesGroupName
+     * @param routeId
+     */
     async disableRoutes(
         localPublicKey?: PublicKey,
         remotePublicKey?: PublicKey,
@@ -393,7 +383,7 @@ export default class ConnectionRouteManager {
             'log',
             `disableRoutes(${localPublicKey && uint8arrayToHexString(localPublicKey)}, ${
                 remotePublicKey && uint8arrayToHexString(remotePublicKey)
-            }, ${connectionRoutesGroupName})`
+            }, ${connectionRoutesGroupName}, ${routeId})`
         );
 
         const connectionGroups = this.connectionRoutesGroupMap.getGroups(
@@ -410,28 +400,74 @@ export default class ConnectionRouteManager {
         }
 
         // handle catch all routes
-        if (
-            remotePublicKey === undefined &&
-            connectionRoutesGroupName === undefined &&
-            routeId === undefined
-        ) {
-            let catchAllRoutes: CatchAllRoutes[];
-            if (localPublicKey === undefined) {
-                catchAllRoutes = [...this.catchAllRoutes.values()];
-            } else {
-                const catchAllRoute = this.catchAllRoutes.get(castToLocalPublicKey(localPublicKey));
+        if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
+            await this.disableCatchAllRoutes(localPublicKey, routeId);
+        }
+    }
 
-                if (catchAllRoute === undefined) {
-                    throw new Error('No catch all routes for the specified localPublicKey found.');
-                }
+    /**
+     * Enables all catch-all routes matching the passed parameters.
+     *
+     * @param localPublicKey
+     * @param routeId
+     */
+    async enableCatchAllRoutes(localPublicKey?: PublicKey, routeId?: string): Promise<void> {
+        MessageBus.send(
+            'log',
+            `enableCatchAllRoutes(${
+                localPublicKey && uint8arrayToHexString(localPublicKey)
+            }, ${routeId})`
+        );
 
-                catchAllRoutes = [catchAllRoute];
+        let catchAllRoutes: CatchAllRoutes[];
+        if (localPublicKey === undefined) {
+            catchAllRoutes = [...this.catchAllRoutes.values()];
+        } else {
+            const catchAllRoute = this.catchAllRoutes.get(castToLocalPublicKey(localPublicKey));
+
+            if (catchAllRoute === undefined) {
+                throw new Error('No catch all routes for the specified localPublicKey found.');
             }
 
-            for (const catchAllRoute of catchAllRoutes) {
-                ConnectionRouteManager.setCatchAllRoutesDisableFlags(catchAllRoute);
-                await this.stopCatchAllRoutes(catchAllRoute);
+            catchAllRoutes = [catchAllRoute];
+        }
+
+        for (const catchAllRoute of catchAllRoutes) {
+            ConnectionRouteManager.clearCatchAllRoutesDisableFlags(catchAllRoute, routeId);
+            await ConnectionRouteManager.startCatchAllRoutes(catchAllRoute);
+        }
+    }
+
+    /**
+     * Disables all catch-all routes matching the passed parameters.
+     *
+     * @param localPublicKey
+     * @param routeId
+     */
+    async disableCatchAllRoutes(localPublicKey?: PublicKey, routeId?: string): Promise<void> {
+        MessageBus.send(
+            'log',
+            `disableCatchAllRoutes(${
+                localPublicKey && uint8arrayToHexString(localPublicKey)
+            }, ${routeId})`
+        );
+
+        let catchAllRoutes: CatchAllRoutes[];
+        if (localPublicKey === undefined) {
+            catchAllRoutes = [...this.catchAllRoutes.values()];
+        } else {
+            const catchAllRoute = this.catchAllRoutes.get(castToLocalPublicKey(localPublicKey));
+
+            if (catchAllRoute === undefined) {
+                throw new Error('No catch all routes for the specified localPublicKey found.');
             }
+
+            catchAllRoutes = [catchAllRoute];
+        }
+
+        for (const catchAllRoute of catchAllRoutes) {
+            ConnectionRouteManager.setCatchAllRoutesDisableFlags(catchAllRoute, routeId);
+            await this.stopCatchAllRoutes(catchAllRoute);
         }
     }
 
@@ -470,7 +506,7 @@ export default class ConnectionRouteManager {
      * The returned value is only meant to be used to display information, do not alter anything
      * in there, because it is not a copy of the internal data structures!
      */
-    public connectionRoutesInformation(): {
+    connectionRoutesInformation(): {
         connectionsRoutesGroups: ConnectionRoutesGroup[];
         catchAllRoutes: CatchAllRoutes[];
     } {
@@ -480,6 +516,11 @@ export default class ConnectionRouteManager {
         };
     }
 
+    /**
+     * Dump the connection information to console.
+     *
+     * @param header
+     */
     debugDump(header: string = ''): void {
         this.connectionRoutesGroupMap.debugDump(header);
     }
@@ -510,14 +551,26 @@ export default class ConnectionRouteManager {
         }
     }
 
-    private static setCatchAllRoutesDisableFlags(catchAllRoutes: CatchAllRoutes): void {
+    private static setCatchAllRoutesDisableFlags(
+        catchAllRoutes: CatchAllRoutes,
+        routeId?: string
+    ): void {
         for (const route of catchAllRoutes.knownRoutes) {
+            if (routeId !== undefined && routeId !== route.route.id) {
+                continue;
+            }
             route.disabled = true;
         }
     }
 
-    private static clearCatchAllRoutesDisableFlags(catchAllRoutes: CatchAllRoutes): void {
+    private static clearCatchAllRoutesDisableFlags(
+        catchAllRoutes: CatchAllRoutes,
+        routeId?: string
+    ): void {
         for (const route of catchAllRoutes.knownRoutes) {
+            if (routeId !== undefined && routeId !== route.route.id) {
+                continue;
+            }
             route.disabled = false;
         }
     }

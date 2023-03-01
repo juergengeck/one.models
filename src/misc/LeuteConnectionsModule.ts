@@ -439,16 +439,32 @@ export default class LeuteConnectionsModule {
                 }
 
                 if (config.type === 'commserver') {
-                    this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_CommServer(
-                        myInfo.instanceCryptoApi,
-                        config.url
-                    );
+                    const route =
+                        this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_CommServer(
+                            myInfo.instanceCryptoApi,
+                            config.url
+                        );
+
+                    if (route.isNew) {
+                        await this.connectionRouteManager.enableCatchAllRoutes(
+                            myInfo.instanceCryptoApi.publicEncryptionKey,
+                            route.id
+                        );
+                    }
                 } else if (config.type === 'socket') {
-                    this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_Direct(
-                        myInfo.instanceCryptoApi,
-                        config.host,
-                        config.port
-                    );
+                    const route =
+                        this.connectionRouteManager.addIncomingWebsocketRouteCatchAll_Direct(
+                            myInfo.instanceCryptoApi,
+                            config.host,
+                            config.port
+                        );
+
+                    if (route.isNew) {
+                        await this.connectionRouteManager.enableCatchAllRoutes(
+                            myInfo.instanceCryptoApi.publicEncryptionKey,
+                            route.id
+                        );
+                    }
                 }
             }
         }
