@@ -3,6 +3,7 @@ import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Instance} from '@refinio/one.core/lib/recipes';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -30,6 +31,8 @@ import {
 import {getLocalInstanceOfPerson} from '../misc/instance';
 import {OEvent} from '../misc/OEvent';
 import type LeuteModel from './Leute/LeuteModel';
+
+const MessageBus = createMessageBus('Protocols/StartChum');
 
 /**
  * This is the information that needs to pe transmitted securely to the device that shall be paired
@@ -176,13 +179,6 @@ export default class PairingManager {
 
         // Start the pairing protocol
         try {
-            // Send the other side the protocol we'd like to use
-            sendPeerMessage(connInfo.connection, {
-                command: 'start_protocol',
-                protocol: 'pairing',
-                version: '1.0'
-            });
-
             // Step 2: Send the authentication token
             sendPeerMessage(conn, {
                 command: 'authentication_token',
@@ -238,7 +234,7 @@ export default class PairingManager {
         remotePersonId: SHA256IdHash<Person>,
         remoteInstanceId: SHA256IdHash<Instance>
     ): Promise<void> {
-        // Step 2: Wait for the authentication token and verify it against the token list
+        // Wait for the authentication token and verify it against the token list
         const pairingToken = await waitForPeerMessage(conn, 'authentication_token');
 
         // Verify the auth token
@@ -252,7 +248,7 @@ export default class PairingManager {
             throw new Error('The authentication token was not generated for the requested person.');
         }
 
-        // Step 3: Send my own identity
+        // Send my own identity
         const oneInstanceEndpoints = await this.leuteModel.getMyLocalEndpoints(localPersonId);
         if (oneInstanceEndpoints.length === 0) {
             throw new Error(

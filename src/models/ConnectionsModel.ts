@@ -1,13 +1,9 @@
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Instance} from '@refinio/one.core/lib/recipes';
-import {startChum} from '../misc/ConnectionEstablishment/protocols/ChumStart';
-import {
-    sendPeerMessage,
-    waitForPeerMessage
-} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
+import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum';
 import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
 import type {ConnectionInfo} from '../misc/LeuteConnectionsModule';
 import LeuteConnectionsModule from '../misc/LeuteConnectionsModule';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
@@ -49,14 +45,11 @@ export type ConnectionsModelConfiguration = {
 
     // If true allow one time authentication workflows (incoming connections)
     // Default: true
-    allowOneTimeAuth: boolean;
+    allowPairing: boolean;
 
     // The amount of time an authentication token is valid (incoming connections)
     // Default: 60000 (1 minute)
     pairingTokenExpirationDuration: number;
-
-    // If true, then the allowSerAuthGroup call is enabled
-    allowSetAuthGroup: boolean;
 
     // #### Outgoing connection configuration ####
     // If true automatically establish outgoing connections
@@ -143,14 +136,11 @@ class ConnectionsModel extends Model {
                 config.acceptUnknownInstances === undefined ? false : config.acceptUnknownInstances,
             acceptUnknownPersons:
                 config.acceptUnknownPersons === undefined ? false : config.acceptUnknownPersons,
-            allowOneTimeAuth:
-                config.allowOneTimeAuth === undefined ? true : config.allowOneTimeAuth,
+            allowPairing: config.allowPairing === undefined ? true : config.allowPairing,
             pairingTokenExpirationDuration:
                 config.pairingTokenExpirationDuration === undefined
                     ? 60000
                     : config.pairingTokenExpirationDuration,
-            allowSetAuthGroup:
-                config.allowSetAuthGroup === undefined ? false : config.allowSetAuthGroup,
             establishOutgoingConnections:
                 config.establishOutgoingConnections === undefined
                     ? true
@@ -160,12 +150,16 @@ class ConnectionsModel extends Model {
         // Setup / init modules
         this.leuteModel = leuteModel;
 
+        const catchAll =
+            this.config.allowPairing ||
+            this.config.acceptUnknownInstances ||
+            this.config.acceptUnknownPersons;
         this.leuteConnectionsModule = new LeuteConnectionsModule(leuteModel, {
-            incomingConnectionConfigurations: [
-                {type: 'commserver', url: this.config.commServerUrl}
-            ],
+            incomingConnectionConfigurations: this.config.acceptIncomingConnections
+                ? [{type: 'commserver', url: this.config.commServerUrl, catchAll}]
+                : [],
             incomingRoutesGroupIds: ['chum'],
-            outgoingRoutesGroupIds: ['chum'],
+            outgoingRoutesGroupIds: this.config.establishOutgoingConnections ? ['chum'] : [],
             reconnectDelay: 5000
         });
         this.leuteConnectionsModule.onKnownConnection(this.onKnownConnection.bind(this));
@@ -243,92 +237,17 @@ class ConnectionsModel extends Model {
 
         try {
             if (connectionRoutesGroupName === 'chum') {
-                // On outgoing connections we use the chum protocol
-                if (initiatedLocally) {
-                    sendPeerMessage(conn, {
-                        command: 'start_protocol',
-                        protocol: 'chum',
-                        version: '1.0'
-                    });
-
-                    this.onProtocolStart.emit(
-                        initiatedLocally,
-                        localPersonId,
-                        localInstanceId,
-                        remotePersonId,
-                        remoteInstanceId,
-                        'chum'
-                    );
-
-                    await startChum(
-                        conn,
-                        localPersonId,
-                        localInstanceId,
-                        remotePersonId,
-                        remoteInstanceId,
-                        connectionRoutesGroupName,
-                        true
-                    );
-                }
-
-                // On incoming connections we wait for the peer to select its protocol
-                else {
-                    const protocolMsg = await waitForPeerMessage(conn, 'start_protocol');
-                    MessageBus.send(
-                        'log',
-                        `${conn.id}: onKnownConnection: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
-                    );
-
-                    // The normal chum protocol
-                    if (protocolMsg.protocol !== 'chum') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(
-                            `Unexpected protocol ${protocolMsg.protocol}. Expected chum protocol.`
-                        );
-                    }
-
-                    if (protocolMsg.version !== '1.0') {
-                        // noinspection ExceptionCaughtLocallyJS
-                        throw new Error(`Unsupported chum protocol version ${protocolMsg.version}`);
-                    }
-
-                    this.onProtocolStart.emit(
-                        initiatedLocally,
-                        localPersonId,
-                        localInstanceId,
-                        remotePersonId,
-                        remoteInstanceId,
-                        'chum'
-                    );
-
-                    await startChum(
-                        conn,
-                        localPersonId,
-                        localInstanceId,
-                        remotePersonId,
-                        remoteInstanceId,
-                        connectionRoutesGroupName,
-                        true
-                    );
-                }
-            } else if (connectionRoutesGroupName === 'pairing') {
-                const protocolMsg = await waitForPeerMessage(conn, 'start_protocol');
-                MessageBus.send(
-                    'log',
-                    `${conn.id}: onKnownConnection: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
+                await startChumProtocol(
+                    conn,
+                    localPersonId,
+                    localInstanceId,
+                    remotePersonId,
+                    remoteInstanceId,
+                    initiatedLocally,
+                    connectionRoutesGroupName,
+                    this.onProtocolStart
                 );
-
-                if (protocolMsg.protocol !== 'pairing') {
-                    throw new Error(
-                        `Unexpected protocol ${protocolMsg.protocol}. Expected pairing protocol.`
-                    );
-                }
-
-                if (protocolMsg.version !== '1.0') {
-                    // noinspection ExceptionCaughtLocallyJS
-                    throw new Error(`Unsupported pairing protocol version ${protocolMsg.version}`);
-                }
-
+            } else if (connectionRoutesGroupName === 'pairing') {
                 await this.pairing.acceptInvitation(
                     conn,
                     localPersonId,
@@ -342,7 +261,7 @@ class ConnectionsModel extends Model {
                 );
             }
         } catch (e) {
-            MessageBus.send('log', `${conn.id}: Known: Error in protocol ${e}`);
+            MessageBus.send('log', `${conn.id}: onKnownConnection: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }
@@ -378,25 +297,21 @@ class ConnectionsModel extends Model {
             }
 
             if (connectionRoutesGroupName === 'chum') {
-                throw new Error('Unable to start chum because you are unknown');
-            } else if (connectionRoutesGroupName === 'pairing') {
-                const protocolMsg = await waitForPeerMessage(conn, 'start_protocol');
-                MessageBus.send(
-                    'log',
-                    `${conn.id}: Unknown: Start protocol ${protocolMsg.protocol} ${protocolMsg.version}`
+                if (!this.config.acceptUnknownPersons) {
+                    throw new Error('Unable to start chum because you are unknown');
+                }
+
+                await startChumProtocol(
+                    conn,
+                    localPersonId,
+                    localInstanceId,
+                    remotePersonId,
+                    remoteInstanceId,
+                    initiatedLocally,
+                    connectionRoutesGroupName,
+                    this.onProtocolStart
                 );
-
-                if (protocolMsg.protocol !== 'pairing') {
-                    throw new Error(
-                        `Unexpected protocol ${protocolMsg.protocol}. Expected pairing protocol.`
-                    );
-                }
-
-                if (protocolMsg.version !== '1.0') {
-                    // noinspection ExceptionCaughtLocallyJS
-                    throw new Error(`Unsupported pairing protocol version ${protocolMsg.version}`);
-                }
-
+            } else if (connectionRoutesGroupName === 'pairing') {
                 await this.pairing.acceptInvitation(
                     conn,
                     localPersonId,
@@ -410,7 +325,7 @@ class ConnectionsModel extends Model {
                 );
             }
         } catch (e) {
-            MessageBus.send('log', `${conn.id}: Unknown: Error in protocol ${e}`);
+            MessageBus.send('log', `${conn.id}: onUnknownConnection: Error in protocol ${e}`);
             conn.close(e.toString());
             return;
         }

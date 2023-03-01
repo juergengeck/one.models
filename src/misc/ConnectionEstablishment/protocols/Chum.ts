@@ -1,9 +1,12 @@
 import {createChum} from '@refinio/one.core/lib/chum-sync';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Instance} from '@refinio/one.core/lib/recipes';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
+
+const MessageBus = createMessageBus('Protocols/StartChum');
 
 /**
  * Starts the corresponding chum connection.
@@ -20,16 +23,37 @@ import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promis
  * @param keepRunning
  */
 import type Connection from '../../Connection/Connection';
+import type {OEvent} from '../../OEvent';
+import type {Protocols} from './CommunicationInitiationProtocolMessages';
 
-export async function startChum(
+export async function startChumProtocol(
     conn: Connection,
     localPersonId: SHA256IdHash<Person>,
     localInstanceId: SHA256IdHash<Instance>,
     remotePersonId: SHA256IdHash<Person>,
     remoteInstanceId: SHA256IdHash<Instance>,
-    chumName: string,
-    keepRunning: boolean = true
-): Promise<void> {
+    initiatedLocally: boolean,
+    connectionRoutesGroupName: string,
+    onProtocolStart: OEvent<
+        (
+            initiatedLocally: boolean,
+            localPersonId: SHA256IdHash<Person>,
+            localInstanceId: SHA256IdHash<Instance>,
+            remotePersonId: SHA256IdHash<Person>,
+            remoteInstanceId: SHA256IdHash<Instance>,
+            protocol: Protocols
+        ) => void
+    >
+) {
+    onProtocolStart.emit(
+        initiatedLocally,
+        localPersonId,
+        localInstanceId,
+        remotePersonId,
+        remoteInstanceId,
+        'chum'
+    );
+
     // Send synchronisation messages to make sure both instances start the chum at the same time.
     conn.send('synchronisation');
     await conn.promisePlugin().waitForMessage();
@@ -48,11 +72,11 @@ export async function startChum(
         remotePersonId,
 
         // used only for logging purpose
-        chumName,
+        chumName: connectionRoutesGroupName,
         localInstanceName: (await getIdObject(localInstanceId)).name,
         remoteInstanceName: (await getIdObject(remoteInstanceId)).name,
 
-        keepRunning,
+        keepRunning: true,
         maxNotificationDelay: 20
     }).promise;
 }
