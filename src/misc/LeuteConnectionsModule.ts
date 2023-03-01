@@ -203,7 +203,7 @@ export default class LeuteConnectionsModule {
     private readonly knownPeerMap: Map<PeerId, OneInstanceEndpoint>;
     private readonly myPublicKeyToInstanceInfoMap: Map<LocalPublicKey, LocalInstanceInfo>; // A map
     // from my public instance key to my id - used to map the public key of the new connection to my ids
-    private readonly myIdentities: SHA256IdHash<Person>[]; // sync version of
+    private myIdentities: SHA256IdHash<Person>[]; // sync version of
     // this.leute.identities() so that connectionsInfo method doesn't have to be async.
 
     /**
@@ -334,7 +334,7 @@ export default class LeuteConnectionsModule {
         // Clear all other fields
         this.knownPeerMap.clear();
         this.myPublicKeyToInstanceInfoMap.clear();
-        this.myIdentities.length = 0;
+        this.myIdentities = [];
     }
 
     /**
@@ -579,17 +579,18 @@ export default class LeuteConnectionsModule {
         await Promise.all(
             mySomeone.identities().map(async identity => {
                 if (await isPersonComplete(identity)) {
-                    const instanceId = await getLocalInstanceOfPerson(identity);
-                    const keysHash = await getDefaultKeys(instanceId);
-                    const keys = await getObject(keysHash);
-
-                    this.myPublicKeyToInstanceInfoMap.set(keys.publicKey as LocalPublicKey, {
-                        instanceId,
-                        instanceCryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
-                        personId: identity
-                    });
+                    return;
                 }
-                this.myIdentities.add(identity);
+
+                const instanceId = await getLocalInstanceOfPerson(identity);
+                const keysHash = await getDefaultKeys(instanceId);
+                const keys = await getObject(keysHash);
+
+                this.myPublicKeyToInstanceInfoMap.set(keys.publicKey as LocalPublicKey, {
+                    instanceId,
+                    instanceCryptoApi: await createCryptoApiFromDefaultKeys(instanceId),
+                    personId: identity
+                });
             })
         );
     }
