@@ -1,7 +1,8 @@
 import type ConnectionsModel from '../models/ConnectionsModel';
 import type {LeuteModel} from '../models';
 import {prettifySomeoneWithKeysAndInstances} from './utils/DebugDataFormatters';
-import EasyFileSystem, {EasyDirectoryEntry} from './utils/EasyFileSystem';
+import type {EasyDirectoryEntry} from './utils/EasyFileSystem';
+import EasyFileSystem from './utils/EasyFileSystem';
 import type {Topic} from '../recipes/ChatRecipes';
 import type {ChannelManager, TopicModel} from '../models';
 
@@ -10,6 +11,8 @@ import type {ChannelManager, TopicModel} from '../models';
  * topics ...
  */
 export default class DebugFileSystem extends EasyFileSystem {
+    public commitHash: string = 'unavailable';
+
     private readonly connectionsModel: ConnectionsModel;
     private readonly leuteModel: LeuteModel;
     private readonly topicModel: TopicModel;
@@ -47,7 +50,8 @@ export default class DebugFileSystem extends EasyFileSystem {
                 [
                     'channels.json',
                     {type: 'regularFile', content: this.dumpChannelsAsJson.bind(this)}
-                ]
+                ],
+                ['commit-hash.txt', {type: 'regularFile', content: this.dumpCommitHash.bind(this)}]
             ])
         );
 
@@ -103,5 +107,12 @@ export default class DebugFileSystem extends EasyFileSystem {
     async dumpMyIdentitiesAsJson(): Promise<string> {
         const me = await this.leuteModel.me();
         return JSON.stringify(await prettifySomeoneWithKeysAndInstances(me), null, 4);
+    }
+
+    /**
+     * This dumps all information about connections as JSON (for debugging purposes)
+     */
+    async dumpCommitHash(): Promise<string> {
+        return this.commitHash;
     }
 }
