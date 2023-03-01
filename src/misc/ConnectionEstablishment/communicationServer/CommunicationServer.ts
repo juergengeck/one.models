@@ -3,16 +3,19 @@ import tweetnacl from 'tweetnacl';
 import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
 import {isClientMessage} from './CommunicationServerProtocol';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import WebSocketListener from './WebSocketListener';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connections/Connection';
-import PromisePlugin from './Connections/plugins/PromisePlugin';
+import WebSocketListener from '../webSockets/WebSocketListener';
+import {
+    hexToUint8Array,
+    uint8arrayToHexString
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type Connection from '../../Connection/Connection';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin';
+import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption';
 import {
     createKeyPair,
     decryptWithEmbeddedNonce,
     encryptAndEmbedNonce,
-    ensurePublicKey,
-    KeyPair
+    ensurePublicKey
 } from '@refinio/one.core/lib/crypto/encryption';
 
 const MessageBus = createMessageBus('CommunicationServer');
@@ -32,7 +35,7 @@ class CommunicationServer {
     private webSocketListener: WebSocketListener; // The web socket server that accepts connections
     private keyPair: KeyPair; // The key pair used for the commserver
     private listeningConnectionsMap: Map<string, ConnectionContainer[]>; // Map that stores spare connections
-    private openedConnections: Set<WebSocket>; // List of established relays
+    private readonly openedConnections: Set<WebSocket>; // List of established relays
     private pingInterval: number; // Interval used to ping spare connections
     private pongTimeout: number; // Timeout used to wait for pong responses
 
@@ -55,7 +58,7 @@ class CommunicationServer {
      *
      * @param host - The host to bind to.
      * @param port - The port to bind to.
-     * @param pingInterval - The interfval in which pings are sent for spare connections.
+     * @param pingInterval - The interval in which pings are sent for spare connections.
      * @param pongTimeout - The timeout used to wait for pongs.
      */
     public async start(
@@ -73,7 +76,7 @@ class CommunicationServer {
      * Stop the communication server.
      */
     public async stop(): Promise<void> {
-        MessageBus.send('log', `Stop communication server`);
+        MessageBus.send('log', 'Stop communication server');
 
         // Close spare connections
         for (const connectionContainers of this.listeningConnectionsMap.values()) {
@@ -89,10 +92,10 @@ class CommunicationServer {
             }
         }
 
-        MessageBus.send('log', `Closing websocker listener`);
+        MessageBus.send('log', 'Closing websocket listener');
         await this.webSocketListener.stop();
 
-        MessageBus.send('log', `Stop communication server complete`);
+        MessageBus.send('log', 'Stop communication server complete');
     }
 
     /**
@@ -114,10 +117,12 @@ class CommunicationServer {
 
             // For register, let's authenticate the client
             if (isClientMessage(message, 'register')) {
+                const binPublicKey = ensurePublicKey(hexToUint8Array(message.publicKey));
+
                 MessageBus.send(
                     'log',
                     `${connection.id}: Registering connection for ${uint8arrayToHexString(
-                        message.publicKey
+                        binPublicKey
                     )}`
                 );
 
@@ -127,7 +132,7 @@ class CommunicationServer {
                 const encryptedChallenge = encryptAndEmbedNonce(
                     challenge,
                     this.keyPair.secretKey,
-                    ensurePublicKey(message.publicKey)
+                    binPublicKey
                 );
                 await conn.sendAuthenticationRequestMessage(
                     this.keyPair.publicKey,
@@ -147,9 +152,9 @@ class CommunicationServer {
                 );
                 const authResponseMessage = await conn.waitForMessage('authentication_response');
                 const decryptedChallenge = decryptWithEmbeddedNonce(
-                    authResponseMessage.response,
+                    hexToUint8Array(authResponseMessage.response),
                     this.keyPair.secretKey,
-                    ensurePublicKey(message.publicKey)
+                    binPublicKey
                 );
                 if (!tweetnacl.verify(decryptedChallenge, challenge)) {
                     throw new Error('Client authentication failed.');
@@ -160,7 +165,7 @@ class CommunicationServer {
                 );
 
                 // Step 3: Add to spare map and return success message
-                this.pushListeningConnection(message.publicKey, conn);
+                this.pushListeningConnection(binPublicKey, conn);
                 await conn.sendAuthenticationSuccessMessage(this.pingInterval);
 
                 // Step 4: Start PingPong
@@ -172,12 +177,12 @@ class CommunicationServer {
             else if (isClientMessage(message, 'communication_request')) {
                 MessageBus.send(
                     'log',
-                    `${connection.id}: Requesting Relay to ${uint8arrayToHexString(
-                        message.targetPublicKey
-                    )}`
+                    `${connection.id}: Requesting Relay to ${message.targetPublicKey}`
                 );
 
-                const connOther = this.popListeningConnection(message.targetPublicKey);
+                const connOther = this.popListeningConnection(
+                    hexToUint8Array(message.targetPublicKey)
+                );
 
                 // Step 1: Stop the ping ponging
                 MessageBus.send('log', `${connection.id}: Relay Step 1: Stop ping pong`);
@@ -193,8 +198,8 @@ class CommunicationServer {
                     `${connection.id}: Relay Step 2: Forward connection request`
                 );
                 await connOther.sendCommunicationRequestMessage(
-                    message.sourcePublicKey,
-                    message.targetPublicKey
+                    ensurePublicKey(hexToUint8Array(message.sourcePublicKey)),
+                    ensurePublicKey(hexToUint8Array(message.targetPublicKey))
                 );
 
                 // Step 4: Forward everything
@@ -208,8 +213,8 @@ class CommunicationServer {
                 // A fix would be to call the send after the events have been rewired. But then we cannot use the
                 // connection class with the current architecture. So we will do that probably later when we see problems
                 MessageBus.send('log', `${connection.id}: Relay Step 3: Connect both sides`);
-                let wsThis = conn.releaseWebSocket();
-                let wsOther = connOther.releaseWebSocket();
+                const wsThis = conn.releaseWebSocket();
+                const wsOther = connOther.releaseWebSocket();
                 wsThis.addEventListener('message', (msg: any) => {
                     wsOther.send(msg.data);
                 });
@@ -274,9 +279,9 @@ class CommunicationServer {
         conn.webSocket.addEventListener('close', boundRemoveHandler);
 
         // Add handler that is called when the connection is bound to an incoming connection
-        const removeEventListeners = () => {
+        function removeEventListeners() {
             conn.webSocket.removeEventListener('close', boundRemoveHandler);
-        };
+        }
 
         // Add connection to listeners list
         const connContainer: ConnectionContainer = {
@@ -284,10 +289,11 @@ class CommunicationServer {
             removeEventListeners
         };
         const connectionList = this.listeningConnectionsMap.get(strPublicKey);
-        if (!connectionList) {
-            this.listeningConnectionsMap.set(strPublicKey, [connContainer]);
-        } else {
+
+        if (connectionList) {
             connectionList.push(connContainer);
+        } else {
+            this.listeningConnectionsMap.set(strPublicKey, [connContainer]);
         }
     }
 
@@ -310,13 +316,13 @@ class CommunicationServer {
         if (connectionList) {
             this.listeningConnectionsMap.set(
                 strPublicKey,
-                connectionList.filter(elem => elem.conn != conn)
+                connectionList.filter(elem => elem.conn !== conn)
             );
         }
     }
 
     /**
-     * Pops one listening / spare connection from the listenningConnections list that matches the
+     * Pops one listening / spare connection from the listeningConnections list that matches the
      * public key. This is used to find a relay match.
      *
      * @param publicKey - The public key of the registering client / the target of the requested relay.

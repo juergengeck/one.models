@@ -1,12 +1,8 @@
 import {expect} from 'chai';
-import EncryptionPlugin from '../../lib/misc/Connections/plugins/EncryptionPlugin';
 import tweetnacl from 'tweetnacl';
+import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin';
 
 describe('Encryption plugin test', () => {
-    beforeEach('Setup connections', async function () {});
-
-    afterEach('Shutdown Connections', async function () {});
-
     it('encrypt decrypt', async function () {
         const sharedKey = tweetnacl.randomBytes(tweetnacl.secretbox.keyLength);
 

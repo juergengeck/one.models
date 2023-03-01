@@ -1,5 +1,5 @@
 import yargs from 'yargs';
-import CommunicationServer from '../misc/CommunicationServer';
+import CommunicationServer from '../misc/ConnectionEstablishment/communicationServer/CommunicationServer';
 import * as Logger from '@refinio/one.core/lib/logger';
 
 /**

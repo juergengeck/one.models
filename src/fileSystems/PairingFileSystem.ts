@@ -1,3 +1,5 @@
+import type {Instance} from '@refinio/one.core/lib/recipes';
+import type {Invitation} from '../misc/ConnectionEstablishment/PairingManager';
 import type {
     FileDescription,
     FileSystemDirectory,
@@ -10,7 +12,6 @@ import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {BLOB} from '@refinio/one.core/lib/recipes';
 import qrcode from 'qrcode';
 import type ConnectionsModel from '../models/ConnectionsModel';
-import type {PairingInformation} from '../models/ConnectionsModel';
 import type IoMManager from '../models/IoM/IoMManager';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
@@ -28,8 +29,8 @@ import type {Person} from '@refinio/one.core/lib/recipes';
  *
  */
 export default class PairingFileSystem implements IFileSystem {
-    private iomInvite: PairingInformation | undefined; // Pairing information for IoM invite
-    private iopInvite: PairingInformation | undefined; // Pairing information for IoP invite
+    private iomInvite: Invitation | undefined; // Pairing information for IoM invite
+    private iopInvite: Invitation | undefined; // Pairing information for IoP invite
 
     private readonly connectionsModel: ConnectionsModel;
     private readonly iomManager: IoMManager;
@@ -62,20 +63,27 @@ export default class PairingFileSystem implements IFileSystem {
         this.iomManager = iomManager;
         this.inviteUrlPrefix = inviteUrlPrefix;
 
-        connectionsModel.onOneTimeAuthSuccess(
+        connectionsModel.pairing.onPairingSuccess(
             (
-                token: string,
-                flag: boolean,
+                initiatedLocally: boolean,
                 localPersonId: SHA256IdHash<Person>,
-                personId: SHA256IdHash<Person>
+                localInstanceId: SHA256IdHash<Instance>,
+                remotePersonId: SHA256IdHash<Person>,
+                remoteInstanceId: SHA256IdHash<Instance>,
+                token: string
             ) => {
-                if (this.iomInvite && token === this.iomInvite.authenticationTag) {
+                if (this.iomInvite && token === this.iomInvite.token) {
                     this.refreshIomInvite().catch(console.error);
                     this.iomManager.requestManager
-                        .createIoMRequest(localPersonId, personId, localPersonId, iomRequestMode)
+                        .createIoMRequest(
+                            localPersonId,
+                            remotePersonId,
+                            localPersonId,
+                            iomRequestMode
+                        )
                         .catch(console.error);
                 }
-                if (this.iopInvite && token === this.iopInvite.authenticationTag) {
+                if (this.iopInvite && token === this.iopInvite.token) {
                     this.refreshIomInvite().catch(console.error);
                 }
             }
@@ -122,9 +130,7 @@ export default class PairingFileSystem implements IFileSystem {
             case '/iom_invite.txt':
                 return {
                     content: new TextEncoder().encode(
-                        this.convertPairingInformationToUrl(
-                            await this.getAndRefreshIomInviteIfNoneExists()
-                        )
+                        this.convertInvitationToUrl(await this.getAndRefreshIomInviteIfNoneExists())
                     )
                 };
             case '/iop_invite.png':
@@ -136,9 +142,7 @@ export default class PairingFileSystem implements IFileSystem {
             case '/iop_invite.txt':
                 return {
                     content: new TextEncoder().encode(
-                        this.convertPairingInformationToUrl(
-                            await this.getAndRefreshIopInviteIfNoneExists()
-                        )
+                        this.convertInvitationToUrl(await this.getAndRefreshIopInviteIfNoneExists())
                     )
                 };
             default:
@@ -216,18 +220,18 @@ export default class PairingFileSystem implements IFileSystem {
      * Creates a new IoM invite and stores it in this.iomInvite
      */
     private async refreshIomInvite(): Promise<void> {
-        this.iomInvite = await this.connectionsModel.generatePairingInformation(false);
+        this.iomInvite = await this.connectionsModel.pairing.createInvitation();
     }
 
     /**
      * Creates a new IoM invite and stores it in this.iomInvite if this.iomInvite is undefined.
      */
-    private async getAndRefreshIomInviteIfNoneExists(): Promise<PairingInformation> {
+    private async getAndRefreshIomInviteIfNoneExists(): Promise<Invitation> {
         if (this.iomInvite !== undefined) {
             return this.iomInvite;
         }
 
-        const pairingInformation = await this.connectionsModel.generatePairingInformation(false);
+        const pairingInformation = await this.connectionsModel.pairing.createInvitation();
         this.iomInvite = pairingInformation;
         return pairingInformation;
     }
@@ -236,18 +240,18 @@ export default class PairingFileSystem implements IFileSystem {
      * Creates a new IoP invite and stores it in this.iopInvite
      */
     private async refreshIopInvite(): Promise<void> {
-        this.iopInvite = await this.connectionsModel.generatePairingInformation(false);
+        this.iopInvite = await this.connectionsModel.pairing.createInvitation();
     }
 
     /**
      * Creates a new IoP invite and stores it in this.iopInvite if this.iopInvite is undefined.
      */
-    private async getAndRefreshIopInviteIfNoneExists(): Promise<PairingInformation> {
+    private async getAndRefreshIopInviteIfNoneExists(): Promise<Invitation> {
         if (this.iopInvite !== undefined) {
             return this.iopInvite;
         }
 
-        const pairingInformation = await this.connectionsModel.generatePairingInformation(false);
+        const pairingInformation = await this.connectionsModel.pairing.createInvitation();
         this.iopInvite = pairingInformation;
         return pairingInformation;
     }
@@ -257,22 +261,20 @@ export default class PairingFileSystem implements IFileSystem {
     /**
      * Transforms the pairing information to an url.
      *
-     * @param pairingInformation
+     * @param invitation
      */
-    private convertPairingInformationToUrl(pairingInformation: PairingInformation): string {
-        const encodedInformation = encodeURIComponent(JSON.stringify(pairingInformation));
+    private convertInvitationToUrl(invitation: Invitation): string {
+        const encodedInformation = encodeURIComponent(JSON.stringify(invitation));
         return `${this.inviteUrlPrefix}#${encodedInformation}`;
     }
 
     /**
      * Transforms the pairing information to an url and stores it inside an QR code image as png.
      *
-     * @param pairingInformation
+     * @param invitation
      */
-    private async convertPairingInformationToQrCode(
-        pairingInformation: PairingInformation
-    ): Promise<ArrayBuffer> {
-        return qrcode.toBuffer(this.convertPairingInformationToUrl(pairingInformation));
+    private async convertPairingInformationToQrCode(invitation: Invitation): Promise<ArrayBuffer> {
+        return qrcode.toBuffer(this.convertInvitationToUrl(invitation));
     }
 
     /**

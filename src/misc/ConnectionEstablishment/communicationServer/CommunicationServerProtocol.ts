@@ -1,9 +1,11 @@
-import type CommunicationInitiationProtocol from './CommunicationInitiationProtocol';
+import {isHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {CommunicationRequestMessage} from '../protocols/CommunicationInitiationProtocolMessages';
 
 /**
  * Protocol that defines messages used for communication between communication server and registering clients.
  */
-declare module CommunicationServerProtocol {
+declare namespace CommunicationServerProtocol {
     // ######## Message / command definition ########
 
     /**
@@ -11,7 +13,7 @@ declare module CommunicationServerProtocol {
      */
     export type RegisterMessage = {
         command: 'register';
-        publicKey: Uint8Array;
+        publicKey: HexString;
     };
 
     /**
@@ -19,8 +21,8 @@ declare module CommunicationServerProtocol {
      */
     export type AuthenticationRequestMessage = {
         command: 'authentication_request';
-        publicKey: Uint8Array;
-        challenge: Uint8Array;
+        publicKey: HexString;
+        challenge: HexString;
     };
 
     /**
@@ -28,7 +30,7 @@ declare module CommunicationServerProtocol {
      */
     export type AuthenticationResponseMessage = {
         command: 'authentication_response';
-        response: Uint8Array;
+        response: HexString;
     };
 
     /**
@@ -71,7 +73,7 @@ declare module CommunicationServerProtocol {
         register: RegisterMessage;
         authentication_response: AuthenticationResponseMessage;
         comm_pong: PongMessage;
-        communication_request: CommunicationInitiationProtocol.CommunicationRequestMessage;
+        communication_request: CommunicationRequestMessage;
     }
 
     /**
@@ -82,7 +84,7 @@ declare module CommunicationServerProtocol {
         authentication_success: AuthenticationSuccessMessage;
         connection_handover: ConnectionHandoverMessage;
         comm_ping: PingMessage;
-        communication_request: CommunicationInitiationProtocol.CommunicationRequestMessage;
+        communication_request: CommunicationRequestMessage;
     }
 
     export type ClientMessageTypes = ClientMessages[keyof ClientMessages];
@@ -114,7 +116,12 @@ export function isClientMessage<T extends keyof CommunicationServerProtocol.Clie
         return true;
     }
     if (command === 'communication_request') {
-        return arg.sourcePublicKey !== undefined && arg.targetPublicKey !== undefined;
+        return (
+            typeof arg.sourcePublicKey === 'string' &&
+            isHexString(arg.sourcePublicKey) &&
+            typeof arg.targetPublicKey === 'string' &&
+            isHexString(arg.targetPublicKey)
+        );
     }
     return false;
 }
@@ -147,7 +154,12 @@ export function isServerMessage<T extends keyof CommunicationServerProtocol.Serv
         return true;
     }
     if (command === 'communication_request') {
-        return arg.sourcePublicKey !== undefined && arg.targetPublicKey !== undefined;
+        return (
+            typeof arg.sourcePublicKey === 'string' &&
+            isHexString(arg.sourcePublicKey) &&
+            typeof arg.targetPublicKey === 'string' &&
+            isHexString(arg.targetPublicKey)
+        );
     }
     return false;
 }

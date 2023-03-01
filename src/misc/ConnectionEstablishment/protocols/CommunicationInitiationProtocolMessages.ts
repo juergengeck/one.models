@@ -2,9 +2,13 @@
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from '../Connection';
+import type Connection from '../../Connection/Connection';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes';
+import type {Identity} from '../../IdentityExchange';
+import {isIdentity} from '../../IdentityExchange';
+import {isHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {OneIdObjectInterfaces} from '@OneObjectInterfaces';
 
 // ######## Message / command definition ########
 
@@ -16,6 +20,7 @@ export type Protocols =
     | 'chum_onetimeauth_withtoken'
     | 'chumAndPkExchange_onetimeauth_withtoken'
     | 'chum_one_time'
+    | 'pairing'
     | 'accessGroup_set';
 
 /**
@@ -58,7 +63,7 @@ export interface StartProtocolMessage {
 export interface PersonInformationMessage {
     command: 'person_information';
     personId: SHA256IdHash<Person>;
-    personPublicKey: string;
+    personPublicKey: HexString;
 }
 
 /**
@@ -74,7 +79,7 @@ export interface AuthenticationTokenMessage {
  */
 export interface EncryptedAuthenticationTokenMessage {
     command: 'encrypted_authentication_token';
-    token: string;
+    token: HexString;
 }
 
 /**
@@ -86,20 +91,47 @@ export interface PersonObjectMessage {
 }
 
 /**
+ * Message that transports a person id object.
+ */
+export interface PersonIdObjectMessage {
+    command: 'person_id_object';
+    obj: OneIdObjectInterfaces['Person'];
+}
+
+/**
+ * Message that transports a person id object.
+ */
+export interface InstanceIdObjectMessage {
+    command: 'instance_id_object';
+    obj: OneIdObjectInterfaces['Instance'];
+}
+
+/**
+ * Message that transports a key object.
+ */
+export interface KeysObjectMessage {
+    command: 'keys_object';
+    obj: Keys;
+}
+
+/**
+ * Message that transports a profile object.
+ */
+export interface IdentityMessage {
+    command: 'identity';
+    obj: Identity;
+}
+
+/**
  * Message for exchanging private person information like person id and private keys.
  */
 export interface PrivatePersonInformationMessage {
     command: 'private_person_information';
     personId: SHA256IdHash<Person>;
-    personPublicKey: string;
-    personPublicSignKey: string;
-    personPrivateKey: string;
-    personPrivateSignKey: string;
-    anonPersonId: SHA256IdHash<Person>;
-    anonPersonPublicKey: string;
-    anonPersonPublicSignKey: string;
-    anonPersonPrivateKey: string;
-    anonPersonPrivateSignKey: string;
+    personPublicKey: HexString;
+    personPublicSignKey: HexString;
+    personPrivateKey: HexString;
+    personPrivateSignKey: HexString;
 }
 
 /**
@@ -122,7 +154,7 @@ export interface SuccessMessage {
 /**
  * Those are messages that are sent by the initiator of the communication.
  */
-export interface UnenctryptedClientMessages {
+export interface UnencryptedClientMessages {
     communication_request: CommunicationRequestMessage;
 }
 
@@ -143,12 +175,16 @@ export interface EncryptedPeerMessages {
     authentication_token: AuthenticationTokenMessage;
     encrypted_authentication_token: EncryptedAuthenticationTokenMessage;
     person_object: PersonObjectMessage;
+    person_id_object: PersonIdObjectMessage;
+    instance_id_object: InstanceIdObjectMessage;
+    keys_object: KeysObjectMessage;
+    identity: IdentityMessage;
     access_group_members: AccessGroupMembersMessage;
     success: SuccessMessage;
 }
 
 export type UnencryptedClientMessageTypes =
-    UnenctryptedClientMessages[keyof UnenctryptedClientMessages];
+    UnencryptedClientMessages[keyof UnencryptedClientMessages];
 export type UnenctryptedServerMessageTypes =
     UnencryptedServerMessages[keyof UnencryptedServerMessages];
 export type EncryptedPeerMessageTypes = EncryptedPeerMessages[keyof EncryptedPeerMessages];
@@ -156,20 +192,25 @@ export type EncryptedPeerMessageTypes = EncryptedPeerMessages[keyof EncryptedPee
 /**
  * Check whether the argument is a client message of specified type / command.
  *
- * @param {any} arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {boolean}
+ * @param arg - The argument to check
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
-export function isUnencryptedClientMessage<T extends keyof UnenctryptedClientMessages>(
+export function isUnencryptedClientMessage<T extends keyof UnencryptedClientMessages>(
     arg: any,
     command: T
-): arg is UnenctryptedClientMessages[T] {
+): arg is UnencryptedClientMessages[T] {
     if (arg.command !== command) {
         return false;
     }
 
     if (command === 'communication_request') {
-        return arg.sourcePublicKey !== undefined && arg.targetPublicKey !== undefined;
+        return (
+            typeof arg.sourcePublicKey === 'string' &&
+            isHexString(arg.sourcePublicKey) &&
+            typeof arg.targetPublicKey === 'string' &&
+            isHexString(arg.targetPublicKey)
+        );
     }
 
     return false;
@@ -178,9 +219,9 @@ export function isUnencryptedClientMessage<T extends keyof UnenctryptedClientMes
 /**
  * Check whether the argument is a server message of specified type / command.
  *
- * @param {any} arg - The argument to check
- * @param {T} command - The command / type of the message to check against.
- * @returns {boolean}
+ * @param arg - The argument to check
+ * @param command - The command / type of the message to check against.
+ * @returns
  */
 export function isUnencryptedServerMessage<T extends keyof UnencryptedServerMessages>(
     arg: any,
@@ -246,6 +287,22 @@ export function isPeerMessage<T extends keyof EncryptedPeerMessages>(
         return arg.obj && arg.obj.$type$ === 'Person';
     }
 
+    if (command === 'person_id_object') {
+        return arg.obj && arg.obj.$type$ === 'Person';
+    }
+
+    if (command === 'instance_id_object') {
+        return arg.obj && arg.obj.$type$ === 'Instance';
+    }
+
+    if (command === 'keys_object') {
+        return arg.obj && arg.obj.$type$ === 'Keys';
+    }
+
+    if (command === 'identity') {
+        return arg.obj && isIdentity(arg.obj);
+    }
+
     if (command === 'access_group_members') {
         if (arg && arg.persons && Array.isArray(arg.persons)) {
             for (const person of arg.persons) {
@@ -278,7 +335,7 @@ export async function sendUnencryptedServerMessage(
     message: UnenctryptedServerMessageTypes
 ): Promise<void> {
     await connection.waitForOpen();
-    await connection.send(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
 }
 
 /**
@@ -310,7 +367,7 @@ export async function sendUnencryptedClientMessage(
     message: UnencryptedClientMessageTypes
 ): Promise<void> {
     await connection.waitForOpen();
-    await connection.send(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
 }
 
 /**
@@ -319,13 +376,44 @@ export async function sendUnencryptedClientMessage(
  * @param connection
  * @param command - the command to wait for
  */
-export async function waitForUnencryptedClientMessage<T extends keyof UnenctryptedClientMessages>(
+export async function waitForUnencryptedClientMessage<T extends keyof UnencryptedClientMessages>(
     connection: Connection,
     command: T
-): Promise<UnenctryptedClientMessages[T]> {
+): Promise<UnencryptedClientMessages[T]> {
     const message = await connection.promisePlugin().waitForJSONMessageWithType(command, 'command');
 
     if (isUnencryptedClientMessage(message, command)) {
+        return message;
+    }
+    throw Error("Received data does not match the data expected for command '" + command + "'");
+}
+
+/**
+ * Send a peer message
+ *
+ * @param conn
+ * @param message - The message to send
+ */
+export function sendPeerMessage<T extends EncryptedPeerMessageTypes>(
+    conn: Connection,
+    message: T
+): void {
+    conn.send(JSON.stringify(message));
+}
+
+/**
+ * Wait for a peer message
+ *
+ * @param conn
+ * @param command - the command to wait for
+ * @returns
+ */
+export async function waitForPeerMessage<T extends keyof EncryptedPeerMessages>(
+    conn: Connection,
+    command: T
+): Promise<EncryptedPeerMessages[T]> {
+    const message = await conn.promisePlugin().waitForJSONMessageWithType(command, 'command');
+    if (isPeerMessage(message, command)) {
         return message;
     }
     throw Error("Received data does not match the data expected for command '" + command + "'");
