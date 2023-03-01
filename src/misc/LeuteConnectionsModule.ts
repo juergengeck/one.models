@@ -578,7 +578,7 @@ export default class LeuteConnectionsModule {
 
         await Promise.all(
             mySomeone.identities().map(async identity => {
-                if (await isPersonComplete(identity)) {
+                if (!(await isPersonComplete(identity))) {
                     return;
                 }
 

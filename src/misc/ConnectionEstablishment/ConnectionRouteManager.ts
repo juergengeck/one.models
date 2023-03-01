@@ -111,7 +111,7 @@ export default class ConnectionRouteManager {
     ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
-            `addOutgoingWebsocketConnection(${uint8arrayToHexString(
+            `addOutgoingWebsocketRoute(${uint8arrayToHexString(
                 cryptoApi.localPublicKey
             )}, ${uint8arrayToHexString(
                 cryptoApi.remotePublicKey
@@ -166,7 +166,7 @@ export default class ConnectionRouteManager {
     ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
-            `addIncomingWebsocketConnection_Direct(${uint8arrayToHexString(
+            `addIncomingWebsocketRoute_Direct(${uint8arrayToHexString(
                 cryptoApi.publicEncryptionKey
             )}, ${uint8arrayToHexString(
                 remotePublicKey
@@ -207,7 +207,7 @@ export default class ConnectionRouteManager {
     ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
-            `addIncomingWebsocketConnection_CommServer(${uint8arrayToHexString(
+            `addIncomingWebsocketRoute_CommServer(${uint8arrayToHexString(
                 cryptoApi.publicEncryptionKey
             )}, ${uint8arrayToHexString(
                 remotePublicKey
