@@ -22,6 +22,7 @@ import {
     waitForPeerMessage
 } from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
 import {connectWithEncryption} from '../misc/ConnectionEstablishment/protocols/EncryptedConnectionHandshake';
+import {exchangeConnectionGroupName} from '../misc/ConnectionEstablishment/protocols/ExchangeConnectionGroupName';
 import {exchangeInstanceIdObjects} from '../misc/ConnectionEstablishment/protocols/ExchangeInstanceIds';
 import {verifyAndExchangePersonId} from '../misc/ConnectionEstablishment/protocols/ExchangePersonIds';
 import {
@@ -172,6 +173,8 @@ export default class PairingManager {
         );
 
         const conn = connInfo.connection;
+
+        await exchangeConnectionGroupName(conn, 'pairing');
 
         const personInfo = await verifyAndExchangePersonId(this.leuteModel, conn, myPersonId, true);
 
