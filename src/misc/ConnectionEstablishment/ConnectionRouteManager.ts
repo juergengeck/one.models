@@ -108,7 +108,7 @@ export default class ConnectionRouteManager {
         url: string,
         connectionRoutesGroupName: string,
         reconnectDelay: number = 10000
-    ): void {
+    ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
             `addOutgoingWebsocketConnection(${uint8arrayToHexString(
@@ -150,7 +150,11 @@ export default class ConnectionRouteManager {
                 route,
                 disabled: true
             });
+
+            return {isNew: true, id: route.id};
         }
+
+        return {isNew: false, id: route.id};
     }
 
     addIncomingWebsocketRoute_Direct(
@@ -159,7 +163,7 @@ export default class ConnectionRouteManager {
         host: string,
         port: number,
         connectionRoutesGroupName: string
-    ): void {
+    ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
             `addIncomingWebsocketConnection_Direct(${uint8arrayToHexString(
@@ -188,7 +192,11 @@ export default class ConnectionRouteManager {
                 route,
                 disabled: true
             });
+
+            return {isNew: true, id: route.id};
         }
+
+        return {isNew: false, id: route.id};
     }
 
     addIncomingWebsocketRoute_CommServer(
@@ -196,7 +204,7 @@ export default class ConnectionRouteManager {
         remotePublicKey: PublicKey,
         commServerUrl: string,
         connectionRoutesGroupName: string
-    ): void {
+    ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
             `addIncomingWebsocketConnection_CommServer(${uint8arrayToHexString(
@@ -224,7 +232,11 @@ export default class ConnectionRouteManager {
                 route,
                 disabled: true
             });
+
+            return {isNew: true, id: route.id};
         }
+
+        return {isNew: false, id: route.id};
     }
 
     // ######## Catch all routes ########
@@ -233,7 +245,7 @@ export default class ConnectionRouteManager {
         cryptoApi: CryptoApi,
         host: string,
         port: number
-    ): void {
+    ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
             `addIncomingWebsocketRouteCatchAll_Direct(${uint8arrayToHexString(
@@ -262,13 +274,17 @@ export default class ConnectionRouteManager {
                 route,
                 disabled: true
             });
+
+            return {isNew: true, id: route.id};
         }
+
+        return {isNew: false, id: route.id};
     }
 
     addIncomingWebsocketRouteCatchAll_CommServer(
         cryptoApi: CryptoApi,
         commServerUrl: string
-    ): void {
+    ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
             `addIncomingWebsocketRouteCatchAll_CommServer(${uint8arrayToHexString(
@@ -296,7 +312,11 @@ export default class ConnectionRouteManager {
                 route,
                 disabled: true
             });
+
+            return {isNew: false, id: route.id};
         }
+
+        return {isNew: true, id: route.id};
     }
 
     // ######## Enable / disable routes ########

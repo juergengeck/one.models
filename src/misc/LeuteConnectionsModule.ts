@@ -311,6 +311,10 @@ export default class LeuteConnectionsModule {
 
         await this.updateLocalInstancesMap();
         await this.setupRoutes();
+
+        // This line is only there to enable the catch all routes, because we don't have a
+        // enableCatchAllRoutes at the moment. We should fix this when we have a better
+        // understanding of the catchAll stuff
         await this.connectionRouteManager.enableRoutes();
     }
 
@@ -352,7 +356,7 @@ export default class LeuteConnectionsModule {
 
             connectionsInfo.push({
                 isConnected: routeGroup.activeConnection !== null,
-                isInternetOfMe: myInfo ? myIds.includes(myInfo.personId) : false,
+                isInternetOfMe: peerInfo ? myIds.includes(peerInfo.personId) : false,
                 isCatchAll: routeGroup.isCatchAllGroup,
 
                 localPublicKey: castToLocalPublicKey(routeGroup.localPublicKey),
@@ -470,13 +474,22 @@ export default class LeuteConnectionsModule {
             // Setup outgoing routes
             if (remoteInstanceEndpoint.url !== undefined) {
                 for (const outgoingRoutesGroupId of this.config.outgoingRoutesGroupIds) {
-                    this.connectionRouteManager.addOutgoingWebsocketRoute(
+                    const route = this.connectionRouteManager.addOutgoingWebsocketRoute(
                         myInfo.instanceCryptoApi.createEncryptionApiWithKeysAndPerson(
                             remoteInstanceKey
                         ),
                         remoteInstanceEndpoint.url,
                         outgoingRoutesGroupId
                     );
+
+                    if (route.isNew) {
+                        await this.connectionRouteManager.enableRoutes(
+                            myInfo.instanceCryptoApi.publicEncryptionKey,
+                            remoteInstanceKey,
+                            outgoingRoutesGroupId,
+                            route.id
+                        );
+                    }
                 }
             }
 
@@ -484,20 +497,39 @@ export default class LeuteConnectionsModule {
             for (const incomingRoutesGroupId of this.config.incomingRoutesGroupIds) {
                 for (const config of this.config.incomingConnectionConfigurations) {
                     if (config.type === 'commserver') {
-                        this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
-                            myInfo.instanceCryptoApi,
-                            remoteInstanceKey,
-                            config.url,
-                            incomingRoutesGroupId
-                        );
+                        const route =
+                            this.connectionRouteManager.addIncomingWebsocketRoute_CommServer(
+                                myInfo.instanceCryptoApi,
+                                remoteInstanceKey,
+                                config.url,
+                                incomingRoutesGroupId
+                            );
+
+                        if (route.isNew) {
+                            await this.connectionRouteManager.enableRoutes(
+                                myInfo.instanceCryptoApi.publicEncryptionKey,
+                                remoteInstanceKey,
+                                incomingRoutesGroupId,
+                                route.id
+                            );
+                        }
                     } else if (config.type === 'socket') {
-                        this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
+                        const route = this.connectionRouteManager.addIncomingWebsocketRoute_Direct(
                             myInfo.instanceCryptoApi,
                             remoteInstanceKey,
                             config.host,
                             config.port,
                             incomingRoutesGroupId
                         );
+
+                        if (route.isNew) {
+                            await this.connectionRouteManager.enableRoutes(
+                                myInfo.instanceCryptoApi.publicEncryptionKey,
+                                remoteInstanceKey,
+                                incomingRoutesGroupId,
+                                route.id
+                            );
+                        }
                     }
                 }
             }
