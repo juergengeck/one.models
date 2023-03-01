@@ -203,7 +203,7 @@ export default class LeuteConnectionsModule {
     private readonly knownPeerMap: Map<PeerId, OneInstanceEndpoint>;
     private readonly myPublicKeyToInstanceInfoMap: Map<LocalPublicKey, LocalInstanceInfo>; // A map
     // from my public instance key to my id - used to map the public key of the new connection to my ids
-    private readonly myIdentities: Set<SHA256IdHash<Person>>; // sync version of
+    private readonly myIdentities: SHA256IdHash<Person>[]; // sync version of
     // this.leute.identities() so that connectionsInfo method doesn't have to be async.
 
     /**
@@ -243,7 +243,7 @@ export default class LeuteConnectionsModule {
 
         this.knownPeerMap = new Map();
         this.myPublicKeyToInstanceInfoMap = new Map();
-        this.myIdentities = new Set();
+        this.myIdentities = [];
 
         this.initialized = false;
 
@@ -263,6 +263,8 @@ export default class LeuteConnectionsModule {
                 return;
             }
 
+            this.updateMyIdentites().catch(console.trace);
+            this.updateLocalInstancesMap().catch(console.trace);
             this.setupRoutes().catch(console.trace);
         });
 
@@ -312,6 +314,7 @@ export default class LeuteConnectionsModule {
     public async init(): Promise<void> {
         this.initialized = true;
 
+        await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
         await this.setupRoutes();
 
@@ -331,7 +334,7 @@ export default class LeuteConnectionsModule {
         // Clear all other fields
         this.knownPeerMap.clear();
         this.myPublicKeyToInstanceInfoMap.clear();
-        this.myIdentities.clear();
+        this.myIdentities.length = 0;
     }
 
     /**
@@ -355,7 +358,7 @@ export default class LeuteConnectionsModule {
 
             connectionsInfo.push({
                 isConnected: routeGroup.activeConnection !== null,
-                isInternetOfMe: peerInfo ? this.myIdentities.has(peerInfo.personId) : false,
+                isInternetOfMe: peerInfo ? this.myIdentities.includes(peerInfo.personId) : false,
                 isCatchAll: routeGroup.isCatchAllGroup,
 
                 localPublicKey: castToLocalPublicKey(routeGroup.localPublicKey),
@@ -571,11 +574,10 @@ export default class LeuteConnectionsModule {
      * Updates all the instance info related members in the class.
      */
     private async updateLocalInstancesMap(): Promise<void> {
-        const meSomeone = await this.leuteModel.me();
-        const me = await meSomeone.mainIdentity();
+        const mySomeone = await this.leuteModel.me();
 
         await Promise.all(
-            meSomeone.identities().map(async identity => {
+            mySomeone.identities().map(async identity => {
                 if (await isPersonComplete(identity)) {
                     const instanceId = await getLocalInstanceOfPerson(identity);
                     const keysHash = await getDefaultKeys(instanceId);
@@ -590,6 +592,11 @@ export default class LeuteConnectionsModule {
                 this.myIdentities.add(identity);
             })
         );
+    }
+
+    private async updateMyIdentites(): Promise<void> {
+        const mySomeone = await this.leuteModel.me();
+        this.myIdentities = mySomeone.identities();
     }
 
     // ######## Event handlers ########
