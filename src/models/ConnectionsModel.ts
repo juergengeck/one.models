@@ -2,15 +2,15 @@ import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Instance} from '@refinio/one.core/lib/recipes';
 import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum';
 import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
-import type {ConnectionInfo} from '../misc/LeuteConnectionsModule';
-import LeuteConnectionsModule from '../misc/LeuteConnectionsModule';
+import type {ConnectionInfo} from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
+import LeuteConnectionsModule from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type LeuteModel from './Leute/LeuteModel';
 import {Model} from './Model';
 import type Connection from '../misc/Connection/Connection';
-import PairingManager from './PairingManager';
+import PairingManager from '../misc/ConnectionEstablishment/PairingManager';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 

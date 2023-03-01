@@ -1,5 +1,5 @@
 import type {Instance} from '@refinio/one.core/lib/recipes';
-import type {Invitation} from '../models/PairingManager';
+import type {Invitation} from '../misc/ConnectionEstablishment/PairingManager';
 import type {
     FileDescription,
     FileSystemDirectory,

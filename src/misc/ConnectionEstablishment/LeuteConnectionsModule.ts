@@ -1,15 +1,12 @@
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import type {LeuteModel} from '../models';
-import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
-import {
-    castToLocalPublicKey,
-    castToRemotePublicKey
-} from './ConnectionEstablishment/ConnectionRoutesGroupMap';
-import type {LocalPublicKey} from './ConnectionEstablishment/ConnectionRoutesGroupMap';
-import ConnectionRouteManager from './ConnectionEstablishment/ConnectionRouteManager';
-import {exchangeInstanceIdObjects} from './ConnectionEstablishment/protocols/ExchangeInstanceIds';
-import {verifyAndExchangePersonId} from './ConnectionEstablishment/protocols/ExchangePersonIds';
-import {OEvent} from './OEvent';
+import type {LeuteModel} from '../../models';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
+import {castToLocalPublicKey, castToRemotePublicKey} from './ConnectionRoutesGroupMap';
+import type {LocalPublicKey} from './ConnectionRoutesGroupMap';
+import ConnectionRouteManager from './ConnectionRouteManager';
+import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds';
+import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds';
+import {OEvent} from '../OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
@@ -17,7 +14,7 @@ import {
     ensureHexString,
     hexToUint8Array
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from './Connection/Connection';
+import type Connection from '../Connection/Connection';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
@@ -26,8 +23,8 @@ import {
     getDefaultKeys,
     getListOfKeys
 } from '@refinio/one.core/lib/keychain/keychain';
-import {getInstancesOfPerson, getLocalInstanceOfPerson} from './instance';
-import {isPersonComplete} from './person';
+import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance';
+import {isPersonComplete} from '../person';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 

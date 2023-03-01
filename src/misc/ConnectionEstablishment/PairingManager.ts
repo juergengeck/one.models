@@ -16,23 +16,20 @@ import {
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {countEnumerableProperties} from '@refinio/one.core/lib/util/type-checks';
 import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
-import type Connection from '../misc/Connection/Connection';
+import type Connection from '../Connection/Connection';
 import {
     sendPeerMessage,
     waitForPeerMessage
-} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
-import {connectWithEncryption} from '../misc/ConnectionEstablishment/protocols/EncryptedConnectionHandshake';
-import {exchangeConnectionGroupName} from '../misc/ConnectionEstablishment/protocols/ExchangeConnectionGroupName';
-import {exchangeInstanceIdObjects} from '../misc/ConnectionEstablishment/protocols/ExchangeInstanceIds';
-import {verifyAndExchangePersonId} from '../misc/ConnectionEstablishment/protocols/ExchangePersonIds';
-import {sync} from '../misc/ConnectionEstablishment/protocols/Sync';
-import {
-    convertIdentityToProfile,
-    convertOneInstanceEndpointToIdentity
-} from '../misc/IdentityExchange';
-import {getLocalInstanceOfPerson} from '../misc/instance';
-import {OEvent} from '../misc/OEvent';
-import type LeuteModel from './Leute/LeuteModel';
+} from './protocols/CommunicationInitiationProtocolMessages';
+import {connectWithEncryption} from './protocols/EncryptedConnectionHandshake';
+import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName';
+import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds';
+import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds';
+import {sync} from './protocols/Sync';
+import {convertIdentityToProfile, convertOneInstanceEndpointToIdentity} from '../IdentityExchange';
+import {getLocalInstanceOfPerson} from '../instance';
+import {OEvent} from '../OEvent';
+import type LeuteModel from '../../models/Leute/LeuteModel';
 
 const MessageBus = createMessageBus('PairingManager');
 

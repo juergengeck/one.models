@@ -30,7 +30,7 @@ import {
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {LocalInstanceInfo} from '../../misc/LeuteConnectionsModule';
+import type {LocalInstanceInfo} from '../../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import {
     getInstancesOfPerson,
     getLocalInstanceOfPerson,
