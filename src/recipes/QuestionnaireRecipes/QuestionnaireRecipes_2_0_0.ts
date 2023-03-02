@@ -19,6 +19,7 @@ export interface Questionnaire_2_0_0 {
     item: Questionnaire_2_0_0.Question[];
 }
 
+// eslint-disable-next-line @typescript-eslint/prefer-namespace-keyword, @typescript-eslint/no-namespace, no-redeclare
 export module Questionnaire_2_0_0 {
     /**
      * FHIR Coding type for encoding coded values.
