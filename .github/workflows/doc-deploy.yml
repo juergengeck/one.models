@@ -55,7 +55,7 @@ jobs:
               id: release_info
               run: echo "filename=${{ github.event.repository.name }}-doc-dev.tar.gz" >> $GITHUB_OUTPUT
 
-            - name: Package zip
+            - name: Package tar
               run: |
                   tar -czvf ${{steps.release_info.outputs.filename}} docs
 
