@@ -20,7 +20,7 @@ export interface Questionnaire_2_0_0 {
 }
 
 export type ExtensionMinValue = {
-    extension?: Extension[];
+    extension?: Questionnaire_2_0_0.Extension[];
     url: 'http://hl7.org/fhir/StructureDefinition/minValue';
     // value[x]: Value of extension. One of these 5:
     valueDate?: string;
@@ -31,7 +31,7 @@ export type ExtensionMinValue = {
 };
 
 export type ExtensionMaxValue = {
-    extension?: Extension[];
+    extension?: Questionnaire_2_0_0.Extension[];
     url: 'http://hl7.org/fhir/StructureDefinition/maxValue';
     // value[x]: Value of extension. One of these 5:
     valueDate?: string;
@@ -42,12 +42,10 @@ export type ExtensionMaxValue = {
 };
 
 export type ExtensionMinLength = {
-    extension?: Extension[];
+    extension?: Questionnaire_2_0_0.Extension[];
     url: 'http://hl7.org/fhir/StructureDefinition/minLength';
     valueInteger: number;
 };
-
-export type Extension = ExtensionMinValue | ExtensionMaxValue | ExtensionMinLength;
 
 // eslint-disable-next-line @typescript-eslint/prefer-namespace-keyword, @typescript-eslint/no-namespace, no-redeclare
 export module Questionnaire_2_0_0 {
@@ -110,6 +108,8 @@ export module Questionnaire_2_0_0 {
         title?: string; // Label to display in place of the data
         creation?: string; // Date attachment was first created
     };
+
+    export type Extension = ExtensionMinValue | ExtensionMaxValue | ExtensionMinLength;
 
     /**
      * Question of a questionnaire.
