@@ -17,6 +17,9 @@ import type {
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
 export type Question = QuestionnaireRecipe.Question;
 export type QuestionnaireExtension = QuestionnaireRecipe.Extension;
+export type QuestionnaireMinValueExtension = QuestionnaireRecipe.ExtensionMinLength;
+export type QuestionnaireMaxValueExtension = QuestionnaireRecipe.ExtensionMaxValue;
+export type QuestionnaireMinLengthExtension = QuestionnaireRecipe.ExtensionMinLength;
 export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;

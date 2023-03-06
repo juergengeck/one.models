@@ -19,34 +19,6 @@ export interface Questionnaire_2_0_0 {
     item: Questionnaire_2_0_0.Question[];
 }
 
-export type ExtensionMinValue = {
-    extension?: Questionnaire_2_0_0.Extension[];
-    url: 'http://hl7.org/fhir/StructureDefinition/minValue';
-    // value[x]: Value of extension. One of these 5:
-    valueDate?: string;
-    valueDateTime?: string;
-    valueTime?: string;
-    valueDecimal?: number;
-    valueInteger?: number;
-};
-
-export type ExtensionMaxValue = {
-    extension?: Questionnaire_2_0_0.Extension[];
-    url: 'http://hl7.org/fhir/StructureDefinition/maxValue';
-    // value[x]: Value of extension. One of these 5:
-    valueDate?: string;
-    valueDateTime?: string;
-    valueTime?: string;
-    valueDecimal?: number;
-    valueInteger?: number;
-};
-
-export type ExtensionMinLength = {
-    extension?: Questionnaire_2_0_0.Extension[];
-    url: 'http://hl7.org/fhir/StructureDefinition/minLength';
-    valueInteger: number;
-};
-
 // eslint-disable-next-line @typescript-eslint/prefer-namespace-keyword, @typescript-eslint/no-namespace, no-redeclare
 export module Questionnaire_2_0_0 {
     /**
@@ -107,6 +79,34 @@ export module Questionnaire_2_0_0 {
         data: string; // Data inline, base64ed
         title?: string; // Label to display in place of the data
         creation?: string; // Date attachment was first created
+    };
+
+    export type ExtensionMinValue = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/minValue';
+        // value[x]: Value of extension. One of these 5:
+        valueDate?: string;
+        valueDateTime?: string;
+        valueTime?: string;
+        valueDecimal?: number;
+        valueInteger?: number;
+    };
+
+    export type ExtensionMaxValue = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/maxValue';
+        // value[x]: Value of extension. One of these 5:
+        valueDate?: string;
+        valueDateTime?: string;
+        valueTime?: string;
+        valueDecimal?: number;
+        valueInteger?: number;
+    };
+
+    export type ExtensionMinLength = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/minLength';
+        valueInteger: number;
     };
 
     export type Extension = ExtensionMinValue | ExtensionMaxValue | ExtensionMinLength;
