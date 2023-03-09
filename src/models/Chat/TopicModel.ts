@@ -178,6 +178,7 @@ export default class TopicModel extends Model {
     // generic topics.
 
     public static readonly EVERYONE_TOPIC_ID = 'EveryoneTopic';
+    public static readonly GLUE_TOPIC_ID = 'GlueTopic';
 
     /**
      * Creates the default everyone topic if it does not exist.
@@ -186,19 +187,17 @@ export default class TopicModel extends Model {
      * addTopicToRegistry hook, that listens for new Topic objects.
      */
     public async createEveryoneTopic(): Promise<Topic> {
-        this.state.assertCurrentState('Initialised');
+        return this.createNewTopic('Everyone', TopicModel.EVERYONE_TOPIC_ID);
+    }
 
-        if (this.topicRegistry === undefined) {
-            throw new Error('Error while retrieving topic registry, model not initialised.');
-        }
-
-        const foundTopic = await this.topicRegistry.queryById(TopicModel.EVERYONE_TOPIC_ID);
-
-        if (foundTopic) {
-            return foundTopic;
-        }
-
-        return await this.createNewTopic('Everyone', TopicModel.EVERYONE_TOPIC_ID);
+    /**
+     * Creates the one.glue topic if it does not exist.
+     *
+     * Note: Access rights will be automatically given to the "leute everyone" group by the
+     * addTopicToRegistry hook, that listens for new Topic objects.
+     */
+    public async createGlueTopic(): Promise<Topic> {
+        return this.createNewTopic('one.glue', TopicModel.GLUE_TOPIC_ID);
     }
 
     /**
@@ -211,12 +210,21 @@ export default class TopicModel extends Model {
     }
 
     /**
+     * Return whether the topicId refers to the one.glue chat or not.
+     *
+     * @param topicId
+     */
+    public isGlueChat(topicId: string): boolean {
+        return topicId === TopicModel.GLUE_TOPIC_ID;
+    }
+
+    /**
      * Shares the topic and channel with the person that participate in this 1:1 chat.
      *
      * @param topic
      */
     private async applyAccessRightsIfEveryoneChat(topic: Topic): Promise<void> {
-        if (!this.isEveryoneChat(topic.id)) {
+        if (!this.isEveryoneChat(topic.id) && !this.isGlueChat(topic.id)) {
             return;
         }
 
@@ -326,6 +334,9 @@ export default class TopicModel extends Model {
         desiredTopicID?: string
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
+        if (this.topicRegistry === undefined) {
+            throw new Error('Error while retrieving topic registry, model not initialised.');
+        }
 
         // if no name was passed, generate a random one
         const topicName =
@@ -333,6 +344,14 @@ export default class TopicModel extends Model {
         // generate a random channel id
         const topicID = desiredTopicID === undefined ? await createRandomString() : desiredTopicID;
 
+        // Check if topic already exists and then return
+        const foundTopic = await this.topicRegistry.queryById(topicID);
+
+        if (foundTopic) {
+            return foundTopic;
+        }
+
+        // Create the topic
         await this.channelManager.createChannel(topicID, null);
 
         const channels = await this.channelManager.channels({

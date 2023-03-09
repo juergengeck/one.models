@@ -363,7 +363,7 @@ async function createDeclarationFiles(targetDir) {
 
 /**
  * @param {string} dir
- * @returns {Promise<Record<string, any>|undefined>}
+ * @returns {Promise<Record<string, any>>}
  */
 async function readPkgJsonRefinio(dir) {
     const file = join(dir, 'package.json');
@@ -371,7 +371,7 @@ async function readPkgJsonRefinio(dir) {
     try {
         const pJson = await readFile(file, 'utf8');
         const pkgJson = JSON.parse(pJson);
-        return isObject(pkgJson) && isObject(pkgJson.refinio) ? pkgJson.refinio : undefined;
+        return isObject(pkgJson) && isObject(pkgJson.refinio) ? pkgJson.refinio : {};
     } catch (_err) {
         // It is not a task of this build script to check for errors in package.json, and not
         // finding the file is not an error to begin with.
@@ -394,7 +394,7 @@ async function findHighestPkgJsonRefinioPlatform() {
     while (dir !== prevDir) {
         const refinio = await readPkgJsonRefinio(dir);
 
-        if (isObject(refinio)) {
+        if (isObject(refinio) && refinio.platform !== undefined) {
             if (isValidPlatformString(refinio.platform)) {
                 system = refinio.platform;
                 console.log(
