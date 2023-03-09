@@ -109,6 +109,12 @@ export module Questionnaire_2_0_0 {
         valueInteger: number;
     };
 
+    export type ExtensionDesignNote = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/designNote';
+        valueMarkdown: string;
+    }
+
     export type ExtensionRegEx = {
         extension?: Questionnaire_2_0_0.Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/regex';
@@ -119,6 +125,7 @@ export module Questionnaire_2_0_0 {
         | ExtensionMinValue
         | ExtensionMaxValue
         | ExtensionMinLength
+        | ExtensionDesignNote;
         | ExtensionRegEx;
 
     /**
@@ -303,6 +310,14 @@ export const ExtensionRules: RecipeRule[] = [
         itemtype: {
             type: 'string',
             regexp: /([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?/
+        },
+        optional: true
+    },
+    {
+        itemprop: 'valueMarkdown',
+        itemtype: {
+            type: 'string',
+            regexp: /\s*(\S|\s)*/
         },
         optional: true
     }
