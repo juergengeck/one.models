@@ -128,7 +128,7 @@ export async function readIdentityWithSecretsFile(fileName: string): Promise<Ide
  */
 export async function readOrCreateIdentityWithSecretsFile(
     fileName: string,
-    url: string,
+    url?: string,
     personEmail?: string,
     instanceName?: string
 ): Promise<IdentityWithSecrets> {
