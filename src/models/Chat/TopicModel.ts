@@ -178,7 +178,7 @@ export default class TopicModel extends Model {
     // generic topics.
 
     public static readonly EVERYONE_TOPIC_ID = 'EveryoneTopic';
-    public static readonly GLUE_TOPIC_ID = 'GlueTopic';
+    public static readonly GLUE_TOPIC_ID = 'GlueOneTopic';
 
     /**
      * Creates the default everyone topic if it does not exist.
@@ -197,7 +197,7 @@ export default class TopicModel extends Model {
      * addTopicToRegistry hook, that listens for new Topic objects.
      */
     public async createGlueTopic(): Promise<Topic> {
-        return this.createNewTopic('one.glue', TopicModel.GLUE_TOPIC_ID);
+        return this.createNewTopic('glue.one', TopicModel.GLUE_TOPIC_ID);
     }
 
     /**

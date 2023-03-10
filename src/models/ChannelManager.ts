@@ -23,6 +23,7 @@ import type {
     ChannelRegistry,
     ChannelRegistryEntry
 } from '../recipes/ChannelRecipes';
+import type {Profile} from '../recipes/Leute/Profile';
 import type {CreationTime} from '../recipes/MetaRecipes';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
@@ -171,6 +172,7 @@ export type RawChannelEntry = {
     creationTimeHash: SHA256Hash<CreationTime>;
     creationTime: number;
     dataHash: SHA256Hash<OneUnversionedObjectTypes>;
+    metaDataHashes?: Array<SHA256Hash>;
 };
 
 /**
@@ -245,6 +247,13 @@ export default class ChannelManager {
         caughtObject: VersionedObjectResult
     ) => Promise<void>;
     private leuteModel: LeuteModel;
+    private channelSettings = new Map<
+        SHA256IdHash<ChannelInfo>,
+        {
+            maxSize?: number;
+            appendSenderProfile?: boolean;
+        }
+    >();
 
     /**
      * Create the channel manager instance.
@@ -352,6 +361,87 @@ export default class ChannelManager {
         });
     }
 
+    /**
+     * Enable appending the default profile of the sender to each channel entry.
+     *
+     * Default is disabled
+     *
+     * @param channel
+     * @param enable
+     */
+    public setChannelSettingsAppendSenderProfile(
+        channel: SHA256IdHash<ChannelInfo>,
+        enable?: boolean
+    ): void {
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings) {
+            if (enable === undefined) {
+                delete currentSettings.appendSenderProfile;
+            } else {
+                currentSettings.appendSenderProfile = enable;
+            }
+        } else if (enable !== undefined) {
+            this.channelSettings.set(channel, {
+                appendSenderProfile: enable
+            });
+        }
+    }
+
+    /**
+     * Get the "AppendSenderProfile" setting for the specified channel.
+     *
+     * @param channel
+     */
+    public getChannelSettingsAppendSenderProfile(channel: SHA256IdHash<ChannelInfo>): boolean {
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings === undefined || currentSettings.appendSenderProfile === undefined) {
+            return false;
+        }
+
+        return currentSettings.appendSenderProfile;
+    }
+
+    /**
+     * If size is specified, then restrict the size of a channel to this amount.
+     *
+     * Excess data is deleted by the merge algorithms.
+     *
+     * @param channel
+     * @param maxSize
+     */
+    public setChannelSettingsMaxSize(channel: SHA256IdHash<ChannelInfo>, maxSize?: number): void {
+        if (maxSize !== undefined && maxSize < 0) {
+            throw new Error('Max size must not be negative');
+        }
+
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings) {
+            if (maxSize === undefined) {
+                delete currentSettings.maxSize;
+            } else {
+                currentSettings.maxSize = maxSize;
+            }
+        } else if (maxSize !== undefined) {
+            this.channelSettings.set(channel, {
+                maxSize
+            });
+        }
+    }
+
+    /**
+     * Get the "maxSize" setting for the specified channel.
+     *
+     * @param channel
+     */
+    public getChannelSettingsMaxSize(channel: SHA256IdHash<ChannelInfo>): number | undefined {
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings === undefined || currentSettings.maxSize === undefined) {
+            return undefined;
+        }
+
+        return currentSettings.maxSize;
+    }
+
     // ######## Put data into the channel ########
 
     /**
@@ -413,13 +503,7 @@ export default class ChannelManager {
                     // Post the data
                     await serializeWithType(ChannelManager.postLockName, async () => {
                         logWithId(channelId, owner, 'postToChannel - START');
-                        await ChannelManager.internalChannelPost(
-                            channelId,
-                            owner,
-                            data,
-                            myMainId,
-                            timestamp
-                        );
+                        await this.internalChannelPost(channelId, owner, data, myMainId, timestamp);
                         logWithId(channelId, owner, 'postToChannel - END');
                     });
                 }
@@ -887,7 +971,8 @@ export default class ChannelManager {
                 channelEntryHash: currentEntryHash,
                 creationTimeHash: creationTimeHash,
                 creationTime: creationTime.timestamp,
-                dataHash: creationTime.data
+                dataHash: creationTime.data,
+                metaDataHashes: entry.metadata
             };
 
             currentEntryHash = entry.previous;
@@ -1273,10 +1358,11 @@ export default class ChannelManager {
                 // 1) there is only a common history left
                 // 2) there is only one channel left with elements
                 let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
-                const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+                const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
+                // hashes that need to be part of the new history
                 for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
                     commonHistoryHead = elem.channelEntryHash;
-                    unmergedElements.push(elem.creationTimeHash);
+                    unmergedElements.push(elem);
                 }
                 unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
 
@@ -1953,7 +2039,7 @@ export default class ChannelManager {
 
     private static async rebuildEntries(
         oldHead: SHA256Hash<ChannelEntry>,
-        newElementsReversed: SHA256Hash<CreationTime>[]
+        newElementsReversed: RawChannelEntry[]
     ): Promise<UnversionedObjectResult<ChannelEntry>> {
         // Create the new channel entries linked list from the array elements
         let lastChannelEntry = oldHead;
@@ -1961,7 +2047,8 @@ export default class ChannelManager {
         for (let i = newElementsReversed.length - 1; i >= 0; --i) {
             newEntryResult = await storeUnversionedObject({
                 $type$: 'ChannelEntry',
-                data: newElementsReversed[i],
+                data: newElementsReversed[i].creationTimeHash,
+                metadata: newElementsReversed[i].metaDataHashes,
                 previous: lastChannelEntry
             });
             lastChannelEntry = newEntryResult.hash;
@@ -1990,27 +2077,24 @@ export default class ChannelManager {
      * @param channelId - The channel to post to
      * @param channelOwner - Owner of the channel to post to
      * @param payload - Payload of the post
-     * @param issuer
-     * @param [timestamp]
+     * @param author - Author of chat message
+     * @param timestamp - Timestamp that is used as creation time
      * @returns
      */
-    public static async internalChannelPost(
+    private async internalChannelPost(
         channelId: string,
         channelOwner: SHA256IdHash<Person> | undefined,
         payload: OneUnversionedObjectTypes,
-        issuer?: SHA256IdHash<Person>,
+        author?: SHA256IdHash<Person>,
         timestamp?: number
     ): Promise<VersionedObjectResult<ChannelInfo>> {
         // Get the latest ChannelInfo from the database
-        let latestChannelInfo;
-        {
-            const channelInfoIdHash = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: channelId,
-                owner: channelOwner
-            });
-            latestChannelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
-        }
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: channelId,
+            owner: channelOwner
+        });
+        const latestChannelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
 
         // Get the creation time of the last element
         let previousCreationTime = 0;
@@ -2031,7 +2115,25 @@ export default class ChannelManager {
             data: payloadResult.hash
         });
 
-        const affirmationResult = await affirm(creationTimeResult.hash, issuer);
+        // Collect metadata that shall be included
+        const metadata: SHA256Hash[] = [];
+        if (author !== undefined) {
+            metadata.push((await affirm(creationTimeResult.hash, author)).hash);
+
+            let senderProfileHash: SHA256Hash<Profile> | undefined;
+            if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {
+                const profiles = await (await this.leuteModel.me()).profiles(author);
+                const defaultProfile = profiles.filter(
+                    profile =>
+                        profile.profileId === 'default' &&
+                        profile.owner === author &&
+                        profile.personId === author
+                );
+                if (defaultProfile.length > 0 && defaultProfile[0].loadedVersion !== undefined) {
+                    metadata.push(defaultProfile[0].loadedVersion);
+                }
+            }
+        }
 
         // If the creation time of the previous entry is larger, it means that the clock of one of the
         // participating devices is wrong. We can't then just set the new element as new head, because
@@ -2052,7 +2154,7 @@ export default class ChannelManager {
             $type$: 'ChannelEntry',
             previous: previousPointer,
             data: creationTimeResult.hash,
-            metadata: [affirmationResult.hash]
+            metadata
         });
 
         // Write the channel info with the new channel entry as head
