@@ -379,6 +379,10 @@ export default class ChannelManager {
             } else {
                 currentSettings.appendSenderProfile = enable;
             }
+        } else if (enable !== undefined) {
+            this.channelSettings.set(channel, {
+                appendSenderProfile: enable
+            });
         }
     }
 
@@ -404,10 +408,7 @@ export default class ChannelManager {
      * @param channel
      * @param maxSize
      */
-    public setChannelSettingsRestrictSize(
-        channel: SHA256IdHash<ChannelInfo>,
-        maxSize?: number
-    ): void {
+    public setChannelSettingsMaxSize(channel: SHA256IdHash<ChannelInfo>, maxSize?: number): void {
         if (maxSize !== undefined && maxSize < 0) {
             throw new Error('Max size must not be negative');
         }
@@ -419,6 +420,10 @@ export default class ChannelManager {
             } else {
                 currentSettings.maxSize = maxSize;
             }
+        } else if (maxSize !== undefined) {
+            this.channelSettings.set(channel, {
+                maxSize
+            });
         }
     }
 
