@@ -1,4 +1,5 @@
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {LeuteModel} from '../../models';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {castToLocalPublicKey, castToRemotePublicKey} from './ConnectionRoutesGroupMap';
@@ -804,6 +805,8 @@ export default class LeuteConnectionsModule {
                 connectionRoutesGroupName
             );
         } else {
+            await storeIdObject(instanceInfo.remoteInstanceIdObject);
+
             this.onUnknownConnection.emit(
                 conn,
                 myInfo.personId,
