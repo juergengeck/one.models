@@ -172,6 +172,7 @@ export type RawChannelEntry = {
     creationTimeHash: SHA256Hash<CreationTime>;
     creationTime: number;
     dataHash: SHA256Hash<OneUnversionedObjectTypes>;
+    metaDataHashes?: Array<SHA256Hash>;
 };
 
 /**
@@ -970,7 +971,8 @@ export default class ChannelManager {
                 channelEntryHash: currentEntryHash,
                 creationTimeHash: creationTimeHash,
                 creationTime: creationTime.timestamp,
-                dataHash: creationTime.data
+                dataHash: creationTime.data,
+                metaDataHashes: entry.metadata
             };
 
             currentEntryHash = entry.previous;
@@ -1356,10 +1358,11 @@ export default class ChannelManager {
                 // 1) there is only a common history left
                 // 2) there is only one channel left with elements
                 let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
-                const unmergedElements: SHA256Hash<CreationTime>[] = []; // This are the CreationTime hashes that need to be part of the new history
+                const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
+                // hashes that need to be part of the new history
                 for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
                     commonHistoryHead = elem.channelEntryHash;
-                    unmergedElements.push(elem.creationTimeHash);
+                    unmergedElements.push(elem);
                 }
                 unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
 
@@ -2036,7 +2039,7 @@ export default class ChannelManager {
 
     private static async rebuildEntries(
         oldHead: SHA256Hash<ChannelEntry>,
-        newElementsReversed: SHA256Hash<CreationTime>[]
+        newElementsReversed: RawChannelEntry[]
     ): Promise<UnversionedObjectResult<ChannelEntry>> {
         // Create the new channel entries linked list from the array elements
         let lastChannelEntry = oldHead;
@@ -2044,7 +2047,8 @@ export default class ChannelManager {
         for (let i = newElementsReversed.length - 1; i >= 0; --i) {
             newEntryResult = await storeUnversionedObject({
                 $type$: 'ChannelEntry',
-                data: newElementsReversed[i],
+                data: newElementsReversed[i].creationTimeHash,
+                metadata: newElementsReversed[i].metaDataHashes,
                 previous: lastChannelEntry
             });
             lastChannelEntry = newEntryResult.hash;
