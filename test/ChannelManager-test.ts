@@ -422,7 +422,9 @@ describe('Channel Manager test', () => {
         //console.log(firstValuesAsc);
 
         // Post other elements
-        await ChannelManager.internalChannelPost(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        await channelManager.internalChannelPost(
             'first',
             channels[0].owner,
             {$type$: 'BodyTemperature', temperature: 9},
