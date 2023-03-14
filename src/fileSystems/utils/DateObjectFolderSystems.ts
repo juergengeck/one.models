@@ -26,7 +26,7 @@ export default class DateObjectFolderSystems<T> {
     /**
      * @param iterator
      * @param options.withChannelEntryHashCache uses ObjectData.ChannelEntryHashCache to cache folder Lists, must be unique
-     * @param options.adaptiveFolderMode in case a folder has only one child it will pass it`s name as prefix for the child to use
+     * @param options.adaptiveFolderMode in case a folder has only one child it will pass it`s name as prefix for it`s childs to use
      */
     constructor(
         iterator: AsyncQueryObjectDataIterator<T>,
