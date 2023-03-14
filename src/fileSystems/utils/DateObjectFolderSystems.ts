@@ -278,7 +278,7 @@ class CachedList<T> implements DateList {
             ...queryOptions
         })) {
             // first object and same channelEntryHash
-            // means no change from privous cache, so return old list
+            // means no change from previous cache, so return old list
             if (
                 lastValue === -1 &&
                 this.channelEntryHash &&
@@ -297,7 +297,7 @@ class CachedList<T> implements DateList {
                 this.cache = Array.from(new Set([...dataList, ...this.cache]));
                 return this.cache;
             }
-            // build list
+            // build new list
             if (objectData.creationTime[this.dateType]() !== lastValue) {
                 dataList.push(objectData.creationTime[this.dateType]());
                 lastValue = objectData.creationTime[this.dateType]();
