@@ -7,7 +7,7 @@ export type ParseDataFilesContent<T> = (data: T) => FilesInformation;
 
 export default class EasyFileSystemUtils<T> {
     /**
-     *
+     * Creates a structure YYYY/MM/DD/file.txt with parseDataFilesContent
      * @param easyFileSystem
      * @param iterator
      * @param parseDataFilesContent
@@ -29,7 +29,26 @@ export default class EasyFileSystemUtils<T> {
     }
 
     /**
-     * Iterates ObjectData, separating them in folders by year
+     * Iterates ObjectData, getting years of creation
+     * @returns
+     */
+    async getYearList(iterator: Iterator<T>): Promise<number[]> {
+        const years = [];
+
+        let lastYearFolder = 0;
+
+        for await (const objectData of iterator({omitData: true})) {
+            if (objectData.creationTime.getFullYear() !== lastYearFolder) {
+                years.push(objectData.creationTime.getFullYear());
+                lastYearFolder = objectData.creationTime.getFullYear();
+            }
+        }
+
+        return years;
+    }
+
+    /**
+     * Separating ObjectData in folders by year
      * @returns
      */
     async createYearFolders(
@@ -38,23 +57,44 @@ export default class EasyFileSystemUtils<T> {
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
-        let lastYearFolder = 0;
+        const getYearList = await this.getYearList(iterator);
 
-        for await (const objectData of iterator({omitData: true})) {
-            if (objectData.creationTime.getFullYear() !== lastYearFolder) {
-                dir.set(String(objectData.creationTime.getFullYear()), {
-                    type: 'directory',
-                    content: parseContent.bind(null, objectData.creationTime.getFullYear())
-                });
-                lastYearFolder = objectData.creationTime.getFullYear();
-            }
+        for (const year of getYearList) {
+            dir.set(String(year), {
+                type: 'directory',
+                content: parseContent.bind(null, year)
+            });
         }
 
         return dir;
     }
 
     /**
-     * Iterates ObjectData, separating them in folders by month for given year
+     * Iterates ObjectData, getting months of creation for given year
+     * @returns
+     */
+    async getMonthList(iterator: Iterator<T>, year: number): Promise<number[]> {
+        const months = [];
+        let lastMonth = -1;
+
+        const queryOptions = {
+            omitData: true,
+            from: new Date(year, 0),
+            to: new Date(year, 11, 31, 23, 59, 59)
+        };
+
+        for await (const objectData of iterator(queryOptions)) {
+            if (objectData.creationTime.getMonth() !== lastMonth) {
+                months.push(objectData.creationTime.getMonth());
+                lastMonth = objectData.creationTime.getMonth();
+            }
+        }
+
+        return months;
+    }
+
+    /**
+     * Separating ObjectData in folders by month for given year
      * @returns
      */
     async createMonthFolders(
@@ -63,26 +103,44 @@ export default class EasyFileSystemUtils<T> {
         year: number
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
+        const monthList = await this.getMonthList(iterator, year);
 
-        const fromDate = new Date(year, 0);
-        const toDate = new Date(year, 11, 31, 23, 59, 59);
-        let lastMonthFolder = 0;
-
-        for await (const objectData of iterator({omitData: true, from: fromDate, to: toDate})) {
-            if (objectData.creationTime.getMonth() !== lastMonthFolder) {
-                dir.set(String(objectData.creationTime.getMonth()), {
-                    type: 'directory',
-                    content: parseContent.bind(null, year, objectData.creationTime.getMonth())
-                });
-                lastMonthFolder = objectData.creationTime.getMonth();
-            }
+        for (const month of monthList) {
+            dir.set(String(month + 1), {
+                type: 'directory',
+                content: parseContent.bind(null, year, month)
+            });
         }
 
         return dir;
     }
 
     /**
-     * Iterates ObjectData, separating them in folders by day for given year and month
+     * Iterates ObjectData, getting days of creation for given year and month
+     * @returns
+     */
+    async getDayList(iterator: Iterator<T>, year: number, month: number): Promise<number[]> {
+        const days = [];
+        let lastDay = -1;
+
+        const queryOptions = {
+            omitData: true,
+            from: new Date(year, month, 1),
+            to: new Date(year, month + 1, 0, 23, 59, 59)
+        };
+
+        for await (const objectData of iterator(queryOptions)) {
+            if (objectData.creationTime.getDate() !== lastDay) {
+                days.push(objectData.creationTime.getDate());
+                lastDay = objectData.creationTime.getDate();
+            }
+        }
+
+        return days;
+    }
+
+    /**
+     * Separating ObjectData in folders by day for given year and month
      * @returns
      */
     async createDayFolders(
@@ -92,26 +150,20 @@ export default class EasyFileSystemUtils<T> {
         month: number
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
+        const daysList = await this.getDayList(iterator, year, month);
 
-        const fromDate = new Date(year, month, 1);
-        const toDate = new Date(year, month + 1, 0, 23, 59, 59);
-        let lastDayFolder = 0;
-
-        for await (const objectData of iterator({omitData: true, from: fromDate, to: toDate})) {
-            if (objectData.creationTime.getDate() !== lastDayFolder) {
-                dir.set(String(objectData.creationTime.getDate()), {
-                    type: 'directory',
-                    content: parseContent.bind(null, year, month, objectData.creationTime.getDate())
-                });
-                lastDayFolder = objectData.creationTime.getDate();
-            }
+        for (const day of daysList) {
+            dir.set(String(day), {
+                type: 'directory',
+                content: parseContent.bind(null, year, month, day)
+            });
         }
 
         return dir;
     }
 
     /**
-     * Iterates ObjectData creating files with information given by
+     * Creates files with information given by
      * parseDataFilesContent or defaultParseDataFilesContent
      * for given year, month and day
      *
@@ -126,23 +178,23 @@ export default class EasyFileSystemUtils<T> {
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
-        const fromDate = new Date(year, month, day);
-        const toDate = new Date(year, month, day, 23, 59, 59);
+        const queryOptions = {
+            from: new Date(year, month, day),
+            to: new Date(year, month, day, 23, 59, 59)
+        };
 
-        for await (const objectData of iterator({from: fromDate, to: toDate})) {
+        for await (const objectData of iterator(queryOptions)) {
             const creationTime = objectData.creationTime;
-            const uniqueAddon = objectData.channelOwner
-                ? objectData.channelOwner
-                : creationTime.getMilliseconds();
-            const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}`;
+            const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';
+            const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}-${creationTime.getMilliseconds()}`;
 
             const files = await parseContent(objectData);
 
             files.forEach(file => {
-                const fileNameAddon = typeof file === 'string' ? undefined : file.fileNameAddon;
+                const fileNameAddon = typeof file === 'string' ? '' : `_${file.fileNameAddon}`;
                 const fileContent = typeof file === 'string' ? file : file.fileContent;
 
-                dir.set(`${time}_${fileNameAddon ? `${fileNameAddon}_` : ''}${uniqueAddon}.txt`, {
+                dir.set(`${time}${fileNameAddon}${channelOwnerAddon}.txt`, {
                     type: 'regularFile',
                     content: fileContent
                 });
