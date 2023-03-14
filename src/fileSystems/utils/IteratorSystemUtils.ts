@@ -5,6 +5,9 @@ export type Iterator<T> = (queryOptions?: QueryOptions) => AsyncIterableIterator
 export type FilesInformation = ({fileNameAddon: string; fileContent: string} | string)[];
 export type ParseDataFilesContent<T> = (data: T) => FilesInformation;
 
+/**
+ * Uses Iterator for ObjectData to provide useful utils
+ */
 export default class IteratorSystemUtils<T> {
     private iterator: Iterator<T>;
 
@@ -51,6 +54,7 @@ export default class IteratorSystemUtils<T> {
 
     /**
      * Separating ObjectData in folders by year
+     * @param parseContent
      * @returns
      */
     async createYearFolders(
@@ -72,6 +76,7 @@ export default class IteratorSystemUtils<T> {
 
     /**
      * Iterates ObjectData, getting months of creation for given year
+     * @param year
      * @returns
      */
     async getMonthList(year: number): Promise<number[]> {
@@ -96,6 +101,8 @@ export default class IteratorSystemUtils<T> {
 
     /**
      * Separating ObjectData in folders by month for given year
+     * @param parseContent
+     * @param year
      * @returns
      */
     async createMonthFolders(
@@ -117,6 +124,8 @@ export default class IteratorSystemUtils<T> {
 
     /**
      * Iterates ObjectData, getting days of creation for given year and month
+     * @param year
+     * @param month
      * @returns
      */
     async getDayList(year: number, month: number): Promise<number[]> {
@@ -141,6 +150,9 @@ export default class IteratorSystemUtils<T> {
 
     /**
      * Separating ObjectData in folders by day for given year and month
+     * @param parseContent
+     * @param year
+     * @param month
      * @returns
      */
     async createDayFolders(
@@ -166,6 +178,10 @@ export default class IteratorSystemUtils<T> {
      * parseDataFilesContent or defaultParseDataFilesContent
      * for given year, month and day
      *
+     * @param parseContent
+     * @param year
+     * @param month
+     * @param day
      * @returns
      */
     async createDayEntriesFiles(
