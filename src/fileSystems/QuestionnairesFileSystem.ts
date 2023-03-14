@@ -1,9 +1,11 @@
 import type QuestionnaireModel from '../models/QuestionnaireModel';
 import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
-import type {FilesInformation} from './utils/IteratorSystemUtils';
-import IteratorSystemUtils from './utils/IteratorSystemUtils';
+import DateObjectFolderSystems from './utils/DateObjectFolderSystems';
+import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
 import type {ObjectData} from '../models/ChannelManager';
+
+type ObjectDataType = QuestionnaireResponses;
 
 /**
  * Provides a file system about questionnaire responses
@@ -15,31 +17,31 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
      */
     constructor(questionnaireModel: QuestionnaireModel) {
         super(true);
-        const iteratorSystemUtils = new IteratorSystemUtils<QuestionnaireResponses>(
+        const dateObjectFolderSystems = new DateObjectFolderSystems<ObjectDataType>(
             questionnaireModel.responsesIterator.bind(questionnaireModel)
         );
 
         this.setRootDirectory(
-            iteratorSystemUtils.getYearMonthDayFileFolderSystem(
-                this.parseDataFilesContent.bind(this)
-            )
+            dateObjectFolderSystems.getYearMonthDayFileType(this.parseDataFilesContent.bind(this))
         );
     }
 
-    private parseDataFilesContent(
-        objectData: ObjectData<QuestionnaireResponses>
-    ): FilesInformation {
-        const files: FilesInformation = [];
+    private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
+        const dir = new Map<string, EasyDirectoryEntry>();
+        const creationTime = objectData.creationTime;
+        const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';
+        const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}-${creationTime.getMilliseconds()}`;
 
         objectData.data.response.forEach(response => {
-            files.push({
-                fileNameAddon: `${response.status}${
-                    response.questionnaire ? `_${response.questionnaire}` : ''
-                }`,
-                fileContent: JSON.stringify(response)
+            const nameAddon = `${response.status}${
+                response.questionnaire ? `_${response.questionnaire}` : ''
+            }`;
+            dir.set(`${time}_${nameAddon}${channelOwnerAddon}_${creationTime.getMilliseconds()}`, {
+                type: 'regularFile',
+                content: JSON.stringify(response)
             });
         });
 
-        return files;
+        return dir;
     }
 }
