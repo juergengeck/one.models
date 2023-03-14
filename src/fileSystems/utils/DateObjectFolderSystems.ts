@@ -48,9 +48,9 @@ export default class DateObjectFolderSystems<T> {
         ) => EasyDirectoryContent | Promise<EasyDirectoryContent>
     ): () => Promise<EasyDirectoryContent> {
         const parseDayEntriesFiles = this.createDayEntriesFiles.bind(this, parseDataFilesContent);
-        const parseDayFolders = this.createDayFolders.bind(null, parseDayEntriesFiles);
-        const parseMonthFolders = this.createMonthFolders.bind(null, parseDayFolders);
-        return this.createYearFolders.bind(null, parseMonthFolders);
+        const parseDayFolders = this.createDayFolders.bind(this, parseDayEntriesFiles);
+        const parseMonthFolders = this.createMonthFolders.bind(this, parseDayFolders);
+        return this.createYearFolders.bind(this, parseMonthFolders);
     }
 
     /**
