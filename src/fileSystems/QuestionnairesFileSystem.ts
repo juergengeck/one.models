@@ -1,7 +1,7 @@
 import type QuestionnaireModel from '../models/QuestionnaireModel';
 import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
-import type {FilesInformation} from './utils/EasyFileSystemUtils';
-import EasyFileSystemUtils from './utils/EasyFileSystemUtils';
+import type {FilesInformation} from './utils/IteratorSystemUtils';
+import IteratorSystemUtils from './utils/IteratorSystemUtils';
 import EasyFileSystem from './utils/EasyFileSystem';
 import type {ObjectData} from '../models/ChannelManager';
 
@@ -15,17 +15,20 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
      */
     constructor(questionnaireModel: QuestionnaireModel) {
         super(true);
-        const easyFileSystemUtils = new EasyFileSystemUtils<QuestionnaireResponses>();
+        const iteratorSystemUtils = new IteratorSystemUtils<QuestionnaireResponses>(
+            questionnaireModel.responsesIterator.bind(questionnaireModel)
+        );
 
         this.setRootDirectory(
-            easyFileSystemUtils.getYearMonthDayFileFolderSystem(
-                questionnaireModel.responsesIterator.bind(questionnaireModel),
+            iteratorSystemUtils.getYearMonthDayFileFolderSystem(
                 this.parseDataFilesContent.bind(this)
             )
         );
     }
 
-    parseDataFilesContent(objectData: ObjectData<QuestionnaireResponses>): FilesInformation {
+    private parseDataFilesContent(
+        objectData: ObjectData<QuestionnaireResponses>
+    ): FilesInformation {
         const files: FilesInformation = [];
 
         objectData.data.response.forEach(response => {

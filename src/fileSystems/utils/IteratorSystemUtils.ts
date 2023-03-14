@@ -5,39 +5,41 @@ export type Iterator<T> = (queryOptions?: QueryOptions) => AsyncIterableIterator
 export type FilesInformation = ({fileNameAddon: string; fileContent: string} | string)[];
 export type ParseDataFilesContent<T> = (data: T) => FilesInformation;
 
-export default class EasyFileSystemUtils<T> {
+export default class IteratorSystemUtils<T> {
+    private iterator: Iterator<T>;
+
+    /**
+     * @param iterator
+     */
+    constructor(iterator: Iterator<T>) {
+        this.iterator = iterator;
+    }
+
     /**
      * Creates a structure YYYY/MM/DD/file.txt with parseDataFilesContent
-     * @param easyFileSystem
-     * @param iterator
      * @param parseDataFilesContent
      */
     getYearMonthDayFileFolderSystem(
-        iterator: Iterator<T>,
         parseDataFilesContent: (
             objectData: ObjectData<T>
         ) => FilesInformation | Promise<FilesInformation>
     ): () => Promise<EasyDirectoryContent> {
-        const parseDayEntriesFiles = this.createDayEntriesFiles.bind(
-            this,
-            iterator,
-            parseDataFilesContent
-        );
-        const parseDayFolders = this.createDayFolders.bind(null, iterator, parseDayEntriesFiles);
-        const parseMonthFolders = this.createMonthFolders.bind(null, iterator, parseDayFolders);
-        return this.createYearFolders.bind(null, iterator, parseMonthFolders);
+        const parseDayEntriesFiles = this.createDayEntriesFiles.bind(this, parseDataFilesContent);
+        const parseDayFolders = this.createDayFolders.bind(null, parseDayEntriesFiles);
+        const parseMonthFolders = this.createMonthFolders.bind(null, parseDayFolders);
+        return this.createYearFolders.bind(null, parseMonthFolders);
     }
 
     /**
      * Iterates ObjectData, getting years of creation
      * @returns
      */
-    async getYearList(iterator: Iterator<T>): Promise<number[]> {
+    async getYearList(): Promise<number[]> {
         const years = [];
 
         let lastYearFolder = 0;
 
-        for await (const objectData of iterator({omitData: true})) {
+        for await (const objectData of this.iterator({omitData: true})) {
             if (objectData.creationTime.getFullYear() !== lastYearFolder) {
                 years.push(objectData.creationTime.getFullYear());
                 lastYearFolder = objectData.creationTime.getFullYear();
@@ -52,12 +54,11 @@ export default class EasyFileSystemUtils<T> {
      * @returns
      */
     async createYearFolders(
-        iterator: Iterator<T>,
         parseContent: (year: number) => Promise<EasyDirectoryContent>
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
 
-        const getYearList = await this.getYearList(iterator);
+        const getYearList = await this.getYearList();
 
         for (const year of getYearList) {
             dir.set(String(year), {
@@ -73,7 +74,7 @@ export default class EasyFileSystemUtils<T> {
      * Iterates ObjectData, getting months of creation for given year
      * @returns
      */
-    async getMonthList(iterator: Iterator<T>, year: number): Promise<number[]> {
+    async getMonthList(year: number): Promise<number[]> {
         const months = [];
         let lastMonth = -1;
 
@@ -83,7 +84,7 @@ export default class EasyFileSystemUtils<T> {
             to: new Date(year, 11, 31, 23, 59, 59)
         };
 
-        for await (const objectData of iterator(queryOptions)) {
+        for await (const objectData of this.iterator(queryOptions)) {
             if (objectData.creationTime.getMonth() !== lastMonth) {
                 months.push(objectData.creationTime.getMonth());
                 lastMonth = objectData.creationTime.getMonth();
@@ -98,12 +99,11 @@ export default class EasyFileSystemUtils<T> {
      * @returns
      */
     async createMonthFolders(
-        iterator: Iterator<T>,
         parseContent: (year: number, month: number) => Promise<EasyDirectoryContent>,
         year: number
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
-        const monthList = await this.getMonthList(iterator, year);
+        const monthList = await this.getMonthList(year);
 
         for (const month of monthList) {
             dir.set(String(month + 1), {
@@ -119,7 +119,7 @@ export default class EasyFileSystemUtils<T> {
      * Iterates ObjectData, getting days of creation for given year and month
      * @returns
      */
-    async getDayList(iterator: Iterator<T>, year: number, month: number): Promise<number[]> {
+    async getDayList(year: number, month: number): Promise<number[]> {
         const days = [];
         let lastDay = -1;
 
@@ -129,7 +129,7 @@ export default class EasyFileSystemUtils<T> {
             to: new Date(year, month + 1, 0, 23, 59, 59)
         };
 
-        for await (const objectData of iterator(queryOptions)) {
+        for await (const objectData of this.iterator(queryOptions)) {
             if (objectData.creationTime.getDate() !== lastDay) {
                 days.push(objectData.creationTime.getDate());
                 lastDay = objectData.creationTime.getDate();
@@ -144,13 +144,12 @@ export default class EasyFileSystemUtils<T> {
      * @returns
      */
     async createDayFolders(
-        iterator: Iterator<T>,
         parseContent: (year: number, month: number, day: number) => Promise<EasyDirectoryContent>,
         year: number,
         month: number
     ): Promise<EasyDirectoryContent> {
         const dir = new Map<string, EasyDirectoryEntry>();
-        const daysList = await this.getDayList(iterator, year, month);
+        const daysList = await this.getDayList(year, month);
 
         for (const day of daysList) {
             dir.set(String(day), {
@@ -170,7 +169,6 @@ export default class EasyFileSystemUtils<T> {
      * @returns
      */
     async createDayEntriesFiles(
-        iterator: Iterator<T>,
         parseContent: (objecyData: ObjectData<T>) => FilesInformation | Promise<FilesInformation>,
         year: number,
         month: number,
@@ -183,7 +181,7 @@ export default class EasyFileSystemUtils<T> {
             to: new Date(year, month, day, 23, 59, 59)
         };
 
-        for await (const objectData of iterator(queryOptions)) {
+        for await (const objectData of this.iterator(queryOptions)) {
             const creationTime = objectData.creationTime;
             const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';
             const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}-${creationTime.getMilliseconds()}`;
