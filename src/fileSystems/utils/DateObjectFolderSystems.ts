@@ -55,11 +55,12 @@ export default class DateObjectFolderSystems<T> {
 
     /**
      * Creates a structure YYYY/MM/DD/{parseDataFilesContent}
-     * @param parseDataFilesContent
+     * @param parseDataFilesContent adaptiveNamePrefix may be passed on @see this.options.adaptiveFolderMode
      */
     getYearMonthDayFileType(
         parseDataFilesContent: (
-            objecyData: ObjectData<T>
+            objecyData: ObjectData<T>,
+            adaptiveNamePrefix?: string
         ) => EasyDirectoryContent | Promise<EasyDirectoryContent>
     ): () => Promise<EasyDirectoryContent> {
         const parseDayEntriesFiles = this.createDayEntriesFiles.bind(this, parseDataFilesContent);
