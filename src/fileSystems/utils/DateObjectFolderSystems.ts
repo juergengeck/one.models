@@ -84,7 +84,7 @@ export default class DateObjectFolderSystems<T> {
         const yearsList = await dateYearList.getList();
 
         if (yearsList.length === 1 && this.options.adaptiveFolderMode) {
-            return parseContent.bind(null, yearsList[0], `${yearsList[0]}_`)();
+            return parseContent(yearsList[0], `${yearsList[0]}_`);
         }
 
         return new Map<string, EasyDirectoryEntry>(
@@ -106,7 +106,11 @@ export default class DateObjectFolderSystems<T> {
      * @returns
      */
     private async createMonthFolders(
-        parseContent: (year: number, month: number) => Promise<EasyDirectoryContent>,
+        parseContent: (
+            year: number,
+            month: number,
+            adaptiveNamePrefix?: string
+        ) => Promise<EasyDirectoryContent>,
         year: number,
         adaptiveNamePrefix?: string
     ): Promise<EasyDirectoryContent> {
@@ -120,14 +124,13 @@ export default class DateObjectFolderSystems<T> {
         });
 
         if (monthsList.length === 1 && this.options.adaptiveFolderMode) {
-            return parseContent.bind(
-                null,
+            return parseContent(
                 year,
                 monthsList[0],
                 `${adaptiveNamePrefix ? adaptiveNamePrefix : ''}${String(
                     monthsList[0] + 1
                 ).padStart(2, '0')}_`
-            )();
+            );
         }
 
         return new Map<string, EasyDirectoryEntry>(
@@ -174,8 +177,7 @@ export default class DateObjectFolderSystems<T> {
         });
 
         if (daysList.length === 1 && this.options.adaptiveFolderMode) {
-            return parseContent.bind(
-                null,
+            return parseContent(
                 year,
                 month,
                 daysList[0],
@@ -183,7 +185,7 @@ export default class DateObjectFolderSystems<T> {
                     2,
                     '0'
                 )}_`
-            )();
+            );
         }
 
         return new Map<string, EasyDirectoryEntry>(
