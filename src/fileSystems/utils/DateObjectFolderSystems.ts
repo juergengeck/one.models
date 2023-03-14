@@ -7,8 +7,10 @@ import type {EasyDirectoryContent, EasyDirectoryEntry} from './EasyFileSystem';
 export type AsyncQueryObjectDataIterator<T> = (
     queryOptions?: QueryOptions
 ) => AsyncIterableIterator<ObjectData<T>>;
-export type FilesInformation = ({fileNameAddon: string; fileContent: string} | string)[];
-export type ParseDataFilesContent<T> = (data: T) => FilesInformation;
+type DateObjectFolderSystemsOptions = {
+    withChannelEntryHashCache: boolean;
+    adaptiveFolderMode: boolean;
+};
 
 /**
  * Uses Iterator for ObjectData to provide ready to use folder structures
@@ -16,18 +18,31 @@ export type ParseDataFilesContent<T> = (data: T) => FilesInformation;
 export default class DateObjectFolderSystems<T> {
     private iterator: AsyncQueryObjectDataIterator<T>;
     private dateLists: Map<DateListType, DateList>;
+    /**
+     * See constructor for options descriptions
+     */
+    private options: DateObjectFolderSystemsOptions;
 
     /**
      * @param iterator
-     * @param options.withChannelEntryHashCache uses ObjectData.ChannelEntryHashCache to cache folder Lists
+     * @param options.withChannelEntryHashCache uses ObjectData.ChannelEntryHashCache to cache folder Lists, must be unique
+     * @param options.adaptiveFolderMode in case a folder has only one child it will pass it`s name as prefix for the child to use
      */
     constructor(
         iterator: AsyncQueryObjectDataIterator<T>,
-        options = {withChannelEntryHashCache: true}
+        options?: Partial<DateObjectFolderSystemsOptions>
     ) {
         this.iterator = iterator;
+        this.options = {
+            withChannelEntryHashCache:
+                options && options.withChannelEntryHashCache
+                    ? options.withChannelEntryHashCache
+                    : true,
+            adaptiveFolderMode:
+                options && options.adaptiveFolderMode ? options.adaptiveFolderMode : false
+        };
         this.dateLists = new Map<DateListType, DateList>();
-        if (options.withChannelEntryHashCache) {
+        if (this.options.withChannelEntryHashCache) {
             for (const dateType of DateListTypes) {
                 this.dateLists.set(dateType, new CachedList<T>(iterator, dateType));
             }
@@ -59,13 +74,17 @@ export default class DateObjectFolderSystems<T> {
      * @returns
      */
     private async createYearFolders(
-        parseContent: (year: number) => Promise<EasyDirectoryContent>
+        parseContent: (year: number, adaptiveNamePrefix?: string) => Promise<EasyDirectoryContent>
     ): Promise<EasyDirectoryContent> {
         const dateYearList = this.dateLists.get(DateYearType);
         if (dateYearList === undefined) {
             throw Error(`Date list ${DateYearType} is required`);
         }
         const yearsList = await dateYearList.getList();
+
+        if (yearsList.length === 1 && this.options.adaptiveFolderMode) {
+            return parseContent.bind(null, yearsList[0], `${yearsList[0]}_`)();
+        }
 
         return new Map<string, EasyDirectoryEntry>(
             yearsList.map<[string, EasyDirectoryEntry]>(year => [
@@ -82,11 +101,13 @@ export default class DateObjectFolderSystems<T> {
      * Separating ObjectData in folders by month for given year
      * @param parseContent
      * @param year
+     * @param adaptiveNamePrefix Optional. Only works in @see this.options.adaptiveMode
      * @returns
      */
     private async createMonthFolders(
         parseContent: (year: number, month: number) => Promise<EasyDirectoryContent>,
-        year: number
+        year: number,
+        adaptiveNamePrefix?: string
     ): Promise<EasyDirectoryContent> {
         const dateMonthList = this.dateLists.get(DateMonthType);
         if (dateMonthList === undefined) {
@@ -97,9 +118,24 @@ export default class DateObjectFolderSystems<T> {
             to: new Date(year, 11, 31, 23, 59, 59)
         });
 
+        if (monthsList.length === 1 && this.options.adaptiveFolderMode) {
+            return parseContent.bind(
+                null,
+                year,
+                monthsList[0],
+                `${adaptiveNamePrefix ? adaptiveNamePrefix : ''}${String(
+                    monthsList[0] + 1
+                ).padStart(2, '0')}_`
+            )();
+        }
+
         return new Map<string, EasyDirectoryEntry>(
             monthsList.map<[string, EasyDirectoryEntry]>(month => [
-                String(month + 1),
+                `${
+                    this.options.adaptiveFolderMode && adaptiveNamePrefix
+                        ? `${adaptiveNamePrefix}_`
+                        : ''
+                }${String(month + 1).padStart(2, '0')}`,
                 {
                     type: 'directory',
                     content: parseContent.bind(null, year, month)
@@ -113,12 +149,19 @@ export default class DateObjectFolderSystems<T> {
      * @param parseContent
      * @param year
      * @param month
+     * @param adaptiveNamePrefix Optional. Only works in @see this.options.adaptiveMode
      * @returns
      */
     private async createDayFolders(
-        parseContent: (year: number, month: number, day: number) => Promise<EasyDirectoryContent>,
+        parseContent: (
+            year: number,
+            month: number,
+            day: number,
+            adaptiveNamePrefix?: string
+        ) => Promise<EasyDirectoryContent>,
         year: number,
-        month: number
+        month: number,
+        adaptiveNamePrefix?: string
     ): Promise<EasyDirectoryContent> {
         const dateDayList = this.dateLists.get(DateDayType);
         if (dateDayList === undefined) {
@@ -129,9 +172,24 @@ export default class DateObjectFolderSystems<T> {
             to: new Date(year, month + 1, 0, 23, 59, 59)
         });
 
+        if (daysList.length === 1 && this.options.adaptiveFolderMode) {
+            return parseContent.bind(
+                null,
+                year,
+                month,
+                daysList[0],
+                `${adaptiveNamePrefix ? adaptiveNamePrefix : ''}${String(daysList[0]).padStart(
+                    2,
+                    '0'
+                )}_`
+            )();
+        }
+
         return new Map<string, EasyDirectoryEntry>(
             daysList.map<[string, EasyDirectoryEntry]>(day => [
-                String(day),
+                `${
+                    this.options.adaptiveFolderMode && adaptiveNamePrefix ? adaptiveNamePrefix : ''
+                }${String(day).padStart(2, '0')}`,
                 {
                     type: 'directory',
                     content: parseContent.bind(null, year, month, day)
@@ -149,15 +207,18 @@ export default class DateObjectFolderSystems<T> {
      * @param year
      * @param month
      * @param day
+     * @param adaptiveNamePrefix Optional. Only works in @see this.options.adaptiveMode
      * @returns
      */
     private async createDayEntriesFiles(
         parseContent: (
-            objecyData: ObjectData<T>
+            objecyData: ObjectData<T>,
+            adaptiveNamePrefix?: string
         ) => EasyDirectoryContent | Promise<EasyDirectoryContent>,
         year: number,
         month: number,
-        day: number
+        day: number,
+        adaptiveNamePrefix?: string
     ): Promise<EasyDirectoryContent> {
         let dir = new Map<string, EasyDirectoryEntry>();
         const queryOptions = {
@@ -166,10 +227,13 @@ export default class DateObjectFolderSystems<T> {
         };
 
         for await (const objectData of this.iterator(queryOptions)) {
-            dir = new Map<string, EasyDirectoryEntry>([
-                ...dir,
-                ...(await parseContent(objectData))
-            ]);
+            const nextDirMap = await parseContent(
+                objectData,
+                adaptiveNamePrefix && this.options.adaptiveFolderMode
+                    ? adaptiveNamePrefix
+                    : undefined
+            );
+            dir = new Map<string, EasyDirectoryEntry>([...dir, ...nextDirMap]);
         }
 
         return dir;

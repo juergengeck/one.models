@@ -18,7 +18,8 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
     constructor(questionnaireModel: QuestionnaireModel) {
         super(true);
         const dateObjectFolderSystems = new DateObjectFolderSystems<ObjectDataType>(
-            questionnaireModel.responsesIterator.bind(questionnaireModel)
+            questionnaireModel.responsesIterator.bind(questionnaireModel),
+            {adaptiveFolderMode: true}
         );
 
         this.setRootDirectory(
@@ -30,7 +31,10 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
      * @param objectData
      * @returns
      */
-    private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
+    private parseDataFilesContent(
+        objectData: ObjectData<ObjectDataType>,
+        adaptiveNamePrefix?: string
+    ): EasyDirectoryContent {
         const dir = new Map<string, EasyDirectoryEntry>();
         const creationTime = objectData.creationTime;
         const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';
@@ -40,10 +44,15 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
             const nameAddon = `${response.status}${
                 response.questionnaire ? `_${response.questionnaire}` : ''
             }`;
-            dir.set(`${time}_${nameAddon}${channelOwnerAddon}_${creationTime.getMilliseconds()}`, {
-                type: 'regularFile',
-                content: JSON.stringify(response)
-            });
+            dir.set(
+                `${
+                    adaptiveNamePrefix ? adaptiveNamePrefix : ''
+                }${time}_${nameAddon}${channelOwnerAddon}_${creationTime.getMilliseconds()}`,
+                {
+                    type: 'regularFile',
+                    content: JSON.stringify(response)
+                }
+            );
         });
 
         return dir;
