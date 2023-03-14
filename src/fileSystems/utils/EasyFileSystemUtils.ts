@@ -14,7 +14,9 @@ export default class EasyFileSystemUtils<T> {
      */
     getYearMonthDayFileFolderSystem(
         iterator: Iterator<T>,
-        parseDataFilesContent: (data: T) => FilesInformation | Promise<FilesInformation>
+        parseDataFilesContent: (
+            objectData: ObjectData<T>
+        ) => FilesInformation | Promise<FilesInformation>
     ): () => Promise<EasyDirectoryContent> {
         const parseDayEntriesFiles = this.createDayEntriesFiles.bind(
             this,
@@ -117,7 +119,7 @@ export default class EasyFileSystemUtils<T> {
      */
     async createDayEntriesFiles(
         iterator: Iterator<T>,
-        parseContent: (data: T) => FilesInformation | Promise<FilesInformation>,
+        parseContent: (objecyData: ObjectData<T>) => FilesInformation | Promise<FilesInformation>,
         year: number,
         month: number,
         day: number
@@ -134,7 +136,7 @@ export default class EasyFileSystemUtils<T> {
                 : creationTime.getMilliseconds();
             const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}`;
 
-            const files = await parseContent(objectData.data);
+            const files = await parseContent(objectData);
 
             files.forEach(file => {
                 const fileNameAddon = typeof file === 'string' ? undefined : file.fileNameAddon;

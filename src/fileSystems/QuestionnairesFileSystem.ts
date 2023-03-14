@@ -3,6 +3,7 @@ import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/Quest
 import type {FilesInformation} from './utils/EasyFileSystemUtils';
 import EasyFileSystemUtils from './utils/EasyFileSystemUtils';
 import EasyFileSystem from './utils/EasyFileSystem';
+import type {ObjectData} from '../models/ChannelManager';
 
 /**
  * Provides a file system about questionnaire responses
@@ -18,16 +19,16 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
 
         this.setRootDirectory(
             easyFileSystemUtils.getYearMonthDayFileFolderSystem(
-                questionnaireModel.responsesIterator,
+                questionnaireModel.responsesIterator.bind(questionnaireModel),
                 this.parseDataFilesContent.bind(this)
             )
         );
     }
 
-    parseDataFilesContent(data: QuestionnaireResponses): FilesInformation {
+    parseDataFilesContent(objectData: ObjectData<QuestionnaireResponses>): FilesInformation {
         const files: FilesInformation = [];
 
-        data.response.forEach(response => {
+        objectData.data.response.forEach(response => {
             files.push({
                 fileNameAddon: `${response.status}${
                     response.questionnaire ? `_${response.questionnaire}` : ''
