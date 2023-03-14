@@ -28,6 +28,10 @@ export default class JournalFileSystem extends EasyFileSystem {
         );
     }
 
+    /**
+     * @param objectData
+     * @returns
+     */
     private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
         const creationTime = objectData.creationTime;
         const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';

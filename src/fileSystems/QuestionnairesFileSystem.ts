@@ -26,6 +26,10 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
         );
     }
 
+    /**
+     * @param objectData
+     * @returns
+     */
     private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
         const dir = new Map<string, EasyDirectoryEntry>();
         const creationTime = objectData.creationTime;
