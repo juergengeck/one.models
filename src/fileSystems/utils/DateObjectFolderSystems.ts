@@ -27,17 +27,10 @@ export default class DateObjectFolderSystems<T> {
     /**
      * @param timeOfEarliestChange
      */
-    public updateCache(timeOfEarliestChange: Date) {
-        const currentTime = new Date();
-        if (currentTime.getFullYear() - timeOfEarliestChange.getFullYear() > 0) {
-            this.yearList.updateNeeded();
-        }
-        if (currentTime.getMonth() - timeOfEarliestChange.getMonth() > 0) {
-            this.monthList.updateNeeded();
-        }
-        if (currentTime.getDate() - timeOfEarliestChange.getDate() > 0) {
-            this.dayList.updateNeeded();
-        }
+    public updateCache(_timeOfEarliestChange: Date) {
+        this.yearList.updateNeeded();
+        this.monthList.updateNeeded();
+        this.dayList.updateNeeded();
     }
 
     /**
