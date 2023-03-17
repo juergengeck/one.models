@@ -12,7 +12,7 @@ export type JournalEntry = {
 };
 
 type JournalInput = {
-    event: OEvent<(data: ObjectData<unknown>) => Promise<void> | void>;
+    event: OEvent<(timeOfEarliestChange: Date) => void>;
     retrieveFn: (
         queryOptions?: QueryOptions
     ) => AsyncIterableIterator<ObjectData<unknown> | Promise<ObjectData<unknown>>>;
@@ -35,16 +35,17 @@ export default class JournalModel extends Model {
         string,
         {
             disconnect: (() => void) | undefined;
-            listener: (data: ObjectData<unknown>) => void;
+            listener: (timeOfEarliestChange: Date) => void;
         }
     > = new Map();
 
     // @Override base class event
-    public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     constructor(modelsInput: JournalInput[]) {
         super();
-
         this.modelsDictionary = modelsInput;
     }
 
@@ -56,8 +57,8 @@ export default class JournalModel extends Model {
 
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
-            const oEventHandler = (data: ObjectData<unknown>) => {
-                this.onUpdated.emit(data, event);
+            const oEventHandler = (timeOfEarliestChange: Date) => {
+                this.onUpdated.emit(timeOfEarliestChange);
             };
 
             const disconnectFn = journalInput.event(oEventHandler.bind(this));

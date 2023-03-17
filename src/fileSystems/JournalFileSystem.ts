@@ -17,15 +17,14 @@ export default class JournalFileSystem extends EasyFileSystem {
     constructor(journalModel: JournalModel) {
         super(true);
         const dateObjectFolderSystems = new DateObjectFolderSystems<ObjectDataType>(
-            journalModel.objectDataIterator.bind(journalModel),
-            // LeuteModel retrieveStatusesForJournal generates the same (zeroed)
-            // dummy channelEntryHash for each entry, so we can not use this type of cache it here
-            {withChannelEntryHashCache: false}
+            journalModel.objectDataIterator.bind(journalModel)
         );
 
         this.setRootDirectory(
             dateObjectFolderSystems.getYearMonthDayFileType(this.parseDataFilesContent.bind(this))
         );
+
+        journalModel.onUpdated(dateObjectFolderSystems.updateCache.bind(dateObjectFolderSystems));
     }
 
     /**
