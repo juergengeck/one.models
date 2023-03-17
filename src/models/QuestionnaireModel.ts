@@ -1,10 +1,11 @@
 import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
+import type {RawChannelEntry} from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Questionnaire_1_2_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_2_0';
 import type {
@@ -43,6 +44,10 @@ export default class QuestionnaireModel extends Model {
     private readonly availableQuestionnaires: Questionnaire[];
     private readonly incompleteResponsesChannelId: string;
     private disconnect: (() => void) | undefined;
+
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     /**
      * Construct a new instance
@@ -129,6 +134,7 @@ export default class QuestionnaireModel extends Model {
             }
         }
         throw Error(
+            // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
             'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
         );
     }
@@ -152,6 +158,7 @@ export default class QuestionnaireModel extends Model {
             }
         }
         throw Error(
+            // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
             'Questionnaire with name ' + name + ' and language ' + language + ' does not exist'
         );
     }
@@ -426,12 +433,18 @@ export default class QuestionnaireModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param _channelIdHash
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
     private async handleOnUpdated(
-        _channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelId: string
+        channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        data: RawChannelEntry[]
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
@@ -439,7 +452,7 @@ export default class QuestionnaireModel extends Model {
             channelId === QuestionnaireModel.channelId ||
             channelId === this.incompleteResponsesChannelId
         ) {
-            this.onUpdated.emit();
+            this.onUpdated.emit(timeOfEarliestChange);
             if (channelId === this.incompleteResponsesChannelId) {
                 this.onIncompleteResponse.emit();
             }
