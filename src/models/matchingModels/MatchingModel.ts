@@ -10,8 +10,11 @@ import {
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {OEvent} from '../../misc/OEvent';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
 import type {Demand, Supply} from '../../recipes/MatchingRecipes';
+import type {RawChannelEntry} from '../ChannelManager';
 import type ChannelManager from '../ChannelManager';
 import {Model} from '../Model';
 
@@ -26,6 +29,11 @@ export default abstract class MatchingModel extends Model {
     /**
      * Event emitted when matching data is updated.
      */
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     protected channelManager: ChannelManager;
     protected me: SHA256IdHash<Person>;
@@ -350,11 +358,21 @@ export default abstract class MatchingModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     *  @param id
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
-    private async handleUpdate(id: string): Promise<void> {
-        if (id === MatchingModel.channelId) {
-            this.onUpdated.emit();
+    private async handleUpdate(
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
+    ): Promise<void> {
+        if (channelId === MatchingModel.channelId) {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

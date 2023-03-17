@@ -12,13 +12,13 @@ import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {ObjectData} from '../ChannelManager';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {
     PersistentFileSystemDirectory,
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
@@ -169,12 +169,18 @@ export default class PersistentFilerModel extends EventEmitter {
     /**
      * Handler function for the 'updated' event
      * @return {Promise<void>}
-     * @param _channelIdHash
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
     private async handleOnUpdated(
-        _channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelId: string
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        _timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
         if (channelId === this.fileSystemChannelId) {
             await serializeWithType('FileSystemLock', async () => {

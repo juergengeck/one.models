@@ -1,12 +1,13 @@
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {WbcObservation} from '../recipes/WbcDiffRecipes';
+import {OEvent} from '../misc/OEvent';
 
 const MessageBus = createMessageBus('WbcDiffModel');
 
@@ -18,6 +19,11 @@ export default class WbcDiffModel extends Model {
     public static readonly channelId = 'wbc';
 
     private disconnect: (() => void) | undefined;
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -120,15 +126,21 @@ export default class WbcDiffModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param _channelIdHash
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
     private async handleOnUpdated(
-        _channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelId: string
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
         if (channelId === WbcDiffModel.channelId) {
-            this.onUpdated.emit();
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

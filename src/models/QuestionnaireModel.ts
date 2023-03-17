@@ -45,6 +45,7 @@ export default class QuestionnaireModel extends Model {
     private readonly incompleteResponsesChannelId: string;
     private disconnect: (() => void) | undefined;
 
+    // @Override base class event
     public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
         (timeOfEarliestChange: Date) => void
     >();
@@ -440,11 +441,11 @@ export default class QuestionnaireModel extends Model {
      * @param data
      */
     private async handleOnUpdated(
-        channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
         channelId: string,
-        channelOwner: SHA256IdHash<Person> | null,
+        _channelOwner: SHA256IdHash<Person> | null,
         timeOfEarliestChange: Date,
-        data: RawChannelEntry[]
+        _data: RawChannelEntry[]
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 

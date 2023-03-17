@@ -2,10 +2,11 @@ import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import {Model} from './Model';
 
 import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {HeartEvent} from '../recipes/HeartEventRecipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {OEvent} from '../misc/OEvent';
 
 /**
  * This model implements the possibility of adding or retrieving HeartEvents that occurred on the Apple watch.
@@ -21,6 +22,11 @@ export default class HeartEventModel extends Model {
      * @private
      */
     private disconnect: (() => void) | undefined;
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     /**
      * @param channelManager - The channel manager instance
@@ -95,15 +101,21 @@ export default class HeartEventModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param _channelIdHash
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
     private async handleOnUpdated(
-        _channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelId: string
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
         if (channelId === HeartEventModel.channelId) {
-            this.onUpdated.emit();
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

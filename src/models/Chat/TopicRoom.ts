@@ -3,8 +3,8 @@ import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
-import type {ObjectData} from '../ChannelManager';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
 import BlobCollectionModel from '../BlobCollectionModel';
@@ -188,13 +188,19 @@ export default class TopicRoom {
     /**
      * Notify the client to update the conversation list (there might be a new last message for
      * a conversation).
-     * @param _channelIdHash
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      * @private
      */
     private async emitNewMessageEvent(
-        _channelIdHash: SHA256IdHash<ChannelInfo>,
-        channelId: string
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ) {
         if (channelId === this.topic.id) {
             this.onNewMessageReceived.emit();
