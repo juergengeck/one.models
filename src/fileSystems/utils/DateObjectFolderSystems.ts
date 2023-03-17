@@ -39,22 +39,25 @@ export default class DateObjectFolderSystems<T> {
 
         // month cache flag for update
         const yearChange = timeOfEarliestChange.getFullYear();
-        const monthCacheYears = this.monthCacheList.keys();
-        for (const monthCacheYear of monthCacheYears) {
-            if (monthCacheYear >= yearChange) {
-                this.monthCacheList.get(monthCacheYear)?.updateNeeded();
+        const monthCacheForYears = this.monthCacheList.keys();
+        for (const monthCacheForYear of monthCacheForYears) {
+            if (monthCacheForYear >= yearChange) {
+                this.monthCacheList.get(monthCacheForYear)?.updateNeeded();
             }
         }
 
         // day cache flag for update
         const monthChange = timeOfEarliestChange.getMonth();
-        const dayCacheYears = this.dayCacheList.entries();
-        for (const dayCacheYear of dayCacheYears) {
-            if (dayCacheYear[0] >= yearChange) {
-                const dayCacheMonths = dayCacheYear[1].keys();
-                for (const dayCacheMonth of dayCacheMonths) {
-                    if (dayCacheMonth >= monthChange) {
-                        this.dayCacheList.get(dayCacheYear[0])?.get(dayCacheMonth)?.updateNeeded();
+        const dayCachesForYears = this.dayCacheList.entries();
+        for (const dayCachesForYear of dayCachesForYears) {
+            if (dayCachesForYear[0] >= yearChange) {
+                const dayCacheForMonths = dayCachesForYear[1].keys();
+                for (const dayCacheForMonth of dayCacheForMonths) {
+                    if (dayCacheForMonth >= monthChange) {
+                        this.dayCacheList
+                            .get(dayCachesForYear[0])
+                            ?.get(dayCacheForMonth)
+                            ?.updateNeeded();
                     }
                 }
             }
