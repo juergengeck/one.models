@@ -11,7 +11,13 @@ export type AsyncQueryObjectDataIterator<T> = (
 export default class DateObjectFolderSystems<T> {
     private iterator: AsyncQueryObjectDataIterator<T>;
     private yearCacheList: CacheList<T>;
+    /**
+     * cache lists dependent on year
+     */
     private monthCacheList: Map<number, CacheList<T>>;
+    /**
+     * cache lists dependent on year and month
+     */
     private dayCacheList: Map<number, Map<number, CacheList<T>>>;
 
     /**
