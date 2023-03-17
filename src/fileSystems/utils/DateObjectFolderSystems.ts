@@ -153,7 +153,7 @@ export default class DateObjectFolderSystems<T> {
 
         let daysCacheLists = daysMonthCacheLists.get(month);
         if (daysCacheLists === undefined) {
-            daysCacheLists = new CacheList<T>(this.iterator, getMonthDataForCache);
+            daysCacheLists = new CacheList<T>(this.iterator, getDayDataForCache);
             daysMonthCacheLists.set(month, daysCacheLists);
         }
 
