@@ -1,3 +1,4 @@
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import {Model} from './Model';
 
 import type ChannelManager from './ChannelManager';
@@ -94,15 +95,15 @@ export default class HeartEventModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleOnUpdated(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === HeartEventModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === HeartEventModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

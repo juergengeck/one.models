@@ -2,6 +2,8 @@
  * @author Sebastian Ganea <sebastian.ganea@refinio.net>
  */
 
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {Model} from './Model';
@@ -139,15 +141,15 @@ export default class BloodGlucoseModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === BloodGlucoseModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === BloodGlucoseModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

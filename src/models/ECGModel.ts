@@ -4,7 +4,9 @@
 
 import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 
 import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
 import type {ObjectData, QueryOptions} from './ChannelManager';
@@ -216,15 +218,15 @@ export default class ECGModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === ECGModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === ECGModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

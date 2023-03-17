@@ -1,3 +1,4 @@
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {OEvent} from '../misc/OEvent';
@@ -12,7 +13,7 @@ import type {
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
 
 // Export the Questionnaire types
-export interface Questionnaire extends Omit<QuestionnaireRecipe, '$type$'> {}
+export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
 export type Question = QuestionnaireRecipe.Question;
 export type QuestionnaireAnswerMinMaxValue = QuestionnaireRecipe.QuestionnaireAnswerMinMaxValue;
 export type AnswerRestriction = QuestionnaireRecipe.AnswerRestriction;
@@ -425,18 +426,21 @@ export default class QuestionnaireModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleOnUpdated(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
-        if (id === QuestionnaireModel.channelId || id === this.incompleteResponsesChannelId) {
-            this.onUpdated.emit(data);
-            if (id === this.incompleteResponsesChannelId) {
+        if (
+            channelId === QuestionnaireModel.channelId ||
+            channelId === this.incompleteResponsesChannelId
+        ) {
+            this.onUpdated.emit();
+            if (channelId === this.incompleteResponsesChannelId) {
                 this.onIncompleteResponse.emit();
             }
         }

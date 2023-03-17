@@ -1,3 +1,5 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
@@ -118,15 +120,15 @@ export default class WbcDiffModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleOnUpdated(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === WbcDiffModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === WbcDiffModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

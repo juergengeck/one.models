@@ -230,22 +230,19 @@ export default class ChannelManager {
     private static readonly cacheLockName = 'ChannelManager_cacheLock_';
     private static readonly registryLockName = 'ChannelManager_registryLock';
 
-    /*
-     * Note @sebastian 15.04.2021 - channelId & channelOwner is already present in the
-     * ObjectData, so it's redundant data. We could let only the data field and extract
-     * channelId and channelOwner from there
-     * This event is emitted for each channel that has new data. The emitted event value has the
-     * (channelId, channelOwner) pair.
-     */
     public onUpdated = new OEvent<
-        (channelId: string, data: ObjectData<OneUnversionedObjectTypes>) => void
+        (
+            channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+            channelId: string,
+            channelOwner: SHA256IdHash<Person> | null,
+            timeOfEarliestChange: Date,
+            data: RawChannelEntry[]
+        ) => void
     >();
+
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
-    // Default owner for post calls
-    private readonly boundOnVersionedObjHandler: (
-        caughtObject: VersionedObjectResult
-    ) => Promise<void>;
+    private disconnectOnVersionedObjListener: () => void = () => {};
     private leuteModel: LeuteModel;
     private channelSettings = new Map<
         SHA256IdHash<ChannelInfo>,
@@ -259,7 +256,6 @@ export default class ChannelManager {
      * Create the channel manager instance.
      */
     constructor(leuteModel: LeuteModel) {
-        this.boundOnVersionedObjHandler = this.handleOnVersionedObj.bind(this);
         this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
         this.promiseTrackers = new Set<Promise<void>>();
         this.leuteModel = leuteModel;
@@ -278,7 +274,9 @@ export default class ChannelManager {
         await this.loadRegistryCacheFromOne();
 
         // Register event handlers
-        onVersionedObj.addListener(this.boundOnVersionedObjHandler);
+        this.disconnectOnVersionedObjListener = onVersionedObj.addListener(
+            this.handleOnVersionedObj.bind(this)
+        );
 
         // Merge new versions of channels that haven't been merged, yet.
         await this.mergeAllUnmergedChannelVersions();
@@ -288,7 +286,8 @@ export default class ChannelManager {
      * Shutdown module
      */
     public async shutdown(): Promise<void> {
-        onVersionedObj.removeListener(this.boundOnVersionedObjHandler);
+        this.disconnectOnVersionedObjListener();
+        this.disconnectOnVersionedObjListener = () => {};
 
         // Resolve the pending promises
         await Promise.all(this.promiseTrackers.values());
@@ -1479,15 +1478,15 @@ export default class ChannelManager {
                 }
                 cacheEntry.mergedHandlers = [];
 
-                // Emit the updated event when the read pointer changed
-                // We wouldn't need to emit every time ... especially not if the previous
-                // read pointer is compatible to the new one (has the same head pointer in the
-                // channel info). But let's think about this later :-)
-                const data = await ChannelManager.wrapChannelInfoWithObjectData(channelInfoIdHash);
-                if (data === undefined) {
-                    throw new Error('wrapChannelInfoWithObjectData returned undefined ');
+                if (unmergedElements.length > 0) {
+                    this.onUpdated.emit(
+                        channelInfoIdHash,
+                        channelId,
+                        channelOwner || null,
+                        new Date(unmergedElements[unmergedElements.length - 1].creationTime),
+                        unmergedElements
+                    );
                 }
-                this.onUpdated.emit(channelId, data);
             });
         } catch (e) {
             logWithId(channelId, channelOwner, `mergePendingVersions - FAIL: ${String(e)}`);
@@ -2037,6 +2036,12 @@ export default class ChannelManager {
         return [...new Set(personsFlat)];
     }
 
+    /**
+     * This places the new elements on top of the old head thus extending the linked list.
+     *
+     * @param oldHead
+     * @param newElementsReversed
+     */
     private static async rebuildEntries(
         oldHead: SHA256Hash<ChannelEntry>,
         newElementsReversed: RawChannelEntry[]

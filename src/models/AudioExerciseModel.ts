@@ -1,3 +1,5 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData} from './ChannelManager';
@@ -91,11 +93,11 @@ export default class AudioExerciseModel extends Model {
      * @param data
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === AudioExerciseModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === AudioExerciseModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

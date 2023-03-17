@@ -12,6 +12,7 @@ import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 import {OEvent} from '../../misc/OEvent';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 import type {Topic} from '../../recipes/ChatRecipes';
 import type {ObjectData} from '../ChannelManager';
 import type ChannelManager from '../ChannelManager';
@@ -28,12 +29,6 @@ export default class TopicModel extends Model {
      * Notify the user whenever a new topic is created or received.
      */
     public onNewTopicEvent = new OEvent<() => void>();
-
-    /**
-     * Notify the user whenever a new chat message is received. This can be used as a
-     * notification system.
-     */
-    public onNewChatMessageEvent = this.onUpdated;
 
     private readonly channelManager: ChannelManager;
     private readonly leuteModel: LeuteModel;
@@ -54,7 +49,6 @@ export default class TopicModel extends Model {
         this.state.assertCurrentState('Uninitialised');
 
         this.topicRegistry = await TopicRegistry.load();
-        this.disconnectFns.push(this.channelManager.onUpdated(this.onChannelUpdated.bind(this)));
         this.disconnectFns.push(onUnversionedObj.addListener(this.addTopicToRegistry.bind(this)));
 
         this.state.triggerEvent('init');
@@ -378,19 +372,6 @@ export default class TopicModel extends Model {
 
         await this.addTopicToRegistry(savedTopic);
         return savedTopic.obj;
-    }
-
-    /**
-     * Notify the client to update the conversation list (there might be a new last message for
-     * a conversation)
-     * @param channelId
-     * @param data
-     * @private
-     */
-    private async onChannelUpdated(channelId: string, data: ObjectData<OneUnversionedObjectTypes>) {
-        if (data.data.$type$ === 'ChatMessage') {
-            this.onNewChatMessageEvent.emit(channelId, data.data);
-        }
     }
 
     /**

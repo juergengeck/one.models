@@ -1,3 +1,5 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
 import type {ObjectData, QueryOptions} from './ChannelManager';
 import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
@@ -9,7 +11,7 @@ import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
  * This represents the model of a body temperature measurement
  */
 // @TODO the Omit thingy doesn't work as expected... the $type$ property it's still accessible from the outside
-export interface BodyTemperature extends Omit<OneBodyTemperature, '$type$'> {}
+export type BodyTemperature = Omit<OneBodyTemperature, '$type$'>;
 
 /**
  * This model implements the possibility of adding a body temperature measurement into a journal and
@@ -117,15 +119,15 @@ export default class BodyTemperatureModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === BodyTemperatureModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === BodyTemperatureModel.channelId) {
+            this.onUpdated.emit();
         }
     }
 }

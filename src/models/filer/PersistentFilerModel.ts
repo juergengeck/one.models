@@ -5,7 +5,9 @@
  * @version 0.0.1
  */
 
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {EventEmitter} from 'events';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
 import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
@@ -166,22 +168,23 @@ export default class PersistentFilerModel extends EventEmitter {
 
     /**
      * Handler function for the 'updated' event
-     * @param {string} id
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
+     * @param _channelIdHash
+     * @param channelId
      */
     private async handleOnUpdated(
-        id: string,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        _channelIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string
     ): Promise<void> {
-        if (id === this.fileSystemChannelId) {
+        if (channelId === this.fileSystemChannelId) {
             await serializeWithType('FileSystemLock', async () => {
                 if (!this.fs) {
                     throw new Error('Module was not instantiated');
                 }
+                /* COMMENTED, because data is unreliable
                 if (data) {
                     this.fs.updateRoot = data.data as PersistentFileSystemRoot;
-                }
+                }*/
                 this.emit('updated');
             });
         }
