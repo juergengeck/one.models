@@ -10,27 +10,49 @@ export type AsyncQueryObjectDataIterator<T> = (
  */
 export default class DateObjectFolderSystems<T> {
     private iterator: AsyncQueryObjectDataIterator<T>;
-    private yearList: CacheList<T>;
-    private monthList: CacheList<T>;
-    private dayList: CacheList<T>;
+    private yearCacheList: CacheList<T>;
+    private monthCacheList: Map<number, CacheList<T>>;
+    private dayCacheList: Map<number, Map<number, CacheList<T>>>;
 
     /**
      * @param iterator
      */
     constructor(iterator: AsyncQueryObjectDataIterator<T>) {
         this.iterator = iterator;
-        this.yearList = new CacheList<T>(iterator, getYearDataForCache);
-        this.monthList = new CacheList<T>(iterator, getMonthDataForCache);
-        this.dayList = new CacheList<T>(iterator, getDayDataForCache);
+        this.yearCacheList = new CacheList<T>(iterator, getYearDataForCache);
+        this.monthCacheList = new Map<number, CacheList<T>>();
+        this.dayCacheList = new Map<number, Map<number, CacheList<T>>>();
     }
 
     /**
      * @param timeOfEarliestChange
      */
-    public updateCache(_timeOfEarliestChange: Date) {
-        this.yearList.updateNeeded();
-        this.monthList.updateNeeded();
-        this.dayList.updateNeeded();
+    public updateCache(timeOfEarliestChange: Date) {
+        // year cache flag for update
+        this.yearCacheList.updateNeeded();
+
+        // month cache flag for update
+        const yearChange = timeOfEarliestChange.getFullYear();
+        const monthCacheYears = this.monthCacheList.keys();
+        for (const monthCacheYear of monthCacheYears) {
+            if (monthCacheYear >= yearChange) {
+                this.monthCacheList.get(monthCacheYear)?.updateNeeded();
+            }
+        }
+
+        // day cache flag for update
+        const monthChange = timeOfEarliestChange.getMonth();
+        const dayCacheYears = this.dayCacheList.entries();
+        for (const dayCacheYear of dayCacheYears) {
+            if (dayCacheYear[0] >= yearChange) {
+                const dayCacheMonths = dayCacheYear[1].keys();
+                for (const dayCacheMonth of dayCacheMonths) {
+                    if (dayCacheMonth >= monthChange) {
+                        this.dayCacheList.get(dayCacheYear[0])?.get(dayCacheMonth)?.updateNeeded();
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -57,7 +79,7 @@ export default class DateObjectFolderSystems<T> {
     private async createYearFolders(
         parseContent: (year: number) => Promise<EasyDirectoryContent>
     ): Promise<EasyDirectoryContent> {
-        const yearsList = await this.yearList.getList();
+        const yearsList = await this.yearCacheList.getList();
 
         return new Map<string, EasyDirectoryEntry>(
             yearsList.map<[string, EasyDirectoryEntry]>(year => [
@@ -80,7 +102,13 @@ export default class DateObjectFolderSystems<T> {
         parseContent: (year: number, month: number) => Promise<EasyDirectoryContent>,
         year: number
     ): Promise<EasyDirectoryContent> {
-        const monthsList = await this.monthList.getList({
+        let monthCacheLists = this.monthCacheList.get(year);
+        if (monthCacheLists === undefined) {
+            monthCacheLists = new CacheList<T>(this.iterator, getMonthDataForCache);
+            this.monthCacheList.set(year, monthCacheLists);
+        }
+
+        const monthsList = await monthCacheLists.getList({
             from: new Date(year, 0),
             to: new Date(year, 11, 31, 23, 59, 59)
         });
@@ -108,7 +136,19 @@ export default class DateObjectFolderSystems<T> {
         year: number,
         month: number
     ): Promise<EasyDirectoryContent> {
-        const daysList = await this.dayList.getList({
+        let daysMonthCacheLists = this.dayCacheList.get(year);
+        if (daysMonthCacheLists === undefined) {
+            daysMonthCacheLists = new Map<number, CacheList<T>>();
+            this.dayCacheList.set(year, daysMonthCacheLists);
+        }
+
+        let daysCacheLists = daysMonthCacheLists.get(month);
+        if (daysCacheLists === undefined) {
+            daysCacheLists = new CacheList<T>(this.iterator, getMonthDataForCache);
+            daysMonthCacheLists.set(month, daysCacheLists);
+        }
+
+        const daysList = await daysCacheLists.getList({
             from: new Date(year, month, 1),
             to: new Date(year, month + 1, 0, 23, 59, 59)
         });
