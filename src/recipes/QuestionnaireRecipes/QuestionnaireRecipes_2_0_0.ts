@@ -109,7 +109,17 @@ export module Questionnaire_2_0_0 {
         valueInteger: number;
     };
 
-    export type Extension = ExtensionMinValue | ExtensionMaxValue | ExtensionMinLength;
+    export type ExtensionRegEx = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/regex';
+        valueString: string;
+    };
+
+    export type Extension =
+        | ExtensionMinValue
+        | ExtensionMaxValue
+        | ExtensionMinLength
+        | ExtensionRegEx;
 
     /**
      * Question of a questionnaire.
