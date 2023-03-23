@@ -1,7 +1,11 @@
 import type ChannelManager from './ChannelManager';
-import type {ObjectData} from './ChannelManager';
+import type {ObjectData, RawChannelEntry} from './ChannelManager';
 import type {News as OneNews} from '../recipes/NewsRecipes';
 import {Model} from './Model';
+import {OEvent} from '../misc/OEvent';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person} from '@refinio/one.core/lib/recipes';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 
 /**
  * This represents the model of a news for now
@@ -40,6 +44,11 @@ export default class NewsModel extends Model {
     channelManager: ChannelManager;
 
     private disconnect: (() => void) | undefined;
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -108,16 +117,26 @@ export default class NewsModel extends Model {
 
     private async postContent(channelId: string, content: string): Promise<void> {
         await this.channelManager.postToChannel(channelId, convertToOne({content: content}));
-        this.onUpdated.emit();
+        this.onUpdated.emit(new Date());
     }
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === 'feedbackChannel' || id === 'newsChannel') {
-            this.onUpdated.emit();
+    private async handleOnUpdated(
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
+    ): Promise<void> {
+        if (channelId === 'feedbackChannel' || channelId === 'newsChannel') {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

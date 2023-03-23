@@ -1,5 +1,9 @@
 // Pseudo implementation, did not compile it
+import type {Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
+import type {RawChannelEntry} from './ChannelManager';
 import type ChannelManager from './ChannelManager';
 
 export default class Notifications {
@@ -9,9 +13,17 @@ export default class Notifications {
     private onNewNotification = new OEvent<() => {}>();
 
     constructor(channelManager: ChannelManager) {
-        channelManager.onUpdated((channelId, _data) => {
-            this.increaseNotificatioinCountForTopic(channelId);
-        });
+        channelManager.onUpdated(
+            (
+                _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+                channelId: string,
+                _channelOwner: SHA256IdHash<Person> | null,
+                _timeOfEarliestChange: Date,
+                _data: RawChannelEntry[]
+            ) => {
+                this.increaseNotificatioinCountForTopic(channelId);
+            }
+        );
     }
 
     /**

@@ -44,6 +44,7 @@ import type {Leute} from '../../recipes/Leute/Leute';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
+import type {CreationTime} from '../../recipes/MetaRecipes';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import {Model} from '../Model';
 import GroupModel from './GroupModel';
@@ -874,6 +875,7 @@ export default class LeuteModel extends Model {
                 channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
                 id: '',
                 creationTime: new Date(imageWithPersonId.image.timestamp),
+                creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,
                 author: imageWithPersonId.personId,
                 sharedWith: [],
                 data: imageWithPersonId.image,
@@ -922,6 +924,7 @@ export default class LeuteModel extends Model {
                 channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
                 id: '',
                 creationTime: new Date(statusWithPersonId.status.timestamp),
+                creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,
                 author: statusWithPersonId.personId,
                 sharedWith: [],
                 data: statusWithPersonId.status,

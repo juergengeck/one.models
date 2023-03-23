@@ -1,13 +1,16 @@
 import {readBlobAsArrayBuffer, storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
 import {Model} from './Model';
 
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
+import {OEvent} from '../misc/OEvent';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -19,6 +22,11 @@ export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
     private readonly disconnect: (() => void) | undefined;
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     /**
      * Construct a new instance
@@ -198,15 +206,21 @@ export default class DocumentModel extends Model {
 
     /**
      *  Handler function for the 'updated' event
-     * @param id
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
      * @param data
      */
     private async handleOnUpdated(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
-        if (id === DocumentModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === DocumentModel.channelId) {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

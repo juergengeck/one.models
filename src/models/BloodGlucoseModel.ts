@@ -2,19 +2,27 @@
  * @author Sebastian Ganea <sebastian.ganea@refinio.net>
  */
 
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
 import {Model} from './Model';
 
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
+import {OEvent} from '../misc/OEvent';
 
 export default class BloodGlucoseModel extends Model {
     private disconnect: (() => void) | undefined;
     private readonly channelManager: ChannelManager;
     public static readonly channelId = 'bloodGlucose';
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     /**
      * Construct a new instance
@@ -139,15 +147,21 @@ export default class BloodGlucoseModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param id
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
      * @param data
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
-        if (id === BloodGlucoseModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === BloodGlucoseModel.channelId) {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

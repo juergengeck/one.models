@@ -7,7 +7,7 @@ import {OEvent} from '../misc/OEvent';
 export abstract class Model {
     public state: StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>;
 
-    public onUpdated: OEvent<(...data: any) => void> = new OEvent<(...data: any) => void>();
+    public onUpdated: OEvent<() => void> = new OEvent<() => void>();
 
     constructor() {
         this.state = new StateMachine<'Uninitialised' | 'Initialised', 'shutdown' | 'init'>();

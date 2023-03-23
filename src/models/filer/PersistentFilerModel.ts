@@ -5,18 +5,20 @@
  * @version 0.0.1
  */
 
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {EventEmitter} from 'events';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 
 import type {ChannelManager} from '../index';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {ObjectData} from '../ChannelManager';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {
     PersistentFileSystemDirectory,
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 /**
@@ -166,22 +168,29 @@ export default class PersistentFilerModel extends EventEmitter {
 
     /**
      * Handler function for the 'updated' event
-     * @param {string} id
-     * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
     private async handleOnUpdated(
-        id: string,
-        data?: ObjectData<OneUnversionedObjectTypes>
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        _timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
-        if (id === this.fileSystemChannelId) {
+        if (channelId === this.fileSystemChannelId) {
             await serializeWithType('FileSystemLock', async () => {
                 if (!this.fs) {
                     throw new Error('Module was not instantiated');
                 }
+                /* COMMENTED, because data is unreliable
                 if (data) {
                     this.fs.updateRoot = data.data as PersistentFileSystemRoot;
-                }
+                }*/
                 this.emit('updated');
             });
         }

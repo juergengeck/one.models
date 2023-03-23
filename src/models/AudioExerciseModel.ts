@@ -1,9 +1,12 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
-import type {ObjectData} from './ChannelManager';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {ObjectData, RawChannelEntry} from './ChannelManager';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
 import type {QueryOptions} from './ChannelManager';
+import {OEvent} from '../misc/OEvent';
 
 export default class AudioExerciseModel extends Model {
     public static readonly channelId = 'audioExercise';
@@ -15,6 +18,11 @@ export default class AudioExerciseModel extends Model {
         super();
         this.channelManager = channelManager;
     }
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     /**
      * Initialize this instance
@@ -91,11 +99,14 @@ export default class AudioExerciseModel extends Model {
      * @param data
      */
     private async handleChannelUpdate(
-        id: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ): Promise<void> {
-        if (id === AudioExerciseModel.channelId) {
-            this.onUpdated.emit(data);
+        if (channelId === AudioExerciseModel.channelId) {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 }

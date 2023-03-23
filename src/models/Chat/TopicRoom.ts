@@ -1,8 +1,10 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes';
 import type ChannelManager from '../ChannelManager';
-import type {ObjectData} from '../ChannelManager';
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {OEvent} from '../../misc/OEvent';
 import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
 import BlobCollectionModel from '../BlobCollectionModel';
@@ -20,9 +22,7 @@ export default class TopicRoom {
     /**
      * Notify the user whenever a new chat message is received.
      */
-    public onNewMessageReceived: OEvent<(message: ObjectData<OneChatMessage>) => void> = new OEvent<
-        (message: ObjectData<OneChatMessage>) => void
-    >();
+    public onNewMessageReceived: OEvent<() => void> = new OEvent<() => void>();
 
     public topic: Topic;
 
@@ -30,11 +30,6 @@ export default class TopicRoom {
     private dateOfLastQueriedMessage: Date | undefined = undefined;
 
     private channelDisconnect: (() => void) | undefined;
-
-    private readonly boundOnChannelUpdated: (
-        channelId: string,
-        data: ObjectData<OneUnversionedObjectTypes>
-    ) => Promise<void>;
 
     private channelManager: ChannelManager;
     private leuteModel: LeuteModel;
@@ -44,11 +39,11 @@ export default class TopicRoom {
         this.channelManager = channelManager;
         this.leuteModel = leuteModel;
 
-        this.boundOnChannelUpdated = this.emitNewMessageEvent.bind(this);
-
         this.onNewMessageReceived.onListen(() => {
             if (this.onNewMessageReceived.listenerCount() === 0) {
-                this.channelDisconnect = this.channelManager.onUpdated(this.boundOnChannelUpdated);
+                this.channelDisconnect = this.channelManager.onUpdated(
+                    this.emitNewMessageEvent.bind(this)
+                );
             }
         });
         this.onNewMessageReceived.onStopListen(() => {
@@ -193,16 +188,22 @@ export default class TopicRoom {
     /**
      * Notify the client to update the conversation list (there might be a new last message for
      * a conversation).
+     * @param channelInfoIdHash
      * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
      * @param data
      * @private
      */
     private async emitNewMessageEvent(
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
         channelId: string,
-        data: ObjectData<OneUnversionedObjectTypes>
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
     ) {
         if (channelId === this.topic.id) {
-            this.onNewMessageReceived.emit(data as ObjectData<OneChatMessage>);
+            this.onNewMessageReceived.emit();
         }
     }
 }

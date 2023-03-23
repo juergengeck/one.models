@@ -44,7 +44,7 @@ export class PWAConnector {
     }
 
     async init() {
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
+        //this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -58,12 +58,15 @@ export class PWAConnector {
         }
     }
     /**
-     *  Handler function for the 'updated' event
+     * Handler function for the 'updated' event
+     *
+     * Note: the old oneUpdated function was buggy, so i deactiveted it for now.
+     *
      * @param {string} id
      * @param {ObjectData<OneUnversionedObjectTypes>} data
      * @return {Promise<void>}
      */
-    private async handleOnUpdated(
+    /*private async handleOnUpdated(
         id: string,
         data?: ObjectData<OneUnversionedObjectTypes>
     ): Promise<void> {
@@ -104,7 +107,7 @@ export class PWAConnector {
                 console.error(e);
             }
         }
-    }
+    }*/
 }
 
 /**

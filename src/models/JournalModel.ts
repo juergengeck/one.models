@@ -12,7 +12,7 @@ export type JournalEntry = {
 };
 
 type JournalInput = {
-    event: OEvent<(data: ObjectData<unknown>) => Promise<void> | void>;
+    event: OEvent<(timeOfEarliestChange: Date) => void>;
     retrieveFn: (
         queryOptions?: QueryOptions
     ) => AsyncIterableIterator<ObjectData<unknown> | Promise<ObjectData<unknown>>>;
@@ -35,16 +35,17 @@ export default class JournalModel extends Model {
         string,
         {
             disconnect: (() => void) | undefined;
-            listener: (data: ObjectData<unknown>) => void;
+            listener: (timeOfEarliestChange: Date) => void;
         }
     > = new Map();
 
     // @Override base class event
-    public onUpdated = new OEvent<(data: ObjectData<unknown>, type: string) => void>();
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     constructor(modelsInput: JournalInput[]) {
         super();
-
         this.modelsDictionary = modelsInput;
     }
 
@@ -56,8 +57,8 @@ export default class JournalModel extends Model {
 
         this.modelsDictionary.forEach((journalInput: JournalInput) => {
             const event = journalInput.eventType;
-            const oEventHandler = (data: ObjectData<unknown>) => {
-                this.onUpdated.emit(data, event);
+            const oEventHandler = (timeOfEarliestChange: Date) => {
+                this.onUpdated.emit(timeOfEarliestChange);
             };
 
             const disconnectFn = journalInput.event(oEventHandler.bind(this));
@@ -122,6 +123,17 @@ export default class JournalModel extends Model {
         );
 
         return this.createEventList(dataDictionary);
+    }
+
+    async *objectDataIterator(
+        queryOptions?: QueryOptions
+    ): AsyncIterableIterator<ObjectData<unknown>> {
+        this.state.assertCurrentState('Initialised');
+        const iterators = this.modelsDictionary.map(md => md.retrieveFn(queryOptions));
+
+        for await (const data of mergeIteratorsMostCurrent<unknown>(iterators)) {
+            yield data.objectData;
+        }
     }
 
     /**
@@ -320,5 +332,69 @@ export default class JournalModel extends Model {
         );
 
         return Math.max(...timestamps);
+    }
+}
+
+/**
+ * get iterators based on ObjectData.creationTime most recent
+ * @param iterators
+ */
+async function* mergeIteratorsMostCurrent<T>(
+    iterators: AsyncIterableIterator<ObjectData<T> | Promise<ObjectData<T>>>[]
+): AsyncIterableIterator<{objectData: ObjectData<T>; iteratorIndex: number}> {
+    // This array holds the topmost value of each iterator
+    // The position of the element in this array matches the position in the iterators array.
+    // Those values are then compared and the one with the highest
+    // timestamp is returned and then replaced by the next one on each iteration
+    const currentValues: (ObjectData<T> | undefined)[] = [];
+
+    // Initial fill of the currentValues iterator with the most current elements of each iterator
+    for (const iterator of iterators) {
+        currentValues.push((await iterator.next()).value);
+    }
+
+    // Iterate over all (output) items
+    // The number of the iterations will be the sum of all items returned by all iterators.
+    // For the above example it would be 9 iterations.
+    while (true) {
+        // determine the largest element in currentValues
+        let mostCurrentItem: ObjectData<T> | undefined = undefined;
+        let mostCurrentIndex: number = 0;
+        let activeIteratorCount: number = 0;
+
+        for (let i = 0; i < currentValues.length; i++) {
+            const currentValue = currentValues[i];
+
+            // Ignore values from iterators that have reached their end (returned undefined)
+            if (currentValue === undefined) {
+                continue;
+            } else {
+                ++activeIteratorCount;
+            }
+
+            // This checks whether we have an element to compare to (so i is at least 1)
+            if (mostCurrentItem) {
+                // Skip elements that are older (less current)
+                if (currentValue.creationTime < mostCurrentItem.creationTime) {
+                    continue;
+                }
+            }
+
+            // If we made it to here, then we have a larger element - remember it
+            mostCurrentItem = currentValues[i];
+            mostCurrentIndex = i;
+        }
+
+        // If no element was found, this means that all iterators reached their ends =>
+        // terminate the loop
+        if (mostCurrentItem === undefined) {
+            break;
+        }
+
+        // Advance the iterator that yielded the highest creationTime
+        currentValues[mostCurrentIndex] = (await iterators[mostCurrentIndex].next()).value;
+
+        // Yield the value that has the highest creationTime
+        yield {objectData: mostCurrentItem, iteratorIndex: mostCurrentIndex};
     }
 }

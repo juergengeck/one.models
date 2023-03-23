@@ -11,6 +11,9 @@ import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unvers
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
+import {OEvent} from '../misc/OEvent';
+import type {ChannelInfo} from '../recipes/ChannelRecipes';
+import type {RawChannelEntry} from './ChannelManager';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;
@@ -42,6 +45,11 @@ export default class BlobCollectionModel extends Model {
     private channelOwner: SHA256IdHash<Person> | undefined;
     public static readonly channelId = 'blobCollections';
     private disconnect: (() => void) | undefined;
+
+    // @Override base class event
+    public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
+        (timeOfEarliestChange: Date) => void
+    >();
 
     constructor(channelManager: ChannelManager) {
         super();
@@ -155,12 +163,22 @@ export default class BlobCollectionModel extends Model {
     }
 
     /**
-     *  Handler function for the 'updated' event
-     * @param id
+     * Handler function for the 'updated' event
+     * @param channelInfoIdHash
+     * @param channelId
+     * @param channelOwner
+     * @param timeOfEarliestChange
+     * @param data
      */
-    private async handleOnUpdated(id: string): Promise<void> {
-        if (id === BlobCollectionModel.channelId) {
-            this.onUpdated.emit();
+    private async handleOnUpdated(
+        _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
+        channelId: string,
+        _channelOwner: SHA256IdHash<Person> | null,
+        timeOfEarliestChange: Date,
+        _data: RawChannelEntry[]
+    ): Promise<void> {
+        if (channelId === BlobCollectionModel.channelId) {
+            this.onUpdated.emit(timeOfEarliestChange);
         }
     }
 
