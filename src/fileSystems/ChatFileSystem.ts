@@ -165,7 +165,7 @@ export default class ChatFileSystem extends EasyFileSystem {
             const attachmentCount = ChatFileSystem.countToEmoji(message.data.attachments?.length);
 
             // Fill the "/<chatmessage>" folder with all attachments including raw one objects
-            const messageDirName = `${message.creationTime.toLocaleString()} ${attachmentCount} ${
+            const messageDirName = `${this.dateToString(message.creationTime)} ${attachmentCount} ${
                 message.authorName
             }${message.data.text === '' ? '' : ': ' + message.data.text}`;
             rootDir.set(messageDirName, await this.createChatMessageFolder(message));
@@ -206,7 +206,7 @@ export default class ChatFileSystem extends EasyFileSystem {
             const message = messageWithAttachments.message;
             for (const attachment of messageWithAttachments.attachments) {
                 attachmentsDir.set(
-                    `${message.creationTime.toLocaleString()} ${attachment.name}`,
+                    `${this.dateToString(message.creationTime)} ${attachment.name}`,
                     attachment.dirent
                 );
             }
@@ -388,5 +388,28 @@ export default class ChatFileSystem extends EasyFileSystem {
      */
     private static countToEmoji(count: number | undefined = 0): string {
         return emojiNumberMap[count <= 10 ? count : 11];
+    }
+
+    /**
+     * Extract date in custom string format
+     * @param date
+     * @returns
+     */
+    private dateToString(date: Date): string {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+
+        const unmodifiedHour = date.getHours();
+        const hour = String(unmodifiedHour >= 12 ? unmodifiedHour - 12 : unmodifiedHour).padStart(
+            2,
+            '0'
+        );
+        const minute = String(date.getMinutes()).padStart(2, '0');
+        const second = String(date.getSeconds()).padStart(2, '0');
+
+        const hourFormat = unmodifiedHour >= 12 ? 'PM' : 'AM';
+
+        return `${year}/${month}/${day} ${hour}:${minute}:${second} ${hourFormat}`;
     }
 }
