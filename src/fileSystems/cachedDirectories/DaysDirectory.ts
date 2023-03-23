@@ -27,7 +27,7 @@ export class DaysDirectory extends CachedDirectory<{
 
         let previousValue: number | undefined = undefined;
         for await (const data of it) {
-            const value = data.creationTime.getDay();
+            const value = data.creationTime.getDate();
             if (value !== previousValue) {
                 yield String(value).padStart(2, '0');
             }

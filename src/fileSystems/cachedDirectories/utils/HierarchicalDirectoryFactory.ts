@@ -24,7 +24,7 @@ export default class HierarchicalDirectoryFactory<DirectoryParamsT> {
     setSubDirectory<DirectoryT extends IDirectory>(
         subDirectoryFactory: (subDirectoryParams: DirectoryParamsT) => DirectoryT
     ): HierarchicalDirectoryFactory<ExtractSubDirectoryParamsT<DirectoryT>> {
-        if (!this.directoryFactoryFunction) {
+        if (this.directoryFactoryFunction) {
             throw new Error('You cannot change the subfolder after it was assigned.');
         }
 
