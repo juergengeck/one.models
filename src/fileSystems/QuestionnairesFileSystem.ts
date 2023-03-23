@@ -55,10 +55,13 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
             const nameAddon = `${response.status}${
                 response.questionnaire ? `_${response.questionnaire}` : ''
             }`;
-            dir.set(`${time}_${nameAddon}${channelOwnerAddon}_${creationTime.getMilliseconds()}`, {
-                type: 'regularFile',
-                content: JSON.stringify(response)
-            });
+            dir.set(
+                `${time}_${nameAddon}${channelOwnerAddon}_${creationTime.getMilliseconds()}.json`,
+                {
+                    type: 'regularFile',
+                    content: JSON.stringify(response, null, 4)
+                }
+            );
         });
 
         return dir;
