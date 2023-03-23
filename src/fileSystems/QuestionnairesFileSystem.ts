@@ -1,6 +1,9 @@
 import type QuestionnaireModel from '../models/QuestionnaireModel';
 import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
-import DateObjectFolderSystems from './utils/DateObjectFolderSystems';
+import {DateToObjectDataTransformDirectory} from './cachedDirectories/DateToObjectDataTransformDirectory';
+import {DaysDirectory} from './cachedDirectories/DaysDirectory';
+import {MonthsDirectory} from './cachedDirectories/MonthsDirectory';
+import {YearsDirectory} from './cachedDirectories/YearsDirectory';
 import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
 import type {ObjectData} from '../models/ChannelManager';
@@ -17,24 +20,32 @@ export default class QuestionnairesFileSystem extends EasyFileSystem {
      */
     constructor(questionnaireModel: QuestionnaireModel) {
         super(true);
-        const dateObjectFolderSystems = new DateObjectFolderSystems<ObjectDataType>(
-            questionnaireModel.responsesIterator.bind(questionnaireModel)
-        );
+        const iterator = questionnaireModel.responsesIterator.bind(questionnaireModel);
 
-        this.setRootDirectory(
-            dateObjectFolderSystems.getYearMonthDayFileType(this.parseDataFilesContent.bind(this))
-        );
+        const rootDirectory = new YearsDirectory(iterator);
+        rootDirectory
+            .setSubDirectory(p => new MonthsDirectory(iterator, p))
+            .setSubDirectory(p => new DaysDirectory(iterator, p))
+            .setSubDirectory(
+                p => new DateToObjectDataTransformDirectory<ObjectDataType>(iterator, p)
+            )
+            .setSubDirectoryAsFunction(this.parseDataFilesContent.bind(this));
 
-        questionnaireModel.onUpdated(
-            dateObjectFolderSystems.updateCache.bind(dateObjectFolderSystems)
-        );
+        /*const rootDirectory2 = new DateObjectDataDirectories(iterator).setSubDirectoryAsFunction(
+            this.parseDataFilesContent.bind(this)
+        );*/
+
+        this.setRootDirectory(rootDirectory.createDirectoryContent.bind(rootDirectory));
+        questionnaireModel.onUpdated(rootDirectory.markCachesAsOutOfDate.bind(rootDirectory));
     }
 
     /**
-     * @param objectData
+     * @param data
      * @returns
      */
-    private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
+    private parseDataFilesContent(data: {data: ObjectData<ObjectDataType>}): EasyDirectoryContent {
+        const objectData = data.data;
+
         const dir = new Map<string, EasyDirectoryEntry>();
         const creationTime = objectData.creationTime;
         const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';

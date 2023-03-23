@@ -1,7 +1,10 @@
 import type JournalModel from '../models/JournalModel';
+import {DateToObjectDataTransformDirectory} from './cachedDirectories/DateToObjectDataTransformDirectory';
+import {DaysDirectory} from './cachedDirectories/DaysDirectory';
+import {MonthsDirectory} from './cachedDirectories/MonthsDirectory';
+import {YearsDirectory} from './cachedDirectories/YearsDirectory';
 import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
 import EasyFileSystem from './utils/EasyFileSystem';
-import DateObjectFolderSystems from './utils/DateObjectFolderSystems';
 import type {ObjectData} from '../models/ChannelManager';
 
 type ObjectDataType = unknown;
@@ -16,22 +19,29 @@ export default class JournalFileSystem extends EasyFileSystem {
      */
     constructor(journalModel: JournalModel) {
         super(true);
-        const dateObjectFolderSystems = new DateObjectFolderSystems<ObjectDataType>(
-            journalModel.objectDataIterator.bind(journalModel)
-        );
+        const iterator = journalModel.objectDataIterator.bind(journalModel);
 
-        this.setRootDirectory(
-            dateObjectFolderSystems.getYearMonthDayFileType(this.parseDataFilesContent.bind(this))
-        );
+        const rootDirectory = new YearsDirectory(iterator);
+        rootDirectory
+            .setSubDirectory(p => new MonthsDirectory(iterator, p))
+            .setSubDirectory(p => new DaysDirectory(iterator, p))
+            .setSubDirectory(
+                p => new DateToObjectDataTransformDirectory<ObjectDataType>(iterator, p)
+            )
+            .setSubDirectoryAsFunction(JournalFileSystem.parseDataFilesContent);
 
-        journalModel.onUpdated(dateObjectFolderSystems.updateCache.bind(dateObjectFolderSystems));
+        this.setRootDirectory(rootDirectory.createDirectoryContent.bind(rootDirectory));
+        journalModel.onUpdated(rootDirectory.markCachesAsOutOfDate.bind(rootDirectory));
     }
 
     /**
-     * @param objectData
+     * @param data
      * @returns
      */
-    private parseDataFilesContent(objectData: ObjectData<ObjectDataType>): EasyDirectoryContent {
+    private static parseDataFilesContent(data: {
+        data: ObjectData<ObjectDataType>;
+    }): EasyDirectoryContent {
+        const objectData = data.data;
         const creationTime = objectData.creationTime;
         const channelOwnerAddon = objectData.channelOwner ? `_${objectData.channelOwner}` : '';
         const time = `${creationTime.getHours()}-${creationTime.getMinutes()}-${creationTime.getSeconds()}-${creationTime.getMilliseconds()}`;

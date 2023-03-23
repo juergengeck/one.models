@@ -154,6 +154,7 @@ export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
     // methods of this class.
     id: string;
     creationTime: Date; // Time when this data point was created
+    creationTimeHash: SHA256Hash<CreationTime>;
     author?: SHA256IdHash<Person>; // Author of this data point (currently, this is always the
     // owner)
     sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
@@ -242,6 +243,7 @@ export default class ChannelManager {
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private disconnectOnVersionedObjListener: () => void = () => {};
     private leuteModel: LeuteModel;
     private channelSettings = new Map<
@@ -287,6 +289,7 @@ export default class ChannelManager {
      */
     public async shutdown(): Promise<void> {
         this.disconnectOnVersionedObjListener();
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         this.disconnectOnVersionedObjListener = () => {};
 
         // Resolve the pending promises
@@ -874,6 +877,7 @@ export default class ChannelManager {
                 id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
 
                 creationTime: new Date(entry.creationTime),
+                creationTimeHash: entry.creationTimeHash,
                 author: entry.channelInfo.owner,
                 sharedWith: sharedWith,
 
@@ -1880,6 +1884,7 @@ export default class ChannelManager {
                 channelEntryHash: channel.obj.head,
                 id: ChannelManager.encodeEntryId(channelIdHash, channel.obj.head),
                 creationTime: new Date(channelCreationTime.timestamp),
+                creationTimeHash: channelEntry.data,
                 author: channel.obj.owner,
                 sharedWith: sharedWithPersons,
 
