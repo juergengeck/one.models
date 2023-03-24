@@ -1,8 +1,6 @@
 import tweetnacl from 'tweetnacl';
-import ConnectionPlugin, {
-    ConnectionIncomingEvent,
-    ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin';
+import ConnectionPlugin from '../ConnectionPlugin';
 import {
     addPaddingWithExtraFlags,
     removePaddingWithExtraFlags

@@ -1007,7 +1007,7 @@ export default class ConnectionRouteManager {
 
         // Now it is safe to close the connection
         if (connectionRoutesGroup.activeConnection) {
-            connectionRoutesGroup.activeConnection.close();
+            connectionRoutesGroup.activeConnection.close('New connection replaced old one');
         }
 
         // Replace the old (now closed) one with the new connection
@@ -1092,5 +1092,30 @@ export default class ConnectionRouteManager {
         connectionRoutesGroup.activeConnectionRoute = null;
 
         return activeConnection;
+    }
+
+    /**
+     * Append a new entry to the connectionsStatisticsLog.
+     *
+     * Limits the maximum size to 10 (limit currently deactivated - heavy debugging)
+     *
+     * @param connectionRoutesGroup
+     * @param conn
+     * @param connectionRouteId
+     */
+    appendToConnectionStatisticsLog(
+        connectionRoutesGroup: ConnectionRoutesGroup,
+        conn: Connection,
+        connectionRouteId: string
+    ): void {
+        connectionRoutesGroup.connectionStatisticsLog.push({
+            ...conn.statistics,
+            routeId: connectionRouteId,
+            connectionId: conn.id
+        });
+
+        /*if (connectionRoutesGroup.connectionStatisticsLog.length > 10) {
+            connectionRoutesGroup.connectionStatisticsLog.splice(0, 1);
+        }*/
     }
 }

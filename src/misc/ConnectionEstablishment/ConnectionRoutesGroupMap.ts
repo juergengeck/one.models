@@ -78,6 +78,7 @@ export default class ConnectionRoutesGroupMap {
                 isCatchAllGroup: isCatchAllGroup,
                 activeConnection: null,
                 activeConnectionRoute: null,
+                connectionStatisticsLog: [],
                 knownRoutes: [],
                 dropDuplicates: false,
                 closeHandler: null,
