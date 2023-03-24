@@ -16,7 +16,7 @@ export type ConnectionRoutesGroup = {
     activeConnection: Connection | null;
     activeConnectionRoute: ConnectionRoute | null;
     knownRoutes: ConnectionRoutes;
-    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string}>;
+    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string; connectionId: number}>;
 
     // Internal stuff needed to handle reconnects and connection losses.
     dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,

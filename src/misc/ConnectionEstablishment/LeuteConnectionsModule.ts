@@ -68,7 +68,7 @@ export type ConnectionInfo = {
         enable: (enable: boolean) => Promise<void>;
     }[];
 
-    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string}>;
+    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string; connectionId: number}>;
 };
 
 /**
@@ -409,7 +409,8 @@ export default class LeuteConnectionsModule {
             if (routeGroup.activeConnection !== null) {
                 connectionStatisticsLog.push({
                     ...routeGroup.activeConnection.statistics,
-                    routeId: routeGroup.activeConnectionRoute?.id || ''
+                    routeId: routeGroup.activeConnectionRoute?.id || '',
+                    connectionId: routeGroup.activeConnection.id
                 });
             }
 

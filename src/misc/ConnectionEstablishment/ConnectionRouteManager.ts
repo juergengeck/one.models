@@ -1110,7 +1110,8 @@ export default class ConnectionRouteManager {
     ): void {
         connectionRoutesGroup.connectionStatisticsLog.push({
             ...conn.statistics,
-            routeId: connectionRouteId
+            routeId: connectionRouteId,
+            connectionId: conn.id
         });
 
         /*if (connectionRoutesGroup.connectionStatisticsLog.length > 10) {
