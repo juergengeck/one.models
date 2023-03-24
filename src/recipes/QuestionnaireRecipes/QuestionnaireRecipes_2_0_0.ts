@@ -121,12 +121,19 @@ export module Questionnaire_2_0_0 {
         valueString: string;
     };
 
+    export type ExtensionEntryFormat = {
+        extension?: Questionnaire_2_0_0.Extension[];
+        url: 'http://hl7.org/fhir/StructureDefinition/entryFormat';
+        valueString: string;
+    };
+
     export type Extension =
         | ExtensionMinValue
         | ExtensionMaxValue
         | ExtensionMinLength
-        | ExtensionDesignNote;
-        | ExtensionRegEx;
+        | ExtensionDesignNote
+        | ExtensionRegEx
+        | ExtensionEntryFormat;
 
     /**
      * Question of a questionnaire.

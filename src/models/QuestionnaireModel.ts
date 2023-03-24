@@ -22,6 +22,7 @@ export type QuestionnaireMaxValueExtension = QuestionnaireRecipe.ExtensionMaxVal
 export type QuestionnaireMinLengthExtension = QuestionnaireRecipe.ExtensionMinLength;
 export type QuestionnaireRegexExtension = QuestionnaireRecipe.ExtensionRegEx;
 export type QuestionnaireDesignNoteExtension = QuestionnaireRecipe.ExtensionDesignNote;
+export type QuestionnaireEntryFormatExtension = QuestionnaireRecipe.ExtensionEntryFormat;
 export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
