@@ -2,6 +2,7 @@ import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {LeuteModel} from '../../models';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
+import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin';
 import {castToLocalPublicKey, castToRemotePublicKey} from './ConnectionRoutesGroupMap';
 import type {LocalPublicKey} from './ConnectionRoutesGroupMap';
 import ConnectionRouteManager from './ConnectionRouteManager';
@@ -43,6 +44,8 @@ export type LocalInstanceInfo = {
  * It is used by functions that report the current state of connections to the user
  */
 export type ConnectionInfo = {
+    peerId: PeerId;
+
     isConnected: boolean;
     isInternetOfMe: boolean;
     isCatchAll: boolean;
@@ -64,6 +67,8 @@ export type ConnectionInfo = {
         enabled: boolean;
         enable: (enable: boolean) => Promise<void>;
     }[];
+
+    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string}>;
 };
 
 /**
@@ -109,11 +114,11 @@ export type CommunicationModuleConfiguration = {
     reconnectDelay: number;
 };
 
-type PeerId = string & {
+export type PeerId = string & {
     _: 'OneInstanceEndpointId';
 };
 
-function createPeerId(localPublicKey: PublicKey, remotePublicKey: PublicKey): PeerId {
+export function createPeerId(localPublicKey: PublicKey, remotePublicKey: PublicKey): PeerId {
     return `localKey: ${castToLocalPublicKey(localPublicKey)}, remoteKey: ${castToRemotePublicKey(
         remotePublicKey
     )}` as PeerId;
@@ -121,7 +126,7 @@ function createPeerId(localPublicKey: PublicKey, remotePublicKey: PublicKey): Pe
 
 const peerIdRegex = /localKey: ([0-9a-fA-F]*), remoteKey: ([0-9a-fA-F]*)/;
 
-function unpackPeerId(peerId: PeerId): {
+export function unpackPeerId(peerId: PeerId): {
     localPublicKey: PublicKey;
     remotePublicKey: PublicKey;
 } {
@@ -382,21 +387,35 @@ export default class LeuteConnectionsModule {
      *
      * @returns
      */
-    connectionsInfo(): ConnectionInfo[] {
+    connectionsInfo(onlyPeerId?: PeerId): ConnectionInfo[] {
         const info = this.connectionRouteManager.connectionRoutesInformation();
 
         const connectionsInfo: ConnectionInfo[] = [];
         for (const routeGroup of info.connectionsRoutesGroups) {
-            const peerInfo = this.knownPeerMap.get(
-                createPeerId(routeGroup.localPublicKey, routeGroup.remotePublicKey)
-            );
+            const peerId = createPeerId(routeGroup.localPublicKey, routeGroup.remotePublicKey);
+
+            if (onlyPeerId !== undefined && onlyPeerId !== peerId) {
+                continue;
+            }
+
+            const peerInfo = this.knownPeerMap.get(peerId);
             const myInfo = this.myPublicKeyToInstanceInfoMap.get(
                 castToLocalPublicKey(routeGroup.localPublicKey)
             );
             const dummyInstanceId = '0'.repeat(64) as SHA256IdHash<Instance>;
             const dummyPersonId = '0'.repeat(64) as SHA256IdHash<Person>;
 
+            const connectionStatisticsLog = [...routeGroup.connectionStatisticsLog];
+            if (routeGroup.activeConnection !== null) {
+                connectionStatisticsLog.push({
+                    ...routeGroup.activeConnection.statistics,
+                    routeId: routeGroup.activeConnectionRoute?.id || ''
+                });
+            }
+
             connectionsInfo.push({
+                peerId,
+
                 isConnected: routeGroup.activeConnection !== null,
                 isInternetOfMe: peerInfo ? this.myIdentities.includes(peerInfo.personId) : false,
                 isCatchAll: routeGroup.isCatchAllGroup,
@@ -425,6 +444,8 @@ export default class LeuteConnectionsModule {
                         );
                     }
                 },
+
+                connectionStatisticsLog,
 
                 routes: routeGroup.knownRoutes.map(route => ({
                     name: route.route.id,

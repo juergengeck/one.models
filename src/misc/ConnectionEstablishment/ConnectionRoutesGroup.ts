@@ -1,5 +1,6 @@
 import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import type Connection from '../Connection/Connection';
+import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin';
 import type ConnectionRoute from './routes/ConnectionRoute';
 
 export type ConnectionRoutes = {route: ConnectionRoute; disabled: boolean}[];
@@ -15,6 +16,7 @@ export type ConnectionRoutesGroup = {
     activeConnection: Connection | null;
     activeConnectionRoute: ConnectionRoute | null;
     knownRoutes: ConnectionRoutes;
+    connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string}>;
 
     // Internal stuff needed to handle reconnects and connection losses.
     dropDuplicates: boolean; // If this is true, duplicate connections will be dropped,

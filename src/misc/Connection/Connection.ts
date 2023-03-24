@@ -7,6 +7,8 @@ import type {IConnection} from './IConnection';
 import type ConnectionPlugin from './ConnectionPlugin';
 import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from './ConnectionPlugin';
 import type PromisePlugin from './plugins/PromisePlugin';
+import type {ConnectionStatistics} from './plugins/StatisticsPlugin';
+import StatisticsPlugin from './plugins/StatisticsPlugin';
 import WebSocketPlugin from './plugins/WebSocketPlugin';
 import type EncryptionPlugin from './plugins/EncryptionPlugin';
 import type {PingPlugin, PongPlugin} from './plugins/PingPongPlugin';
@@ -45,7 +47,7 @@ export default class Connection implements IConnection, EncryptedConnectionInter
      * Chum streams use the websocket bufferedAmount number to control how fast the streams
      * provide data to the websocket stream.
      */
-    public get bufferedAmount() {
+    get bufferedAmount() {
         const ws = this.websocketPlugin().webSocket;
 
         if (ws === null) {
@@ -53,6 +55,22 @@ export default class Connection implements IConnection, EncryptedConnectionInter
         }
 
         return ws.bufferedAmount;
+    }
+
+    /**
+     * Retrieve statistics.
+     *
+     * The StatisticsPlugin has to be registered in order for this to work.
+     */
+    get statistics(): ConnectionStatistics {
+        if (!this.hasPlugin('statistics')) {
+            return {
+                bytesReceived: 0,
+                bytesSent: 0
+            };
+        }
+
+        return this.statisticsPlugin().statistics;
     }
 
     /**
@@ -76,6 +94,7 @@ export default class Connection implements IConnection, EncryptedConnectionInter
         this.state.addTransition('close', 'open', 'closed');
 
         this.addPlugin(new WebSocketPlugin(webSocket));
+        this.addPlugin(new StatisticsPlugin());
     }
 
     // ######## Socket Management & Settings ########
@@ -202,6 +221,10 @@ export default class Connection implements IConnection, EncryptedConnectionInter
 
     public pongPlugin(): PongPlugin {
         return this.plugin('pong') as PongPlugin;
+    }
+
+    public statisticsPlugin(): StatisticsPlugin {
+        return this.plugin('statistics') as StatisticsPlugin;
     }
 
     // ######## Sending messages ########
