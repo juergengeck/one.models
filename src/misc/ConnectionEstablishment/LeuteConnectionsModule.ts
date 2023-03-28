@@ -398,7 +398,7 @@ export default class LeuteConnectionsModule {
             const peerId = createPeerId(routeGroup.localPublicKey, routeGroup.remotePublicKey);
             const connectionInfoId = createConnectionInfoId(peerId, routeGroup.groupName);
 
-            if (filterConnectionInfos !== undefined && filterConnectionInfos !== peerId) {
+            if (filterConnectionInfos !== undefined && filterConnectionInfos !== connectionInfoId) {
                 continue;
             }
 
