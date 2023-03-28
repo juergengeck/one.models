@@ -1008,9 +1008,8 @@ export default class ConnectionRouteManager {
         // Now it is safe to close the connection
         if (connectionRoutesGroup.activeConnection) {
             connectionRoutesGroup.activeConnection.close('New connection replaced old one');
+            ConnectionRouteManager.appendToConnectionStatisticsLog(connectionRoutesGroup);
         }
-
-        ConnectionRouteManager.appendToConnectionStatisticsLog(connectionRoutesGroup);
 
         // Replace the old (now closed) one with the new connection
         connectionRoutesGroup.activeConnection = conn;
