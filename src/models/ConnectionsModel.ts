@@ -2,7 +2,10 @@ import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Instance} from '@refinio/one.core/lib/recipes';
 import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum';
 import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
-import type {ConnectionInfo, PeerId} from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
+import type {
+    ConnectionInfo,
+    ConnectionInfoId
+} from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import LeuteConnectionsModule from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -255,8 +258,8 @@ class ConnectionsModel extends Model {
     /**
      * Returns information about all connections and routes.
      */
-    connectionsInfo(onlyPeerId?: PeerId): ConnectionInfo[] {
-        return this.leuteConnectionsModule.connectionsInfo(onlyPeerId);
+    connectionsInfo(filterConnectionInfos?: ConnectionInfoId): ConnectionInfo[] {
+        return this.leuteConnectionsModule.connectionsInfo(filterConnectionInfos);
     }
 
     /**
