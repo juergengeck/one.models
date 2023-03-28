@@ -82,7 +82,7 @@ export module Questionnaire_2_0_0 {
     };
 
     export type ExtensionMinValue = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/minValue';
         // value[x]: Value of extension. One of these 5:
         valueDate?: string;
@@ -93,7 +93,7 @@ export module Questionnaire_2_0_0 {
     };
 
     export type ExtensionMaxValue = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/maxValue';
         // value[x]: Value of extension. One of these 5:
         valueDate?: string;
@@ -104,25 +104,25 @@ export module Questionnaire_2_0_0 {
     };
 
     export type ExtensionMinLength = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/minLength';
         valueInteger: number;
     };
 
     export type ExtensionDesignNote = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/designNote';
         valueMarkdown: string;
     }
 
     export type ExtensionRegEx = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/regex';
         valueString: string;
     };
 
     export type ExtensionEntryFormat = {
-        extension?: Questionnaire_2_0_0.Extension[];
+        extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/entryFormat';
         valueString: string;
     };
