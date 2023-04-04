@@ -435,20 +435,21 @@ export default class LeuteConnectionsModule {
                 remotePersonId: peerInfo ? peerInfo.personId : dummyPersonId,
 
                 enabled: routeGroup.knownRoutes.some(route => !route.disabled),
-                enable: (enable: boolean): Promise<void> => {
+                enable: async (enable: boolean): Promise<void> => {
                     if (enable) {
-                        return this.connectionRouteManager.enableRoutes(
+                        await this.connectionRouteManager.enableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
                             routeGroup.groupName
                         );
                     } else {
-                        return this.connectionRouteManager.disableRoutes(
+                        await this.connectionRouteManager.disableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
                             routeGroup.groupName
                         );
                     }
+                    this.onConnectionsChange.emit();
                 },
 
                 connectionStatisticsLog,
