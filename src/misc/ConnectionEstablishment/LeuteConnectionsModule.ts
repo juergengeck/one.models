@@ -325,7 +325,11 @@ export default class LeuteConnectionsModule {
 
         for (const remoteInstance of remoteInstances) {
             if (!remoteInstance.local) {
-                await this.enableConnectionsToInstance(remoteInstance.instanceId, localPersonId);
+                await this.enableConnectionsToInstance(
+                    remoteInstance.instanceId,
+                    localPersonId,
+                    enable
+                );
             }
         }
     }
@@ -366,10 +370,17 @@ export default class LeuteConnectionsModule {
             localPersonId && (await getPublicKeys(await getDefaultKeys(localPersonId)));
 
         for (const remoteKeys of remoteKeysList) {
-            await this.connectionRouteManager.enableRoutes(
-                localKeys?.publicEncryptionKey,
-                remoteKeys.publicEncryptionKey
-            );
+            if (enable) {
+                await this.connectionRouteManager.enableRoutes(
+                    localKeys?.publicEncryptionKey,
+                    remoteKeys.publicEncryptionKey
+                );
+            } else {
+                await this.connectionRouteManager.disableRoutes(
+                    localKeys?.publicEncryptionKey,
+                    remoteKeys.publicEncryptionKey
+                );
+            }
         }
     }
 
