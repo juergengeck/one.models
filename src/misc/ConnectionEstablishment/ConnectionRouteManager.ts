@@ -364,6 +364,8 @@ export default class ConnectionRouteManager {
         if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
             await this.enableCatchAllRoutes(localPublicKey, routeId);
         }
+
+        this.onConnectionsChange.emit();
     }
 
     /**
@@ -406,6 +408,8 @@ export default class ConnectionRouteManager {
         if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
             await this.disableCatchAllRoutes(localPublicKey, routeId);
         }
+
+        this.onConnectionsChange.emit();
     }
 
     /**

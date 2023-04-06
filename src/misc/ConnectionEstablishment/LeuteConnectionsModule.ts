@@ -254,6 +254,10 @@ export default class LeuteConnectionsModule {
             this.onOnlineStateChange.emit(onlineState);
         });
 
+        this.connectionRouteManager.onConnectionsChange(() => {
+            this.setupRoutes().catch(console.trace);
+        });
+
         // Setup event for instance creation
         this.leuteModel.onUpdated(() => {
             if (!this.initialized) {
@@ -435,21 +439,20 @@ export default class LeuteConnectionsModule {
                 remotePersonId: peerInfo ? peerInfo.personId : dummyPersonId,
 
                 enabled: routeGroup.knownRoutes.some(route => !route.disabled),
-                enable: async (enable: boolean): Promise<void> => {
+                enable: (enable: boolean): Promise<void> => {
                     if (enable) {
-                        await this.connectionRouteManager.enableRoutes(
+                        return this.connectionRouteManager.enableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
                             routeGroup.groupName
                         );
                     } else {
-                        await this.connectionRouteManager.disableRoutes(
+                        return this.connectionRouteManager.disableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
                             routeGroup.groupName
                         );
                     }
-                    this.onConnectionsChange.emit();
                 },
 
                 connectionStatisticsLog,
