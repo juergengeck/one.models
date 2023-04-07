@@ -255,7 +255,7 @@ export default class LeuteConnectionsModule {
         });
 
         this.connectionRouteManager.onConnectionsChange(() => {
-            this.setupRoutes().catch(console.trace);
+            this.onConnectionsChange.emit();
         });
 
         // Setup event for instance creation
@@ -783,6 +783,7 @@ export default class LeuteConnectionsModule {
             initiatedLocally,
             connectionRoutesGroupName
         );
+        this.onConnectionsChange.emit();
     }
 
     /**
@@ -851,5 +852,6 @@ export default class LeuteConnectionsModule {
                 connectionRoutesGroupName
             );
         }
+        this.onConnectionsChange.emit();
     }
 }
