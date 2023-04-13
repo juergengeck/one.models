@@ -68,7 +68,7 @@ export async function startChumProtocol(
 
     await createChum({
         connection: websocketPromisifierAPI,
-        //TODO: localPersonId should be specified here
+        localPersonId,
         remotePersonId,
 
         // used only for logging purpose
