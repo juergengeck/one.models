@@ -8,6 +8,8 @@
       <excludeFolder url="file://$MODULE_DIR$/lib" />
       <excludeFolder url="file://$MODULE_DIR$/test/testStorage" />
       <excludeFolder url="file://$MODULE_DIR$/.nyc_output" />
+      <excludeFolder url="file://$MODULE_DIR$/.github" />
+      <excludeFolder url="file://$MODULE_DIR$/aws" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
