@@ -158,12 +158,12 @@ export async function connectWithEncryption(
  *
  * @param url
  * @param cryptoApi
- * @param retryTimeout
+ * @param retryTimeouts - A list of timeouts to use to establish outgoing connections
  */
 export function connectWithEncryptionUntilSuccessful(
     url: string,
     cryptoApi: SymmetricCryptoApiWithKeys,
-    retryTimeout = 5000
+    retryTimeouts: number[] = [5000, 10000, 20000, 30000, 60000, 120000]
 ): StoppablePromise<ConnectionInfo> {
     const localPublicKey = castToLocalPublicKey(cryptoApi.localPublicKey);
     const remotePublicKey = castToRemotePublicKey(cryptoApi.remotePublicKey);
@@ -178,6 +178,7 @@ export function connectWithEncryptionUntilSuccessful(
 
     async function startLoop(): Promise<ConnectionInfo> {
         let stopped = false;
+        const retryTimeoutList = retryTimeouts.length === 0 ? [5000] : retryTimeouts;
 
         stopLoop = () => {
             stopped = true;
@@ -209,12 +210,21 @@ export function connectWithEncryptionUntilSuccessful(
 
                 // eslint-disable-next-line no-await-in-loop
                 await new Promise<void>((resolve, reject) => {
+                    MessageBus.send(
+                        'log',
+                        `connectWithEncryptionUntilSuccessful(${url}, ${localPublicKey}, ${remotePublicKey}) - next retry in ${retryTimeoutList[0]} ms.`
+                    );
+
                     const retryTimeoutHandle = setTimeout(() => {
                         stopLoop = () => {
                             stopped = true;
                         };
                         resolve();
-                    }, retryTimeout);
+                    }, retryTimeoutList[0]);
+
+                    if (retryTimeoutList.length > 1) {
+                        retryTimeoutList.splice(0, 1);
+                    }
 
                     stopLoop = () => {
                         clearTimeout(retryTimeoutHandle);
