@@ -111,8 +111,7 @@ export default class ConnectionRouteManager {
     addOutgoingWebsocketRoute(
         cryptoApi: SymmetricCryptoApiWithKeys,
         url: string,
-        connectionRoutesGroupName: string,
-        reconnectDelay: number = 10000
+        connectionRoutesGroupName: string
     ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
@@ -132,7 +131,6 @@ export default class ConnectionRouteManager {
 
         const route = new OutgoingWebsocketRoute(
             url,
-            reconnectDelay,
             cryptoApi,
             (
                 conn: Connection,
