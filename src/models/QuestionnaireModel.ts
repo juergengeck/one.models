@@ -7,7 +7,7 @@ import {Model} from './Model';
 
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Questionnaire_1_2_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_1_2_0';
+import type {Questionnaire_2_0_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0';
 import type {
     QuestionnaireResponses,
     QuestionnaireResponse
@@ -16,8 +16,13 @@ import type {
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
 export type Question = QuestionnaireRecipe.Question;
-export type QuestionnaireAnswerMinMaxValue = QuestionnaireRecipe.QuestionnaireAnswerMinMaxValue;
-export type AnswerRestriction = QuestionnaireRecipe.AnswerRestriction;
+export type QuestionnaireExtension = QuestionnaireRecipe.Extension;
+export type QuestionnaireMinValueExtension = QuestionnaireRecipe.ExtensionMinValue;
+export type QuestionnaireMaxValueExtension = QuestionnaireRecipe.ExtensionMaxValue;
+export type QuestionnaireMinLengthExtension = QuestionnaireRecipe.ExtensionMinLength;
+export type QuestionnaireRegexExtension = QuestionnaireRecipe.ExtensionRegEx;
+export type QuestionnaireDesignNoteExtension = QuestionnaireRecipe.ExtensionDesignNote;
+export type QuestionnaireEntryFormatExtension = QuestionnaireRecipe.ExtensionEntryFormat;
 export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
