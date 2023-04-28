@@ -1,8 +1,21 @@
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {LeuteModel} from '../../../models';
+import type {OneInstanceEndpoint} from '../../../recipes/Leute/CommunicationEndpoints';
 import type Connection from '../../Connection/Connection';
+import {getLocalInstanceOfPerson} from '../../instance';
 import type {AccessibleObject} from './Debug/determineAccessibleHashes';
 import {determineAccessibleObjects} from './Debug/determineAccessibleHashes';
+import {connectWithEncryption} from './EncryptedConnectionHandshake';
+import {exchangeConnectionGroupName} from './ExchangeConnectionGroupName';
+import {exchangeInstanceIdObjects} from './ExchangeInstanceIds';
+import {verifyAndExchangePersonId} from './ExchangePersonIds';
+import {sync} from './Sync';
+
+const MessageBus = createMessageBus('DebugProtocol');
 
 export async function acceptDebugRequest(
     conn: Connection,
@@ -36,6 +49,70 @@ export async function requestAcccessibleObjects(conn: Connection): Promise<Acces
 
     const accessibleObjectsMessage = await waitForDebugMessage(conn, 'accessible_objects');
     return accessibleObjectsMessage.objects;
+}
+
+export async function connectRequestingAccessibleObjects(
+    oneInstanceEndpoint: OneInstanceEndpoint,
+    leuteModel: LeuteModel,
+    myPersonId?: SHA256IdHash<Person>
+): Promise<AccessibleObject[]> {
+    if (myPersonId === undefined) {
+        myPersonId = await leuteModel.myMainIdentity();
+    }
+    if (oneInstanceEndpoint.url === undefined) {
+        throw new Error('Url of one instance endpoint is undefined!');
+    }
+
+    const cryptoApi = await createCryptoApiFromDefaultKeys(myPersonId);
+    const myInstanceId = await getLocalInstanceOfPerson(myPersonId);
+
+    // Connect to target
+    const connInfo = await connectWithEncryption(
+        oneInstanceEndpoint.url,
+        cryptoApi.createEncryptionApiWithKeysAndPerson(
+            (
+                await getPublicKeys(oneInstanceEndpoint.instanceKeys)
+            ).publicEncryptionKey
+        )
+    );
+
+    const conn = connInfo.connection;
+
+    MessageBus.send(
+        'log',
+        `${conn.id}: connectRequestingAccessibleObjects: exchangeConnectionGroupName`
+    );
+
+    await exchangeConnectionGroupName(conn, 'pairing');
+
+    MessageBus.send('log', `${conn.id}: connectRequestingAccessibleObjects: sync`);
+
+    // Have a sync step (misusing the success message at the moment), so that the
+    // connection initiator does not emit the event if the other side does not want to
+    // connect.
+    await sync(conn, true);
+
+    MessageBus.send(
+        'log',
+        `${conn.id}: connectRequestingAccessibleObjects: verifyAndExchangePersonId`
+    );
+
+    const personInfo = await verifyAndExchangePersonId(leuteModel, conn, myPersonId, true);
+
+    MessageBus.send(
+        'log',
+        `${conn.id}: connectRequestingAccessibleObjects: exchangeInstanceIdObjects`
+    );
+
+    const instanceInfo = await exchangeInstanceIdObjects(conn, myInstanceId);
+
+    // Start the pairing protocol
+    try {
+        return requestAcccessibleObjects(conn);
+    } catch (e) {
+        connInfo.connection.close(e.message);
+        throw e;
+    }
 }
 
 // #### Low level protocol / messages ... ####
