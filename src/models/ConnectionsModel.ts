@@ -7,6 +7,7 @@ import type {
     ConnectionInfoId
 } from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import LeuteConnectionsModule from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
+import {acceptDebugRequest} from '../misc/ConnectionEstablishment/protocols/Debug';
 import {OEvent} from '../misc/OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
@@ -49,6 +50,10 @@ export type ConnectionsModelConfiguration = {
     // If true allow one time authentication workflows (incoming connections)
     // Default: true
     allowPairing: boolean;
+
+    // If true allow incoming debug requests (See debug protocol)
+    // Default: false
+    allowDebugRequests: boolean;
 
     // The amount of time an authentication token is valid (incoming connections)
     // Default: 60000 (1 minute)
@@ -133,6 +138,8 @@ class ConnectionsModel extends Model {
             acceptUnknownPersons:
                 config.acceptUnknownPersons === undefined ? false : config.acceptUnknownPersons,
             allowPairing: config.allowPairing === undefined ? true : config.allowPairing,
+            allowDebugRequests:
+                config.allowDebugRequests === undefined ? true : config.allowDebugRequests,
             pairingTokenExpirationDuration:
                 config.pairingTokenExpirationDuration === undefined
                     ? 60000
@@ -154,7 +161,7 @@ class ConnectionsModel extends Model {
             incomingConnectionConfigurations: this.config.acceptIncomingConnections
                 ? [{type: 'commserver', url: this.config.commServerUrl, catchAll}]
                 : [],
-            incomingRoutesGroupIds: ['chum'],
+            incomingRoutesGroupIds: this.config.allowDebugRequests ? ['chum', 'debug'] : ['chum'],
             outgoingRoutesGroupIds: this.config.establishOutgoingConnections ? ['chum'] : [],
             reconnectDelay: 5000
         });
@@ -313,6 +320,8 @@ class ConnectionsModel extends Model {
                     remotePersonId,
                     remoteInstanceId
                 );
+            } else if (connectionRoutesGroupName === 'debug') {
+                await acceptDebugRequest(conn, remotePersonId);
             } else {
                 throw new Error(
                     `ConnectionRoutesGroupName ${connectionRoutesGroupName} not supported`
