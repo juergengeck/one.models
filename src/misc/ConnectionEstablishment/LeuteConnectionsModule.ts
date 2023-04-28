@@ -382,9 +382,6 @@ export default class LeuteConnectionsModule {
                 );
             }
         }
-
-        // Notify the user of a change in connections
-        this.onConnectionsChange.emit();
     }
 
     /**
