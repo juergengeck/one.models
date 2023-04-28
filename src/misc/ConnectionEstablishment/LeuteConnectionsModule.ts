@@ -454,7 +454,7 @@ export default class LeuteConnectionsModule {
 
                 enabled: routeGroup.knownRoutes.some(route => !route.disabled),
                 enable: (enable: boolean): Promise<void> => {
-                    return this.disableConnectionsToInstance(
+                    return this.enableConnectionsToInstance(
                         peerInfo ? peerInfo.instanceId : dummyInstanceId,
                         myInfo ? myInfo.personId : dummyPersonId,
                         enable
