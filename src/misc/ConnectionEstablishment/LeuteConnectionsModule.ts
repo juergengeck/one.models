@@ -44,7 +44,9 @@ export type LocalInstanceInfo = {
  * It is used by functions that report the current state of connections to the user
  */
 export type ConnectionInfo = {
-    peerId: PeerId;
+    // This uniquely identifies a connection Info - which means a potential connection
+    id: ConnectionInfoId;
+    protocolName: string; // Name of the protocol - chum, pairing, video ...
 
     isConnected: boolean;
     isInternetOfMe: boolean;
@@ -71,15 +73,16 @@ export type ConnectionInfo = {
     connectionStatisticsLog: Array<ConnectionStatistics & {routeId: string; connectionId: number}>;
 };
 
-/**
- * This internal type stores all information tied to a connection.
- */
-type PeerInformation = {
-    instancePublicKey: HexString;
-    instanceId: SHA256IdHash<Instance>;
-    personId: SHA256IdHash<Person>;
-    isInternetOfMe: boolean;
+export type ConnectionInfoId = string & {
+    _: 'OneInstanceEndpointId';
 };
+
+export function createConnectionInfoId(
+    peerId: PeerId,
+    connectionRoutesGroupName: string
+): ConnectionInfoId {
+    return `${peerId}, groupId: ${connectionRoutesGroupName}` as ConnectionInfoId;
+}
 
 export type CommserverConfiguration = {
     type: 'commserver';
@@ -387,14 +390,15 @@ export default class LeuteConnectionsModule {
      *
      * @returns
      */
-    connectionsInfo(onlyPeerId?: PeerId): ConnectionInfo[] {
+    connectionsInfo(filterConnectionInfos?: ConnectionInfoId): ConnectionInfo[] {
         const info = this.connectionRouteManager.connectionRoutesInformation();
 
         const connectionsInfo: ConnectionInfo[] = [];
         for (const routeGroup of info.connectionsRoutesGroups) {
             const peerId = createPeerId(routeGroup.localPublicKey, routeGroup.remotePublicKey);
+            const connectionInfoId = createConnectionInfoId(peerId, routeGroup.groupName);
 
-            if (onlyPeerId !== undefined && onlyPeerId !== peerId) {
+            if (filterConnectionInfos !== undefined && filterConnectionInfos !== connectionInfoId) {
                 continue;
             }
 
@@ -415,7 +419,8 @@ export default class LeuteConnectionsModule {
             }
 
             connectionsInfo.push({
-                peerId,
+                id: connectionInfoId,
+                protocolName: routeGroup.groupName,
 
                 isConnected: routeGroup.activeConnection !== null,
                 isInternetOfMe: peerInfo ? this.myIdentities.includes(peerInfo.personId) : false,

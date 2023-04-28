@@ -107,8 +107,7 @@ describe.skip('CommunicationModule test', () => {
         client.addOutgoingWebsocketRoute(
             new CryptoApi(clientKeys).createEncryptionApiWithKeysAndPerson(serverKeys.publicKey),
             'ws://localhost:8500',
-            'low_bandwidth',
-            1000
+            'low_bandwidth'
         );
 
         /*client.addOutgoingWebsocketRoute(

@@ -111,8 +111,7 @@ export default class ConnectionRouteManager {
     addOutgoingWebsocketRoute(
         cryptoApi: SymmetricCryptoApiWithKeys,
         url: string,
-        connectionRoutesGroupName: string,
-        reconnectDelay: number = 10000
+        connectionRoutesGroupName: string
     ): {isNew: boolean; id: string} {
         MessageBus.send(
             'log',
@@ -132,7 +131,6 @@ export default class ConnectionRouteManager {
 
         const route = new OutgoingWebsocketRoute(
             url,
-            reconnectDelay,
             cryptoApi,
             (
                 conn: Connection,
@@ -1008,6 +1006,7 @@ export default class ConnectionRouteManager {
         // Now it is safe to close the connection
         if (connectionRoutesGroup.activeConnection) {
             connectionRoutesGroup.activeConnection.close('New connection replaced old one');
+            ConnectionRouteManager.appendToConnectionStatisticsLog(connectionRoutesGroup);
         }
 
         // Replace the old (now closed) one with the new connection
@@ -1088,6 +1087,9 @@ export default class ConnectionRouteManager {
             clearTimeout(connectionRoutesGroup.dropDuplicatesTimeoutHandle);
         }
         const activeConnection = connectionRoutesGroup.activeConnection;
+
+        ConnectionRouteManager.appendToConnectionStatisticsLog(connectionRoutesGroup);
+
         connectionRoutesGroup.activeConnection = null;
         connectionRoutesGroup.activeConnectionRoute = null;
 
@@ -1100,18 +1102,20 @@ export default class ConnectionRouteManager {
      * Limits the maximum size to 10 (limit currently deactivated - heavy debugging)
      *
      * @param connectionRoutesGroup
-     * @param conn
-     * @param connectionRouteId
      */
-    appendToConnectionStatisticsLog(
-        connectionRoutesGroup: ConnectionRoutesGroup,
-        conn: Connection,
-        connectionRouteId: string
-    ): void {
+    static appendToConnectionStatisticsLog(connectionRoutesGroup: ConnectionRoutesGroup): void {
+        if (
+            connectionRoutesGroup.activeConnection === null ||
+            connectionRoutesGroup.activeConnectionRoute === null
+        ) {
+            console.error('Failed to append conenctions log, because no old connection found.');
+            return;
+        }
+
         connectionRoutesGroup.connectionStatisticsLog.push({
-            ...conn.statistics,
-            routeId: connectionRouteId,
-            connectionId: conn.id
+            ...connectionRoutesGroup.activeConnection.statistics,
+            routeId: connectionRoutesGroup.activeConnectionRoute.id,
+            connectionId: connectionRoutesGroup.activeConnection.id
         });
 
         /*if (connectionRoutesGroup.connectionStatisticsLog.length > 10) {

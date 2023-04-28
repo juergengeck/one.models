@@ -13,7 +13,6 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
     public readonly outgoing = true;
 
     private readonly url: string;
-    private readonly reconnectDelay: number;
     private readonly cryptoApi: SymmetricCryptoApiWithKeys;
     private readonly onConnect: (
         conn: Connection,
@@ -30,7 +29,6 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
 
     constructor(
         url: string,
-        reconnectDelay: number,
         cryptoApi: SymmetricCryptoApiWithKeys, // Where do we decide whether to accept a connection???
         onConnect: (
             conn: Connection,
@@ -41,18 +39,13 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
     ) {
         this.url = url;
         this.id = `${this.type}:${url}`;
-        this.reconnectDelay = reconnectDelay;
         this.cryptoApi = cryptoApi;
         this.onConnect = onConnect;
     }
 
     async start(): Promise<void> {
         MessageBus.send('log', 'start');
-        const stoppablePromise = connectWithEncryptionUntilSuccessful(
-            this.url,
-            this.cryptoApi,
-            this.reconnectDelay
-        );
+        const stoppablePromise = connectWithEncryptionUntilSuccessful(this.url, this.cryptoApi);
         this.stopFn = () => {
             stoppablePromise.stop();
             this.stopFn = null;
