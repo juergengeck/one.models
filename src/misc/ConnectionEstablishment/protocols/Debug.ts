@@ -83,7 +83,7 @@ export async function connectRequestingAccessibleObjects(
         `${conn.id}: connectRequestingAccessibleObjects: exchangeConnectionGroupName`
     );
 
-    await exchangeConnectionGroupName(conn, 'pairing');
+    await exchangeConnectionGroupName(conn, 'debug');
 
     MessageBus.send('log', `${conn.id}: connectRequestingAccessibleObjects: sync`);
 
