@@ -982,7 +982,7 @@ export default class ConnectionRouteManager {
                     g => g.route.id === connectionRouteId
                 );
 
-                if (group?.disabled) {
+                if (group !== undefined && group.disabled) {
                     conn.close('Route is disabled');
                 } else {
                     this.onConnection.emit(
