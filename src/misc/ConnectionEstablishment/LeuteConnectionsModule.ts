@@ -451,11 +451,17 @@ export default class LeuteConnectionsModule {
 
                 enabled: routeGroup.knownRoutes.some(route => !route.disabled),
                 enable: (enable: boolean): Promise<void> => {
-                    return this.enableConnectionsToInstance(
-                        peerInfo ? peerInfo.instanceId : dummyInstanceId,
-                        myInfo ? myInfo.personId : dummyPersonId,
-                        enable
-                    );
+                    if (enable) {
+                        return this.connectionRouteManager.enableRoutes(
+                            routeGroup.localPublicKey,
+                            routeGroup.remotePublicKey
+                        );
+                    } else {
+                        return this.connectionRouteManager.disableRoutes(
+                            routeGroup.localPublicKey,
+                            routeGroup.remotePublicKey
+                        );
+                    }
                 },
 
                 connectionStatisticsLog,
