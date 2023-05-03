@@ -76,7 +76,7 @@ export async function connectWithEncryption(
     const localPublicKey = castToLocalPublicKey(cryptoApi.localPublicKey);
     const remotePublicKey = castToRemotePublicKey(cryptoApi.remotePublicKey);
 
-    const connection = new Connection(createWebSocket(url));
+    const connection = new Connection(createWebSocket(url), 5000);
     MessageBus.send(
         'debug',
         `${connection.id} connectWithEncryption(${url}, ${localPublicKey}, ${remotePublicKey})`
