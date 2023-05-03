@@ -454,12 +454,14 @@ export default class LeuteConnectionsModule {
                     if (enable) {
                         return this.connectionRouteManager.enableRoutes(
                             routeGroup.localPublicKey,
-                            routeGroup.remotePublicKey
+                            routeGroup.remotePublicKey,
+                            routeGroup.groupName
                         );
                     } else {
                         return this.connectionRouteManager.disableRoutes(
                             routeGroup.localPublicKey,
-                            routeGroup.remotePublicKey
+                            routeGroup.remotePublicKey,
+                            routeGroup.groupName
                         );
                     }
                 },
