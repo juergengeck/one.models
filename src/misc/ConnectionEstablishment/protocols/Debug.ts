@@ -147,12 +147,16 @@ export function isDebugMessage<T extends keyof DebugMessages>(
     arg: any,
     type: T
 ): arg is DebugMessages[T] {
-    if (arg.command !== type) {
+    if (arg.type !== type) {
         return false;
     }
 
     if (type === 'start_protocol') {
         return arg.protocol === 'getAccessibleObjects' && typeof arg.version === 'string';
+    }
+
+    if (type === 'accessible_objects') {
+        return Array.isArray(arg.objects);
     }
 
     return false;
