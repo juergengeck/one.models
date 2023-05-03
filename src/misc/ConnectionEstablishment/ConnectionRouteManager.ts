@@ -364,6 +364,8 @@ export default class ConnectionRouteManager {
         if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
             await this.enableCatchAllRoutes(localPublicKey, routeId);
         }
+
+        this.onConnectionsChange.emit();
     }
 
     /**
@@ -406,6 +408,8 @@ export default class ConnectionRouteManager {
         if (remotePublicKey === undefined && connectionRoutesGroupName === undefined) {
             await this.disableCatchAllRoutes(localPublicKey, routeId);
         }
+
+        this.onConnectionsChange.emit();
     }
 
     /**
@@ -974,13 +978,21 @@ export default class ConnectionRouteManager {
                     initiatedLocally
                 );
             } else {
-                this.onConnection.emit(
-                    conn,
-                    localPublicKey,
-                    remotePublicKey,
-                    connectionGroup.groupName,
-                    initiatedLocally
+                const group = connectionGroup.knownRoutes.find(
+                    g => g.route.id === connectionRouteId
                 );
+
+                if (group !== undefined && group.disabled) {
+                    conn.close('Route is disabled');
+                } else {
+                    this.onConnection.emit(
+                        conn,
+                        localPublicKey,
+                        remotePublicKey,
+                        connectionGroup.groupName,
+                        initiatedLocally
+                    );
+                }
             }
         } catch (e) {
             conn.close(`${e}`);
