@@ -378,6 +378,8 @@ class ConnectionsModel extends Model {
                     connectionRoutesGroupName,
                     this.onProtocolStart
                 );
+            } else if (connectionRoutesGroupName === 'debug') {
+                await acceptDebugRequest(conn, remotePersonId);
             } else if (connectionRoutesGroupName === 'pairing') {
                 await this.pairing.acceptInvitation(
                     conn,
