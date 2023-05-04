@@ -803,9 +803,21 @@ export default class LeuteModel extends Model {
      */
     public async getDefaultProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
         try {
-            const profiles = await getAllIdObjectEntries(person, 'Profile');
-            const defaultProfiles = profiles.filter(
+            const profileHashes = await getAllIdObjectEntries<'Profile'>(person, 'Profile');
+            const profileIdObjs = await Promise.all(
+                profileHashes.map(idHash => getIdObject<Profile>(idHash))
+            );
+            const defaultProfileIdObjs = profileIdObjs.filter(
                 profile => profile.profileId === 'default' && profile.personId === person
+            );
+            const defaultProfiles = await Promise.all(
+                defaultProfileIdObjs.map(async idObj =>
+                    ProfileModel.constructFromLatestVersionByIdFields(
+                        idObj.personId,
+                        idObj.owner,
+                        idObj.profileId
+                    )
+                )
             );
 
             const myId = await this.myMainIdentity();
