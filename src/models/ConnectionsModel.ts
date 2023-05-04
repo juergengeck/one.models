@@ -201,6 +201,20 @@ class ConnectionsModel extends Model {
     }
 
     /**
+     * Enable all connections.
+     */
+    async enableAllConnections(): Promise<void> {
+        await this.leuteConnectionsModule.enableAllConnections();
+    }
+
+    /**
+     * Disable all connections.
+     */
+    async disableAllConnections(): Promise<void> {
+        await this.leuteConnectionsModule.disableAllConnections();
+    }
+
+    /**
      * Enable all connections to this person.
      *
      * @param remotePersonId

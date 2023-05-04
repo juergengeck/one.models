@@ -309,6 +309,20 @@ export default class LeuteConnectionsModule {
     }
 
     /**
+     * Enable all connections.
+     */
+    async enableAllConnections(): Promise<void> {
+        await this.connectionRouteManager.enableRoutes();
+    }
+
+    /**
+     * Disable all connections.
+     */
+    async disableAllConnections(): Promise<void> {
+        await this.connectionRouteManager.disableRoutes();
+    }
+
+    /**
      * Enable all connections to this person.
      *
      * @param remotePersonId
