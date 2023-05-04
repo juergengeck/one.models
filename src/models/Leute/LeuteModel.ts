@@ -15,6 +15,7 @@ import type {
     OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
+import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
@@ -802,12 +803,22 @@ export default class LeuteModel extends Model {
      */
     public async getDefaultProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
         try {
-            const someone = await this.getSomeone(person);
-            if (someone === undefined) {
-                return 'undefined';
-            }
-            const profiles = await someone.profiles(person);
-            const defaultProfiles = profiles.filter(profile => profile.profileId === 'default');
+            const profileHashes = await getAllIdObjectEntries<'Profile'>(person, 'Profile');
+            const profileIdObjs = await Promise.all(
+                profileHashes.map(idHash => getIdObject<Profile>(idHash))
+            );
+            const defaultProfileIdObjs = profileIdObjs.filter(
+                profile => profile.profileId === 'default' && profile.personId === person
+            );
+            const defaultProfiles = await Promise.all(
+                defaultProfileIdObjs.map(async idObj =>
+                    ProfileModel.constructFromLatestVersionByIdFields(
+                        idObj.personId,
+                        idObj.owner,
+                        idObj.profileId
+                    )
+                )
+            );
 
             const myId = await this.myMainIdentity();
             const meOwner = LeuteModel.getPersonNameFromFilteredProfiles(
