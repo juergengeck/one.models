@@ -100,7 +100,7 @@ export type SocketConfiguration = {
 
 export type IncomingConnectionConfiguration = CommserverConfiguration | SocketConfiguration;
 
-export type CommunicationModuleConfiguration = {
+export type LeuteConnectionsModuleConfiguration = {
     // The configuration for incoming connections
     // Default: An empty list => do not accept any incoming connections
     incomingConnectionConfigurations: IncomingConnectionConfiguration[];
@@ -115,6 +115,9 @@ export type CommunicationModuleConfiguration = {
 
     // The reconnect delay for outgoing connections
     reconnectDelay: number;
+
+    // If true then new routes will be enabled
+    newRoutesEnabled: boolean;
 };
 
 export type PeerId = string & {
@@ -192,7 +195,7 @@ export default class LeuteConnectionsModule {
     >();
 
     private initialized: boolean; // Flag that stores whether this module is initialized
-    private readonly config: CommunicationModuleConfiguration;
+    private readonly config: LeuteConnectionsModuleConfiguration;
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
     private readonly connectionRouteManager: ConnectionRouteManager; // Manager for incoming
 
@@ -215,6 +218,22 @@ export default class LeuteConnectionsModule {
     }
 
     /**
+     * Set if new routes are enabled.
+     *
+     * @param enabled
+     */
+    set newRoutesEnabled(enabled: boolean) {
+        this.config.newRoutesEnabled = enabled;
+    }
+
+    /**
+     * Returns if new routes will be enabled.
+     */
+    get newRoutesEnabled(): boolean {
+        return this.config.newRoutesEnabled;
+    }
+
+    /**
      * Create instance.
      * Outgoing connections are made based on the contact objects.
      *
@@ -222,7 +241,7 @@ export default class LeuteConnectionsModule {
      * connections to establish.
      * @param config
      */
-    constructor(leuteModel: LeuteModel, config: Partial<CommunicationModuleConfiguration>) {
+    constructor(leuteModel: LeuteModel, config: Partial<LeuteConnectionsModuleConfiguration>) {
         this.config = {
             incomingConnectionConfigurations:
                 config.incomingConnectionConfigurations !== undefined
@@ -232,7 +251,8 @@ export default class LeuteConnectionsModule {
                 config.outgoingRoutesGroupIds !== undefined ? config.outgoingRoutesGroupIds : [],
             incomingRoutesGroupIds:
                 config.incomingRoutesGroupIds !== undefined ? config.incomingRoutesGroupIds : [],
-            reconnectDelay: config.reconnectDelay !== undefined ? config.reconnectDelay : 5000
+            reconnectDelay: config.reconnectDelay !== undefined ? config.reconnectDelay : 5000,
+            newRoutesEnabled: config.newRoutesEnabled !== undefined ? config.newRoutesEnabled : true
         };
 
         this.leuteModel = leuteModel;
@@ -543,7 +563,7 @@ export default class LeuteConnectionsModule {
                             config.url
                         );
 
-                    if (route.isNew) {
+                    if (route.isNew && this.config.newRoutesEnabled) {
                         await this.connectionRouteManager.enableCatchAllRoutes(
                             myInfo.instanceCryptoApi.publicEncryptionKey,
                             route.id
@@ -557,7 +577,7 @@ export default class LeuteConnectionsModule {
                             config.port
                         );
 
-                    if (route.isNew) {
+                    if (route.isNew && this.config.newRoutesEnabled) {
                         await this.connectionRouteManager.enableCatchAllRoutes(
                             myInfo.instanceCryptoApi.publicEncryptionKey,
                             route.id
@@ -598,7 +618,7 @@ export default class LeuteConnectionsModule {
                         outgoingRoutesGroupId
                     );
 
-                    if (route.isNew) {
+                    if (route.isNew && this.config.newRoutesEnabled) {
                         await this.connectionRouteManager.enableRoutes(
                             myInfo.instanceCryptoApi.publicEncryptionKey,
                             remoteInstanceKey,
@@ -621,7 +641,7 @@ export default class LeuteConnectionsModule {
                                 incomingRoutesGroupId
                             );
 
-                        if (route.isNew) {
+                        if (route.isNew && this.config.newRoutesEnabled) {
                             await this.connectionRouteManager.enableRoutes(
                                 myInfo.instanceCryptoApi.publicEncryptionKey,
                                 remoteInstanceKey,
@@ -638,7 +658,7 @@ export default class LeuteConnectionsModule {
                             incomingRoutesGroupId
                         );
 
-                        if (route.isNew) {
+                        if (route.isNew && this.config.newRoutesEnabled) {
                             await this.connectionRouteManager.enableRoutes(
                                 myInfo.instanceCryptoApi.publicEncryptionKey,
                                 remoteInstanceKey,
