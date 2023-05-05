@@ -118,6 +118,22 @@ class ConnectionsModel extends Model {
     }
 
     /**
+     * Set if new routes are enabled.
+     *
+     * @param enabled
+     */
+    set newRoutesEnabled(enabled: boolean) {
+        this.leuteConnectionsModule.newRoutesEnabled = enabled;
+    }
+
+    /**
+     * Returns if new routes will be enabled.
+     */
+    get newRoutesEnabled(): boolean {
+        return this.leuteConnectionsModule.newRoutesEnabled;
+    }
+
+    /**
      * Construct a new instance
      *
      * @param leuteModel
