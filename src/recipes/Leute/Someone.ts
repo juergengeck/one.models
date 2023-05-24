@@ -57,7 +57,7 @@ export const SomeoneRecipe: Recipe = {
 // #### Reverse maps ####
 
 export const SomeoneReverseMaps: [OneObjectTypeNames, Set<string>][] = [
-    ['Someone', new Set(['identity'])]
+    ['Someone', new Set(['*'])]
 ];
 
 // #### one.core interfaces ####
