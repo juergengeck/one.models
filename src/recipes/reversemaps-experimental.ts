@@ -1,4 +1,5 @@
 import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import {SomeoneReverseMaps} from './Leute/Someone';
 import {SignatureReverseMaps} from './SignatureRecipes';
 import {CertificateReverseMaps} from './CertificateRecipes';
 import {ProfileReverseMaps, ProfileReverseMapsForIdObjects} from './Leute/Profile';
@@ -8,6 +9,7 @@ export const ReverseMapsExperimental: [OneObjectTypeNames, Set<string>][] = [
     ...SignatureReverseMaps,
     ...CertificateReverseMaps,
     ...ProfileReverseMaps,
+    ...SomeoneReverseMaps,
     ...CommunicationEndpointReverseMaps
 ];
 

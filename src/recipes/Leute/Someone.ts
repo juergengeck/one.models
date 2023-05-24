@@ -1,4 +1,4 @@
-import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
+import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {Profile} from './Profile';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
@@ -53,6 +53,12 @@ export const SomeoneRecipe: Recipe = {
         }
     ]
 };
+
+// #### Reverse maps ####
+
+export const SomeoneReverseMaps: [OneObjectTypeNames, Set<string>][] = [
+    ['Someone', new Set(['*'])]
+];
 
 // #### one.core interfaces ####
 
