@@ -610,6 +610,17 @@ export default class LeuteConnectionsModule {
             // Setup outgoing routes
             if (remoteInstanceEndpoint.url !== undefined) {
                 for (const outgoingRoutesGroupId of this.config.outgoingRoutesGroupIds) {
+                    if (
+                        this.connectionRouteManager.isOutgoingWebsocketRouteExisting(
+                            remoteInstanceEndpoint.url,
+                            myInfo.instanceCryptoApi.publicEncryptionKey,
+                            remoteInstanceKey,
+                            outgoingRoutesGroupId
+                        )
+                    ) {
+                        continue;
+                    }
+
                     const route = this.connectionRouteManager.addOutgoingWebsocketRoute(
                         myInfo.instanceCryptoApi.createEncryptionApiWithKeysAndPerson(
                             remoteInstanceKey

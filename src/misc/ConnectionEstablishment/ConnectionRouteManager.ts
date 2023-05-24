@@ -108,6 +108,27 @@ export default class ConnectionRouteManager {
 
     // ######## add routes ########
 
+    isOutgoingWebsocketRouteExisting(
+        url: string,
+        localPublicKey: PublicKey,
+        remotePublicKey: PublicKey,
+        connectionRoutesGroupName: string
+    ): boolean {
+        const connectionGroup = this.connectionRoutesGroupMap.getGroup(
+            localPublicKey,
+            remotePublicKey,
+            connectionRoutesGroupName
+        );
+
+        if (connectionGroup === undefined) {
+            return false;
+        }
+
+        return connectionGroup.knownRoutes.some(
+            r => r.route.id === OutgoingWebsocketRoute.caluclateId(url)
+        );
+    }
+
     addOutgoingWebsocketRoute(
         cryptoApi: SymmetricCryptoApiWithKeys,
         url: string,

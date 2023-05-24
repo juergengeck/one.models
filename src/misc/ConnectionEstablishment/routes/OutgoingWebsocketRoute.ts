@@ -8,7 +8,8 @@ import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 const MessageBus = createMessageBus('OutgoingWebsocketRoute');
 
 export default class OutgoingWebsocketRoute implements ConnectionRoute {
-    public readonly type = 'OutgoingWebsocketRoute';
+    public static readonly staticType = 'OutgoingWebsocketRoute';
+    public readonly type = OutgoingWebsocketRoute.staticType;
     public readonly id;
     public readonly outgoing = true;
 
@@ -38,7 +39,7 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
         ) => void
     ) {
         this.url = url;
-        this.id = `${this.type}:${url}`;
+        this.id = OutgoingWebsocketRoute.caluclateId(url);
         this.cryptoApi = cryptoApi;
         this.onConnect = onConnect;
     }
@@ -71,5 +72,9 @@ export default class OutgoingWebsocketRoute implements ConnectionRoute {
         if (this.stopFn) {
             this.stopFn();
         }
+    }
+
+    static caluclateId(url: string): string {
+        return `${OutgoingWebsocketRoute.staticType}:${url}`;
     }
 }
