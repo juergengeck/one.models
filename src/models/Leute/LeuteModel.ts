@@ -183,7 +183,7 @@ export default class LeuteModel extends Model {
         disconnectFns.push(
             onVersionedObj.addListener(result => {
                 if (isVersionedResultOfType(result, 'Profile')) {
-                    this.addProfileFromResult.bind(this);
+                    this.addProfileFromResult(result).catch(console.error);
                 }
             })
         );
