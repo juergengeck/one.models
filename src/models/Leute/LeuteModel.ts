@@ -15,7 +15,10 @@ import type {
     OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
-import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
+import {
+    getAllIdObjectEntries,
+    getOnlyLatestReferencingObjsHashAndId
+} from '@refinio/one.core/lib/reverse-map-query';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
@@ -177,7 +180,13 @@ export default class LeuteModel extends Model {
         await this.saveAndLoad();
 
         const disconnectFns: Array<() => void> = [];
-        disconnectFns.push(onVersionedObj.addListener(this.addProfileFromResult.bind(this)));
+        disconnectFns.push(
+            onVersionedObj.addListener(result => {
+                if (isVersionedResultOfType(result, 'Profile')) {
+                    this.addProfileFromResult.bind(this);
+                }
+            })
+        );
         disconnectFns.push(
             onUnversionedObj.addListener(this.emitNewOneInstanceEndpointEvent.bind(this))
         );
@@ -460,8 +469,24 @@ export default class LeuteModel extends Model {
     public async getSomeone(personId: SHA256IdHash<Person>): Promise<SomeoneModel | undefined> {
         this.state.assertCurrentState('Initialised');
 
-        const allSomeones = [await this.me(), ...(await this.others())];
-        return allSomeones.find(someone => someone.identities().includes(personId));
+        if (this.leute === undefined) {
+            console.error(
+                'getSomeone: Leute model does not seem to be initialized (this.leute is null)'
+            );
+            return;
+        }
+
+        const entries = await getOnlyLatestReferencingObjsHashAndId(personId, 'Someone');
+
+        // Find the entry that is present in the leute list
+        const leute = this.leute;
+        const entry = entries.find(e => leute.me === e.idHash || leute.other.includes(e.idHash));
+
+        if (entry === undefined) {
+            return undefined;
+        }
+
+        return SomeoneModel.constructFromVersion(entry.hash);
     }
 
     /**
@@ -544,39 +569,7 @@ export default class LeuteModel extends Model {
      */
     public async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
         this.state.assertCurrentState('Initialised');
-
-        const profileObj = await getObjectByIdHash(profile);
-        const others = await this.others();
-        const me = await this.me();
-
-        const someone = others.find(other => other.identities().includes(profileObj.obj.personId));
-        if (someone === undefined) {
-            // TODO: it might happen that it's in the process of creating the someone, but the
-            //  profile was saved first. Maybe a lock is a better solution?
-            // Current workaround: ignore the profiles written by the owner of this instance
-            if (!me.identities().includes(profileObj.obj.owner)) {
-                const someoneNew = await SomeoneModel.constructWithNewSomeone(
-                    await createRandomString(32),
-                    profile
-                );
-                await this.addSomeoneElse(someoneNew.idHash);
-                this.onProfileUpdate.emit(profileObj.obj);
-            }
-        } else {
-            // on sync it could happen that the first profile
-            // is not the default one, so when the default
-            // profile is synced, we should correct it.
-            if (
-                profileObj.obj.profileId === 'default' &&
-                !me.identities().includes(profileObj.obj.owner)
-            ) {
-                await someone.setMainProfileIfNotDefault(profile);
-            }
-
-            await someone.addProfile(profile);
-
-            this.onProfileUpdate.emit(profileObj.obj);
-        }
+        await this.addProfileFromResult(await getObjectByIdHash(profile));
     }
 
     /**
@@ -995,13 +988,54 @@ export default class LeuteModel extends Model {
      * @param result
      * @private
      */
-    private async addProfileFromResult(result: VersionedObjectResult): Promise<void> {
-        if (isVersionedResultOfType(result, 'Profile')) {
-            await serializeWithType('addProfile', async () => {
-                await this.addProfile(result.idHash);
-            });
+    private async addProfileFromResult(result: VersionedObjectResult<Profile>): Promise<void> {
+        await serializeWithType('addProfile', async () => {
+            if (this.leute === undefined) {
+                console.error(
+                    'addProfileFromResult: Leute model does not seem to be initialized' +
+                        ' (this.leute is null)'
+                );
+                return;
+            }
+
+            const entries = await getOnlyLatestReferencingObjsHashAndId(
+                result.obj.personId,
+                'Someone'
+            );
+
+            // Find the entry that is present in the leute list
+            const leute = this.leute;
+            const entry = entries.find(
+                e => leute.me === e.idHash || leute.other.includes(e.idHash)
+            );
+
+            // If no someone was found, create a new one.
+            // Attention: We do currently not check if another someone removed from leute exists for
+            // this profile. So if a someone object is removed from the contacts of leute and a new
+            // profile is received, the contact will reappear with a new someone.
+            if (entry === undefined) {
+                const someoneNew = await SomeoneModel.constructWithNewSomeone(
+                    await createRandomString(32),
+                    result.idHash
+                );
+                await this.addSomeoneElse(someoneNew.idHash);
+                this.onProfileUpdate.emit(result.obj);
+            } else {
+                const someone = await SomeoneModel.constructFromVersion(entry.hash);
+
+                // on sync it could happen that the first profile
+                // is not the default one, so when the default
+                // profile is synced, we should correct it.
+                if (entry.idHash !== this.leute.me && result.obj.profileId === 'default') {
+                    await someone.setMainProfileIfNotDefault(result.idHash);
+                }
+
+                await someone.addProfile(result.idHash);
+                this.onProfileUpdate.emit(result.obj);
+            }
+
             this.onUpdated.emit();
-        }
+        });
     }
 
     /**
