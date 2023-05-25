@@ -554,7 +554,7 @@ export default class LeuteConnectionsModule {
         const gluePersonId =
             '02d4cf7973c56e4f5a85d20f607ad6653dfdf70bedabeda3b8181124d3262839' as SHA256IdHash<PersonId>;
 
-        for (const endpoint of await this.leute.findAllOneInstanceEndpointsForPerson(
+        for (const endpoint of await this.leuteModel.findAllOneInstanceEndpointsForPerson(
             gluePersonId
         )) {
             await this.setupRoutesForOneInstanceEndpoint(endpoint);
