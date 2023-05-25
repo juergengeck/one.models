@@ -10,7 +10,7 @@ import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds';
 import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds';
 import {OEvent} from '../OEvent';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Person} from '@refinio/one.core/lib/recipes';
+import type {Instance, Person, PersonId} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
     ensureHexString,
@@ -205,6 +205,7 @@ export default class LeuteConnectionsModule {
     // from my public instance key to my id - used to map the public key of the new connection to my ids
     private myIdentities: SHA256IdHash<Person>[]; // sync version of
     // this.leute.identities() so that connectionsInfo method doesn't have to be async.
+    private debugFirstRoutesSetup = true;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -304,6 +305,7 @@ export default class LeuteConnectionsModule {
      */
     async init(): Promise<void> {
         this.initialized = true;
+        this.debugFirstRoutesSetup = true;
 
         await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
@@ -543,11 +545,26 @@ export default class LeuteConnectionsModule {
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
      */
     private async setupRoutes(): Promise<void> {
+        if (!this.debugFirstRoutesSetup) {
+            return;
+        }
+
+        this.debugFirstRoutesSetup = false;
+
+        const gluePersonId =
+            '02d4cf7973c56e4f5a85d20f607ad6653dfdf70bedabeda3b8181124d3262839' as SHA256IdHash<PersonId>;
+
+        for (const endpoint of await this.leute.findAllOneInstanceEndpointsForPerson(
+            gluePersonId
+        )) {
+            await this.setupRoutesForOneInstanceEndpoint(endpoint);
+        }
+
         // We could do this in a single Promise.all, but ... perhaps this will spam too much
         // connections wildly, so hard to debug - let's leave it like this at the moment
-        for (const endpoint of await this.fetchOtherOneInstanceEndpointsFromLeute()) {
+        /*for (const endpoint of await this.fetchOtherOneInstanceEndpointsFromLeute()) {
             await this.setupRoutesForOneInstanceEndpoint(endpoint.instanceEndpoint);
-        }
+        }*/
 
         // Setup incoming catch all routes
         for (const myInfo of this.myPublicKeyToInstanceInfoMap.values()) {
