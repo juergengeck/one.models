@@ -285,9 +285,9 @@ export default class LeuteConnectionsModule {
                 return;
             }
 
-            this.updateMyIdentites().catch(console.trace);
+            /*this.updateMyIdentites().catch(console.trace);
             this.updateLocalInstancesMap().catch(console.trace);
-            this.setupRoutes().catch(console.trace);
+            this.setupRoutes().catch(console.trace);*/
         });
 
         // Setup event for new contact objects on contact management
