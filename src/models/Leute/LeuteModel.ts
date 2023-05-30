@@ -20,7 +20,6 @@ import {
     getOnlyLatestReferencingObjsHashAndId
 } from '@refinio/one.core/lib/reverse-map-query';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
     IdFileCreation,
     VersionedObjectResult
@@ -97,12 +96,21 @@ const ZERO_HASH = '0'.repeat(64);
  *    - obtain profiles
  */
 export default class LeuteModel extends Model {
-    public onProfileUpdate: OEvent<(profile: Profile) => void> = new OEvent();
-    public onNewOneInstanceEndpointEvent = new OEvent<
-        (communicationEndpoints: OneInstanceEndpoint) => void
+    // #### Events ####
+
+    public onProfileUpdate: OEvent<(profile: Profile, isMe: boolean) => void> = new OEvent();
+
+    // Emitted when a new instance endpoint was added to leute
+    // Note: It might be emitted also for already known endpoints at the moment.
+    public onNewOneInstanceEndpoint = new OEvent<
+        (endpoint: OneInstanceEndpoint, isMe: boolean) => void
     >();
+
     public beforeMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+
     public afterMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+
+    // #### Events - END ####
 
     public static readonly EVERYONE_GROUP_NAME = 'everyone';
 
@@ -186,9 +194,6 @@ export default class LeuteModel extends Model {
                     this.addProfileFromResult(result).catch(console.error);
                 }
             })
-        );
-        disconnectFns.push(
-            onUnversionedObj.addListener(this.emitNewOneInstanceEndpointEvent.bind(this))
         );
 
         if (this.createEveryoneGroup) {
@@ -1009,6 +1014,8 @@ export default class LeuteModel extends Model {
                 e => leute.me === e.idHash || leute.other.includes(e.idHash)
             );
 
+            const isMe = entry !== undefined && entry.idHash === this.leute.me;
+
             // If no someone was found, create a new one.
             // Attention: We do currently not check if another someone removed from leute exists for
             // this profile. So if a someone object is removed from the contacts of leute and a new
@@ -1019,19 +1026,27 @@ export default class LeuteModel extends Model {
                     result.idHash
                 );
                 await this.addSomeoneElse(someoneNew.idHash);
-                this.onProfileUpdate.emit(result.obj);
             } else {
                 const someone = await SomeoneModel.constructFromVersion(entry.hash);
 
                 // on sync it could happen that the first profile
                 // is not the default one, so when the default
                 // profile is synced, we should correct it.
-                if (entry.idHash !== this.leute.me && result.obj.profileId === 'default') {
+                if (!isMe && result.obj.profileId === 'default') {
                     await someone.setMainProfileIfNotDefault(result.idHash);
                 }
 
                 await someone.addProfile(result.idHash);
-                this.onProfileUpdate.emit(result.obj);
+            }
+
+            this.onProfileUpdate.emit(result.obj, isMe);
+
+            const profileModel = await ProfileModel.constructFromResult(result);
+            const endpoints = profileModel.endpointsOfType('OneInstanceEndpoint');
+
+            // Emit new instance endpoint event (emits it also when it is not new ...)
+            for (const endpoint of endpoints) {
+                this.onNewOneInstanceEndpoint.emit(endpoint, isMe);
             }
 
             this.onUpdated.emit();
@@ -1080,18 +1095,6 @@ export default class LeuteModel extends Model {
                     await group.saveAndLoad();
                 }
             });
-        }
-    }
-
-    /**
-     * Emit the appropriate event for the CommunicationModule. Otherwise it's not added to the
-     * list of known connections.
-     * @param result
-     * @private
-     */
-    private emitNewOneInstanceEndpointEvent(result: UnversionedObjectResult): void {
-        if (isUnversionedResultOfType(result, 'OneInstanceEndpoint')) {
-            this.onNewOneInstanceEndpointEvent.emit(result.obj);
         }
     }
 
