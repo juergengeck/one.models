@@ -205,7 +205,6 @@ export default class LeuteConnectionsModule {
     // from my public instance key to my id - used to map the public key of the new connection to my ids
     private myIdentities: SHA256IdHash<Person>[]; // sync version of
     // this.leute.identities() so that connectionsInfo method doesn't have to be async.
-    private debugFirstRoutesSetup = true;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -295,8 +294,6 @@ export default class LeuteConnectionsModule {
         });
 
         // Setup event for new contact objects on contact management
-        // At the moment this line is a bug, because it fires when OneInstanceEndpoints are
-        // written, but the OneInstanceEndpoint is not yet in the tree of leute objects.
         this.leuteModel.onNewOneInstanceEndpoint(async (oneInstanceEndpoint, isMe) => {
             this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint).catch(console.trace);
         });
