@@ -279,8 +279,12 @@ export default class LeuteConnectionsModule {
         });
 
         // Setup event for instance creation
-        this.leuteModel.onUpdated(() => {
+        this.leuteModel.onProfileUpdate((profile, isMe) => {
             if (!this.initialized) {
+                return;
+            }
+
+            if (!isMe) {
                 return;
             }
 
@@ -290,13 +294,9 @@ export default class LeuteConnectionsModule {
         });
 
         // Setup event for new contact objects on contact management
-        // At the moment this line is a bug, because it fires when OneInstanceEndpoints are
-        // written, but the OneInstanceEndpoint is not yet in the tree of leute objects.
-        /*this.leuteModel.onNewOneInstanceEndpointEvent(
-            async (oneInstanceEndpoint: OneInstanceEndpoint) => {
-                this.reconfigureConnections().catch(console.error);
-            }
-        );*/
+        this.leuteModel.onNewOneInstanceEndpoint(async (oneInstanceEndpoint, isMe) => {
+            this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint).catch(console.trace);
+        });
     }
 
     /**

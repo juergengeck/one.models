@@ -86,6 +86,17 @@ export default class ProfileModel {
     /**
      * Construct a new ProfileModel with a specific version loaded.
      */
+    public static async constructFromResult(
+        result: VersionedObjectResult<Profile>
+    ): Promise<ProfileModel> {
+        const newModel = new ProfileModel(result.idHash);
+        await newModel.updateModelDataFromProfile(result.obj, result.hash);
+        return newModel;
+    }
+
+    /**
+     * Construct a new ProfileModel with a specific version loaded.
+     */
     public static async constructFromVersion(version: SHA256Hash<Profile>): Promise<ProfileModel> {
         const profile = await getObject(version);
         const idHash = await calculateIdHashOfObj(profile);
