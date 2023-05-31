@@ -304,7 +304,6 @@ export default class LeuteConnectionsModule {
      */
     async init(): Promise<void> {
         this.initialized = true;
-        this.debugFirstRoutesSetup = true;
 
         await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
