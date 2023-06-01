@@ -1363,7 +1363,10 @@ export default class ChannelManager {
                 let commonHistoryHead: RawChannelEntry | null = null; // This will be the remaining history that doesn't need to be merged
                 const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
                 // hashes that need to be part of the new history
-                for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
+                for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                    iterators,
+                    firstVersionToMerge !== 0
+                )) {
                     commonHistoryHead = elem;
                     unmergedElements.push(elem);
                 }
@@ -1482,17 +1485,15 @@ export default class ChannelManager {
                 }
                 cacheEntry.mergedHandlers = [];
 
-                if (
-                    firstVersionToMerge === 0 &&
-                    unmergedElements.length === 0 &&
-                    commonHistoryHead
-                ) {
+                if (firstVersionToMerge === 0) {
+                    // If it is the first version - we need to also append the common history head,
+                    // so that it will be part of the event.
                     this.onUpdated.emit(
                         channelInfoIdHash,
                         channelId,
                         channelOwner || null,
                         new Date(commonHistoryHead.creationTime),
-                        [commonHistoryHead]
+                        [...unmergedElements, commonHistoryHead]
                     );
                 } else if (unmergedElements.length > 0) {
                     this.onUpdated.emit(
