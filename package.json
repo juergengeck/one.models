@@ -1,6 +1,6 @@
 {
     "name": "@refinio/one.models",
-    "version": "12.2.0",
+    "version": "12.2.1",
     "repository": "https://github.com/refinio/one.models",
     "license": "SEE LICENSE IN LICENSE.md",
     "private": true,
@@ -53,7 +53,7 @@
         "yargs": "*"
     },
     "peerDependencies": {
-        "@refinio/one.core": "^0.4.8"
+        "@refinio/one.core": "^0.4.9"
     },
     "devDependencies": {
         "@babel/core": "*",
