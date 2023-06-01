@@ -1485,7 +1485,7 @@ export default class ChannelManager {
                 }
                 cacheEntry.mergedHandlers = [];
 
-                if (firstVersionToMerge === 0) {
+                if (firstVersionToMerge === 0 && commonHistoryHead) {
                     // If it is the first version - we need to also append the common history head,
                     // so that it will be part of the event.
                     this.onUpdated.emit(
