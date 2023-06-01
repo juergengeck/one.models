@@ -1360,11 +1360,14 @@ export default class ChannelManager {
                 // Iterate over all channel versions simultaneously until
                 // 1) there is only a common history left
                 // 2) there is only one channel left with elements
-                let commonHistoryHead: SHA256Hash<ChannelEntry> | null = null; // This will be the remaining history that doesn't need to be merged
+                let commonHistoryHead: RawChannelEntry | null = null; // This will be the remaining history that doesn't need to be merged
                 const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
                 // hashes that need to be part of the new history
-                for await (const elem of ChannelManager.mergeIteratorMostCurrent(iterators, true)) {
-                    commonHistoryHead = elem.channelEntryHash;
+                for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                    iterators,
+                    firstVersionToMerge !== 0
+                )) {
+                    commonHistoryHead = elem;
                     unmergedElements.push(elem);
                 }
                 unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
@@ -1377,7 +1380,7 @@ export default class ChannelManager {
                     logWithId(
                         channelId,
                         channelOwner,
-                        `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead}`
+                        `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead.channelEntryHash}`
                     );
 
                     // Rebuild the channel by adding the unmerged elements of the channels on top of the
@@ -1385,12 +1388,12 @@ export default class ChannelManager {
                     let rebuiltHead;
                     if (unmergedElements.length > 0) {
                         const result = await ChannelManager.rebuildEntries(
-                            commonHistoryHead,
+                            commonHistoryHead.channelEntryHash,
                             unmergedElements
                         );
                         rebuiltHead = result.hash;
                     } else {
-                        rebuiltHead = commonHistoryHead;
+                        rebuiltHead = commonHistoryHead.channelEntryHash;
                     }
 
                     // Write the new channel head only if it differs from the previous one
@@ -1482,7 +1485,17 @@ export default class ChannelManager {
                 }
                 cacheEntry.mergedHandlers = [];
 
-                if (unmergedElements.length > 0) {
+                if (firstVersionToMerge === 0 && commonHistoryHead) {
+                    // If it is the first version - we need to also append the common history head,
+                    // so that it will be part of the event.
+                    this.onUpdated.emit(
+                        channelInfoIdHash,
+                        channelId,
+                        channelOwner || null,
+                        new Date(commonHistoryHead.creationTime),
+                        [...unmergedElements, commonHistoryHead]
+                    );
+                } else if (unmergedElements.length > 0) {
                     this.onUpdated.emit(
                         channelInfoIdHash,
                         channelId,
