@@ -31,6 +31,7 @@ import {
     onVersionedObj
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstanceInfo} from '../../misc/ConnectionEstablishment/LeuteConnectionsModule';
@@ -1135,7 +1136,11 @@ export default class LeuteModel extends Model {
      * Load the latest someone version.
      */
     private async loadLatestVersion(): Promise<void> {
-        const result = await getObjectByIdHash(this.idHash);
+        const idHash = await calculateIdHashOfObj({
+            $type$: 'Leute',
+            appId: 'one.leute'
+        });
+        const result = await getObjectByIdHash(idHash);
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
     }
