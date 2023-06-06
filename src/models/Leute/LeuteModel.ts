@@ -153,39 +153,46 @@ export default class LeuteModel extends Model {
             throw new Error('The instance has no owner.');
         }
 
-        const instanceId = getInstanceIdHash();
-        if (instanceId === undefined) {
-            throw new Error('The instance is not initialized.');
+        try {
+            await this.loadLatestVersion();
+        } catch (e) {
+            const instanceId = getInstanceIdHash();
+            if (instanceId === undefined) {
+                throw new Error('The instance is not initialized.');
+            }
+
+            // One Instance endpoints for main instance with keys
+            const endpoint: OneInstanceEndpoint = {
+                $type$: 'OneInstanceEndpoint',
+                personId,
+                url: this.commserverUrl,
+                instanceId: instanceId,
+                instanceKeys: await getDefaultKeys(instanceId),
+                personKeys: await getDefaultKeys(personId)
+            };
+
+            // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
+            // that creation is only done if the objects don't exist.
+            const profile = await ProfileModel.constructWithNewProfile(
+                personId,
+                personId,
+                'default',
+                [endpoint]
+            );
+            const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
+
+            // Assign the leute object to the member for the saveAndLoad function
+            // I know this member passing around isn't ideal. We should fix this later, to make it more
+            // explicit what happens here.
+            this.leute = {
+                $type$: 'Leute',
+                appId: 'one.leute',
+                me: someone.idHash,
+                other: [],
+                group: []
+            };
+            await this.saveAndLoad();
         }
-
-        // One Instance endpoints for main instance with keys
-        const endpoint: OneInstanceEndpoint = {
-            $type$: 'OneInstanceEndpoint',
-            personId,
-            url: this.commserverUrl,
-            instanceId: instanceId,
-            instanceKeys: await getDefaultKeys(instanceId),
-            personKeys: await getDefaultKeys(personId)
-        };
-
-        // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
-        // that creation is only done if the objects don't exist.
-        const profile = await ProfileModel.constructWithNewProfile(personId, personId, 'default', [
-            endpoint
-        ]);
-        const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
-
-        // Assign the leute object to the member for the saveAndLoad function
-        // I know this member passing around isn't ideal. We should fix this later, to make it more
-        // explicit what happens here.
-        this.leute = {
-            $type$: 'Leute',
-            appId: 'one.leute',
-            me: someone.idHash,
-            other: [],
-            group: []
-        };
-        await this.saveAndLoad();
 
         const disconnectFns: Array<() => void> = [];
         disconnectFns.push(
@@ -202,10 +209,7 @@ export default class LeuteModel extends Model {
                 group.persons.push(personId);
                 await group.saveAndLoad();
             }
-            disconnectFns.push(
-                onVersionedObj.addListener(this.addPersonToEveryoneGroup.bind(this))
-            );
-            disconnectFns.push(onIdObj.addListener(this.addIdPersonToEveryoneGroup.bind(this)));
+            disconnectFns.push(onIdObj.addListener(this.addPersonToEveryoneGroup.bind(this)));
         }
 
         this.shutdownInternal = async () => {
@@ -1061,27 +1065,7 @@ export default class LeuteModel extends Model {
      * @param result
      * @private
      */
-    private async addPersonToEveryoneGroup(result: VersionedObjectResult): Promise<void> {
-        if (isVersionedResultOfType(result, 'Person')) {
-            await serializeWithType('addPerson', async () => {
-                const group = await LeuteModel.everyoneGroup();
-                if (group.persons.find(person => person === result.idHash) === undefined) {
-                    group.persons.push(result.idHash);
-                    await group.saveAndLoad();
-                }
-            });
-        }
-    }
-
-    /**
-     * Add a person to the respective {@link LeuteModel.EVERYONE_GROUP_NAME} group.
-     *
-     * This call is registered at one.core for listening for new persons.
-     *
-     * @param result
-     * @private
-     */
-    private async addIdPersonToEveryoneGroup(
+    private async addPersonToEveryoneGroup(
         result: IdFileCreation<OneVersionedObjectTypes | OneIdObjectTypes>
     ): Promise<void> {
         const object = await getIdObject(
@@ -1145,6 +1129,15 @@ export default class LeuteModel extends Model {
         return profileModels2d.reduce((prev, next) => {
             return prev.concat(next);
         });
+    }
+
+    /**
+     * Load the latest someone version.
+     */
+    private async loadLatestVersion(): Promise<void> {
+        const result = await getObjectByIdHash(this.idHash);
+
+        await this.updateModelDataFromLeute(result.obj, result.hash);
     }
 
     /**
