@@ -499,6 +499,30 @@ export default class LeuteModel extends Model {
         return SomeoneModel.constructFromVersion(entry.hash);
     }
 
+    async hasProfile(profileId: SHA256IdHash<Profile>): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            console.error(
+                'hasProfile: Leute model does not seem to be initialized (this.leute is null)'
+            );
+            return;
+        }
+
+        const someones = await getOnlyLatestReferencingObjsHashAndId(profileId, 'Someone');
+
+        for (const someone of someones) {
+            if (this.leute.other.includes(someone.idHash)) {
+                return true;
+            }
+            if (this.leute.me === someone.idHash) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Return the main ProfileModel of the SomeoneModel identified by the personId.
      * @param personId
