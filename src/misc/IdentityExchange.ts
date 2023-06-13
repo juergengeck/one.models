@@ -5,7 +5,7 @@
 
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {isHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
@@ -205,7 +205,7 @@ export async function convertIdentityToOneInstanceEndpoint(
             name: identity.instanceName,
             owner: personHash
         })
-    ).idHash;
+    ).idHash as SHA256IdHash<Instance>;
 
     // Step 4: Create instance keys object
     const instanceKeysHash = (

@@ -162,7 +162,7 @@ export async function createInstanceIfNotExist(
     });
 
     return {
-        instanceId: status.idHash,
+        instanceId: status.idHash as SHA256IdHash<Instance>,
         exists: status.status === 'exists'
     };
 }
