@@ -19,6 +19,7 @@ import {
     getAllIdObjectEntries,
     getOnlyLatestReferencingObjsHashAndId
 } from '@refinio/one.core/lib/reverse-map-query';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
     IdFileCreation,
@@ -45,7 +46,7 @@ import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../..
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import type {Leute} from '../../recipes/Leute/Leute';
-import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
+import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
 import type {CreationTime} from '../../recipes/MetaRecipes';
@@ -162,14 +163,24 @@ export default class LeuteModel extends Model {
                 throw new Error('The instance is not initialized.');
             }
 
+            const instanceKeysHash = await getDefaultKeys(instanceId);
+            const personKeysHash = await getDefaultKeys(personId);
+
             // One Instance endpoints for main instance with keys
             const endpoint: OneInstanceEndpoint = {
                 $type$: 'OneInstanceEndpoint',
                 personId,
                 url: this.commserverUrl,
                 instanceId: instanceId,
-                instanceKeys: await getDefaultKeys(instanceId),
-                personKeys: await getDefaultKeys(personId)
+                instanceKeys: instanceKeysHash,
+                personKeys: personKeysHash
+            };
+
+            const personKeys = await getObject(personKeysHash);
+
+            const signKey: SignKey = {
+                $type$: 'SignKey',
+                key: personKeys.publicSignKey
             };
 
             // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
@@ -178,8 +189,10 @@ export default class LeuteModel extends Model {
                 personId,
                 personId,
                 'default',
-                [endpoint]
+                [endpoint],
+                [signKey]
             );
+
             const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
 
             // Assign the leute object to the member for the saveAndLoad function

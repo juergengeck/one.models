@@ -1,4 +1,5 @@
 import type {BLOB, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
@@ -8,21 +9,32 @@ import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
  * - profile image
  * - status
  */
-
 export interface PersonName {
     $type$: 'PersonName';
     name: string;
 }
 
+/**
+ * Image used to represent the person.
+ */
+export interface ProfileImage {
+    $type$: 'ProfileImage';
+    image: SHA256Hash<BLOB>;
+}
+
+/**
+ * Status as text
+ */
 export interface PersonStatus {
     $type$: 'PersonStatus';
     value: string;
     timestamp: number;
-    // TODO To be defined after we decide on the location data structure. It's set as
-    //  string to be visible that it exists.
     location: string;
 }
 
+/**
+ * Image used as status in profiles
+ */
 export interface PersonImage {
     $type$: 'PersonImage';
     image: SHA256Hash<BLOB>;
@@ -30,9 +42,14 @@ export interface PersonImage {
     location: string;
 }
 
-export interface ProfileImage {
-    $type$: 'ProfileImage';
-    image: SHA256Hash<BLOB>;
+export interface SignKey {
+    $type$: 'SignKey';
+    key: HexString;
+}
+
+export interface EncryptionKey {
+    $type$: 'EncryptionKey';
+    key: HexString;
 }
 
 // #### type check magic ####
@@ -42,6 +59,8 @@ export type PersonDescriptionInterfaces = {
     ProfileImage: ProfileImage;
     PersonStatus: PersonStatus;
     PersonImage: PersonImage;
+    SignKey: SignKey;
+    EncryptionKey: EncryptionKey;
 };
 export type PersonDescriptionTypes = PersonDescriptionInterfaces[keyof PersonDescriptionInterfaces];
 export type PersonDescriptionTypeNames = keyof PersonDescriptionInterfaces;
@@ -49,7 +68,10 @@ export type PersonDescriptionTypeNames = keyof PersonDescriptionInterfaces;
 export const PersonDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
     'PersonName',
     'ProfileImage',
-    'PersonStatus'
+    'PersonStatus',
+    'PersonImage',
+    'SignKey',
+    'EncryptionKey'
 ]);
 
 /**
@@ -127,14 +149,46 @@ export const ProfileImageRecipe: Recipe = {
     ]
 };
 
+export const SignKeyRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'SignKey',
+    rule: [
+        {
+            itemprop: 'key',
+            itemtype: {type: 'string', regexp: /^[A-Za-z0-9+/]{64}$/}
+        }
+    ]
+};
+
+export const EncryptionKeyRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'EncryptionKey',
+    rule: [
+        {
+            itemprop: 'key',
+            itemtype: {type: 'string', regexp: /^[A-Za-z0-9+/]{64}$/}
+        }
+    ]
+};
+
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         PersonName: PersonName;
-        PersonStatus: PersonStatus;
         ProfileImage: ProfileImage;
+        PersonStatus: PersonStatus;
         PersonImage: PersonImage;
+        SignKey: SignKey;
+        EncryptionKey: EncryptionKey;
     }
 }
-export default [PersonNameRecipe, PersonStatusRecipe, ProfileImageRecipe, PersonImageRecipe];
+
+export default [
+    PersonNameRecipe,
+    ProfileImageRecipe,
+    PersonStatusRecipe,
+    PersonImageRecipe,
+    SignKeyRecipe,
+    EncryptionKeyRecipe
+];

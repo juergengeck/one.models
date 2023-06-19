@@ -135,18 +135,46 @@ export const AffirmationCertificateRecipe: Recipe = {
     ]
 };
 
+/**
+ * TS Interface for RelationCertificateRecipe
+ */
+export interface TrustKeysCertificate {
+    $type$: 'TrustKeysCertificate';
+    profile: SHA256Hash<Profile>;
+}
+
+/**
+ * This certificate affirms the information in the pointed to object.
+ *
+ * [signature.issuer] asserts that [data] is true
+ */
+export const TrustKeysCertificateRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'TrustKeysCertificate',
+    rule: [
+        {
+            itemprop: 'data',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
+        }
+    ]
+};
+
 const CertificateRecipes: Recipe[] = [
     AccessUnversionedObjectCertificateRecipe,
     AccessVersionedObjectCertificateRecipe,
     RelationCertificateRecipe,
-    AffirmationCertificateRecipe
+    AffirmationCertificateRecipe,
+    TrustKeysCertificateRecipe
 ];
 
 // #### Reverse maps ####
 
 export const CertificateReverseMaps: [OneObjectTypeNames, Set<string>][] = [
-    ['RelationCertificate', new Set(['person1', 'person2'])],
-    ['AffirmationCertificate', new Set(['data'])]
+    ['AccessUnversionedObjectCertificate', new Set(['*'])],
+    ['AccessVersionedObjectCertificate', new Set(['*'])],
+    ['RelationCertificate', new Set(['*'])],
+    ['AffirmationCertificate', new Set(['*'])],
+    ['TrustKeysCertificate', new Set(['*'])]
 ];
 
 // #### one.core interfaces ####
@@ -157,6 +185,8 @@ declare module '@OneObjectInterfaces' {
         AccessVersionedObjectCertificate: AccessVersionedObjectCertificate;
         RelationCertificate: RelationCertificate;
         AffirmationCertificate: AffirmationCertificate;
+        TrustKeysCertificate: TrustKeysCertificate;
+        // Zertificate um jemandem die Rechte zu geben neue Schlüssel einzubringen
     }
 }
 

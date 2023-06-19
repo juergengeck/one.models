@@ -1,19 +1,22 @@
-import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {
+    Person,
+    Recipe,
+    OneObjectTypeNames,
+    OneObjectTypes
+} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {
-    HexString,
-    HexStringRegex
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {HexStringRegex} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 // #### Typescript interfaces ####
 
 /**
  * TS interface for SignatureRecipe.
  */
-export interface Signature {
+export interface Signature<T extends OneObjectTypes = OneObjectTypes> {
     $type$: 'Signature';
     issuer: SHA256IdHash<Person>;
-    data: SHA256Hash;
+    data: SHA256Hash<T>;
     signature: HexString;
 }
 
