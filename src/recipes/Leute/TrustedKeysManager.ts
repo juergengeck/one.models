@@ -1,6 +1,4 @@
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
-import {getDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {
     OneObjectInterfaces,
     OneObjectTypeNames,
