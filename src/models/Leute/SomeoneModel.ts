@@ -1,5 +1,6 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {Person} from '@refinio/one.core/lib/recipes';
+import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
@@ -495,6 +496,78 @@ export default class SomeoneModel {
         return descriptions;
     }
 
+    public async getMainProfileDisplayName(): Promise<string> {
+        try {
+            const profile = await this.mainProfile();
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length === 0) {
+                return 'undefined';
+            }
+            return personNames[0].name;
+        } catch (_) {
+            return 'undefined';
+        }
+    }
+
+    /**
+     * Get the profile name from one of the default profiles.
+     *
+     * It will first try to find the profile that we edited (I am owner).
+     * Then it will try to find the profile that the person itself edited (He is owner)
+     * Then it will look for a default profile from any owner.
+     *
+     * @param identity
+     */
+    public async getDefaultProfileDisplayName(identity: SHA256IdHash<Person>): Promise<string> {
+        try {
+            const profileHashes = await getAllIdObjectEntries<'Profile'>(identity, 'Profile');
+            const profileIdObjs = await Promise.all(
+                profileHashes.map(idHash => getIdObject<Profile>(idHash))
+            );
+            const defaultProfileIdObjs = profileIdObjs.filter(
+                profile => profile.profileId === 'default' && profile.personId === identity
+            );
+            const defaultProfiles = await Promise.all(
+                defaultProfileIdObjs.map(async idObj =>
+                    ProfileModel.constructFromLatestVersionByIdFields(
+                        idObj.personId,
+                        idObj.owner,
+                        idObj.profileId
+                    )
+                )
+            );
+
+            const myId = await this.mainIdentity();
+            const meOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === myId
+            );
+            if (meOwner !== undefined) {
+                return meOwner;
+            }
+
+            const selfOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === identity
+            );
+            if (selfOwner !== undefined) {
+                return selfOwner;
+            }
+
+            const anyOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                _profile => true
+            );
+            if (anyOwner !== undefined) {
+                return anyOwner;
+            }
+
+            return identity;
+        } catch (_) {
+            return identity;
+        }
+    }
+
     // ######## private stuff ########
 
     /**
@@ -518,5 +591,26 @@ export default class SomeoneModel {
         this.pMainProfile = someone.mainProfile;
         this.pLoadedVersion = version;
         this.someone = someone;
+    }
+
+    /**
+     * Get the person name from the first profile that matches the predicate.
+     *
+     * @param profiles
+     * @param predicate
+     * @private
+     */
+    private static getPersonNameFromFilteredProfiles(
+        profiles: ProfileModel[],
+        predicate: (profile: ProfileModel) => boolean
+    ): string | undefined {
+        const filteredProfiles = profiles.filter(predicate);
+        for (const profile of filteredProfiles) {
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length > 0) {
+                return personNames[0].name;
+            }
+        }
+        return undefined;
     }
 }

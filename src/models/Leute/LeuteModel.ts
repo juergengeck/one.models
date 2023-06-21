@@ -15,10 +15,7 @@ import type {
     OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
-import {
-    getAllIdObjectEntries,
-    getOnlyLatestReferencingObjsHashAndId
-} from '@refinio/one.core/lib/reverse-map-query';
+import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
@@ -519,7 +516,7 @@ export default class LeuteModel extends Model {
             console.error(
                 'hasProfile: Leute model does not seem to be initialized (this.leute is null)'
             );
-            return;
+            return false;
         }
 
         const someones = await getOnlyLatestReferencingObjsHashAndId(profileId, 'Someone');
@@ -817,19 +814,18 @@ export default class LeuteModel extends Model {
     /**
      * Get the profile name from the main profile.
      *
-     * @param person
+     * @param personId
      */
-    public async getMainProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
-        try {
-            const profile = await this.getMainProfile(person);
-            const personNames = profile.descriptionsOfType('PersonName');
-            if (personNames.length === 0) {
-                return 'undefined';
-            }
-            return personNames[0].name;
-        } catch (_) {
+    public async getMainProfileDisplayName(personId: SHA256IdHash<Person>): Promise<string> {
+        this.state.assertCurrentState('Initialised');
+
+        const someone = await this.getSomeone(personId);
+
+        if (someone === undefined) {
             return 'undefined';
         }
+
+        return someone.getMainProfileDisplayName();
     }
 
     /**
@@ -839,56 +835,18 @@ export default class LeuteModel extends Model {
      * Then it will try to find the profile that the person itself edited (He is owner)
      * Then it will look for a default profile from any owner.
      *
-     * @param person
+     * @param personId
      */
-    public async getDefaultProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
-        try {
-            const profileHashes = await getAllIdObjectEntries<'Profile'>(person, 'Profile');
-            const profileIdObjs = await Promise.all(
-                profileHashes.map(idHash => getIdObject<Profile>(idHash))
-            );
-            const defaultProfileIdObjs = profileIdObjs.filter(
-                profile => profile.profileId === 'default' && profile.personId === person
-            );
-            const defaultProfiles = await Promise.all(
-                defaultProfileIdObjs.map(async idObj =>
-                    ProfileModel.constructFromLatestVersionByIdFields(
-                        idObj.personId,
-                        idObj.owner,
-                        idObj.profileId
-                    )
-                )
-            );
+    public async getDefaultProfileDisplayName(personId: SHA256IdHash<Person>): Promise<string> {
+        this.state.assertCurrentState('Initialised');
 
-            const myId = await this.myMainIdentity();
-            const meOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                profile => profile.owner === myId
-            );
-            if (meOwner !== undefined) {
-                return meOwner;
-            }
+        const someone = await this.getSomeone(personId);
 
-            const selfOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                profile => profile.owner === person
-            );
-            if (selfOwner !== undefined) {
-                return selfOwner;
-            }
-
-            const anyOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                _profile => true
-            );
-            if (anyOwner !== undefined) {
-                return anyOwner;
-            }
-
-            return person;
-        } catch (_) {
-            return person;
+        if (someone === undefined) {
+            return 'undefined';
         }
+
+        return someone.getDefaultProfileDisplayName(personId);
     }
 
     /**
@@ -1134,20 +1092,6 @@ export default class LeuteModel extends Model {
             this.pLoadedVersion = result.hash;
             this.onUpdated.emit();
         }
-    }
-
-    private static getPersonNameFromFilteredProfiles(
-        profiles: ProfileModel[],
-        predicate: (profile: ProfileModel) => boolean
-    ): string | undefined {
-        const filteredProfiles = profiles.filter(predicate);
-        for (const profile of filteredProfiles) {
-            const personNames = profile.descriptionsOfType('PersonName');
-            if (personNames.length > 0) {
-                return personNames[0].name;
-            }
-        }
-        return undefined;
     }
 
     // ######## private stuff - Load & Save ########

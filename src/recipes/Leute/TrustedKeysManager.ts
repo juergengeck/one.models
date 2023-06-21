@@ -50,13 +50,13 @@ export default class TrustedKeysManager {
         this.leute = leute;
     }
 
-    getTrustedKeys(): Promise<
+    /*getTrustedKeys(): Promise<
         Map<SHA256IdHash>,
         Array<{
             reason: string;
             key: PublicSignKey;
         }>
-    > {}
+    > {}*/
 
     /*    async getTrustedKeysForPerson(person: SHA256IdHash<Person>): Promise<PublicSignKey[]> {
         // If we have a secret key we trust it unconditionally at the moment.
@@ -67,7 +67,7 @@ export default class TrustedKeysManager {
         defaultKey.
     }*/
 
-    async buildCertificateMap(): void {
+    async buildCertificateMap(): Promise<void> {
         const profilesMap = new Map<SHA256IdHash<Profile>, Map<SHA256Hash<Profile>, ProfileData>>();
         const keys = new Map<HexString, ProfileData[]>();
         const keysForPerson = new Map<SHA256IdHash<Person>, HexString>();
