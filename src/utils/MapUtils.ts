@@ -15,7 +15,7 @@ export function getOrCreate<M extends Map<any, any>>(
 ): MapValueType<M> {
     const value = map.get(k);
     if (value === undefined) {
-        const newValue = typeof v === 'function' ? v() : v;
+        const newValue = typeof v === 'function' ? (v as () => MapValueType<M>)() : v;
         map.set(k, newValue);
         return newValue;
     } else {

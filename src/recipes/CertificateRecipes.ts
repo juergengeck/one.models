@@ -5,6 +5,7 @@ import type {
     OneObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Profile} from './Leute/Profile';
 
 // #### Typescript interfaces  & Recipes ####
 

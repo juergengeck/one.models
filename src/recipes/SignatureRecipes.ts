@@ -13,10 +13,10 @@ import {HexStringRegex} from '@refinio/one.core/lib/util/arraybuffer-to-and-from
 /**
  * TS interface for SignatureRecipe.
  */
-export interface Signature<T extends OneObjectTypes = OneObjectTypes> {
+export interface Signature {
     $type$: 'Signature';
     issuer: SHA256IdHash<Person>;
-    data: SHA256Hash<T>;
+    data: SHA256Hash;
     signature: HexString;
 }
 

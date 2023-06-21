@@ -134,8 +134,8 @@ export default class TrustedKeysManager {
 type ArrayElement<A> = A extends readonly (infer T)[] ? T : A;
 
 type CertificateData<T extends OneObjectTypes> = {
-    signature: Signature<T>;
-    signatureHash: SHA256Hash<Signature<T>>;
+    signature: Signature;
+    signatureHash: SHA256Hash<Signature>;
     certificate: T;
     certificateHash: SHA256Hash<T>;
 };
