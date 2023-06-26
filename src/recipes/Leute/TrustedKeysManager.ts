@@ -1,4 +1,6 @@
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {getDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {
     OneObjectInterfaces,
     OneObjectTypeNames,
@@ -48,6 +50,10 @@ export default class TrustedKeysManager {
         this.leute = leute;
     }
 
+    async init(): Promise<void> {}
+
+    async shutdown(): Promise<void> {}
+
     /*getTrustedKeys(): Promise<
         Map<SHA256IdHash>,
         Array<{
@@ -56,14 +62,16 @@ export default class TrustedKeysManager {
         }>
     > {}*/
 
-    /*    async getTrustedKeysForPerson(person: SHA256IdHash<Person>): Promise<PublicSignKey[]> {
+    async getTrustedKeysForPerson(person: SHA256IdHash<Person>): Promise<PublicSignKey[]> {
         // If we have a secret key we trust it unconditionally at the moment.
-        if (hasDefaultKeys(person)) {
-            await getDefaultKeys()
+        if (await hasDefaultKeys(person)) {
+            const defaultKeys = await getDefaultKeys(person);
+            const keys = await getPublicKeys(defaultKeys);
+            return [keys.publicSignKey];
         }
-        const defaultKey = await getDefaultKeys(person);
-        defaultKey.
-    }*/
+
+        return [];
+    }
 
     async buildCertificateMap(): Promise<void> {
         const profilesMap = new Map<SHA256IdHash<Profile>, Map<SHA256Hash<Profile>, ProfileData>>();

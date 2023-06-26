@@ -46,6 +46,7 @@ import type {Leute} from '../../recipes/Leute/Leute';
 import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
+import TrustedKeysManager from '../../recipes/Leute/TrustedKeysManager';
 import type {CreationTime} from '../../recipes/MetaRecipes';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import {Model} from '../Model';
@@ -121,6 +122,12 @@ export default class LeuteModel extends Model {
     private shutdownInternal: () => Promise<void> = async () => {
         /*...*/
     };
+
+    private trustedKeysManager = new TrustedKeysManager(this);
+
+    get trust(): TrustedKeysManager {
+        return this.trustedKeysManager;
+    }
 
     /**
      * Constructor
@@ -224,6 +231,7 @@ export default class LeuteModel extends Model {
         }
 
         this.shutdownInternal = async () => {
+            await this.trust.shutdown();
             for (const disconnectFn of disconnectFns) {
                 disconnectFn();
             }
@@ -234,6 +242,7 @@ export default class LeuteModel extends Model {
             };
         };
 
+        await this.trust.init();
         this.state.triggerEvent('init');
     }
 
