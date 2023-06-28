@@ -1,4 +1,5 @@
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import {getDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {
@@ -9,16 +10,27 @@ import type {
 } from '@refinio/one.core/lib/recipes';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
-import type {LeuteModel} from '../../models';
-import ProfileModel from '../../models/Leute/ProfileModel';
+import tweetnacl from 'tweetnacl';
+import type {LeuteModel} from '../index';
+import ProfileModel from './ProfileModel';
 import {getOrCreate} from '../../utils/MapUtils';
-import type {AffirmationCertificate, TrustKeysCertificate} from '../CertificateRecipes';
-import type {Signature} from '../SignatureRecipes';
-import type {Profile} from './Profile';
+import type {AffirmationCertificate, TrustKeysCertificate} from '../../recipes/CertificateRecipes';
+import type {Signature} from '../../recipes/SignatureRecipes';
+import type {Profile} from '../../recipes/Leute/Profile';
+
+export type CertificateData<T extends OneObjectTypes> = {
+    signature: Signature;
+    signatureHash: SHA256Hash<Signature>;
+    certificate: T;
+    certificateHash: SHA256Hash<T>;
+    trusted: boolean;
+};
 
 export type KeysWithReason = {
     reason: string;
@@ -43,6 +55,8 @@ export type ProfileData = {
     trustKeysCertificates: Array<CertificateData<TrustKeysCertificate>>;
 };
 
+//type ArrayElement<A> = A extends readonly (infer T)[] ? T : A;
+
 export default class TrustedKeysManager {
     private leute: LeuteModel;
 
@@ -54,14 +68,6 @@ export default class TrustedKeysManager {
 
     async shutdown(): Promise<void> {}
 
-    /*getTrustedKeys(): Promise<
-        Map<SHA256IdHash>,
-        Array<{
-            reason: string;
-            key: PublicSignKey;
-        }>
-    > {}*/
-
     async getTrustedKeysForPerson(person: SHA256IdHash<Person>): Promise<PublicSignKey[]> {
         // If we have a secret key we trust it unconditionally at the moment.
         if (await hasDefaultKeys(person)) {
@@ -71,6 +77,71 @@ export default class TrustedKeysManager {
         }
 
         return [];
+    }
+
+    async verifySignature(signature: Signature): Promise<boolean> {
+        const trustedKeys = await this.getTrustedKeysForPerson(signature.issuer);
+        for (const trustedKey of trustedKeys) {
+            if (TrustedKeysManager.verifySignatureLowLevel(trustedKey, signature)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static verifySignatureLowLevel(key: PublicSignKey, signature: Signature): boolean {
+        return tweetnacl.sign.detached.verify(
+            new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
+            hexToUint8Array(signature.signature), // hex string -> UInt8Array (binary)
+            key
+        );
+    }
+
+    async getCertificatesOfType<T extends OneObjectTypeNames>(
+        data: SHA256Hash | SHA256IdHash,
+        type: T
+    ): Promise<Array<CertificateData<OneObjectInterfaces[T]>>> {
+        const certificates: Array<CertificateData<OneObjectInterfaces[T]>> = [];
+
+        const certificateHashes = await getAllEntries(data, type);
+        for (const certificateHash of certificateHashes) {
+            const certificate = await getObject(certificateHash);
+
+            const signatureHashes = await getAllEntries(certificateHash, 'Signature');
+
+            for (const signatureHash of signatureHashes) {
+                const signature = await getObject(signatureHash);
+
+                certificates.push({
+                    certificate,
+                    certificateHash,
+                    signature,
+                    signatureHash,
+                    trusted: await this.verifySignature(signature)
+                });
+            }
+        }
+
+        return certificates;
+    }
+
+    async getCertificates(
+        data: SHA256Hash | SHA256IdHash
+    ): Promise<Array<CertificateData<OneObjectTypes>>> {
+        const iHash = getInstanceIdHash();
+        if (iHash === undefined) {
+            throw new Error('Instance was not initialized');
+        }
+
+        const i = await getObjectByIdHash(iHash);
+
+        const certificates: Array<CertificateData<OneObjectTypes>> = [];
+        for (const type of i.obj.enabledReverseMapTypes.keys()) {
+            const c = await this.getCertificatesOfType(data, type);
+            certificates.push(...c);
+        }
+
+        return certificates;
     }
 
     async buildCertificateMap(): Promise<void> {
@@ -131,44 +202,14 @@ export default class TrustedKeysManager {
 
             timestamp,
 
-            affirmationCertificates: await getCertificates(profileHash, 'AffirmationCertificate'),
-            trustKeysCertificates: await getCertificates(profileHash, 'TrustKeysCertificate')
+            affirmationCertificates: await this.getCertificatesOfType(
+                profileHash,
+                'AffirmationCertificate'
+            ),
+            trustKeysCertificates: await this.getCertificatesOfType(
+                profileHash,
+                'TrustKeysCertificate'
+            )
         };
     }
-}
-
-type ArrayElement<A> = A extends readonly (infer T)[] ? T : A;
-
-type CertificateData<T extends OneObjectTypes> = {
-    signature: Signature;
-    signatureHash: SHA256Hash<Signature>;
-    certificate: T;
-    certificateHash: SHA256Hash<T>;
-};
-
-async function getCertificates<T extends OneObjectTypeNames>(
-    data: SHA256Hash,
-    type: T
-): Promise<Array<CertificateData<OneObjectInterfaces[T]>>> {
-    const certificates: Array<CertificateData<OneObjectInterfaces[T]>> = [];
-
-    const certificateHashes = await getAllEntries(data, type);
-    for (const certificateHash of certificateHashes) {
-        const certificate = await getObject(certificateHash);
-
-        const signatureHashes = await getAllEntries(certificateHash, 'Signature');
-
-        for (const signatureHash of signatureHashes) {
-            const signature = await getObject(signatureHash);
-
-            certificates.push({
-                certificate,
-                certificateHash,
-                signature,
-                signatureHash
-            });
-        }
-    }
-
-    return certificates;
 }

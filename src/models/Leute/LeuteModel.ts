@@ -46,7 +46,7 @@ import type {Leute} from '../../recipes/Leute/Leute';
 import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
-import TrustedKeysManager from '../../recipes/Leute/TrustedKeysManager';
+import TrustedKeysManager from './TrustedKeysManager';
 import type {CreationTime} from '../../recipes/MetaRecipes';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import {Model} from '../Model';
