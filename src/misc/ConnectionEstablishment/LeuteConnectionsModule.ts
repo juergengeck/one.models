@@ -769,16 +769,6 @@ export default class LeuteConnectionsModule {
         connectionRoutesGroupName: string,
         initiatedLocally: boolean
     ): Promise<void> {
-        if (
-            uint8arrayToHexString(remotePublicKey) !==
-                'f194122548cd5c065c1fc6ac88cc1ddd95d67765bc0d1ae7bde3157ceee79e36' &&
-            uint8arrayToHexString(remotePublicKey) !==
-                'ffc5c167ed6d6f017c81dd5b80cf019bee7ff7ace8038e5acbbd96dd0c265f11'
-        ) {
-            conn.close('YOU ARE NOT A GUEST OF THIS FINE ESTABLISHMENT!');
-            return;
-        }
-
         const peerId = createPeerId(localPublicKey, remotePublicKey);
 
         const oneInstanceEndpoint = this.knownPeerMap.get(peerId);
