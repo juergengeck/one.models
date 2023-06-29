@@ -466,12 +466,14 @@ export default class ChannelManager {
      * owner is NULL, then no owner is set. If a value is given, then the value will be used as
      * an owner.
      * @param timestamp
+     * @param author
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null,
-        timestamp?: number
+        timestamp?: number,
+        author?: SHA256IdHash<Person>
     ): Promise<void> {
         // Determine the owner to use for posting.
         // The owner can be the passed one, or the default one if none was passed.
@@ -487,6 +489,10 @@ export default class ChannelManager {
 
         if (channelOwner === undefined) {
             owner = myMainId;
+        }
+
+        if (author === undefined) {
+            author = myMainId;
         }
 
         // Post the data
@@ -515,7 +521,7 @@ export default class ChannelManager {
                     // Post the data
                     await serializeWithType(ChannelManager.postLockName, async () => {
                         logWithId(channelId, owner, 'postToChannel - START');
-                        await this.internalChannelPost(channelId, owner, data, myMainId, timestamp);
+                        await this.internalChannelPost(channelId, owner, data, author, timestamp);
                         logWithId(channelId, owner, 'postToChannel - END');
                     });
                 }

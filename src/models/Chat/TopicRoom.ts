@@ -127,20 +127,28 @@ export default class TopicRoom {
      *
      * @param message
      * @param attachments array of attached hashes
+     * @param author
      */
     async sendMesageWithAttachmentAsHash(
         message: string,
-        attachments: SHA256Hash[]
+        attachments: SHA256Hash[],
+        author?: SHA256IdHash<Person>
     ): Promise<void> {
+        if (author === undefined) {
+            author = await this.leuteModel.myMainIdentity();
+        }
+
         await this.channelManager.postToChannel(
             this.topic.id,
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: await this.leuteModel.myMainIdentity(),
+                sender: author,
                 attachments: attachments
             },
-            null
+            null,
+            undefined,
+            author
         );
     }
 
@@ -148,8 +156,17 @@ export default class TopicRoom {
      * Sends the message with attachments in the chat room.
      * @param message
      * @param attachments array of attached files
+     * @param author
      */
-    async sendMessageWithAttachmentAsFile(message: string, attachments: File[]): Promise<void> {
+    async sendMessageWithAttachmentAsFile(
+        message: string,
+        attachments: File[],
+        author?: SHA256IdHash<Person>
+    ): Promise<void> {
+        if (author === undefined) {
+            author = await this.leuteModel.myMainIdentity();
+        }
+
         const blobDescriptors = await Promise.all(
             attachments.map(file => storeFileWithBlobDescriptor(file))
         );
@@ -160,26 +177,35 @@ export default class TopicRoom {
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: await this.leuteModel.myMainIdentity(),
+                sender: author,
                 attachments: writtenAttachments
             },
-            null
+            null,
+            undefined,
+            author
         );
     }
 
     /**
      * Sends the message in the chat room.
      * @param message
+     * @param author
      */
-    async sendMessage(message: string): Promise<void> {
+    async sendMessage(message: string, author?: SHA256IdHash<Person>): Promise<void> {
+        if (author === undefined) {
+            author = await this.leuteModel.myMainIdentity();
+        }
+
         await this.channelManager.postToChannel(
             this.topic.id,
             {
                 $type$: 'ChatMessage',
                 text: message,
-                sender: await this.leuteModel.myMainIdentity()
+                sender: author
             },
-            null
+            null,
+            undefined,
+            author
         );
     }
 
