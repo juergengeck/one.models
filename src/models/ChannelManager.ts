@@ -364,6 +364,16 @@ export default class ChannelManager {
     }
 
     /**
+     * Check if passed channel exists.
+     *
+     * @param channelId
+     * @param owner
+     */
+    public async hasChannel(channelId: string, owner: SHA256IdHash<Person>): Promise<boolean> {
+        return (await this.channels({channelId, owner})).length > 0;
+    }
+
+    /**
      * Enable appending the default profile of the sender to each channel entry.
      *
      * Default is disabled

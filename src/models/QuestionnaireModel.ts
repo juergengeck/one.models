@@ -259,6 +259,14 @@ export default class QuestionnaireModel extends Model {
         // We decided not to do any validation here, because it is done by the questionnaire builder.
         // If you post something wrong, then shame on you :-)
 
+        // Create channel if owner is not the default owner.
+        if (
+            owner !== undefined &&
+            (await this.channelManager.hasChannel(QuestionnaireModel.channelId, owner))
+        ) {
+            await this.channelManager.createChannel(QuestionnaireModel.channelId, owner);
+        }
+
         // Post the result to the one instance
         await this.channelManager.postToChannel(
             QuestionnaireModel.channelId,

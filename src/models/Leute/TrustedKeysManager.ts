@@ -144,6 +144,23 @@ export default class TrustedKeysManager {
         return certificates;
     }
 
+    /**
+     * Check if an affirmation certificate signed by a trusted key points to the passed data.
+     *
+     * @param hash
+     */
+    async isAffirmedByTrustedParty(hash: SHA256Hash): Promise<boolean> {
+        return this.hasTrustedCertificateOfType(hash, 'AffirmationCertificate');
+    }
+
+    async hasTrustedCertificateOfType<CertT extends OneObjectTypeNames>(
+        data: SHA256Hash | SHA256IdHash,
+        type: CertT
+    ): Promise<boolean> {
+        const certs = await this.getCertificates(data);
+        return certs.some(c => c.trusted && c.certificate.$type$ === type);
+    }
+
     async buildCertificateMap(): Promise<void> {
         const profilesMap = new Map<SHA256IdHash<Profile>, Map<SHA256Hash<Profile>, ProfileData>>();
         const keys = new Map<HexString, ProfileData[]>();
