@@ -1,10 +1,10 @@
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {RelationCertificate} from '../../recipes/Certificates/RelationCertificate';
 import {isSignedBy, sign} from '../Signature';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {calculateHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {RelationCertificate} from '../../recipes/CertificateRecipes';
 import type {Signature} from '../../recipes/SignatureRecipes';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 

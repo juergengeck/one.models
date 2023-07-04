@@ -1,7 +1,9 @@
 import {expect} from 'chai';
 import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
+import CertificateRecipes, {
+    CertificateReverseMaps
+} from '../lib/recipes/Certificates/CertificateRecipes';
 import {sign} from '../lib/misc/Signature';
 import {affirm, isAffirmedBy, affirmedBy} from '../lib/misc/Certificates/AffirmationCertificate';
 import {certifyRelation, isRelationCertifiedBy} from '../lib/misc/Certificates/RelationCertificate';

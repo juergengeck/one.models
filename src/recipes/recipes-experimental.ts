@@ -8,7 +8,7 @@ import BloodGlucoseRecipes from './BloodGlucoseRecipes';
 import PersistentFileSystemRecipes from './PersistentFileSystemRecipes';
 import AudioExerciseRecipes from './AudioExerciseRecipes';
 import LeuteRecipes from './Leute/recipes';
-import CertificateRecipes from './CertificateRecipes';
+import CertificateRecipes from './Certificates/CertificateRecipes';
 import SignatureRecipes from './SignatureRecipes';
 import ChatRecipes from './ChatRecipes';
 import ConsentRecipes from './ConsentRecipes';

@@ -1,6 +1,8 @@
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import CertificateRecipes, {CertificateReverseMaps} from '../lib/recipes/CertificateRecipes';
+import CertificateRecipes, {
+    CertificateReverseMaps
+} from '../lib/recipes/Certificates/CertificateRecipes';
 import {DummyObjectRecipes} from './utils/createDummyObject';
 import {LeuteModel} from '../lib/models';
 import LeuteRecipes from '../lib/recipes/Leute/recipes';
