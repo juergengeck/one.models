@@ -50,6 +50,7 @@ export type ProfileData = {
 
     timestamp: number;
     keys: HexString[];
+    names: string[];
 
     certificates: Array<CertificateData>;
 };
@@ -442,6 +443,7 @@ export default class TrustedKeysManager {
     ): Promise<ProfileData> {
         const profile = await ProfileModel.constructFromVersion(profileHash);
         const keys = profile.descriptionsOfType('SignKey');
+        const personNames = profile.descriptionsOfType('PersonName');
 
         return {
             personId: profile.personId,
@@ -454,6 +456,7 @@ export default class TrustedKeysManager {
             timestamp,
 
             keys: keys.map(k => k.key),
+            names: personNames.map(p => p.name),
 
             certificates: [
                 ...(await this.getCertificatesOfType(profileHash, 'AffirmationCertificate')),

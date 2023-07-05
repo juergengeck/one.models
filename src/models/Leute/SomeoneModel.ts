@@ -1,6 +1,5 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
@@ -509,6 +508,23 @@ export default class SomeoneModel {
         }
     }
 
+    public async getDefaultProfileDisplayNames(): Promise<Map<SHA256IdHash<Person>, string>> {
+        const map = new Map<SHA256IdHash<Person>, string>();
+
+        if (this.someone === undefined) {
+            return map;
+        }
+
+        for (const identity of this.someone.identity) {
+            const name = await this.getDefaultProfileDisplayNameFromProfiles(identity.profile);
+            if (name !== undefined) {
+                map.set(identity.person, name);
+            }
+        }
+
+        return map;
+    }
+
     /**
      * Get the profile name from one of the default profiles.
      *
@@ -519,13 +535,29 @@ export default class SomeoneModel {
      * @param identity
      */
     public async getDefaultProfileDisplayName(identity: SHA256IdHash<Person>): Promise<string> {
+        if (this.someone === undefined) {
+            return identity;
+        }
+
+        const identityData = this.someone.identity.find(i => i.person === identity);
+        if (identityData === undefined) {
+            return identity;
+        }
+
+        const name = await this.getDefaultProfileDisplayNameFromProfiles(identityData.profile);
+
+        return name === undefined ? identity : name;
+    }
+
+    private async getDefaultProfileDisplayNameFromProfiles(
+        profileHashes: SHA256IdHash<Profile>[]
+    ): Promise<string | undefined> {
         try {
-            const profileHashes = await getAllIdObjectEntries<'Profile'>(identity, 'Profile');
             const profileIdObjs = await Promise.all(
                 profileHashes.map(idHash => getIdObject<Profile>(idHash))
             );
             const defaultProfileIdObjs = profileIdObjs.filter(
-                profile => profile.profileId === 'default' && profile.personId === identity
+                profile => profile.profileId === 'default'
             );
             const defaultProfiles = await Promise.all(
                 defaultProfileIdObjs.map(async idObj =>
@@ -548,7 +580,7 @@ export default class SomeoneModel {
 
             const selfOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
                 defaultProfiles,
-                profile => profile.owner === identity
+                profile => profile.owner === profile.personId
             );
             if (selfOwner !== undefined) {
                 return selfOwner;
@@ -562,9 +594,9 @@ export default class SomeoneModel {
                 return anyOwner;
             }
 
-            return identity;
+            return undefined;
         } catch (_) {
-            return identity;
+            return undefined;
         }
     }
 
