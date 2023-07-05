@@ -79,7 +79,9 @@ export default class ObjectEventDispatcher {
 
     private stopped = true;
     private waitForEventLoopDonePromise: Promise<void> | null = null;
-    private disconnect: () => void = () => {};
+    private disconnect: () => void = () => {
+        // Intentional
+    };
 
     // #### init / shutdown ####
 

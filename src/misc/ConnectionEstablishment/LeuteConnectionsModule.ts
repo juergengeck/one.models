@@ -14,8 +14,7 @@ import type {Instance, Person} from '@refinio/one.core/lib/recipes';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {
     ensureHexString,
-    hexToUint8Array,
-    uint8arrayToHexString
+    hexToUint8Array
 } from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import type Connection from '../Connection/Connection';
 import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';

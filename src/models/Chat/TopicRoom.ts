@@ -214,11 +214,11 @@ export default class TopicRoom {
     /**
      * Notify the client to update the conversation list (there might be a new last message for
      * a conversation).
-     * @param channelInfoIdHash
+     * @param _channelInfoIdHash
      * @param channelId
-     * @param channelOwner
+     * @param _channelOwner
      * @param timeOfEarliestChange
-     * @param data
+     * @param _data
      * @private
      */
     private async emitNewMessageEvent(

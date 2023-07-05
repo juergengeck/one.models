@@ -1,6 +1,6 @@
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 
 /**
  * This certificate gives another person access to all versions of the pointed to id.

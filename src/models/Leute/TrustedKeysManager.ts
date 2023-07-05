@@ -1,12 +1,7 @@
 import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import {
-    getDefaultKeys,
-    getListOfCompleteKeys,
-    hasDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
+import {getListOfCompleteKeys} from '@refinio/one.core/lib/keychain/keychain';
 import type {
     OneObjectInterfaces,
     OneObjectTypeNames,

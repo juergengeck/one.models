@@ -2,6 +2,8 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {signForSomeoneElse} from './signForSomeoneElse';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+
+// This import is needed, otherwise the @OneCOreInterfaces does not have the AffirmationInterface!
 import {AffirmationCertificate} from '../../lib/recipes/Certificates/AffirmationCertificate';
 
 /**

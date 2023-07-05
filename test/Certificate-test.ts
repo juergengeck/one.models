@@ -133,7 +133,7 @@ describe('Certificate test', () => {
         const hasenstein = await createTestIdentity('DrHasenbein');
         const pid = praxis.person;
         const hid = hasenstein.person;
-        sign(praxis.keys);
+        await sign(praxis.keys);
 
         // First round of checks without any certificates
         const a1 = await isRelationCertifiedBy(pid, hid, pid, 'doctorAt', 'seeInsideUApp');
