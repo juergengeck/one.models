@@ -247,9 +247,10 @@ export default class LeuteModel extends Model {
             };
         };
 
-        await this.trust.init();
-        await this.updatePersonNameCache().catch(console.error);
         this.state.triggerEvent('init');
+
+        await this.trust.init();
+        await this.updatePersonNameCache();
     }
 
     /**
