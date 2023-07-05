@@ -123,6 +123,9 @@ export default class LeuteModel extends Model {
         /*...*/
     };
 
+    // Map that stores diplay names
+    private personNameCache = new Map<SHA256IdHash<Person>, string>();
+
     private trustedKeysManager = new TrustedKeysManager(this);
 
     get trust(): TrustedKeysManager {
@@ -217,6 +220,7 @@ export default class LeuteModel extends Model {
             onVersionedObj.addListener(result => {
                 if (isVersionedResultOfType(result, 'Profile')) {
                     this.addProfileFromResult(result).catch(console.error);
+                    this.updatePersonNameCacheForPerson(result.obj.personId).catch(console.error);
                 }
             })
         );
@@ -237,12 +241,14 @@ export default class LeuteModel extends Model {
             }
             this.leute = undefined;
             this.pLoadedVersion = undefined;
+            this.personNameCache.clear();
             this.shutdownInternal = async () => {
                 /*...*/
             };
         };
 
         await this.trust.init();
+        await this.updatePersonNameCache().catch(console.error);
         this.state.triggerEvent('init');
     }
 
@@ -1101,6 +1107,30 @@ export default class LeuteModel extends Model {
             this.pLoadedVersion = result.hash;
             this.onUpdated.emit();
         }
+    }
+
+    // ######## Person name cache ########
+
+    private async updatePersonNameCache(): Promise<void> {
+        const me = await this.me();
+        const others = await this.others();
+
+        for (const someone of [me, ...others]) {
+            const names = await someone.getDefaultProfileDisplayNames();
+            for (const [personId, name] of names) {
+                this.personNameCache.set(personId, name);
+            }
+        }
+    }
+
+    private async updatePersonNameCacheForPerson(personId: SHA256IdHash<Person>): Promise<void> {
+        const someone = await this.getSomeone(personId);
+        if (someone === undefined) {
+            return;
+        }
+
+        const name = await someone.getDefaultProfileDisplayName(personId);
+        this.personNameCache.set(personId, name);
     }
 
     // ######## private stuff - Load & Save ########
