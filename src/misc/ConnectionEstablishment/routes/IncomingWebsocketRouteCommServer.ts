@@ -50,6 +50,7 @@ export default class IncomingWebsocketRouteCommServer implements ConnectionRoute
         MessageBus.send('log', 'stop');
         if (this.stopFn) {
             await this.stopFn();
+            this.stopFn = null;
         }
     }
 }
