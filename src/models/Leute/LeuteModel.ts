@@ -1111,6 +1111,10 @@ export default class LeuteModel extends Model {
 
     // ######## Person name cache ########
 
+    getPersonName(personId: SHA256IdHash<Person>): string {
+        return this.personNameCache.get(personId) || 'N/A';
+    }
+
     private async updatePersonNameCache(): Promise<void> {
         const me = await this.me();
         const others = await this.others();
