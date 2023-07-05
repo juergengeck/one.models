@@ -242,8 +242,8 @@ export default class LeuteModel extends Model {
             };
         };
 
-        await this.trust.init();
         this.state.triggerEvent('init');
+        await this.trust.init();
     }
 
     /**
