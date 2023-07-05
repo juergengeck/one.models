@@ -4,7 +4,7 @@ import {signForSomeoneElse} from './signForSomeoneElse';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 // This import is needed, otherwise the @OneCOreInterfaces does not have the AffirmationInterface!
-import {AffirmationCertificate} from '../../lib/recipes/Certificates/AffirmationCertificate';
+import '../../lib/recipes/Certificates/AffirmationCertificate';
 
 /**
  * Create an affirmation certificate for another personId.
