@@ -1,6 +1,5 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
@@ -20,7 +19,6 @@ import type {
     PersonDescriptionTypeNames
 } from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
-import someone from '../../recipes/Leute/Someone';
 import type {Someone} from '../../recipes/Leute/Someone';
 import ProfileModel from './ProfileModel';
 
