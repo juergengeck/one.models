@@ -21,7 +21,7 @@ export type DocumentInfo = DocumentInfo_1_1_0;
 export default class DocumentModel extends Model {
     channelManager: ChannelManager;
     public static readonly channelId = 'document';
-    private readonly disconnect: (() => void) | undefined;
+    private disconnect: (() => void) | undefined;
 
     // @Override base class event
     public onUpdated: OEvent<(timeOfEarliestChange: Date) => void> = new OEvent<
@@ -35,9 +35,7 @@ export default class DocumentModel extends Model {
      */
     constructor(channelManager: ChannelManager) {
         super();
-
         this.channelManager = channelManager;
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -48,6 +46,7 @@ export default class DocumentModel extends Model {
     async init(): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
 
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
         await this.channelManager.createChannel(DocumentModel.channelId);
 
         this.state.triggerEvent('init');
