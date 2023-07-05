@@ -501,9 +501,16 @@ export default class TrustedKeysManager {
                 reason: 'endless loop'
             };
         }
-        keyStack.push(key);
 
+        keyStack.push(key);
         try {
+            // Check if it is a root key
+            const rootKey = rootKeys.find(k => k.key === key);
+            if (rootKey !== undefined) {
+                return rootKey;
+            }
+
+            // Check if we cached it already
             const cache = this.keysTrustCache.get(key);
             if (cache !== undefined) {
                 return cache;
