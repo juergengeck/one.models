@@ -31,7 +31,7 @@ export const TrustKeysCertificateRecipe: Recipe = {
     name: 'TrustKeysCertificate',
     rule: [
         {
-            itemprop: 'data',
+            itemprop: 'profile',
             itemtype: {type: 'referenceToObj', allowedTypes: new Set(['Profile'])}
         },
         {
