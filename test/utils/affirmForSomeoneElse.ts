@@ -1,5 +1,7 @@
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
+import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry';
 import {signForSomeoneElse} from './signForSomeoneElse';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
@@ -21,9 +23,14 @@ export async function affirmForSomeoneElse(
     issuer: SHA256IdHash<Person>,
     secretKey: Uint8Array
 ): Promise<void> {
+    const licenseResult = await storeUnversionedObject(
+        getLicenseForCertificate('AffirmationCertificate')
+    );
+
     const result = await storeUnversionedObject({
         $type$: 'AffirmationCertificate',
-        data: data
+        data: data,
+        license: licenseResult.hash
     });
     await signForSomeoneElse(result.hash, issuer, secretKey);
 }

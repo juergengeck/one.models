@@ -48,7 +48,7 @@ export default class IoMManager {
      */
     constructor(leuteModel: LeuteModel, commServerUrl: string) {
         this.leuteModel = leuteModel;
-        this.requestManager = new IoMRequestManager();
+        this.requestManager = new IoMRequestManager(this.leuteModel.trust);
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
     }
@@ -62,7 +62,7 @@ export default class IoMManager {
 
         /* Commented this code, because we only want to re-sign profiles, that were signed by
          another IoM identity. At the moment this will sign everything.
-        
+
         this.disconnectProfileListener = onVersionedObj.addListener(
             async (result: VersionedObjectResult) => {
                 if (result.obj.$type$ !== 'Profile') {

@@ -40,7 +40,6 @@ import {
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects';
-import {affirm} from '../misc/Certificates/AffirmationCertificate';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 
 const MessageBus = createMessageBus('ChannelManager');
@@ -2157,7 +2156,9 @@ export default class ChannelManager {
         // Collect metadata that shall be included
         const metadata: SHA256Hash[] = [];
         if (author !== undefined) {
-            metadata.push((await affirm(creationTimeResult.hash, author)).hash);
+            metadata.push(
+                (await this.leuteModel.trust.affirm(creationTimeResult.hash, author)).hash
+            );
 
             let senderProfileHash: SHA256Hash<Profile> | undefined;
             if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {

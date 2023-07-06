@@ -46,11 +46,8 @@ import RecipesStable from '../recipes/recipes-stable';
 import RecipesExperimental from '../recipes/recipes-experimental';
 import {waitForKeyPress} from './cliHelpers';
 import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
-import {
-    convertIdentityToInstanceOptions,
-    Identity,
-    IdentityWithSecrets
-} from '../misc/IdentityExchange';
+import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange';
+import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange';
 import IoMRequestManager from '../models/IoM/IoMRequestManager';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
@@ -180,7 +177,7 @@ async function setupOneModels(commServerUrl: string): Promise<{
     const connections = new ConnectionsModel(leute, {
         commServerUrl
     });
-    const iom = new IoMRequestManager();
+    const iom = new IoMRequestManager(leute.trust);
 
     // Initialize models
     await leute.init();

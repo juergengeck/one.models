@@ -1,19 +1,34 @@
 import type {Recipe, OneObjectTypeNames, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {License} from './License';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 
 /**
- * This certificate gives somebody the right to declare trusted keys for this instance.
+ * This license gives somebody the right to declare trusted keys for this instance.
  *
  * The trust is given by creating a "TrustKeysCertificate" pointing to a profile that contains keys.
  *
  * Attention: This is a very very powerful right. Somebody with this right can impersonate
  * everybody else by just issuing new keys for that person.
- *
- * [signature.issuer] allows [beneficiary] to issue new trusted keys for somebody else.
  */
+export const RightToDeclareTrustedKeysForEverybodyLicense: License = Object.freeze({
+    $type$: 'License',
+    name: 'RightToDeclareTrustedKeysForEverybodyLicense',
+    description:
+        '[signature.issuer] gives [beneficiary] the right to declare any keys in profiles as' +
+        ' trusted by issuing TrustKeys certificates.'
+});
+
+registerLicense(
+    RightToDeclareTrustedKeysForEverybodyLicense,
+    'RightToDeclareTrustedKeysForEverybodyCertificate'
+);
+
 export interface RightToDeclareTrustedKeysForEverybodyCertificate {
     $type$: 'RightToDeclareTrustedKeysForEverybodyCertificate';
     beneficiary: SHA256IdHash<Person>;
+    license: SHA256Hash<License>;
 }
 
 export const RightToDeclareTrustedKeysForEverybodyCertificateRecipe: Recipe = {
@@ -23,6 +38,10 @@ export const RightToDeclareTrustedKeysForEverybodyCertificateRecipe: Recipe = {
         {
             itemprop: 'beneficiary',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'license',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
         }
     ]
 };
@@ -35,7 +54,7 @@ export const RightToDeclareTrustedKeysForEverybodyCertificateReverseMap: [
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
+    export interface OneCertificateInterfaces {
         RightToDeclareTrustedKeysForEverybodyCertificate: RightToDeclareTrustedKeysForEverybodyCertificate;
     }
 }

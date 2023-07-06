@@ -1,12 +1,12 @@
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {License} from './License';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 
 /**
- * This certificates affirms that a person has a specific relation to another person (or organization).
- *
- * [signature.issuer] confirms, that in the context of the application [app],
- * [person1] has a [relation] to [person2]
+ * License affirms that a person has a specific relation to another person (or organization).
  *
  * Examples:
  * - Person1 is a doctor at a clinic(Person2)
@@ -15,12 +15,23 @@ import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
  *
  * This stuff is application specific, so the application has to decide which relations make sense.
  */
+export const RelationLicense: License = Object.freeze({
+    $type$: 'License',
+    name: 'Relation',
+    description:
+        '[signature.issuer] affirms that [person1] has [relation] to [person2] in context of' +
+        ' application [app].'
+});
+
+registerLicense(RelationLicense, 'RelationCertificate');
+
 export interface RelationCertificate {
     $type$: 'RelationCertificate';
     app: string;
     relation: string;
     person1: SHA256IdHash<Person>;
     person2: SHA256IdHash<Person>;
+    license: SHA256Hash<License>;
 }
 
 export const RelationCertificateRecipe: Recipe = {
@@ -40,6 +51,10 @@ export const RelationCertificateRecipe: Recipe = {
         {
             itemprop: 'person2',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'license',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
         }
     ]
 };
@@ -52,7 +67,7 @@ export const RelationCertificateReverseMap: [OneObjectTypeNames, Set<string>] = 
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
+    export interface OneCertificateInterfaces {
         RelationCertificate: RelationCertificate;
     }
 }
