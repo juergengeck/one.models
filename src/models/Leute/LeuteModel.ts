@@ -106,9 +106,13 @@ export default class LeuteModel extends Model {
         (endpoint: OneInstanceEndpoint, isMe: boolean) => void
     >();
 
-    public beforeMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public beforeMainIdSwitch: OEvent<
+        (oldIdentity: SHA256IdHash<Person>, newIdentity: SHA256IdHash<Person>) => void
+    > = new OEvent();
 
-    public afterMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public afterMainIdSwitch: OEvent<
+        (oldIdentity: SHA256IdHash<Person>, newIdentity: SHA256IdHash<Person>) => void
+    > = new OEvent();
 
     // #### Events - END ####
 
@@ -585,12 +589,12 @@ export default class LeuteModel extends Model {
         if (oldIdentity === newIdentity) {
             await mySomeone.setMainProfile(profileHash);
         } else {
-            this.beforeMainIdSwitch.emit(oldIdentity);
             if (!(await isPersonComplete(newIdentity))) {
                 throw new Error('Person is not complete!');
             }
+            this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
             await mySomeone.setMainProfile(profileHash);
-            this.afterMainIdSwitch.emit(newIdentity);
+            this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
         }
     }
 
@@ -610,12 +614,12 @@ export default class LeuteModel extends Model {
     public async changeMyMainIdentity(newIdentity: SHA256IdHash<Person>) {
         const mySomeone = await this.me();
         const oldIdentity = await mySomeone.mainIdentity();
-        this.beforeMainIdSwitch.emit(oldIdentity);
         if (!(await isPersonComplete(newIdentity))) {
             throw new Error('Person is not complete!');
         }
+        this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
         await mySomeone.setMainIdentity(newIdentity);
-        this.afterMainIdSwitch.emit(newIdentity);
+        this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
     }
 
     /**
