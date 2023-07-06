@@ -49,7 +49,11 @@ export default class IoMManager {
     constructor(leuteModel: LeuteModel, commServerUrl: string) {
         this.leuteModel = leuteModel;
         this.requestManager = new IoMRequestManager(this.leuteModel.trust);
-        this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
+        this.requestManager.onRequestComplete((requestHash, request) => {
+            setImmediate(() => {
+                this.setupIomFromCompletedRequest(requestHash, request).catch(console.error);
+            });
+        });
         this.commServerUrl = commServerUrl;
     }
 

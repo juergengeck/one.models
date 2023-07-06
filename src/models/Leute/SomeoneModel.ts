@@ -440,10 +440,12 @@ export default class SomeoneModel {
      *       to grasp way.
      */
     public async saveAndLoad(): Promise<void> {
+        console.log('SAVE AND LOAD 1');
         if (this.someone === undefined) {
             throw new Error('No someone data that could be saved');
         }
 
+        console.log('SAVE AND LOAD 2');
         const identities = [];
         for (const [personId, profileIds] of this.pIdentities.entries()) {
             identities.push({
@@ -452,6 +454,7 @@ export default class SomeoneModel {
             });
         }
 
+        console.log('SAVE AND LOAD 3');
         const result = await storeVersionedObjectCRDT(
             {
                 $type$: 'Someone',
@@ -462,7 +465,10 @@ export default class SomeoneModel {
             this.pLoadedVersion
         );
 
+        console.log('SAVE AND LOAD 4');
         await this.updateModelDataFromSomeone(result.obj, result.hash);
+
+        console.log('SAVE AND LOAD 5');
     }
 
     // ######## misc ########
