@@ -1,6 +1,4 @@
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneCertificateTypeNames} from './CertificateRecipes';
 
 /**
  * The license that is granted by issuing a certificate.

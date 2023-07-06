@@ -1,6 +1,5 @@
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import {AccessVersionedObjectLicense} from './AccessVersionedObjectCertificate';
 import type {License} from './License';
 import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 

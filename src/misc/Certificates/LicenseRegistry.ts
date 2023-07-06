@@ -1,9 +1,4 @@
-import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {
-    OneCertificateTypeNames,
-    OneCertificateTypes
-} from '../../recipes/Certificates/CertificateRecipes';
+import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes';
 import type {License} from '../../recipes/Certificates/License';
 
 const licenseRegistry = new Map<OneCertificateTypeNames, License>();

@@ -1,44 +1,28 @@
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import type {OneCertificateInterfaces} from '@OneObjectInterfaces';
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import {
     AccessUnversionedObjectCertificateRecipe,
-    AccessUnversionedObjectCertificateReverseMap,
-    AccessUnversionedObjectLicense
+    AccessUnversionedObjectCertificateReverseMap
 } from './AccessUnversionedObjectCertificate';
 import {
     AccessVersionedObjectCertificateRecipe,
-    AccessVersionedObjectCertificateReverseMap,
-    AccessVersionedObjectLicense
+    AccessVersionedObjectCertificateReverseMap
 } from './AccessVersionedObjectCertificate';
-import type {AffirmationCertificate} from './AffirmationCertificate';
 import {
     AffirmationCertificateRecipe,
-    AffirmationCertificateReverseMap,
-    AffirmationLicense
+    AffirmationCertificateReverseMap
 } from './AffirmationCertificate';
-import type {License} from './License';
 import {LicenseRecipe, LicenseReverseMap} from './License';
-import {
-    RelationCertificateRecipe,
-    RelationCertificateReverseMap,
-    RelationLicense
-} from './RelationCertificate';
+import {RelationCertificateRecipe, RelationCertificateReverseMap} from './RelationCertificate';
 import {
     RightToDeclareTrustedKeysForEverybodyCertificateRecipe,
-    RightToDeclareTrustedKeysForEverybodyCertificateReverseMap,
-    RightToDeclareTrustedKeysForEverybodyLicense
+    RightToDeclareTrustedKeysForEverybodyCertificateReverseMap
 } from './RightToDeclareTrustedKeysForEverybodyCertificate';
 import {
     RightToDeclareTrustedKeysForSelfCertificateRecipe,
-    RightToDeclareTrustedKeysForSelfCertificateReverseMap,
-    RightToDeclareTrustedKeysForSelfLicense
+    RightToDeclareTrustedKeysForSelfCertificateReverseMap
 } from './RightToDeclareTrustedKeysForSelfCertificate';
-import {
-    TrustKeysCertificateRecipe,
-    TrustKeysCertificateReverseMap,
-    TrustKeysLicense
-} from './TrustKeysCertificate';
+import {TrustKeysCertificateRecipe, TrustKeysCertificateReverseMap} from './TrustKeysCertificate';
 
 export const CertificateReverseMaps: [OneObjectTypeNames, Set<string>][] = [
     AccessUnversionedObjectCertificateReverseMap,

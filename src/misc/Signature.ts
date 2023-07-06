@@ -1,14 +1,13 @@
 import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Keys, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import tweetnacl from 'tweetnacl';
 import type {Signature} from '../recipes/SignatureRecipes';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
-    getObject,
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects';

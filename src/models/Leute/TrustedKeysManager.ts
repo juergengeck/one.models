@@ -370,12 +370,16 @@ export default class TrustedKeysManager {
     async certify<T extends OneCertificateTypeNames>(
         type: T,
         certData: Omit<OneCertificateInterfaces[T], 'license' | '$type$'>,
-        issuer: SHA256IdHash<Person>
+        issuer?: SHA256IdHash<Person>
     ): Promise<{
         license: UnversionedObjectResult<License>;
         certificate: UnversionedObjectResult<OneCertificateInterfaces[T]>;
         signature: UnversionedObjectResult<Signature>;
     }> {
+        if (issuer === undefined) {
+            issuer = await (await this.leute.me()).mainIdentity();
+        }
+
         const license = getLicenseForCertificate(type);
 
         // Step 1: Write license
@@ -451,10 +455,6 @@ export default class TrustedKeysManager {
         data: SHA256Hash,
         issuer?: SHA256IdHash<Person>
     ): Promise<UnversionedObjectResult<Signature>> {
-        if (issuer === undefined) {
-            issuer = await (await this.leute.me()).mainIdentity();
-        }
-
         return (await this.certify('AffirmationCertificate', {data}, issuer)).signature;
     }
 

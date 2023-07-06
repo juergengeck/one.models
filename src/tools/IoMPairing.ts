@@ -339,5 +339,5 @@ async function main(): Promise<void> {
 
 // Execute main function
 main().catch(e => {
-    console.log('Error happened: ' + e.toString(), e.stack);
+    console.log(`Error happened: ${e.toString()}`, e.stack);
 });
