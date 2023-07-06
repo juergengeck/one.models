@@ -9,10 +9,6 @@ import TopicModel from '../lib/models/Chat/TopicModel';
 import TopicRoom from '../lib/models/Chat/TopicRoom';
 import type {BlobDescriptor} from '../lib/models/BlobCollectionModel';
 
-let testModel: TestModel;
-let topicRoom: TopicRoom;
-let topicModel: TopicModel;
-
 function buildTestFile(): File {
     const filePath = './test/consent.pdf';
     const stats = statSync(filePath);
@@ -27,14 +23,13 @@ function buildTestFile(): File {
 }
 
 describe('Consent', () => {
+    const testModel = new TestModel('ws://localhost:8000');
+    const topicModel = new TopicModel(testModel.channelManager, testModel.leuteModel);
+    let topicRoom: TopicRoom;
+
     before(async () => {
         await StorageTestInit.init();
-        const model = new TestModel('ws://localhost:8000');
-        await model.init(undefined);
-        testModel = model;
-
-        // Prep to the topic room
-        topicModel = new TopicModel(testModel.channelManager, testModel.leuteModel);
+        await testModel.init(undefined);
         await topicModel.init();
         const everyoneTopic = await topicModel.createEveryoneTopic();
         topicRoom = new TopicRoom(everyoneTopic, testModel.channelManager, testModel.leuteModel);

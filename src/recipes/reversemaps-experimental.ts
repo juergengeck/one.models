@@ -1,7 +1,7 @@
 import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import {SomeoneReverseMaps} from './Leute/Someone';
 import {SignatureReverseMaps} from './SignatureRecipes';
-import {CertificateReverseMaps} from './CertificateRecipes';
+import {CertificateReverseMaps} from './Certificates/CertificateRecipes';
 import {ProfileReverseMaps, ProfileReverseMapsForIdObjects} from './Leute/Profile';
 import {CommunicationEndpointReverseMaps} from './Leute/CommunicationEndpoints';
 

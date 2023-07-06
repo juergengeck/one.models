@@ -72,22 +72,28 @@ export default class DocumentModel extends Model {
      * @param mimeType
      * @param documentName
      * @param channelId - The default is DocumentModel.channelId
+     * @param channelOwner
      */
     async addDocument(
         document: ArrayBuffer,
         mimeType: DocumentInfo['mimeType'],
         documentName: DocumentInfo['documentName'],
-        channelId: string = DocumentModel.channelId
+        channelId: string = DocumentModel.channelId,
+        channelOwner?: SHA256IdHash<Person> | null | undefined
     ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
         const oneDocument = await storeArrayBufferAsBlob(document);
-        await this.channelManager.postToChannel(channelId, {
-            $type$: 'DocumentInfo_1_1_0',
-            mimeType: mimeType,
-            documentName: documentName,
-            document: oneDocument.hash
-        });
+        await this.channelManager.postToChannel(
+            channelId,
+            {
+                $type$: 'DocumentInfo_1_1_0',
+                mimeType: mimeType,
+                documentName: documentName,
+                document: oneDocument.hash
+            },
+            channelOwner
+        );
     }
 
     /**

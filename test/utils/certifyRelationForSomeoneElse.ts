@@ -1,7 +1,9 @@
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry';
 import {signForSomeoneElse} from './signForSomeoneElse';
+import '../../lib/recipes/Certificates/RelationCertificate';
 
 /**
  * Create an relation certificate for another personId.
@@ -24,12 +26,17 @@ export async function certifyRelationForSomeoneElse(
     issuer: SHA256IdHash<Person>,
     secretKey: Uint8Array
 ): Promise<void> {
+    const licenseResult = await storeUnversionedObject(
+        getLicenseForCertificate('RelationCertificate')
+    );
+
     const result = await storeUnversionedObject({
         $type$: 'RelationCertificate',
         person1,
         person2,
         relation,
-        app
+        app,
+        license: licenseResult.hash
     });
     await signForSomeoneElse(result.hash, issuer, secretKey);
 }

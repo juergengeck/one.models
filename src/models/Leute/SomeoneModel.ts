@@ -495,6 +495,111 @@ export default class SomeoneModel {
         return descriptions;
     }
 
+    public async getMainProfileDisplayName(): Promise<string> {
+        try {
+            const profile = await this.mainProfile();
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length === 0) {
+                return 'undefined';
+            }
+            return personNames[0].name;
+        } catch (_) {
+            return 'undefined';
+        }
+    }
+
+    public async getDefaultProfileDisplayNames(): Promise<Map<SHA256IdHash<Person>, string>> {
+        const map = new Map<SHA256IdHash<Person>, string>();
+
+        if (this.someone === undefined) {
+            return map;
+        }
+
+        for (const identity of this.someone.identity) {
+            const name = await this.getDefaultProfileDisplayNameFromProfiles(identity.profile);
+            if (name !== undefined) {
+                map.set(identity.person, name);
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get the profile name from one of the default profiles.
+     *
+     * It will first try to find the profile that we edited (I am owner).
+     * Then it will try to find the profile that the person itself edited (He is owner)
+     * Then it will look for a default profile from any owner.
+     *
+     * @param identity
+     */
+    public async getDefaultProfileDisplayName(identity: SHA256IdHash<Person>): Promise<string> {
+        if (this.someone === undefined) {
+            return identity;
+        }
+
+        const identityData = this.someone.identity.find(i => i.person === identity);
+        if (identityData === undefined) {
+            return identity;
+        }
+
+        const name = await this.getDefaultProfileDisplayNameFromProfiles(identityData.profile);
+
+        return name === undefined ? identity : name;
+    }
+
+    private async getDefaultProfileDisplayNameFromProfiles(
+        profileHashes: SHA256IdHash<Profile>[]
+    ): Promise<string | undefined> {
+        try {
+            const profileIdObjs = await Promise.all(
+                profileHashes.map(idHash => getIdObject<Profile>(idHash))
+            );
+            const defaultProfileIdObjs = profileIdObjs.filter(
+                profile => profile.profileId === 'default'
+            );
+            const defaultProfiles = await Promise.all(
+                defaultProfileIdObjs.map(async idObj =>
+                    ProfileModel.constructFromLatestVersionByIdFields(
+                        idObj.personId,
+                        idObj.owner,
+                        idObj.profileId
+                    )
+                )
+            );
+
+            const myId = await this.mainIdentity();
+            const meOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === myId
+            );
+            if (meOwner !== undefined) {
+                return meOwner;
+            }
+
+            const selfOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                profile => profile.owner === profile.personId
+            );
+            if (selfOwner !== undefined) {
+                return selfOwner;
+            }
+
+            const anyOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
+                defaultProfiles,
+                _profile => true
+            );
+            if (anyOwner !== undefined) {
+                return anyOwner;
+            }
+
+            return undefined;
+        } catch (_) {
+            return undefined;
+        }
+    }
+
     // ######## private stuff ########
 
     /**
@@ -518,5 +623,26 @@ export default class SomeoneModel {
         this.pMainProfile = someone.mainProfile;
         this.pLoadedVersion = version;
         this.someone = someone;
+    }
+
+    /**
+     * Get the person name from the first profile that matches the predicate.
+     *
+     * @param profiles
+     * @param predicate
+     * @private
+     */
+    private static getPersonNameFromFilteredProfiles(
+        profiles: ProfileModel[],
+        predicate: (profile: ProfileModel) => boolean
+    ): string | undefined {
+        const filteredProfiles = profiles.filter(predicate);
+        for (const profile of filteredProfiles) {
+            const personNames = profile.descriptionsOfType('PersonName');
+            if (personNames.length > 0) {
+                return personNames[0].name;
+            }
+        }
+        return undefined;
     }
 }

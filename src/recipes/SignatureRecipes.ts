@@ -1,9 +1,7 @@
 import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {
-    HexString,
-    HexStringRegex
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {HexStringRegex} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 
 // #### Typescript interfaces ####
 
