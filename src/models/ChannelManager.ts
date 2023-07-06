@@ -40,7 +40,6 @@ import {
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects';
-import {affirm} from '../misc/Certificates/AffirmationCertificate';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 
 const MessageBus = createMessageBus('ChannelManager');
@@ -364,6 +363,16 @@ export default class ChannelManager {
     }
 
     /**
+     * Check if passed channel exists.
+     *
+     * @param channelId
+     * @param owner
+     */
+    public async hasChannel(channelId: string, owner: SHA256IdHash<Person>): Promise<boolean> {
+        return (await this.channels({channelId, owner})).length > 0;
+    }
+
+    /**
      * Enable appending the default profile of the sender to each channel entry.
      *
      * Default is disabled
@@ -456,12 +465,14 @@ export default class ChannelManager {
      * owner is NULL, then no owner is set. If a value is given, then the value will be used as
      * an owner.
      * @param timestamp
+     * @param author
      */
     public async postToChannel<T extends OneUnversionedObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null,
-        timestamp?: number
+        timestamp?: number,
+        author?: SHA256IdHash<Person>
     ): Promise<void> {
         // Determine the owner to use for posting.
         // The owner can be the passed one, or the default one if none was passed.
@@ -477,6 +488,10 @@ export default class ChannelManager {
 
         if (channelOwner === undefined) {
             owner = myMainId;
+        }
+
+        if (author === undefined) {
+            author = myMainId;
         }
 
         // Post the data
@@ -505,7 +520,7 @@ export default class ChannelManager {
                     // Post the data
                     await serializeWithType(ChannelManager.postLockName, async () => {
                         logWithId(channelId, owner, 'postToChannel - START');
-                        await this.internalChannelPost(channelId, owner, data, myMainId, timestamp);
+                        await this.internalChannelPost(channelId, owner, data, author, timestamp);
                         logWithId(channelId, owner, 'postToChannel - END');
                     });
                 }
@@ -2141,7 +2156,9 @@ export default class ChannelManager {
         // Collect metadata that shall be included
         const metadata: SHA256Hash[] = [];
         if (author !== undefined) {
-            metadata.push((await affirm(creationTimeResult.hash, author)).hash);
+            metadata.push(
+                (await this.leuteModel.trust.affirm(creationTimeResult.hash, author)).hash
+            );
 
             let senderProfileHash: SHA256Hash<Profile> | undefined;
             if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {

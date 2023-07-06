@@ -14,11 +14,11 @@ import {
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {affirm, affirmedBy} from '../../misc/Certificates/AffirmationCertificate';
 import {OEvent} from '../../misc/OEvent';
 import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
 import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry';
 import type {Signature} from '../../recipes/SignatureRecipes';
+import type TrustedKeysManager from '../Leute/TrustedKeysManager';
 
 const messageBus = createMessageBus('IoMRequestManager');
 
@@ -64,6 +64,11 @@ export default class IoMRequestManager {
         requests: new Set()
     };
     private isInitialized = false;
+    private trustedKeysManager: TrustedKeysManager;
+
+    constructor(trustedKeysManager: TrustedKeysManager) {
+        this.trustedKeysManager = trustedKeysManager;
+    }
 
     // ######## model state management ########
 
@@ -130,7 +135,7 @@ export default class IoMRequestManager {
             mode
         });
 
-        await IoMRequestManager.affirmRequestObj(requestResult.hash, requestResult.obj);
+        await this.affirmRequestObj(requestResult.hash, requestResult.obj);
     }
 
     /**
@@ -140,7 +145,7 @@ export default class IoMRequestManager {
      */
     async affirmRequest(requestHash: SHA256Hash<IoMRequest>) {
         messageBus.send('debug', `affirmRequest ${requestHash}`);
-        await IoMRequestManager.affirmRequestObj(requestHash, await getObject(requestHash));
+        await this.affirmRequestObj(requestHash, await getObject(requestHash));
     }
 
     /**
@@ -154,7 +159,7 @@ export default class IoMRequestManager {
         for (const requestHash of this.requestsRegistry.requests) {
             const request = await getObject(requestHash);
             requests.push({
-                active: await IoMRequestManager.isRequestCompleted(requestHash, request),
+                active: await this.isRequestCompleted(requestHash, request),
                 requestHash,
                 request
             });
@@ -165,12 +170,12 @@ export default class IoMRequestManager {
 
     // ######## Check completeness ########
 
-    private static async isRequestCompleted(
+    private async isRequestCompleted(
         requestHash: SHA256Hash<IoMRequest>,
         request: IoMRequest
     ): Promise<boolean> {
         messageBus.send('debug', `isRequestCompleted ${requestHash} ${JSON.stringify(request)}`);
-        const affirmedByPersons = new Set(await affirmedBy(requestHash));
+        const affirmedByPersons = new Set(await this.trustedKeysManager.affirmedBy(requestHash));
         messageBus.send(
             'debug',
             `isRequestCompleted - ${requestHash} affirmed by ${JSON.stringify([
@@ -216,7 +221,7 @@ export default class IoMRequestManager {
         requestHash: SHA256Hash<IoMRequest>,
         request: IoMRequest
     ): Promise<void> {
-        if (await IoMRequestManager.isRequestCompleted(requestHash, request)) {
+        if (await this.isRequestCompleted(requestHash, request)) {
             messageBus.send('log', `Request ${requestHash} was accepted by all participants.`);
             this.onRequestComplete.emit(requestHash, request);
         }
@@ -298,14 +303,11 @@ export default class IoMRequestManager {
         }
     }
 
-    private static async affirmRequestObj(
-        requestHash: SHA256Hash<IoMRequest>,
-        request: IoMRequest
-    ) {
+    private async affirmRequestObj(requestHash: SHA256Hash<IoMRequest>, request: IoMRequest) {
         messageBus.send('debug', `affirmRequestObj ${requestHash}`);
 
         // affirm the request
-        const requestCertificateSignature = await affirm(requestHash);
+        const requestCertificateSignature = await this.trustedKeysManager.affirm(requestHash);
 
         messageBus.send(
             'debug',

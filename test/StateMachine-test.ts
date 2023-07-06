@@ -6,8 +6,6 @@ import * as StorageTestInit from './_helpers';
 import {StateMachine} from '../lib/misc/StateMachine';
 import {wait} from '@refinio/one.core/lib/util/promise';
 
-let testModel: TestModel;
-
 type SMStates = 'initialized' | 'not initialized' | 'A' | 'B' | 'listening' | 'not listening';
 type SMEvents = 'init' | 'shutdown' | 'AtoB' | 'BtoA' | 'startListen' | 'stopListen';
 
@@ -44,11 +42,11 @@ function createStateMachineWithoutHistory(hasHistory: boolean): StateMachine<SMS
 }
 
 describe('StateMachine test', () => {
+    const testModel = new TestModel('ws://localhost:8000');
+
     before(async () => {
         await StorageTestInit.init();
-        const model = new TestModel('ws://localhost:8000');
-        await model.init(undefined);
-        testModel = model;
+        await testModel.init(undefined);
     });
 
     after(async () => {

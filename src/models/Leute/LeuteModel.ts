@@ -15,10 +15,8 @@ import type {
     OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
-import {
-    getAllIdObjectEntries,
-    getOnlyLatestReferencingObjsHashAndId
-} from '@refinio/one.core/lib/reverse-map-query';
+import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
     IdFileCreation,
@@ -45,9 +43,10 @@ import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../..
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import type {Leute} from '../../recipes/Leute/Leute';
-import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions';
+import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
+import TrustedKeysManager from './TrustedKeysManager';
 import type {CreationTime} from '../../recipes/MetaRecipes';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
 import {Model} from '../Model';
@@ -124,6 +123,15 @@ export default class LeuteModel extends Model {
         /*...*/
     };
 
+    // Map that stores diplay names
+    private personNameCache = new Map<SHA256IdHash<Person>, string>();
+
+    private trustedKeysManager = new TrustedKeysManager(this);
+
+    get trust(): TrustedKeysManager {
+        return this.trustedKeysManager;
+    }
+
     /**
      * Constructor
      *
@@ -162,14 +170,24 @@ export default class LeuteModel extends Model {
                 throw new Error('The instance is not initialized.');
             }
 
+            const instanceKeysHash = await getDefaultKeys(instanceId);
+            const personKeysHash = await getDefaultKeys(personId);
+
             // One Instance endpoints for main instance with keys
             const endpoint: OneInstanceEndpoint = {
                 $type$: 'OneInstanceEndpoint',
                 personId,
                 url: this.commserverUrl,
                 instanceId: instanceId,
-                instanceKeys: await getDefaultKeys(instanceId),
-                personKeys: await getDefaultKeys(personId)
+                instanceKeys: instanceKeysHash,
+                personKeys: personKeysHash
+            };
+
+            const personKeys = await getObject(personKeysHash);
+
+            const signKey: SignKey = {
+                $type$: 'SignKey',
+                key: personKeys.publicSignKey
             };
 
             // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
@@ -178,8 +196,10 @@ export default class LeuteModel extends Model {
                 personId,
                 personId,
                 'default',
-                [endpoint]
+                [endpoint],
+                [signKey]
             );
+
             const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
 
             // Assign the leute object to the member for the saveAndLoad function
@@ -200,6 +220,7 @@ export default class LeuteModel extends Model {
             onVersionedObj.addListener(result => {
                 if (isVersionedResultOfType(result, 'Profile')) {
                     this.addProfileFromResult(result).catch(console.error);
+                    this.updatePersonNameCacheForPerson(result.obj.personId).catch(console.error);
                 }
             })
         );
@@ -214,17 +235,22 @@ export default class LeuteModel extends Model {
         }
 
         this.shutdownInternal = async () => {
+            await this.trust.shutdown();
             for (const disconnectFn of disconnectFns) {
                 disconnectFn();
             }
             this.leute = undefined;
             this.pLoadedVersion = undefined;
+            this.personNameCache.clear();
             this.shutdownInternal = async () => {
                 /*...*/
             };
         };
 
         this.state.triggerEvent('init');
+
+        await this.trust.init();
+        await this.updatePersonNameCache();
     }
 
     /**
@@ -501,6 +527,30 @@ export default class LeuteModel extends Model {
         }
 
         return SomeoneModel.constructFromVersion(entry.hash);
+    }
+
+    async hasProfile(profileId: SHA256IdHash<Profile>): Promise<boolean> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            console.error(
+                'hasProfile: Leute model does not seem to be initialized (this.leute is null)'
+            );
+            return false;
+        }
+
+        const someones = await getOnlyLatestReferencingObjsHashAndId(profileId, 'Someone');
+
+        for (const someone of someones) {
+            if (this.leute.other.includes(someone.idHash)) {
+                return true;
+            }
+            if (this.leute.me === someone.idHash) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -784,19 +834,18 @@ export default class LeuteModel extends Model {
     /**
      * Get the profile name from the main profile.
      *
-     * @param person
+     * @param personId
      */
-    public async getMainProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
-        try {
-            const profile = await this.getMainProfile(person);
-            const personNames = profile.descriptionsOfType('PersonName');
-            if (personNames.length === 0) {
-                return 'undefined';
-            }
-            return personNames[0].name;
-        } catch (_) {
+    public async getMainProfileDisplayName(personId: SHA256IdHash<Person>): Promise<string> {
+        this.state.assertCurrentState('Initialised');
+
+        const someone = await this.getSomeone(personId);
+
+        if (someone === undefined) {
             return 'undefined';
         }
+
+        return someone.getMainProfileDisplayName();
     }
 
     /**
@@ -806,56 +855,18 @@ export default class LeuteModel extends Model {
      * Then it will try to find the profile that the person itself edited (He is owner)
      * Then it will look for a default profile from any owner.
      *
-     * @param person
+     * @param personId
      */
-    public async getDefaultProfileDisplayName(person: SHA256IdHash<Person>): Promise<string> {
-        try {
-            const profileHashes = await getAllIdObjectEntries<'Profile'>(person, 'Profile');
-            const profileIdObjs = await Promise.all(
-                profileHashes.map(idHash => getIdObject<Profile>(idHash))
-            );
-            const defaultProfileIdObjs = profileIdObjs.filter(
-                profile => profile.profileId === 'default' && profile.personId === person
-            );
-            const defaultProfiles = await Promise.all(
-                defaultProfileIdObjs.map(async idObj =>
-                    ProfileModel.constructFromLatestVersionByIdFields(
-                        idObj.personId,
-                        idObj.owner,
-                        idObj.profileId
-                    )
-                )
-            );
+    public async getDefaultProfileDisplayName(personId: SHA256IdHash<Person>): Promise<string> {
+        this.state.assertCurrentState('Initialised');
 
-            const myId = await this.myMainIdentity();
-            const meOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                profile => profile.owner === myId
-            );
-            if (meOwner !== undefined) {
-                return meOwner;
-            }
+        const someone = await this.getSomeone(personId);
 
-            const selfOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                profile => profile.owner === person
-            );
-            if (selfOwner !== undefined) {
-                return selfOwner;
-            }
-
-            const anyOwner = LeuteModel.getPersonNameFromFilteredProfiles(
-                defaultProfiles,
-                _profile => true
-            );
-            if (anyOwner !== undefined) {
-                return anyOwner;
-            }
-
-            return person;
-        } catch (_) {
-            return person;
+        if (someone === undefined) {
+            return 'undefined';
         }
+
+        return someone.getDefaultProfileDisplayName(personId);
     }
 
     /**
@@ -1103,18 +1114,32 @@ export default class LeuteModel extends Model {
         }
     }
 
-    private static getPersonNameFromFilteredProfiles(
-        profiles: ProfileModel[],
-        predicate: (profile: ProfileModel) => boolean
-    ): string | undefined {
-        const filteredProfiles = profiles.filter(predicate);
-        for (const profile of filteredProfiles) {
-            const personNames = profile.descriptionsOfType('PersonName');
-            if (personNames.length > 0) {
-                return personNames[0].name;
+    // ######## Person name cache ########
+
+    getPersonName(personId: SHA256IdHash<Person>): string {
+        return this.personNameCache.get(personId) || 'N/A';
+    }
+
+    private async updatePersonNameCache(): Promise<void> {
+        const me = await this.me();
+        const others = await this.others();
+
+        for (const someone of [me, ...others]) {
+            const names = await someone.getDefaultProfileDisplayNames();
+            for (const [personId, name] of names) {
+                this.personNameCache.set(personId, name);
             }
         }
-        return undefined;
+    }
+
+    private async updatePersonNameCacheForPerson(personId: SHA256IdHash<Person>): Promise<void> {
+        const someone = await this.getSomeone(personId);
+        if (someone === undefined) {
+            return;
+        }
+
+        const name = await someone.getDefaultProfileDisplayName(personId);
+        this.personNameCache.set(personId, name);
     }
 
     // ######## private stuff - Load & Save ########
