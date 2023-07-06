@@ -423,13 +423,17 @@ export default class LeuteModel extends Model {
             myIdentity,
             'default'
         );
-        const someoneNew = await SomeoneModel.constructWithNewSomeone(
-            await createRandomString(32),
-            newProfile.idHash
-        );
-        await this.addSomeoneElse(someoneNew.idHash);
 
-        return someoneNew.idHash;
+        // Call the hook (even if it already runs) - this ensures, that the profile was added to
+        // a someone object
+        await this.addProfileFromResult(await getObjectByIdHash(newProfile.idHash));
+
+        const someone = await this.getSomeone(newPersonId);
+        if (someone === undefined) {
+            throw new Error('Impossible error: Someone does not exist even though the hook ran');
+        }
+
+        return someone.idHash;
     }
 
     // ######## Group management ########
