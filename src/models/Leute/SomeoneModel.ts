@@ -440,12 +440,10 @@ export default class SomeoneModel {
      *       to grasp way.
      */
     public async saveAndLoad(): Promise<void> {
-        console.log('SAVE AND LOAD 1');
         if (this.someone === undefined) {
             throw new Error('No someone data that could be saved');
         }
 
-        console.log('SAVE AND LOAD 2');
         const identities = [];
         for (const [personId, profileIds] of this.pIdentities.entries()) {
             identities.push({
@@ -454,21 +452,24 @@ export default class SomeoneModel {
             });
         }
 
-        console.log('SAVE AND LOAD 3');
-        const result = await storeVersionedObjectCRDT(
-            {
-                $type$: 'Someone',
-                someoneId: this.someone.someoneId,
-                mainProfile: this.someone.mainProfile,
-                identity: identities
-            },
-            this.pLoadedVersion
-        );
+        try {
+            console.log('SomeoneModel.saveAndLoad 1', this.idHash, this.pLoadedVersion);
+            const result = await storeVersionedObjectCRDT(
+                {
+                    $type$: 'Someone',
+                    someoneId: this.someone.someoneId,
+                    mainProfile: this.someone.mainProfile,
+                    identity: identities
+                },
+                this.pLoadedVersion
+            );
+            console.log('SomeoneModel.saveAndLoad 2', this.idHash, this.pLoadedVersion, result);
 
-        console.log('SAVE AND LOAD 4');
-        await this.updateModelDataFromSomeone(result.obj, result.hash);
-
-        console.log('SAVE AND LOAD 5');
+            await this.updateModelDataFromSomeone(result.obj, result.hash);
+        } catch (e) {
+            console.log('SomeoneModel.saveAndLoad Error', this.idHash, this.pLoadedVersion, e);
+            throw e;
+        }
     }
 
     // ######## misc ########
