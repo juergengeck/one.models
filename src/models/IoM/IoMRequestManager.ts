@@ -290,6 +290,7 @@ export default class IoMRequestManager {
     }
 
     private async saveRegistry() {
+        messageBus.send('debug', `saveRegistry ${JSON.stringify(this.requestsRegistry)}`);
         await storeVersionedObject(this.requestsRegistry);
     }
 
