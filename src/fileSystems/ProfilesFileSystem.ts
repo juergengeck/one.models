@@ -57,6 +57,7 @@ export default class ProfilesFileSystem extends EasyFileSystem {
         await Promise.all(
             profiles.map(async profile => {
                 const profileObj = await getObjectByIdHash(profile.idHash);
+                const certs = await this.leuteModel.trust.getCertificates(profileObj.hash);
                 const personNames = profile.descriptionsOfType('PersonName');
                 const isMain = mainProfile.idHash === profile.idHash;
                 const isDefault = profile.profileId === 'default';
@@ -66,7 +67,7 @@ export default class ProfilesFileSystem extends EasyFileSystem {
                     }${profile.idHash}.txt`,
                     {
                         type: 'regularFile',
-                        content: JSON.stringify(profileObj)
+                        content: JSON.stringify({profile: profileObj, certificates: certs}, null, 2)
                     }
                 );
             })
