@@ -35,4 +35,4 @@ echo "Pull master and create tag"
 git checkout master
 git pull
 git tag -a $1 -m "Release of version $1:" -e
-git push --tags
+git push origin $1
