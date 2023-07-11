@@ -452,24 +452,17 @@ export default class SomeoneModel {
             });
         }
 
-        try {
-            console.log('SomeoneModel.saveAndLoad 1', this.idHash, this.pLoadedVersion);
-            const result = await storeVersionedObjectCRDT(
-                {
-                    $type$: 'Someone',
-                    someoneId: this.someone.someoneId,
-                    mainProfile: this.someone.mainProfile,
-                    identity: identities
-                },
-                this.pLoadedVersion
-            );
-            console.log('SomeoneModel.saveAndLoad 2', this.idHash, this.pLoadedVersion, result);
+        const result = await storeVersionedObjectCRDT(
+            {
+                $type$: 'Someone',
+                someoneId: this.someone.someoneId,
+                mainProfile: this.someone.mainProfile,
+                identity: identities
+            },
+            this.pLoadedVersion
+        );
 
-            await this.updateModelDataFromSomeone(result.obj, result.hash);
-        } catch (e) {
-            console.log('SomeoneModel.saveAndLoad Error', this.idHash, this.pLoadedVersion, e);
-            throw e;
-        }
+        await this.updateModelDataFromSomeone(result.obj, result.hash);
     }
 
     // ######## misc ########
