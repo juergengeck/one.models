@@ -49,6 +49,7 @@ export default class IncomingWebsocketRouteDirect implements ConnectionRoute {
         MessageBus.send('log', 'stop');
         if (this.stopFn) {
             await this.stopFn();
+            this.stopFn = null;
         }
     }
 }
