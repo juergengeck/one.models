@@ -252,6 +252,7 @@ export default class LeuteModel extends Model {
         };
 
         this.state.triggerEvent('init');
+
         await this.trust.init();
         await this.updatePersonNameCache();
     }
