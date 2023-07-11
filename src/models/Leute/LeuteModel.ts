@@ -106,9 +106,13 @@ export default class LeuteModel extends Model {
         (endpoint: OneInstanceEndpoint, isMe: boolean) => void
     >();
 
-    public beforeMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public beforeMainIdSwitch: OEvent<
+        (oldIdentity: SHA256IdHash<Person>, newIdentity: SHA256IdHash<Person>) => void
+    > = new OEvent();
 
-    public afterMainIdSwitch: OEvent<(identity: SHA256IdHash<Person>) => void> = new OEvent();
+    public afterMainIdSwitch: OEvent<
+        (oldIdentity: SHA256IdHash<Person>, newIdentity: SHA256IdHash<Person>) => void
+    > = new OEvent();
 
     // #### Events - END ####
 
@@ -249,7 +253,7 @@ export default class LeuteModel extends Model {
 
         this.state.triggerEvent('init');
         await this.trust.init();
-        await this.updatePersonNameCache().catch(console.error);
+        await this.updatePersonNameCache();
     }
 
     /**
@@ -448,13 +452,17 @@ export default class LeuteModel extends Model {
             myIdentity,
             'default'
         );
-        const someoneNew = await SomeoneModel.constructWithNewSomeone(
-            await createRandomString(32),
-            newProfile.idHash
-        );
-        await this.addSomeoneElse(someoneNew.idHash);
 
-        return someoneNew.idHash;
+        // Call the hook (even if it already runs) - this ensures, that the profile was added to
+        // a someone object
+        await this.addProfileFromResult(await getObjectByIdHash(newProfile.idHash));
+
+        const someone = await this.getSomeone(newPersonId);
+        if (someone === undefined) {
+            throw new Error('Impossible error: Someone does not exist even though the hook ran');
+        }
+
+        return someone.idHash;
     }
 
     // ######## Group management ########
@@ -580,12 +588,12 @@ export default class LeuteModel extends Model {
         if (oldIdentity === newIdentity) {
             await mySomeone.setMainProfile(profileHash);
         } else {
-            this.beforeMainIdSwitch.emit(oldIdentity);
             if (!(await isPersonComplete(newIdentity))) {
                 throw new Error('Person is not complete!');
             }
+            this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
             await mySomeone.setMainProfile(profileHash);
-            this.afterMainIdSwitch.emit(newIdentity);
+            this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
         }
     }
 
@@ -605,12 +613,12 @@ export default class LeuteModel extends Model {
     public async changeMyMainIdentity(newIdentity: SHA256IdHash<Person>) {
         const mySomeone = await this.me();
         const oldIdentity = await mySomeone.mainIdentity();
-        this.beforeMainIdSwitch.emit(oldIdentity);
         if (!(await isPersonComplete(newIdentity))) {
             throw new Error('Person is not complete!');
         }
+        this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
         await mySomeone.setMainIdentity(newIdentity);
-        this.afterMainIdSwitch.emit(newIdentity);
+        this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
     }
 
     /**

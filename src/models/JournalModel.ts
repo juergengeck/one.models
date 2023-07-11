@@ -220,7 +220,7 @@ export default class JournalModel extends Model {
      * Get the stored events sorted by date. In Ascending order
      * @returns
      */
-    async retrieveAllEvents(): Promise<JournalEntry[]> {
+    async retrieveAllEvents(queryOptions?: QueryOptions | undefined): Promise<JournalEntry[]> {
         this.state.assertCurrentState('Initialised');
 
         // If there are no provided models, return empty list
@@ -236,7 +236,7 @@ export default class JournalModel extends Model {
             this.modelsDictionary.map(async (journalInput: JournalInput) => {
                 const event = journalInput.eventType;
                 const data: ObjectData<unknown>[] = [];
-                for await (const retrievedData of journalInput.retrieveFn()) {
+                for await (const retrievedData of journalInput.retrieveFn(queryOptions)) {
                     data.push(await retrievedData);
                 }
                 dataDictionary[event] = {

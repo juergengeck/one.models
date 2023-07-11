@@ -1,17 +1,32 @@
 import type {Recipe, OneObjectTypeNames, Person} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {License} from './License';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 
 /**
- * This certificate gives somebody the right to declare trusted keys for himself.
+ * This license gives somebody the right to declare trusted keys for himself.
  *
  * The trust is given by creating an "AffirmationCertificate" pointing to a profile that contains
  * keys.
- *
- * [signature.issuer] allows [beneficiary] to issue new trusted keys for [beneficiary].
  */
+export const RightToDeclareTrustedKeysForSelfLicense: License = Object.freeze({
+    $type$: 'License',
+    name: 'RightToDeclareTrustedKeysForSelf',
+    description:
+        '[signature.issuer] gives [beneficiary] the right to declare keys in his own profiles as' +
+        ' trusted by issuing Affirmation certificates.'
+});
+
+registerLicense(
+    RightToDeclareTrustedKeysForSelfLicense,
+    'RightToDeclareTrustedKeysForSelfCertificate'
+);
+
 export interface RightToDeclareTrustedKeysForSelfCertificate {
     $type$: 'RightToDeclareTrustedKeysForSelfCertificate';
     beneficiary: SHA256IdHash<Person>;
+    license: SHA256Hash<License>;
 }
 
 export const RightToDeclareTrustedKeysForSelfCertificateRecipe: Recipe = {
@@ -21,6 +36,10 @@ export const RightToDeclareTrustedKeysForSelfCertificateRecipe: Recipe = {
         {
             itemprop: 'beneficiary',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'license',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
         }
     ]
 };
@@ -33,7 +52,7 @@ export const RightToDeclareTrustedKeysForSelfCertificateReverseMap: [
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
+    export interface OneCertificateInterfaces {
         RightToDeclareTrustedKeysForSelfCertificate: RightToDeclareTrustedKeysForSelfCertificate;
     }
 }

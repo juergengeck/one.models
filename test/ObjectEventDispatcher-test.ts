@@ -2,14 +2,14 @@ import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-
 import {wait} from '@refinio/one.core/lib/util/promise';
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import {expect} from 'chai';
-import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import CertificateRecipes, {
-    CertificateReverseMaps
-} from '../lib/recipes/Certificates/CertificateRecipes';
+import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
+import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRecipes';
 import ObjectEventDispatcher from '../lib/misc/ObjectEventDispatcher';
+import RecipesExperimental from '../lib/recipes/recipes-experimental';
+import RecipesStable from '../lib/recipes/recipes-stable';
 import {DummyObjectRecipes} from './utils/createDummyObject';
 
-describe('Certificate test', () => {
+describe('Object Event ispatcher test', () => {
     beforeEach(async () => {
         await initInstance({
             name: 'testname',
@@ -18,7 +18,7 @@ describe('Certificate test', () => {
             wipeStorage: true,
             encryptStorage: false,
             directory: 'test/testDb',
-            initialRecipes: [...CertificateRecipes, ...SignatureRecipes, ...DummyObjectRecipes],
+            initialRecipes: [...RecipesStable, ...RecipesExperimental, ...DummyObjectRecipes],
             initiallyEnabledReverseMapTypes: new Map([
                 ...SignatureReverseMaps,
                 ...CertificateReverseMaps

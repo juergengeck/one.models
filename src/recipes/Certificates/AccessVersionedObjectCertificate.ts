@@ -1,16 +1,27 @@
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {License} from './License';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 
 /**
- * This certificate gives another person access to all versions of the pointed to id.
- *
- * [signature.issuer] gives [person] access to [data]
+ * License for giving somebody else access to all versions of data.
  */
+export const AccessVersionedObjectLicense: License = Object.freeze({
+    $type$: 'License',
+    name: 'AccessVersionedObject',
+    description:
+        '[signature.issuer] gives permission to share all versions of [data] with [person].'
+});
+
+registerLicense(AccessVersionedObjectLicense, 'AccessVersionedObjectCertificate');
+
 export interface AccessVersionedObjectCertificate {
     $type$: 'AccessVersionedObjectCertificate';
     person: SHA256IdHash<Person>;
     data: SHA256IdHash;
+    license: SHA256Hash<License>;
 }
 
 export const AccessVersionedObjectCertificateRecipe: Recipe = {
@@ -24,6 +35,10 @@ export const AccessVersionedObjectCertificateRecipe: Recipe = {
         {
             itemprop: 'data',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['*'])}
+        },
+        {
+            itemprop: 'license',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
         }
     ]
 };
@@ -36,7 +51,7 @@ export const AccessVersionedObjectCertificateReverseMap: [OneObjectTypeNames, Se
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
+    export interface OneCertificateInterfaces {
         AccessVersionedObjectCertificate: AccessVersionedObjectCertificate;
     }
 }

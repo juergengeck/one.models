@@ -1,16 +1,25 @@
 import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
 import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {License} from './License';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
 
 /**
- * This certificate gives another person access to the pointed to data.
- *
- * [signature.issuer] gives [person] access to [data]
+ * License for giving somebody else access to data.
  */
+export const AccessUnversionedObjectLicense: License = Object.freeze({
+    $type$: 'License',
+    name: 'AccessUnversionedObject',
+    description: '[signature.issuer] gives permission to share [data] with [person].'
+});
+
+registerLicense(AccessUnversionedObjectLicense, 'AccessUnversionedObjectCertificate');
+
 export interface AccessUnversionedObjectCertificate {
     $type$: 'AccessUnversionedObjectCertificate';
     person: SHA256IdHash<Person>;
     data: SHA256Hash<OneUnversionedObjectTypes>;
+    license: SHA256Hash<License>;
 }
 
 export const AccessUnversionedObjectCertificateRecipe: Recipe = {
@@ -24,6 +33,10 @@ export const AccessUnversionedObjectCertificateRecipe: Recipe = {
         {
             itemprop: 'data',
             itemtype: {type: 'referenceToObj', allowedTypes: new Set(['*'])}
+        },
+        {
+            itemprop: 'license',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['License'])}
         }
     ]
 };
@@ -36,7 +49,7 @@ export const AccessUnversionedObjectCertificateReverseMap: [OneObjectTypeNames, 
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {
+    export interface OneCertificateInterfaces {
         AccessUnversionedObjectCertificate: AccessUnversionedObjectCertificate;
     }
 }

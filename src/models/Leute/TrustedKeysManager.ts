@@ -9,7 +9,8 @@ import type {
     Person
 } from '@refinio/one.core/lib/recipes';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     hexToUint8Array,
@@ -19,7 +20,17 @@ import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
-import tweetnacl from 'tweetnacl';
+import {getLicenseForCertificate} from '../../misc/Certificates/LicenseRegistry';
+import {
+    getSignatures,
+    sign,
+    verifySignatureWithMultipleHexKeys,
+    verifySignatureWithMultipleKeys
+} from '../../misc/Signature';
+import type {AffirmationCertificate} from '../../recipes/Certificates/AffirmationCertificate';
+import type {OneCertificateInterfaces} from '@OneObjectInterfaces';
+import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes';
+import type {License} from '../../recipes/Certificates/License';
 import type {RightToDeclareTrustedKeysForEverybodyCertificate} from '../../recipes/Certificates/RightToDeclareTrustedKeysForEverybodyCertificate';
 import type {LeuteModel} from '../index';
 import ProfileModel from './ProfileModel';
@@ -165,7 +176,7 @@ export default class TrustedKeysManager {
     }
 
     /**
-     * Get the trust information for aspecific key.
+     * Get the trust information for a specific key.
      *
      * @param key
      */
@@ -198,6 +209,61 @@ export default class TrustedKeysManager {
     async verifySignatureWithTrustedKeys(signature: Signature): Promise<boolean> {
         const trustedKeys = await this.getTrustedKeysForPerson(signature.issuer);
         return verifySignatureWithMultipleKeys(trustedKeys, signature) !== undefined;
+    }
+
+    /**
+     * Verify a signature.
+     *
+     * This also includes, that the key belongs to the mentioned issuer.
+     *
+     * @param data
+     * @param issuer
+     */
+    async isSignedBy(data: SHA256Hash, issuer: SHA256IdHash<Person>): Promise<boolean> {
+        const keys = await this.getTrustedKeysForPerson(issuer);
+
+        for (const signature of await getSignatures(data, issuer)) {
+            if (verifySignatureWithMultipleKeys(keys, signature)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Return the persons who signed this object (only valid signatures - the rest is dropped)
+     *
+     * @param data
+     */
+    async signedBy(data: SHA256Hash): Promise<SHA256IdHash<Person>[]> {
+        const sigs = await getSignatures(data);
+
+        // Create map from issuer to signatures
+        const sigMapPerIssuer = new Map<SHA256IdHash<Person>, Signature[]>();
+        for (const sig of sigs) {
+            const issuerSigs = sigMapPerIssuer.get(sig.issuer);
+            if (issuerSigs === undefined) {
+                sigMapPerIssuer.set(sig.issuer, [sig]);
+            } else {
+                issuerSigs.push(sig);
+            }
+        }
+
+        // Call the validation function on each entry
+        // If you do not like the await in the for loop - write it in a better way. I have no Idea how to
+        // write it so that it is still readable.
+        const validSigners = new Set<SHA256IdHash<Person>>();
+        for (const [issuer, sigsFromIssuer] of sigMapPerIssuer.entries()) {
+            const keys = await this.getTrustedKeysForPerson(issuer);
+            for (const signature of sigsFromIssuer) {
+                if (verifySignatureWithMultipleKeys(keys, signature)) {
+                    validSigners.add(issuer);
+                }
+            }
+        }
+
+        return [...validSigners];
     }
 
     // #### Root key interface ####
@@ -292,6 +358,51 @@ export default class TrustedKeysManager {
     }
 
     /**
+     * Create certificate by writing it as object to the one db.
+     *
+     * Note: Automatic derivation of T does not work with Omit<T> on a one object. That's why you
+     * have to specify the type separately.
+     *
+     * @param type
+     * @param certData
+     * @param issuer
+     */
+    async certify<T extends OneCertificateTypeNames>(
+        type: T,
+        certData: Omit<OneCertificateInterfaces[T], 'license' | '$type$'>,
+        issuer?: SHA256IdHash<Person>
+    ): Promise<{
+        license: UnversionedObjectResult<License>;
+        certificate: UnversionedObjectResult<OneCertificateInterfaces[T]>;
+        signature: UnversionedObjectResult<Signature>;
+    }> {
+        if (issuer === undefined) {
+            issuer = await (await this.leute.me()).mainIdentity();
+        }
+
+        const license = getLicenseForCertificate(type);
+
+        // Step 1: Write license
+        const licenseResult = await storeUnversionedObject(license);
+
+        // Step 2: Write certificate
+        const certificateResult = await storeUnversionedObject({
+            $type$: type,
+            ...certData,
+            license: licenseResult.hash
+        } as OneCertificateInterfaces[T]);
+
+        // Step 3: Write signature
+        const signatureResult = await sign(certificateResult.hash, issuer);
+
+        return {
+            license: licenseResult,
+            certificate: certificateResult,
+            signature: signatureResult
+        };
+    }
+
+    /**
      * Check if data has a certificate of specified type issued by specific person.
      *
      * @param data - The data for which certificates should be checked.
@@ -339,6 +450,13 @@ export default class TrustedKeysManager {
     }
 
     // ######## AffirmationCertificate special functions ########
+
+    async affirm(
+        data: SHA256Hash,
+        issuer?: SHA256IdHash<Person>
+    ): Promise<UnversionedObjectResult<Signature>> {
+        return (await this.certify('AffirmationCertificate', {data}, issuer)).signature;
+    }
 
     async isAffirmedByAnyone(hash: SHA256Hash): Promise<boolean> {
         return this.isCertifiedByAnyone(hash, 'AffirmationCertificate');
@@ -501,9 +619,16 @@ export default class TrustedKeysManager {
                 reason: 'endless loop'
             };
         }
-        keyStack.push(key);
 
+        keyStack.push(key);
         try {
+            // Check if it is a root key
+            const rootKey = rootKeys.find(k => k.key === key);
+            if (rootKey !== undefined) {
+                return rootKey;
+            }
+
+            // Check if we cached it already
             const cache = this.keysTrustCache.get(key);
             if (cache !== undefined) {
                 return cache;
@@ -587,40 +712,4 @@ export default class TrustedKeysManager {
             keyStack.pop();
         }
     }
-}
-
-function verifySignatureWithMultipleKeys(
-    keys: PublicSignKey[],
-    signature: Signature
-): PublicSignKey | undefined {
-    for (const key of keys) {
-        if (verifySignatureWithSingleKey(key, signature)) {
-            return key;
-        }
-    }
-
-    return undefined;
-}
-
-function verifySignatureWithMultipleHexKeys<KeyT extends PublicSignKey | HexString>(
-    keys: HexString[],
-    signature: Signature
-): HexString | undefined {
-    const binaryKeys = keys.map(k => ensurePublicSignKey(hexToUint8Array(k)));
-
-    const matchedKey = verifySignatureWithMultipleKeys(binaryKeys, signature);
-
-    if (matchedKey === undefined) {
-        return undefined;
-    }
-
-    return keys[binaryKeys.findIndex(k => k === matchedKey)];
-}
-
-function verifySignatureWithSingleKey(key: PublicSignKey, signature: Signature): boolean {
-    return tweetnacl.sign.detached.verify(
-        new TextEncoder().encode(signature.data), // string -> utf8 UInt8Array
-        hexToUint8Array(signature.signature), // hex string -> UInt8Array (binary)
-        key
-    );
 }
