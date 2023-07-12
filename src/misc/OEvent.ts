@@ -179,6 +179,9 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * It behaves like Promise.all() over all event listeners.
      *
      * @param listenerArguments - Arguments are passed to the invoked listeners.
+     * @throws If only one listener throws, then the error is thrown directly, if multiple
+     * errors are thrown, then a new error object is created that has an errors field with all
+     * errors stored in an array.
      */
     public async emitAll(...listenerArguments: Parameters<T>): Promise<ReturnType<T>[]> {
         this.checkListenerCount();
@@ -186,26 +189,32 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
         if (!this.executeSequentially) {
             return Promise.all(this.executeAndPromisifyEventListeners(listenerArguments));
         }
-        const listenerResults: ReturnType<T>[] = [];
 
-        let promiseRejected = null;
+        const listenerResults: ReturnType<T>[] = [];
+        const listenerErrors: any[] = [];
 
         for (const listener of this.listeners) {
             try {
                 // need to run the listeners in sequence
                 listenerResults.push(await listener(...listenerArguments));
             } catch (e) {
-                if (promiseRejected === null) {
-                    promiseRejected = Promise.reject(e);
-                }
-                console.error(e);
+                listenerErrors.push(e);
             }
         }
 
-        // if one of the promises failed, return the rejection
-        if (promiseRejected !== null) {
-            return promiseRejected;
+        if (listenerErrors.length > 0) {
+            if (listenerErrors.length === 1) {
+                throw listenerErrors[0];
+            } else {
+                const errList = listenerErrors.map(e => String(e)).join(',\n');
+                const thrownError: Error & {errors?: unknown[]} = new Error(
+                    `Multiple listeners failed. Use "errors" property to access all errors. Errors: ${errList}`
+                );
+                thrownError.errors = listenerErrors;
+                throw thrownError;
+            }
         }
+
         return listenerResults;
     }
 
@@ -229,6 +238,11 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
                     this.onError(e);
                 } catch (ee) {
                     console.error('onError listener failed:', ee);
+                }
+            } else if (Array.isArray(e.errors)) {
+                console.error('Multiple event listeners failed:', e);
+                for (const eee of e.errors) {
+                    console.error(eee);
                 }
             } else {
                 console.error('Event listener failed:', e);
