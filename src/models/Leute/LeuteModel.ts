@@ -226,6 +226,11 @@ export default class LeuteModel extends Model {
                     this.addProfileFromResult(result).catch(console.error);
                     this.updatePersonNameCacheForPerson(result.obj.personId).catch(console.error);
                 }
+                if (isVersionedResultOfType(result, 'Someone')) {
+                    for (const id of result.obj.identity) {
+                        this.updatePersonNameCacheForPerson(id.person).catch(console.error);
+                    }
+                }
             })
         );
 
@@ -520,17 +525,27 @@ export default class LeuteModel extends Model {
             return;
         }
 
-        const entries = await getOnlyLatestReferencingObjsHashAndId(personId, 'Someone');
+        try {
+            const entries = await getOnlyLatestReferencingObjsHashAndId(personId, 'Someone');
 
-        // Find the entry that is present in the leute list
-        const leute = this.leute;
-        const entry = entries.find(e => leute.me === e.idHash || leute.other.includes(e.idHash));
+            // Find the entry that is present in the leute list
+            const leute = this.leute;
+            const entry = entries.find(
+                e => leute.me === e.idHash || leute.other.includes(e.idHash)
+            );
 
-        if (entry === undefined) {
-            return undefined;
+            if (entry === undefined) {
+                return undefined;
+            }
+
+            return SomeoneModel.constructFromVersion(entry.hash);
+        } catch (e) {
+            if (e.name === 'FileNotFoundError') {
+                return;
+            }
+
+            throw e;
         }
-
-        return SomeoneModel.constructFromVersion(entry.hash);
     }
 
     async hasProfile(profileId: SHA256IdHash<Profile>): Promise<boolean> {
