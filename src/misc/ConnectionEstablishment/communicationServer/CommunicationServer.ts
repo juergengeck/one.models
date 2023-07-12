@@ -227,21 +227,21 @@ class CommunicationServer {
                 wsOther.addEventListener('error', (e: any) => {
                     MessageBus.send('log', `${connOther.connection.id}: Error - ${e}`);
                 });
-                wsThis.addEventListener('close', (e: any) => {
+                wsThis.addEventListener('close', (e: CloseEvent) => {
                     this.openedConnections.delete(wsThis);
                     MessageBus.send(
                         'log',
-                        `${conn.connection.id}: Requesting connection closed - ${e.message}`
+                        `${conn.connection.id}: Requesting connection closed - ${e.reason}`
                     );
-                    wsOther.close(1000, e.message);
+                    wsOther.close(1000, e.reason);
                 });
-                wsOther.addEventListener('close', (e: any) => {
+                wsOther.addEventListener('close', (e: CloseEvent) => {
                     this.openedConnections.delete(wsOther);
                     MessageBus.send(
                         'log',
-                        `${connOther.connection.id}: Listening connection closed - ${e.message}`
+                        `${connOther.connection.id}: Listening connection closed - ${e.reason}`
                     );
-                    wsThis.close(1000, e.message);
+                    wsThis.close(1000, e.reason);
                 });
 
                 this.openedConnections.add(wsThis);
