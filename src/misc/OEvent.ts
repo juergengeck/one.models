@@ -240,12 +240,14 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
                     console.error('onError listener failed:', ee);
                 }
             } else if (Array.isArray(e.errors)) {
-                console.error('Multiple event listeners failed:', e);
+                const errorsAndNewline = [];
                 for (const eee of e.errors) {
-                    console.error(eee);
+                    errorsAndNewline.push('\n');
+                    errorsAndNewline.push(eee);
                 }
+                console.error('Multiple event listeners failed:', errorsAndNewline);
             } else {
-                console.error('Event listener failed:', e);
+                console.error('Event listener failed:\n', e);
             }
         });
     }
