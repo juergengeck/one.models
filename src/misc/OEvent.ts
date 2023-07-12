@@ -243,18 +243,18 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
                 }
             } else if (Array.isArray(e.errors)) {
                 console.error(
-                    'Multiple event listeners failed here:',
+                    'Multiple event listeners failed here:\n',
                     emitCallStackError,
-                    'List of errors:'
+                    '\nList of errors:'
                 );
                 for (const eee of e.errors) {
                     console.error(eee);
                 }
             } else {
                 console.error(
-                    'Event listener failed here:',
+                    'Event listener failed here:\n',
                     emitCallStackError,
-                    'Underlying error:',
+                    '\nUnderlying error:\n',
                     e
                 );
             }
