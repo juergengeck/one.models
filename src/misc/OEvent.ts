@@ -232,6 +232,8 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
      * @param listenerArguments - Arguments are passed to the invoked listeners.
      */
     public emit(...listenerArguments: Parameters<T>): void {
+        const emitCallStackError = new Error('Emit call stack');
+
         this.emitAll(...listenerArguments).catch(e => {
             if (this.onError) {
                 try {
@@ -240,12 +242,21 @@ export class OEvent<T extends (...arg: any) => any> extends Functor<
                     console.error('onError listener failed:', ee);
                 }
             } else if (Array.isArray(e.errors)) {
-                console.error('Multiple event listeners failed:', e);
+                console.error(
+                    'Multiple event listeners failed here:',
+                    emitCallStackError,
+                    'List of errors:'
+                );
                 for (const eee of e.errors) {
                     console.error(eee);
                 }
             } else {
-                console.error('Event listener failed:', e);
+                console.error(
+                    'Event listener failed here:',
+                    emitCallStackError,
+                    'Underlying error:',
+                    e
+                );
             }
         });
     }
