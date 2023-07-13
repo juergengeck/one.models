@@ -1,5 +1,10 @@
+import {createAccess} from '@refinio/one.core/lib/access';
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObjectByIdHash, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {Profile} from '../../recipes/Leute/Profile';
 import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
@@ -14,7 +19,7 @@ import type {
 import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {createDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 
 const MessageBus = createMessageBus('IoMManager');
@@ -58,6 +63,56 @@ export default class IoMManager {
         this.requestManager = new IoMRequestManager(this.leuteModel.trust);
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
+
+        onVersionedObj.addListener(async (result: VersionedObjectResult) => {
+            if (result.obj.$type$ !== 'Profile') {
+                return;
+            }
+
+            const profile = result.obj;
+
+            // We only sign versions of the default profile owned by the target person.
+            if (profile.personId !== profile.owner) {
+                return;
+            }
+
+            if (await hasDefaultKeys(profile.personId)) {
+                return;
+            }
+
+            const affirmers = await this.leuteModel.trust.affirmedBy(result.hash);
+            const me = await this.leuteModel.me();
+
+            // Check that I myself signed this profile but from a different identity that
+            // the one that the profile is about
+            {
+                let isAffirmedByIdentityOtherThanProfile = false;
+                const otherIdentites = new Set(me.identities());
+                otherIdentites.delete(profile.personId);
+
+                for (const affirmer of affirmers) {
+                    if (otherIdentites.has(affirmer)) {
+                        isAffirmedByIdentityOtherThanProfile = true;
+                    }
+                }
+
+                if (!isAffirmedByIdentityOtherThanProfile) {
+                    return;
+                }
+            }
+
+            const affirmationCert = await this.leuteModel.trust.affirm(
+                result.hash,
+                profile.personId
+            );
+            await this.leuteModel.shareObjectWithEveryone(affirmationCert.hash);
+
+            await this.leuteModel.trust.certify(
+                'TrustKeysCertificate',
+                {profile: result.hash as SHA256Hash<Profile>},
+                profile.personId
+            );
+        });
     }
 
     /**
@@ -66,26 +121,6 @@ export default class IoMManager {
     async init() {
         await this.initIomGroup();
         await this.requestManager.init();
-
-        /* Commented this code, because we only want to re-sign profiles, that were signed by
-         another IoM identity. At the moment this will sign everything.
-
-        this.disconnectProfileListener = onVersionedObj.addListener(
-            async (result: VersionedObjectResult) => {
-                if (result.obj.$type$ !== 'Profile') {
-                    return;
-                }
-
-                const me = await this.leuteModel.me();
-                if (!me.identities().includes(result.obj.personId)) {
-                    return;
-                }
-
-                // check signed by my other id
-                await affirm(result.hash);
-            }
-        );
-        */
     }
 
     /**
@@ -139,11 +174,12 @@ export default class IoMManager {
                 personKeys: newPersonKeys
             });
 
-            await this.leuteModel.trust.certify(
+            const affirmationCert = await this.leuteModel.trust.certify(
                 'AffirmationCertificate',
                 {data: profileVersion},
                 me
             );
+            await this.leuteModel.shareObjectWithEveryone(affirmationCert.signature.hash);
         } else {
             await this.moveIdentityToMySomeone(other);
         }

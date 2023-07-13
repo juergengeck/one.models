@@ -2,6 +2,7 @@ import type {
     OneUnversionedObjectInterfaces,
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
+import {createAccess} from '@refinio/one.core/lib/access';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
 import {
@@ -9,6 +10,7 @@ import {
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
 import type {
+    Group,
     OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
@@ -16,6 +18,7 @@ import type {
     Person
 } from '@refinio/one.core/lib/recipes';
 import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {
@@ -46,6 +49,7 @@ import type {Leute} from '../../recipes/Leute/Leute';
 import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
+import IoMManager from '../IoM/IoMManager';
 import TrustedKeysManager from './TrustedKeysManager';
 import type {CreationTime} from '../../recipes/MetaRecipes';
 import type {ObjectData, QueryOptions} from '../ChannelManager';
@@ -981,6 +985,74 @@ export default class LeuteModel extends Model {
         });
 
         yield* objectDatas;
+    }
+
+    public async shareObjectWithEveryone(object: SHA256Hash): Promise<void> {
+        await this.shareObjectWithGroup(
+            object,
+            await calculateIdHashOfObj({
+                $type$: 'Group',
+                name: LeuteModel.EVERYONE_GROUP_NAME
+            })
+        );
+    }
+
+    public async shareVersionsWithEveryone(id: SHA256IdHash): Promise<void> {
+        await this.shareVersionsWithGroup(
+            id,
+            await calculateIdHashOfObj({
+                $type$: 'Group',
+                name: LeuteModel.EVERYONE_GROUP_NAME
+            })
+        );
+    }
+
+    public async shareObjectWithIoM(object: SHA256Hash): Promise<void> {
+        await this.shareObjectWithGroup(
+            object,
+            await calculateIdHashOfObj({
+                $type$: 'Group',
+                name: IoMManager.IoMGroupName
+            })
+        );
+    }
+
+    public async shareVersionsWithIoM(id: SHA256IdHash): Promise<void> {
+        await this.shareVersionsWithGroup(
+            id,
+            await calculateIdHashOfObj({
+                $type$: 'Group',
+                name: IoMManager.IoMGroupName
+            })
+        );
+    }
+
+    public async shareObjectWithGroup(
+        object: SHA256Hash,
+        group: SHA256IdHash<Group>
+    ): Promise<void> {
+        await createAccess([
+            {
+                object,
+                person: [],
+                group: [group],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
+    }
+
+    public async shareVersionsWithGroup(
+        id: SHA256IdHash,
+        group: SHA256IdHash<Group>
+    ): Promise<void> {
+        await createAccess([
+            {
+                id,
+                person: [],
+                group: [group],
+                mode: SET_ACCESS_MODE.ADD
+            }
+        ]);
     }
 
     // ######## Private stuff ########
