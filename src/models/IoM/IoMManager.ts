@@ -60,25 +60,27 @@ export default class IoMManager {
         this.commServerUrl = commServerUrl;
 
         onUnversionedObj.addListener(async (result: UnversionedObjectResult) => {
-            if (result.obj.$type$ === 'Signature') {
-                const cert = await getObject(result.obj.data);
-
-                if (cert.$type$ !== 'AffirmationCertificate') {
-                    return;
-                }
-
-                const profile = await getObject(cert.data);
-
-                if (profile.$type$ !== 'Profile') {
-                    return;
-                }
-
-                await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
+            if (result.obj.$type$ !== 'Signature' || result.status === 'exists') {
+                return;
             }
+
+            const cert = await getObject(result.obj.data);
+
+            if (cert.$type$ !== 'AffirmationCertificate') {
+                return;
+            }
+
+            const profile = await getObject(cert.data);
+
+            if (profile.$type$ !== 'Profile') {
+                return;
+            }
+
+            await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
         });
 
         onVersionedObj.addListener(async (result: VersionedObjectResult) => {
-            if (result.obj.$type$ !== 'Profile') {
+            if (result.obj.$type$ !== 'Profile' || result.status === 'exists') {
                 return;
             }
 
@@ -318,7 +320,7 @@ export default class IoMManager {
             return;
         }
 
-        if (await hasDefaultKeys(profile.personId)) {
+        if (!(await hasDefaultKeys(profile.personId))) {
             return;
         }
 
@@ -344,7 +346,7 @@ export default class IoMManager {
         }
 
         const affirmationCert = await this.leuteModel.trust.affirm(profileHash, profile.personId);
-        await this.leuteModel.shareObjectWithEveryone(affirmationCert.hash);
+        await this.leuteModel.shareObjectWithIoM(affirmationCert.hash);
 
         await this.leuteModel.trust.certify(
             'TrustKeysCertificate',
