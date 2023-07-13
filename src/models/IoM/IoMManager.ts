@@ -1,5 +1,6 @@
 import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {Profile} from '../../recipes/Leute/Profile';
 import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
 import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
@@ -129,7 +130,7 @@ export default class IoMManager {
 
             // Incorporate the other identity in our own someone object and create endpoints with the new instance and keys
             await this.moveIdentityToMySomeone(other);
-            await this.addKeysToDefaultProfile(other, {
+            const profileVersion = await this.createProfileWithKeys(other, {
                 $type$: 'OneInstanceEndpoint',
                 personId: other,
                 url: this.commServerUrl,
@@ -137,6 +138,12 @@ export default class IoMManager {
                 instanceKeys: newLocalInstance.instanceKeys,
                 personKeys: newPersonKeys
             });
+
+            await this.leuteModel.trust.certify(
+                'AffirmationCertificate',
+                {data: profileVersion},
+                me
+            );
         } else {
             await this.moveIdentityToMySomeone(other);
         }
@@ -266,16 +273,15 @@ export default class IoMManager {
      * @param identity
      * @param endpoint
      */
-    private async addKeysToDefaultProfile(
+    private async createProfileWithKeys(
         identity: SHA256IdHash<Person>,
         endpoint: OneInstanceEndpoint
-    ) {
+    ): Promise<SHA256Hash<Profile>> {
         MessageBus.send('log', `addKeysToDefaultProfile ${identity}`, endpoint);
 
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
         const keys = await getObject(endpoint.instanceKeys);
-
         const profile = await ProfileModel.constructWithNewProfile(
             identity,
             identity,
@@ -295,12 +301,7 @@ export default class IoMManager {
             );
         }
 
-        /*await this.leuteModel.trust.certify(
-            'TrustKeysCertificate',
-            {profile: profile.loadedVersion},
-            identity
-        );*/
-
         MessageBus.send('log', `addKeysToDefaultProfile ${identity} - done`);
+        return profile.loadedVersion;
     }
 }
