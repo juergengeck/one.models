@@ -1,14 +1,21 @@
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {Profile} from '../../recipes/Leute/Profile';
+import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
 import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
 import GroupModel from '../Leute/GroupModel';
 import type LeuteModel from '../Leute/LeuteModel';
 import type SomeoneModel from '../Leute/SomeoneModel';
-import type {CommunicationEndpointTypes} from '../../recipes/Leute/CommunicationEndpoints';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
-import {createDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import '../../recipes/SignatureRecipes';
 
 const MessageBus = createMessageBus('IoMManager');
 
@@ -51,6 +58,34 @@ export default class IoMManager {
         this.requestManager = new IoMRequestManager(this.leuteModel.trust);
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
+
+        onUnversionedObj.addListener(async (result: UnversionedObjectResult) => {
+            if (result.obj.$type$ !== 'Signature' || result.status === 'exists') {
+                return;
+            }
+
+            const cert = await getObject(result.obj.data);
+
+            if (cert.$type$ !== 'AffirmationCertificate') {
+                return;
+            }
+
+            const profile = await getObject(cert.data);
+
+            if (profile.$type$ !== 'Profile') {
+                return;
+            }
+
+            await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
+        });
+
+        onVersionedObj.addListener(async (result: VersionedObjectResult) => {
+            if (result.obj.$type$ !== 'Profile' || result.status === 'exists') {
+                return;
+            }
+
+            await this.resignProfileIfOk(result.obj, result.hash as SHA256Hash<Profile>);
+        });
     }
 
     /**
@@ -59,26 +94,6 @@ export default class IoMManager {
     async init() {
         await this.initIomGroup();
         await this.requestManager.init();
-
-        /* Commented this code, because we only want to re-sign profiles, that were signed by
-         another IoM identity. At the moment this will sign everything.
-
-        this.disconnectProfileListener = onVersionedObj.addListener(
-            async (result: VersionedObjectResult) => {
-                if (result.obj.$type$ !== 'Profile') {
-                    return;
-                }
-
-                const me = await this.leuteModel.me();
-                if (!me.identities().includes(result.obj.personId)) {
-                    return;
-                }
-
-                // check signed by my other id
-                await affirm(result.hash);
-            }
-        );
-        */
     }
 
     /**
@@ -123,7 +138,7 @@ export default class IoMManager {
 
             // Incorporate the other identity in our own someone object and create endpoints with the new instance and keys
             await this.moveIdentityToMySomeone(other);
-            await this.addEndpointToDefaultProfile(other, {
+            const profileVersion = await this.createProfileWithKeys(other, {
                 $type$: 'OneInstanceEndpoint',
                 personId: other,
                 url: this.commServerUrl,
@@ -131,6 +146,13 @@ export default class IoMManager {
                 instanceKeys: newLocalInstance.instanceKeys,
                 personKeys: newPersonKeys
             });
+
+            const affirmationCert = await this.leuteModel.trust.certify(
+                'AffirmationCertificate',
+                {data: profileVersion},
+                me
+            );
+            await this.leuteModel.shareObjectWithEveryone(affirmationCert.signature.hash);
         } else {
             await this.moveIdentityToMySomeone(other);
         }
@@ -260,28 +282,76 @@ export default class IoMManager {
      * @param identity
      * @param endpoint
      */
-    private async addEndpointToDefaultProfile(
+    private async createProfileWithKeys(
         identity: SHA256IdHash<Person>,
-        endpoint: CommunicationEndpointTypes
-    ) {
-        MessageBus.send('log', `addEndpointToDefaultProfile ${identity}`, endpoint);
+        endpoint: OneInstanceEndpoint
+    ): Promise<SHA256Hash<Profile>> {
+        MessageBus.send('log', `addKeysToDefaultProfile ${identity}`, endpoint);
+
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
+        const keys = await getObject(endpoint.instanceKeys);
+        const profile = await ProfileModel.constructWithNewProfile(
+            identity,
+            identity,
+            'default',
+            [endpoint],
+            [
+                {
+                    $type$: 'SignKey',
+                    key: keys.publicSignKey
+                }
+            ]
+        );
 
-        // TODO: this will be any default profile. This might be wrong, because we have different owners!!!
-        const defaultProfile = profiles.find(profile => profile.profileId === 'default');
-
-        if (defaultProfile === undefined) {
-            MessageBus.send(
-                'log',
-                `addEndpointToDefaultProfile ${identity} - failure (default profile not found)`
+        if (profile.loadedVersion === undefined) {
+            throw new Error(
+                'IoMManager: Error writing default profile (loadedVersion is undefined)'
             );
-            throw new Error('Default profile of other person not found');
         }
 
-        defaultProfile.communicationEndpoints.push(endpoint);
-        await defaultProfile.saveAndLoad();
+        MessageBus.send('log', `addKeysToDefaultProfile ${identity} - done`);
+        return profile.loadedVersion;
+    }
 
-        MessageBus.send('log', `addEndpointToDefaultProfile ${identity} - done`);
+    async resignProfileIfOk(profile: Profile, profileHash: SHA256Hash<Profile>) {
+        // We only sign versions of the default profile owned by the target person.
+        if (profile.personId !== profile.owner) {
+            return;
+        }
+
+        if (!(await hasDefaultKeys(profile.personId))) {
+            return;
+        }
+
+        const affirmers = await this.leuteModel.trust.affirmedBy(profileHash);
+        const me = await this.leuteModel.me();
+
+        // Check that I myself signed this profile but from a different identity that
+        // the one that the profile is about
+        {
+            let isAffirmedByIdentityOtherThanProfile = false;
+            const otherIdentites = new Set(me.identities());
+            otherIdentites.delete(profile.personId);
+
+            for (const affirmer of affirmers) {
+                if (otherIdentites.has(affirmer)) {
+                    isAffirmedByIdentityOtherThanProfile = true;
+                }
+            }
+
+            if (!isAffirmedByIdentityOtherThanProfile) {
+                return;
+            }
+        }
+
+        const affirmationCert = await this.leuteModel.trust.affirm(profileHash, profile.personId);
+        await this.leuteModel.shareObjectWithIoM(affirmationCert.hash);
+
+        await this.leuteModel.trust.certify(
+            'TrustKeysCertificate',
+            {profile: profileHash},
+            profile.personId
+        );
     }
 }
