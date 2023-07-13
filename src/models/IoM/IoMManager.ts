@@ -1,10 +1,7 @@
-import {createAccess} from '@refinio/one.core/lib/access';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObjectByIdHash, onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
 import type {Profile} from '../../recipes/Leute/Profile';
 import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
@@ -12,15 +9,13 @@ import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
 import GroupModel from '../Leute/GroupModel';
 import type LeuteModel from '../Leute/LeuteModel';
 import type SomeoneModel from '../Leute/SomeoneModel';
-import type {
-    CommunicationEndpointTypes,
-    OneInstanceEndpoint
-} from '../../recipes/Leute/CommunicationEndpoints';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import '../../recipes/SignatureRecipes';
 
 const MessageBus = createMessageBus('IoMManager');
 
@@ -64,54 +59,30 @@ export default class IoMManager {
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
 
+        onUnversionedObj.addListener(async (result: UnversionedObjectResult) => {
+            if (result.obj.$type$ === 'Signature') {
+                const cert = await getObject(result.obj.data);
+
+                if (cert.$type$ !== 'AffirmationCertificate') {
+                    return;
+                }
+
+                const profile = await getObject(cert.data);
+
+                if (profile.$type$ !== 'Profile') {
+                    return;
+                }
+
+                await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
+            }
+        });
+
         onVersionedObj.addListener(async (result: VersionedObjectResult) => {
             if (result.obj.$type$ !== 'Profile') {
                 return;
             }
 
-            const profile = result.obj;
-
-            // We only sign versions of the default profile owned by the target person.
-            if (profile.personId !== profile.owner) {
-                return;
-            }
-
-            if (await hasDefaultKeys(profile.personId)) {
-                return;
-            }
-
-            const affirmers = await this.leuteModel.trust.affirmedBy(result.hash);
-            const me = await this.leuteModel.me();
-
-            // Check that I myself signed this profile but from a different identity that
-            // the one that the profile is about
-            {
-                let isAffirmedByIdentityOtherThanProfile = false;
-                const otherIdentites = new Set(me.identities());
-                otherIdentites.delete(profile.personId);
-
-                for (const affirmer of affirmers) {
-                    if (otherIdentites.has(affirmer)) {
-                        isAffirmedByIdentityOtherThanProfile = true;
-                    }
-                }
-
-                if (!isAffirmedByIdentityOtherThanProfile) {
-                    return;
-                }
-            }
-
-            const affirmationCert = await this.leuteModel.trust.affirm(
-                result.hash,
-                profile.personId
-            );
-            await this.leuteModel.shareObjectWithEveryone(affirmationCert.hash);
-
-            await this.leuteModel.trust.certify(
-                'TrustKeysCertificate',
-                {profile: result.hash as SHA256Hash<Profile>},
-                profile.personId
-            );
+            await this.resignProfileIfOk(result.obj, result.hash as SHA256Hash<Profile>);
         });
     }
 
@@ -339,5 +310,46 @@ export default class IoMManager {
 
         MessageBus.send('log', `addKeysToDefaultProfile ${identity} - done`);
         return profile.loadedVersion;
+    }
+
+    async resignProfileIfOk(profile: Profile, profileHash: SHA256Hash<Profile>) {
+        // We only sign versions of the default profile owned by the target person.
+        if (profile.personId !== profile.owner) {
+            return;
+        }
+
+        if (await hasDefaultKeys(profile.personId)) {
+            return;
+        }
+
+        const affirmers = await this.leuteModel.trust.affirmedBy(profileHash);
+        const me = await this.leuteModel.me();
+
+        // Check that I myself signed this profile but from a different identity that
+        // the one that the profile is about
+        {
+            let isAffirmedByIdentityOtherThanProfile = false;
+            const otherIdentites = new Set(me.identities());
+            otherIdentites.delete(profile.personId);
+
+            for (const affirmer of affirmers) {
+                if (otherIdentites.has(affirmer)) {
+                    isAffirmedByIdentityOtherThanProfile = true;
+                }
+            }
+
+            if (!isAffirmedByIdentityOtherThanProfile) {
+                return;
+            }
+        }
+
+        const affirmationCert = await this.leuteModel.trust.affirm(profileHash, profile.personId);
+        await this.leuteModel.shareObjectWithEveryone(affirmationCert.hash);
+
+        await this.leuteModel.trust.certify(
+            'TrustKeysCertificate',
+            {profile: profileHash},
+            profile.personId
+        );
     }
 }
