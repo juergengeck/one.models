@@ -1,9 +1,15 @@
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
 import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
 import GroupModel from '../Leute/GroupModel';
 import type LeuteModel from '../Leute/LeuteModel';
 import type SomeoneModel from '../Leute/SomeoneModel';
-import type {CommunicationEndpointTypes} from '../../recipes/Leute/CommunicationEndpoints';
+import type {
+    CommunicationEndpointTypes,
+    OneInstanceEndpoint
+} from '../../recipes/Leute/CommunicationEndpoints';
 import {createLocalInstanceIfNoneExists} from '../../misc/instance';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Person} from '@refinio/one.core/lib/recipes';
@@ -123,7 +129,7 @@ export default class IoMManager {
 
             // Incorporate the other identity in our own someone object and create endpoints with the new instance and keys
             await this.moveIdentityToMySomeone(other);
-            await this.addEndpointToDefaultProfile(other, {
+            await this.addKeysToDefaultProfile(other, {
                 $type$: 'OneInstanceEndpoint',
                 personId: other,
                 url: this.commServerUrl,
@@ -260,28 +266,41 @@ export default class IoMManager {
      * @param identity
      * @param endpoint
      */
-    private async addEndpointToDefaultProfile(
+    private async addKeysToDefaultProfile(
         identity: SHA256IdHash<Person>,
-        endpoint: CommunicationEndpointTypes
+        endpoint: OneInstanceEndpoint
     ) {
-        MessageBus.send('log', `addEndpointToDefaultProfile ${identity}`, endpoint);
+        MessageBus.send('log', `addKeysToDefaultProfile ${identity}`, endpoint);
+
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
+        const keys = await getObject(endpoint.instanceKeys);
 
-        // TODO: this will be any default profile. This might be wrong, because we have different owners!!!
-        const defaultProfile = profiles.find(profile => profile.profileId === 'default');
+        const profile = await ProfileModel.constructWithNewProfile(
+            identity,
+            identity,
+            'default',
+            [endpoint],
+            [
+                {
+                    $type$: 'SignKey',
+                    key: keys.publicSignKey
+                }
+            ]
+        );
 
-        if (defaultProfile === undefined) {
-            MessageBus.send(
-                'log',
-                `addEndpointToDefaultProfile ${identity} - failure (default profile not found)`
+        if (profile.loadedVersion === undefined) {
+            throw new Error(
+                'IoMManager: Error writing default profile (loadedVersion is undefined)'
             );
-            throw new Error('Default profile of other person not found');
         }
 
-        defaultProfile.communicationEndpoints.push(endpoint);
-        await defaultProfile.saveAndLoad();
+        /*await this.leuteModel.trust.certify(
+            'TrustKeysCertificate',
+            {profile: profile.loadedVersion},
+            identity
+        );*/
 
-        MessageBus.send('log', `addEndpointToDefaultProfile ${identity} - done`);
+        MessageBus.send('log', `addKeysToDefaultProfile ${identity} - done`);
     }
 }
