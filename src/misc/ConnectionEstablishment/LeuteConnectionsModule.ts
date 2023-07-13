@@ -600,6 +600,11 @@ export default class LeuteConnectionsModule {
         const remoteInstanceKeys = await getObject(remoteInstanceEndpoint.instanceKeys);
         const remoteInstanceKey = ensurePublicKey(hexToUint8Array(remoteInstanceKeys.publicKey));
 
+        // Filter out endpoints for this instance
+        if (this.myPublicKeyToInstanceInfoMap.has(remoteInstanceKeys.publicKey as LocalPublicKey)) {
+            return;
+        }
+
         // Create an outgoing connection for all of my identities
         for (const myInfo of this.myPublicKeyToInstanceInfoMap.values()) {
             const peerId = createPeerId(
