@@ -700,7 +700,7 @@ export default class TrustedKeysManager {
                             keyTrustInfo.sources.push({
                                 issuer: certificate.signature.issuer,
                                 certificateType: certificate.certificate.$type$,
-                                keyTrustInfo
+                                keyTrustInfo: trustOfCertificate
                             });
                         }
                     }
