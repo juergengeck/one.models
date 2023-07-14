@@ -44,6 +44,7 @@ export type CertificateData<T extends OneObjectTypes = OneObjectTypes> = {
     certificate: T;
     certificateHash: SHA256Hash<T>;
     trusted: boolean;
+    keyTrustInfo?: KeyTrustInfo;
 };
 
 export type KeysWithReason = {
@@ -212,6 +213,28 @@ export default class TrustedKeysManager {
     }
 
     /**
+     * Finds the key that verifies the signature.
+     *
+     * Attention! This might also return keys that are not trusted. You have to check the
+     * trusted value of the returned KeyTrustInfo.
+     *
+     * @param signature
+     */
+    async findKeyThatVerifiesSignature(signature: Signature): Promise<KeyTrustInfo | undefined> {
+        const keys = await this.getKeysForPerson(signature.issuer);
+        const matchingKey = verifySignatureWithMultipleKeys(
+            keys.map(k => k.key),
+            signature
+        );
+
+        if (matchingKey === undefined) {
+            return undefined;
+        }
+
+        return keys.find(k => k.key === matchingKey)?.trustInfo;
+    }
+
+    /**
      * Verify a signature.
      *
      * This also includes, that the key belongs to the mentioned issuer.
@@ -325,12 +348,15 @@ export default class TrustedKeysManager {
             for (const signatureHash of signatureHashes) {
                 const signature = await getObject(signatureHash);
 
+                const matchingKey = await this.findKeyThatVerifiesSignature(signature);
+
                 certificates.push({
                     certificate,
                     certificateHash,
                     signature,
                     signatureHash,
-                    trusted: await this.verifySignatureWithTrustedKeys(signature)
+                    trusted: matchingKey === undefined ? false : matchingKey.trusted,
+                    keyTrustInfo: matchingKey
                 });
             }
         }
