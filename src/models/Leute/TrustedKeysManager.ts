@@ -44,11 +44,7 @@ export type CertificateData<T extends OneObjectTypes = OneObjectTypes> = {
     certificate: T;
     certificateHash: SHA256Hash<T>;
     trusted: boolean;
-};
-
-export type KeysWithReason = {
-    reason: string;
-    key: PublicSignKey;
+    keyTrustInfo?: KeyTrustInfo;
 };
 
 export type ProfileData = {
@@ -74,9 +70,8 @@ export type KeyTrustInfo = {
     key: HexString;
     trusted: boolean;
     reason: string;
-    sources: {
-        issuer: SHA256IdHash<Person>;
-        certificateType: OneObjectTypeNames;
+    certificates: {
+        certificate: CertificateData;
         keyTrustInfo: KeyTrustInfo;
     }[];
 };
@@ -194,7 +189,7 @@ export default class TrustedKeysManager {
             rootKeys.map(k => ({
                 key: uint8arrayToHexString(k),
                 trusted: true,
-                sources: [],
+                certificates: [],
                 reason: 'root key'
             })),
             []
@@ -209,6 +204,28 @@ export default class TrustedKeysManager {
     async verifySignatureWithTrustedKeys(signature: Signature): Promise<boolean> {
         const trustedKeys = await this.getTrustedKeysForPerson(signature.issuer);
         return verifySignatureWithMultipleKeys(trustedKeys, signature) !== undefined;
+    }
+
+    /**
+     * Finds the key that verifies the signature.
+     *
+     * Attention! This might also return keys that are not trusted. You have to check the
+     * trusted value of the returned KeyTrustInfo.
+     *
+     * @param signature
+     */
+    async findKeyThatVerifiesSignature(signature: Signature): Promise<KeyTrustInfo | undefined> {
+        const keys = await this.getKeysForPerson(signature.issuer);
+        const matchingKey = verifySignatureWithMultipleKeys(
+            keys.map(k => k.key),
+            signature
+        );
+
+        if (matchingKey === undefined) {
+            return undefined;
+        }
+
+        return keys.find(k => k.key === matchingKey)?.trustInfo;
     }
 
     /**
@@ -325,12 +342,15 @@ export default class TrustedKeysManager {
             for (const signatureHash of signatureHashes) {
                 const signature = await getObject(signatureHash);
 
+                const matchingKey = await this.findKeyThatVerifiesSignature(signature);
+
                 certificates.push({
                     certificate,
                     certificateHash,
                     signature,
                     signatureHash,
-                    trusted: await this.verifySignatureWithTrustedKeys(signature)
+                    trusted: matchingKey === undefined ? false : matchingKey.trusted,
+                    keyTrustInfo: matchingKey
                 });
             }
         }
@@ -615,7 +635,7 @@ export default class TrustedKeysManager {
             return {
                 key,
                 trusted: false,
-                sources: [],
+                certificates: [],
                 reason: 'endless loop'
             };
         }
@@ -640,7 +660,7 @@ export default class TrustedKeysManager {
                 return {
                     key,
                     trusted: false,
-                    sources: [],
+                    certificates: [],
                     reason: 'no profiles contain this key'
                 };
             }
@@ -649,7 +669,7 @@ export default class TrustedKeysManager {
             const keyTrustInfo: KeyTrustInfo = {
                 key,
                 trusted: false,
-                sources: [],
+                certificates: [],
                 reason: 'no certificate found that applies trust'
             };
 
@@ -697,10 +717,9 @@ export default class TrustedKeysManager {
                         if (trustOfCertificate.trusted) {
                             keyTrustInfo.trusted = true;
                             keyTrustInfo.reason = '';
-                            keyTrustInfo.sources.push({
-                                issuer: certificate.signature.issuer,
-                                certificateType: certificate.certificate.$type$,
-                                keyTrustInfo
+                            keyTrustInfo.certificates.push({
+                                certificate: certificate,
+                                keyTrustInfo: trustOfCertificate
                             });
                         }
                     }
