@@ -47,11 +47,6 @@ export type CertificateData<T extends OneObjectTypes = OneObjectTypes> = {
     keyTrustInfo?: KeyTrustInfo;
 };
 
-export type KeysWithReason = {
-    reason: string;
-    key: PublicSignKey;
-};
-
 export type ProfileData = {
     personId: SHA256IdHash<Person>;
     owner: SHA256IdHash<Person>;
@@ -75,9 +70,8 @@ export type KeyTrustInfo = {
     key: HexString;
     trusted: boolean;
     reason: string;
-    sources: {
-        issuer: SHA256IdHash<Person>;
-        certificateType: OneObjectTypeNames;
+    certificates: {
+        certificate: CertificateData;
         keyTrustInfo: KeyTrustInfo;
     }[];
 };
@@ -195,7 +189,7 @@ export default class TrustedKeysManager {
             rootKeys.map(k => ({
                 key: uint8arrayToHexString(k),
                 trusted: true,
-                sources: [],
+                certificates: [],
                 reason: 'root key'
             })),
             []
@@ -641,7 +635,7 @@ export default class TrustedKeysManager {
             return {
                 key,
                 trusted: false,
-                sources: [],
+                certificates: [],
                 reason: 'endless loop'
             };
         }
@@ -666,7 +660,7 @@ export default class TrustedKeysManager {
                 return {
                     key,
                     trusted: false,
-                    sources: [],
+                    certificates: [],
                     reason: 'no profiles contain this key'
                 };
             }
@@ -675,7 +669,7 @@ export default class TrustedKeysManager {
             const keyTrustInfo: KeyTrustInfo = {
                 key,
                 trusted: false,
-                sources: [],
+                certificates: [],
                 reason: 'no certificate found that applies trust'
             };
 
@@ -723,9 +717,8 @@ export default class TrustedKeysManager {
                         if (trustOfCertificate.trusted) {
                             keyTrustInfo.trusted = true;
                             keyTrustInfo.reason = '';
-                            keyTrustInfo.sources.push({
-                                issuer: certificate.signature.issuer,
-                                certificateType: certificate.certificate.$type$,
+                            keyTrustInfo.certificates.push({
+                                certificate: certificate,
                                 keyTrustInfo: trustOfCertificate
                             });
                         }
