@@ -1,17 +1,18 @@
 import {expect} from 'chai';
 
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {wait} from '@refinio/one.core/lib/util/promise';
-import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
-import {ChannelManager} from '../lib/models';
-import type {ObjectData, RawChannelEntry} from '../lib/models/ChannelManager';
-import {Order} from '../lib/models/ChannelManager';
-import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe';
-import * as StorageTestInit from './_helpers';
-import TestModel from './utils/TestModel';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query.js';
+
+import ChannelManager from '../lib/models/ChannelManager.js';
+import type {ObjectData, RawChannelEntry} from '../lib/models/ChannelManager.js';
+import {Order} from '../lib/models/ChannelManager.js';
+import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe.js';
+import * as StorageTestInit from './_helpers.js';
+import TestModel from './utils/TestModel.js';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;

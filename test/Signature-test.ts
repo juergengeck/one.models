@@ -1,13 +1,20 @@
 import {expect} from 'chai';
-import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import {sign} from '../lib/misc/Signature';
-import {LeuteModel} from '../lib/models';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import {createTestIdentity} from './utils/createTestIdentity';
-import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
-import {signForSomeoneElse} from './utils/signForSomeoneElse';
+
+import {
+    closeInstance,
+    getInstanceOwnerIdHash,
+    initInstance
+} from '@refinio/one.core/lib/instance.js';
+
+import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
+import {sign} from '../lib/misc/Signature.js';
+import LeuteModel from '../lib/models/Leute/LeuteModel.js';
+import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
+import RecipesStable from '../lib/recipes/recipes-stable.js';
+
+import {createTestIdentity} from './utils/createTestIdentity.js';
+import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject.js';
+import {signForSomeoneElse} from './utils/signForSomeoneElse.js';
 
 describe('Signature test', () => {
     const leute = new LeuteModel('wss://dummy');
@@ -52,7 +59,7 @@ describe('Signature test', () => {
         expect(await leute.trust.isSignedBy(data, me)).to.be.true;
     });
 
-    // Skipped - this test fails because we didn't add the keys of someone else to leute as
+    // Skipped - this test fails because we didn't add the keys of someone else to Leute as
     // trusted keys
     it.skip('Sign object by someone else (trusted keys test)', async () => {
         // Create an identity with brand new keys & data & sign the data with this new identity.

@@ -1,6 +1,6 @@
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
-import {LeuteModel} from '../lib/models';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import * as StorageTestInit from './_helpers.js';
+import LeuteModel from '../lib/models/Leute/LeuteModel.js';
 import {expect} from 'chai';
 
 describe('LeuteModel test', function () {

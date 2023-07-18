@@ -1,15 +1,15 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance.js';
+import * as StorageTestInit from './_helpers.js';
 import {expect} from 'chai';
 
-import Recipes from '../lib/recipes/recipes-experimental';
-import TestModel, {removeDir} from './utils/TestModel';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem';
-import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel';
+import Recipes from '../lib/recipes/recipes-experimental.js';
+import TestModel, {removeDir} from './utils/TestModel.js';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams.js';
+import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem.js';
+import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel.js';
 
 let fileSystem: PersistentFileSystem;
 let testModel: TestModel;

@@ -1,12 +1,13 @@
-import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
-import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
+import {closeInstance, initInstance} from '@refinio/one.core/lib/instance.js';
+
+import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
 import CertificateRecipes, {
     CertificateReverseMaps
-} from '../lib/recipes/Certificates/CertificateRecipes';
-import {DummyObjectRecipes} from './utils/createDummyObject';
-import {LeuteModel} from '../lib/models';
-import LeuteRecipes from '../lib/recipes/Leute/recipes';
-import InstancesRecipes from '../lib/recipes/InstancesRecipies';
+} from '../lib/recipes/Certificates/CertificateRecipes.js';
+import {DummyObjectRecipes} from './utils/createDummyObject.js';
+import LeuteModel from '../lib/models/Leute/LeuteModel.js';
+import LeuteRecipes from '../lib/recipes/Leute/recipes.js';
+import InstancesRecipes from '../lib/recipes/InstancesRecipies.js';
 
 describe('Keychains test', () => {
     let leute: LeuteModel;

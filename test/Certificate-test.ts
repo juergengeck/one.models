@@ -1,14 +1,20 @@
 import {expect} from 'chai';
-import {closeInstance, getInstanceOwnerIdHash, initInstance} from '@refinio/one.core/lib/instance';
-import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRecipes';
-import {sign} from '../lib/misc/Signature';
-import {LeuteModel} from '../lib/models';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject';
-import {createTestIdentity} from './utils/createTestIdentity';
-import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse';
+
+import {
+    closeInstance,
+    getInstanceOwnerIdHash,
+    initInstance
+} from '@refinio/one.core/lib/instance.js';
+
+import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
+import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRecipes.js';
+import {sign} from '../lib/misc/Signature.js';
+import LeuteModel from '../lib/models/Leute/LeuteModel.js';
+import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
+import RecipesStable from '../lib/recipes/recipes-stable.js';
+import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject.js';
+import {createTestIdentity} from './utils/createTestIdentity.js';
+import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse.js';
 
 describe('Certificate test', () => {
     const leute = new LeuteModel('wss://dummy');

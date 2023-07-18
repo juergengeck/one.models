@@ -5,18 +5,18 @@
 
 import {expect} from 'chai';
 
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {
     getObjectByIdHash,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelManager} from '../lib/models';
-import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes';
-import * as StorageTestInit from './_helpers';
-import TestModel from './utils/TestModel';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type ChannelManager from '../lib/models/ChannelManager.js';
+import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes.js';
+import * as StorageTestInit from './_helpers.js';
+import TestModel from './utils/TestModel.js';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;

@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import tweetnacl from 'tweetnacl';
-import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin';
+import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin.js';
 
 describe('Encryption plugin test', () => {
     it('encrypt decrypt', async function () {

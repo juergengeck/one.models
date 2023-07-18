@@ -1,11 +1,12 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
+
 import {expect} from 'chai';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
-import TestModel from './utils/TestModel';
-import {QuestionnaireModel} from '../lib/models';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import * as StorageTestInit from './_helpers.js';
+import TestModel from './utils/TestModel.js';
+import QuestionnaireModel from '../lib/models/QuestionnaireModel.js';
 
 let testModel: TestModel;
 
@@ -27,7 +28,7 @@ describe('Questionnaire model test', () => {
         await qm.init();
 
         // Register a questionnaire
-        await qm.registerQuestionnaires([
+        qm.registerQuestionnaires([
             {
                 resourceType: 'Questionnaire',
                 language: 'de',
