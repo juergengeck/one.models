@@ -1,8 +1,8 @@
+import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform';
+
 import type {ChannelManager} from '../models';
 import type PersistentFileSystem from './PersistentFileSystem';
 import type {ObjectData} from '../models/ChannelManager';
-import {platform} from '@refinio/one.core/lib/system/platform';
-import {PLATFORMS} from '@refinio/one.core/lib/platforms';
 import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
 import type {BLOB, OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
@@ -32,9 +32,7 @@ export class PWAConnector {
         persistedFileSystem: PersistentFileSystem,
         allowedChannels: AllowedChannel[]
     ) {
-        // Accepted because of TS2367: This condition will always return 'true' since the types '"node"' and '"browser"' have no overlap.
-        // @ts-ignore
-        if (platform !== PLATFORMS.BROWSER) {
+        if (!isBrowser) {
             throw new Error('Error: this module can be used only on Browser environment.');
         }
 
@@ -126,9 +124,7 @@ export class FilerConnector {
         persistentFilerModel: PersistentFilerModel,
         documentModel: DocumentModel
     ) {
-        // Accepted because of TS2367: This condition will always return 'true' since the types '"node"' and '"browser"' have no overlap.
-        // @ts-ignore
-        if (platform !== PLATFORMS.NODE_JS) {
+        if (!isNode) {
             throw new Error('Error: this module can be used only on NODEJS environment.');
         }
 

@@ -3,16 +3,15 @@
  *
  * @param url - A url to a remote location. If relative, it is relative to the loaded app.
  */
-import {platform} from '@refinio/one.core/lib/system/platform';
-import {PLATFORMS} from '@refinio/one.core/lib/platforms';
+
+import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform';
 
 export async function fetchFile(url: string): Promise<string> {
-    // @ts-ignore
-    if (platform === PLATFORMS.BROWSER) {
+    if (isBrowser) {
         return new Promise((resolve, reject) => {
             const request = new XMLHttpRequest();
             request.onerror = function () {
-                reject(`Error retrieving file: ${url}`);
+                reject(new Error(`Error retrieving file: ${url}`));
             };
             request.onload = function () {
                 // 200 should be okay, all the other 2xx and 304 don't apply for a simple get call.
@@ -27,8 +26,7 @@ export async function fetchFile(url: string): Promise<string> {
             request.open('get', url, true);
             request.send();
         });
-        // @ts-ignore
-    } else if (platform === PLATFORMS.NODE_JS) {
+    } else if (isNode) {
         return new Promise<string>((resolve, reject) => {
             const urlp = new URL(url);
             if (urlp.protocol !== 'https' && urlp.protocol !== 'http') {
@@ -74,12 +72,11 @@ export async function fetchFile(url: string): Promise<string> {
  * @param jsonContent
  */
 export async function postJson(url: string, jsonContent: string): Promise<void> {
-    // @ts-ignore
-    if (platform === PLATFORMS.BROWSER) {
+    if (isBrowser) {
         return new Promise((resolve, reject) => {
             const request = new XMLHttpRequest();
             request.onerror = function () {
-                reject(`Error retrieving file: ${url}`);
+                reject(new Error(`Error retrieving file: ${url}`));
             };
             request.onload = function () {
                 // 201 should be okay for posting
@@ -95,8 +92,7 @@ export async function postJson(url: string, jsonContent: string): Promise<void> 
             request.setRequestHeader('Content-Type', 'application/json');
             request.send(jsonContent);
         });
-        // @ts-ignore
-    } else if (platform === PLATFORMS.NODE_JS) {
+    } else if (isNode) {
         return new Promise<void>((resolve, reject) => {
             const urlp = new URL(url);
             if (urlp.protocol !== 'https:' && urlp.protocol !== 'http:') {
