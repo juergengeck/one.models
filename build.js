@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-'use strict';
-
 /*
   eslint-disable
   global-require,
@@ -21,13 +19,31 @@
  * annotations.
  */
 
-const fs = require('fs');
-const {basename, dirname, join, sep} = require('path');
-const {execSync} = require('child_process');
+import {execSync} from 'child_process';
+import fs from 'fs';
+import {basename, dirname, join, sep} from 'path';
+import {fileURLToPath} from 'url';
+
+import babel from '@babel/core';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const {access, chmod, mkdir, rmdir, readdir, readFile, writeFile, rename, unlink} = fs.promises;
 
-const babel = require('@babel/core');
+const BABEL_OPTS = {
+    presets: ['@babel/preset-typescript'],
+    sourceMap: true,
+    plugins: [
+        [
+            '@babel/plugin-transform-typescript',
+            {
+                strictMode: true
+            }
+        ]
+    ],
+    comments: false,
+    filename: ''
+};
 
 /**
  * @param {string} file
@@ -44,54 +60,6 @@ async function fileExists(file) {
             throw err;
         });
 }
-
-/** @type {Record<string, string[]>} */
-const PLATFORMS = {
-    nodejs: ['commonjs', 'es2015'],
-    browser: ['es2015'],
-    rn: ['es2015']
-};
-
-/**
- * One of them will be added to the BABEL_OPTS.plugin array
- * @type {{systemjs: string, commonjs: *[], umd: string}}
- */
-const BABEL_MODULE_TARGETS = {
-    // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-commonjs.html
-    commonjs: [
-        '@babel/plugin-transform-modules-commonjs',
-        {
-            noInterop: false
-        }
-    ],
-    // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-systemjs.html
-    systemjs: '@babel/plugin-transform-modules-systemjs',
-    // See https://babeljs.io/docs/en/next/babel-plugin-transform-modules-umd.html
-    umd: '@babel/plugin-transform-modules-umd'
-};
-
-const BABEL_OPTS = {
-    presets: [
-        '@babel/preset-typescript'
-        // 'minify'
-    ],
-    sourceMap: true,
-    plugins: [
-        [
-            '@babel/plugin-transform-typescript',
-            {
-                strictMode: true
-            }
-        ],
-        '@babel/plugin-proposal-class-properties',
-        '@babel/plugin-proposal-nullish-coalescing-operator',
-        '@babel/plugin-proposal-object-rest-spread',
-        '@babel/plugin-proposal-optional-chaining',
-        '@babel/plugin-transform-runtime'
-    ],
-    comments: false,
-    filename: ''
-};
 
 /**
  * @param {unknown} thing
@@ -118,7 +86,6 @@ Usage: node build.js or directly call ./build.js
 
 Options: [h | help | -h | --help]
          [node|browser|rn|low|moddable]
-         [-m es2015|commonjs|systemjs|umd]
          [-t target directory]
          [-f script.ts]
 
@@ -136,9 +103,6 @@ Options:
   that contains this setting is used.
   Specifying a target platform as command line argument takes precedence.
   If no platform is provided "nodejs" will be the default.
-
-  -m Choose the target module system. Default is CommonJS. Other options are ES2015,
-     SystemJS and UMD (all names need to be without any capitalization).
 
   -t target directory Default is ./lib/
 
@@ -247,10 +211,9 @@ function transform(code, options) {
  * @param {string} srcDir - Directory relative to PROJECT_ROOT
  * @param {string} file - The filename without path
  * @param {string} system - nodejs, browser, rn
- * @param {string} moduleTarget - commonjs, es2015, systemjs, umd
  * @returns {Promise<void>}
  */
-async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget) {
+async function transformAndWriteJsFile(targetDir, srcDir, file, system) {
     if (!file.endsWith('.ts')) {
         return;
     }
@@ -275,16 +238,11 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
     } else {
         BABEL_OPTS.filename = file;
 
-        const fileExtension =
-            targetDir !== 'test' && system === 'nodejs' && moduleTarget === 'es2015'
-                ? '.mjs'
-                : '.js';
-
-        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}${fileExtension}`);
+        console.log(`Processing file ${join(srcDir, file)} ⇒ ${destination}'.js'`);
 
         const transformedCode = await transform(code, BABEL_OPTS);
         transformedCode.code += `\n//# sourceMappingURL=${file.replace(/\.ts$/, '')}.js.map`;
-        await writeFile(destination + fileExtension, transformedCode.code, {flag: 'w'});
+        await writeFile(destination + '.js', transformedCode.code, {flag: 'w'});
 
         transformedCode.map.sources[0] = `../${srcDir}/` + transformedCode.map.sources[0];
         await writeFile(destination + '.js.map', JSON.stringify(transformedCode.map), {
@@ -292,7 +250,7 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
         });
 
         if (destination.endsWith(join('tools', file.replace(/\.ts$/, '')))) {
-            await chmod(destination + fileExtension, '755');
+            await chmod(destination + '.js', '755');
         }
     }
 }
@@ -301,10 +259,9 @@ async function transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTa
  * @param {string} srcDir
  * @param {string} targetDir
  * @param {string} system
- * @param {string} moduleTarget - One of commonjs, es2015, systemjs, umd
  * @returns {Promise<void>}
  */
-async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
+async function processAllFiles(srcDir, targetDir, system) {
     console.log(`=> Processing directory ${srcDir}...`);
 
     const files = await readdir(join(__dirname, srcDir));
@@ -313,9 +270,9 @@ async function processAllFiles(srcDir, targetDir, system, moduleTarget) {
         const stats = fs.statSync(join(srcDir, file));
 
         if (stats.isDirectory()) {
-            await processAllFiles(join(srcDir, file), join(targetDir, file), system, moduleTarget);
+            await processAllFiles(join(srcDir, file), join(targetDir, file), system);
         } else {
-            await transformAndWriteJsFile(targetDir, srcDir, file, system, moduleTarget);
+            await transformAndWriteJsFile(targetDir, srcDir, file, system);
         }
     }
 }
@@ -436,36 +393,6 @@ async function getSystem() {
 }
 
 /**
- * If "-m" option is found a target system is set, otherwise the default of "commonjs" is used.
- * GLOBAL SIDE EFFECT: Possibly mutates BABEL_OPTS
- * @returns {string}
- */
-function setModuleTarget() {
-    const mIndex = process.argv.findIndex(arg => arg.startsWith('-m'));
-
-    const moduleTarget = mIndex >= 0 ? process.argv[mIndex + 1].toLocaleLowerCase() : 'commonjs';
-
-    switch (moduleTarget) {
-        case 'es2015':
-            break;
-
-        case 'commonjs':
-        case 'systemjs':
-        case 'umd':
-            // @ts-ignore
-            BABEL_OPTS.plugins.push(BABEL_MODULE_TARGETS[moduleTarget]);
-            break;
-
-        default:
-            throw new Error(
-                'Option -m detected but no valid module system string (see usage with -h)'
-            );
-    }
-
-    return moduleTarget;
-}
-
-/**
  * If "-t" option is found a target directory is set, otherwise the default of "lib" is used.
  * @returns {string}
  */
@@ -517,7 +444,6 @@ async function run() {
 
     const system = await getSystem();
     const targetDir = getTargetDir();
-    const moduleTarget = setModuleTarget(); // Call with side effect
     const singleFile = calledForSingleFile();
 
     if (singleFile !== '') {
@@ -531,19 +457,18 @@ async function run() {
             destination,
             dirname(singleFile),
             basename(singleFile),
-            system,
-            moduleTarget
+            system
         );
     }
 
-    console.log(`\n========== Begin building one.models (${moduleTarget}/${system}) ==========`);
+    console.log(`\n========== Begin building one.models (/${system}) ==========`);
 
     await deleteDirectory(targetDir);
-    await processAllFiles('src', targetDir, system, moduleTarget);
+    await processAllFiles('src', targetDir, system);
     const failed = await createDeclarationFiles(targetDir);
-    await processAllFiles('test', 'test', system, moduleTarget);
+    await processAllFiles('test', 'test', system);
 
-    console.log(`========== Done building one.models (${moduleTarget}/${system}) ==========\n`);
+    console.log(`========== Done building one.models (${system}) ==========\n`);
 
     // Only fail on nodejs - browser still has some errors because of node specific code in
     // tests and other files
@@ -552,23 +477,6 @@ async function run() {
             'Tsc failed for at least one source file. Look at the console output for' +
                 ' further information.'
         );
-    }
-}
-
-/**
- * @returns {void}
- */
-function runBuilForAllTargets() {
-    for (const platform of Object.keys(PLATFORMS)) {
-        for (const moduleSystem of PLATFORMS[platform]) {
-            execSync(
-                `node ./build.js ${platform} -t ${join(
-                    'builds',
-                    platform
-                )}.${moduleSystem} -m ${moduleSystem}`,
-                {stdio: 'inherit'}
-            );
-        }
     }
 }
 
@@ -582,11 +490,7 @@ if (
     process.exit(0);
 }
 
-if (process.argv.includes('ALL')) {
-    runBuilForAllTargets();
-} else {
-    run().catch(err => {
-        console.log(err.message);
-        process.exit(1);
-    });
-}
+run().catch(err => {
+    console.log(err.message);
+    process.exit(1);
+});
