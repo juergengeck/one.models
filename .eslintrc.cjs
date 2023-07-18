@@ -53,7 +53,14 @@ module.exports = {
         '@typescript-eslint/array-type': ['off', {default: 'array-simple'}],
         '@typescript-eslint/brace-style': ['off', '1tbs', {allowSingleLine: false}],
         '@typescript-eslint/consistent-type-definitions': ['off', 'interface'],
-        '@typescript-eslint/consistent-type-imports': ['error', {prefer: 'type-imports'}],
+        '@typescript-eslint/consistent-type-imports': [
+            'error',
+            {
+                prefer: 'type-imports',
+                fixStyle: 'separate-type-imports',
+                disallowTypeAnnotations: false
+            }
+        ],
         'func-call-spacing': 'off',
         '@typescript-eslint/func-call-spacing': ['error'],
         '@typescript-eslint/no-extra-parens': 'off', // 'all',{'nestedBinaryExpressions': false}
@@ -72,6 +79,7 @@ module.exports = {
         '@typescript-eslint/no-inferrable-types': 'off',
         '@typescript-eslint/no-namespace': 'error',
         '@typescript-eslint/no-misused-promises': ['error', {checksVoidReturn: false}],
+        '@typescript-eslint/no-var-requires': 'off',
         '@typescript-eslint/no-require-imports': 'off',
         '@typescript-eslint/no-shadow': 'warn',
         '@typescript-eslint/no-unused-vars': ['off'],
@@ -149,7 +157,7 @@ module.exports = {
         'function-paren-newline': ['off'],
         'generator-star-spacing': ['off', {before: true, after: false}],
         // Disallow require() outside of the top-level module scope
-        'global-require': 'error',
+        'global-require': 'off',
         'key-spacing': ['error', {beforeColon: false, afterColon: true}],
         'keyword-spacing': 'error',
         'max-nested-callbacks': ['warn', 4],
