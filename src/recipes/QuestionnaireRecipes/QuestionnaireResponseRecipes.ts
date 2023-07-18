@@ -1,5 +1,6 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
-import {Questionnaire, ValueRules} from './QuestionnaireRecipes_1_0_0';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
+import type {Questionnaire} from './QuestionnaireRecipes_1_0_0.js';
+import {ValueRules} from './QuestionnaireRecipes_1_0_0.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

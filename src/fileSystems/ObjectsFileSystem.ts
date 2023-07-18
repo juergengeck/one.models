@@ -3,19 +3,19 @@ import type {
     FileSystemDirectory,
     FileSystemFile,
     IFileSystem
-} from './IFileSystem';
-import FileSystemHelpers from './FileSystemHelpers';
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from './FileSystemErrors';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from './IFileSystem.js';
+import FileSystemHelpers from './FileSystemHelpers.js';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from './FileSystemErrors.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getFileType,
     listAllObjectHashes,
     readUTF8TextFile
-} from '@refinio/one.core/lib/system/storage-base';
+} from '@refinio/one.core/lib/system/storage-base.js';
 
 /**
  * Json format for the objects parsed path

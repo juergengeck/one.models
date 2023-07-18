@@ -1,10 +1,10 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {Demand, Supply} from '../../recipes/MatchingRecipes';
-import type ChannelManager from '../ChannelManager';
-import ClientMatchingModel from './ClientMatchingModel';
-import MatchingModel from './MatchingModel';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {Demand, Supply} from '../../recipes/MatchingRecipes.js';
+import type ChannelManager from '../ChannelManager.js';
+import ClientMatchingModel from './ClientMatchingModel.js';
+import MatchingModel from './MatchingModel.js';
 
 export default class ServerUserModel extends ClientMatchingModel {
     constructor(channelManager: ChannelManager) {

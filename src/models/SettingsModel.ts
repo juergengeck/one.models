@@ -2,11 +2,11 @@ import {
     getObjectByIdObj,
     onVersionedObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {OEvent} from '../misc/OEvent';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {Settings as OneSettings} from '../recipes/SettingsRecipe.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {OEvent} from '../misc/OEvent.js';
 
 // -------- LOW LEVEL API -----------
 

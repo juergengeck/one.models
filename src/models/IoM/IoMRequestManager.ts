@@ -1,24 +1,25 @@
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import {createAccess} from '@refinio/one.core/lib/access';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {OneUnversionedObjectTypeNames, Person} from '@refinio/one.core/lib/recipes';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {OneUnversionedObjectTypeNames, Person} from '@refinio/one.core/lib/recipes.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObject,
     onUnversionedObj,
     storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../../misc/OEvent';
-import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
-import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry';
-import type {Signature} from '../../recipes/SignatureRecipes';
-import type TrustedKeysManager from '../Leute/TrustedKeysManager';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../../misc/OEvent.js';
+import type {IoMRequest} from '../../recipes/IoM/IoMRequest.js';
+import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry.js';
+import type {Signature} from '../../recipes/SignatureRecipes.js';
+import type TrustedKeysManager from '../Leute/TrustedKeysManager.js';
 
 const messageBus = createMessageBus('IoMRequestManager');
 

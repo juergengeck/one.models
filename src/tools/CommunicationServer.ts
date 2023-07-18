@@ -1,6 +1,6 @@
 import yargs from 'yargs';
-import CommunicationServer from '../misc/ConnectionEstablishment/communicationServer/CommunicationServer';
-import * as Logger from '@refinio/one.core/lib/logger';
+import CommunicationServer from '../misc/ConnectionEstablishment/communicationServer/CommunicationServer.js';
+import * as Logger from '@refinio/one.core/lib/logger.js';
 
 /**
  * Main function. This exists to be able to use await here.

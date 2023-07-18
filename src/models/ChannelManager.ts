@@ -1,46 +1,46 @@
-import {createAccess} from '@refinio/one.core/lib/access';
-import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
+import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import {
     getAllVersionMapEntries,
     getNthVersionMapHash
-} from '@refinio/one.core/lib/version-map-query';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../misc/OEvent';
+} from '@refinio/one.core/lib/version-map-query.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../misc/OEvent.js';
 import type {
     Access,
     IdAccess,
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
     Person
-} from '@refinio/one.core/lib/recipes';
+} from '@refinio/one.core/lib/recipes.js';
 import type {
     ChannelEntry,
     ChannelInfo,
     ChannelRegistry,
     ChannelRegistryEntry
-} from '../recipes/ChannelRecipes';
-import type {Profile} from '../recipes/Leute/Profile';
-import type {CreationTime} from '../recipes/MetaRecipes';
+} from '../recipes/ChannelRecipes.js';
+import type {Profile} from '../recipes/Leute/Profile.js';
+import type {CreationTime} from '../recipes/MetaRecipes.js';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getObjectByIdHash,
     getObjectByIdObj,
     onVersionedObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type LeuteModel from './Leute/LeuteModel';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type LeuteModel from './Leute/LeuteModel.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObject,
     getObjectWithType,
     storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 
 const MessageBus = createMessageBus('ChannelManager');
 

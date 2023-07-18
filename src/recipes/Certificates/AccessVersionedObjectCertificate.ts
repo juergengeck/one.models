@@ -1,9 +1,9 @@
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {License} from './License';
-import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {License} from './License.js';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry.js';
 
 /**
  * License for giving somebody else access to all versions of data.

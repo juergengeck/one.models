@@ -1,5 +1,5 @@
-import {readIdentityWithSecretsFile} from '../../misc/IdentityExchange-fs';
-import PasswordRecoveryServer from '../../misc/PasswordRecoveryService/PasswordRecoveryServer';
+import {readIdentityWithSecretsFile} from '../../misc/IdentityExchange-fs.js';
+import PasswordRecoveryServer from '../../misc/PasswordRecoveryService/PasswordRecoveryServer.js';
 import {mkdir, writeFile} from 'fs/promises';
 import path from 'path';
 

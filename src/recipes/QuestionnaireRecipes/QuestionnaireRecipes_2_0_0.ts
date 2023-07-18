@@ -1,4 +1,4 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -113,7 +113,7 @@ export module Questionnaire_2_0_0 {
         extension?: Extension[];
         url: 'http://hl7.org/fhir/StructureDefinition/designNote';
         valueMarkdown: string;
-    }
+    };
 
     export type ExtensionRegEx = {
         extension?: Extension[];

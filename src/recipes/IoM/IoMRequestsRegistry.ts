@@ -1,6 +1,6 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {IoMRequest} from './IoMRequest';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {IoMRequest} from './IoMRequest.js';
 
 // #### Typescript interfaces ####
 

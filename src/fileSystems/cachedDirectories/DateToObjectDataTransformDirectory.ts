@@ -1,10 +1,10 @@
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import {ensureHash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {ObjectData, QueryOptions} from '../../models/ChannelManager';
-import type {CreationTime} from '../../recipes/MetaRecipes';
-import {CachedDirectory} from './utils/CachedDirectory';
-import type {ChannelIterator} from './utils/ChannelIterator';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes.js';
+import {ensureHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ObjectData, QueryOptions} from '../../models/ChannelManager.js';
+import type {CreationTime} from '../../recipes/MetaRecipes.js';
+import {CachedDirectory} from './utils/CachedDirectory.js';
+import type {ChannelIterator} from './utils/ChannelIterator.js';
 
 type DateToObjectDataTransformDirectoryParams =
     | {year?: number; month?: number; day?: number}

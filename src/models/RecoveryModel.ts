@@ -1,25 +1,25 @@
-import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt';
+import {deriveBinaryKey} from '@refinio/one.core/lib/system/crypto-scrypt.js';
 import tweetnacl from 'tweetnacl';
-import type {PrivatePersonInformationMessage} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
-import type ConnectionsModel from './ConnectionsModel';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
+import type {PrivatePersonInformationMessage} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages.js';
+import type ConnectionsModel from './ConnectionsModel.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {randomBytes} from 'crypto';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {Model} from './Model';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {Model} from './Model.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     createRandomSalt,
     deriveSymmetricKeyFromSecret,
     ensureSalt,
     symmetricDecryptWithEmbeddedNonce,
     symmetricEncryptAndEmbedNonce
-} from '@refinio/one.core/lib/crypto/encryption';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+} from '@refinio/one.core/lib/crypto/encryption.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
 
 /**
  * For the recovery process the person email with the corresponding

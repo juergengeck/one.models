@@ -1,5 +1,5 @@
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from './FileSystemErrors';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from './FileSystemErrors.js';
 
 /**
  * @type {{permissions: {rwx: number, rNN: number, NwN: number, rwN: number, NNx: number, rNx: number, Nwx: number}, fileType: {file: string, symlink: string, dir: string}}}
@@ -94,7 +94,7 @@ export default class FileSystemHelpers {
      */
     private static getFileType(type: string): FileMode['type'] | undefined {
         for (const key of Object.keys(fileOptions.fileType)) {
-            const typeKey = key as keyof typeof fileOptions['fileType'];
+            const typeKey = key as keyof (typeof fileOptions)['fileType'];
             if (fileOptions.fileType[typeKey] === type) {
                 return typeKey;
             }

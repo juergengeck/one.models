@@ -2,9 +2,9 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import type {ObjectData, QueryOptions} from './ChannelManager';
-import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {ObjectData, QueryOptions} from './ChannelManager.js';
+import {OEvent} from '../misc/OEvent.js';
+import {Model} from './Model.js';
 
 export type JournalEntry = {
     type: string;

@@ -1,4 +1,4 @@
-import {OEvent} from './OEvent';
+import {OEvent} from './OEvent.js';
 
 /**
  *

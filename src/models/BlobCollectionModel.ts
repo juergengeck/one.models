@@ -1,19 +1,22 @@
 import type {
     BlobCollection as OneBlobCollection,
     BlobDescriptor as OneBlobDescriptor
-} from '../recipes/BlobRecipes';
-import type ChannelManager from './ChannelManager';
-import {Model} from './Model';
+} from '../recipes/BlobRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import {Model} from './Model.js';
 
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
-import {OEvent} from '../misc/OEvent';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type {RawChannelEntry} from './ChannelManager';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams.js';
+import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type {RawChannelEntry} from './ChannelManager.js';
 
 export interface BlobDescriptor {
     data: ArrayBuffer;

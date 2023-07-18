@@ -4,7 +4,10 @@
  * @param url - A url to a remote location. If relative, it is relative to the loaded app.
  */
 
-import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform';
+type HttpT = typeof import('http');
+type HttpsT = typeof import('https');
+
+import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform.js';
 
 export async function fetchFile(url: string): Promise<string> {
     if (isBrowser) {
@@ -27,13 +30,15 @@ export async function fetchFile(url: string): Promise<string> {
             request.send();
         });
     } else if (isNode) {
-        return new Promise<string>((resolve, reject) => {
-            const urlp = new URL(url);
-            if (urlp.protocol !== 'https' && urlp.protocol !== 'http') {
-                throw new Error('Only https and http is supported.');
-            }
+        const urlp = new URL(url);
 
-            const http = require(urlp.protocol);
+        if (urlp.protocol !== 'https:' && urlp.protocol !== 'http:') {
+            throw new Error('Only https and http is supported.');
+        }
+
+        const http: HttpT | HttpsT = await import(urlp.protocol);
+
+        return new Promise<string>((resolve, reject) => {
             const options = {
                 hostname: urlp.hostname,
                 port: urlp.port,
@@ -93,13 +98,15 @@ export async function postJson(url: string, jsonContent: string): Promise<void> 
             request.send(jsonContent);
         });
     } else if (isNode) {
-        return new Promise<void>((resolve, reject) => {
-            const urlp = new URL(url);
-            if (urlp.protocol !== 'https:' && urlp.protocol !== 'http:') {
-                throw new Error('Only https and http is supported.');
-            }
+        const urlp = new URL(url);
 
-            const http = require(urlp.protocol.slice(0, -1));
+        if (urlp.protocol !== 'https:' && urlp.protocol !== 'http:') {
+            throw new Error('Only https and http is supported.');
+        }
+
+        const http: HttpT | HttpsT = await import(urlp.protocol.slice(0, -1));
+
+        return new Promise<void>((resolve, reject) => {
             const options = {
                 hostname: urlp.hostname,
                 port: urlp.port,

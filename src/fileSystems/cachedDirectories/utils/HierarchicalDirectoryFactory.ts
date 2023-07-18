@@ -1,6 +1,6 @@
-import type {EasyDirectoryContent} from '../../utils/EasyFileSystem';
-import type {ExtractSubDirectoryParamsT} from './CachedDirectory';
-import type {IDirectory} from './IDirectory';
+import type {EasyDirectoryContent} from '../../utils/EasyFileSystem.js';
+import type {ExtractSubDirectoryParamsT} from './CachedDirectory.js';
+import type {IDirectory} from './IDirectory.js';
 
 /**
  * A directory factory is used to create instances of directories when they are needed.

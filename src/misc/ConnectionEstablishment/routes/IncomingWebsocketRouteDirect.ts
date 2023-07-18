@@ -1,7 +1,7 @@
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import type ConnectionRoute from './ConnectionRoute';
-import IncomingConnectionManager from '../IncomingConnectionManager';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import type ConnectionRoute from './ConnectionRoute.js';
+import IncomingConnectionManager from '../IncomingConnectionManager.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 
 const MessageBus = createMessageBus('IncomingWebsocketRouteDirect');
 

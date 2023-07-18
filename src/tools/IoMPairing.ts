@@ -34,28 +34,33 @@
  */
 import yargs from 'yargs';
 
-import * as Logger from '@refinio/one.core/lib/logger';
-import {ChannelManager, ConnectionsModel, LeuteModel} from '../models';
+import * as Logger from '@refinio/one.core/lib/logger.js';
+import ChannelManager from '../models/ChannelManager.js';
+import ConnectionsModel from '../models/ConnectionsModel.js';
+import LeuteModel from '../models/Leute/LeuteModel.js';
 import {
     closeInstance,
     getInstanceIdHash,
     getInstanceOwnerIdHash,
     initInstance
-} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../recipes/recipes-stable';
-import RecipesExperimental from '../recipes/recipes-experimental';
-import {waitForKeyPress} from './cliHelpers';
-import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
-import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange';
-import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange';
-import IoMRequestManager from '../models/IoM/IoMRequestManager';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {ReverseMapsForIdObjectsStable, ReverseMapsStable} from '../recipes/reversemaps-stable';
+} from '@refinio/one.core/lib/instance.js';
+import RecipesStable from '../recipes/recipes-stable.js';
+import RecipesExperimental from '../recipes/recipes-experimental.js';
+import {waitForKeyPress} from './cliHelpers.js';
+import {
+    importIdentityFilesAsProfiles,
+    readOrCreateIdentityFile
+} from '../misc/IdentityExchange-fs.js';
+import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange.js';
+import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange.js';
+import IoMRequestManager from '../models/IoM/IoMRequestManager.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {ReverseMapsForIdObjectsStable, ReverseMapsStable} from '../recipes/reversemaps-stable.js';
 import {
     ReverseMapsExperimental,
     ReverseMapsForIdObjectsExperimental
-} from '../recipes/reversemaps-experimental';
+} from '../recipes/reversemaps-experimental.js';
 
 /**
  * Parses command line options for this app.

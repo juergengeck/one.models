@@ -3,33 +3,36 @@
  * @module
  */
 
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {isHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Person} from '@refinio/one.core/lib/recipes';
-import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
-import {sign} from './Signature';
-import ProfileModel from '../models/Leute/ProfileModel';
-import type {InstanceOptions} from '@refinio/one.core/lib/instance';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {isHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Instance, Person} from '@refinio/one.core/lib/recipes.js';
+import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints.js';
+import {sign} from './Signature.js';
+import ProfileModel from '../models/Leute/ProfileModel.js';
+import type {InstanceOptions} from '@refinio/one.core/lib/instance.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     hexToUint8ArrayWithCheck,
     isHexString,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     createKeyPair,
     ensurePublicKey,
     ensureSecretKey
-} from '@refinio/one.core/lib/crypto/encryption';
+} from '@refinio/one.core/lib/crypto/encryption.js';
 import {
     createSignKeyPair,
     ensurePublicSignKey,
     ensureSecretSignKey
-} from '@refinio/one.core/lib/crypto/sign';
+} from '@refinio/one.core/lib/crypto/sign.js';
 
 // ######## Identity types ########
 

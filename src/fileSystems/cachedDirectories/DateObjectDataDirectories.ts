@@ -1,11 +1,11 @@
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import type {EasyDirectoryContent} from '../utils/EasyFileSystem';
-import {DateToObjectDataTransformDirectory} from './DateToObjectDataTransformDirectory';
-import type {ExtractSubDirectoryParamsT} from './utils/CachedDirectory';
-import type {ChannelIterator} from './utils/ChannelIterator';
-import type HierarchicalDirectoryFactory from './utils/HierarchicalDirectoryFactory';
-import type {IDirectory} from './utils/IDirectory';
-import {DateDirectories} from './DateDirectories';
+import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes.js';
+import type {EasyDirectoryContent} from '../utils/EasyFileSystem.js';
+import {DateToObjectDataTransformDirectory} from './DateToObjectDataTransformDirectory.js';
+import type {ExtractSubDirectoryParamsT} from './utils/CachedDirectory.js';
+import type {ChannelIterator} from './utils/ChannelIterator.js';
+import type HierarchicalDirectoryFactory from './utils/HierarchicalDirectoryFactory.js';
+import type {IDirectory} from './utils/IDirectory.js';
+import {DateDirectories} from './DateDirectories.js';
 
 /**
  * This directory generates three levels of directories:

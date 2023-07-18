@@ -1,11 +1,11 @@
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, RawChannelEntry} from './ChannelManager';
-import type {News as OneNews} from '../recipes/NewsRecipes';
-import {Model} from './Model';
-import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, RawChannelEntry} from './ChannelManager.js';
+import type {News as OneNews} from '../recipes/NewsRecipes.js';
+import {Model} from './Model.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
 
 /**
  * This represents the model of a news for now

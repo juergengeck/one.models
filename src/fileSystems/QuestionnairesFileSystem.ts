@@ -1,12 +1,12 @@
-import type QuestionnaireModel from '../models/QuestionnaireModel';
-import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
-import {DateToObjectDataTransformDirectory} from './cachedDirectories/DateToObjectDataTransformDirectory';
-import {DaysDirectory} from './cachedDirectories/DaysDirectory';
-import {MonthsDirectory} from './cachedDirectories/MonthsDirectory';
-import {YearsDirectory} from './cachedDirectories/YearsDirectory';
-import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
-import EasyFileSystem from './utils/EasyFileSystem';
-import type {ObjectData} from '../models/ChannelManager';
+import type QuestionnaireModel from '../models/QuestionnaireModel.js';
+import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+import {DateToObjectDataTransformDirectory} from './cachedDirectories/DateToObjectDataTransformDirectory.js';
+import {DaysDirectory} from './cachedDirectories/DaysDirectory.js';
+import {MonthsDirectory} from './cachedDirectories/MonthsDirectory.js';
+import {YearsDirectory} from './cachedDirectories/YearsDirectory.js';
+import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem.js';
+import EasyFileSystem from './utils/EasyFileSystem.js';
+import type {ObjectData} from '../models/ChannelManager.js';
 
 type ObjectDataType = QuestionnaireResponses;
 

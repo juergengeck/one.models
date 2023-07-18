@@ -1,6 +1,6 @@
-import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {Profile} from './Profile';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes.js';
+import type {Profile} from './Profile.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 // #### Typescript interfaces ####
 

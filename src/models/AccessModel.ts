@@ -2,18 +2,24 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import type {Access, Group, IdAccess, OneObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import {createAccess} from '@refinio/one.core/lib/access';
-import {OEvent} from '../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {Model} from './Model';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {
+    Access,
+    Group,
+    IdAccess,
+    OneObjectTypes,
+    Person
+} from '@refinio/one.core/lib/recipes.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {Model} from './Model.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 
 const ACCESS_LOCKS = {
     GROUP_LOCK: 'GROUP_LOCK'

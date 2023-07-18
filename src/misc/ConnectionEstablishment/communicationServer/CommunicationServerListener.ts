@@ -1,11 +1,11 @@
-import CommunicationServerConnection_Client from './CommunicationServerConnection_Client';
+import CommunicationServerConnection_Client from './CommunicationServerConnection_Client.js';
 import WebSocketWS from 'isomorphic-ws';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {OEvent} from '../../OEvent';
-import type Connection from '../../Connection/Connection';
-import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {OEvent} from '../../OEvent.js';
+import type Connection from '../../Connection/Connection.js';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
 
 const MessageBus = createMessageBus('CommunicationServerListener');
 

@@ -1,13 +1,13 @@
-import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform';
+import type {BLOB, OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes.js';
+import {isBrowser, isNode} from '@refinio/one.core/lib/system/platform.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
-import type {ChannelManager} from '../models';
-import type PersistentFileSystem from './PersistentFileSystem';
-import type {ObjectData} from '../models/ChannelManager';
-import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import type {BLOB, OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type PersistentFilerModel from '../models/filer/PersistentFilerModel';
-import {DocumentModel} from '../models';
+import type ChannelManager from '../models/ChannelManager.js';
+import DocumentModel from '../models/DocumentModel.js';
+import type {ObjectData} from '../models/ChannelManager.js';
+import type PersistentFilerModel from '../models/filer/PersistentFilerModel.js';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0.js';
+import type PersistentFileSystem from './PersistentFileSystem.js';
 
 export type AllowedChannel = {channelId: string; folder?: string};
 
@@ -55,6 +55,7 @@ export class PWAConnector {
             this.disconnect();
         }
     }
+
     /**
      * Handler function for the 'updated' event
      *

@@ -34,26 +34,32 @@
  */
 import yargs from 'yargs';
 
-import * as Logger from '@refinio/one.core/lib/logger';
-import {AccessModel, ChannelManager, ConnectionsModel, LeuteModel} from '../models';
+import * as Logger from '@refinio/one.core/lib/logger.js';
+import AccessModel from '../models/AccessModel.js';
+import ChannelManager from '../models/ChannelManager.js';
+import ConnectionsModel from '../models/ConnectionsModel.js';
+import LeuteModel from '../models/Leute/LeuteModel.js';
 import {
     closeInstance,
     getInstanceIdHash,
     getInstanceOwnerIdHash,
     initInstance
-} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../recipes/recipes-stable';
-import RecipesExperimental from '../recipes/recipes-experimental';
-import {waitForKeyPress} from './cliHelpers';
-import {importIdentityFilesAsProfiles, readOrCreateIdentityFile} from '../misc/IdentityExchange-fs';
-import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange';
-import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange';
-import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../misc/instance';
-import {getListOfKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Keys, Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/instance.js';
+import RecipesStable from '../recipes/recipes-stable.js';
+import RecipesExperimental from '../recipes/recipes-experimental.js';
+import {waitForKeyPress} from './cliHelpers.js';
+import {
+    importIdentityFilesAsProfiles,
+    readOrCreateIdentityFile
+} from '../misc/IdentityExchange-fs.js';
+import type {Identity, IdentityWithSecrets} from '../misc/IdentityExchange.js';
+import {convertIdentityToInstanceOptions} from '../misc/IdentityExchange.js';
+import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../misc/instance.js';
+import {getListOfKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 /**
  * Parses command line options for this app.

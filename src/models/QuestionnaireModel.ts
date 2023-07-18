@@ -1,17 +1,17 @@
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type ChannelManager from './ChannelManager';
-import type {RawChannelEntry} from './ChannelManager';
-import type {ObjectData, QueryOptions} from './ChannelManager';
-import {OEvent} from '../misc/OEvent';
-import {Model} from './Model';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import type {RawChannelEntry} from './ChannelManager.js';
+import type {ObjectData, QueryOptions} from './ChannelManager.js';
+import {OEvent} from '../misc/OEvent.js';
+import {Model} from './Model.js';
 
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Questionnaire_2_0_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Questionnaire_2_0_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0.js';
 import type {
     QuestionnaireResponses,
     QuestionnaireResponse
-} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes';
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;

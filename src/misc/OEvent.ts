@@ -1,4 +1,4 @@
-import {Functor} from './Functor';
+import {Functor} from './Functor.js';
 
 /**
  * Represents the behaviour when there are no listeners.

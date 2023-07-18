@@ -1,10 +1,10 @@
 // Pseudo implementation, did not compile it
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../misc/OEvent';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type {RawChannelEntry} from './ChannelManager';
-import type ChannelManager from './ChannelManager';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type {RawChannelEntry} from './ChannelManager.js';
+import type ChannelManager from './ChannelManager.js';
 
 export default class Notifications {
     private notificationCounters = new Map<string, number>();

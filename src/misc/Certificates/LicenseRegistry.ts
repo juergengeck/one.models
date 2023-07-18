@@ -1,5 +1,5 @@
-import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes';
-import type {License} from '../../recipes/Certificates/License';
+import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes.js';
+import type {License} from '../../recipes/Certificates/License.js';
 
 const licenseRegistry = new Map<OneCertificateTypeNames, License>();
 

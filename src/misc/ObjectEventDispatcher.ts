@@ -1,25 +1,25 @@
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
     onIdObj,
     onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {
     OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames
-} from '@refinio/one.core/lib/recipes';
-import {getOrCreate} from '../utils/MapUtils';
-import {OEvent} from './OEvent';
+} from '@refinio/one.core/lib/recipes.js';
+import {getOrCreate} from '../utils/MapUtils.js';
+import {OEvent} from './OEvent.js';
 import type {
     OneUnversionedObjectInterfaces,
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common';
-import BlockingQueue from './BlockingQueue';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common.js';
+import BlockingQueue from './BlockingQueue.js';
 
 export interface IdObjectResult<T extends OneIdObjectTypes = OneIdObjectTypes> {
     readonly obj: T;

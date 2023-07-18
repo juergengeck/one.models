@@ -1,9 +1,7 @@
-import Watchdog from '../../Watchdog';
-import ConnectionPlugin, {
-    ConnectionIncomingEvent,
-    ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
-import {escapeKeyword, unescapeKeyword} from '../../escapeKeywords';
+import Watchdog from '../../Watchdog.js';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
+import {escapeKeyword, unescapeKeyword} from '../../escapeKeywords.js';
 
 const KEEPALIVE_MESSAGE = 'keepalive';
 

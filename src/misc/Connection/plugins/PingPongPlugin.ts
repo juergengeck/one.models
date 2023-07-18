@@ -1,9 +1,7 @@
-import Watchdog from '../../Watchdog';
-import ConnectionPlugin, {
-    ConnectionIncomingEvent,
-    ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
-import MultiPromise from '../../MultiPromise';
+import Watchdog from '../../Watchdog.js';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
+import MultiPromise from '../../MultiPromise.js';
 
 /**
  * Check if message is a pong.

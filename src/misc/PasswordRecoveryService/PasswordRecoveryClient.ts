@@ -1,16 +1,16 @@
-import type {Identity} from '../IdentityExchange';
-import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
+import type {Identity} from '../IdentityExchange.js';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store.js';
 import {
     createRecoveryInformation,
     isBundledEncryptedRecoveryInformation,
     recoverSecret,
     recoverSecretAsString
-} from './PasswordRecovery';
+} from './PasswordRecovery.js';
 import {
     ensureHexString,
     hexToUint8Array
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {postJson} from '../fetchFile';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {postJson} from '../fetchFile.js';
 
 export default class PasswordRecoveryClient {
     private readonly identity: Identity;

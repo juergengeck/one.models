@@ -1,5 +1,5 @@
-import {CachedDirectory} from './utils/CachedDirectory';
-import type {ChannelIterator} from './utils/ChannelIterator';
+import {CachedDirectory} from './utils/CachedDirectory.js';
+import type {ChannelIterator} from './utils/ChannelIterator.js';
 
 /**
  * This directory generates month folders.

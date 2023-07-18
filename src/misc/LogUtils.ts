@@ -7,7 +7,7 @@
  * @param ws - The websocket instance for which to generate the identifier.
  * @returns
  */
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 
 export function wslogId(ws: WebSocket | null): string {
     // TODO: We should use pseudonyms based on an hashing algorithm or something, because we don't want to

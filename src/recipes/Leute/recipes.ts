@@ -1,9 +1,9 @@
-import LeuteRecipesCE from './CommunicationEndpoints';
-import LeuteRecipesLeute from './Leute';
-import LeuteRecipesPD from './PersonDescriptions';
-import LeuteRecipesProfile from './Profile';
-import LeuteRecipesSomeone from './Someone';
-import LeuteRecipesGroupProfile from './GroupProfile';
+import LeuteRecipesCE from './CommunicationEndpoints.js';
+import LeuteRecipesLeute from './Leute.js';
+import LeuteRecipesPD from './PersonDescriptions.js';
+import LeuteRecipesProfile from './Profile.js';
+import LeuteRecipesSomeone from './Someone.js';
+import LeuteRecipesGroupProfile from './GroupProfile.js';
 
 const LeuteRecipes = [
     ...LeuteRecipesCE,

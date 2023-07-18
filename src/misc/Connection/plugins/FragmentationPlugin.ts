@@ -1,8 +1,6 @@
-import ConnectionPlugin, {
-    ConnectionIncomingEvent,
-    ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
-import {escapeKeywords, unescapeKeywords} from '../../escapeKeywords';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
+import {escapeKeywords, unescapeKeywords} from '../../escapeKeywords.js';
 
 const CHUNK_START_BINARY_MESSAGE = 'fragmentation_start_binary';
 const CHUNK_START_STRING_MESSAGE = 'fragmentation_start_string';

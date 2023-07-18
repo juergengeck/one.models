@@ -5,21 +5,24 @@
  * @version 0.0.1
  */
 
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {EventEmitter} from 'events';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes.js';
 
-import type {ChannelManager} from '../index';
-import PersistentFileSystem from '../../fileSystems/PersistentFileSystem';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {ObjectData, RawChannelEntry} from '../ChannelManager';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {ChannelManager} from '../index.js';
+import PersistentFileSystem from '../../fileSystems/PersistentFileSystem.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {
     PersistentFileSystemDirectory,
     PersistentFileSystemRoot
-} from '../../recipes/PersistentFileSystemRecipes';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '../../recipes/PersistentFileSystemRecipes.js';
+import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 /**
  * This model can bring and handle different file systems (see {@link PersistentFileSystem}).

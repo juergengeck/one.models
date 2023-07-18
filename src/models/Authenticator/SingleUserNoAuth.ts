@@ -1,11 +1,11 @@
-import Authenticator from './Authenticator';
+import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
     initInstance,
     registerRecipes,
     instanceExists
-} from '@refinio/one.core/lib/instance';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+} from '@refinio/one.core/lib/instance.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 
 type Credentials = {
     email: string;

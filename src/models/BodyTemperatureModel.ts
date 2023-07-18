@@ -1,12 +1,12 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe';
-import {Model} from './Model';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import type {BodyTemperature as OneBodyTemperature} from '../recipes/BodyTemperatureRecipe.js';
+import {Model} from './Model.js';
 
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {OEvent} from '../misc/OEvent';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {OEvent} from '../misc/OEvent.js';
 
 /**
  * This represents the model of a body temperature measurement

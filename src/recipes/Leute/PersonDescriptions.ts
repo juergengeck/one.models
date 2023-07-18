@@ -1,6 +1,6 @@
-import type {BLOB, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, OneObjectTypeNames, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
 /**
  * This represents a description of a communication partner

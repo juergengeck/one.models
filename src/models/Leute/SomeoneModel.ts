@@ -1,26 +1,26 @@
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
     getObjectByIdHash,
     onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../../misc/OEvent';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../../misc/OEvent.js';
 import type {
     CommunicationEndpointInterfaces,
     CommunicationEndpointTypeNames
-} from '../../recipes/Leute/CommunicationEndpoints';
+} from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames
-} from '../../recipes/Leute/PersonDescriptions';
-import type {Profile} from '../../recipes/Leute/Profile';
-import type {Someone} from '../../recipes/Leute/Someone';
-import ProfileModel from './ProfileModel';
+} from '../../recipes/Leute/PersonDescriptions.js';
+import type {Profile} from '../../recipes/Leute/Profile.js';
+import type {Someone} from '../../recipes/Leute/Someone.js';
+import ProfileModel from './ProfileModel.js';
 
 /**
  * This class is a nicer frontend for the Someone recipe.

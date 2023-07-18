@@ -1,4 +1,4 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -13,7 +13,7 @@ export const HEART_OCCURRING_EVENTS = {
 } as const;
 
 export type HeartOccurringEvents =
-    typeof HEART_OCCURRING_EVENTS[keyof typeof HEART_OCCURRING_EVENTS];
+    (typeof HEART_OCCURRING_EVENTS)[keyof typeof HEART_OCCURRING_EVENTS];
 
 export interface HeartEvent {
     $type$: 'HeartEvent';

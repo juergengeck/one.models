@@ -1,7 +1,7 @@
-import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from './ChannelRecipes';
-import type {BlobDescriptor} from './BlobRecipes';
+import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from './ChannelRecipes.js';
+import type {BlobDescriptor} from './BlobRecipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

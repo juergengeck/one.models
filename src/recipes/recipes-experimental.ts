@@ -1,19 +1,19 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes';
-import BodyTemperatureRecipes from './BodyTemperatureRecipe';
-import BlobRecipes from './BlobRecipes';
-import MatchingRecipes from './MatchingRecipes';
-import WbcRecipes from './WbcDiffRecipes';
-import ECGRecipes from './ECGRecipes';
-import BloodGlucoseRecipes from './BloodGlucoseRecipes';
-import PersistentFileSystemRecipes from './PersistentFileSystemRecipes';
-import AudioExerciseRecipes from './AudioExerciseRecipes';
-import LeuteRecipes from './Leute/recipes';
-import Certificates from './Certificates/CertificateRecipes';
-import SignatureRecipes from './SignatureRecipes';
-import ChatRecipes from './ChatRecipes';
-import ConsentRecipes from './ConsentRecipes';
-import IoMRequestRecipes from './IoM/IoMRequest';
-import IoMRequestsRegistryRecipes from './IoM/IoMRequestsRegistry';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
+import BodyTemperatureRecipes from './BodyTemperatureRecipe.js';
+import BlobRecipes from './BlobRecipes.js';
+import MatchingRecipes from './MatchingRecipes.js';
+import WbcRecipes from './WbcDiffRecipes.js';
+import ECGRecipes from './ECGRecipes.js';
+import BloodGlucoseRecipes from './BloodGlucoseRecipes.js';
+import PersistentFileSystemRecipes from './PersistentFileSystemRecipes.js';
+import AudioExerciseRecipes from './AudioExerciseRecipes.js';
+import LeuteRecipes from './Leute/recipes.js';
+import Certificates from './Certificates/CertificateRecipes.js';
+import SignatureRecipes from './SignatureRecipes.js';
+import ChatRecipes from './ChatRecipes.js';
+import ConsentRecipes from './ConsentRecipes.js';
+import IoMRequestRecipes from './IoM/IoMRequest.js';
+import IoMRequestsRegistryRecipes from './IoM/IoMRequestsRegistry.js';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,

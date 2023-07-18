@@ -1,5 +1,5 @@
 import readline from 'readline';
-import {StateMachine} from '../misc/StateMachine';
+import {StateMachine} from '../misc/StateMachine.js';
 
 type SMStates = 'initialized' | 'not initialized' | 'A' | 'B' | 'listening' | 'not listening';
 type SMEvents = 'init' | 'shutdown' | 'AtoB' | 'BtoA' | 'startListen' | 'stopListen';

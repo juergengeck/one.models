@@ -1,21 +1,23 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {Profile} from '../../recipes/Leute/Profile';
-import ProfileModel from '../Leute/ProfileModel';
-import IoMRequestManager from './IoMRequestManager';
-import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
-import GroupModel from '../Leute/GroupModel';
-import type LeuteModel from '../Leute/LeuteModel';
-import type SomeoneModel from '../Leute/SomeoneModel';
-import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import {createLocalInstanceIfNoneExists} from '../../misc/instance';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import '../../recipes/SignatureRecipes';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+
+import type {Profile} from '../../recipes/Leute/Profile.js';
+import ProfileModel from '../Leute/ProfileModel.js';
+import IoMRequestManager from './IoMRequestManager.js';
+import type {IoMRequest} from '../../recipes/IoM/IoMRequest.js';
+import GroupModel from '../Leute/GroupModel.js';
+import type LeuteModel from '../Leute/LeuteModel.js';
+import type SomeoneModel from '../Leute/SomeoneModel.js';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
+import {createLocalInstanceIfNoneExists} from '../../misc/instance.js';
+
+import '../../recipes/SignatureRecipes.js';
 
 const MessageBus = createMessageBus('IoMManager');
 

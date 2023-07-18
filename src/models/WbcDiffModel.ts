@@ -1,13 +1,13 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {Model} from './Model';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {Model} from './Model.js';
 
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {WbcObservation} from '../recipes/WbcDiffRecipes';
-import {OEvent} from '../misc/OEvent';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {WbcObservation} from '../recipes/WbcDiffRecipes.js';
+import {OEvent} from '../misc/OEvent.js';
 
 const MessageBus = createMessageBus('WbcDiffModel');
 

@@ -1,19 +1,19 @@
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {LeuteModel} from '../../../models';
-import type {OneInstanceEndpoint} from '../../../recipes/Leute/CommunicationEndpoints';
-import type Connection from '../../Connection/Connection';
-import {getLocalInstanceOfPerson} from '../../instance';
-import type {AccessibleObject} from './Debug/determineAccessibleHashes';
-import {determineAccessibleObjects} from './Debug/determineAccessibleHashes';
-import {connectWithEncryption} from './EncryptedConnectionHandshake';
-import {exchangeConnectionGroupName} from './ExchangeConnectionGroupName';
-import {exchangeInstanceIdObjects} from './ExchangeInstanceIds';
-import {verifyAndExchangePersonId} from './ExchangePersonIds';
-import {sync} from './Sync';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public.js';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type LeuteModel from '../../../models/Leute/LeuteModel.js';
+import type {OneInstanceEndpoint} from '../../../recipes/Leute/CommunicationEndpoints.js';
+import type Connection from '../../Connection/Connection.js';
+import {getLocalInstanceOfPerson} from '../../instance.js';
+import type {AccessibleObject} from './Debug/determineAccessibleHashes.js';
+import {determineAccessibleObjects} from './Debug/determineAccessibleHashes.js';
+import {connectWithEncryption} from './EncryptedConnectionHandshake.js';
+import {exchangeConnectionGroupName} from './ExchangeConnectionGroupName.js';
+import {exchangeInstanceIdObjects} from './ExchangeInstanceIds.js';
+import {verifyAndExchangePersonId} from './ExchangePersonIds.js';
+import {sync} from './Sync.js';
 
 const MessageBus = createMessageBus('DebugProtocol');
 
@@ -70,9 +70,7 @@ export async function connectRequestingAccessibleObjects(
     const connInfo = await connectWithEncryption(
         oneInstanceEndpoint.url,
         cryptoApi.createEncryptionApiWithKeysAndPerson(
-            (
-                await getPublicKeys(oneInstanceEndpoint.instanceKeys)
-            ).publicEncryptionKey
+            (await getPublicKeys(oneInstanceEndpoint.instanceKeys)).publicEncryptionKey
         )
     );
 
