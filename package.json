@@ -46,6 +46,7 @@
         "@types/ws": "*",
         "isomorphic-ws": "*",
         "qrcode": "*",
+        "ts-loader": "*",
         "tweetnacl": "*",
         "yargs": "*"
     },
@@ -72,6 +73,8 @@
         "prettier": "*",
         "source-map-support": "*",
         "typedoc": "*",
-        "typescript": "*"
+        "typescript": "*",
+        "webpack": "*",
+        "webpack-cli": "*"
     }
 }
