@@ -42,7 +42,6 @@
         "README.md"
     ],
     "dependencies": {
-        "@babel/runtime": "*",
         "@types/ws": "*",
         "isomorphic-ws": "*",
         "qrcode": "*",
