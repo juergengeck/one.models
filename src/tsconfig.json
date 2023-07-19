@@ -5,7 +5,6 @@
         "allowUnreachableCode": false,
         "checkJs": false,
         "composite": true,
-        "incremental": true,
         "declaration": true,
         "declarationDir": "../lib/",
         "declarationMap": true,
@@ -13,9 +12,9 @@
         "emitDeclarationOnly": false,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
+        "incremental": true,
         "importHelpers": false,
         "isolatedModules": true,
-        "verbatimModuleSyntax": true,
         "lib": ["esnext", "dom"],
         "module": "ESNext",
         "moduleResolution": "NodeNext",
@@ -27,11 +26,12 @@
         "outDir": "../lib",
         "removeComments": false,
         "sourceMap": true,
-        "stripInternal": true,
         "strict": true,
+        "stripInternal": true,
         "target": "ESNext",
         "tsBuildInfoFile": "../tsconfig.src.tsbuildinfo",
-        "useUnknownInCatchVariables": false
+        "useUnknownInCatchVariables": false,
+        "verbatimModuleSyntax": true
     },
     "exclude": [],
     "include": ["./*.ts", "./**/*.ts"]
