@@ -1,6 +1,8 @@
 import {mkdir} from 'fs/promises';
-import PasswordRecoveryClient from '../../misc/PasswordRecoveryService/PasswordRecoveryClient.js';
+
 import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base.js';
+
+import PasswordRecoveryClient from '../../misc/PasswordRecoveryService/PasswordRecoveryClient.js';
 import {generateNewIdentity} from '../../misc/IdentityExchange.js';
 
 function parseCommandLine(argv: string[]): {
