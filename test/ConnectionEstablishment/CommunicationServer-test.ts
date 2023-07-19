@@ -44,7 +44,7 @@ describe('communication server tests', () => {
 
     it('Register client open connection to commserver and exchange messages', async function () {
         // Setup the listening connection - it mirrors the messages back
-        let listenerFailure: any | null = null;
+        let listenerFailure: any = null;
         const listenerKeyPair = createKeyPair();
         const cryptoApi = new CryptoApi(listenerKeyPair);
         const commServerListener = new CommunicationServerListener(cryptoApi, 1, 1000);
