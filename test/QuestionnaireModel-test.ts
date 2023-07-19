@@ -3,7 +3,9 @@
  */
 
 import {expect} from 'chai';
+
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+
 import * as StorageTestInit from './_helpers.js';
 import TestModel from './utils/TestModel.js';
 import QuestionnaireModel from '../lib/models/QuestionnaireModel.js';

@@ -32,6 +32,7 @@
  *     one or more instances the count for the others goes down. If you restart them, the count
  *     goes up again.
  */
+
 import yargs from 'yargs';
 
 import * as Logger from '@refinio/one.core/lib/logger.js';
