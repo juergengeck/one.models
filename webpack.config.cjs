@@ -4,7 +4,11 @@ const webpack = require('webpack');
 module.exports = {
     mode: 'production',
     output: {
-        path: path.resolve(__dirname)
+        chunkFormat: "module",
+        path: path.resolve(__dirname),
+        library: {
+            type: "module"
+        }
     },
     entry: {
         comm_server: {
@@ -20,12 +24,15 @@ module.exports = {
             filename: '[name].bundle.js'
         }
     },
+    experiments: {
+        outputModule: true,
+    },
     devtool: 'inline-source-map',
     module: {
         rules: [
             {
                 test: /\.js$/,
-                exclude: /node_modules|utf-8-validate|bufferutil/
+                exclude: /node_modules|@refinio|one\.core|utf-8-validate|bufferutil/
             }
         ]
     },
