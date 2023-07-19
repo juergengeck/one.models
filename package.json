@@ -36,6 +36,12 @@
     "files": [
         "lib",
         "test",
+        "comm_server.bundle.js,",
+        "comm_server.bundle.js.LICENSE.txt,",
+        "generate_identity.bundle.js,",
+        "generate_identity.bundle.js.LICENSE.txt,",
+        "password_recovery_server.bundle.js,",
+        "password_recovery_server.bundle.js.LICENSE.txt",
         "package.json",
         "package-lock.json",
         "LICENSE.md",
@@ -74,6 +80,9 @@
         "typedoc": "*",
         "typescript": "*",
         "webpack": "*",
-        "webpack-cli": "*"
+        "webpack-cli": "*",
+        "bufferutil": "^4.0.1",
+        "utf-8-validate": ">=5.0.2",
+        "ws": "*"
     }
 }

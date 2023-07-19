@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
     mode: 'production',
@@ -7,15 +8,15 @@ module.exports = {
     },
     entry: {
         comm_server: {
-            import: './src/tools/CommunicationServer.ts',
+            import: './lib/tools/CommunicationServer.js',
             filename: '[name].bundle.js'
         },
         password_recovery_server: {
-            import: './src/tools/PasswordRecoveryService/PasswordRecoveryServer.ts',
+            import: './lib/tools/PasswordRecoveryService/PasswordRecoveryServer.js',
             filename: '[name].bundle.js'
         },
         generate_identity: {
-            import: './src/tools/identity/GenerateIdentity.ts',
+            import: './lib/tools/identity/GenerateIdentity.js',
             filename: '[name].bundle.js'
         }
     },
@@ -23,22 +24,14 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.tsx?$/,
-                use: [
-                    {
-                        loader: 'ts-loader',
-                        options: {
-                            configFile: 'tsconfig.comm_server.json'
-                        }
-                    }
-                ],
-                exclude: /node_modules/
+                test: /\.js$/,
+                exclude: /node_modules|utf-8-validate|bufferutil/
             }
         ]
     },
 
     resolve: {
-        extensions: ['.ts', '.js']
+        extensions: ['.js']
     },
     target: 'node',
     node: {
