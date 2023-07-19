@@ -41,6 +41,7 @@
     ],
     "exclude": [
         "node_modules/one.core/src",
+        "*.bundle.js",
         ".*.js",
         "doc"
     ]
