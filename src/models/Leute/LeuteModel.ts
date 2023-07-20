@@ -9,6 +9,7 @@ import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
 } from '@refinio/one.core/lib/keychain/keychain';
+import type {Instance, Keys} from '@refinio/one.core/lib/recipes';
 import type {
     Group,
     OneIdObjectTypes,
@@ -32,17 +33,24 @@ import {
     onVersionedObj
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {exists} from '@refinio/one.core/lib/system/storage-base';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {LocalInstanceInfo} from '../../misc/ConnectionEstablishment/LeuteConnectionsModule';
 import {
+    createInstanceWithDefaultKeys,
     getInstancesOfPerson,
     getLocalInstanceOfPerson,
     hasPersonLocalInstance
 } from '../../misc/instance';
 import {OEvent} from '../../misc/OEvent';
-import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
+import {
+    createPerson,
+    createPersonWithDefaultKeys,
+    doesPersonExist,
+    isPersonComplete
+} from '../../misc/person';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import type {Leute} from '../../recipes/Leute/Leute';
@@ -59,6 +67,13 @@ import ProfileModel from './ProfileModel';
 import SomeoneModel from './SomeoneModel';
 
 const ZERO_HASH = '0'.repeat(64);
+
+type PersonAndInstanceWithKeys = {
+    personId: SHA256IdHash<Person>;
+    personKeys: SHA256Hash<Keys>;
+    instanceId: SHA256IdHash<Instance>;
+    instanceKeys: SHA256Hash<Keys>;
+};
 
 /**
  * This class manages people - to be precise: their identities including your own.
@@ -98,6 +113,13 @@ const ZERO_HASH = '0'.repeat(64);
  *    - create / update / delete profiles
  *    - share profiles with others / get sharing state
  *    - obtain profiles
+ *
+ * Other important information:
+ *    - Each profile has an owner. It is a namespacing mechanism. Only the owner should write
+ *    the profile. This should be enforces in the future.
+ *    - The 'default' profile where personId and owner are the same has a special meaning: It is
+ *    the profile that is automatically updated with ne sign keys etc, and this is also the
+ *    profile that is shared by default with other people.
  */
 export default class LeuteModel extends Model {
     // #### Events ####
@@ -178,35 +200,12 @@ export default class LeuteModel extends Model {
                 throw new Error('The instance is not initialized.');
             }
 
-            const instanceKeysHash = await getDefaultKeys(instanceId);
-            const personKeysHash = await getDefaultKeys(personId);
-
-            // One Instance endpoints for main instance with keys
-            const endpoint: OneInstanceEndpoint = {
-                $type$: 'OneInstanceEndpoint',
+            const profile = await this.createInitialDefaultProfile({
                 personId,
-                url: this.commserverUrl,
-                instanceId: instanceId,
-                instanceKeys: instanceKeysHash,
-                personKeys: personKeysHash
-            };
-
-            const personKeys = await getObject(personKeysHash);
-
-            const signKey: SignKey = {
-                $type$: 'SignKey',
-                key: personKeys.publicSignKey
-            };
-
-            // Create the profile / someone objects. If they already exist, ONE and crdts will make sure
-            // that creation is only done if the objects don't exist.
-            const profile = await ProfileModel.constructWithNewProfile(
-                personId,
-                personId,
-                'default',
-                [endpoint],
-                [signKey]
-            );
+                personKeys: await getDefaultKeys(personId),
+                instanceId,
+                instanceKeys: await getDefaultKeys(instanceId)
+            });
 
             const someone = await SomeoneModel.constructWithNewSomeone('me', profile.idHash);
 
@@ -220,6 +219,7 @@ export default class LeuteModel extends Model {
                 other: [],
                 group: []
             };
+
             await this.saveAndLoad();
         }
 
@@ -371,34 +371,20 @@ export default class LeuteModel extends Model {
     // ######## Identity management ########
 
     /**
-     * Create a new identity and a 'default' profile for myself.
+     * Create a new identity for myself with a complete set of keys and a 'default' profile.
+     *
+     * This will:
+     * - Create a new person (random email or the specified one)
+     * - Create complete keypairs for person
+     * - Create a new instance owned by the new person (random instance name or the specified one)
+     * - Create complete keypairs for instance
+     * - Create a 'default' profile for the new identity owned by itself
+     * - Certify profile with "TrustKeys" certificate issued by your main identity
+     * - Certify profile with "AffirmationCertificate" certificate issued by the new identity
      */
-    public async createProfileAndIdentityForMe(): Promise<ProfileModel> {
-        this.state.assertCurrentState('Initialised');
-
-        if (this.leute === undefined) {
-            throw new Error('Leute model is not initialized');
-        }
-
-        const me = await this.me();
-        const newPersonId = await LeuteModel.createIdentityWithInstanceAndKeys();
-        const myIdentity = await me.mainIdentity();
-        // add identity first so that the profile creation event has it
-        await me.addIdentity(newPersonId);
-        const newProfile = await ProfileModel.constructWithNewProfile(
-            newPersonId,
-            myIdentity,
-            'default'
-        );
-        await me.addProfile(newProfile.idHash);
-        return newProfile;
-    }
-
-    /**
-     * Create a new identity and a 'default' profile for someone.
-     */
-    public async createProfileAndIdentityForSomeone(
-        someoneId: SHA256IdHash<Someone>
+    public async createCompleteIdentityForMyself(
+        email?: string,
+        instanceName?: string
     ): Promise<ProfileModel> {
         this.state.assertCurrentState('Initialised');
 
@@ -406,26 +392,48 @@ export default class LeuteModel extends Model {
             throw new Error('Leute model is not initialized');
         }
 
-        const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
         const me = await this.me();
 
-        if (me.idHash === someone.idHash) {
-            return this.createProfileAndIdentityForMe();
+        // Create the new identity
+        const idInfo = await LeuteModel.createIdentityWithInstanceAndKeys(email, instanceName);
+
+        // Add identity first so that the profile creation event has it
+        await me.addIdentity(idInfo.personId);
+        const defaultProfile = await this.createInitialDefaultProfile(idInfo);
+
+        // Add the profile, so that it is added before this function resolves. (The hook will do
+        // the same, but we cannot await on the hook)
+        await me.addProfile(defaultProfile.idHash);
+        await this.shareVersionsWithEveryone(defaultProfile.idHash);
+
+        // Create certificates and share it
+        if (defaultProfile.loadedVersion !== undefined) {
+            const trustKeysCert = await this.trust.certify('TrustKeysCertificate', {
+                profile: defaultProfile.loadedVersion
+            });
+            const affirmationCert = await this.trust.affirm(
+                defaultProfile.loadedVersion,
+                idInfo.personId
+            );
+
+            // Share certificates
+            await this.shareObjectWithIoM(trustKeysCert.signature.hash);
+            await this.shareObjectWithEveryone(affirmationCert.hash);
         }
 
-        const newPersonId = await LeuteModel.createIdentity();
-        const myIdentity = await me.mainIdentity();
-        // add identity first so that the profile creation event has it
-        await someone.addIdentity(newPersonId);
-        return someone.createProfile('default', newPersonId, myIdentity);
+        return defaultProfile;
     }
 
     /**
-     * Create a new profile for someone.
+     * Create a new identity for someone with a 'default' profile.
+     *
+     * This will:
+     * - Create a new person (random email or the specified one)
+     * - Create an empty 'default' profile for the new identity owned by your main identity
      */
-    public async createProfileForSomeone(
+    public async createShallowIdentityForSomeone(
         someoneId: SHA256IdHash<Someone>,
-        personId: SHA256IdHash<Person>
+        email?: string
     ): Promise<ProfileModel> {
         this.state.assertCurrentState('Initialised');
 
@@ -434,38 +442,31 @@ export default class LeuteModel extends Model {
         }
 
         const someone = await SomeoneModel.constructFromLatestVersion(someoneId);
-        const me = await this.me();
-        const myIdentity = await me.mainIdentity();
-        // check if identity is already managed
-        if (!someone.identities().find(i => i === personId)) {
-            // add identity first so that the profile creation event has it
-            await someone.addIdentity(personId);
-        }
-        return someone.createProfile(await createRandomString(32), personId, myIdentity);
+
+        const newPersonId = await createPerson(email);
+        await someone.addIdentity(newPersonId);
+        return someone.createProfile('default', newPersonId, await this.myMainIdentity());
     }
 
     /**
      * Create someone with a completely new identity.
      */
-    public async createSomeoneWithNewIdentity(): Promise<SHA256IdHash<Someone>> {
+    public async createSomeoneWithShallowIdentity(email?: string): Promise<SHA256IdHash<Someone>> {
         this.state.assertCurrentState('Initialised');
 
         if (this.leute === undefined) {
             throw new Error('Leute model is not initialized');
         }
 
-        const newPersonId = await LeuteModel.createIdentity();
-        const me = await this.me();
-        const myIdentity = await me.mainIdentity();
+        const newPersonId = await createPerson(email);
         const newProfile = await ProfileModel.constructWithNewProfile(
             newPersonId,
-            myIdentity,
+            await this.myMainIdentity(),
             'default'
         );
-
         // Call the hook (even if it already runs) - this ensures, that the profile was added to
         // a someone object
-        await this.addProfileFromResult(await getObjectByIdHash(newProfile.idHash));
+        await this.addProfile(newProfile.idHash);
 
         const someone = await this.getSomeone(newPersonId);
         if (someone === undefined) {
@@ -473,6 +474,37 @@ export default class LeuteModel extends Model {
         }
 
         return someone.idHash;
+    }
+
+    /**
+     * Create a new profile for someone.
+     *
+     * @param personId - The Person for which to create the personId
+     * @param profileId - The profile id. Defaults to a random string.
+     * @param ensureSomeoneId - if specified, ensure that this someone object is the found object.
+     */
+    public async createProfileForPerson(
+        personId: SHA256IdHash<Person>,
+        profileId?: string,
+        ensureSomeoneId?: SHA256IdHash<Someone>
+    ): Promise<ProfileModel> {
+        this.state.assertCurrentState('Initialised');
+
+        if (this.leute === undefined) {
+            throw new Error('Leute model is not initialized');
+        }
+
+        const someone = await this.getSomeone(personId);
+
+        if (someone === undefined) {
+            throw new Error('Failed to create profile, because no someone object could be found.');
+        }
+
+        return someone.createProfile(
+            profileId === undefined ? await createRandomString(32) : profileId,
+            personId,
+            await this.myMainIdentity()
+        );
     }
 
     // ######## Group management ########
@@ -1081,17 +1113,20 @@ export default class LeuteModel extends Model {
     /**
      * Create an identity and an instance and corresponding keys
      */
-    private static async createIdentityWithInstanceAndKeys(): Promise<SHA256IdHash<Person>> {
-        const personResult = await createPersonWithDefaultKeys();
-        // const instanceResult = createInstanceWithDefaultKeys(personResult.personId);
-        return personResult.personId;
-    }
-
-    /**
-     * Create an identity without any keys instance objects, etc.
-     */
-    private static async createIdentity(): Promise<SHA256IdHash<Person>> {
-        return createPerson();
+    private static async createIdentityWithInstanceAndKeys(
+        email?: string,
+        instanceName?: string
+    ): Promise<PersonAndInstanceWithKeys> {
+        // Just a note:
+        // It is okay to not check if person / instance exists beforehand for strong exception
+        // guarantee, because if the person does not exist it is guaranteed, that the instance
+        // does not exist (instance depends on the person through owner).
+        const personResult = await createPersonWithDefaultKeys(email);
+        const instanceResult = await createInstanceWithDefaultKeys(
+            personResult.personId,
+            instanceName
+        );
+        return {...personResult, ...instanceResult};
     }
 
     // ######## Hooks for one.core ########
@@ -1231,6 +1266,52 @@ export default class LeuteModel extends Model {
 
         const name = await someone.getDefaultProfileDisplayName(personId);
         this.personNameCache.set(personId, name);
+    }
+
+    /**
+     * Creates a 'default' profile for the specified person.
+     *
+     * It will be owned by the same person.
+     *
+     * @param idInfo
+     * @private
+     */
+    private async createInitialDefaultProfile(
+        idInfo: PersonAndInstanceWithKeys
+    ): Promise<ProfileModel> {
+        const personKeys = await getObject(idInfo.personKeys);
+
+        // Note, that the returned profile model is the latest version after the merge, not the
+        // exact version that you just wrote. The Problem are CRDTs - unmerged versions are not in
+        // the version map, so they are not visible to the app and are not transmitted to other
+        // instance.
+        // The assumption ist, that no unauthorized person can change this crdt type, because
+        // input filtering will prevent that (which does not exist, yet!)
+        // Another solution would be to have a separate mechanism (besides version maps) that
+        // manages intermediary versions (e.g. explicit tags).
+        // Everything depends on how you view versions ... what is a version - what is a
+        // document - can you have diverging paths in the same document ... etc.
+        return await ProfileModel.constructWithNewProfile(
+            idInfo.personId,
+            idInfo.personId,
+            'default',
+            [
+                {
+                    $type$: 'OneInstanceEndpoint',
+                    personId: idInfo.personId,
+                    url: this.commserverUrl,
+                    instanceId: idInfo.instanceId,
+                    instanceKeys: idInfo.instanceKeys,
+                    personKeys: idInfo.personKeys
+                }
+            ],
+            [
+                {
+                    $type$: 'SignKey',
+                    key: personKeys.publicSignKey
+                }
+            ]
+        );
     }
 
     // ######## private stuff - Load & Save ########
