@@ -221,6 +221,14 @@ export default class LeuteModel extends Model {
             };
 
             await this.saveAndLoad();
+
+            // This is done before the trust manager is initialized. This is probably not such a
+            // good idea, but it works for now.
+            await this.trust.certify(
+                'RightToDeclareTrustedKeysForEverybodyCertificate',
+                {beneficiary: personId},
+                personId
+            );
         }
 
         const disconnectFns: Array<() => void> = [];
