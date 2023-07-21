@@ -12,11 +12,13 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import {OEvent} from '../../misc/OEvent';
 import type {
     CommunicationEndpointInterfaces,
-    CommunicationEndpointTypeNames
+    CommunicationEndpointTypeNames,
+    CommunicationEndpointTypes
 } from '../../recipes/Leute/CommunicationEndpoints';
 import type {
     PersonDescriptionInterfaces,
-    PersonDescriptionTypeNames
+    PersonDescriptionTypeNames,
+    PersonDescriptionTypes
 } from '../../recipes/Leute/PersonDescriptions';
 import type {Profile} from '../../recipes/Leute/Profile';
 import type {Someone} from '../../recipes/Leute/Someone';
@@ -166,10 +168,25 @@ export default class SomeoneModel {
         return [...this.pIdentities.keys()];
     }
 
+    /**
+     * Checks whether this identity is managed by this someone object.
+     *
+     * @param identity
+     */
+    public managesIdentity(identity: SHA256IdHash<Person>): boolean {
+        return this.identities().includes(identity);
+    }
+
+    /**
+     * Retrieve the main identity by looking it up in the main profile.
+     */
     public async mainIdentity(): Promise<SHA256IdHash<Person>> {
         return (await this.mainProfile()).personId;
     }
 
+    /**
+     * Retrieve all identities managed by this someone object except the main identity.
+     */
     public async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
         const mainIdentity = await this.mainIdentity();
         return this.identities().filter(id => id !== mainIdentity);
@@ -377,13 +394,23 @@ export default class SomeoneModel {
      * @param profileId
      * @param personId
      * @param owner
+     * @param communicationEndpoints
+     * @param personDescriptions
      */
     public async createProfile(
         profileId: string,
         personId: SHA256IdHash<Person>,
-        owner: SHA256IdHash<Person>
+        owner: SHA256IdHash<Person>,
+        communicationEndpoints: CommunicationEndpointTypes[] = [],
+        personDescriptions: PersonDescriptionTypes[] = []
     ): Promise<ProfileModel> {
-        const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
+        const profile = await ProfileModel.constructWithNewProfile(
+            personId,
+            owner,
+            profileId,
+            communicationEndpoints,
+            personDescriptions
+        );
         await this.addProfile(profile.idHash);
         return profile;
     }

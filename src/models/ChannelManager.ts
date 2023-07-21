@@ -1,4 +1,3 @@
-import {createAccess} from '@refinio/one.core/lib/access';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -254,6 +253,15 @@ export default class ChannelManager {
     >();
 
     /**
+     * The default owner when creating ot posting to a channel.
+     *
+     * This also changes the default author of posted data.
+     *
+     * If undefined, your main identity will be used.
+     */
+    public defaultOwner: SHA256IdHash<Person> | undefined;
+
+    /**
      * Create the channel manager instance.
      */
     constructor(leuteModel: LeuteModel) {
@@ -314,7 +322,7 @@ export default class ChannelManager {
         owner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (owner === undefined) {
-            owner = await this.leuteModel.myMainIdentity();
+            owner = await this.calculateDefaultOwner();
         }
 
         if (owner === null) {
@@ -478,7 +486,7 @@ export default class ChannelManager {
         // The owner can be the passed one, or the default one if none was passed.
         // It is no owner if null is passed.
         let owner: SHA256IdHash<Person> | undefined;
-        const myMainId = await this.leuteModel.myMainIdentity();
+        const myMainId = await this.calculateDefaultOwner();
 
         if (channelOwner === null) {
             owner = undefined;
@@ -565,7 +573,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            owner = await this.leuteModel.myMainIdentity();
+            owner = await this.calculateDefaultOwner();
         }
 
         try {
@@ -1974,53 +1982,6 @@ export default class ChannelManager {
     // ######## Access stuff ########
 
     /**
-     * Note: This function needs to be cleaned up a little! That is why it is down here with the
-     * private methods because atm I don't encourage anybody to use it, unless he doesn't have
-     * another choice.
-     * @param channelId
-     * @param to - group name
-     */
-    public async giveAccessToChannelInfo(
-        channelId: string,
-        to?: string
-    ): Promise<
-        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
-    > {
-        const channels = await this.getMatchingChannelInfos({channelId});
-
-        if (to === undefined) {
-            const myMainIdentity = await this.leuteModel.myMainIdentity();
-
-            const accessChannels = await Promise.all(
-                channels.map(async channelInfo => {
-                    return {
-                        id: await calculateIdHashOfObj(channelInfo),
-                        person: [myMainIdentity],
-                        group: [],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createAccess(accessChannels);
-        }
-
-        const group = await getObjectByIdObj({$type$: 'Group', name: to});
-
-        const accessObjects = await Promise.all(
-            channels.map(async channelInfo => {
-                return {
-                    id: await calculateIdHashOfObj(channelInfo),
-                    person: [],
-                    group: [group.idHash],
-                    mode: SET_ACCESS_MODE.REPLACE
-                };
-            })
-        );
-
-        return await createAccess(accessObjects);
-    }
-
-    /**
      * Get the person list with whom this channel is shared.
      *
      * This list also explodes the access groups and adds those persons to the returned list.
@@ -2204,5 +2165,16 @@ export default class ChannelManager {
             owner: channelOwner,
             head: channelEntryResult.hash
         });
+    }
+
+    /**
+     * Returns the default author if set manually or my main identity if unset.
+     */
+    async calculateDefaultOwner(): Promise<SHA256IdHash<Person>> {
+        if (this.defaultOwner !== undefined) {
+            return this.defaultOwner;
+        }
+
+        return this.leuteModel.myMainIdentity();
     }
 }
