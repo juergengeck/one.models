@@ -10,7 +10,6 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 import {OEvent} from '../misc/OEvent';
 import type {
-    Access,
     IdAccess,
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
@@ -39,7 +38,6 @@ import {
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 
 const MessageBus = createMessageBus('ChannelManager');
 
