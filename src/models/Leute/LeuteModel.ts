@@ -33,7 +33,6 @@ import {
     onVersionedObj
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {exists} from '@refinio/one.core/lib/system/storage-base';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
@@ -45,12 +44,7 @@ import {
     hasPersonLocalInstance
 } from '../../misc/instance';
 import {OEvent} from '../../misc/OEvent';
-import {
-    createPerson,
-    createPersonWithDefaultKeys,
-    doesPersonExist,
-    isPersonComplete
-} from '../../misc/person';
+import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import type {Leute} from '../../recipes/Leute/Leute';
