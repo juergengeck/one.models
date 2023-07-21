@@ -1,4 +1,3 @@
-import {createAccess} from '@refinio/one.core/lib/access';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -254,11 +253,13 @@ export default class ChannelManager {
     >();
 
     /**
-     * The default author when posting to a channel.
+     * The default owner when creating ot posting to a channel.
+     *
+     * This also changes the default author of posted data.
      *
      * If undefined, your main identity will be used.
      */
-    public defaultAuthor: SHA256IdHash<Person> | undefined;
+    public defaultOwner: SHA256IdHash<Person> | undefined;
 
     /**
      * Create the channel manager instance.
@@ -321,7 +322,7 @@ export default class ChannelManager {
         owner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (owner === undefined) {
-            owner = await this.calculateDefaultAuthor();
+            owner = await this.calculateDefaultOwner();
         }
 
         if (owner === null) {
@@ -485,7 +486,7 @@ export default class ChannelManager {
         // The owner can be the passed one, or the default one if none was passed.
         // It is no owner if null is passed.
         let owner: SHA256IdHash<Person> | undefined;
-        const myMainId = await this.calculateDefaultAuthor();
+        const myMainId = await this.calculateDefaultOwner();
 
         if (channelOwner === null) {
             owner = undefined;
@@ -572,7 +573,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            owner = await this.calculateDefaultAuthor();
+            owner = await this.calculateDefaultOwner();
         }
 
         try {
@@ -2169,9 +2170,9 @@ export default class ChannelManager {
     /**
      * Returns the default author if set manually or my main identity if unset.
      */
-    async calculateDefaultAuthor(): Promise<SHA256IdHash<Person>> {
-        if (this.defaultAuthor !== undefined) {
-            return this.defaultAuthor;
+    async calculateDefaultOwner(): Promise<SHA256IdHash<Person>> {
+        if (this.defaultOwner !== undefined) {
+            return this.defaultOwner;
         }
 
         return this.leuteModel.myMainIdentity();
