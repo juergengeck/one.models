@@ -315,6 +315,10 @@ export default class IoMManager {
     }
 
     async resignProfileIfOk(profile: Profile, profileHash: SHA256Hash<Profile>) {
+        if (this.leuteModel.state.currentState !== 'Initialised') {
+            return;
+        }
+
         // We only sign versions of the default profile owned by the target person.
         if (profile.personId !== profile.owner) {
             return;
