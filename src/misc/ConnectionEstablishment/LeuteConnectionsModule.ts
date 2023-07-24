@@ -308,11 +308,7 @@ export default class LeuteConnectionsModule {
         await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
         await this.setupRoutes();
-
-        // This line is only there to enable the catch all routes, because we don't have a
-        // enableCatchAllRoutes at the moment. We should fix this when we have a better
-        // understanding of the catchAll stuff
-        await this.connectionRouteManager.enableRoutes();
+        await this.connectionRouteManager.enableCatchAllRoutes();
     }
 
     /**
