@@ -1,8 +1,8 @@
 import {
     getObjectByIdObj,
-    onVersionedObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
+import {objectEvents} from '../misc/ObjectEventDispatcher';
 import type {Settings as OneSettings} from '../recipes/SettingsRecipe';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
@@ -87,7 +87,7 @@ export default class PropertyTreeStore extends PropertyTree {
                 $type$: 'Settings',
                 id: this.oneId
             });
-            this.storageUpdated(oneKeyValueStore.obj);
+            await this.storageUpdated(oneKeyValueStore.obj);
         } catch (_) {
             this.keyValueStore = new Map<string, string>();
         }
@@ -98,19 +98,21 @@ export default class PropertyTreeStore extends PropertyTree {
         this.oneId = oneId;
         this.separator = separator;
         // register storageUpdated hook at one storage
-        onVersionedObj.addListener(caughtObject => {
-            if (caughtObject.obj.$type$ === 'Settings') {
-                this.storageUpdated(caughtObject.obj);
-            }
-        });
+        objectEvents.onNewVersion(
+            async caughtObject => {
+                await this.storageUpdated(caughtObject.obj);
+            },
+            'PropertyTreeStore: storageUpdated',
+            'Settings'
+        );
     }
 
     // one hook for changed settings object
-    storageUpdated(oneSettings: OneSettings): void {
+    private async storageUpdated(oneSettings: OneSettings): Promise<void> {
         // or: if map was empty then emit only a single event with empty key
         if (this.keyValueStore.size === 0) {
             this.keyValueStore = new Map<string, string>(oneSettings.properties);
-            this.onSettingChange.emit('', undefined);
+            await this.onSettingChange.emitAll('', undefined);
         } else {
             // diff the oneSettings with the keyValueStore
             for (const [key, value] of oneSettings.properties.entries()) {

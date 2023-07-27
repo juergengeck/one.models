@@ -1,14 +1,10 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {
-    getIdObject,
-    getObjectByIdHash,
-    onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import {OEvent} from '../../misc/OEvent';
 import type {
     CommunicationEndpointInterfaces,
@@ -33,9 +29,6 @@ import ProfileModel from './ProfileModel';
  * Reasons for not using the Someone recipe directly:
  * - Because the whole identity management on the lower levels is pretty complicated. So it is much
  *   nicer for the users to have a nicer interface.
- *
- * TODO: Add convenience function for obtaining the default display name of a someone (from the main
- *       profile)
  */
 export default class SomeoneModel {
     public onUpdate: OEvent<() => void> = new OEvent();
@@ -52,19 +45,25 @@ export default class SomeoneModel {
         this.pIdentities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
 
         // Setup the onUpdate event
-        const emitUpdateIfMatch = (result: VersionedObjectResult) => {
-            if (result.idHash === this.idHash) {
-                this.onUpdate.emit();
-            }
-        };
+        let disconnect: (() => void) | undefined;
         this.onUpdate.onListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.addListener(emitUpdateIfMatch);
+                disconnect = objectEvents.onNewVersion(
+                    async () => {
+                        await this.onUpdate.emitAll();
+                    },
+                    `SomeoneModel: onUpdate ${this.idHash}`,
+                    'Someone',
+                    this.idHash
+                );
             }
         });
         this.onUpdate.onStopListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.removeListener(emitUpdateIfMatch);
+                if (disconnect !== undefined) {
+                    disconnect();
+                    disconnect = undefined;
+                }
             }
         });
     }

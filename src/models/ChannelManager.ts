@@ -8,6 +8,7 @@ import {
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
+import {objectEvents} from '../misc/ObjectEventDispatcher';
 import {OEvent} from '../misc/OEvent';
 import type {
     IdAccess,
@@ -28,7 +29,6 @@ import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versione
 import {
     getObjectByIdHash,
     getObjectByIdObj,
-    onVersionedObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import type LeuteModel from './Leute/LeuteModel';
@@ -141,6 +141,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
     channelId: string; // The channel id
     channelOwner?: SHA256IdHash<Person>; // The owner of the channel
@@ -187,22 +188,6 @@ type ChannelInfoCacheEntry = {
 };
 
 /**
- * Assert that passed object has ChannelInfoResult type.
- *
- * This is required so that typescript stops displaying errors.
- *
- * @param versionedObjectResult - the one object
- * @returns The same object, just casted in a safe way
- */
-function isChannelInfoResult(
-    versionedObjectResult: VersionedObjectResult
-): versionedObjectResult is VersionedObjectResult<ChannelInfo> {
-    return (
-        (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.$type$ === 'ChannelInfo'
-    );
-}
-
-/**
  * This model manages distributed lists of data in so called 'channels'.
  *
  * A channel is a list of objects stored as merkle-tree indexed by time.
@@ -239,8 +224,9 @@ export default class ChannelManager {
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    private disconnectOnVersionedObjListener: () => void = () => {};
+    private disconnectOnVersionedObjListener: () => void = () => {
+        // Empty by design
+    };
     private leuteModel: LeuteModel;
     private channelSettings = new Map<
         SHA256IdHash<ChannelInfo>,
@@ -281,8 +267,10 @@ export default class ChannelManager {
         await this.loadRegistryCacheFromOne();
 
         // Register event handlers
-        this.disconnectOnVersionedObjListener = onVersionedObj.addListener(
-            this.handleOnVersionedObj.bind(this)
+        this.disconnectOnVersionedObjListener = objectEvents.onNewVersion(
+            this.mergeNewChannelInfoVersioned.bind(this),
+            'ChannelManager: mergeNewChannelInfo',
+            'ChannelInfo'
         );
 
         // Merge new versions of channels that haven't been merged, yet.
@@ -1781,41 +1769,41 @@ export default class ChannelManager {
      * Handler function for the VersionedObj
      * @param caughtObject
      */
-    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
+    private async mergeNewChannelInfoVersioned(
+        caughtObject: VersionedObjectResult<ChannelInfo>
+    ): Promise<void> {
         try {
-            if (isChannelInfoResult(caughtObject)) {
-                const promiseTracker = createTrackingPromise<void>();
+            const promiseTracker = createTrackingPromise<void>();
 
-                // Determine the channel id and owner
-                let channelId: string;
-                let channelOwner: SHA256IdHash<Person> | undefined;
+            // Determine the channel id and owner
+            let channelId: string;
+            let channelOwner: SHA256IdHash<Person> | undefined;
 
-                this.promiseTrackers.add(promiseTracker.promise);
+            this.promiseTrackers.add(promiseTracker.promise);
 
-                {
-                    const channelInfo = await getObjectByIdHash(caughtObject.idHash);
-                    channelId = channelInfo.obj.id;
-                    channelOwner = channelInfo.obj.owner;
-                }
+            {
+                const channelInfo = await getObjectByIdHash(caughtObject.idHash);
+                channelId = channelInfo.obj.id;
+                channelOwner = channelInfo.obj.owner;
+            }
 
-                // Add channel and merge versions
-                try {
-                    logWithId(channelId, channelOwner, 'handleOnVersionedObj - START');
-                    await this.addChannelIfNotExist(caughtObject.idHash);
-                    await this.mergePendingVersions(caughtObject.idHash);
-                    logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
+            // Add channel and merge versions
+            try {
+                logWithId(channelId, channelOwner, 'handleOnVersionedObj - START');
+                await this.addChannelIfNotExist(caughtObject.idHash);
+                await this.mergePendingVersions(caughtObject.idHash);
+                logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
 
-                    promiseTracker.resolve();
-                } catch (e) {
-                    promiseTracker.reject();
+                promiseTracker.resolve();
+            } catch (e) {
+                promiseTracker.reject();
 
-                    logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
-                    console.error(e); // Introduce an error event later!
-                } finally {
-                    promiseTracker.promise.finally(() =>
-                        this.promiseTrackers.delete(promiseTracker.promise)
-                    );
-                }
+                logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
+                console.error(e); // Introduce an error event later!
+            } finally {
+                promiseTracker.promise.finally(() =>
+                    this.promiseTrackers.delete(promiseTracker.promise)
+                );
             }
         } catch (e) {
             console.error(e); // Introduce an error event later!

@@ -1,20 +1,17 @@
 import {createAccess} from '@refinio/one.core/lib/access';
-import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes';
+import type {Group, Person} from '@refinio/one.core/lib/recipes';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {
-    onUnversionedObj,
-    storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import {OEvent} from '../../misc/OEvent';
 import type {ChannelInfo} from '../../recipes/ChannelRecipes';
 import type {Topic} from '../../recipes/ChatRecipes';
-import type {ObjectData} from '../ChannelManager';
 import type ChannelManager from '../ChannelManager';
 import LeuteModel from '../Leute/LeuteModel';
 import {Model} from '../Model';
@@ -49,7 +46,13 @@ export default class TopicModel extends Model {
         this.state.assertCurrentState('Uninitialised');
 
         this.topicRegistry = await TopicRegistry.load();
-        this.disconnectFns.push(onUnversionedObj.addListener(this.addTopicToRegistry.bind(this)));
+        this.disconnectFns.push(
+            objectEvents.onUnversionedObject(
+                this.addTopicToRegistry.bind(this),
+                'TopicModel: addTopicToRegistry',
+                'Topic'
+            )
+        );
 
         this.state.triggerEvent('init');
     }
@@ -380,31 +383,19 @@ export default class TopicModel extends Model {
      *
      * @param result
      */
-    private async addTopicToRegistry(result: UnversionedObjectResult): Promise<void> {
+    private async addTopicToRegistry(result: UnversionedObjectResult<Topic>): Promise<void> {
         const topic = result.obj;
-
-        if (result.status !== 'new') {
-            return;
-        }
-
-        if (topic.$type$ !== 'Topic') {
-            return;
-        }
 
         await serializeWithType(this.TopicRegistryLOCK, async () => {
             if (this.topicRegistry === undefined) {
                 throw new Error('Error while retrieving topic registry, model not initialised.');
             }
 
-            await this.topicRegistry.add(result as UnversionedObjectResult<Topic>);
+            await this.topicRegistry.add(result);
             await this.applyAccessRightsIfOneToOneChat(topic);
-            try {
-                await this.applyAccessRightsIfEveryoneChat(topic);
-            } catch (e) {
-                // This might happen if leute was not created with an everyone group
-                console.error(e);
-            }
+            await this.applyAccessRightsIfEveryoneChat(topic);
         });
+
         this.onNewTopicEvent.emit();
     }
 }

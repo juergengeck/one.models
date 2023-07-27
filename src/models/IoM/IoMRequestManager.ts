@@ -1,19 +1,15 @@
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import {createAccess} from '@refinio/one.core/lib/access';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {OneUnversionedObjectTypeNames, Person} from '@refinio/one.core/lib/recipes';
+import type {Person} from '@refinio/one.core/lib/recipes';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {
-    getObject,
-    onUnversionedObj,
-    storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import {
     getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import {OEvent} from '../../misc/OEvent';
 import type {IoMRequest} from '../../recipes/IoM/IoMRequest';
 import type {IoMRequestsRegistry} from '../../recipes/IoM/IoMRequestsRegistry';
@@ -21,13 +17,6 @@ import type {Signature} from '../../recipes/SignatureRecipes';
 import type TrustedKeysManager from '../Leute/TrustedKeysManager';
 
 const messageBus = createMessageBus('IoMRequestManager');
-
-function isUnversionedObjectResultOfType<T extends OneUnversionedObjectTypeNames>(
-    arg: UnversionedObjectResult,
-    typeName: T
-): arg is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
-    return arg.obj.$type$ === typeName;
-}
 
 /**
  * This class manages IoM requests.
@@ -77,18 +66,20 @@ export default class IoMRequestManager {
      */
     public async init(): Promise<void> {
         messageBus.send('debug', 'init');
-        this.disconnectListener = onUnversionedObj.addListener(result => {
-            if (isUnversionedObjectResultOfType(result, 'IoMRequest')) {
-                this.processNewIomRequest(result).catch(_err => {
-                    // TODO Report where, how?
-                });
-            }
-            if (isUnversionedObjectResultOfType(result, 'Signature')) {
-                this.processNewIoMRequestCertificate(result).catch(_err => {
-                    // TODO Report where, how?
-                });
-            }
-        });
+        const d1 = objectEvents.onUnversionedObject(
+            this.processNewIomRequest.bind(this),
+            'IoMRequestManager: processNewIomRequest',
+            'IoMRequest'
+        );
+        const d2 = objectEvents.onUnversionedObject(
+            this.processNewIoMRequestCertificate.bind(this),
+            'IoMRequestManager: processNewIomRequestCertificate',
+            'Signature'
+        );
+        this.disconnectListener = () => {
+            d1();
+            d2();
+        };
 
         // initialize the registry
         await this.initRegistry();
