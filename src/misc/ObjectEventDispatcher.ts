@@ -11,11 +11,9 @@ import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-object
 import type {
     OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
-    OneUnversionedObjectTypes,
-    OneVersionedObjectTypeNames,
-    OneVersionedObjectTypes
+    OneVersionedObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
-import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
+import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getOrCreate} from '../utils/MapUtils';
 import {OEvent} from './OEvent';
 import type {
