@@ -2,16 +2,15 @@ import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
 import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes';
 import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     getObjectByIdHash,
-    onVersionedObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
 import {Model} from '../Model';
 
@@ -35,19 +34,37 @@ export default class GroupModel extends Model {
         this.groupIdHash = groupIdHash;
 
         // Setup the onUpdate event
-        const emitUpdateIfMatch = (result: VersionedObjectResult) => {
-            if (result.idHash === this.groupIdHash || result.idHash === this.profileIdHash) {
-                this.onUpdated.emit();
-            }
-        };
+        let disconnect: (() => void) | undefined;
         this.onUpdated.onListen(() => {
             if (this.onUpdated.listenerCount() === 0) {
-                onVersionedObj.addListener(emitUpdateIfMatch);
+                const d1 = objectEvents.onNewVersion(
+                    async () => {
+                        await this.onUpdated.emitAll();
+                    },
+                    `GroupModel: onUpdate Group ${this.groupIdHash}`,
+                    'Group',
+                    this.groupIdHash
+                );
+                const d2 = objectEvents.onNewVersion(
+                    async () => {
+                        await this.onUpdated.emitAll();
+                    },
+                    `GroupModel: onUpdate GroupProfile ${this.profileIdHash}`,
+                    'GroupProfile',
+                    this.profileIdHash
+                );
+                disconnect = () => {
+                    d1();
+                    d2();
+                };
             }
         });
         this.onUpdated.onStopListen(() => {
             if (this.onUpdated.listenerCount() === 0) {
-                onVersionedObj.removeListener(emitUpdateIfMatch);
+                if (disconnect !== undefined) {
+                    disconnect();
+                    disconnect = undefined;
+                }
             }
         });
 

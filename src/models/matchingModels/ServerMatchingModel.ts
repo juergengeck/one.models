@@ -3,11 +3,7 @@ import type {Instance} from '@refinio/one.core/lib/recipes';
 import type {Person} from '@refinio/one.core/lib/recipes';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {
-    getObject,
-    onUnversionedObj,
-    storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
 import {
     getObjectByIdObj,
@@ -17,6 +13,7 @@ import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
 import type {Protocols} from '../../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
 import type AccessModel from '../AccessModel';
 import type ChannelManager from '../ChannelManager';
@@ -111,8 +108,8 @@ export default class ServerMatchingModel extends MatchingModel {
      * check for a matching.
      */
     private async registerHooks(): Promise<void> {
-        onUnversionedObj.addListener(async res => {
-            if (res.obj.$type$ === 'CreationTime') {
+        objectEvents.onUnversionedObject(
+            async res => {
                 try {
                     const receivedObject = await getObject(res.obj.data);
                     if (receivedObject.$type$ === 'Supply') {
@@ -143,8 +140,10 @@ export default class ServerMatchingModel extends MatchingModel {
                         throw err;
                     }
                 }
-            }
-        });
+            },
+            'ServerMatchingModel: New creation time object',
+            'CreationTime'
+        );
     }
 
     /**

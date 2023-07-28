@@ -12,26 +12,16 @@ import {
 import type {Instance, Keys} from '@refinio/one.core/lib/recipes';
 import type {
     Group,
-    OneIdObjectTypes,
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
-    OneVersionedObjectTypes,
     Person
 } from '@refinio/one.core/lib/recipes';
 import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {
-    IdFileCreation,
-    VersionedObjectResult
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {
-    getIdObject,
-    getObjectByIdHash,
-    onIdObj,
-    onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise';
@@ -43,6 +33,8 @@ import {
     getLocalInstanceOfPerson,
     hasPersonLocalInstance
 } from '../../misc/instance';
+import type {IdObjectResult} from '../../misc/ObjectEventDispatcher';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import {OEvent} from '../../misc/OEvent';
 import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
@@ -227,17 +219,23 @@ export default class LeuteModel extends Model {
 
         const disconnectFns: Array<() => void> = [];
         disconnectFns.push(
-            onVersionedObj.addListener(result => {
-                if (isVersionedResultOfType(result, 'Profile')) {
-                    this.addProfileFromResult(result).catch(console.error);
-                    this.updatePersonNameCacheForPerson(result.obj.personId).catch(console.error);
-                }
-                if (isVersionedResultOfType(result, 'Someone')) {
+            objectEvents.onNewVersion(
+                async result => {
+                    await this.addProfileFromResult(result);
+                    await this.updatePersonNameCacheForPerson(result.obj.personId);
+                },
+                'LeuteModel: New profile version - Add profile and update person name cache',
+                'Profile'
+            ),
+            objectEvents.onNewVersion(
+                async result => {
                     for (const id of result.obj.identity) {
-                        this.updatePersonNameCacheForPerson(id.person).catch(console.error);
+                        await this.updatePersonNameCacheForPerson(id.person).catch(console.error);
                     }
-                }
-            })
+                },
+                'LeuteModel: New someone version - Update person name cache for all identities',
+                'Someone'
+            )
         );
 
         if (this.createEveryoneGroup) {
@@ -246,7 +244,13 @@ export default class LeuteModel extends Model {
                 group.persons.push(personId);
                 await group.saveAndLoad();
             }
-            disconnectFns.push(onIdObj.addListener(this.addPersonToEveryoneGroup.bind(this)));
+            disconnectFns.push(
+                objectEvents.onNewIdObject(
+                    this.addPersonToEveryoneGroup.bind(this),
+                    'LeuteModel: addPersonToEveryoneGroup',
+                    'Person'
+                )
+            );
         }
 
         this.shutdownInternal = async () => {
@@ -1209,21 +1213,14 @@ export default class LeuteModel extends Model {
      * @param result
      * @private
      */
-    private async addPersonToEveryoneGroup(
-        result: IdFileCreation<OneVersionedObjectTypes | OneIdObjectTypes>
-    ): Promise<void> {
-        const object = await getIdObject(
-            result.idHash as unknown as SHA256IdHash<OneVersionedObjectTypes>
-        );
-        if (object.$type$ === 'Person') {
-            await serializeWithType('addPerson', async () => {
-                const group = await LeuteModel.everyoneGroup();
-                if (group.persons.find(person => person === result.idHash) === undefined) {
-                    group.persons.push(result.idHash as SHA256IdHash<Person>);
-                    await group.saveAndLoad();
-                }
-            });
-        }
+    private async addPersonToEveryoneGroup(result: IdObjectResult<Person>): Promise<void> {
+        await serializeWithType('addPerson', async () => {
+            const group = await LeuteModel.everyoneGroup();
+            if (group.persons.find(person => person === result.idHash) === undefined) {
+                group.persons.push(result.idHash);
+                await group.saveAndLoad();
+            }
+        });
     }
 
     /**

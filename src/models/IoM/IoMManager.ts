@@ -1,7 +1,5 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import type {Profile} from '../../recipes/Leute/Profile';
 import ProfileModel from '../Leute/ProfileModel';
 import IoMRequestManager from './IoMRequestManager';
@@ -59,33 +57,33 @@ export default class IoMManager {
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
 
-        onUnversionedObj.addListener(async (result: UnversionedObjectResult) => {
-            if (result.obj.$type$ !== 'Signature' || result.status === 'exists') {
-                return;
-            }
+        objectEvents.onUnversionedObject(
+            async result => {
+                const cert = await getObject(result.obj.data);
 
-            const cert = await getObject(result.obj.data);
+                if (cert.$type$ !== 'AffirmationCertificate') {
+                    return;
+                }
 
-            if (cert.$type$ !== 'AffirmationCertificate') {
-                return;
-            }
+                const profile = await getObject(cert.data);
 
-            const profile = await getObject(cert.data);
+                if (profile.$type$ !== 'Profile') {
+                    return;
+                }
 
-            if (profile.$type$ !== 'Profile') {
-                return;
-            }
+                await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
+            },
+            'IoMManager: New certificate - resignProfileIfOk',
+            'Signature'
+        );
 
-            await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
-        });
-
-        onVersionedObj.addListener(async (result: VersionedObjectResult) => {
-            if (result.obj.$type$ !== 'Profile' || result.status === 'exists') {
-                return;
-            }
-
-            await this.resignProfileIfOk(result.obj, result.hash as SHA256Hash<Profile>);
-        });
+        objectEvents.onNewVersion(
+            async result => {
+                await this.resignProfileIfOk(result.obj, result.hash);
+            },
+            'IoMManager: New profile version - resignProfileIfOk',
+            'Profile'
+        );
     }
 
     /**
