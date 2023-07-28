@@ -157,9 +157,7 @@ export default class ObjectEventDispatcher {
     // #### Members for stopping / pausing the event loop ####
     private stopped = true;
     private waitForEventLoopDonePromise: Promise<void> | null = null;
-    private disconnect: () => void = () => {
-        // Intentional
-    };
+    private disconnect: (() => void) | undefined;
 
     private pausePromise: Promise<void> | undefined;
     private pauseResume: (() => void) | undefined;
@@ -182,6 +180,9 @@ export default class ObjectEventDispatcher {
     // ######## init / shutdown ########
 
     async init() {
+        if (this.disconnect !== undefined) {
+            throw new Error('ObjectEventDispatcher is already initialized.');
+        }
         // TODO: load buffer from disk
 
         const d1 = onVersionedObj.addListener(this.appendToBufferIfNew.bind(this));
@@ -210,10 +211,12 @@ export default class ObjectEventDispatcher {
     }
 
     async shutdown() {
+        if (this.disconnect === undefined) {
+            return;
+        }
+
         this.disconnect();
-        this.disconnect = () => {
-            // Intentionally empty
-        };
+        this.disconnect = undefined;
         this.stopped = true;
         this.resume();
         this.buffer.cancelPendingPromises();
