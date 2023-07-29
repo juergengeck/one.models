@@ -475,7 +475,7 @@ export default class ObjectEventDispatcher {
      * Get a list of objects that have recently been processed plus statistics data for them.
      */
     getProcessedObjects(): BufferHistoryData[] {
-        return this.bufferHistory;
+        return [...this.bufferHistory];
     }
 
     /**
