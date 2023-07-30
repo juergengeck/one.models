@@ -13,6 +13,7 @@ import type {
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getOrCreate} from '../utils/MapUtils';
 import {OEvent} from './OEvent';
@@ -590,6 +591,48 @@ export default class ObjectEventDispatcher {
                 h.executionStatistics = [];
             }
         }
+    }
+
+    // ######## Store / Load settings ########
+
+    /**
+     * Load all settings from localStorage.
+     *
+     * If no settings are present - use sensible defaults.
+     */
+    async loadSettings(): Promise<void> {
+        const lvalue = await SettingsStore.getItem('objectEventDispatcherStatisticsSettings');
+
+        if (lvalue === undefined) {
+            return;
+        }
+
+        if (typeof lvalue !== 'string') {
+            throw new Error(
+                'loadSettings: Malformed objectEventDispatcherStatisticsSettings in local storage'
+            );
+        }
+
+        const settingsObj = JSON.parse(lvalue);
+        this.enableStatistics = settingsObj.enableStatistics;
+        this.maxProcessedObjectCount = settingsObj.maxProcessedObjectCount;
+        this.retainDeregisteredHandlers = settingsObj.retainDeregisteredHandlers;
+        this.maxExecutionStatisticsPerHandler = settingsObj.maxExecutionStatisticsPerHandler;
+    }
+
+    /**
+     * Store settings in localStorage.
+     */
+    async storeSettings(): Promise<void> {
+        await SettingsStore.setItem(
+            'objectEventDispatcherStatisticsSettings',
+            JSON.stringify({
+                enableStatistics: this.enableStatistics,
+                maxProcessedObjectCount: this.maxProcessedObjectCount,
+                retainDeregisteredHandlers: this.retainDeregisteredHandlers,
+                maxExecutionStatisticsPerHandler: this.maxExecutionStatisticsPerHandler
+            })
+        );
     }
 
     // #### Private stuff ####
