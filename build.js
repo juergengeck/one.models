@@ -12,9 +12,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 async function run() {
     console.log('########## one.models: Build ##########');
 
-    console.log('=> Run tsc --build --clean');
-    execSync('npx --no-install tsc --build --clean', {stdio: 'inherit'});
-
     console.log('=> Remove target folder "lib"');
     await rm('lib', {recursive: true, force: true});
 
