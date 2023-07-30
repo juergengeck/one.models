@@ -874,7 +874,7 @@ function isUnversionedResult(
 
 function trimArray<T>(arr: Array<T>, maxSize: number) {
     if (maxSize > -1 && arr.length > maxSize) {
-        arr.splice(0, maxSize - arr.length);
+        arr.splice(0, arr.length - maxSize);
     }
 }
 
