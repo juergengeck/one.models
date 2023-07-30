@@ -1,4 +1,6 @@
 import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {exists} from '@refinio/one.core/lib/system/storage-base.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
@@ -183,4 +185,28 @@ export async function createInstanceWithDefaultKeys(
     const instanceId = await createInstance(owner, instanceName);
     const instanceKeys = await createDefaultKeys(instanceId);
     return {instanceId, instanceKeys};
+}
+
+/**
+ * Check if instance exists.
+ *
+ * @param instanceId
+ */
+export async function doesInstanceExist(instanceId: SHA256IdHash<Instance>): Promise<boolean> {
+    return exists(instanceId);
+}
+
+/**
+ * Check if instance exists.
+ *
+ * @param owner
+ * @param instanceName
+ */
+export async function doesInstanceExistByOwnerAndName(
+    owner: SHA256IdHash<Person>,
+    instanceName: string
+): Promise<boolean> {
+    return doesInstanceExist(
+        await calculateIdHashOfObj({$type$: 'Instance', owner, name: instanceName})
+    );
 }

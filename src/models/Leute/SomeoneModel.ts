@@ -1,22 +1,24 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
-    getObjectByIdHash,
-    onVersionedObj
+    getObjectByIdHash
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import type {
     CommunicationEndpointInterfaces,
-    CommunicationEndpointTypeNames
+    CommunicationEndpointTypeNames,
+    CommunicationEndpointTypes
 } from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {
     PersonDescriptionInterfaces,
-    PersonDescriptionTypeNames
+    PersonDescriptionTypeNames,
+    PersonDescriptionTypes
 } from '../../recipes/Leute/PersonDescriptions.js';
 import type {Profile} from '../../recipes/Leute/Profile.js';
 import type {Someone} from '../../recipes/Leute/Someone.js';
@@ -31,9 +33,6 @@ import ProfileModel from './ProfileModel.js';
  * Reasons for not using the Someone recipe directly:
  * - Because the whole identity management on the lower levels is pretty complicated. So it is much
  *   nicer for the users to have a nicer interface.
- *
- * TODO: Add convenience function for obtaining the default display name of a someone (from the main
- *       profile)
  */
 export default class SomeoneModel {
     public onUpdate: OEvent<() => void> = new OEvent();
@@ -50,19 +49,25 @@ export default class SomeoneModel {
         this.pIdentities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
 
         // Setup the onUpdate event
-        const emitUpdateIfMatch = (result: VersionedObjectResult) => {
-            if (result.idHash === this.idHash) {
-                this.onUpdate.emit();
-            }
-        };
+        let disconnect: (() => void) | undefined;
         this.onUpdate.onListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.addListener(emitUpdateIfMatch);
+                disconnect = objectEvents.onNewVersion(
+                    async () => {
+                        await this.onUpdate.emitAll();
+                    },
+                    `SomeoneModel: onUpdate ${this.idHash}`,
+                    'Someone',
+                    this.idHash
+                );
             }
         });
         this.onUpdate.onStopListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.removeListener(emitUpdateIfMatch);
+                if (disconnect !== undefined) {
+                    disconnect();
+                    disconnect = undefined;
+                }
             }
         });
     }
@@ -166,10 +171,25 @@ export default class SomeoneModel {
         return [...this.pIdentities.keys()];
     }
 
+    /**
+     * Checks whether this identity is managed by this someone object.
+     *
+     * @param identity
+     */
+    public managesIdentity(identity: SHA256IdHash<Person>): boolean {
+        return this.identities().includes(identity);
+    }
+
+    /**
+     * Retrieve the main identity by looking it up in the main profile.
+     */
     public async mainIdentity(): Promise<SHA256IdHash<Person>> {
         return (await this.mainProfile()).personId;
     }
 
+    /**
+     * Retrieve all identities managed by this someone object except the main identity.
+     */
     public async alternateIdentities(): Promise<SHA256IdHash<Person>[]> {
         const mainIdentity = await this.mainIdentity();
         return this.identities().filter(id => id !== mainIdentity);
@@ -377,13 +397,23 @@ export default class SomeoneModel {
      * @param profileId
      * @param personId
      * @param owner
+     * @param communicationEndpoints
+     * @param personDescriptions
      */
     public async createProfile(
         profileId: string,
         personId: SHA256IdHash<Person>,
-        owner: SHA256IdHash<Person>
+        owner: SHA256IdHash<Person>,
+        communicationEndpoints: CommunicationEndpointTypes[] = [],
+        personDescriptions: PersonDescriptionTypes[] = []
     ): Promise<ProfileModel> {
-        const profile = await ProfileModel.constructWithNewProfile(personId, owner, profileId);
+        const profile = await ProfileModel.constructWithNewProfile(
+            personId,
+            owner,
+            profileId,
+            communicationEndpoints,
+            personDescriptions
+        );
         await this.addProfile(profile.idHash);
         return profile;
     }

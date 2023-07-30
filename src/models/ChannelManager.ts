@@ -1,4 +1,3 @@
-import {createAccess} from '@refinio/one.core/lib/access.js';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
 import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise.js';
@@ -9,9 +8,9 @@ import {
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../misc/OEvent.js';
 import type {
-    Access,
     IdAccess,
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
@@ -30,7 +29,6 @@ import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versione
 import {
     getObjectByIdHash,
     getObjectByIdObj,
-    onVersionedObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import type LeuteModel from './Leute/LeuteModel.js';
@@ -40,7 +38,6 @@ import {
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -144,7 +141,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
+export type ObjectData<T extends OneUnversionedObjectTypes> = {
     channelId: string; // The channel id
     channelOwner?: SHA256IdHash<Person>; // The owner of the channel
     channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
@@ -190,22 +187,6 @@ type ChannelInfoCacheEntry = {
 };
 
 /**
- * Assert that passed object has ChannelInfoResult type.
- *
- * This is required so that typescript stops displaying errors.
- *
- * @param versionedObjectResult - the one object
- * @returns The same object, just casted in a safe way
- */
-function isChannelInfoResult(
-    versionedObjectResult: VersionedObjectResult
-): versionedObjectResult is VersionedObjectResult<ChannelInfo> {
-    return (
-        (versionedObjectResult as VersionedObjectResult<ChannelInfo>).obj.$type$ === 'ChannelInfo'
-    );
-}
-
-/**
  * This model manages distributed lists of data in so called 'channels'.
  *
  * A channel is a list of objects stored as merkle-tree indexed by time.
@@ -242,8 +223,9 @@ export default class ChannelManager {
 
     private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
     private promiseTrackers: Set<Promise<void>>;
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    private disconnectOnVersionedObjListener: () => void = () => {};
+    private disconnectOnVersionedObjListener: () => void = () => {
+        // Empty by design
+    };
     private leuteModel: LeuteModel;
     private channelSettings = new Map<
         SHA256IdHash<ChannelInfo>,
@@ -252,6 +234,15 @@ export default class ChannelManager {
             appendSenderProfile?: boolean;
         }
     >();
+
+    /**
+     * The default owner when creating ot posting to a channel.
+     *
+     * This also changes the default author of posted data.
+     *
+     * If undefined, your main identity will be used.
+     */
+    public defaultOwner: SHA256IdHash<Person> | undefined;
 
     /**
      * Create the channel manager instance.
@@ -275,8 +266,10 @@ export default class ChannelManager {
         await this.loadRegistryCacheFromOne();
 
         // Register event handlers
-        this.disconnectOnVersionedObjListener = onVersionedObj.addListener(
-            this.handleOnVersionedObj.bind(this)
+        this.disconnectOnVersionedObjListener = objectEvents.onNewVersion(
+            this.mergeNewChannelInfoVersioned.bind(this),
+            'ChannelManager: mergeNewChannelInfo',
+            'ChannelInfo'
         );
 
         // Merge new versions of channels that haven't been merged, yet.
@@ -314,7 +307,7 @@ export default class ChannelManager {
         owner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (owner === undefined) {
-            owner = await this.leuteModel.myMainIdentity();
+            owner = await this.calculateDefaultOwner();
         }
 
         if (owner === null) {
@@ -478,7 +471,7 @@ export default class ChannelManager {
         // The owner can be the passed one, or the default one if none was passed.
         // It is no owner if null is passed.
         let owner: SHA256IdHash<Person> | undefined;
-        const myMainId = await this.leuteModel.myMainIdentity();
+        const myMainId = await this.calculateDefaultOwner();
 
         if (channelOwner === null) {
             owner = undefined;
@@ -565,7 +558,7 @@ export default class ChannelManager {
         }
 
         if (channelOwner === undefined) {
-            owner = await this.leuteModel.myMainIdentity();
+            owner = await this.calculateDefaultOwner();
         }
 
         try {
@@ -1775,41 +1768,41 @@ export default class ChannelManager {
      * Handler function for the VersionedObj
      * @param caughtObject
      */
-    private async handleOnVersionedObj(caughtObject: VersionedObjectResult): Promise<void> {
+    private async mergeNewChannelInfoVersioned(
+        caughtObject: VersionedObjectResult<ChannelInfo>
+    ): Promise<void> {
         try {
-            if (isChannelInfoResult(caughtObject)) {
-                const promiseTracker = createTrackingPromise<void>();
+            const promiseTracker = createTrackingPromise<void>();
 
-                // Determine the channel id and owner
-                let channelId: string;
-                let channelOwner: SHA256IdHash<Person> | undefined;
+            // Determine the channel id and owner
+            let channelId: string;
+            let channelOwner: SHA256IdHash<Person> | undefined;
 
-                this.promiseTrackers.add(promiseTracker.promise);
+            this.promiseTrackers.add(promiseTracker.promise);
 
-                {
-                    const channelInfo = await getObjectByIdHash(caughtObject.idHash);
-                    channelId = channelInfo.obj.id;
-                    channelOwner = channelInfo.obj.owner;
-                }
+            {
+                const channelInfo = await getObjectByIdHash(caughtObject.idHash);
+                channelId = channelInfo.obj.id;
+                channelOwner = channelInfo.obj.owner;
+            }
 
-                // Add channel and merge versions
-                try {
-                    logWithId(channelId, channelOwner, 'handleOnVersionedObj - START');
-                    await this.addChannelIfNotExist(caughtObject.idHash);
-                    await this.mergePendingVersions(caughtObject.idHash);
-                    logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
+            // Add channel and merge versions
+            try {
+                logWithId(channelId, channelOwner, 'handleOnVersionedObj - START');
+                await this.addChannelIfNotExist(caughtObject.idHash);
+                await this.mergePendingVersions(caughtObject.idHash);
+                logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
 
-                    promiseTracker.resolve();
-                } catch (e) {
-                    promiseTracker.reject();
+                promiseTracker.resolve();
+            } catch (e) {
+                promiseTracker.reject();
 
-                    logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
-                    console.error(e); // Introduce an error event later!
-                } finally {
-                    promiseTracker.promise.finally(() =>
-                        this.promiseTrackers.delete(promiseTracker.promise)
-                    );
-                }
+                logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
+                console.error(e); // Introduce an error event later!
+            } finally {
+                await promiseTracker.promise.finally(() =>
+                    this.promiseTrackers.delete(promiseTracker.promise)
+                );
             }
         } catch (e) {
             console.error(e); // Introduce an error event later!
@@ -1972,53 +1965,6 @@ export default class ChannelManager {
     }
 
     // ######## Access stuff ########
-
-    /**
-     * Note: This function needs to be cleaned up a little! That is why it is down here with the
-     * private methods because atm I don't encourage anybody to use it, unless he doesn't have
-     * another choice.
-     * @param channelId
-     * @param to - group name
-     */
-    public async giveAccessToChannelInfo(
-        channelId: string,
-        to?: string
-    ): Promise<
-        VersionedObjectResult<Access | IdAccess> | VersionedObjectResult<Access | IdAccess>[]
-    > {
-        const channels = await this.getMatchingChannelInfos({channelId});
-
-        if (to === undefined) {
-            const myMainIdentity = await this.leuteModel.myMainIdentity();
-
-            const accessChannels = await Promise.all(
-                channels.map(async channelInfo => {
-                    return {
-                        id: await calculateIdHashOfObj(channelInfo),
-                        person: [myMainIdentity],
-                        group: [],
-                        mode: SET_ACCESS_MODE.REPLACE
-                    };
-                })
-            );
-            return await createAccess(accessChannels);
-        }
-
-        const group = await getObjectByIdObj({$type$: 'Group', name: to});
-
-        const accessObjects = await Promise.all(
-            channels.map(async channelInfo => {
-                return {
-                    id: await calculateIdHashOfObj(channelInfo),
-                    person: [],
-                    group: [group.idHash],
-                    mode: SET_ACCESS_MODE.REPLACE
-                };
-            })
-        );
-
-        return await createAccess(accessObjects);
-    }
 
     /**
      * Get the person list with whom this channel is shared.
@@ -2204,5 +2150,16 @@ export default class ChannelManager {
             owner: channelOwner,
             head: channelEntryResult.hash
         });
+    }
+
+    /**
+     * Returns the default author if set manually or my main identity if unset.
+     */
+    async calculateDefaultOwner(): Promise<SHA256IdHash<Person>> {
+        if (this.defaultOwner !== undefined) {
+            return this.defaultOwner;
+        }
+
+        return this.leuteModel.myMainIdentity();
     }
 }

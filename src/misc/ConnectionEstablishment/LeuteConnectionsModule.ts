@@ -308,11 +308,7 @@ export default class LeuteConnectionsModule {
         await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
         await this.setupRoutes();
-
-        // This line is only there to enable the catch all routes, because we don't have a
-        // enableCatchAllRoutes at the moment. We should fix this when we have a better
-        // understanding of the catchAll stuff
-        await this.connectionRouteManager.enableRoutes();
+        await this.connectionRouteManager.enableCatchAllRoutes();
     }
 
     /**
@@ -400,8 +396,18 @@ export default class LeuteConnectionsModule {
         const remoteKeysList = await Promise.all(
             (await getListOfKeys(remoteInstanceId)).map(keys => getPublicKeys(keys.keys))
         );
-        const localKeys =
-            localPersonId && (await getPublicKeys(await getDefaultKeys(localPersonId)));
+
+        let localKeys;
+        if (localPersonId !== undefined) {
+            const localInstances = await getInstancesOfPerson(localPersonId);
+            const localInstance = localInstances.find(i => i.local);
+
+            if (localInstance === undefined) {
+                throw new Error('localPersonId does not have a local instance.');
+            }
+
+            localKeys = await getPublicKeys(await getDefaultKeys(localInstance.instanceId));
+        }
 
         for (const remoteKeys of remoteKeysList) {
             if (enable) {

@@ -14,6 +14,7 @@ import type {SignKeyPair} from '@refinio/one.core/lib/crypto/sign.js';
 
 import RecipesStable from '../lib/recipes/recipes-stable.js';
 import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
+import {objectEvents} from '../lib/misc/ObjectEventDispatcher.js';
 
 export const defaultDbName = 'testDb';
 
@@ -64,6 +65,7 @@ export async function init({
     initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
+    await objectEvents.init();
     return await initInstance({
         name,
         email,

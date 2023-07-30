@@ -13,7 +13,9 @@ import {
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import type {CommunicationEndpointTypes} from '../recipes/Leute/CommunicationEndpoints.js';
 import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints.js';
+import type {PersonDescriptionTypes} from '../recipes/Leute/PersonDescriptions.js';
 import {sign} from './Signature.js';
 import ProfileModel from '../models/Leute/ProfileModel.js';
 import type {InstanceOptions} from '@refinio/one.core/lib/instance.js';
@@ -278,11 +280,15 @@ export async function convertOneInstanceEndpointToIdentity(
  * @param identity - The identity that is added to the profile
  * @param profileId - The profile identity string. Defaults to 'default'.
  * @param owner - The owner of the profile. If undefined use the owner personId of the Identity.
+ * @param communicationEndpoints
+ * @param personDescriptions
  */
 export async function convertIdentityToProfile(
     identity: Identity,
     profileId: string = 'default',
-    owner?: SHA256IdHash<Person>
+    owner?: SHA256IdHash<Person>,
+    communicationEndpoints: CommunicationEndpointTypes[] = [],
+    personDescriptions: PersonDescriptionTypes[] = []
 ): Promise<ProfileModel> {
     const oneInstanceEndpoint = await convertIdentityToOneInstanceEndpoint(identity);
     const personId = oneInstanceEndpoint.obj.personId;
@@ -290,7 +296,8 @@ export async function convertIdentityToProfile(
         personId,
         owner === undefined ? personId : owner,
         profileId,
-        [oneInstanceEndpoint.obj]
+        [oneInstanceEndpoint.obj, ...communicationEndpoints],
+        [{$type$: 'SignKey', key: identity.personSignKeyPublic}, ...personDescriptions]
     );
 }
 

@@ -1,4 +1,6 @@
 import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {exists} from '@refinio/one.core/lib/system/storage-base.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
@@ -16,7 +18,7 @@ export async function createPerson(email?: string): Promise<SHA256IdHash<Person>
     const result = await createPersonIfNotExist(email);
 
     if (result.exists) {
-        throw new Error('Instance already exists');
+        throw new Error('Person already exists');
     }
 
     return result.personId;
@@ -73,8 +75,24 @@ export async function isPersonComplete(person: SHA256IdHash<Person>): Promise<bo
     if (!(await hasDefaultKeys(person))) {
         return false;
     }
-    if (!(await hasPersonLocalInstance(person))) {
-        return false;
-    }
-    return true;
+
+    return await hasPersonLocalInstance(person);
+}
+
+/**
+ * Check if person exists.
+ *
+ * @param personId
+ */
+export async function doesPersonExist(personId: SHA256IdHash<Person>): Promise<boolean> {
+    return exists(personId);
+}
+
+/**
+ * Check if person exists
+ *
+ * @param email
+ */
+export async function doesPersonExistByEmail(email: string): Promise<boolean> {
+    return doesPersonExist(await calculateIdHashOfObj({$type$: 'Person', email}));
 }

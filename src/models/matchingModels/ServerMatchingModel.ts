@@ -5,7 +5,6 @@ import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObject,
-    onUnversionedObj,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
@@ -16,7 +15,9 @@ import {
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+
 import type {Protocols} from '../../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes.js';
 import type AccessModel from '../AccessModel.js';
 import type ChannelManager from '../ChannelManager.js';
@@ -111,8 +112,8 @@ export default class ServerMatchingModel extends MatchingModel {
      * check for a matching.
      */
     private async registerHooks(): Promise<void> {
-        onUnversionedObj.addListener(async res => {
-            if (res.obj.$type$ === 'CreationTime') {
+        objectEvents.onUnversionedObject(
+            async res => {
                 try {
                     const receivedObject = await getObject(res.obj.data);
                     if (receivedObject.$type$ === 'Supply') {
@@ -143,8 +144,10 @@ export default class ServerMatchingModel extends MatchingModel {
                         throw err;
                     }
                 }
-            }
-        });
+            },
+            'ServerMatchingModel: New creation time object',
+            'CreationTime'
+        );
     }
 
     /**

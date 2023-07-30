@@ -1,6 +1,5 @@
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObject,
     storeUnversionedObject
@@ -11,6 +10,7 @@ import {
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import type {Demand, MatchResponse, Supply} from '../../recipes/MatchingRecipes.js';
 import type ChannelManager from '../ChannelManager.js';
@@ -428,8 +428,8 @@ export default class ClientMatchingModel extends MatchingModel {
      * @private
      */
     private registerHooks(): void {
-        onUnversionedObj.addListener(async (caughtObject: UnversionedObjectResult) => {
-            if (caughtObject.obj.$type$ === 'CreationTime') {
+        objectEvents.onUnversionedObject(
+            async caughtObject => {
                 try {
                     const receivedObject = await getObject(caughtObject.obj.data);
 
@@ -457,7 +457,12 @@ export default class ClientMatchingModel extends MatchingModel {
                         throw err;
                     }
                 }
-            } else if (caughtObject.obj.$type$ === 'MatchResponse') {
+            },
+            'ClientMatchingModel: New creation time object',
+            'CreationTime'
+        );
+        objectEvents.onUnversionedObject(
+            async caughtObject => {
                 /**
                  * The Match Response object is sent directly to the designated
                  * person without using the channels.
@@ -465,9 +470,11 @@ export default class ClientMatchingModel extends MatchingModel {
                  * The type conversion is necessary because the caughtObject in a generic
                  * UnversionedObjectResult.
                  */
-                await this.memoriseMatchResponse(caughtObject.hash as SHA256Hash<MatchResponse>);
-            }
-        });
+                await this.memoriseMatchResponse(caughtObject.hash);
+            },
+            'ClientMatchingModel: New match response',
+            'MatchResponse'
+        );
     }
 
     /**

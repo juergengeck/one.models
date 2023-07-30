@@ -1,12 +1,10 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import {getObject, onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {onVersionedObj} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {Profile} from '../../recipes/Leute/Profile.js';
 import ProfileModel from '../Leute/ProfileModel.js';
 import IoMRequestManager from './IoMRequestManager.js';
@@ -61,33 +59,33 @@ export default class IoMManager {
         this.requestManager.onRequestComplete(this.setupIomFromCompletedRequest.bind(this));
         this.commServerUrl = commServerUrl;
 
-        onUnversionedObj.addListener(async (result: UnversionedObjectResult) => {
-            if (result.obj.$type$ !== 'Signature' || result.status === 'exists') {
-                return;
-            }
+        objectEvents.onUnversionedObject(
+            async result => {
+                const cert = await getObject(result.obj.data);
 
-            const cert = await getObject(result.obj.data);
+                if (cert.$type$ !== 'AffirmationCertificate') {
+                    return;
+                }
 
-            if (cert.$type$ !== 'AffirmationCertificate') {
-                return;
-            }
+                const profile = await getObject(cert.data);
 
-            const profile = await getObject(cert.data);
+                if (profile.$type$ !== 'Profile') {
+                    return;
+                }
 
-            if (profile.$type$ !== 'Profile') {
-                return;
-            }
+                await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
+            },
+            'IoMManager: New certificate - resignProfileIfOk',
+            'Signature'
+        );
 
-            await this.resignProfileIfOk(profile, cert.data as SHA256Hash<Profile>);
-        });
-
-        onVersionedObj.addListener(async (result: VersionedObjectResult) => {
-            if (result.obj.$type$ !== 'Profile' || result.status === 'exists') {
-                return;
-            }
-
-            await this.resignProfileIfOk(result.obj, result.hash as SHA256Hash<Profile>);
-        });
+        objectEvents.onNewVersion(
+            async result => {
+                await this.resignProfileIfOk(result.obj, result.hash);
+            },
+            'IoMManager: New profile version - resignProfileIfOk',
+            'Profile'
+        );
     }
 
     /**
@@ -317,6 +315,10 @@ export default class IoMManager {
     }
 
     async resignProfileIfOk(profile: Profile, profileHash: SHA256Hash<Profile>) {
+        if (this.leuteModel.state.currentState !== 'Initialised') {
+            return;
+        }
+
         // We only sign versions of the default profile owned by the target person.
         if (profile.personId !== profile.owner) {
             return;

@@ -1,3 +1,16 @@
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
+
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {Profile} from '../../recipes/Leute/Profile.js';
 import type {
     CommunicationEndpointTypes,
@@ -11,23 +24,9 @@ import type {
     PersonImage,
     PersonStatus
 } from '../../recipes/Leute/PersonDescriptions.js';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {
-    getObjectByIdHash,
-    onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {
-    getObject,
-    storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {OEvent} from '../../misc/OEvent.js';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints.js';
 import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions.js';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
-import type {BLOB} from '@refinio/one.core/lib/recipes.js';
 
 /**
  * This class is a nicer frontend for the Profile recipe.
@@ -70,19 +69,24 @@ export default class ProfileModel {
         this.idHash = idHash;
 
         // Setup the onUpdate event
-        const emitUpdateIfMatch = (result: VersionedObjectResult) => {
-            if (result.idHash === this.idHash) {
-                this.onUpdate.emit();
-            }
-        };
+        let disconnect: (() => void) | undefined;
         this.onUpdate.onListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.addListener(emitUpdateIfMatch);
+                disconnect = objectEvents.onNewVersion(
+                    async () => {
+                        await this.onUpdate.emitAll();
+                    },
+                    `ProfileModel: onUpdate ${this.idHash}`,
+                    'Profile'
+                );
             }
         });
         this.onUpdate.onStopListen(() => {
             if (this.onUpdate.listenerCount() === 0) {
-                onVersionedObj.removeListener(emitUpdateIfMatch);
+                if (disconnect !== undefined) {
+                    disconnect();
+                    disconnect = undefined;
+                }
             }
         });
     }
