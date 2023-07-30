@@ -13,6 +13,7 @@ import {
 import * as path from 'path';
 import * as fs from 'fs';
 import * as util from 'util';
+import {objectEvents} from '../../lib/misc/ObjectEventDispatcher';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -65,6 +66,7 @@ export default class TestModel {
         _takeOver?: boolean,
         _recoveryState?: boolean
     ): Promise<void> {
+        await objectEvents.init();
         await this.accessModel.init();
         await this.leuteModel.init();
         await this.channelManager.init();
@@ -96,6 +98,12 @@ export default class TestModel {
 
         try {
             await this.leuteModel.shutdown();
+        } catch (e) {
+            console.error(e);
+        }
+
+        try {
+            await objectEvents.shutdown();
         } catch (e) {
             console.error(e);
         }
