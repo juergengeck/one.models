@@ -95,8 +95,11 @@ export default class AudioExerciseModel extends Model {
 
     /**
      * Handler-function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelInfoIdHash
+     * @param channelId
+     * @param _channelOwner
+     * @param timeOfEarliestChange
+     * @param _data
      */
     private async handleChannelUpdate(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,

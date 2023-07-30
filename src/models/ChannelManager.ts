@@ -141,7 +141,8 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-export type ObjectData<T extends OneUnversionedObjectTypes> = {
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
     channelId: string; // The channel id
     channelOwner?: SHA256IdHash<Person>; // The owner of the channel
     channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
