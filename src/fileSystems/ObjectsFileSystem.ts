@@ -384,11 +384,13 @@ export default class ObjectsFileSystem implements IFileSystem {
      * @returns {Promise<Map<SHA256Hash<HashTypes>, string>>}
      * @private
      */
-    private async retrieveHashesWithType(): Promise<Map<SHA256Hash<HashTypes>, string>> {
+    private async retrieveHashesWithType(): Promise<
+        Map<SHA256Hash<HashTypes> | SHA256IdHash, string>
+    > {
         const hashes = await listAllObjectHashes();
-        const hashesMap = new Map<SHA256Hash<HashTypes>, string>();
+        const hashesMap = new Map<SHA256Hash<HashTypes> | SHA256IdHash, string>();
         await Promise.all(
-            hashes.map(async (hash: SHA256Hash<HashTypes>) => {
+            hashes.map(async (hash: SHA256Hash<HashTypes> | SHA256IdHash) => {
                 const hashType = await getFileType(hash);
                 hashesMap.set(hash, hashType);
             })

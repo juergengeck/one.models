@@ -404,9 +404,11 @@ export default class TypesFileSystem implements IFileSystem {
      * @returns {Promise<SHA256Hash<HashTypes>[]>}
      * @private
      */
-    private async retrieveHashesForType(type: string): Promise<SHA256Hash<HashTypes>[]> {
+    private async retrieveHashesForType(
+        type: string
+    ): Promise<(SHA256Hash<HashTypes> | SHA256IdHash)[]> {
         const allHashes = await listAllObjectHashes();
-        const hashes: SHA256Hash<HashTypes>[] = [];
+        const hashes: (SHA256Hash<HashTypes> | SHA256IdHash)[] = [];
         for (const hash of allHashes) {
             if ((await getFileType(hash)) === type) {
                 hashes.push(hash);

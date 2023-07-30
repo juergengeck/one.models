@@ -53,7 +53,7 @@
         "yargs": "*"
     },
     "peerDependencies": {
-        "@refinio/one.core": "^0.4.16"
+        "@refinio/one.core": "^0.4.22"
     },
     "devDependencies": {
         "@babel/core": "*",
