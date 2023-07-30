@@ -12,13 +12,13 @@ import type {ChannelInfo} from '../../recipes/ChannelRecipes.js';
 import type {ChannelManager} from '../index.js';
 import PersistentFileSystem from '../../fileSystems/PersistentFileSystem.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
-import type {ObjectData, RawChannelEntry} from '../ChannelManager.js';
+import type {RawChannelEntry} from '../ChannelManager.js';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {
     PersistentFileSystemDirectory,
     PersistentFileSystemRoot
 } from '../../recipes/PersistentFileSystemRecipes.js';
-import type {OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {
     getObject,
     storeUnversionedObject
@@ -62,7 +62,6 @@ export default class PersistentFilerModel extends EventEmitter {
     public async init() {
         const root = await this.createRootDirectoryIfNotExists();
         this.fs = new PersistentFileSystem(root, this.storage);
-
         this.fs.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
     }
 
@@ -172,11 +171,11 @@ export default class PersistentFilerModel extends EventEmitter {
     /**
      * Handler function for the 'updated' event
      * @return {Promise<void>}
-     * @param channelInfoIdHash
+     * @param _channelInfoIdHash
      * @param channelId
-     * @param channelOwner
-     * @param timeOfEarliestChange
-     * @param data
+     * @param _channelOwner
+     * @param _timeOfEarliestChange
+     * @param _data
      */
     private async handleOnUpdated(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,
