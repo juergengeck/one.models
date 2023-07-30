@@ -23,7 +23,6 @@ describe('FilerModel model test', () => {
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
-
         const filerModel = new PersistentFilerModel(model.channelManager);
         await filerModel.init();
         fileSystem = filerModel.fileSystem;
@@ -33,6 +32,7 @@ describe('FilerModel model test', () => {
         const result = await fileSystem.readDir('/');
         expect(result).to.not.be.equal(undefined);
     });
+
     it.skip('should see if directories can be created and retrieved', async () => {
         await fileSystem.createDir('/dir1');
         await fileSystem.createDir('/dir1/dir2');
@@ -66,6 +66,7 @@ describe('FilerModel model test', () => {
         const rootRetrieveResult = await fileSystem.readDir('/');
         expect(Array.from(rootRetrieveResult.children.keys()).length).to.be.equal(101);*/
     }).timeout(10000);
+
     it.skip('should see if files can be created and retrieved', async () => {
         await fileSystem.createDir('/files');
         const firstResult = fileSystem.readDir('/');
