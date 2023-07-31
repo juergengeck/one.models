@@ -345,7 +345,7 @@ export default class ObjectEventDispatcher {
             const oldHandlers = entry.splice(i, 1);
 
             if (this.retainDeregisteredHandlers) {
-                getOrCreate(this.newVersionHandler, type, []).push(...oldHandlers);
+                getOrCreate(this.oldVersionHandler, type, []).push(...oldHandlers);
             }
         };
     }
@@ -359,7 +359,7 @@ export default class ObjectEventDispatcher {
         description: string,
         type: T | '*' = '*'
     ): () => void {
-        const entry = getOrCreate(this.newUnversionedObjectHandler, type, []);
+        const entry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
 
         entry.push({
             cb: cb as (result: UnversionedObjectResult) => Promise<void> | void,
@@ -378,7 +378,7 @@ export default class ObjectEventDispatcher {
             const oldHandlers = entry.splice(i, 1);
 
             if (this.retainDeregisteredHandlers) {
-                const oldEntry = getOrCreate(this.newUnversionedObjectHandler, type, []);
+                const oldEntry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
                 oldEntry.push(...oldHandlers);
             }
         };
@@ -522,7 +522,7 @@ export default class ObjectEventDispatcher {
                     filterIdHash: ensureIdHash(elems[1])
                 };
             } else if (elems.length === 1) {
-                if (elems[0] !== '*') {
+                if (elems[0] === '*') {
                     filter = {
                         filterType: '*',
                         filterIdHash: '*'
