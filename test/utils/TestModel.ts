@@ -5,6 +5,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as util from 'util';
+import {objectEvents} from '../../lib/misc/ObjectEventDispatcher';
 
 import AccessModel from '../../lib/models/AccessModel.js';
 import BodyTemperatureModel from '../../lib/models/BodyTemperatureModel.js';
@@ -63,6 +64,7 @@ export default class TestModel {
         _takeOver?: boolean,
         _recoveryState?: boolean
     ): Promise<void> {
+        await objectEvents.init();
         await this.accessModel.init();
         await this.leuteModel.init();
         await this.channelManager.init();
@@ -94,6 +96,12 @@ export default class TestModel {
 
         try {
             await this.leuteModel.shutdown();
+        } catch (e) {
+            console.error(e);
+        }
+
+        try {
+            await objectEvents.shutdown();
         } catch (e) {
             console.error(e);
         }

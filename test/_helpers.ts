@@ -65,7 +65,6 @@ export async function init({
     initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
-    await objectEvents.init();
     return await initInstance({
         name,
         email,

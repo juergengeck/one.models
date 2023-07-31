@@ -96,4 +96,14 @@ export default class BlockingQueue<T> {
     get pendingPromiseCount(): number {
         return this.dataListeners.pendingPromiseCount;
     }
+
+    /**
+     * Get a copy of the internal data buffer.
+     *
+     * Note that the elements themselves are not copied, so if the contents are not native types,
+     * do not modify them.
+     */
+    get data(): T[] {
+        return [...this.dataQueue];
+    }
 }

@@ -26,6 +26,13 @@ import BlockingQueue from './BlockingQueue.js';
 
 // const MessageBus = createMessageBus('ObjectEventDispatcher');
 
+// ######## Id/Versioned/Unversioned Object Result type stuff ########
+
+/**
+ * IdObjectResult is analog to [V|Unv]ersionedObjectResult.
+ *
+ * One.core has no such type for onIdObj events.
+ */
 export interface IdObjectResult<T extends OneIdObjectTypes = OneIdObjectTypes> {
     readonly obj: T;
     hash?: void;
@@ -34,21 +41,10 @@ export interface IdObjectResult<T extends OneIdObjectTypes = OneIdObjectTypes> {
     timestamp?: void;
 }
 
-function isVersionedResult(
-    result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
-): result is VersionedObjectResult {
-    if (!Object.hasOwn(result, 'idHash')) {
-        return false;
-    }
-
-    return Object.hasOwn(result, 'timestamp');
-}
-
-function isUnversionedResult(
-    result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
-): result is UnversionedObjectResult {
-    return Object.hasOwn(result, 'hash');
-}
+/**
+ * Concatenation of all result types.
+ */
+export type AnyObjectResult = VersionedObjectResult | UnversionedObjectResult | IdObjectResult;
 
 /**
  * Translates '*' to OneVersionedObjectTypeNames
@@ -62,6 +58,33 @@ type OneVersionedObjectTypeNamesOrStar<T extends OneVersionedObjectTypeNames | '
 type OneUnversionedObjectTypeNamesOrStar<T extends OneUnversionedObjectTypeNames | '*'> =
     T extends OneUnversionedObjectTypeNames ? T : OneUnversionedObjectTypeNames;
 
+// ######## Main types used by class ########
+
+/**
+ * Stores information about the registered object event handler
+ */
+export type HandlerInfo<T extends AnyObjectResult = AnyObjectResult> = {
+    cb: (result: T) => Promise<void> | void;
+    description: string;
+    callStack?: string;
+
+    // Statistics
+    registerTime: number;
+    deregisterTime?: number;
+    executionStatistics: {
+        startTime: number;
+        endTime: number;
+        hash?: SHA256Hash;
+        idHash?: SHA256IdHash;
+        error?: any;
+    }[];
+};
+
+// ######## Convenience types for statistics  - Handlers ########
+
+/**
+ * Filter specified in newVersion handlers.
+ */
 type VersionedFilterType =
     | {
           filterType: OneVersionedObjectTypeNames;
@@ -72,42 +95,80 @@ type VersionedFilterType =
           filterIdHash: '*';
       };
 
+/**
+ * Convenience representation of onNewVersion handlers for easier type checking.
+ */
 export type PublicVersionedHandlerInfo = HandlerInfo<VersionedObjectResult> & {
     type: 'onNewVersion';
 } & VersionedFilterType;
 
+/**
+ * Convenience representation of onUnversionedObject handlers for easier type checking.
+ */
 export type PublicUnversionedHandlerInfo = HandlerInfo<UnversionedObjectResult> & {
     type: 'onUnversionedObject';
     filterType: OneUnversionedObjectTypeNames | '*';
 };
 
+/**
+ * Convenience representation of onIdObject handlers for easier type checking.
+ */
 export type PublicIdHandlerInfo = HandlerInfo<IdObjectResult> & {
     type: 'onIdObject';
     filterType: OneVersionedObjectTypeNames | '*';
 };
 
+/**
+ * Generic representation of object handlers.
+ *
+ * Check type property to know which type of handler is is.
+ */
 export type PublicHandlerInfo =
     | PublicVersionedHandlerInfo
     | PublicUnversionedHandlerInfo
     | PublicIdHandlerInfo;
 
-export type HandlerInfo<T> = {
-    cb: (result: T) => Promise<void> | void;
-    description: string;
-    callStack?: string;
+// ######## Convenience types for statistics - Buffer history ########
 
-    // Statistics
-    registerTime: number;
-    deregisterTime?: number;
-    executionStatistics: {
+/**
+ * Buffer history for all types of object results.
+ */
+type GenericBufferHistoryData<T extends AnyObjectResult = AnyObjectResult> = {
+    result: T;
+
+    startTime: number;
+    endTime: number;
+
+    handler: {
+        info: HandlerInfo<T>;
         startTime: number;
-        endTime?: number;
-        hash?: SHA256Hash;
-        idHash?: SHA256IdHash;
+        endTime: number;
         error?: any;
     }[];
 };
 
+/**
+ * Convenience type that stores the type of the result in the 'type' field.
+ */
+export type BufferHistoryData =
+    | ({
+          type: 'VersionedObject';
+      } & GenericBufferHistoryData<VersionedObjectResult>)
+    | ({
+          type: 'UnversionedObject';
+      } & GenericBufferHistoryData<UnversionedObjectResult>)
+    | ({
+          type: 'IdObject';
+      } & GenericBufferHistoryData<IdObjectResult>);
+
+/**
+ * The object event dispatcher collects all object events from one.core and reemits them in a
+ * controlled fashion.
+ *
+ * - calls are serialized
+ * - the interface is much more puwerful than that of one.core
+ * - statistics make it much easier to debug stuff
+ */
 export default class ObjectEventDispatcher {
     onError = new OEvent<(err: any) => void>();
     onGlobalStatisticChanged = new OEvent<() => void>();
@@ -121,11 +182,7 @@ export default class ObjectEventDispatcher {
      * problem at the moment, because such objects will already be on disk (That's why it is
      * enabled by default).
      */
-    public enableEnqueueFiltering = true;
-
-    public enableStatistics = true;
-    public maxStatisticsPerCallback = -1;
-    public cacheOldCallbacks = false;
+    enableEnqueueFiltering = true;
 
     // ######## private properties ########
 
@@ -136,6 +193,8 @@ export default class ObjectEventDispatcher {
     private buffer = new BlockingQueue<
         VersionedObjectResult | UnversionedObjectResult | IdObjectResult
     >(Number.POSITIVE_INFINITY, 1);
+
+    private bufferHistory: BufferHistoryData[] = [];
 
     // #### event handler ####
 
@@ -284,8 +343,14 @@ export default class ObjectEventDispatcher {
 
             const oldHandlers = entry.splice(i, 1);
 
-            if (this.cacheOldCallbacks) {
-                const oldEntry = getOrCreate(this.newVersionHandler, type, []);
+            if (this.retainDeregisteredHandlers) {
+                const deregisterTime = Date.now();
+                const oldEntry = getOrCreate(this.oldVersionHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
                 oldEntry.push(...oldHandlers);
             }
         };
@@ -300,7 +365,7 @@ export default class ObjectEventDispatcher {
         description: string,
         type: T | '*' = '*'
     ): () => void {
-        const entry = getOrCreate(this.newUnversionedObjectHandler, type, []);
+        const entry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
 
         entry.push({
             cb: cb as (result: UnversionedObjectResult) => Promise<void> | void,
@@ -318,8 +383,14 @@ export default class ObjectEventDispatcher {
 
             const oldHandlers = entry.splice(i, 1);
 
-            if (this.cacheOldCallbacks) {
-                const oldEntry = getOrCreate(this.newUnversionedObjectHandler, type, []);
+            if (this.retainDeregisteredHandlers) {
+                const deregisterTime = Date.now();
+                const oldEntry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
                 oldEntry.push(...oldHandlers);
             }
         };
@@ -352,14 +423,31 @@ export default class ObjectEventDispatcher {
 
             const oldHandlers = entry.splice(i, 1);
 
-            if (this.cacheOldCallbacks) {
+            if (this.retainDeregisteredHandlers) {
+                const deregisterTime = Date.now();
                 const oldEntry = getOrCreate(this.newIdHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
                 oldEntry.push(...oldHandlers);
             }
         };
     }
 
     // ######## status & statistics ########
+
+    // Global
+
+    /**
+     * If disabled no statistics except the global statistics are computed.
+     *
+     * Global statistics ar the global event counters.
+     */
+    enableStatistics = true;
+
+    // Statistic 1: Number of objects processed
 
     /**
      * Get the number of objects that were processed by the buffer.
@@ -369,13 +457,74 @@ export default class ObjectEventDispatcher {
     }
 
     /**
+     * Resets the total execution count.
+     */
+    resetTotalObjectCount(): void {
+        this.totalExecutionCount = 0;
+    }
+
+    // Statistic 2: Pending objects
+
+    /**
      * Get the number of objects that wait to be processed.
      */
     get pendingObjectCount(): number {
         return this.buffer.length;
     }
 
-    statistics(): PublicHandlerInfo[] {
+    /**
+     * Get a list of pending objects (result type of objects, that includes hashes etc)
+     *
+     * Objects are deep frozen, the array is a copy.
+     */
+    getPendingObjects(): AnyObjectResult[] {
+        return this.buffer.data;
+    }
+
+    // Statistic 3: Processed objects
+
+    /**
+     * Number of processed object information to retain.
+     *
+     * -1 means unlimited, which will result in a serious memory leak.
+     */
+    maxProcessedObjectCount = 10;
+
+    /**
+     * Get a list of objects that have recently been processed plus statistics data for them.
+     */
+    getProcessedObjects(): BufferHistoryData[] {
+        return [...this.bufferHistory];
+    }
+
+    /**
+     * Clears the whole buffer history.
+     */
+    clearProcessedObjects(): void {
+        this.bufferHistory = [];
+    }
+
+    // Statistic 4: Statistics regarding registered handler
+
+    /**
+     * If true this will retain all handler that have been deregistered.
+     *
+     * This is useful to keep track of temporary callbacks (like the ones used in react views)
+     */
+    retainDeregisteredHandlers = false;
+
+    /**
+     * How many execution statistics per callback are stored.
+     *
+     * -1 means unlimited, which will result in a serious memory leak.
+     */
+    maxExecutionStatisticsPerHandler = 10;
+
+    /**
+     * Get a list of all registered handlers and if 'retainDeregisteredCallbacks' is enabled
+     * also deregistered ones.
+     */
+    getHandlerStatistics(): PublicHandlerInfo[] {
         const arr: PublicHandlerInfo[] = [];
 
         for (const [key, handler] of [
@@ -391,7 +540,7 @@ export default class ObjectEventDispatcher {
                     filterIdHash: ensureIdHash(elems[1])
                 };
             } else if (elems.length === 1) {
-                if (elems[0] !== '*') {
+                if (elems[0] === '*') {
                     filter = {
                         filterType: '*',
                         filterIdHash: '*'
@@ -444,16 +593,69 @@ export default class ObjectEventDispatcher {
         return arr;
     }
 
-    dump(): void {
-        console.log(this.buffer.length, this.buffer.pendingPromiseCount);
-        console.log(JSON.stringify([...this.newVersionHandler.entries()], null, 4));
-        console.log(JSON.stringify([...this.newUnversionedObjectHandler.entries()], null, 4));
-        console.log(JSON.stringify([...this.newIdHandler.entries()], null, 4));
+    /**
+     * Clear all execution statistics of handlers
+     */
+    clearHandlerStatistics(): void {
+        for (const [key, handler] of [
+            ...this.newVersionHandler.entries(),
+            ...this.oldVersionHandler.entries(),
+            ...this.newUnversionedObjectHandler.entries(),
+            ...this.oldUnversionedObjectHandler.entries(),
+            ...this.newIdHandler.entries(),
+            ...this.oldIdHandler.entries()
+        ]) {
+            for (const h of handler) {
+                h.executionStatistics = [];
+            }
+        }
+    }
+
+    // ######## Store / Load settings ########
+
+    /**
+     * Load all settings from localStorage.
+     *
+     * If no settings are present - use sensible defaults.
+     */
+    async loadSettings(): Promise<void> {
+        const lvalue = await SettingsStore.getItem('objectEventDispatcherStatisticsSettings');
+
+        if (lvalue === undefined) {
+            return;
+        }
+
+        if (typeof lvalue !== 'string') {
+            throw new Error(
+                'loadSettings: Malformed objectEventDispatcherStatisticsSettings in local storage'
+            );
+        }
+
+        const settingsObj = JSON.parse(lvalue);
+        this.enableStatistics = settingsObj.enableStatistics;
+        this.maxProcessedObjectCount = settingsObj.maxProcessedObjectCount;
+        this.retainDeregisteredHandlers = settingsObj.retainDeregisteredHandlers;
+        this.maxExecutionStatisticsPerHandler = settingsObj.maxExecutionStatisticsPerHandler;
+    }
+
+    /**
+     * Store settings in localStorage.
+     */
+    async storeSettings(): Promise<void> {
+        await SettingsStore.setItem(
+            'objectEventDispatcherStatisticsSettings',
+            JSON.stringify({
+                enableStatistics: this.enableStatistics,
+                maxProcessedObjectCount: this.maxProcessedObjectCount,
+                retainDeregisteredHandlers: this.retainDeregisteredHandlers,
+                maxExecutionStatisticsPerHandler: this.maxExecutionStatisticsPerHandler
+            })
+        );
     }
 
     // #### Private stuff ####
 
-    reportError(error: any): void {
+    private reportError(error: any): void {
         if (this.onError.listenerCount() > 0) {
             this.onError.emit(error);
         } else {
@@ -473,6 +675,8 @@ export default class ObjectEventDispatcher {
             return;
         }
 
+        deepFreeze(result); // Ask michael if the event result are already frozen
+
         this.buffer.add(result);
         this.onGlobalStatisticChanged.emit();
 
@@ -489,36 +693,52 @@ export default class ObjectEventDispatcher {
         T extends UnversionedObjectResult | VersionedObjectResult | IdObjectResult
     >(result: T, handler: HandlerInfo<T>[]): Promise<void> {
         if (this.enableStatistics) {
+            const executedHandlerList: GenericBufferHistoryData<T>['handler'] = [];
+
+            const startTime = Date.now();
+
             for (const h of handler) {
-                // Create statistics container
-                const stats: HandlerInfo<T>['executionStatistics'][0] = {
-                    startTime: Date.now(),
-                    hash: result.hash || undefined,
-                    idHash: result.idHash || undefined
-                };
-                h.executionStatistics.push(stats);
+                let error: any;
+                const handlerStartTime = Date.now();
 
-                // Trim statistics to max value
-                if (
-                    this.maxStatisticsPerCallback > -1 &&
-                    h.executionStatistics.length > this.maxStatisticsPerCallback
-                ) {
-                    h.executionStatistics.splice(
-                        0,
-                        this.maxStatisticsPerCallback - h.executionStatistics.length
-                    );
-                }
-
-                // Execute and record end time & errors
                 try {
                     await h.cb(result);
-                    stats.endTime = Date.now();
                 } catch (e) {
-                    stats.endTime = Date.now();
-                    stats.error = e;
-                    this.onError.emit(e);
+                    error = e;
+                }
+
+                const handlerEndTime = Date.now();
+
+                // Execution statistics for buffer history
+                executedHandlerList.push({
+                    info: h,
+                    startTime: handlerStartTime,
+                    endTime: handlerEndTime,
+                    error
+                });
+
+                // Execution statistics for handler
+                this.pushHandlerExecutionStatistics(h, {
+                    startTime: handlerStartTime,
+                    endTime: handlerEndTime,
+                    idHash: result.idHash || undefined,
+                    hash: result.hash || undefined,
+                    error
+                });
+
+                if (error !== undefined) {
+                    this.onError.emit(error);
                 }
             }
+
+            const endTime = Date.now();
+
+            this.pushBufferHistoryData({
+                result,
+                handler: executedHandlerList,
+                startTime,
+                endTime
+            });
         } else {
             for (const h of handler) {
                 try {
@@ -580,9 +800,11 @@ export default class ObjectEventDispatcher {
      * so on for unversioned and Id ...
      * That is why the 'as' casts are needed.
      *
+     * This is public by intention. The ui needs it to visualize handlers for pending objects.
+     *
      * @param result
      */
-    private getHandler<T extends VersionedObjectResult | UnversionedObjectResult | IdObjectResult>(
+    getHandler<T extends VersionedObjectResult | UnversionedObjectResult | IdObjectResult>(
         result: T
     ): HandlerInfo<T>[] {
         if (isVersionedResult(result)) {
@@ -603,8 +825,76 @@ export default class ObjectEventDispatcher {
             ] as HandlerInfo<T>[];
         }
     }
+
+    private pushBufferHistoryData<T extends AnyObjectResult>(data: GenericBufferHistoryData<T>) {
+        if (isVersionedResult(data.result)) {
+            this.bufferHistory.push({
+                type: 'VersionedObject',
+                ...(data as unknown as GenericBufferHistoryData<VersionedObjectResult>)
+            });
+        } else if (isUnversionedResult(data.result)) {
+            this.bufferHistory.push({
+                type: 'UnversionedObject',
+                ...(data as unknown as GenericBufferHistoryData<UnversionedObjectResult>)
+            });
+        } else {
+            this.bufferHistory.push({
+                type: 'IdObject',
+                ...(data as unknown as GenericBufferHistoryData<IdObjectResult>)
+            });
+        }
+
+        trimArray(this.bufferHistory, this.maxProcessedObjectCount);
+    }
+
+    private pushHandlerExecutionStatistics<T extends AnyObjectResult>(
+        h: HandlerInfo<T>,
+        statistics: HandlerInfo<T>['executionStatistics'][0]
+    ) {
+        h.executionStatistics.push(statistics);
+        trimArray(h.executionStatistics, this.maxExecutionStatisticsPerHandler);
+    }
+}
+
+// ######## Utils ########
+
+function deepFreeze(object: any) {
+    // Retrieve the property names defined on object
+    const propNames = Reflect.ownKeys(object);
+
+    // Freeze properties before freezing self
+    for (const name of propNames) {
+        const value = object[name];
+
+        if ((value && typeof value === 'object') || typeof value === 'function') {
+            deepFreeze(value);
+        }
+    }
+
+    return Object.freeze(object);
+}
+
+function isVersionedResult(
+    result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
+): result is VersionedObjectResult {
+    if (!Object.hasOwn(result, 'idHash')) {
+        return false;
+    }
+
+    return Object.hasOwn(result, 'timestamp');
+}
+
+function isUnversionedResult(
+    result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
+): result is UnversionedObjectResult {
+    return Object.hasOwn(result, 'hash');
+}
+
+function trimArray<T>(arr: Array<T>, maxSize: number) {
+    if (maxSize > -1 && arr.length > maxSize) {
+        arr.splice(0, arr.length - maxSize);
+    }
 }
 
 // Temporary global, until we adjusted the architecture
-
 export const objectEvents = new ObjectEventDispatcher();
