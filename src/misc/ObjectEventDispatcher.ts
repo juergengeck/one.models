@@ -345,7 +345,14 @@ export default class ObjectEventDispatcher {
             const oldHandlers = entry.splice(i, 1);
 
             if (this.retainDeregisteredHandlers) {
-                getOrCreate(this.oldVersionHandler, type, []).push(...oldHandlers);
+                const deregisterTime = Date.now();
+                const oldEntry = getOrCreate(this.oldVersionHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
+                oldEntry.push(...oldHandlers);
             }
         };
     }
@@ -378,7 +385,13 @@ export default class ObjectEventDispatcher {
             const oldHandlers = entry.splice(i, 1);
 
             if (this.retainDeregisteredHandlers) {
+                const deregisterTime = Date.now();
                 const oldEntry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
                 oldEntry.push(...oldHandlers);
             }
         };
@@ -412,7 +425,13 @@ export default class ObjectEventDispatcher {
             const oldHandlers = entry.splice(i, 1);
 
             if (this.retainDeregisteredHandlers) {
+                const deregisterTime = Date.now();
                 const oldEntry = getOrCreate(this.newIdHandler, type, []);
+
+                for (const oldHandler of oldHandlers) {
+                    oldHandler.deregisterTime = deregisterTime;
+                }
+
                 oldEntry.push(...oldHandlers);
             }
         };
