@@ -14,6 +14,12 @@ import type {
     OneVersionedObjectTypeNames
 } from '@refinio/one.core/lib/recipes';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
+import type {CallStatistics} from '@refinio/one.core/lib/util/object-io-statistics';
+import {
+    enableStatistics,
+    getStatistics,
+    resetStatistics
+} from '@refinio/one.core/lib/util/object-io-statistics';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
 import {getOrCreate} from '../utils/MapUtils';
 import {OEvent} from './OEvent';
@@ -78,6 +84,7 @@ export type HandlerInfo<T extends AnyObjectResult = AnyObjectResult> = {
         hash?: SHA256Hash;
         idHash?: SHA256IdHash;
         error?: any;
+        ioCallStatistics?: CallStatistics;
     }[];
 };
 
@@ -145,6 +152,7 @@ type GenericBufferHistoryData<T extends AnyObjectResult = AnyObjectResult> = {
         startTime: number;
         endTime: number;
         error?: any;
+        ioCallStatistics?: CallStatistics;
     }[];
 };
 
@@ -448,6 +456,13 @@ export default class ObjectEventDispatcher {
      */
     enableStatistics = true;
 
+    /**
+     * If true, then I/O call statistics are recorded during handler execution.
+     *
+     * Note that this might accumulate a lot of data and reduce performance.
+     */
+    enableIOCallStatistics = false;
+
     // Statistic 1: Number of objects processed
 
     /**
@@ -634,6 +649,7 @@ export default class ObjectEventDispatcher {
 
         const settingsObj = JSON.parse(lvalue);
         this.enableStatistics = settingsObj.enableStatistics;
+        this.enableIOCallStatistics = settingsObj.enableIOCallStatistics;
         this.maxProcessedObjectCount = settingsObj.maxProcessedObjectCount;
         this.retainDeregisteredHandlers = settingsObj.retainDeregisteredHandlers;
         this.maxExecutionStatisticsPerHandler = settingsObj.maxExecutionStatisticsPerHandler;
@@ -647,6 +663,7 @@ export default class ObjectEventDispatcher {
             'objectEventDispatcherStatisticsSettings',
             JSON.stringify({
                 enableStatistics: this.enableStatistics,
+                enableIOCallStatistics: this.enableIOCallStatistics,
                 maxProcessedObjectCount: this.maxProcessedObjectCount,
                 retainDeregisteredHandlers: this.retainDeregisteredHandlers,
                 maxExecutionStatisticsPerHandler: this.maxExecutionStatisticsPerHandler
@@ -700,6 +717,11 @@ export default class ObjectEventDispatcher {
 
             for (const h of handler) {
                 let error: any;
+
+                if (this.enableIOCallStatistics) {
+                    enableStatistics(true, 'ObjectEventDispatcher');
+                }
+
                 const handlerStartTime = Date.now();
 
                 try {
@@ -710,12 +732,21 @@ export default class ObjectEventDispatcher {
 
                 const handlerEndTime = Date.now();
 
+                // Get call statistics if enabled
+                let ioCallStatistics;
+                if (this.enableIOCallStatistics) {
+                    enableStatistics(false, 'ObjectEventDispatcher');
+                    ioCallStatistics = getStatistics('ObjectEventDispatcher');
+                    resetStatistics('ObjectEventDispatcher');
+                }
+
                 // Execution statistics for buffer history
                 executedHandlerList.push({
                     info: h,
                     startTime: handlerStartTime,
                     endTime: handlerEndTime,
-                    error
+                    error,
+                    ioCallStatistics
                 });
 
                 // Execution statistics for handler
@@ -724,7 +755,8 @@ export default class ObjectEventDispatcher {
                     endTime: handlerEndTime,
                     idHash: result.idHash || undefined,
                     hash: result.hash || undefined,
-                    error
+                    error,
+                    ioCallStatistics
                 });
 
                 if (error !== undefined) {
