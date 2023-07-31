@@ -11,8 +11,9 @@ import type {
     OneUnversionedObjectInterfaces,
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store.js';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import type {SHA256Hash,SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common.js';
 import type {
     OneIdObjectTypes,
@@ -597,7 +598,7 @@ export default class ObjectEventDispatcher {
      * Clear all execution statistics of handlers
      */
     clearHandlerStatistics(): void {
-        for (const [key, handler] of [
+        for (const [_key, handler] of [
             ...this.newVersionHandler.entries(),
             ...this.oldVersionHandler.entries(),
             ...this.newUnversionedObjectHandler.entries(),
@@ -655,13 +656,13 @@ export default class ObjectEventDispatcher {
 
     // #### Private stuff ####
 
-    private reportError(error: any): void {
-        if (this.onError.listenerCount() > 0) {
-            this.onError.emit(error);
-        } else {
-            console.error('ObjectEventDispatcher: Error during event processing', error);
-        }
-    }
+    // private reportError(error: any): void {
+    //     if (this.onError.listenerCount() > 0) {
+    //         this.onError.emit(error);
+    //     } else {
+    //         console.error('ObjectEventDispatcher: Error during event processing', error);
+    //     }
+    // }
 
     private appendToBufferIfNew(
         result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
@@ -684,7 +685,7 @@ export default class ObjectEventDispatcher {
     }
 
     private async markAsDone(
-        result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
+        _result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
     ) {
         // TODO: remove it from disk
     }

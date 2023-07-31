@@ -5,8 +5,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as util from 'util';
-import {objectEvents} from '../../lib/misc/ObjectEventDispatcher';
 
+import {objectEvents} from '../../lib/misc/ObjectEventDispatcher.js';
 import AccessModel from '../../lib/models/AccessModel.js';
 import BodyTemperatureModel from '../../lib/models/BodyTemperatureModel.js';
 import ChannelManager from '../../lib/models/ChannelManager.js';
