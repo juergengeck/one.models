@@ -12,7 +12,7 @@ import RecipesStable from '../lib/recipes/recipes-stable.js';
 
 import {DummyObjectRecipes} from './utils/createDummyObject.js';
 
-describe('Object Event ispatcher test', () => {
+describe('Object Event Dispatcher test', () => {
     beforeEach(async () => {
         await initInstance({
             name: 'testname',
