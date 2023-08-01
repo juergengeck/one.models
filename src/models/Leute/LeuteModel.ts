@@ -1233,14 +1233,6 @@ export default class LeuteModel extends Model {
         } else {
             this.everyoneGroupWatchdog.enable();
         }
-
-        await serializeWithType('addPerson', async () => {
-            const group = await LeuteModel.everyoneGroup();
-            if (group.persons.find(person => person === result.idHash) === undefined) {
-                group.persons.push(result.idHash);
-                await group.saveAndLoad();
-            }
-        });
     }
 
     /**
