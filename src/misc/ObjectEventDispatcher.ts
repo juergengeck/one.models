@@ -374,7 +374,7 @@ export default class ObjectEventDispatcher {
         description: string,
         type: T | '*' = '*'
     ): () => void {
-        const entry = getOrCreate(this.oldUnversionedObjectHandler, type, []);
+        const entry = getOrCreate(this.newUnversionedObjectHandler, type, []);
 
         entry.push({
             cb: cb as (result: UnversionedObjectResult) => Promise<void> | void,
