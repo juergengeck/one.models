@@ -10,7 +10,7 @@ export default class Notifications {
     private notificationCounters = new Map<string, number>();
 
     // Without arguments, this is just to force a rerender of the UI component, not to get the new notification count
-    private onNewNotification = new OEvent<() => {}>();
+    private onNewNotification = new OEvent<() => undefined>();
 
     constructor(channelManager: ChannelManager) {
         channelManager.onUpdated(

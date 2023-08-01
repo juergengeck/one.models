@@ -162,7 +162,7 @@ describe('OEvent test', () => {
                 }, 3 * 100);
             });
         });
-        onEvent.emitAll().then(() => {
+        await onEvent.emitAll().then(() => {
             promiseSettled = true;
         });
         expect(handlerCalled1).to.be.equal(false);
@@ -226,7 +226,7 @@ describe('OEvent test', () => {
                 }, 5 * 100);
             });
         });
-        onStringEvent.emitAll().then(() => {
+        await onStringEvent.emitAll().then(() => {
             promiseSettled = true;
         });
         await wait(200);
@@ -272,7 +272,7 @@ describe('OEvent test', () => {
             });
         });
 
-        onStringEvent.emitRace().then(() => {
+        await onStringEvent.emitRace().then(() => {
             emitPromiseSettled = true;
         });
         expect(emitPromiseSettled).to.be.equal(false);
@@ -293,9 +293,9 @@ describe('OEvent test', () => {
         let emitPromiseRejected = false;
         let secondHandlerExecuted = false;
         const disconnect1 = onStringEvent(() => {
-            return new Promise<void>((resolve, reject) => {
+            return new Promise<void>((_resolve, reject) => {
                 setTimeout(() => {
-                    reject('This is the reject reason');
+                    reject(new Error('This is the reject reason'));
                 }, 2 * 100);
             });
         });
@@ -345,10 +345,10 @@ describe('OEvent test', () => {
             });
         });
         const disconnect2 = onStringEvent(() => {
-            return new Promise<void>((resolve, reject) => {
+            return new Promise<void>((_resolve, reject) => {
                 setTimeout(() => {
                     handlerCalled2 = true;
-                    reject('Second handler rejected');
+                    reject(new Error('Second handler rejected'));
                 }, 2 * 100);
             });
         });
@@ -393,19 +393,19 @@ describe('OEvent test', () => {
         let onStopListenListenerCalled = 0;
 
         const disconnectOnListenListener1 = onEvent.onListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onListenListenerCalled1++;
             });
         });
 
         const disconnectOnListenListener2 = onEvent.onListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onListenListenerCalled2++;
             });
         });
 
         const disconnectOnStopListenListener = onEvent.onStopListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onStopListenListenerCalled++;
             });
         });

@@ -102,7 +102,7 @@ export default class BlobCollectionModel extends Model {
 
     private static async createBlobCollection(
         files: File[],
-        name: string
+        collectionName: string
     ): Promise<UnversionedObjectResult<OneBlobCollection>> {
         const blobs: UnversionedObjectResult<OneBlobDescriptor>[] = [];
 
@@ -129,7 +129,7 @@ export default class BlobCollectionModel extends Model {
             blobs: blobs.map(
                 (blobResult: UnversionedObjectResult<OneBlobDescriptor>) => blobResult.hash
             ),
-            name
+            name: collectionName
         };
 
         return storeUnversionedObject(blobCollection);
@@ -167,11 +167,11 @@ export default class BlobCollectionModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param channelInfoIdHash
+     * @param _channelInfoIdHash
      * @param channelId
-     * @param channelOwner
+     * @param _channelOwner
      * @param timeOfEarliestChange
-     * @param data
+     * @param _data
      */
     private async handleOnUpdated(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,

@@ -119,7 +119,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
             if (error.code === 'IC-AUTH') {
                 throw new Error(
-                    'The stored secret is malformed, unrecovarable error. Delete' + ' instance.'
+                    'The stored secret is malformed, unrecovarable error. Delete instance.'
                 );
             }
             throw new Error(`Error while trying to initialise instance due to ${error}`);

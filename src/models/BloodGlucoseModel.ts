@@ -147,11 +147,11 @@ export default class BloodGlucoseModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param channelInfoIdHash
+     * @param _channelInfoIdHash
      * @param channelId
-     * @param channelOwner
+     * @param _channelOwner
      * @param timeOfEarliestChange
-     * @param data
+     * @param _data
      */
     private async handleChannelUpdate(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,

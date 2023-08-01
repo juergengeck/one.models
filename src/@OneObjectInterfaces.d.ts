@@ -42,7 +42,7 @@
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {}
 
-    export interface OneIdObjectInterfaces  {}
+    export interface OneIdObjectInterfaces {}
 
     export interface OneVersionedObjectInterfaces {}
 

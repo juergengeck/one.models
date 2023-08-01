@@ -284,7 +284,7 @@ export default class PairingFileSystem implements IFileSystem {
      *
      * @param path
      */
-    private async getNoWritePermissionError(path: string): Promise<Object> {
+    private async getNoWritePermissionError(path: string): Promise<Error> {
         if (await this.exists(path)) {
             return createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,

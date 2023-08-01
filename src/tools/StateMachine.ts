@@ -76,9 +76,9 @@ async function main(): Promise<void> {
     sm.onStatesChange((oldStates, newStates, event) => {
         console.log(
             'SM onStatesChange: [oldState] = ' +
-                oldStates +
+                String(oldStates) +
                 ' [newState] = ' +
-                newStates +
+                String(newStates) +
                 ' [event] = ' +
                 event
         );

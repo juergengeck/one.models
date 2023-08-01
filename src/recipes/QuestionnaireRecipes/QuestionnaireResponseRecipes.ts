@@ -41,7 +41,7 @@ export interface QuestionnaireResponse {
  * The rules to build a questionnaire based on FHIR
  */
 export const QuestionnaireResponseRules: RecipeRule[] = [
-    // FHIR ressource type
+    // FHIR resource type
     {
         itemprop: 'resourceType',
         itemtype: {type: 'string', regexp: /QuestionnaireResponse/}

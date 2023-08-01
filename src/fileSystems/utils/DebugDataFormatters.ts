@@ -39,8 +39,8 @@ async function prettifyKeysForOwner(
     const keys = await getListOfKeys(owner);
 
     const prettyKeysArray = await Promise.all(
-        keys.map(async function (keys): Promise<[SHA256Hash<Keys>, PrettyKeys]> {
-            return [keys.keys, await prettifyKeys(keys.keys, keys.complete, keys.default)];
+        keys.map(async function (key): Promise<[SHA256Hash<Keys>, PrettyKeys]> {
+            return [key.keys, await prettifyKeys(key.keys, key.complete, key.default)];
         })
     );
 

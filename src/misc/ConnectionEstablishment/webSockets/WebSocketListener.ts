@@ -151,7 +151,7 @@ class WebSocketListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange.listenerCount() > 0 && newState != oldState) {
+        if (this.onStateChange.listenerCount() > 0 && newState !== oldState) {
             try {
                 this.onStateChange.emit(newState, oldState, reason);
             } catch (e) {

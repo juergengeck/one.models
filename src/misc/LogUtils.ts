@@ -14,13 +14,13 @@ export function wslogId(ws: WebSocket | null): string {
     //  have ip addresses in the logs.
 
     try {
-        // @ts-ignore
-        if (!ws || !ws._socket) {
+        if (!ws || !(ws as any)._socket) {
             return '<noinfo>';
         }
 
-        // @ts-ignore
-        return ws._socket.remoteAddress.toString() + ':' + ws._socket.remotePort.toString();
+        return (
+            (ws as any)._socket.remoteAddress.toString() + ':' + (ws as any).remotePort.toString()
+        );
     } catch (e) {
         return '<noinfo>';
     }

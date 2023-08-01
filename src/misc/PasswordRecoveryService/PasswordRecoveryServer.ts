@@ -1,4 +1,5 @@
-import http, {ServerResponse} from 'http';
+import type {ServerResponse} from 'http';
+import http from 'http';
 import type {IdentityWithSecrets} from '../IdentityExchange.js';
 import {OEvent} from '../OEvent.js';
 import type {RecoveryInformation} from './PasswordRecovery.js';

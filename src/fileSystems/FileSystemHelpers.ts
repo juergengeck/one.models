@@ -146,7 +146,7 @@ export default class FileSystemHelpers {
      */
     public static getParentDirectoryFullPath(givenPath: string): string {
         const regex = new RegExp('/[^/]*$');
-        let res = givenPath.replace(regex, '/');
+        const res = givenPath.replace(regex, '/');
         if (res !== '/') {
             return res.substring(0, res.length - 1);
         }
