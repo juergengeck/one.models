@@ -37,6 +37,7 @@ import type {IdObjectResult} from '../../misc/ObjectEventDispatcher';
 import {objectEvents} from '../../misc/ObjectEventDispatcher';
 import {OEvent} from '../../misc/OEvent';
 import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
+import Watchdog from '../../misc/Watchdog';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
 import type {Leute} from '../../recipes/Leute/Leute';
@@ -139,8 +140,10 @@ export default class LeuteModel extends Model {
         /*...*/
     };
 
-    // Map that stores diplay names
+    // Map that stores display names
     private personNameCache = new Map<SHA256IdHash<Person>, string>();
+    private everyoneGroupNewPeopleCache: SHA256IdHash<Person>[] = [];
+    private everyoneGroupWatchdog: Watchdog = new Watchdog(10000);
 
     private trustedKeysManager = new TrustedKeysManager(this);
 
@@ -235,7 +238,10 @@ export default class LeuteModel extends Model {
                 },
                 'LeuteModel: New someone version - Update person name cache for all identities',
                 'Someone'
-            )
+            ),
+            this.everyoneGroupWatchdog.onTimeout(async () => {
+                await this.syncEveryoneGroup();
+            })
         );
 
         if (this.createEveryoneGroup) {
@@ -254,6 +260,12 @@ export default class LeuteModel extends Model {
         }
 
         this.shutdownInternal = async () => {
+            if (this.everyoneGroupWatchdog.enabled()) {
+                this.everyoneGroupWatchdog.disable();
+            }
+            if (this.everyoneGroupNewPeopleCache.length > 0) {
+                await this.syncEveryoneGroup();
+            }
             await this.trust.shutdown();
             for (const disconnectFn of disconnectFns) {
                 disconnectFn();
@@ -1214,6 +1226,14 @@ export default class LeuteModel extends Model {
      * @private
      */
     private async addPersonToEveryoneGroup(result: IdObjectResult<Person>): Promise<void> {
+        this.everyoneGroupNewPeopleCache.push(result.idHash);
+
+        if (this.everyoneGroupWatchdog.enabled()) {
+            this.everyoneGroupWatchdog.restart();
+        } else {
+            this.everyoneGroupWatchdog.enable();
+        }
+
         await serializeWithType('addPerson', async () => {
             const group = await LeuteModel.everyoneGroup();
             if (group.persons.find(person => person === result.idHash) === undefined) {
@@ -1221,6 +1241,26 @@ export default class LeuteModel extends Model {
                 await group.saveAndLoad();
             }
         });
+    }
+
+    /**
+     * Write the accumulated persons to the everyone group.
+     */
+    private async syncEveryoneGroup(): Promise<void> {
+        const group = await LeuteModel.everyoneGroup();
+
+        for (const person of this.everyoneGroupNewPeopleCache) {
+            if (!group.persons.includes(person)) {
+                group.persons.push(person);
+            }
+        }
+
+        this.everyoneGroupNewPeopleCache = [];
+        if (this.everyoneGroupWatchdog.enabled()) {
+            this.everyoneGroupWatchdog.disable();
+        }
+
+        await group.saveAndLoad();
     }
 
     /**
