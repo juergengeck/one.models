@@ -56,7 +56,7 @@
         "yargs": "*"
     },
     "peerDependencies": {
-        "@refinio/one.core": "^0.5.2"
+        "@refinio/one.core": "^0.5.3"
     },
     "devDependencies": {
         "@types/chai": "*",
@@ -68,6 +68,7 @@
         "@types/yargs": "*",
         "@typescript-eslint/eslint-plugin": "*",
         "@typescript-eslint/parser": "*",
+        "bufferutil": "^4.0.1",
         "chai": "*",
         "chai-as-promised": "*",
         "eslint": "*",
@@ -79,10 +80,9 @@
         "source-map-support": "*",
         "typedoc": "*",
         "typescript": "*",
+        "utf-8-validate": ">=5.0.2",
         "webpack": "*",
         "webpack-cli": "*",
-        "bufferutil": "^4.0.1",
-        "utf-8-validate": ">=5.0.2",
         "ws": "*"
     }
 }
