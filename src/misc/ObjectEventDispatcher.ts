@@ -718,7 +718,7 @@ export default class ObjectEventDispatcher {
                 ? ObjectEventDispatcher.determinePriority(result)
                 : this.determinePriorityOverride(result);
 
-        this.buffer.add(result);
+        this.buffer.add(result, priority);
         this.onGlobalStatisticChanged.emit();
 
         // TODO: write to disk
