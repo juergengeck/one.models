@@ -89,7 +89,7 @@ import {OEvent} from './OEvent.js';
  * ```
  */
 
-export class StateMachine<StateT, EventT> {
+export class StateMachine<StateT extends string, EventT> {
     /**
      * Emitted when the state machine enters a state.
      */
