@@ -112,7 +112,7 @@ export default class JournalModel extends Model {
                     to: latestTo,
                     from: latestFrom
                 })) {
-                    data.push(await retrievedData);
+                    data.push(retrievedData);
                 }
 
                 dataDictionary[event] = {
@@ -183,18 +183,16 @@ export default class JournalModel extends Model {
                         counter = 0;
                     }
 
-                    const data = await retrievedData;
-
                     // If the event exists in the dictionary and if the array exists, create a
                     // new array with the new value and the rest of the array
                     if (dataDictionary[event] && dataDictionary[event].values.length) {
                         dataDictionary[event] = {
-                            values: [...dataDictionary[event].values, data],
+                            values: [...dataDictionary[event].values, retrievedData],
                             index: 0
                         };
                     } else {
                         dataDictionary[event] = {
-                            values: [data],
+                            values: [retrievedData],
                             index: 0
                         };
                     }
@@ -237,7 +235,7 @@ export default class JournalModel extends Model {
                 const event = journalInput.eventType;
                 const data: ObjectData<unknown>[] = [];
                 for await (const retrievedData of journalInput.retrieveFn(queryOptions)) {
-                    data.push(await retrievedData);
+                    data.push(retrievedData);
                 }
                 dataDictionary[event] = {
                     values: data,
@@ -320,7 +318,7 @@ export default class JournalModel extends Model {
                     to: to,
                     from: from
                 })) {
-                    data = await retrievedData;
+                    data = retrievedData;
                 }
 
                 if (data !== null) {
