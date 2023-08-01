@@ -52,7 +52,7 @@ const WbcMeasurementRules: RecipeRule[] = [
     }
 ];
 
-const WbcObservation: Recipe = {
+const WbcObservationRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'WbcObservation',
     rule: [
@@ -94,6 +94,6 @@ const WbcObservation: Recipe = {
 
 // Export recipes
 
-const WbcRecipes: Recipe[] = [WbcObservation];
+const WbcRecipes: Recipe[] = [WbcObservationRecipe];
 
 export default WbcRecipes;
