@@ -224,7 +224,7 @@ export const AnswerRules: RecipeRule[] = [
     // FHIR Type: integer
     {
         itemprop: 'answerInteger',
-        itemtype: {type: 'string', regexp: /[0]|[-+]?[1-9][0-9]*/},
+        itemtype: {type: 'string', regexp: /0|[-+]?[1-9][0-9]*/},
         optional: true
     },
 
@@ -283,7 +283,7 @@ export const ExtensionRules: RecipeRule[] = [
         itemprop: 'url',
         itemtype: {
             type: 'string',
-            regexp: /http:\/\/hl7\.org\/fhir\/StructureDefinition\/[minLength|minValue|maxValue]/
+            regexp: /http:\/\/hl7\.org\/fhir\/StructureDefinition\/(minLength|minValue|maxValue)/
         }
     },
     {
@@ -339,7 +339,7 @@ export const OptionValueRules: RecipeRule[] = [
     // FHIR Type: integer
     {
         itemprop: 'valueInteger',
-        itemtype: {type: 'string', regexp: /[0]|[-+]?[1-9][0-9]*/},
+        itemtype: {type: 'string', regexp: /0|[-+]?[1-9][0-9]*/},
         optional: true
     },
 
@@ -454,7 +454,7 @@ export const ValueRules: RecipeRule[] = [
  * The rules to build a questionnaire based on FHIR
  */
 export const QuestionnaireRules: RecipeRule[] = [
-    // FHIR ressource type
+    // FHIR resource type
     {
         itemprop: 'resourceType',
         itemtype: {type: 'string', regexp: /Questionnaire/}
