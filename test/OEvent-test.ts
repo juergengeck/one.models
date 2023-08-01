@@ -162,9 +162,12 @@ describe('OEvent test', () => {
                 }, 3 * 100);
             });
         });
-        await onEvent.emitAll().then(() => {
-            promiseSettled = true;
-        });
+        onEvent
+            .emitAll()
+            .then(() => {
+                promiseSettled = true;
+            })
+            .catch(err => console.error(err));
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
         expect(handlerCalled3).to.be.equal(false);
@@ -226,9 +229,12 @@ describe('OEvent test', () => {
                 }, 5 * 100);
             });
         });
-        await onStringEvent.emitAll().then(() => {
-            promiseSettled = true;
-        });
+        onStringEvent
+            .emitAll()
+            .then(() => {
+                promiseSettled = true;
+            })
+            .catch(err => console.error(err));
         await wait(200);
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
@@ -272,9 +278,12 @@ describe('OEvent test', () => {
             });
         });
 
-        await onStringEvent.emitRace().then(() => {
-            emitPromiseSettled = true;
-        });
+        onStringEvent
+            .emitRace()
+            .then(() => {
+                emitPromiseSettled = true;
+            })
+            .catch(err => console.error(err));
         expect(emitPromiseSettled).to.be.equal(false);
 
         // one of the handlers finished execution
