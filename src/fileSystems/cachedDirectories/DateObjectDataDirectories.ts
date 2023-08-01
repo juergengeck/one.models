@@ -1,4 +1,3 @@
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes.js';
 import type {EasyDirectoryContent} from '../utils/EasyFileSystem.js';
 import {DateToObjectDataTransformDirectory} from './DateToObjectDataTransformDirectory.js';
 import type {ExtractSubDirectoryParamsT} from './utils/CachedDirectory.js';
@@ -11,9 +10,7 @@ import {DateDirectories} from './DateDirectories.js';
  * This directory generates three levels of directories:
  * <year>/<month>/<day> and outputs the data object of the channel
  */
-export class DateObjectDataDirectories<T extends OneUnversionedObjectTypes | unknown = unknown>
-    implements IDirectory
-{
+export class DateObjectDataDirectories<T = unknown> implements IDirectory {
     private readonly subDirectoryFactory: HierarchicalDirectoryFactory<
         ExtractSubDirectoryParamsT<DateToObjectDataTransformDirectory<T>>
     >;
