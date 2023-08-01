@@ -12,6 +12,12 @@ import type {
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
 import {SettingsStore} from '@refinio/one.core/lib/system/settings-store.js';
+import {
+    enableStatistics,
+    type CallStatistics,
+    getStatistics,
+    resetStatistics
+} from '@refinio/one.core/lib/util/object-io-statistics.js';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common.js';
