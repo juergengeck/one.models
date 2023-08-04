@@ -75,6 +75,7 @@
         "eslint-config-prettier": "*",
         "eslint-plugin-jsdoc": "*",
         "eslint-plugin-prettier": "*",
+        "eslint-plugin-require-extensions": "^0.1.3",
         "mocha": "*",
         "prettier": "*",
         "source-map-support": "*",
