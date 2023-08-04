@@ -9,7 +9,7 @@ export default class BlockingQueue<T> {
     private readonly maxDataQueueLength: number;
 
     /**
-     * Constructs a new blokcing queue.
+     * Constructs a new blocking queue.
      *
      * @param maxDataQueueLength
      * @param maxPendingPromiseCount
@@ -46,6 +46,73 @@ export default class BlockingQueue<T> {
             );
         }
         this.dataQueue.push(data);
+    }
+
+    /**
+     * Add data to the queue but insert sorted.
+     *
+     * This requires, that the data was already sorted.
+     * If elements that are equal are found, the element is inserted after the equal ones.
+     *
+     * This will throw if the queue is full.
+     *
+     * @param data
+     * @param compareFn - like the array.sort() compare function.
+     */
+    public insertSorted(data: T, compareFn: (a: T, b: T) => number): void {
+        // If a listener exists then the queue is empty and somebody is waiting for new data.
+        if (this.dataListeners.resolveFirst(data)) {
+            return;
+        }
+
+        // If no listener exists, then we enqueue the element unless the maximum size is already
+        // reached.
+        if (this.dataQueue.length === this.maxDataQueueLength) {
+            throw new Error(
+                `Queue is full, it reached its maximum length of ${this.maxDataQueueLength}`
+            );
+        }
+
+        // Iterate until the data point has a lesser value and then insert it at this place
+        for (let i = 0; i < this.dataQueue.length; ++i) {
+            const result = compareFn(data, this.dataQueue[i]);
+            if (result < 0) {
+                this.dataQueue.splice(i, 0, data);
+                return;
+            }
+        }
+
+        // No value was larger, so push at end
+        this.dataQueue.push(data);
+    }
+
+    /**
+     * Add data to the queue but insert it at given index.
+     *
+     * 0 means that the element becomes the first value in the queue.
+     * buffer.length means that the element will become the last element.
+     * Negative values means that it is inserted from behind (same as array.slice start parameter)
+     *
+     * This will throw if the queue is full.
+     *
+     * @param data
+     * @param index
+     */
+    public insertAt(data: T, index: number): void {
+        // If a listener exists then the queue is empty and somebody is waiting for new data.
+        if (this.dataListeners.resolveFirst(data)) {
+            return;
+        }
+
+        // If no listener exists, then we enqueue the element unless the maximum size is already
+        // reached.
+        if (this.dataQueue.length === this.maxDataQueueLength) {
+            throw new Error(
+                `Queue is full, it reached its maximum length of ${this.maxDataQueueLength}`
+            );
+        }
+
+        this.dataQueue.splice(index, 0, data);
     }
 
     /**

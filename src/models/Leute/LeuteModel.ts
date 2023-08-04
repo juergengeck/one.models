@@ -1,7 +1,4 @@
-import type {
-    OneUnversionedObjectInterfaces,
-    OneVersionedObjectInterfaces
-} from '@OneObjectInterfaces';
+import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
 import {createAccess} from '@refinio/one.core/lib/access.js';
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
@@ -13,14 +10,12 @@ import type {
     Group,
     Instance,
     Keys,
-    OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames,
     Person
 } from '@refinio/one.core/lib/recipes.js';
 import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query.js';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
@@ -41,6 +36,7 @@ import type {IdObjectResult} from '../../misc/ObjectEventDispatcher.js';
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person.js';
+import Watchdog from '../../misc/Watchdog.js';
 import type {ChannelEntry} from '../../recipes/ChannelRecipes.js';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {Leute} from '../../recipes/Leute/Leute.js';
@@ -143,8 +139,10 @@ export default class LeuteModel extends Model {
         /*...*/
     };
 
-    // Map that stores diplay names
+    // Map that stores display names
     private personNameCache = new Map<SHA256IdHash<Person>, string>();
+    private everyoneGroupNewPeopleCache: SHA256IdHash<Person>[] = [];
+    private everyoneGroupWatchdog: Watchdog = new Watchdog(10000);
 
     private trustedKeysManager = new TrustedKeysManager(this);
 
@@ -239,7 +237,10 @@ export default class LeuteModel extends Model {
                 },
                 'LeuteModel: New someone version - Update person name cache for all identities',
                 'Someone'
-            )
+            ),
+            this.everyoneGroupWatchdog.onTimeout(async () => {
+                await this.syncEveryoneGroup();
+            })
         );
 
         if (this.createEveryoneGroup) {
@@ -258,6 +259,12 @@ export default class LeuteModel extends Model {
         }
 
         this.shutdownInternal = async () => {
+            if (this.everyoneGroupWatchdog.enabled()) {
+                this.everyoneGroupWatchdog.disable();
+            }
+            if (this.everyoneGroupNewPeopleCache.length > 0) {
+                await this.syncEveryoneGroup();
+            }
             await this.trust.shutdown();
             for (const disconnectFn of disconnectFns) {
                 disconnectFn();
@@ -1218,13 +1225,33 @@ export default class LeuteModel extends Model {
      * @private
      */
     private async addPersonToEveryoneGroup(result: IdObjectResult<Person>): Promise<void> {
-        await serializeWithType('addPerson', async () => {
-            const group = await LeuteModel.everyoneGroup();
-            if (group.persons.find(person => person === result.idHash) === undefined) {
-                group.persons.push(result.idHash);
-                await group.saveAndLoad();
+        this.everyoneGroupNewPeopleCache.push(result.idHash);
+
+        if (this.everyoneGroupWatchdog.enabled()) {
+            this.everyoneGroupWatchdog.restart();
+        } else {
+            this.everyoneGroupWatchdog.enable();
+        }
+    }
+
+    /**
+     * Write the accumulated persons to the everyone group.
+     */
+    private async syncEveryoneGroup(): Promise<void> {
+        const group = await LeuteModel.everyoneGroup();
+
+        for (const person of this.everyoneGroupNewPeopleCache) {
+            if (!group.persons.includes(person)) {
+                group.persons.push(person);
             }
-        });
+        }
+
+        this.everyoneGroupNewPeopleCache = [];
+        if (this.everyoneGroupWatchdog.enabled()) {
+            this.everyoneGroupWatchdog.disable();
+        }
+
+        await group.saveAndLoad();
     }
 
     /**
@@ -1400,9 +1427,9 @@ function isVersionedResultOfType<T extends OneVersionedObjectTypeNames>(
     return versionedObjectResult.obj.$type$ === type;
 }
 
-function isUnversionedResultOfType<T extends OneUnversionedObjectTypeNames>(
-    unversionedObjectResult: UnversionedObjectResult,
-    type: T
-): unversionedObjectResult is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
-    return unversionedObjectResult.obj.$type$ === type;
-}
+// function isUnversionedResultOfType<T extends OneUnversionedObjectTypeNames>(
+//     unversionedObjectResult: UnversionedObjectResult,
+//     type: T
+// ): unversionedObjectResult is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
+//     return unversionedObjectResult.obj.$type$ === type;
+// }

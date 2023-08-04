@@ -26,10 +26,9 @@ import type {
     OneUnversionedObjectTypeNames,
     OneVersionedObjectTypeNames
 } from '@refinio/one.core/lib/recipes.js';
-
+import BlockingPriorityQueue from './BlockingPriorityQueue.js';
 import {getOrCreate} from '../utils/MapUtils.js';
 import {OEvent} from './OEvent.js';
-import BlockingQueue from './BlockingQueue.js';
 
 // const MessageBus = createMessageBus('ObjectEventDispatcher');
 
@@ -193,13 +192,23 @@ export default class ObjectEventDispatcher {
      */
     enableEnqueueFiltering = true;
 
+    /**
+     * The application can override the priority values for results that are enqueued by setting
+     * a function here.
+     *
+     * Lesser values will result in a higher priority.
+     *
+     * @param result - The result value that shall be enqueued.
+     */
+    determinePriorityOverride: ((result: AnyObjectResult) => number) | undefined;
+
     // ######## private properties ########
 
     /**
      * Buffer that buffers all one.core events.
      * @private
      */
-    private buffer = new BlockingQueue<
+    private buffer = new BlockingPriorityQueue<
         VersionedObjectResult | UnversionedObjectResult | IdObjectResult
     >(Number.POSITIVE_INFINITY, 1);
 
@@ -443,6 +452,14 @@ export default class ObjectEventDispatcher {
                 oldEntry.push(...oldHandlers);
             }
         };
+    }
+
+    static determinePriority(result: AnyObjectResult): number {
+        if (result.obj.$type$ === 'Profile') {
+            return 10;
+        }
+
+        return 0;
     }
 
     // ######## status & statistics ########
@@ -695,7 +712,12 @@ export default class ObjectEventDispatcher {
 
         deepFreeze(result); // Ask michael if the event result are already frozen
 
-        this.buffer.add(result);
+        const priority =
+            this.determinePriorityOverride === undefined
+                ? ObjectEventDispatcher.determinePriority(result)
+                : this.determinePriorityOverride(result);
+
+        this.buffer.add(result, priority);
         this.onGlobalStatisticChanged.emit();
 
         // TODO: write to disk
@@ -929,5 +951,5 @@ function trimArray<T>(arr: Array<T>, maxSize: number) {
     }
 }
 
-// Temporary global, until we adjusted the architecture
+// TODO Temporary global, until we adjust the architecture
 export const objectEvents = new ObjectEventDispatcher();
