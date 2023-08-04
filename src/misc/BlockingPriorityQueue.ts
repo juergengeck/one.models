@@ -1,4 +1,4 @@
-import BlockingQueue from './BlockingQueue';
+import BlockingQueue from './BlockingQueue.js';
 
 /**
  * A queue implementation where the reader promises block until new data is available.
@@ -53,9 +53,9 @@ export default class BlockingPriorityQueue<T> {
     /**
      * Cancels all pending remove promises.
      *
-     * @param err
+     * @param _err
      */
-    public cancelPendingPromises(err?: Error): void {
+    public cancelPendingPromises(_err?: Error): void {
         this.dataQueue.cancelPendingPromises();
     }
 
