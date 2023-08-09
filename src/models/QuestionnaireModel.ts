@@ -7,7 +7,7 @@ import {Model} from './Model';
 
 import type {Person} from '@refinio/one.core/lib/recipes';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Questionnaire_2_0_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0';
+import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0';
 import type {
     QuestionnaireResponses,
     QuestionnaireResponse

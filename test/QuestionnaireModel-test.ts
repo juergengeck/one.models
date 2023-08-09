@@ -27,7 +27,7 @@ describe('Questionnaire model test', () => {
         await qm.init();
 
         // Register a questionnaire
-        await qm.registerQuestionnaires([
+        qm.registerQuestionnaires([
             {
                 resourceType: 'Questionnaire',
                 language: 'de',
@@ -39,13 +39,15 @@ describe('Questionnaire model test', () => {
                         linkId: 'link1',
                         prefix: 'pre1',
                         text: 'Geben Sie irgendein Datum und irgendeine Uhrzeit ein',
-                        type: 'date'
+                        type: 'date',
+                        disabledDisplay: 'protected'
                     },
                     {
                         linkId: 'link2',
                         prefix: 'pre2',
                         text: 'Wählen Sie irgendetwas aus',
                         type: 'choice',
+                        disabledDisplay: 'protected',
                         answerOption: [
                             {
                                 valueCoding: {
@@ -77,7 +79,8 @@ describe('Questionnaire model test', () => {
                         linkId: 'link3',
                         prefix: 'pre3',
                         text: 'Geben Sie irgendetwas ein',
-                        type: 'string'
+                        type: 'string',
+                        disabledDisplay: 'protected'
                     }
                 ]
             }
@@ -91,7 +94,10 @@ describe('Questionnaire model test', () => {
                     questionnaire: 'http://refinio.one/test/questionaire/irgendetwas',
                     status: 'completed',
                     item: [
-                        {linkId: 'link1', answer: [{valueDate: '2020-15-07T00:10'}]},
+                        {
+                            linkId: 'link1',
+                            answer: [{valueDate: '2020-15-07T00:10'}]
+                        },
                         {
                             linkId: 'link2',
                             answer: [
