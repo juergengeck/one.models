@@ -62,7 +62,7 @@ overwriteRule(QuestionnaireRules, 'item', {
 addRule(QuestionnaireRules, 'item', {
     itemprop: 'disabledDisplay',
     itemtype: {type: 'string', regexp: /protected|hidden/},
-    optional: true
+    optional: false
 });
 
 /**
