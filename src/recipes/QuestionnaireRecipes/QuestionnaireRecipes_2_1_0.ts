@@ -46,49 +46,8 @@ export module Questionnaire_2_1_0 {
     /**
      * Type of questionnaire answers and initial values.
      */
-    export type QuestionnaireItemDisabledDisplay =
-        | {
-              system: 'http://hl7.org/fhir/ValueSet/questionnaire-disabled-display';
-              version?: '5.0.0';
-              code: 'hidden';
-              display?: 'Hidden';
-          }
-        | {
-              system: 'http://hl7.org/fhir/ValueSet/questionnaire-disabled-display';
-              version?: '5.0.0';
-              code: 'protected';
-              display?: 'Protected';
-          };
+    export type QuestionnaireItemDisabledDisplay = 'hidden' | 'protected';
 }
-
-/**
- * Values for disabledDisplay on answers
- */
-export const QuestionnaireDisabledDisplayRule: RecipeRule[] = [
-    {
-        itemprop: 'system',
-        itemtype: {
-            type: 'string',
-            regexp: /http:\/\/hl7\.org\/fhir\/ValueSet\/questionnaire-disabled-display/
-        },
-        optional: false
-    },
-    {
-        itemprop: 'version',
-        itemtype: {type: 'string', regexp: /5\.0\.0/},
-        optional: false
-    },
-    {
-        itemprop: 'code',
-        itemtype: {type: 'string', regexp: /protected|hidden/},
-        optional: false
-    },
-    {
-        itemprop: 'display',
-        itemtype: {type: 'string', regexp: /Protected|Hidden/},
-        optional: false
-    }
-];
 
 /**
  * The rules to build a questionnaire based on FHIR
@@ -102,7 +61,7 @@ overwriteRule(QuestionnaireRules, 'item', {
 
 addRule(QuestionnaireRules, 'item', {
     itemprop: 'disabledDisplay',
-    itemtype: {type: 'object', rules: QuestionnaireDisabledDisplayRule},
+    itemtype: {type: 'string', regexp: /protected|hidden/},
     optional: true
 });
 

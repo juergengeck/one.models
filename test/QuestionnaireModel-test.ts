@@ -40,24 +40,14 @@ describe('Questionnaire model test', () => {
                         prefix: 'pre1',
                         text: 'Geben Sie irgendein Datum und irgendeine Uhrzeit ein',
                         type: 'date',
-                        disabledDisplay: {
-                            version: '5.0.0',
-                            code: 'protected',
-                            display: 'Protected',
-                            system: 'http://hl7.org/fhir/ValueSet/questionnaire-disabled-display'
-                        }
+                        disabledDisplay: 'protected'
                     },
                     {
                         linkId: 'link2',
                         prefix: 'pre2',
                         text: 'Wählen Sie irgendetwas aus',
                         type: 'choice',
-                        disabledDisplay: {
-                            version: '5.0.0',
-                            code: 'protected',
-                            display: 'Protected',
-                            system: 'http://hl7.org/fhir/ValueSet/questionnaire-disabled-display'
-                        },
+                        disabledDisplay: 'protected',
                         answerOption: [
                             {
                                 valueCoding: {
@@ -90,12 +80,7 @@ describe('Questionnaire model test', () => {
                         prefix: 'pre3',
                         text: 'Geben Sie irgendetwas ein',
                         type: 'string',
-                        disabledDisplay: {
-                            version: '5.0.0',
-                            code: 'protected',
-                            display: 'Protected',
-                            system: 'http://hl7.org/fhir/ValueSet/questionnaire-disabled-display'
-                        }
+                        disabledDisplay: 'protected'
                     }
                 ]
             }
