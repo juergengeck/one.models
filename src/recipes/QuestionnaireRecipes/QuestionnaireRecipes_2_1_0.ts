@@ -67,23 +67,26 @@ export module Questionnaire_2_1_0 {
 export const QuestionnaireDisabledDisplayRule: RecipeRule[] = [
     {
         itemprop: 'system',
-        itemtype: {type: 'string'},
+        itemtype: {
+            type: 'string',
+            regexp: /http:\/\/hl7\.org\/fhir\/ValueSet\/questionnaire-disabled-display/
+        },
         optional: false
     },
     {
         itemprop: 'version',
-        itemtype: {type: 'string'},
-        optional: true
+        itemtype: {type: 'string', regexp: /5\.0\.0/},
+        optional: false
     },
     {
         itemprop: 'code',
-        itemtype: {type: 'string'},
+        itemtype: {type: 'string', regexp: /protected|hidden/},
         optional: false
     },
     {
         itemprop: 'display',
-        itemtype: {type: 'string'},
-        optional: true
+        itemtype: {type: 'string', regexp: /Protected|Hidden/},
+        optional: false
     }
 ];
 
