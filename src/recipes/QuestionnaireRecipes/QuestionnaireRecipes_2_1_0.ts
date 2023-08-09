@@ -44,7 +44,7 @@ export module Questionnaire_2_1_0 {
     export type Extension = Questionnaire_2_0_0.Extension;
 
     /**
-     * Type of questionnaire answers and initial values.
+     * Type of questionnaire disabled dysplay values.
      */
     export type QuestionnaireItemDisabledDisplay = 'hidden' | 'protected';
 }
