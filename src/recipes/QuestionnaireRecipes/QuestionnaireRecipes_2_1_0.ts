@@ -26,7 +26,7 @@ export module Questionnaire_2_1_0 {
      * Question of a questionnaire.
      */
     export type Question = Omit<Questionnaire_2_0_0.Question, 'item'> & {
-        disabledDisplay: QuestionnaireItemDisabledDisplay;
+        disabledDisplay: 'hidden' | 'protected';
         item?: Question[];
     };
 
@@ -42,11 +42,6 @@ export module Questionnaire_2_1_0 {
     export type ExtensionDesignNote = Questionnaire_2_0_0.ExtensionDesignNote;
     export type ExtensionRegEx = Questionnaire_2_0_0.ExtensionRegEx;
     export type Extension = Questionnaire_2_0_0.Extension;
-
-    /**
-     * Type of questionnaire disabled dysplay values.
-     */
-    export type QuestionnaireItemDisabledDisplay = 'hidden' | 'protected';
 }
 
 /**
