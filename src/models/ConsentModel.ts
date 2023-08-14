@@ -1,6 +1,6 @@
 import {Model} from './Model';
 import type ChannelManager from './ChannelManager';
-import type {Consent} from '../recipes/ConsentRecipes';
+import type {Consent_1_1_0} from '../recipes/ConsentRecipes/ConsentRecipes_1_1_0';
 import {StateMachine} from '../misc/StateMachine';
 import {
     getObjectWithType,
@@ -9,7 +9,8 @@ import {
 import {sign} from '../misc/Signature';
 import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor';
 
-type FileStatusTuple = [File, Consent['status']];
+type FileStatusTuple = [File, Consent_1_1_0['status']];
+type TextStatusTuple = [string, Consent_1_1_0['status']];
 
 /**
  * This model deals with the user consent.

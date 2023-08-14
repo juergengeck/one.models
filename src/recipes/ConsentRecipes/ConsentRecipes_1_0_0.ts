@@ -1,5 +1,5 @@
 import type {Recipe} from '@refinio/one.core/lib/recipes';
-import type {BlobDescriptor} from './BlobRecipes';
+import type {BlobDescriptor} from '../BlobRecipes';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
 
 declare module '@OneObjectInterfaces' {
