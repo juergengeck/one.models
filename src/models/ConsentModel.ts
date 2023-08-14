@@ -38,7 +38,7 @@ export default class ConsentModel extends Model {
     // Contains the date of the first consent for the application
     public firstConsentDate: Date | undefined;
 
-    private consentsToWrite: FileStatusTuple[] = [];
+    private consentsToWrite: (FileStatusTuple | TextStatusTuple)[] = [];
     private channelManager: ChannelManager | undefined;
 
     constructor() {
@@ -96,9 +96,13 @@ export default class ConsentModel extends Model {
             }
         } else {
             // Write all queued consents
-            for (const fileStatusTuple of this.consentsToWrite) {
-                const [file, status] = fileStatusTuple;
-                await this.writeConsent(file, status);
+            for (const fileOrTextStatusTuple of this.consentsToWrite) {
+                const [fileOrText, status] = fileOrTextStatusTuple;
+                if (typeof fileOrText === 'string') {
+                    await this.writeConsentText(fileOrText, status);
+                } else {
+                    await this.writeConsent(fileOrText, status);
+                }
             }
 
             // Cleanup the queue
@@ -131,11 +135,20 @@ export default class ConsentModel extends Model {
         this.consentState.triggerEvent('shutdown');
     }
 
-    public async setConsent(file: File, status: Consent['status']) {
+    public async setConsent(file: File, status: Consent_1_1_0['status']) {
         if (this.state.currentState === 'Uninitialised') {
             this.consentsToWrite.push([file, status]);
         } else {
             await this.writeConsent(file, status);
+        }
+        this.setState(status);
+    }
+
+    public async setConsentText(text: string, status: Consent_1_1_0['status']) {
+        if (this.state.currentState === 'Uninitialised') {
+            this.consentsToWrite.push([text, status]);
+        } else {
+            await this.writeConsentText(text, status);
         }
         this.setState(status);
     }
@@ -145,7 +158,7 @@ export default class ConsentModel extends Model {
      * @param status
      * @private
      */
-    private setState(status: Consent['status']) {
+    private setState(status: Consent_1_1_0['status']) {
         if (status === 'given') {
             this.consentState.triggerEvent('giveConsent');
         }
@@ -154,15 +167,38 @@ export default class ConsentModel extends Model {
         }
     }
 
-    private async writeConsent(file: File, status: Consent['status']) {
+    private async writeConsentText(text: string, status: Consent_1_1_0['status']) {
+        if (this.channelManager === undefined) {
+            throw new Error('init() has not been called yet');
+        }
+
+        const consent: Consent_1_1_0 = {
+            $type$: 'Consent_1_1_0',
+            text: text,
+            isoStringDate: new Date().toISOString(),
+            status
+        };
+
+        // signing
+        const consentResult = await storeUnversionedObject(consent);
+        const signedConsent = await sign(consentResult.hash);
+
+        await this.channelManager.postToChannel(
+            ConsentModel.channelId,
+            signedConsent.obj,
+            undefined
+        );
+    }
+
+    private async writeConsent(file: File, status: Consent_1_1_0['status']) {
         if (this.channelManager === undefined) {
             throw new Error('init() has not been called yet');
         }
 
         const blobDescriptor = await storeFileWithBlobDescriptor(file);
 
-        const consent: Consent = {
-            $type$: 'Consent',
+        const consent: Consent_1_1_0 = {
+            $type$: 'Consent_1_1_0',
             fileReference: blobDescriptor.hash,
             isoStringDate: new Date().toISOString(),
             status
