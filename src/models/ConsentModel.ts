@@ -10,6 +10,7 @@ import {sign} from '../misc/Signature';
 import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor';
 
 export type Consent = Consent_1_1_0;
+export const ConsentType = 'Consent_1_1_0';
 
 type FileStatusTuple = [File, Consent_1_1_0['status']];
 type TextStatusTuple = [string, Consent_1_1_0['status']];
