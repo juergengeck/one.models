@@ -31,8 +31,6 @@ const fileRefIndex = ConsentRecipeRules_1_1_0.findIndex(r => r.itemprop === 'fil
 ConsentRecipeRules_1_1_0[fileRefIndex].optional = true;
 
 /**
- * Recipe for questionnaires based upon FHIR standard.
- *
  * @type {{name: string; rule: RecipeRule[]; $type$: string}}
  */
 export const ConsentRecipe: Recipe = {
