@@ -33,22 +33,7 @@
         ],
         "enable-source-maps": true
     },
-    "files": [
-        "lib",
-        "test",
-        "comm_server.bundle.js,",
-        "comm_server.bundle.js.LICENSE.txt,",
-        "generate_identity.bundle.js,",
-        "generate_identity.bundle.js.LICENSE.txt,",
-        "password_recovery_server.bundle.js,",
-        "password_recovery_server.bundle.js.LICENSE.txt",
-        "package.json",
-        "package-lock.json",
-        "LICENSE.md",
-        "README.md"
-    ],
     "dependencies": {
-        "@types/ws": "*",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
@@ -65,6 +50,7 @@
         "@types/node": "*",
         "@types/passport-http": "*",
         "@types/qrcode": "*",
+        "@types/ws": "*",
         "@types/yargs": "*",
         "@typescript-eslint/eslint-plugin": "*",
         "@typescript-eslint/parser": "*",
