@@ -112,7 +112,9 @@ describe('Consent', () => {
             channelId: ConsentModel.channelId
         });
         const allConsents = await Promise.all(
-            allChannelEntrys.map(entry => getObjectWithType((entry.data as any).data, 'Consent'))
+            allChannelEntrys.map(entry =>
+                getObjectWithType((entry.data as any).data, 'Consent_1_1_0')
+            )
         );
 
         if (consentModel.firstConsentDate === undefined) {
@@ -133,7 +135,9 @@ describe('Consent', () => {
             channelId: ConsentModel.channelId
         });
         const allConsents = await Promise.all(
-            allChannelEntrys.map(entry => getObjectWithType((entry.data as any).data, 'Consent'))
+            allChannelEntrys.map(entry =>
+                getObjectWithType((entry.data as any).data, 'Consent_1_1_0')
+            )
         );
 
         if (consentModel.firstConsentDate === undefined) {
