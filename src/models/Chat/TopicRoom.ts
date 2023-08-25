@@ -16,6 +16,7 @@ import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
     attachments: (BlobDescriptor | SHA256Hash)[];
+    thumbnails?: (BlobDescriptor | SHA256Hash)[];
 }
 
 export default class TopicRoom {
@@ -179,6 +180,49 @@ export default class TopicRoom {
                 text: message,
                 sender: author,
                 attachments: writtenAttachments
+            },
+            null,
+            undefined,
+            author
+        );
+    }
+
+    /**
+     * Sends the message with attachments in the chat room.
+     * @param message
+     * @param attachments array of attached files
+     * @param author
+     */
+    async sendMessageWithThumbnailImageAttachmentAsFile(
+        message: string,
+        attachments: {original: File; thumbnail: File}[],
+        author?: SHA256IdHash<Person>
+    ): Promise<void> {
+        if (author === undefined) {
+            author = await this.leuteModel.myMainIdentity();
+        }
+
+        const blobDescriptors = await Promise.all(
+            attachments.map(async data => ({
+                original: await storeFileWithBlobDescriptor(data.original),
+                thumbnail: await storeFileWithBlobDescriptor(data.thumbnail)
+            }))
+        );
+        const writtenOriginalAttachments = blobDescriptors.map(
+            blobDescriptor => blobDescriptor.original.hash
+        );
+        const writtenThumbnailAttachments = blobDescriptors.map(
+            blobDescriptor => blobDescriptor.thumbnail.hash
+        );
+
+        await this.channelManager.postToChannel(
+            this.topic.id,
+            {
+                $type$: 'ChatMessage',
+                text: message,
+                sender: author,
+                attachments: writtenOriginalAttachments,
+                thumbnail: writtenThumbnailAttachments
             },
             null,
             undefined,
