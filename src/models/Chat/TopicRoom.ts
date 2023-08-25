@@ -14,7 +14,7 @@ import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipe
 import type LeuteModel from '../Leute/LeuteModel';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
 
-export interface ChatMessage extends Omit<OneChatMessage, 'attachments'> {
+export interface ChatMessage extends Omit<OneChatMessage, 'attachments' | 'thumbnails'> {
     attachments: (BlobDescriptor | SHA256Hash)[];
     thumbnails?: (BlobDescriptor | SHA256Hash)[];
 }
