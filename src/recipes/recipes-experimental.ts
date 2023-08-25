@@ -11,7 +11,7 @@ import LeuteRecipes from './Leute/recipes';
 import Certificates from './Certificates/CertificateRecipes';
 import SignatureRecipes from './SignatureRecipes';
 import ChatRecipes from './ChatRecipes';
-import ConsentRecipes from './ConsentRecipes';
+import ConsentRecipes_1_1_0 from './ConsentRecipes/ConsentRecipes_1_1_0';
 import IoMRequestRecipes from './IoM/IoMRequest';
 import IoMRequestsRegistryRecipes from './IoM/IoMRequestsRegistry';
 
@@ -28,7 +28,7 @@ const RecipesExperimental: Recipe[] = [
     ...ChatRecipes,
     ...LeuteRecipes,
     ...SignatureRecipes,
-    ...ConsentRecipes,
+    ...ConsentRecipes_1_1_0,
     ...IoMRequestRecipes,
     ...IoMRequestsRegistryRecipes
 ];
