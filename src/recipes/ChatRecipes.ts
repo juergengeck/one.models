@@ -30,6 +30,7 @@ export interface ChatMessage {
     $type$: 'ChatMessage';
     text: string;
     attachments?: SHA256Hash[];
+    thumbnails?: SHA256Hash[];
     sender: SHA256IdHash<Person>;
 }
 
