@@ -222,7 +222,7 @@ export default class TopicRoom {
                 text: message,
                 sender: author,
                 attachments: writtenOriginalAttachments,
-                thumbnail: writtenThumbnailAttachments
+                thumbnails: writtenThumbnailAttachments
             },
             null,
             undefined,
