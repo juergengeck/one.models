@@ -62,6 +62,17 @@ export const ChatMessageRecipe: Recipe = {
             optional: true
         },
         {
+            itemprop: 'thumbnails',
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['*'])
+                }
+            },
+            optional: true
+        },
+        {
             itemprop: 'sender',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         }
