@@ -1,3 +1,4 @@
+import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption';
 import Authenticator from './Authenticator';
 import {
     closeAndDeleteCurrentInstance,
@@ -6,6 +7,8 @@ import {
     instanceExists
 } from '@refinio/one.core/lib/instance';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
 
 type Credentials = {
     email: string;
@@ -76,6 +79,65 @@ export default class SingleUserNoAuth extends Authenticator {
     }
 
     /**
+     * @param publicEncryptionKey
+     * @param privateEncryptionKey
+     * @param publicSignKey
+     * @param privateSignKey
+     */
+    async registerWithKeys(
+        publicEncryptionKey: string,
+        privateEncryptionKey: string,
+        publicSignKey: string,
+        privateSignKey: string
+    ): Promise<void> {
+        this.authState.triggerEvent('login');
+
+        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
+
+        if (await instanceExists(instanceName, email)) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error('Could not register user. The single user already exists.');
+        }
+
+        try {
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
+                storageInitTimeout: this.config.storageInitTimeout,
+                personEncryptionKeyPair: {
+                    publicKey: ensurePublicKey(hexToUint8ArrayWithCheck(publicEncryptionKey)),
+                    secretKey: ensureSecretKey(hexToUint8ArrayWithCheck(privateEncryptionKey))
+                },
+                personSignKeyPair: {
+                    publicKey: ensurePublicSignKey(hexToUint8ArrayWithCheck(publicSignKey)),
+                    secretKey: ensureSecretSignKey(hexToUint8ArrayWithCheck(privateSignKey))
+                }
+            });
+        } catch (error) {
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            await closeAndDeleteCurrentInstance();
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
+        }
+    }
+
+    /**
      * Logins the user. This function will:
      *  - trigger the 'login' event
      *  - will check if there are any stored credentials
@@ -119,7 +181,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
             if (error.code === 'IC-AUTH') {
                 throw new Error(
-                    'The stored secret is malformed, unrecovarable error. Delete' + ' instance.'
+                    'The stored secret is malformed, unrecovarable error. Delete instance.'
                 );
             }
             throw new Error(`Error while trying to initialise instance due to ${error}`);
