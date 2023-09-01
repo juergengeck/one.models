@@ -9,6 +9,7 @@ import {
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
+import nacl from 'tweetnacl';
 
 type Credentials = {
     email: string;
@@ -79,16 +80,12 @@ export default class SingleUserNoAuth extends Authenticator {
     }
 
     /**
-     * @param publicEncryptionKey
-     * @param privateEncryptionKey
-     * @param publicSignKey
-     * @param privateSignKey
+     * @param secretEncryptionKey
+     * @param secretSignKey
      */
     async registerWithKeys(
-        publicEncryptionKey: string,
-        privateEncryptionKey: string,
-        publicSignKey: string,
-        privateSignKey: string
+        secretEncryptionKey: Uint8Array | string,
+        secretSignKey: Uint8Array | string
     ): Promise<void> {
         this.authState.triggerEvent('login');
 
@@ -100,6 +97,22 @@ export default class SingleUserNoAuth extends Authenticator {
         }
 
         try {
+            const secretEncryptionKeyUint8Array =
+                typeof secretEncryptionKey === 'string'
+                    ? hexToUint8ArrayWithCheck(secretEncryptionKey)
+                    : secretEncryptionKey;
+            const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
+            const secretSignKeyUint8Array =
+                typeof secretSignKey === 'string'
+                    ? hexToUint8ArrayWithCheck(secretSignKey)
+                    : secretSignKey;
+            const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
             await initInstance({
                 name: instanceName,
                 email: email,
@@ -111,12 +124,12 @@ export default class SingleUserNoAuth extends Authenticator {
                 initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
                 storageInitTimeout: this.config.storageInitTimeout,
                 personEncryptionKeyPair: {
-                    publicKey: ensurePublicKey(hexToUint8ArrayWithCheck(publicEncryptionKey)),
-                    secretKey: ensureSecretKey(hexToUint8ArrayWithCheck(privateEncryptionKey))
+                    publicKey: ensurePublicKey(publicEncryptionKeyUint8Array),
+                    secretKey: ensureSecretKey(secretEncryptionKeyUint8Array)
                 },
                 personSignKeyPair: {
-                    publicKey: ensurePublicSignKey(hexToUint8ArrayWithCheck(publicSignKey)),
-                    secretKey: ensureSecretSignKey(hexToUint8ArrayWithCheck(privateSignKey))
+                    publicKey: ensurePublicSignKey(publicSignKeyUint8Array),
+                    secretKey: ensureSecretSignKey(secretSignKeyUint8Array)
                 }
             });
         } catch (error) {
