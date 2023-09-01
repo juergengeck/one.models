@@ -99,7 +99,12 @@ export default class SingleUserNoAuth extends Authenticator {
         try {
             const secretEncryptionKeyUint8Array =
                 typeof secretEncryptionKey === 'string'
-                    ? hexToUint8ArrayWithCheck(secretEncryptionKey)
+                    ? hexToUint8ArrayWithCheck(
+                          secretEncryptionKey
+                              .split('')
+                              .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                              .join('')
+                      )
                     : secretEncryptionKey;
             const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
                 secretEncryptionKeyUint8Array
@@ -107,7 +112,12 @@ export default class SingleUserNoAuth extends Authenticator {
 
             const secretSignKeyUint8Array =
                 typeof secretSignKey === 'string'
-                    ? hexToUint8ArrayWithCheck(secretSignKey)
+                    ? hexToUint8ArrayWithCheck(
+                          secretSignKey
+                              .split('')
+                              .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                              .join('')
+                      )
                     : secretSignKey;
             const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
                 secretEncryptionKeyUint8Array
