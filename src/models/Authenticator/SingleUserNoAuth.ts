@@ -10,6 +10,7 @@ import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
 import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
 import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
 import nacl from 'tweetnacl';
+import {toByteArray} from 'base64-js';
 
 type Credentials = {
     email: string;
@@ -99,26 +100,14 @@ export default class SingleUserNoAuth extends Authenticator {
         try {
             const secretEncryptionKeyUint8Array =
                 typeof secretEncryptionKey === 'string'
-                    ? hexToUint8ArrayWithCheck(
-                          secretEncryptionKey
-                              .split('')
-                              .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-                              .join('')
-                      )
+                    ? toByteArray(secretEncryptionKey)
                     : secretEncryptionKey;
             const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
                 secretEncryptionKeyUint8Array
             ).publicKey;
 
             const secretSignKeyUint8Array =
-                typeof secretSignKey === 'string'
-                    ? hexToUint8ArrayWithCheck(
-                          secretSignKey
-                              .split('')
-                              .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-                              .join('')
-                      )
-                    : secretSignKey;
+                typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
             const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
                 secretEncryptionKeyUint8Array
             ).publicKey;
