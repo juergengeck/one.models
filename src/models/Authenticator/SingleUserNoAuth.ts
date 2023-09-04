@@ -1,3 +1,4 @@
+import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption';
 import Authenticator from './Authenticator';
 import {
     closeAndDeleteCurrentInstance,
@@ -6,6 +7,10 @@ import {
     instanceExists
 } from '@refinio/one.core/lib/instance';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
+import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
+import nacl from 'tweetnacl';
+import {toByteArray} from 'base64-js';
 
 type Credentials = {
     email: string;
@@ -76,6 +81,75 @@ export default class SingleUserNoAuth extends Authenticator {
     }
 
     /**
+     * @param secretEncryptionKey
+     * @param secretSignKey
+     */
+    async registerWithKeys(
+        secretEncryptionKey: Uint8Array | string,
+        secretSignKey: Uint8Array | string
+    ): Promise<void> {
+        this.authState.triggerEvent('login');
+
+        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
+
+        if (await instanceExists(instanceName, email)) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error('Could not register user. The single user already exists.');
+        }
+
+        try {
+            const secretEncryptionKeyUint8Array =
+                typeof secretEncryptionKey === 'string'
+                    ? toByteArray(secretEncryptionKey)
+                    : secretEncryptionKey;
+            const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
+            const secretSignKeyUint8Array =
+                typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
+            const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
+                storageInitTimeout: this.config.storageInitTimeout,
+                personEncryptionKeyPair: {
+                    publicKey: ensurePublicKey(publicEncryptionKeyUint8Array),
+                    secretKey: ensureSecretKey(secretEncryptionKeyUint8Array)
+                },
+                personSignKeyPair: {
+                    publicKey: ensurePublicSignKey(publicSignKeyUint8Array),
+                    secretKey: ensureSecretSignKey(secretSignKeyUint8Array)
+                }
+            });
+        } catch (error) {
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            await closeAndDeleteCurrentInstance();
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
+        }
+    }
+
+    /**
      * Logins the user. This function will:
      *  - trigger the 'login' event
      *  - will check if there are any stored credentials
@@ -119,7 +193,7 @@ export default class SingleUserNoAuth extends Authenticator {
 
             if (error.code === 'IC-AUTH') {
                 throw new Error(
-                    'The stored secret is malformed, unrecovarable error. Delete' + ' instance.'
+                    'The stored secret is malformed, unrecovarable error. Delete instance.'
                 );
             }
             throw new Error(`Error while trying to initialise instance due to ${error}`);
