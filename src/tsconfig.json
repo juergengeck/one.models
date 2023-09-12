@@ -12,11 +12,11 @@
         "emitDeclarationOnly": false,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "incremental": true,
         "importHelpers": false,
+        "incremental": true,
         "isolatedModules": true,
         "lib": ["esnext", "dom"],
-        "module": "ESNext",
+        "module": "NodeNext",
         "moduleResolution": "NodeNext",
         "newLine": "LF",
         "noEmit": false,
@@ -34,5 +34,8 @@
         "verbatimModuleSyntax": true
     },
     "exclude": [],
-    "include": ["./*.ts", "./**/*.ts"]
+    "include": [
+        "./*.ts",
+        "./**/*.ts"
+    ]
 }
