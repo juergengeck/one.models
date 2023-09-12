@@ -1,3 +1,4 @@
+import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption.js';
 import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
@@ -6,6 +7,9 @@ import {
     instanceExists
 } from '@refinio/one.core/lib/instance.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign.js';
+import nacl from 'tweetnacl';
+import {toByteArray} from 'base64-js';
 
 type Credentials = {
     email: string;
@@ -35,10 +39,12 @@ export default class SingleUserNoAuth extends Authenticator {
      *      - if yes, it will trigger the 'login_success' event
      *      - if no, it will throw error and trigger 'login_failure' event
      */
-    async register(): Promise<void> {
+    async register(registerEmail?: string): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
+        const {instanceName, email, secret} = registerEmail
+            ? await this.generateCredentialsWithEmailIfNotExist(registerEmail)
+            : await this.generateCredentialsIfNotExist();
 
         if (await instanceExists(instanceName, email)) {
             this.authState.triggerEvent('login_failure');
@@ -56,6 +62,79 @@ export default class SingleUserNoAuth extends Authenticator {
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps,
                 initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
                 storageInitTimeout: this.config.storageInitTimeout
+            });
+        } catch (error) {
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to initialise instance due to ${error}`);
+        }
+
+        try {
+            await registerRecipes(this.config.recipes);
+            await this.onLogin.emitAll(instanceName, secret, email);
+            this.authState.triggerEvent('login_success');
+        } catch (error) {
+            await closeAndDeleteCurrentInstance();
+            await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
+            this.authState.triggerEvent('login_failure');
+            throw new Error(`Error while trying to configure instance due to ${error}`);
+        }
+    }
+
+    /**
+     * @param secretEncryptionKey
+     * @param secretSignKey
+     * @param registerEmail
+     */
+    async registerWithKeys(
+        secretEncryptionKey: Uint8Array | string,
+        secretSignKey: Uint8Array | string,
+        registerEmail?: string
+    ): Promise<void> {
+        this.authState.triggerEvent('login');
+
+        const {instanceName, email, secret} = registerEmail
+            ? await this.generateCredentialsWithEmailIfNotExist(registerEmail)
+            : await this.generateCredentialsIfNotExist();
+
+        if (await instanceExists(instanceName, email)) {
+            this.authState.triggerEvent('login_failure');
+            throw new Error('Could not register user. The single user already exists.');
+        }
+
+        try {
+            const secretEncryptionKeyUint8Array =
+                typeof secretEncryptionKey === 'string'
+                    ? toByteArray(secretEncryptionKey)
+                    : secretEncryptionKey;
+            const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
+            const secretSignKeyUint8Array =
+                typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
+            const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                secretEncryptionKeyUint8Array
+            ).publicKey;
+
+            await initInstance({
+                name: instanceName,
+                email: email,
+                secret: secret,
+                ownerName: email,
+                directory: this.config.directory,
+                initialRecipes: this.config.recipes,
+                initiallyEnabledReverseMapTypes: this.config.reverseMaps,
+                initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
+                storageInitTimeout: this.config.storageInitTimeout,
+                personEncryptionKeyPair: {
+                    publicKey: ensurePublicKey(publicEncryptionKeyUint8Array),
+                    secretKey: ensureSecretKey(secretEncryptionKeyUint8Array)
+                },
+                personSignKeyPair: {
+                    publicKey: ensurePublicSignKey(publicSignKeyUint8Array),
+                    secretKey: ensureSecretSignKey(secretSignKeyUint8Array)
+                }
             });
         } catch (error) {
             await this.store.removeItem(SingleUserNoAuth.CREDENTIAL_CONTAINER_KEY_STORE);
@@ -222,6 +301,20 @@ export default class SingleUserNoAuth extends Authenticator {
         if (credentialsFromStore === undefined) {
             const generatedCredentials = {
                 email: await createRandomString(64),
+                instanceName: await createRandomString(64),
+                secret: await createRandomString(64)
+            };
+            await this.persistCredentialsToStore(generatedCredentials);
+            return generatedCredentials;
+        }
+        return credentialsFromStore;
+    }
+
+    private async generateCredentialsWithEmailIfNotExist(email: string): Promise<Credentials> {
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
+        if (credentialsFromStore === undefined) {
+            const generatedCredentials = {
+                email: email,
                 instanceName: await createRandomString(64),
                 secret: await createRandomString(64)
             };

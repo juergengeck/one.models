@@ -31,6 +31,7 @@ export interface ChatMessage {
     text: string;
     attachments?: SHA256Hash[];
     sender: SHA256IdHash<Person>;
+    thumbnails?: SHA256Hash[];
 }
 
 type TopicChannelID = string;
@@ -63,6 +64,17 @@ export const ChatMessageRecipe: Recipe = {
         {
             itemprop: 'sender',
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
+        },
+        {
+            itemprop: 'thumbnails',
+            itemtype: {
+                type: 'array',
+                item: {
+                    type: 'referenceToObj',
+                    allowedTypes: new Set(['*'])
+                }
+            },
+            optional: true
         }
     ]
 };
