@@ -39,6 +39,7 @@
         "../src/**/**/*"
     ],
     "include": [
+        "../@OneObjectInterfaces.d.ts",
         "./*.ts",
         "./**/*.ts",
         "../lib/*.ts",

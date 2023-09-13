@@ -35,6 +35,7 @@
     },
     "exclude": [],
     "include": [
+        "../@OneObjectInterfaces.d.ts",
         "./*.ts",
         "./**/*.ts"
     ]

@@ -40,7 +40,11 @@
  */
 
 declare module '@OneObjectInterfaces' {
-    export interface OneUnversionedObjectInterfaces {}
+    export interface OneCertificateInterfaces {}
+
+    export interface OneLicenseInterfaces {}
+
+    export interface OneUnversionedObjectInterfaces extends OneCertificateInterfaces {}
 
     export interface OneIdObjectInterfaces {}
 
