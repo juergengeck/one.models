@@ -49,18 +49,6 @@ const Certificates: Recipe[] = [
     TrustKeysCertificateRecipe
 ];
 
-declare module '@OneObjectInterfaces' {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    export interface OneCertificateInterfaces {
-        // Empty by design
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    export interface OneUnversionedObjectInterfaces extends OneCertificateInterfaces {
-        // Empty by design
-    }
-}
-
 export type OneCertificateTypes = OneCertificateInterfaces[keyof OneCertificateInterfaces];
 export type OneCertificateTypeNames = keyof OneCertificateInterfaces;
 
