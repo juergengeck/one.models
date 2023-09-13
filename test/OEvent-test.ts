@@ -1,9 +1,11 @@
-import TestModel from './utils/TestModel.js';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import {expect} from 'chai';
-import * as StorageTestInit from './_helpers.js';
-import {EventTypes, OEvent} from '../lib/misc/OEvent.js';
+
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import {wait} from '@refinio/one.core/lib/util/promise.js';
+
+import {EventTypes, OEvent} from '../lib/misc/OEvent.js';
+import TestModel from './utils/TestModel.js';
+import * as StorageTestInit from './_helpers.js';
 
 let testModel: TestModel;
 
