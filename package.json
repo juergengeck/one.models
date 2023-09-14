@@ -41,7 +41,7 @@
         "yargs": "*"
     },
     "peerDependencies": {
-        "@refinio/one.core": "^0.5.5"
+        "@refinio/one.core": "github:refinio/one.core"
     },
     "devDependencies": {
         "@types/chai": "*",
