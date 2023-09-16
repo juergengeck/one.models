@@ -1,3 +1,4 @@
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
 import {statSync} from 'fs';
 import path from 'path';
 import {readFile} from 'fs/promises';
@@ -64,6 +65,8 @@ export async function init({
     initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
+    await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
     return await initInstance({
         name,
         email,

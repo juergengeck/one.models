@@ -34,14 +34,13 @@
         "enable-source-maps": true
     },
     "dependencies": {
+        "@refinio/one.core": "github:refinio/one.core",
+        "@refinio/one.models": "github:refinio/one.models#new_core_esm",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
         "tweetnacl": "*",
         "yargs": "*"
-    },
-    "peerDependencies": {
-        "@refinio/one.core": "github:refinio/one.core"
     },
     "devDependencies": {
         "@types/chai": "*",
