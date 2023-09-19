@@ -1,18 +1,18 @@
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes';
-import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
+import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes.js';
+import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectByIdHash,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import type {GroupProfile} from '../../recipes/Leute/GroupProfile';
-import {Model} from '../Model';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import type {GroupProfile} from '../../recipes/Leute/GroupProfile.js';
+import {Model} from '../Model.js';
 
 const DUMMY_BLOB_HASH = '0'.repeat(64) as SHA256Hash<BLOB>;
 

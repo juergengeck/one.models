@@ -1,8 +1,8 @@
 import WebSocketWS from 'isomorphic-ws';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import PromisePlugin from '../../Connection/plugins/PromisePlugin';
-import {OEvent} from '../../OEvent';
-import Connection from '../../Connection/Connection';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin.js';
+import {OEvent} from '../../OEvent.js';
+import Connection from '../../Connection/Connection.js';
 
 const MessageBus = createMessageBus('WebSocketListener');
 
@@ -151,7 +151,7 @@ class WebSocketListener {
         const oldState = this.state;
         this.state = newState;
 
-        if (this.onStateChange.listenerCount() > 0 && newState != oldState) {
+        if (this.onStateChange.listenerCount() > 0 && newState !== oldState) {
             try {
                 this.onStateChange.emit(newState, oldState, reason);
             } catch (e) {

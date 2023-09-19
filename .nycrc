@@ -1,7 +1,0 @@
-{
-    "extends": "@istanbuljs/nyc-config-typescript",
-    "extension": [".js"],
-    "include": "lib",
-    "exclude": ["lib/cli", "lib/recipes"],
-    "all": true
-}

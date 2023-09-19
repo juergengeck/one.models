@@ -2,18 +2,16 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import {
-    AccessModel,
-    BodyTemperatureModel,
-    ChannelManager,
-    LeuteModel,
-    ECGModel
-} from '../../lib/models';
-
 import * as path from 'path';
 import * as fs from 'fs';
 import * as util from 'util';
-import {objectEvents} from '../../lib/misc/ObjectEventDispatcher';
+
+import {objectEvents} from '../../lib/misc/ObjectEventDispatcher.js';
+import AccessModel from '../../lib/models/AccessModel.js';
+import BodyTemperatureModel from '../../lib/models/BodyTemperatureModel.js';
+import ChannelManager from '../../lib/models/ChannelManager.js';
+import LeuteModel from '../../lib/models/Leute/LeuteModel.js';
+import ECGModel from '../../lib/models/ECGModel.js';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);

@@ -1,9 +1,10 @@
 import tweetnacl from 'tweetnacl';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Keys, Person} from '@refinio/one.core/lib/recipes';
-import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {storeVersionedObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 
 /**
  * Create a new identity with public & private keys

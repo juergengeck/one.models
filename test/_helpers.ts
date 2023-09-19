@@ -1,17 +1,20 @@
-import {initInstance} from '@refinio/one.core/lib/instance';
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+import {statSync} from 'fs';
+import path from 'path';
+import {readFile} from 'fs/promises';
+
+import {initInstance} from '@refinio/one.core/lib/instance.js';
 import type {
     Instance,
     OneObjectTypeNames,
     OneVersionedObjectTypeNames,
     Recipe
-} from '@refinio/one.core/lib/recipes';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import {statSync} from 'fs';
-import path from 'path';
-import {readFile} from 'fs/promises';
-import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption';
-import type {SignKeyPair} from '@refinio/one.core/lib/crypto/sign';
+} from '@refinio/one.core/lib/recipes.js';
+import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {SignKeyPair} from '@refinio/one.core/lib/crypto/sign.js';
+
+import RecipesStable from '../lib/recipes/recipes-stable.js';
+import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
 
 export const defaultDbName = 'testDb';
 
@@ -62,6 +65,8 @@ export async function init({
     initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
+    await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
     return await initInstance({
         name,
         email,

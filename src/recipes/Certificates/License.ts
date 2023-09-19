@@ -1,4 +1,4 @@
-import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes.js';
 
 /**
  * The license that is granted by issuing a certificate.

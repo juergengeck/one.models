@@ -1,17 +1,17 @@
 import chai, {expect} from 'chai';
 
-import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
-import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
+import {closeInstance, initInstance} from '@refinio/one.core/lib/instance.js';
+import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
 import {mkdir, rm, rmdir} from 'fs/promises';
 import chaiAsPromised from 'chai-as-promised';
-import LeuteRecipes from '../lib/recipes/Leute/recipes';
+import LeuteRecipes from '../lib/recipes/Leute/recipes.js';
 import {
     importIdentityFileAsOneInstanceEndpoint,
     writeNewIdentityToFile,
     readIdentityFile,
     readIdentityWithSecretsFile
-} from '../lib/misc/IdentityExchange-fs';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+} from '../lib/misc/IdentityExchange-fs.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
 
 chai.use(chaiAsPromised);
 

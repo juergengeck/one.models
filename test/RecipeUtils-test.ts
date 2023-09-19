@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import type {RecipeRule} from '@refinio/one.core/lib/recipes';
+import type {RecipeRule} from '@refinio/one.core/lib/recipes.js';
 import {
     addRule,
     cloneRule,
@@ -7,7 +7,7 @@ import {
     hasRule,
     overwriteRule,
     removeRule
-} from '../lib/recipes/RecipeUtils';
+} from '../lib/recipes/RecipeUtils.js';
 
 /**
  * Test for testing the rule helpers

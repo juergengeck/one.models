@@ -1,43 +1,42 @@
-import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
+import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import {
     getAllVersionMapEntries,
     getNthVersionMapHash
-} from '@refinio/one.core/lib/version-map-query';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
-import {objectEvents} from '../misc/ObjectEventDispatcher';
-import {OEvent} from '../misc/OEvent';
+} from '@refinio/one.core/lib/version-map-query.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../misc/ObjectEventDispatcher.js';
+import {OEvent} from '../misc/OEvent.js';
 import type {
     IdAccess,
     OneUnversionedObjectTypeNames,
     OneUnversionedObjectTypes,
     Person
-} from '@refinio/one.core/lib/recipes';
+} from '@refinio/one.core/lib/recipes.js';
 import type {
     ChannelEntry,
     ChannelInfo,
     ChannelRegistry,
     ChannelRegistryEntry
-} from '../recipes/ChannelRecipes';
-import type {Profile} from '../recipes/Leute/Profile';
-import type {CreationTime} from '../recipes/MetaRecipes';
+} from '../recipes/ChannelRecipes.js';
+import type {CreationTime} from '../recipes/MetaRecipes.js';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type LeuteModel from './Leute/LeuteModel';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type LeuteModel from './Leute/LeuteModel.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObject,
     getObjectWithType,
     storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -141,8 +140,9 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-export type ObjectData<T extends OneUnversionedObjectTypes | unknown> = {
+// TODO This is supposed to be "T extends OneUnversionedObjectTypes = OneUnversionedObjectTypes",
+//  but this needs a few code fixes down the line, since this type is used with all kinds of stuff
+export type ObjectData<T = unknown> = {
     channelId: string; // The channel id
     channelOwner?: SHA256IdHash<Person>; // The owner of the channel
     channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
@@ -1801,7 +1801,7 @@ export default class ChannelManager {
                 logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
                 console.error(e); // Introduce an error event later!
             } finally {
-                promiseTracker.promise.finally(() =>
+                await promiseTracker.promise.finally(() =>
                     this.promiseTrackers.delete(promiseTracker.promise)
                 );
             }
@@ -1882,40 +1882,40 @@ export default class ChannelManager {
         });
     }
 
-    /**
-     * This function wraps the given channel info into {@link ObjectData}
-     * Returns undefined if the channel head is empty
-     *
-     * @param channelIdHash
-     * @private
-     */
-    private static async wrapChannelInfoWithObjectData(
-        channelIdHash: SHA256IdHash<ChannelInfo>
-    ): Promise<ObjectData<OneUnversionedObjectTypes> | undefined> {
-        const channel = await getObjectByIdHash(channelIdHash);
-        if (channel.obj.head) {
-            const channelEntry = await getObject(channel.obj.head);
-            const channelCreationTime = await getObject(channelEntry.data);
-            const channelData = await getObject(channelCreationTime.data);
-
-            const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
-
-            return {
-                channelId: channel.obj.id,
-                channelOwner: channel.obj.owner,
-                channelEntryHash: channel.obj.head,
-                id: ChannelManager.encodeEntryId(channelIdHash, channel.obj.head),
-                creationTime: new Date(channelCreationTime.timestamp),
-                creationTimeHash: channelEntry.data,
-                author: channel.obj.owner,
-                sharedWith: sharedWithPersons,
-
-                data: channelData,
-                dataHash: channelCreationTime.data
-            };
-        }
-        return undefined;
-    }
+    // /**
+    //  * This function wraps the given channel info into {@link ObjectData}
+    //  * Returns undefined if the channel head is empty
+    //  *
+    //  * @param channelIdHash
+    //  * @private
+    //  */
+    // private static async wrapChannelInfoWithObjectData(
+    //     channelIdHash: SHA256IdHash<ChannelInfo>
+    // ): Promise<ObjectData<OneUnversionedObjectTypes> | undefined> {
+    //     const channel = await getObjectByIdHash(channelIdHash);
+    //     if (channel.obj.head) {
+    //         const channelEntry = await getObject(channel.obj.head);
+    //         const channelCreationTime = await getObject(channelEntry.data);
+    //         const channelData = await getObject(channelCreationTime.data);
+    //
+    //         const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
+    //
+    //         return {
+    //             channelId: channel.obj.id,
+    //             channelOwner: channel.obj.owner,
+    //             channelEntryHash: channel.obj.head,
+    //             id: ChannelManager.encodeEntryId(channelIdHash, channel.obj.head),
+    //             creationTime: new Date(channelCreationTime.timestamp),
+    //             creationTimeHash: channelEntry.data,
+    //             author: channel.obj.owner,
+    //             sharedWith: sharedWithPersons,
+    //
+    //             data: channelData,
+    //             dataHash: channelCreationTime.data
+    //         };
+    //     }
+    //     return undefined;
+    // }
 
     /**
      * Load the latest channel registry version into the the cache.
@@ -2107,7 +2107,6 @@ export default class ChannelManager {
                 (await this.leuteModel.trust.affirm(creationTimeResult.hash, author)).hash
             );
 
-            let senderProfileHash: SHA256Hash<Profile> | undefined;
             if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {
                 const profiles = await (await this.leuteModel.me()).profiles(author);
                 const defaultProfile = profiles.filter(

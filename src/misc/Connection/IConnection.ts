@@ -1,4 +1,4 @@
-import type {OEvent} from '../OEvent';
+import type {OEvent} from '../OEvent.js';
 
 export interface IConnection {
     onMessage: OEvent<(message: Uint8Array | string) => void>;

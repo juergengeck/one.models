@@ -1,9 +1,11 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry';
-import {signForSomeoneElse} from './signForSomeoneElse';
-import '../../lib/recipes/Certificates/RelationCertificate';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+
+import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry.js';
+import {signForSomeoneElse} from './signForSomeoneElse.js';
+
+import '../../lib/recipes/Certificates/RelationCertificate.js';
 
 /**
  * Create an relation certificate for another personId.

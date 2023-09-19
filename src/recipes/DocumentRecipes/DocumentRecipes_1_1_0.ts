@@ -1,5 +1,5 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes';
-import type {DocumentInfo} from './DocumentRecipes_1_0_0';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {DocumentInfo} from './DocumentRecipes_1_0_0.js';
 
 export enum AcceptedMimeType {
     JPEG = 'image/jpeg',

@@ -1,22 +1,22 @@
-import {createAccess} from '@refinio/one.core/lib/access';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import {
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../../misc/OEvent';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../../misc/OEvent.js';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes.js';
 
-import type {Demand, Supply} from '../../recipes/MatchingRecipes';
-import type {RawChannelEntry} from '../ChannelManager';
-import type ChannelManager from '../ChannelManager';
-import {Model} from '../Model';
+import type {Demand, Supply} from '../../recipes/MatchingRecipes.js';
+import type {RawChannelEntry} from '../ChannelManager.js';
+import type ChannelManager from '../ChannelManager.js';
+import {Model} from '../Model.js';
 
 /**
  * This class contains the common behaviour used both by clients and

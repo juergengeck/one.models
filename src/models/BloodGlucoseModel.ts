@@ -2,17 +2,17 @@
  * @author Sebastian Ganea <sebastian.ganea@refinio.net>
  */
 
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import {Model} from './Model';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import {Model} from './Model.js';
 
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes';
-import {OEvent} from '../misc/OEvent';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BloodGlucose} from '../recipes/BloodGlucoseRecipes.js';
+import {OEvent} from '../misc/OEvent.js';
 
 export default class BloodGlucoseModel extends Model {
     private disconnect: (() => void) | undefined;
@@ -147,11 +147,11 @@ export default class BloodGlucoseModel extends Model {
 
     /**
      * Handler function for the 'updated' event
-     * @param channelInfoIdHash
+     * @param _channelInfoIdHash
      * @param channelId
-     * @param channelOwner
+     * @param _channelOwner
      * @param timeOfEarliestChange
-     * @param data
+     * @param _data
      */
     private async handleChannelUpdate(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,

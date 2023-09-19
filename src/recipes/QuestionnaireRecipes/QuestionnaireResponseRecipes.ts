@@ -1,6 +1,6 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
-import type {Questionnaire} from './QuestionnaireRecipes_1_0_0';
-import {ValueRules} from './QuestionnaireRecipes_1_0_0';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
+import type {Questionnaire} from './QuestionnaireRecipes_1_0_0.js';
+import {ValueRules} from './QuestionnaireRecipes_1_0_0.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -41,7 +41,7 @@ export interface QuestionnaireResponse {
  * The rules to build a questionnaire based on FHIR
  */
 export const QuestionnaireResponseRules: RecipeRule[] = [
-    // FHIR ressource type
+    // FHIR resource type
     {
         itemprop: 'resourceType',
         itemtype: {type: 'string', regexp: /QuestionnaireResponse/}

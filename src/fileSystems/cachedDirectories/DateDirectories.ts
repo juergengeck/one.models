@@ -1,20 +1,17 @@
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import type {EasyDirectoryContent} from '../utils/EasyFileSystem';
-import type {ExtractSubDirectoryParamsT} from './utils/CachedDirectory';
-import type {ChannelIterator} from './utils/ChannelIterator';
-import type HierarchicalDirectoryFactory from './utils/HierarchicalDirectoryFactory';
-import type {IDirectory} from './utils/IDirectory';
-import {DaysDirectory} from './DaysDirectory';
-import {MonthsDirectory} from './MonthsDirectory';
-import {YearsDirectory} from './YearsDirectory';
+import type {EasyDirectoryContent} from '../utils/EasyFileSystem.js';
+import type {ExtractSubDirectoryParamsT} from './utils/CachedDirectory.js';
+import type {ChannelIterator} from './utils/ChannelIterator.js';
+import type HierarchicalDirectoryFactory from './utils/HierarchicalDirectoryFactory.js';
+import type {IDirectory} from './utils/IDirectory.js';
+import {DaysDirectory} from './DaysDirectory.js';
+import {MonthsDirectory} from './MonthsDirectory.js';
+import {YearsDirectory} from './YearsDirectory.js';
 
 /**
  * This directory generates three levels of directories:
  * <year>/<month>/<day>
  */
-export class DateDirectories<T extends OneUnversionedObjectTypes | unknown = unknown>
-    implements IDirectory
-{
+export class DateDirectories<T = unknown> implements IDirectory {
     private readonly subDirectoryFactory: HierarchicalDirectoryFactory<
         ExtractSubDirectoryParamsT<DaysDirectory>
     >;

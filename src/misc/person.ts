@@ -1,11 +1,11 @@
-import type {Keys, Person} from '@refinio/one.core/lib/recipes';
-import {exists} from '@refinio/one.core/lib/system/storage-base';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
-import {hasPersonLocalInstance} from './instance';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {exists} from '@refinio/one.core/lib/system/storage-base.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
+import {hasPersonLocalInstance} from './instance.js';
 
 /**
  * Creates a new person by creating a Person IdObject.
@@ -75,10 +75,8 @@ export async function isPersonComplete(person: SHA256IdHash<Person>): Promise<bo
     if (!(await hasDefaultKeys(person))) {
         return false;
     }
-    if (!(await hasPersonLocalInstance(person))) {
-        return false;
-    }
-    return true;
+
+    return await hasPersonLocalInstance(person);
 }
 
 /**

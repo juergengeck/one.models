@@ -1,38 +1,32 @@
 {
     "compilerOptions": {
-        "noEmit": true,
-        "outDir": "lib",
-        "isolatedModules": false,
-        "moduleResolution": "node",
-        "sourceMap": false,
-        "emitDeclarationOnly": false,
-        "declaration": true,
-        "declarationMap": true,
-        "downlevelIteration": false,
-        "importHelpers": false,
-        "esModuleInterop": true,
-        "importsNotUsedAsValues": "error",
-        "composite": true,
-        "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-        "lib": [
-            "esnext",
-            "dom"
-        ],
-        "module": "esnext",
-        "target": "esnext",
+        "allowJs": true,
         "alwaysStrict": true,
+        "baseUrl": "./",
+        "checkJs": true,
+        "composite": true,
+        "declaration": true,
+        "declarationMap": false,
+        "downlevelIteration": false,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "importHelpers": false,
+        "isolatedModules": true,
+        "lib": ["esnext", "dom"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "newLine": "LF",
+        "noEmit": true,
         "noImplicitAny": true,
         "noImplicitThis": true,
         "noImplicitReturns": true,
-        "strict": true,
-        "newLine": "LF",
-        "allowJs": true,
-        "checkJs": true,
         "removeComments": false,
-        "forceConsistentCasingInFileNames": true,
-        "baseUrl": "./",
-        "paths": {
-        }
+        "sourceMap": false,
+        "strict": true,
+        "target": "ESNext",
+        "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+        "useUnknownInCatchVariables": false,
+        "verbatimModuleSyntax": true
     },
     "references": [
         {
@@ -43,10 +37,12 @@
         }
     ],
     "include": [
+        "./@OneObjectInterfaces.d.ts",
         "*.js"
     ],
     "exclude": [
         "node_modules/one.core/src",
+        "*.bundle.js",
         ".*.js",
         "doc"
     ]

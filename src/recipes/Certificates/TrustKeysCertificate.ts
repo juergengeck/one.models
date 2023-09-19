@@ -1,8 +1,8 @@
-import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {Profile} from '../Leute/Profile';
-import type {License} from './License';
-import {registerLicense} from '../../misc/Certificates/LicenseRegistry';
+import type {Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Profile} from '../Leute/Profile.js';
+import type {License} from './License.js';
+import {registerLicense} from '../../misc/Certificates/LicenseRegistry.js';
 
 /**
  * License that declares the contained keys as trusted keys (the issuer knows that the keys belongs

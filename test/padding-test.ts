@@ -4,7 +4,7 @@ import {
     removePadding,
     addPaddingWithExtraFlags,
     removePaddingWithExtraFlags
-} from '../lib/misc/PasswordRecoveryService/padding';
+} from '../lib/misc/PasswordRecoveryService/padding.js';
 
 /**
  * This function generates indices around 2^x values.

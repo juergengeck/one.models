@@ -1,15 +1,15 @@
-import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
-import {exists} from '@refinio/one.core/lib/system/storage-base';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {exists} from '@refinio/one.core/lib/system/storage-base.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {getAllIdObjectEntries} from '@refinio/one.core/lib/reverse-map-query.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     createDefaultKeys,
     getDefaultKeys,
     hasDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
+} from '@refinio/one.core/lib/keychain/keychain.js';
 
 // ######## Local & Remote instance management ########
 

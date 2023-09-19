@@ -1,8 +1,8 @@
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {getOrCreate, isLastEntry} from '../../utils/MapUtils';
-import type {ConnectionRoutesGroup} from './ConnectionRoutesGroup';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import {getOrCreate, isLastEntry} from '../../utils/MapUtils.js';
+import type {ConnectionRoutesGroup} from './ConnectionRoutesGroup.js';
 
 export type LocalPublicKey = HexString & {
     _1: 'LocalPublicKey';

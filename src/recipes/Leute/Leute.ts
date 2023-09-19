@@ -1,6 +1,6 @@
-import type {Group, Recipe} from '@refinio/one.core/lib/recipes';
-import type {Someone} from './Someone';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Group, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {Someone} from './Someone.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 // #### Typescript interfaces ####
 

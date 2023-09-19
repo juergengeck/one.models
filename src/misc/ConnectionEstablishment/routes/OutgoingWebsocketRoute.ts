@@ -1,9 +1,9 @@
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi';
-import type Connection from '../../Connection/Connection';
-import {connectWithEncryptionUntilSuccessful} from '../protocols/EncryptedConnectionHandshake';
-import type ConnectionRoute from './ConnectionRoute';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi.js';
+import type Connection from '../../Connection/Connection.js';
+import {connectWithEncryptionUntilSuccessful} from '../protocols/EncryptedConnectionHandshake.js';
+import type ConnectionRoute from './ConnectionRoute.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 
 const MessageBus = createMessageBus('OutgoingWebsocketRoute');
 

@@ -1,13 +1,13 @@
-import {Model} from './Model';
-import type ChannelManager from './ChannelManager';
-import type {Consent_1_1_0} from '../recipes/ConsentRecipes/ConsentRecipes_1_1_0';
-import {StateMachine} from '../misc/StateMachine';
+import {Model} from './Model.js';
+import type ChannelManager from './ChannelManager.js';
+import type {Consent_1_1_0} from '../recipes/ConsentRecipes/ConsentRecipes_1_1_0.js';
+import {StateMachine} from '../misc/StateMachine.js';
 import {
     getObjectWithType,
     storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {sign} from '../misc/Signature';
-import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor';
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {sign} from '../misc/Signature.js';
+import {storeFileWithBlobDescriptor} from '../misc/storeFileWithBlobDescriptor.js';
 
 export type Consent = Consent_1_1_0;
 export const ConsentType = 'Consent_1_1_0';

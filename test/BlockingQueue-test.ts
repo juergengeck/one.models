@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-import BlockingQueue from '../lib/misc/BlockingQueue';
+
+import BlockingQueue from '../lib/misc/BlockingQueue.js';
 
 // If you set this to true, then use the experimental reverseMap Replacement 'MetaObjectMap'
 const experimentalReverseMaps = false;

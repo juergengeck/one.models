@@ -1,11 +1,13 @@
-import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
-import {
-    CommunicationEndpointTypeNameSet,
-    CommunicationEndpointTypes
-} from './CommunicationEndpoints';
-import {PersonDescriptionTypeNameSet, PersonDescriptionTypes} from './PersonDescriptions';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneObjectTypeNames, OneVersionedObjectTypeNames} from '@refinio/one.core/lib/recipes';
+import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {CommunicationEndpointTypes} from './CommunicationEndpoints.js';
+import {CommunicationEndpointTypeNameSet} from './CommunicationEndpoints.js';
+import type {PersonDescriptionTypes} from './PersonDescriptions.js';
+import {PersonDescriptionTypeNameSet} from './PersonDescriptions.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {
+    OneObjectTypeNames,
+    OneVersionedObjectTypeNames
+} from '@refinio/one.core/lib/recipes.js';
 
 // #### Typescript interfaces ####
 

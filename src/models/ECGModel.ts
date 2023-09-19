@@ -2,17 +2,17 @@
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
 
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../misc/OEvent';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
 
-import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import type ChannelManager from './ChannelManager';
-import {Model} from './Model';
+import type {Electrocardiogram, ElectrocardiogramReadings} from '../recipes/ECGRecipes.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import type ChannelManager from './ChannelManager.js';
+import {Model} from './Model.js';
 
 export default class ECGModel extends Model {
     private disconnect: (() => void) | undefined;

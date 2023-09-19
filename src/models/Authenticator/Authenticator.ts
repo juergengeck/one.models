@@ -1,15 +1,15 @@
-import {StateMachine} from '../../misc/StateMachine';
-import {OEvent} from '../../misc/OEvent';
+import {StateMachine} from '../../misc/StateMachine.js';
+import {OEvent} from '../../misc/OEvent.js';
 import type {
     Recipe,
     OneObjectTypeNames,
     OneVersionedObjectTypeNames
-} from '@refinio/one.core/lib/recipes';
-import {closeInstance} from '@refinio/one.core/lib/instance';
-import RecipesStable from '../../recipes/recipes-stable';
-import RecipesExperimental from '../../recipes/recipes-experimental';
-import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
-import {setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
+} from '@refinio/one.core/lib/recipes.js';
+import {closeInstance} from '@refinio/one.core/lib/instance.js';
+import RecipesStable from '../../recipes/recipes-stable.js';
+import RecipesExperimental from '../../recipes/recipes-experimental.js';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store.js';
+import {setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base.js';
 
 export type AuthEvent = 'login' | 'login_failure' | 'login_success' | 'logout' | 'logout_done';
 

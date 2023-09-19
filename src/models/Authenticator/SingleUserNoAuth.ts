@@ -1,14 +1,13 @@
-import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption';
-import Authenticator from './Authenticator';
+import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
     initInstance,
     registerRecipes,
     instanceExists
-} from '@refinio/one.core/lib/instance';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
+} from '@refinio/one.core/lib/instance.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign.js';
 import nacl from 'tweetnacl';
 import {toByteArray} from 'base64-js';
 
@@ -85,6 +84,7 @@ export default class SingleUserNoAuth extends Authenticator {
     /**
      * @param secretEncryptionKey
      * @param secretSignKey
+     * @param registerEmail
      */
     async registerWithKeys(
         secretEncryptionKey: Uint8Array | string,

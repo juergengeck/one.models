@@ -1,17 +1,20 @@
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import {OEvent} from '../../misc/OEvent';
-import type {Demand, MatchResponse, Supply} from '../../recipes/MatchingRecipes';
-import type ChannelManager from '../ChannelManager';
-import MatchingModel from './MatchingModel';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import {OEvent} from '../../misc/OEvent.js';
+import type {Demand, MatchResponse, Supply} from '../../recipes/MatchingRecipes.js';
+import type ChannelManager from '../ChannelManager.js';
+import MatchingModel from './MatchingModel.js';
 
 /**
  * This represents a MatchingEvents

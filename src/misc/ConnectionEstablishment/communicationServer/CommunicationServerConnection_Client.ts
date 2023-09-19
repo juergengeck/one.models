@@ -1,11 +1,11 @@
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type CommunicationServerProtocol from './CommunicationServerProtocol';
-import {isServerMessage} from './CommunicationServerProtocol';
-import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import PromisePlugin from '../../Connection/plugins/PromisePlugin';
-import Connection from '../../Connection/Connection';
-import {PongPlugin} from '../../Connection/plugins/PingPongPlugin';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type * as CommunicationServerProtocol from './CommunicationServerProtocol.js';
+import {isServerMessage} from './CommunicationServerProtocol.js';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin.js';
+import Connection from '../../Connection/Connection.js';
+import {PongPlugin} from '../../Connection/plugins/PingPongPlugin.js';
 
 /**
  * This class implements the client side of communication server communication

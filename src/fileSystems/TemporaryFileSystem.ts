@@ -10,12 +10,12 @@ import type {
     FileSystemDirectory,
     FileSystemFile,
     IFileSystem
-} from './IFileSystem';
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from './FileSystemErrors';
-import FileSystemHelpers from './FileSystemHelpers';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB} from '@refinio/one.core/lib/recipes';
+} from './IFileSystem.js';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from './FileSystemErrors.js';
+import FileSystemHelpers from './FileSystemHelpers.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
 
 /**
  * This represents a special File System that maps the given path to the specific file system implementation

@@ -1,9 +1,9 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type Connection from '../../Connection/Connection';
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import {sendPeerMessage, waitForPeerMessage} from './CommunicationInitiationProtocolMessages';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type Connection from '../../Connection/Connection.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import {sendPeerMessage, waitForPeerMessage} from './CommunicationInitiationProtocolMessages.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
 
 export type InstanceId = Pick<Instance, '$type$' | 'name' | 'owner'>;
 

@@ -1,4 +1,4 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {
     Access,
     IdAccess,
@@ -7,13 +7,13 @@ import type {
     OneVersionedObjectTypeNames,
     OneVersionedObjectTypes,
     Person
-} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
-import {calculateIdHashForStoredObj} from '@refinio/one.core/lib/microdata-to-id-hash';
-import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
-import {getOrCreate} from '../../../../utils/MapUtils';
+} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query.js';
+import {calculateIdHashForStoredObj} from '@refinio/one.core/lib/microdata-to-id-hash.js';
+import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query.js';
+import {getOrCreate} from '../../../../utils/MapUtils.js';
 
 export type AccessReasons = {
     person?: SHA256IdHash<Person>;

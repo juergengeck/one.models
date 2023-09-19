@@ -1,7 +1,7 @@
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type Connection from '../Connection/Connection';
-import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin';
-import type ConnectionRoute from './routes/ConnectionRoute';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type Connection from '../Connection/Connection.js';
+import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin.js';
+import type ConnectionRoute from './routes/ConnectionRoute.js';
 
 export type ConnectionRoutes = {route: ConnectionRoute; disabled: boolean}[];
 

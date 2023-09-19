@@ -1,5 +1,5 @@
-import type {BLOB, Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {BLOB, Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
 /**
  * @global

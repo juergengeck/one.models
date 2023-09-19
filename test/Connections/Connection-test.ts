@@ -1,14 +1,14 @@
 import {expect} from 'chai';
 import WebSocketWS from 'isomorphic-ws';
-import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import Connection from '../../lib/misc/Connection/Connection';
-import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket.js';
+import Connection from '../../lib/misc/Connection/Connection.js';
+import EncryptionPlugin from '../../lib/misc/Connection/plugins/EncryptionPlugin.js';
 import tweetnacl from 'tweetnacl';
-import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin';
-import {PingPlugin, PongPlugin} from '../../lib/misc/Connection/plugins/PingPongPlugin';
-import {wait} from '@refinio/one.core/lib/util/promise';
-import WebSocketServerPromiseBased from '../../lib/misc/ConnectionEstablishment/webSockets/WebSocketServerPromiseBased';
-//import {start} from '@refinio/one.core/lib/logger';
+import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin.js';
+import {PingPlugin, PongPlugin} from '../../lib/misc/Connection/plugins/PingPongPlugin.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+import WebSocketServerPromiseBased from '../../lib/misc/ConnectionEstablishment/webSockets/WebSocketServerPromiseBased.js';
+//import {start} from '@refinio/one.core/lib/logger.js';
 //start({includeTimestamp: true});
 
 describe('Connection test', () => {

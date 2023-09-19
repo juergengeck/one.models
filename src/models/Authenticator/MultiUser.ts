@@ -1,11 +1,11 @@
-import Authenticator from './Authenticator';
+import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
     instanceExists,
     registerRecipes
-} from '@refinio/one.core/lib/instance';
+} from '@refinio/one.core/lib/instance.js';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.

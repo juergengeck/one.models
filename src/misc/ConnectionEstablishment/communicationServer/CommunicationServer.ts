@@ -1,22 +1,22 @@
 import WebSocketWS from 'isomorphic-ws';
 import tweetnacl from 'tweetnacl';
-import CommunicationServerConnection_Server from './CommunicationServerConnection_Server';
-import {isClientMessage} from './CommunicationServerProtocol';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import WebSocketListener from '../webSockets/WebSocketListener';
+import CommunicationServerConnection_Server from './CommunicationServerConnection_Server.js';
+import {isClientMessage} from './CommunicationServerProtocol.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import WebSocketListener from '../webSockets/WebSocketListener.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from '../../Connection/Connection';
-import PromisePlugin from '../../Connection/plugins/PromisePlugin';
-import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type Connection from '../../Connection/Connection.js';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin.js';
+import type {KeyPair} from '@refinio/one.core/lib/crypto/encryption.js';
 import {
     createKeyPair,
     decryptWithEmbeddedNonce,
     encryptAndEmbedNonce,
     ensurePublicKey
-} from '@refinio/one.core/lib/crypto/encryption';
+} from '@refinio/one.core/lib/crypto/encryption.js';
 
 const MessageBus = createMessageBus('CommunicationServer');
 

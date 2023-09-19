@@ -1,18 +1,18 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
-import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes';
-import type ChannelManager from '../ChannelManager';
-import type {ObjectData, RawChannelEntry} from '../ChannelManager';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {OEvent} from '../../misc/OEvent';
-import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor';
-import BlobCollectionModel from '../BlobCollectionModel';
-import type {BlobDescriptor} from '../BlobCollectionModel';
-import {BlobDescriptorRecipe} from '../../recipes/BlobRecipes';
-import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes';
-import type LeuteModel from '../Leute/LeuteModel';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../../recipes/ChannelRecipes.js';
+import type {ChatMessage as OneChatMessage, Topic} from '../../recipes/ChatRecipes.js';
+import type ChannelManager from '../ChannelManager.js';
+import type {ObjectData, RawChannelEntry} from '../ChannelManager.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {OEvent} from '../../misc/OEvent.js';
+import {storeFileWithBlobDescriptor} from '../../misc/storeFileWithBlobDescriptor.js';
+import BlobCollectionModel from '../BlobCollectionModel.js';
+import type {BlobDescriptor} from '../BlobCollectionModel.js';
+import {BlobDescriptorRecipe} from '../../recipes/BlobRecipes.js';
+import type {BlobDescriptor as OneBlobDescriptor} from '../../recipes/BlobRecipes.js';
+import type LeuteModel from '../Leute/LeuteModel.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 export interface ChatMessage extends Omit<OneChatMessage, 'attachments' | 'thumbnails'> {
     attachments: (BlobDescriptor | SHA256Hash)[];

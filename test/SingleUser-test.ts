@@ -1,11 +1,12 @@
-import type {AuthState} from '../lib/models/Authenticator/Authenticator';
-import {SingleUser} from '../lib/models/Authenticator';
-
-import {defaultDbName} from './_helpers';
+import {defaultDbName} from './_helpers.js';
 import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+
+import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
+import SingleUser from '../lib/models/Authenticator/SingleUser.js';
+
 chai.use(chaiAsPromised);
 
 // @todo The input wrong secret tests are skipped for now because initInstance is not throwing
@@ -27,7 +28,7 @@ describe('SingleUser Test', () => {
                 });
             }
             setTimeout(() => {
-                rejected('The desired state did not showed up.');
+                rejected(new Error('The desired state did not showed up.'));
             }, delay);
         });
     }

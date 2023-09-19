@@ -1,11 +1,14 @@
-import {SingleUserNoAuth} from '../lib/models/Authenticator';
-import type {AuthState} from '../lib/models/Authenticator/Authenticator';
-import {defaultDbName} from './_helpers';
+import {defaultDbName} from './_helpers.js';
 import {mkdir} from 'fs/promises';
 
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+
+import SingleUserNoAuth from '../lib/models/Authenticator/SingleUserNoAuth.js';
+import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
+
 chai.use(chaiAsPromised);
 
 const {expect} = chai;
@@ -23,7 +26,7 @@ describe('SingleUserNoAuth Test', () => {
                 });
             }
             setTimeout(() => {
-                rejected('The desired state did not showed up.');
+                rejected(new Error('The desired state did not showed up.'));
             }, delay);
         });
     }

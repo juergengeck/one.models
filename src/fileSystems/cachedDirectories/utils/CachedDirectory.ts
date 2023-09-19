@@ -1,7 +1,7 @@
-import type {EasyDirectoryContent} from '../../utils/EasyFileSystem';
-import type {IDirectory} from './IDirectory';
-import HierarchicalDirectoryFactory from './HierarchicalDirectoryFactory';
-import {IteratorValueCache} from './IteratorValueCache';
+import type {EasyDirectoryContent} from '../../utils/EasyFileSystem.js';
+import type {IDirectory} from './IDirectory.js';
+import HierarchicalDirectoryFactory from './HierarchicalDirectoryFactory.js';
+import {IteratorValueCache} from './IteratorValueCache.js';
 
 /**
  * Extracts the SubDirectoryParamsT from a CachedDirectory.

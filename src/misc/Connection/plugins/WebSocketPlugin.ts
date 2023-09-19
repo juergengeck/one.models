@@ -1,12 +1,13 @@
 // noinspection JSMethodCanBeStatic
 
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import ConnectionPlugin, {
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {
     ConnectionClosedEvent,
     ConnectionIncomingEvent,
     ConnectionOutgoingEvent,
     EventCreationFunctions
-} from '../ConnectionPlugin';
+} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
 const MessageBus = createMessageBus('WebSocketPromiseBased');
 
 /**
@@ -94,7 +95,7 @@ export default class WebSocketPlugin extends ConnectionPlugin {
             webSocket.readyState === webSocket.CLOSING ||
             webSocket.readyState === webSocket.CLOSED
         ) {
-            this.setClosedReasonOnce(`Websocket was already closed`, 'local');
+            this.setClosedReasonOnce('Websocket was already closed', 'local');
             this.sendClosedEvent();
         }
     }
@@ -263,7 +264,7 @@ export default class WebSocketPlugin extends ConnectionPlugin {
         const webSocket = this.assertNotDetached();
 
         if (webSocket.readyState === webSocket.CONNECTING) {
-            throw new Error(`The websocket was not opened, yet.`);
+            throw new Error('The websocket was not opened, yet.');
         }
 
         if (webSocket.readyState !== webSocket.OPEN) {

@@ -1,34 +1,34 @@
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
-import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {LeuteModel} from '../../models';
-import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin';
-import {castToLocalPublicKey, castToRemotePublicKey} from './ConnectionRoutesGroupMap';
-import type {LocalPublicKey} from './ConnectionRoutesGroupMap';
-import ConnectionRouteManager from './ConnectionRouteManager';
-import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds';
-import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds';
-import {OEvent} from '../OEvent';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Person} from '@refinio/one.core/lib/recipes';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public.js';
+import {storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type LeuteModel from '../../models/Leute/LeuteModel.js';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
+import type {ConnectionStatistics} from '../Connection/plugins/StatisticsPlugin.js';
+import {castToLocalPublicKey, castToRemotePublicKey} from './ConnectionRoutesGroupMap.js';
+import type {LocalPublicKey} from './ConnectionRoutesGroupMap.js';
+import ConnectionRouteManager from './ConnectionRouteManager.js';
+import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds.js';
+import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds.js';
+import {OEvent} from '../OEvent.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Instance, Person} from '@refinio/one.core/lib/recipes.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     ensureHexString,
     hexToUint8Array
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from '../Connection/Connection';
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type Connection from '../Connection/Connection.js';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys,
     getListOfKeys
-} from '@refinio/one.core/lib/keychain/keychain';
-import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance';
-import {isPersonComplete} from '../person';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from '@refinio/one.core/lib/keychain/keychain.js';
+import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance.js';
+import {isPersonComplete} from '../person.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 const MessageBus = createMessageBus('CommunicationModule');
 

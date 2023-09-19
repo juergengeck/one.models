@@ -1,5 +1,5 @@
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type Connection from '../../Connection/Connection';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type Connection from '../../Connection/Connection.js';
 const MessageBus = createMessageBus('protocols/ExchangeConnectionGroupName');
 
 export type ConnectionGroupMessage = {

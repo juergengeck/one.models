@@ -1,16 +1,17 @@
-import type LeuteModel from '../models/Leute/LeuteModel';
-import type {ChannelManager, TopicModel} from '../models';
-import {BlobCollectionModel} from '../models';
-import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
-import EasyFileSystem from './utils/EasyFileSystem';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {OneObjectTypes} from '@refinio/one.core/lib/recipes';
-import type {ChatMessage} from '../recipes/ChatRecipes';
-import type {ObjectData} from '../models/ChannelManager';
-import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import type Notifications from '../models/Notifications';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type LeuteModel from '../models/Leute/LeuteModel.js';
+import type ChannelManager from '../models/ChannelManager.js';
+import type TopicModel from '../models/Chat/TopicModel.js';
+import BlobCollectionModel from '../models/BlobCollectionModel.js';
+import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem.js';
+import EasyFileSystem from './utils/EasyFileSystem.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {OneObjectTypes} from '@refinio/one.core/lib/recipes.js';
+import type {ChatMessage} from '../recipes/ChatRecipes.js';
+import type {ObjectData} from '../models/ChannelManager.js';
+import {readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base.js';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
+import type Notifications from '../models/Notifications.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 const emojiNumberMap = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '*️⃣'];
 

@@ -1,20 +1,20 @@
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum';
-import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum.js';
+import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages.js';
 import type {
     ConnectionInfo,
     ConnectionInfoId
-} from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
-import LeuteConnectionsModule from '../misc/ConnectionEstablishment/LeuteConnectionsModule';
-import {acceptDebugRequest} from '../misc/ConnectionEstablishment/protocols/Debug';
-import {OEvent} from '../misc/OEvent';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type LeuteModel from './Leute/LeuteModel';
-import {Model} from './Model';
-import type Connection from '../misc/Connection/Connection';
-import PairingManager from '../misc/ConnectionEstablishment/PairingManager';
+} from '../misc/ConnectionEstablishment/LeuteConnectionsModule.js';
+import LeuteConnectionsModule from '../misc/ConnectionEstablishment/LeuteConnectionsModule.js';
+import {acceptDebugRequest} from '../misc/ConnectionEstablishment/protocols/Debug.js';
+import {OEvent} from '../misc/OEvent.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type LeuteModel from './Leute/LeuteModel.js';
+import {Model} from './Model.js';
+import type Connection from '../misc/Connection/Connection.js';
+import PairingManager from '../misc/ConnectionEstablishment/PairingManager.js';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 

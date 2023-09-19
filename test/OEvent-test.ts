@@ -1,9 +1,11 @@
-import TestModel from './utils/TestModel';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
 import {expect} from 'chai';
-import * as StorageTestInit from './_helpers';
-import {EventTypes, OEvent} from '../lib/misc/OEvent';
-import {wait} from '@refinio/one.core/lib/util/promise';
+
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+
+import {EventTypes, OEvent} from '../lib/misc/OEvent.js';
+import TestModel from './utils/TestModel.js';
+import * as StorageTestInit from './_helpers.js';
 
 let testModel: TestModel;
 
@@ -162,9 +164,12 @@ describe('OEvent test', () => {
                 }, 3 * 100);
             });
         });
-        onEvent.emitAll().then(() => {
-            promiseSettled = true;
-        });
+        onEvent
+            .emitAll()
+            .then(() => {
+                promiseSettled = true;
+            })
+            .catch(err => console.error(err));
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
         expect(handlerCalled3).to.be.equal(false);
@@ -226,9 +231,12 @@ describe('OEvent test', () => {
                 }, 5 * 100);
             });
         });
-        onStringEvent.emitAll().then(() => {
-            promiseSettled = true;
-        });
+        onStringEvent
+            .emitAll()
+            .then(() => {
+                promiseSettled = true;
+            })
+            .catch(err => console.error(err));
         await wait(200);
         expect(handlerCalled1).to.be.equal(false);
         expect(handlerCalled2).to.be.equal(false);
@@ -272,9 +280,12 @@ describe('OEvent test', () => {
             });
         });
 
-        onStringEvent.emitRace().then(() => {
-            emitPromiseSettled = true;
-        });
+        onStringEvent
+            .emitRace()
+            .then(() => {
+                emitPromiseSettled = true;
+            })
+            .catch(err => console.error(err));
         expect(emitPromiseSettled).to.be.equal(false);
 
         // one of the handlers finished execution
@@ -293,9 +304,9 @@ describe('OEvent test', () => {
         let emitPromiseRejected = false;
         let secondHandlerExecuted = false;
         const disconnect1 = onStringEvent(() => {
-            return new Promise<void>((resolve, reject) => {
+            return new Promise<void>((_resolve, reject) => {
                 setTimeout(() => {
-                    reject('This is the reject reason');
+                    reject(new Error('This is the reject reason'));
                 }, 2 * 100);
             });
         });
@@ -345,10 +356,10 @@ describe('OEvent test', () => {
             });
         });
         const disconnect2 = onStringEvent(() => {
-            return new Promise<void>((resolve, reject) => {
+            return new Promise<void>((_resolve, reject) => {
                 setTimeout(() => {
                     handlerCalled2 = true;
-                    reject('Second handler rejected');
+                    reject(new Error('Second handler rejected'));
                 }, 2 * 100);
             });
         });
@@ -393,19 +404,19 @@ describe('OEvent test', () => {
         let onStopListenListenerCalled = 0;
 
         const disconnectOnListenListener1 = onEvent.onListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onListenListenerCalled1++;
             });
         });
 
         const disconnectOnListenListener2 = onEvent.onListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onListenListenerCalled2++;
             });
         });
 
         const disconnectOnStopListenListener = onEvent.onStopListen(() => {
-            return new Promise<void>(resolve => {
+            return new Promise<void>(_resolve => {
                 onStopListenListenerCalled++;
             });
         });

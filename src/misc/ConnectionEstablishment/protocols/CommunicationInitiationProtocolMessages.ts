@@ -1,13 +1,13 @@
 /**
  * Protocol that defines messages used to initiate communication / routing of connections.
  */
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from '../../Connection/Connection';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Keys, Person} from '@refinio/one.core/lib/recipes';
-import type {Identity} from '../../IdentityExchange';
-import {isIdentity} from '../../IdentityExchange';
-import {isHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type Connection from '../../Connection/Connection.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import type {Identity} from '../../IdentityExchange.js';
+import {isIdentity} from '../../IdentityExchange.js';
+import {isHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import type {OneIdObjectInterfaces} from '@OneObjectInterfaces';
 
 // ######## Message / command definition ########

@@ -12,7 +12,7 @@ export default class WebSocketServerPromiseBased {
     public webSocketServer: WebSocketWS.Server | null; // The web socket server instance
     private acceptConnectionFn: (() => void) | null; // The function that is used to resolve the promise in waitForConnection call.
     private lastConnection: WebSocket | null; // The last accepted connection that is pending collection (by a waitForConnection call).
-    private deregisterHandlers: () => void; // function that deregisters all event handler registered on the websocket server.
+    private readonly deregisterHandlers: () => void; // function that deregisters all event handler registered on the websocket server.
 
     /**
      * Constructs the convenience wrapper around the passed websoket server instance.
@@ -66,8 +66,17 @@ export default class WebSocketServerPromiseBased {
             return lastConnection;
         }
 
+        // TODO Text copied from Skype chat with Erik:
+        //   Es kann sein, dass der nie auflöst wenn man den websocket listener zumacht. Machen
+        //   wir nur im shutdown auf node (wo anders gehts eh nicht) um das richtig zu machen
+        //   muss man ein shutdown in die klasse reinmachen und das dann rejecten und das
+        //   shutdown überall richtig verwendetn usw. Hab da jetzt keine Zeit dafür, aber du
+        //   hast recht
+        //   Und das machen wir aktuell nirgends in der app
+        //   Ist nur für direkte Verbindungen die das promise interface verwenden, ich glaub das
+        //   ist das debug script die app benutzt glaub das event interface (aber nicht sicher)
         // Otherwise wait for a connection to be established
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _reject) => {
             this.acceptConnectionFn = () => {
                 this.acceptConnectionFn = null;
                 if (this.lastConnection) {

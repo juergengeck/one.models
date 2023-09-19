@@ -1,20 +1,20 @@
-import JournalModel from './JournalModel';
-import QuestionnaireModel from './QuestionnaireModel';
-import WbcDiffModel from './WbcDiffModel';
-import DocumentModel from './DocumentModel';
-import BodyTemperatureModel from './BodyTemperatureModel';
-import DiaryModel from './DiaryModel';
-import NewsModel from './NewsModel';
-import ChannelManager from './ChannelManager';
-import PropertyTreeStore, {PropertyTree} from './SettingsModel';
-import AccessModel from './AccessModel';
-import BlobCollectionModel from './BlobCollectionModel';
-import ECGModel from './ECGModel';
-import HeartEventModel from './HeartEventModel';
-import ConnectionsModel from './ConnectionsModel';
-import LeuteModel from './Leute/LeuteModel';
-import TopicModel from './Chat/TopicModel';
-import ConsentModel from './ConsentModel';
+import JournalModel from './JournalModel.js';
+import QuestionnaireModel from './QuestionnaireModel.js';
+import WbcDiffModel from './WbcDiffModel.js';
+import DocumentModel from './DocumentModel.js';
+import BodyTemperatureModel from './BodyTemperatureModel.js';
+import DiaryModel from './DiaryModel.js';
+import NewsModel from './NewsModel.js';
+import ChannelManager from './ChannelManager.js';
+import PropertyTreeStore, {PropertyTree} from './SettingsModel.js';
+import AccessModel from './AccessModel.js';
+import BlobCollectionModel from './BlobCollectionModel.js';
+import ECGModel from './ECGModel.js';
+import HeartEventModel from './HeartEventModel.js';
+import ConnectionsModel from './ConnectionsModel.js';
+import LeuteModel from './Leute/LeuteModel.js';
+import TopicModel from './Chat/TopicModel.js';
+import ConsentModel from './ConsentModel.js';
 
 /** for one line imports **/
 export {
