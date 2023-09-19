@@ -35,7 +35,6 @@
     },
     "dependencies": {
         "@refinio/one.core": "github:refinio/one.core",
-        "@refinio/one.models": "github:refinio/one.models#new_core_esm",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
