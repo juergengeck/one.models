@@ -34,7 +34,7 @@
         "enable-source-maps": true
     },
     "dependencies": {
-        "@refinio/one.core": "github:refinio/one.core",
+        "@refinio/one.core": "^0.5.6",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
