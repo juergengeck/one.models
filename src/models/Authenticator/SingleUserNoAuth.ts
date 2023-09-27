@@ -113,9 +113,8 @@ export default class SingleUserNoAuth extends Authenticator {
 
             const secretSignKeyUint8Array =
                 typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
-            const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
-                secretEncryptionKeyUint8Array
-            ).publicKey;
+            const publicSignKeyUint8Array =
+                nacl.sign.keyPair.fromSecretKey(secretSignKeyUint8Array).publicKey;
 
             await initInstance({
                 name: instanceName,
