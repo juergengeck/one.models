@@ -39,11 +39,15 @@ export default class SingleUserNoAuth extends Authenticator {
      *      - if yes, it will trigger the 'login_success' event
      *      - if no, it will throw error and trigger 'login_failure' event
      */
-    async register(registerEmail?: string): Promise<void> {
+    async register(registerData?: {
+        email?: string;
+        instanceName?: string;
+        secret?: string;
+    }): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {instanceName, email, secret} = registerEmail
-            ? await this.generateCredentialsWithEmailIfNotExist(registerEmail)
+        const {instanceName, email, secret} = registerData
+            ? await this.generateCredentialsWithDataIfNotExist(registerData)
             : await this.generateCredentialsIfNotExist();
 
         if (await instanceExists(instanceName, email)) {
@@ -84,17 +88,21 @@ export default class SingleUserNoAuth extends Authenticator {
     /**
      * @param secretEncryptionKey
      * @param secretSignKey
-     * @param registerEmail
+     * @param registerData
      */
     async registerWithKeys(
         secretEncryptionKey: Uint8Array | string,
         secretSignKey: Uint8Array | string,
-        registerEmail?: string
+        registerData?: {
+            email?: string;
+            instanceName?: string;
+            secret?: string;
+        }
     ): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {instanceName, email, secret} = registerEmail
-            ? await this.generateCredentialsWithEmailIfNotExist(registerEmail)
+        const {instanceName, email, secret} = registerData
+            ? await this.generateCredentialsWithDataIfNotExist(registerData)
             : await this.generateCredentialsIfNotExist();
 
         if (await instanceExists(instanceName, email)) {
@@ -310,13 +318,17 @@ export default class SingleUserNoAuth extends Authenticator {
         return credentialsFromStore;
     }
 
-    private async generateCredentialsWithEmailIfNotExist(email: string): Promise<Credentials> {
+    private async generateCredentialsWithDataIfNotExist(data: {
+        email?: string;
+        instanceName?: string;
+        secret?: string;
+    }): Promise<Credentials> {
         const credentialsFromStore = await this.retrieveCredentialsFromStore();
         if (credentialsFromStore === undefined) {
             const generatedCredentials = {
-                email: email,
-                instanceName: await createRandomString(64),
-                secret: await createRandomString(64)
+                email: data.email ? data.email : await createRandomString(64),
+                instanceName: data.instanceName ? data.instanceName : await createRandomString(64),
+                secret: data.secret ? data.secret : await createRandomString(64)
             };
             await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;
