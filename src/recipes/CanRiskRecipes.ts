@@ -1,5 +1,5 @@
-import type {Person, Recipe} from '@refinio/one.core/lib/recipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
+import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
