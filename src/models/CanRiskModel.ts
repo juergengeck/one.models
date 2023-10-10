@@ -41,7 +41,7 @@ export default class CanRiskModel extends Model {
         this.disconnects.push(this.channelManager.onUpdated(this.handleOnUpdated.bind(this)));
     }
 
-    shutdown(): Promise<void> {
+    async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
         for (const disconnect of this.disconnects) {
             disconnect();
