@@ -1,4 +1,4 @@
-import MultiPromise from './MultiPromise';
+import MultiPromise from './MultiPromise.js';
 
 /**
  * A queue implementation where the reader promises block until new data is available.

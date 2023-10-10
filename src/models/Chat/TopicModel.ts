@@ -1,22 +1,21 @@
-import {createAccess} from '@refinio/one.core/lib/access';
-import type {Group, Person} from '@refinio/one.core/lib/recipes';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import {OEvent} from '../../misc/OEvent';
-import type {ChannelInfo} from '../../recipes/ChannelRecipes';
-import type {Topic} from '../../recipes/ChatRecipes';
-import type ChannelManager from '../ChannelManager';
-import LeuteModel from '../Leute/LeuteModel';
-import {Model} from '../Model';
-import TopicRegistry from './TopicRegistry';
-import TopicRoom from './TopicRoom';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import {OEvent} from '../../misc/OEvent.js';
+import type {Topic} from '../../recipes/ChatRecipes.js';
+import type ChannelManager from '../ChannelManager.js';
+import LeuteModel from '../Leute/LeuteModel.js';
+import {Model} from '../Model.js';
+import TopicRegistry from './TopicRegistry.js';
+import TopicRoom from './TopicRoom.js';
 
 /**
  * Model that manages the creation of chat topics.

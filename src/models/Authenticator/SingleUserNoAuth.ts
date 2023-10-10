@@ -1,14 +1,13 @@
-import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption';
-import Authenticator from './Authenticator';
+import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
     initInstance,
     registerRecipes,
     instanceExists
-} from '@refinio/one.core/lib/instance';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {hexToUint8ArrayWithCheck} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign';
+} from '@refinio/one.core/lib/instance.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign.js';
 import nacl from 'tweetnacl';
 import {toByteArray} from 'base64-js';
 
@@ -40,10 +39,16 @@ export default class SingleUserNoAuth extends Authenticator {
      *      - if yes, it will trigger the 'login_success' event
      *      - if no, it will throw error and trigger 'login_failure' event
      */
-    async register(): Promise<void> {
+    async register(registerData?: {
+        email?: string;
+        instanceName?: string;
+        secret?: string;
+    }): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
+        const {instanceName, email, secret} = registerData
+            ? await this.generateCredentialsWithDataIfNotExist(registerData)
+            : await this.generateCredentialsIfNotExist();
 
         if (await instanceExists(instanceName, email)) {
             this.authState.triggerEvent('login_failure');
@@ -83,14 +88,22 @@ export default class SingleUserNoAuth extends Authenticator {
     /**
      * @param secretEncryptionKey
      * @param secretSignKey
+     * @param registerData
      */
     async registerWithKeys(
         secretEncryptionKey: Uint8Array | string,
-        secretSignKey: Uint8Array | string
+        secretSignKey: Uint8Array | string,
+        registerData?: {
+            email?: string;
+            instanceName?: string;
+            secret?: string;
+        }
     ): Promise<void> {
         this.authState.triggerEvent('login');
 
-        const {instanceName, email, secret} = await this.generateCredentialsIfNotExist();
+        const {instanceName, email, secret} = registerData
+            ? await this.generateCredentialsWithDataIfNotExist(registerData)
+            : await this.generateCredentialsIfNotExist();
 
         if (await instanceExists(instanceName, email)) {
             this.authState.triggerEvent('login_failure');
@@ -108,9 +121,8 @@ export default class SingleUserNoAuth extends Authenticator {
 
             const secretSignKeyUint8Array =
                 typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
-            const publicSignKeyUint8Array = nacl.box.keyPair.fromSecretKey(
-                secretEncryptionKeyUint8Array
-            ).publicKey;
+            const publicSignKeyUint8Array =
+                nacl.sign.keyPair.fromSecretKey(secretSignKeyUint8Array).publicKey;
 
             await initInstance({
                 name: instanceName,
@@ -298,6 +310,24 @@ export default class SingleUserNoAuth extends Authenticator {
                 email: await createRandomString(64),
                 instanceName: await createRandomString(64),
                 secret: await createRandomString(64)
+            };
+            await this.persistCredentialsToStore(generatedCredentials);
+            return generatedCredentials;
+        }
+        return credentialsFromStore;
+    }
+
+    private async generateCredentialsWithDataIfNotExist(data: {
+        email?: string;
+        instanceName?: string;
+        secret?: string;
+    }): Promise<Credentials> {
+        const credentialsFromStore = await this.retrieveCredentialsFromStore();
+        if (credentialsFromStore === undefined) {
+            const generatedCredentials = {
+                email: data.email ? data.email : await createRandomString(64),
+                instanceName: data.instanceName ? data.instanceName : await createRandomString(64),
+                secret: data.secret ? data.secret : await createRandomString(64)
             };
             await this.persistCredentialsToStore(generatedCredentials);
             return generatedCredentials;

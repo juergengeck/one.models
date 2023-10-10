@@ -1,10 +1,10 @@
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type CommunicationServerProtocol from './CommunicationServerProtocol';
-import {isClientMessage} from './CommunicationServerProtocol';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type Connection from '../../Connection/Connection';
-import {PingPlugin} from '../../Connection/plugins/PingPongPlugin';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type * as CommunicationServerProtocol from './CommunicationServerProtocol.js';
+import {isClientMessage} from './CommunicationServerProtocol.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type Connection from '../../Connection/Connection.js';
+import {PingPlugin} from '../../Connection/plugins/PingPongPlugin.js';
 
 const MessageBus = createMessageBus('CommunicationServerConnection_Server');
 
@@ -84,7 +84,7 @@ class CommunicationServerConnection_Server {
     /**
      * Send authentication request message.
      *
-     * @param publicKey - the publicKey of the commserver
+     * @param publicKey - the publicKey of the communication server
      * @param challenge - the challenge that has to be decrypted by the receiver
      *                    and sent back in an authentication response message
      */

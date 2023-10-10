@@ -1,10 +1,10 @@
 import {expect} from 'chai';
 
-import {buildTestFile, init} from './_helpers';
-import ConsentModel from '../lib/models/ConsentModel';
-import TestModel from './utils/TestModel';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
-import {getObjectWithType} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {buildTestFile, init} from './_helpers.js';
+import ConsentModel from '../lib/models/ConsentModel.js';
+import TestModel from './utils/TestModel.js';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
+import {getObjectWithType} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 let testModel: TestModel;
 

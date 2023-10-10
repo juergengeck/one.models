@@ -1,5 +1,5 @@
-import type {ObjectValue, RecipeRule} from '@refinio/one.core/lib/recipes';
-import {clone} from '@refinio/one.core/lib/util/clone-object';
+import type {ObjectValue, RecipeRule} from '@refinio/one.core/lib/recipes.js';
+import {clone} from '@refinio/one.core/lib/util/clone-object.js';
 
 // ######## Modifying functions ########
 /**

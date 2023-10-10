@@ -1,13 +1,13 @@
 import {expect} from 'chai';
 import {readFile} from 'fs/promises';
-import * as StorageTestInit from './_helpers';
-import TestModel from './utils/TestModel';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import * as StorageTestInit from './_helpers.js';
+import TestModel from './utils/TestModel.js';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import path from 'path';
 import {statSync} from 'fs';
-import TopicModel from '../lib/models/Chat/TopicModel';
-import TopicRoom from '../lib/models/Chat/TopicRoom';
-import type {BlobDescriptor} from '../lib/models/BlobCollectionModel';
+import TopicModel from '../lib/models/Chat/TopicModel.js';
+import TopicRoom from '../lib/models/Chat/TopicRoom.js';
+import type {BlobDescriptor} from '../lib/models/BlobCollectionModel.js';
 
 function buildTestFile(): File {
     const filePath = './test/consent.pdf';

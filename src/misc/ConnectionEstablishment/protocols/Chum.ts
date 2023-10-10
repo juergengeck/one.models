@@ -1,10 +1,10 @@
-import {createChum} from '@refinio/one.core/lib/chum-sync';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier';
+import {createChum} from '@refinio/one.core/lib/chum-sync.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {createWebsocketPromisifier} from '@refinio/one.core/lib/websocket-promisifier.js';
 
 const MessageBus = createMessageBus('Protocols/StartChum');
 
@@ -22,9 +22,9 @@ const MessageBus = createMessageBus('Protocols/StartChum');
  * @param initiatedLocally
  * @param keepRunning
  */
-import type Connection from '../../Connection/Connection';
-import type {OEvent} from '../../OEvent';
-import type {Protocols} from './CommunicationInitiationProtocolMessages';
+import type Connection from '../../Connection/Connection.js';
+import type {OEvent} from '../../OEvent.js';
+import type {Protocols} from './CommunicationInitiationProtocolMessages.js';
 
 export async function startChumProtocol(
     conn: Connection,

@@ -4,7 +4,7 @@ import {
     createRecoveryInformation,
     recoverSecretAsString,
     unpackRecoveryInformation
-} from '../lib/misc/PasswordRecoveryService/PasswordRecovery';
+} from '../lib/misc/PasswordRecoveryService/PasswordRecovery.js';
 
 describe('Password recovery test', () => {
     beforeEach(async () => {});

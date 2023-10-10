@@ -1,11 +1,11 @@
 import tweetnacl from 'tweetnacl';
-import {addPadding, removePadding} from './padding';
+import {addPadding, removePadding} from './padding.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
-    HexString,
     hexToUint8Array,
     isHexString,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 
 const secretBoxZeroNonce = new Uint8Array(tweetnacl.secretbox.nonceLength);
 const boxZeroNonce = new Uint8Array(tweetnacl.box.nonceLength);

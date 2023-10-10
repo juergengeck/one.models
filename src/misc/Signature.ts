@@ -1,22 +1,22 @@
-import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
-import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
+import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign.js';
+import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
 import tweetnacl from 'tweetnacl';
-import type {Signature} from '../recipes/SignatureRecipes';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {Signature} from '../recipes/SignatureRecipes.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectWithType,
     storeUnversionedObject
-} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 
 /**
  * Sign an object with my own key.

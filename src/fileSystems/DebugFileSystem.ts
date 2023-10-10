@@ -1,10 +1,11 @@
-import type ConnectionsModel from '../models/ConnectionsModel';
-import type {LeuteModel} from '../models';
-import {prettifySomeoneWithKeysAndInstances} from './utils/DebugDataFormatters';
-import type {EasyDirectoryEntry} from './utils/EasyFileSystem';
-import EasyFileSystem from './utils/EasyFileSystem';
-import type {Topic} from '../recipes/ChatRecipes';
-import type {ChannelManager, TopicModel} from '../models';
+import type ConnectionsModel from '../models/ConnectionsModel.js';
+import type LeuteModel from '../models/Leute/LeuteModel.js';
+import {prettifySomeoneWithKeysAndInstances} from './utils/DebugDataFormatters.js';
+import type {EasyDirectoryEntry} from './utils/EasyFileSystem.js';
+import EasyFileSystem from './utils/EasyFileSystem.js';
+import type {Topic} from '../recipes/ChatRecipes.js';
+import type ChannelManager from '../models/ChannelManager.js';
+import type TopicModel from '../models/Chat/TopicModel.js';
 
 /**
  * This file systems provides debugging information about connections, channels identities,

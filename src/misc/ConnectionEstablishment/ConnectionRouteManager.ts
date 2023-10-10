@@ -1,25 +1,25 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi';
-import IncomingConnectionManager from './IncomingConnectionManager';
-import type {LocalPublicKey} from './ConnectionRoutesGroupMap';
-import ConnectionRoutesGroupMap, {castToLocalPublicKey} from './ConnectionRoutesGroupMap';
-import OutgoingWebsocketRoute from './routes/OutgoingWebsocketRoute';
-import IncomingWebsocketRouteDirect from './routes/IncomingWebsocketRouteDirect';
-import IncomingWebsocketRouteCommServer from './routes/IncomingWebsocketRouteCommServer';
-import type Connection from '../Connection/Connection';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi.js';
+import IncomingConnectionManager from './IncomingConnectionManager.js';
+import type {LocalPublicKey} from './ConnectionRoutesGroupMap.js';
+import ConnectionRoutesGroupMap, {castToLocalPublicKey} from './ConnectionRoutesGroupMap.js';
+import OutgoingWebsocketRoute from './routes/OutgoingWebsocketRoute.js';
+import IncomingWebsocketRouteDirect from './routes/IncomingWebsocketRouteDirect.js';
+import IncomingWebsocketRouteCommServer from './routes/IncomingWebsocketRouteCommServer.js';
+import type Connection from '../Connection/Connection.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {ConnectionRoutesGroup, ConnectionRoutes} from './ConnectionRoutesGroup';
-import {OEvent} from '../OEvent';
-import {getOrCreate} from '../../utils/MapUtils';
-import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName';
-import {sync} from './protocols/Sync';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {ConnectionRoutesGroup, ConnectionRoutes} from './ConnectionRoutesGroup.js';
+import {OEvent} from '../OEvent.js';
+import {getOrCreate} from '../../utils/MapUtils.js';
+import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName.js';
+import {sync} from './protocols/Sync.js';
 
 const MessageBus = createMessageBus('CommunicatonModule');
 

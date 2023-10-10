@@ -1,20 +1,20 @@
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import type {Invitation} from '../misc/ConnectionEstablishment/PairingManager';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import type {Invitation} from '../misc/ConnectionEstablishment/PairingManager.js';
 import type {
     FileDescription,
     FileSystemDirectory,
     FileSystemFile,
     IFileSystem
-} from './IFileSystem';
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from './FileSystemErrors';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB} from '@refinio/one.core/lib/recipes';
+} from './IFileSystem.js';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from './FileSystemErrors.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
 import qrcode from 'qrcode';
-import type ConnectionsModel from '../models/ConnectionsModel';
-import type IoMManager from '../models/IoM/IoMManager';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
+import type ConnectionsModel from '../models/ConnectionsModel.js';
+import type IoMManager from '../models/IoM/IoMManager.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
 
 /**
  * This file systems provides pairing information so that other instances can pair to this instance.
@@ -284,7 +284,7 @@ export default class PairingFileSystem implements IFileSystem {
      *
      * @param path
      */
-    private async getNoWritePermissionError(path: string): Promise<Object> {
+    private async getNoWritePermissionError(path: string): Promise<Error> {
         if (await this.exists(path)) {
             return createError('FSE-ENOENT', {
                 message: FS_ERRORS['FSE-ENOENT'].message,

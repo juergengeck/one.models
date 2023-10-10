@@ -1,10 +1,12 @@
-import type {AuthState} from '../lib/models/Authenticator/Authenticator';
-import {MultiUser} from '../lib/models/Authenticator';
-import {defaultDbName} from './_helpers';
 import {mkdir} from 'fs/promises';
-
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+
+import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
+import MultiUser from '../lib/models/Authenticator/MultiUser.js';
+
+import {defaultDbName} from './_helpers.js';
+
 chai.use(chaiAsPromised);
 
 // @todo The input wrong secret tests are skipped for now because initInstance is not throwing
@@ -25,7 +27,7 @@ describe('MultiUser Test', () => {
                 });
             }
             setTimeout(() => {
-                rejected('The desired state did not showed up.');
+                rejected(new Error('The desired state did not showed up.'));
             }, delay);
         });
     }
@@ -139,8 +141,6 @@ describe('MultiUser Test', () => {
             await waitForState('logged_out');
         });
         it('should test if logout() throws an error when it is called twice', async () => {
-            let hadError = false;
-
             await multiUserWorkflow.login(user1.email, user1.secret, user1.instance);
             await waitForState('logged_in');
 

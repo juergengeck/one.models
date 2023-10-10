@@ -1,11 +1,11 @@
 import {expect} from 'chai';
-import type {RecoveryInformation} from '../lib/misc/PasswordRecoveryService/PasswordRecovery';
-import PasswordRecoveryClient from '../lib/misc/PasswordRecoveryService/PasswordRecoveryClient';
-import PasswordRecoveryServer from '../lib/misc/PasswordRecoveryService/PasswordRecoveryServer';
-import {generateNewIdentity} from '../lib/misc/IdentityExchange';
-import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base';
+import type {RecoveryInformation} from '../lib/misc/PasswordRecoveryService/PasswordRecovery.js';
+import PasswordRecoveryClient from '../lib/misc/PasswordRecoveryService/PasswordRecoveryClient.js';
+import PasswordRecoveryServer from '../lib/misc/PasswordRecoveryService/PasswordRecoveryServer.js';
+import {generateNewIdentity} from '../lib/misc/IdentityExchange.js';
+import {getBaseDirOrName, setBaseDirOrName} from '@refinio/one.core/lib/system/storage-base.js';
 import {mkdir} from 'fs/promises';
-import {defaultDbName} from './_helpers';
+import {defaultDbName} from './_helpers.js';
 
 describe('Password recovery test over server', () => {
     let server: PasswordRecoveryServer;

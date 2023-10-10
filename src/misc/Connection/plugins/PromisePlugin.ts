@@ -1,8 +1,6 @@
-import ConnectionPlugin, {
-    ConnectionIncomingEvent,
-    ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
-import BlockingQueue from '../../BlockingQueue';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
+import BlockingQueue from '../../BlockingQueue.js';
 
 export default class PromisePlugin extends ConnectionPlugin {
     private dataQueue: BlockingQueue<ConnectionIncomingEvent>;

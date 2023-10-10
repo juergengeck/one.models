@@ -1,10 +1,10 @@
 import {expect} from 'chai';
-import FragmentationPlugin from '../../lib/misc/Connection/plugins/FragmentationPlugin';
+import FragmentationPlugin from '../../lib/misc/Connection/plugins/FragmentationPlugin.js';
 import type {
     ConnectionIncomingEvent,
     ConnectionOutgoingEvent
-} from '../../lib/misc/Connection/ConnectionPlugin';
-import type {ConnectionMessageEvent} from '../../lib/misc/Connection/ConnectionPlugin';
+} from '../../lib/misc/Connection/ConnectionPlugin.js';
+import type {ConnectionMessageEvent} from '../../lib/misc/Connection/ConnectionPlugin.js';
 
 const CHUNK_START_BINARY_MESSAGE = 'fragmentation_start_binary';
 const CHUNK_START_STRING_MESSAGE = 'fragmentation_start_string';

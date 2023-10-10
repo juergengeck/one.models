@@ -1,28 +1,32 @@
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import type {Profile} from '../../recipes/Leute/Profile';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
+
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import type {Profile} from '../../recipes/Leute/Profile.js';
 import type {
     CommunicationEndpointTypes,
     CommunicationEndpointTypeNames,
     CommunicationEndpointInterfaces
-} from '../../recipes/Leute/CommunicationEndpoints';
+} from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {
     PersonDescriptionInterfaces,
     PersonDescriptionTypeNames,
     PersonDescriptionTypes,
     PersonImage,
     PersonStatus
-} from '../../recipes/Leute/PersonDescriptions';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {OEvent} from '../../misc/OEvent';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints';
-import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import type {BLOB} from '@refinio/one.core/lib/recipes';
+} from '../../recipes/Leute/PersonDescriptions.js';
+import {OEvent} from '../../misc/OEvent.js';
+import {isEndpointOfType} from '../../recipes/Leute/CommunicationEndpoints.js';
+import {isDescriptionOfType} from '../../recipes/Leute/PersonDescriptions.js';
 
 /**
  * This class is a nicer frontend for the Profile recipe.

@@ -1,42 +1,45 @@
-import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign';
-import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign';
-import {getInstanceIdHash} from '@refinio/one.core/lib/instance';
-import {getListOfCompleteKeys} from '@refinio/one.core/lib/keychain/keychain';
+import {ensurePublicSignKey} from '@refinio/one.core/lib/crypto/sign.js';
+import type {PublicSignKey} from '@refinio/one.core/lib/crypto/sign.js';
+import {getInstanceIdHash} from '@refinio/one.core/lib/instance.js';
+import {getListOfCompleteKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 import type {
     OneObjectInterfaces,
     OneObjectTypeNames,
     OneObjectTypes,
     Person
-} from '@refinio/one.core/lib/recipes';
-import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
+} from '@refinio/one.core/lib/recipes.js';
+import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query';
-import {getLicenseForCertificate} from '../../misc/Certificates/LicenseRegistry';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query.js';
+import {getLicenseForCertificate} from '../../misc/Certificates/LicenseRegistry.js';
 import {
     getSignatures,
     sign,
     verifySignatureWithMultipleHexKeys,
     verifySignatureWithMultipleKeys
-} from '../../misc/Signature';
-import type {AffirmationCertificate} from '../../recipes/Certificates/AffirmationCertificate';
+} from '../../misc/Signature.js';
+import type {AffirmationCertificate} from '../../recipes/Certificates/AffirmationCertificate.js';
 import type {OneCertificateInterfaces} from '@OneObjectInterfaces';
-import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes';
-import type {License} from '../../recipes/Certificates/License';
-import type {RightToDeclareTrustedKeysForEverybodyCertificate} from '../../recipes/Certificates/RightToDeclareTrustedKeysForEverybodyCertificate';
-import type {LeuteModel} from '../index';
-import ProfileModel from './ProfileModel';
-import {getOrCreate} from '../../utils/MapUtils';
-import type {Signature} from '../../recipes/SignatureRecipes';
-import type {Profile} from '../../recipes/Leute/Profile';
+import type {OneCertificateTypeNames} from '../../recipes/Certificates/CertificateRecipes.js';
+import type {License} from '../../recipes/Certificates/License.js';
+import type {RightToDeclareTrustedKeysForEverybodyCertificate} from '../../recipes/Certificates/RightToDeclareTrustedKeysForEverybodyCertificate.js';
+import type {LeuteModel} from '../index.js';
+import ProfileModel from './ProfileModel.js';
+import {getOrCreate} from '../../utils/MapUtils.js';
+import type {Signature} from '../../recipes/SignatureRecipes.js';
+import type {Profile} from '../../recipes/Leute/Profile.js';
 
 export type CertificateData<T extends OneObjectTypes = OneObjectTypes> = {
     signature: Signature;

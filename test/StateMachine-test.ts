@@ -1,10 +1,10 @@
-import TestModel from './utils/TestModel';
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import TestModel from './utils/TestModel.js';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 
 import {expect} from 'chai';
-import * as StorageTestInit from './_helpers';
-import {StateMachine} from '../lib/misc/StateMachine';
-import {wait} from '@refinio/one.core/lib/util/promise';
+import * as StorageTestInit from './_helpers.js';
+import {StateMachine} from '../lib/misc/StateMachine.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
 
 type SMStates = 'initialized' | 'not initialized' | 'A' | 'B' | 'listening' | 'not listening';
 type SMEvents = 'init' | 'shutdown' | 'AtoB' | 'BtoA' | 'startListen' | 'stopListen';

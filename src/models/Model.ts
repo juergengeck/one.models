@@ -1,5 +1,5 @@
-import {StateMachine} from '../misc/StateMachine';
-import {OEvent} from '../misc/OEvent';
+import {StateMachine} from '../misc/StateMachine.js';
+import {OEvent} from '../misc/OEvent.js';
 
 /**
  * Model's Base Class.

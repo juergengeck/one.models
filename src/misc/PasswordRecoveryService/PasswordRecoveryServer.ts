@@ -1,9 +1,10 @@
-import http, {ServerResponse} from 'http';
-import type {IdentityWithSecrets} from '../IdentityExchange';
-import {OEvent} from '../OEvent';
-import type {RecoveryInformation} from './PasswordRecovery';
-import {unpackRecoveryInformation} from './PasswordRecovery';
-import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+import type {ServerResponse} from 'http';
+import http from 'http';
+import type {IdentityWithSecrets} from '../IdentityExchange.js';
+import {OEvent} from '../OEvent.js';
+import type {RecoveryInformation} from './PasswordRecovery.js';
+import {unpackRecoveryInformation} from './PasswordRecovery.js';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 
 export default class PasswordRecoveryServer {
     public onPasswordRecoveryRequest = new OEvent<(info: RecoveryInformation) => void>();

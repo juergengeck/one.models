@@ -1,5 +1,5 @@
 import tweetnacl from 'tweetnacl';
-import {printUint8Array} from '../misc/LogUtils';
+import {printUint8Array} from '../misc/LogUtils.js';
 
 async function main(): Promise<void> {
     const keyPairAlice = tweetnacl.box.keyPair();

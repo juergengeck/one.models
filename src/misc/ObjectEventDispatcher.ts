@@ -1,37 +1,36 @@
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {ensureVersionedObjectTypeName} from '@refinio/one.core/lib/object-recipes';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
     onIdObj,
     onVersionedObj
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {
-    OneIdObjectTypes,
-    OneUnversionedObjectTypeNames,
-    OneVersionedObjectTypeNames
-} from '@refinio/one.core/lib/recipes';
-import {SettingsStore} from '@refinio/one.core/lib/system/settings-store';
-import type {CallStatistics} from '@refinio/one.core/lib/util/object-io-statistics';
-import {
-    enableStatistics,
-    getStatistics,
-    resetStatistics
-} from '@refinio/one.core/lib/util/object-io-statistics';
-import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks';
-import {getOrCreate} from '../utils/MapUtils';
-import {OEvent} from './OEvent';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {ensureVersionedObjectTypeName} from '@refinio/one.core/lib/object-recipes.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {onUnversionedObj} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {
     OneUnversionedObjectInterfaces,
     OneVersionedObjectInterfaces
 } from '@OneObjectInterfaces';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common';
-import BlockingPriorityQueue from './BlockingPriorityQueue';
+import {SettingsStore} from '@refinio/one.core/lib/system/settings-store.js';
+import {
+    enableStatistics,
+    type CallStatistics,
+    getStatistics,
+    resetStatistics
+} from '@refinio/one.core/lib/util/object-io-statistics.js';
+import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {FileCreationStatus} from '@refinio/one.core/lib/storage-base-common.js';
+import type {
+    OneIdObjectTypes,
+    OneUnversionedObjectTypeNames,
+    OneVersionedObjectTypeNames
+} from '@refinio/one.core/lib/recipes.js';
+import BlockingPriorityQueue from './BlockingPriorityQueue.js';
+import {getOrCreate} from '../utils/MapUtils.js';
+import {OEvent} from './OEvent.js';
 
-const MessageBus = createMessageBus('ObjectEventDispatcher');
+// const MessageBus = createMessageBus('ObjectEventDispatcher');
 
 // ######## Id/Versioned/Unversioned Object Result type stuff ########
 
@@ -631,7 +630,7 @@ export default class ObjectEventDispatcher {
      * Clear all execution statistics of handlers
      */
     clearHandlerStatistics(): void {
-        for (const [key, handler] of [
+        for (const [_key, handler] of [
             ...this.newVersionHandler.entries(),
             ...this.oldVersionHandler.entries(),
             ...this.newUnversionedObjectHandler.entries(),
@@ -691,13 +690,13 @@ export default class ObjectEventDispatcher {
 
     // #### Private stuff ####
 
-    private reportError(error: any): void {
-        if (this.onError.listenerCount() > 0) {
-            this.onError.emit(error);
-        } else {
-            console.error('ObjectEventDispatcher: Error during event processing', error);
-        }
-    }
+    // private reportError(error: any): void {
+    //     if (this.onError.listenerCount() > 0) {
+    //         this.onError.emit(error);
+    //     } else {
+    //         console.error('ObjectEventDispatcher: Error during event processing', error);
+    //     }
+    // }
 
     private appendToBufferIfNew(
         result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
@@ -725,7 +724,7 @@ export default class ObjectEventDispatcher {
     }
 
     private async markAsDone(
-        result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
+        _result: VersionedObjectResult | UnversionedObjectResult | IdObjectResult
     ) {
         // TODO: remove it from disk
     }
@@ -952,5 +951,5 @@ function trimArray<T>(arr: Array<T>, maxSize: number) {
     }
 }
 
-// Temporary global, until we adjusted the architecture
+// TODO Temporary global, until we adjust the architecture
 export const objectEvents = new ObjectEventDispatcher();

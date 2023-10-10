@@ -1,8 +1,8 @@
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {LeuteModel} from '../models';
-import type SomeoneModel from '../models/Leute/SomeoneModel';
-import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem';
-import EasyFileSystem from './utils/EasyFileSystem';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type LeuteModel from '../models/Leute/LeuteModel.js';
+import type SomeoneModel from '../models/Leute/SomeoneModel.js';
+import type {EasyDirectoryContent, EasyDirectoryEntry} from './utils/EasyFileSystem.js';
+import EasyFileSystem from './utils/EasyFileSystem.js';
 
 /**
  * Provides information about user profiles

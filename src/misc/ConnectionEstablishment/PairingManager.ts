@@ -1,35 +1,38 @@
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
+} from '@refinio/one.core/lib/keychain/keychain.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     hexToUint8Array,
     isHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {countEnumerableProperties} from '@refinio/one.core/lib/util/type-checks';
-import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic';
-import type Connection from '../Connection/Connection';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {countEnumerableProperties} from '@refinio/one.core/lib/util/type-checks.js';
+import {isObject, isString} from '@refinio/one.core/lib/util/type-checks-basic.js';
+import type Connection from '../Connection/Connection.js';
 import {
     sendPeerMessage,
     waitForPeerMessage
-} from './protocols/CommunicationInitiationProtocolMessages';
-import {connectWithEncryption} from './protocols/EncryptedConnectionHandshake';
-import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName';
-import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds';
-import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds';
-import {sync} from './protocols/Sync';
-import {convertIdentityToProfile, convertOneInstanceEndpointToIdentity} from '../IdentityExchange';
-import {getLocalInstanceOfPerson} from '../instance';
-import {OEvent} from '../OEvent';
-import type LeuteModel from '../../models/Leute/LeuteModel';
+} from './protocols/CommunicationInitiationProtocolMessages.js';
+import {connectWithEncryption} from './protocols/EncryptedConnectionHandshake.js';
+import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName.js';
+import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds.js';
+import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds.js';
+import {sync} from './protocols/Sync.js';
+import {
+    convertIdentityToProfile,
+    convertOneInstanceEndpointToIdentity
+} from '../IdentityExchange.js';
+import {getLocalInstanceOfPerson} from '../instance.js';
+import {OEvent} from '../OEvent.js';
+import type LeuteModel from '../../models/Leute/LeuteModel.js';
 
 const MessageBus = createMessageBus('PairingManager');
 

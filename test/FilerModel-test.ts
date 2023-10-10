@@ -1,15 +1,15 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance';
-import * as StorageTestInit from './_helpers';
+import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance.js';
+import * as StorageTestInit from './_helpers.js';
 import {expect} from 'chai';
 
-import Recipes from '../lib/recipes/recipes-experimental';
-import TestModel, {removeDir} from './utils/TestModel';
-import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams';
-import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem';
-import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel';
+import Recipes from '../lib/recipes/recipes-experimental.js';
+import TestModel, {removeDir} from './utils/TestModel.js';
+import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams.js';
+import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem.js';
+import PersistentFilerModel from '../lib/models/filer/PersistentFilerModel.js';
 
 let fileSystem: PersistentFileSystem;
 let testModel: TestModel;
@@ -23,7 +23,6 @@ describe('FilerModel model test', () => {
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;
-
         const filerModel = new PersistentFilerModel(model.channelManager);
         await filerModel.init();
         fileSystem = filerModel.fileSystem;
@@ -33,6 +32,7 @@ describe('FilerModel model test', () => {
         const result = await fileSystem.readDir('/');
         expect(result).to.not.be.equal(undefined);
     });
+
     it.skip('should see if directories can be created and retrieved', async () => {
         await fileSystem.createDir('/dir1');
         await fileSystem.createDir('/dir1/dir2');
@@ -66,6 +66,7 @@ describe('FilerModel model test', () => {
         const rootRetrieveResult = await fileSystem.readDir('/');
         expect(Array.from(rootRetrieveResult.children.keys()).length).to.be.equal(101);*/
     }).timeout(10000);
+
     it.skip('should see if files can be created and retrieved', async () => {
         await fileSystem.createDir('/files');
         const firstResult = fileSystem.readDir('/');

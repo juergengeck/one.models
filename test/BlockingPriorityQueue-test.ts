@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-import BlockingPriorityQueue from '../lib/misc/BlockingPriorityQueue';
+
+import BlockingPriorityQueue from '../lib/misc/BlockingPriorityQueue.js';
 
 describe('BlockingQueue test', () => {
     beforeEach(async () => {});

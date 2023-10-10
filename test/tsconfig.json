@@ -1,40 +1,49 @@
 {
     "compilerOptions": {
-        "noEmit": false,
-        "outDir": ".",
-        "isolatedModules": false,
-        "moduleResolution": "node",
-        "sourceMap": true,
-        "emitDeclarationOnly": true,
+        "allowJs": false,
+        "alwaysStrict": true,
+        "allowUnreachableCode": false,
+        "checkJs": false,
+        "composite": true,
         "declaration": true,
+        "declarationDir": "./",
         "declarationMap": true,
         "downlevelIteration": false,
-        "useUnknownInCatchVariables": false,
-        "importHelpers": false,
+        "emitDeclarationOnly": false,
         "esModuleInterop": true,
-        "importsNotUsedAsValues": "error",
-        "ignoreDeprecations": "5.0",
-        "composite": true,
-        "tsBuildInfoFile": "../tsconfig.test.tsbuildinfo",
+        "forceConsistentCasingInFileNames": true,
+        "importHelpers": false,
+        "incremental": true,
+        "isolatedModules": true,
         "lib": ["esnext", "dom"],
-        "module": "CommonJS",
-        "target": "esnext",
-        "alwaysStrict": true,
-        "noImplicitAny": true,
-        "noImplicitThis": true,
-        "noImplicitReturns": true,
-        "strict": true,
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "newLine": "LF",
-        "allowJs": false,
-        "checkJs": false,
-        "removeComments": false,
-        "forceConsistentCasingInFileNames": true
+        "noEmit": false,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "outDir": ".",
+        "removeComments": true,
+        "sourceMap": true,
+        "strict": true,
+        "stripInternal": true,
+        "target": "ESNext",
+        "tsBuildInfoFile": "../tsconfig.test.tsbuildinfo",
+        "useUnknownInCatchVariables": false,
+        "verbatimModuleSyntax": true
     },
-    "include": ["./*.ts", "./**/*.ts"],
-    "exclude": [],
-	"references": [
-        {
-            "path": "../src"
-        }
+    "exclude": [
+        "../src/*",
+        "../src/**/*",
+        "../src/**/**/*"
+    ],
+    "include": [
+        "../@OneObjectInterfaces.d.ts",
+        "./*.ts",
+        "./**/*.ts",
+        "../lib/*.ts",
+        "../lib/**/*.ts",
+        "../lib/**/**/*.ts"
     ]
 }

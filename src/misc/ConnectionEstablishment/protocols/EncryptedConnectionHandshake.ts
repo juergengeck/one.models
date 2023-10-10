@@ -7,29 +7,29 @@
  * - setup the encrypted channel for established websockets (incoming connections)
  */
 import tweetnacl from 'tweetnacl';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
-import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import {isFunction} from '@refinio/one.core/lib/util/type-checks-basic';
-import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi';
-import {castToLocalPublicKey, castToRemotePublicKey} from '../ConnectionRoutesGroupMap';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket.js';
+import {isFunction} from '@refinio/one.core/lib/util/type-checks-basic.js';
+import type {SymmetricCryptoApiWithKeys} from '@refinio/one.core/lib/crypto/SymmetricCryptoApi.js';
+import {castToLocalPublicKey, castToRemotePublicKey} from '../ConnectionRoutesGroupMap.js';
 import {
     sendUnencryptedClientMessage,
     sendUnencryptedServerMessage,
     waitForUnencryptedClientMessage,
     waitForUnencryptedServerMessage
-} from './CommunicationInitiationProtocolMessages';
-import Connection from '../../Connection/Connection';
-import EncryptionPlugin from '../../Connection/plugins/EncryptionPlugin';
+} from './CommunicationInitiationProtocolMessages.js';
+import Connection from '../../Connection/Connection.js';
+import EncryptionPlugin from '../../Connection/plugins/EncryptionPlugin.js';
 import {
     hexToUint8Array,
     uint8arrayToHexString
-} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import PromisePlugin from '../../Connection/plugins/PromisePlugin';
-import {KeepAlivePlugin} from '../../Connection/plugins/KeepAlivePlugin';
-import FragmentationPlugin from '../../Connection/plugins/FragmentationPlugin';
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
+} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import PromisePlugin from '../../Connection/plugins/PromisePlugin.js';
+import {KeepAlivePlugin} from '../../Connection/plugins/KeepAlivePlugin.js';
+import FragmentationPlugin from '../../Connection/plugins/FragmentationPlugin.js';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
 
 const KEEPALIVE_TIMER = 20000;
 const KEEPALIVE_TIMEOUT = 25000;

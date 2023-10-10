@@ -1,10 +1,10 @@
 import tweetnacl from 'tweetnacl';
-import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin';
-import ConnectionPlugin from '../ConnectionPlugin';
+import type {ConnectionIncomingEvent, ConnectionOutgoingEvent} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
 import {
     addPaddingWithExtraFlags,
     removePaddingWithExtraFlags
-} from '../../PasswordRecoveryService/padding';
+} from '../../PasswordRecoveryService/padding.js';
 
 /**
  * This class implements an encrypted connection.

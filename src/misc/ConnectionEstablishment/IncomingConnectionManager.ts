@@ -1,17 +1,17 @@
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import CommunicationServerListener, {
     CommunicationServerListenerState
-} from './communicationServer/CommunicationServerListener';
-import type Connection from '../Connection/Connection';
-import {OEvent} from '../OEvent';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {MapValueType} from '../../utils/MapUtils';
-import {getOrCreate} from '../../utils/MapUtils';
-import {acceptWithEncryption} from './protocols/EncryptedConnectionHandshake';
-import WebSocketListener from './webSockets/WebSocketListener';
+} from './communicationServer/CommunicationServerListener.js';
+import type Connection from '../Connection/Connection.js';
+import {OEvent} from '../OEvent.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {MapValueType} from '../../utils/MapUtils.js';
+import {getOrCreate} from '../../utils/MapUtils.js';
+import {acceptWithEncryption} from './protocols/EncryptedConnectionHandshake.js';
+import WebSocketListener from './webSockets/WebSocketListener.js';
 
 const MessageBus = createMessageBus('IncomingConnectionManager');
 

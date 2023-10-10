@@ -1,21 +1,21 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {hexToUint8Array} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import type {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public.js';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
-import type LeuteModel from '../../../models/Leute/LeuteModel';
-import type Connection from '../../Connection/Connection';
-import type {Keys, Person, PersonId} from '@refinio/one.core/lib/recipes';
+} from '@refinio/one.core/lib/keychain/keychain.js';
+import type LeuteModel from '../../../models/Leute/LeuteModel.js';
+import type Connection from '../../Connection/Connection.js';
+import type {Keys, Person, PersonId} from '@refinio/one.core/lib/recipes.js';
 import tweetnacl from 'tweetnacl';
-import {sendPeerMessage, waitForPeerMessage} from './CommunicationInitiationProtocolMessages';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import {sendPeerMessage, waitForPeerMessage} from './CommunicationInitiationProtocolMessages.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {getIdObject, storeIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
 /**
  * This process exchanges and verifies person keys.

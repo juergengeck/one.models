@@ -4,14 +4,16 @@
 
 import {expect} from 'chai';
 
-import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance';
+import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import {
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type AccessModel from '../lib/models/AccessModel';
-import * as StorageTestInit from './_helpers';
-import TestModel from './utils/TestModel';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+
+import type AccessModel from '../lib/models/AccessModel.js';
+
+import * as StorageTestInit from './_helpers.js';
+import TestModel from './utils/TestModel.js';
 
 let accessModel: AccessModel;
 let testModel: TestModel;

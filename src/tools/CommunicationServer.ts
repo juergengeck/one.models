@@ -1,6 +1,8 @@
 import yargs from 'yargs';
-import CommunicationServer from '../misc/ConnectionEstablishment/communicationServer/CommunicationServer';
-import * as Logger from '@refinio/one.core/lib/logger';
+
+import * as Logger from '@refinio/one.core/lib/logger.js';
+
+import CommunicationServer from '../misc/ConnectionEstablishment/communicationServer/CommunicationServer.js';
 
 /**
  * Main function. This exists to be able to use await here.
@@ -55,11 +57,10 @@ async function main(): Promise<void> {
 
     // Stop comm server at sigint
     process.on('SIGINT', () => {
-        commServer.stop();
+        commServer.stop().catch(_ignore => null);
     });
 }
 
-// Execute main function
 main().catch(e => {
     console.log('Error happened: ' + e.toString());
 });

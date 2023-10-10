@@ -1,15 +1,18 @@
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {wait} from '@refinio/one.core/lib/util/promise';
-import {closeInstance, initInstance} from '@refinio/one.core/lib/instance';
 import {expect} from 'chai';
-import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes';
-import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRecipes';
-import ObjectEventDispatcher from '../lib/misc/ObjectEventDispatcher';
-import RecipesExperimental from '../lib/recipes/recipes-experimental';
-import RecipesStable from '../lib/recipes/recipes-stable';
-import {DummyObjectRecipes} from './utils/createDummyObject';
 
-describe('Object Event ispatcher test', () => {
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+import {closeInstance, initInstance} from '@refinio/one.core/lib/instance.js';
+
+import {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
+import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRecipes.js';
+import ObjectEventDispatcher from '../lib/misc/ObjectEventDispatcher.js';
+import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
+import RecipesStable from '../lib/recipes/recipes-stable.js';
+
+import {DummyObjectRecipes} from './utils/createDummyObject.js';
+
+describe('Object Event Dispatcher test', () => {
     beforeEach(async () => {
         await initInstance({
             name: 'testname',

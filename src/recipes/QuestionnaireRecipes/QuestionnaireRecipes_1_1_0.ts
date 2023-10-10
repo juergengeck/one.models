@@ -1,10 +1,10 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
 import {
     CodingRules,
     QuestionnaireRules as QuestionnaireRules_1_0_0
-} from './QuestionnaireRecipes_1_0_0';
-import type {Questionnaire} from './QuestionnaireRecipes_1_0_0';
-import {addRule, cloneRule, overwriteRule} from '../RecipeUtils';
+} from './QuestionnaireRecipes_1_0_0.js';
+import type {Questionnaire} from './QuestionnaireRecipes_1_0_0.js';
+import {addRule, cloneRule, overwriteRule} from '../RecipeUtils.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

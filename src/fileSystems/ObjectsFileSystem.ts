@@ -1,28 +1,32 @@
+import {
+    convertIdMicrodataToObject,
+    convertMicrodataToObject
+} from '@refinio/one.core/lib/microdata-to-object.js';
+import {isIdObjMicrodata} from '@refinio/one.core/lib/util/object.js';
 import type {
     FileDescription,
     FileSystemDirectory,
     FileSystemFile,
     IFileSystem
-} from './IFileSystem';
-import FileSystemHelpers from './FileSystemHelpers';
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from './FileSystemErrors';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB, HashTypes, OneObjectTypes} from '@refinio/one.core/lib/recipes';
-import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+} from './IFileSystem.js';
+import FileSystemHelpers from './FileSystemHelpers.js';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from './FileSystemErrors.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB, HashTypes} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getFileType,
     listAllObjectHashes,
     readUTF8TextFile
-} from '@refinio/one.core/lib/system/storage-base';
+} from '@refinio/one.core/lib/system/storage-base.js';
 
 /**
  * Json format for the objects parsed path
  */
 type ParsedObjectsPath = {
     isRoot: boolean;
-    hash: SHA256Hash<HashTypes> | null;
+    hash: SHA256Hash<HashTypes> | SHA256IdHash | null;
     suffix: string | null;
 };
 
@@ -167,7 +171,7 @@ export default class ObjectsFileSystem implements IFileSystem {
             /** different behaviour for BLOB and CLOB **/
             if (
                 hashMap.get(parsedPath.hash) === 'BLOB' ||
-                hashMap.get(parsedPath.hash) === 'CBLOB'
+                hashMap.get(parsedPath.hash) === 'CLOB'
             ) {
                 return await ObjectsFileSystem.returnDirectoryContentForBLOBS();
             } else if (hashMap.get(parsedPath.hash) === 'Plan') {
@@ -205,7 +209,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         const parsedPath = this.parsePath(path);
         if (parsedPath.hash) {
             /** check if the hash exists **/
-            await getObject(parsedPath.hash as SHA256Hash).catch(ignored => {
+            await getObject(parsedPath.hash as SHA256Hash).catch(_err => {
                 return false;
             });
             return true;
@@ -274,7 +278,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         } else {
             return {
                 isRoot: false,
-                hash: containsValidHash[1] as SHA256Hash<HashTypes>,
+                hash: containsValidHash[1] as SHA256Hash<HashTypes> | SHA256IdHash,
                 suffix: containsValidHash[2]
             };
         }
@@ -390,7 +394,7 @@ export default class ObjectsFileSystem implements IFileSystem {
         const hashes = await listAllObjectHashes();
         const hashesMap = new Map<SHA256Hash<HashTypes> | SHA256IdHash, string>();
         await Promise.all(
-            hashes.map(async (hash: SHA256Hash<HashTypes> | SHA256IdHash) => {
+            hashes.map(async hash => {
                 const hashType = await getFileType(hash);
                 hashesMap.set(hash, hashType);
             })
@@ -405,9 +409,10 @@ export default class ObjectsFileSystem implements IFileSystem {
     private async retrieveContentAboutHash(path: string): Promise<string | undefined> {
         const parsedPath = this.parsePath(path);
 
-        // TODO ???
-        function promiseHandler<T extends OneObjectTypes>(promise: Promise<T>) {
-            return promise.then(data => [null, data]).catch(err => [err]);
+        const fileType = await getFileType(parsedPath.hash as SHA256Hash);
+
+        if (fileType === 'BLOB') {
+            return '[binary file - cannot display contents]';
         }
 
         if (parsedPath.suffix === '/raw.txt') {
@@ -415,38 +420,39 @@ export default class ObjectsFileSystem implements IFileSystem {
         }
 
         if (parsedPath.suffix === '/pretty.html') {
+            if (fileType === 'CLOB') {
+                return '[Not a ONE object microdata file - cannot display contents as HTML]';
+            }
+
             return ObjectsFileSystem.stringifyXML(
                 await readUTF8TextFile(parsedPath.hash as SHA256Hash)
             );
         }
 
         if (parsedPath.suffix === '/json.txt') {
-            let err, obj;
-            [err, obj] = await promiseHandler(getObject(parsedPath.hash as SHA256Hash));
-            // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
-            if (err) {
-                // allowed cast since it's the hash of an idObject
-                obj = await getIdObject(parsedPath.hash as unknown as SHA256IdHash);
+            if (fileType === 'CLOB') {
+                return '[Not a ONE object microdata file - cannot display contents as JSON]';
             }
+
+            if (parsedPath.hash === null) {
+                throw new Error(`parsedPath.hash is null in ${JSON.stringify(parsedPath)}`);
+            }
+
+            const microdata = await readUTF8TextFile(parsedPath.hash);
+
+            const obj = isIdObjMicrodata(microdata)
+                ? convertIdMicrodataToObject(microdata)
+                : convertMicrodataToObject(microdata);
 
             return JSON.stringify(obj, null, '  ');
         }
 
         if (parsedPath.suffix === '/type.txt') {
-            const fileType = await getFileType(parsedPath.hash as SHA256Hash);
-            if (fileType === 'BLOB' || fileType === 'CBLOB') {
-                return fileType;
-            } else {
-                let err, obj;
-                [err, obj] = await promiseHandler(getObject(parsedPath.hash as SHA256Hash));
-                // getObjects can't handle idObjects, so we must use getIdObjectByIdHash
-                if (err) {
-                    // allowed cast since it's the hash of an idObject
-                    obj = await getIdObject(parsedPath.hash as unknown as SHA256IdHash);
-                }
-
-                return obj.$type$;
+            if (parsedPath.hash === null) {
+                throw new Error(`parsedPath.hash is null in ${JSON.stringify(parsedPath)}`);
             }
+
+            return await getFileType(parsedPath.hash);
         }
 
         return undefined;

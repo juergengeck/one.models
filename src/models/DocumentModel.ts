@@ -1,16 +1,16 @@
-import {readBlobAsArrayBuffer, storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import {Model} from './Model';
+import {readBlobAsArrayBuffer, storeArrayBufferAsBlob} from '@refinio/one.core/lib/storage-blob.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import {Model} from './Model.js';
 
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0';
-import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0';
-import {OEvent} from '../misc/OEvent';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {AcceptedMimeType} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0.js';
+import type {DocumentInfo_1_1_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_1_0.js';
+import type {DocumentInfo as DocumentInfo_1_0_0} from '../recipes/DocumentRecipes/DocumentRecipes_1_0_0.js';
+import {OEvent} from '../misc/OEvent.js';
 
 export type DocumentInfo = DocumentInfo_1_1_0;
 
@@ -149,7 +149,7 @@ export default class DocumentModel extends Model {
                     mimeType: AcceptedMimeType.PDF,
                     documentName: ''
                 },
-                // This is already there from "...document" above, but for TypeScript we need to
+                // This is already there from "...document.js" above, but for TypeScript we need to
                 // recast the type of this property
                 dataHash: document.dataHash as unknown as SHA256Hash<DocumentInfo_1_1_0>
             };

@@ -1,8 +1,8 @@
 /**
  * This interface the main return structure for files
  */
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB} from '@refinio/one.core/lib/recipes';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
 
 export interface FileSystemFile {
     /**

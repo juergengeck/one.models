@@ -1,57 +1,56 @@
-import type {
-    OneUnversionedObjectInterfaces,
-    OneVersionedObjectInterfaces
-} from '@OneObjectInterfaces';
-import {createAccess} from '@refinio/one.core/lib/access';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt';
-import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance';
+import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
+import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
 import {
     createCryptoApiFromDefaultKeys,
     getDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain';
-import type {Instance, Keys} from '@refinio/one.core/lib/recipes';
+} from '@refinio/one.core/lib/keychain/keychain.js';
 import type {
     Group,
-    OneUnversionedObjectTypeNames,
+    Instance,
+    Keys,
     OneVersionedObjectTypeNames,
     Person
-} from '@refinio/one.core/lib/recipes';
-import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
-import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects';
-import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {LocalInstanceInfo} from '../../misc/ConnectionEstablishment/LeuteConnectionsModule';
+} from '@refinio/one.core/lib/recipes.js';
+import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/reverse-map-query.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getIdObject,
+    getObjectByIdHash
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {LocalInstanceInfo} from '../../misc/ConnectionEstablishment/LeuteConnectionsModule.js';
 import {
     createInstanceWithDefaultKeys,
     getInstancesOfPerson,
     getLocalInstanceOfPerson,
     hasPersonLocalInstance
-} from '../../misc/instance';
-import type {IdObjectResult} from '../../misc/ObjectEventDispatcher';
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import {OEvent} from '../../misc/OEvent';
-import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person';
-import Watchdog from '../../misc/Watchdog';
-import type {ChannelEntry} from '../../recipes/ChannelRecipes';
-import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints';
-import type {Leute} from '../../recipes/Leute/Leute';
-import type {PersonImage, PersonStatus, SignKey} from '../../recipes/Leute/PersonDescriptions';
-import type {Profile} from '../../recipes/Leute/Profile';
-import type {Someone} from '../../recipes/Leute/Someone';
-import IoMManager from '../IoM/IoMManager';
-import TrustedKeysManager from './TrustedKeysManager';
-import type {CreationTime} from '../../recipes/MetaRecipes';
-import type {ObjectData, QueryOptions} from '../ChannelManager';
-import {Model} from '../Model';
-import GroupModel from './GroupModel';
-import ProfileModel from './ProfileModel';
-import SomeoneModel from './SomeoneModel';
+} from '../../misc/instance.js';
+import type {IdObjectResult} from '../../misc/ObjectEventDispatcher.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import {OEvent} from '../../misc/OEvent.js';
+import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person.js';
+import Watchdog from '../../misc/Watchdog.js';
+import type {ChannelEntry} from '../../recipes/ChannelRecipes.js';
+import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
+import type {Leute} from '../../recipes/Leute/Leute.js';
+import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions.js';
+import type {Profile} from '../../recipes/Leute/Profile.js';
+import type {Someone} from '../../recipes/Leute/Someone.js';
+import IoMManager from '../IoM/IoMManager.js';
+import TrustedKeysManager from './TrustedKeysManager.js';
+import type {CreationTime} from '../../recipes/MetaRecipes.js';
+import type {ObjectData, QueryOptions} from '../ChannelManager.js';
+import {Model} from '../Model.js';
+import GroupModel from './GroupModel.js';
+import ProfileModel from './ProfileModel.js';
+import SomeoneModel from './SomeoneModel.js';
 
 const ZERO_HASH = '0'.repeat(64);
 
@@ -1428,9 +1427,9 @@ function isVersionedResultOfType<T extends OneVersionedObjectTypeNames>(
     return versionedObjectResult.obj.$type$ === type;
 }
 
-function isUnversionedResultOfType<T extends OneUnversionedObjectTypeNames>(
-    unversionedObjectResult: UnversionedObjectResult,
-    type: T
-): unversionedObjectResult is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
-    return unversionedObjectResult.obj.$type$ === type;
-}
+// function isUnversionedResultOfType<T extends OneUnversionedObjectTypeNames>(
+//     unversionedObjectResult: UnversionedObjectResult,
+//     type: T
+// ): unversionedObjectResult is UnversionedObjectResult<OneUnversionedObjectInterfaces[T]> {
+//     return unversionedObjectResult.obj.$type$ === type;
+// }

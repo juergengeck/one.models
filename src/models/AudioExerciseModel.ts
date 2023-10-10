@@ -1,12 +1,12 @@
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import {Model} from './Model';
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, RawChannelEntry} from './ChannelManager';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {AudioExercise} from '../recipes/AudioExerciseRecipes';
-import type {QueryOptions} from './ChannelManager';
-import {OEvent} from '../misc/OEvent';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import {Model} from './Model.js';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, RawChannelEntry} from './ChannelManager.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {AudioExercise} from '../recipes/AudioExerciseRecipes.js';
+import type {QueryOptions} from './ChannelManager.js';
+import {OEvent} from '../misc/OEvent.js';
 
 export default class AudioExerciseModel extends Model {
     public static readonly channelId = 'audioExercise';
@@ -95,8 +95,11 @@ export default class AudioExerciseModel extends Model {
 
     /**
      * Handler-function for the 'updated' event
-     * @param id
-     * @param data
+     * @param _channelInfoIdHash
+     * @param channelId
+     * @param _channelOwner
+     * @param timeOfEarliestChange
+     * @param _data
      */
     private async handleChannelUpdate(
         _channelInfoIdHash: SHA256IdHash<ChannelInfo>,

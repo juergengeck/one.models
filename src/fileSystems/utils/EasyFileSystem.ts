@@ -3,12 +3,12 @@ import type {
     FileSystemDirectory,
     FileSystemFile,
     IFileSystem
-} from '../IFileSystem';
-import {createError} from '@refinio/one.core/lib/errors';
-import {FS_ERRORS} from '../FileSystemErrors';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {BLOB} from '@refinio/one.core/lib/recipes';
-import {escapeFileName} from './FileNameEscaping';
+} from '../IFileSystem.js';
+import {createError} from '@refinio/one.core/lib/errors.js';
+import {FS_ERRORS} from '../FileSystemErrors.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {BLOB} from '@refinio/one.core/lib/recipes.js';
+import {escapeFileName} from './FileNameEscaping.js';
 
 export type EasyDirectoryContent = Map<string, EasyDirectoryEntry>;
 export type EasyRegularFileContent = Uint8Array | string;
@@ -166,12 +166,12 @@ export default class EasyFileSystem implements IFileSystem {
             }
             case 'symlink':
                 return {mode: 0o0120777, size: 0};
+            default:
+                throw createError('FSE-ENOENT', {
+                    message: FS_ERRORS['FSE-ENOENT'].message,
+                    path: path
+                });
         }
-
-        throw createError('FSE-ENOENT', {
-            message: FS_ERRORS['FSE-ENOENT'].message,
-            path: path
-        });
     }
 
     async symlink(src: string, _dest: string): Promise<void> {

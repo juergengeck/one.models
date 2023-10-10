@@ -1,12 +1,12 @@
-import type {ChannelInfo} from '../recipes/ChannelRecipes';
-import {Model} from './Model';
+import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
+import {Model} from './Model.js';
 
-import type ChannelManager from './ChannelManager';
-import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import type {HeartEvent} from '../recipes/HeartEventRecipes';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import {OEvent} from '../misc/OEvent';
+import type ChannelManager from './ChannelManager.js';
+import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import type {HeartEvent} from '../recipes/HeartEventRecipes.js';
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {OEvent} from '../misc/OEvent.js';
 
 /**
  * This model implements the possibility of adding or retrieving HeartEvents that occurred on the Apple watch.

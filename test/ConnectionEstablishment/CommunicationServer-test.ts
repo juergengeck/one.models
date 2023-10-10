@@ -1,19 +1,19 @@
-import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import CommunicationServer from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServer';
+import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import CommunicationServer from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServer.js';
 import CommunicationServerListener, {
     CommunicationServerListenerState
-} from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServerListener';
+} from '../../lib/misc/ConnectionEstablishment/communicationServer/CommunicationServerListener.js';
 import tweetnacl from 'tweetnacl';
 import WebSocketWS from 'isomorphic-ws';
 import {expect} from 'chai';
-import {wait} from '@refinio/one.core/lib/util/promise';
-import {createWebSocket} from '@refinio/one.core/lib/system/websocket';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import Connection from '../../lib/misc/Connection/Connection';
-import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin';
-import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+import {createWebSocket} from '@refinio/one.core/lib/system/websocket.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import Connection from '../../lib/misc/Connection/Connection.js';
+import PromisePlugin from '../../lib/misc/Connection/plugins/PromisePlugin.js';
+import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption.js';
 
-/*import * as Logger from '@refinio/one.core/lib/logger';
+/*import * as Logger from '@refinio/one.core/lib/logger.js';
 Logger.start();*/
 
 /**
@@ -44,7 +44,7 @@ describe('communication server tests', () => {
 
     it('Register client open connection to commserver and exchange messages', async function () {
         // Setup the listening connection - it mirrors the messages back
-        let listenerFailure: any | null = null;
+        let listenerFailure: any = null;
         const listenerKeyPair = createKeyPair();
         const cryptoApi = new CryptoApi(listenerKeyPair);
         const commServerListener = new CommunicationServerListener(cryptoApi, 1, 1000);

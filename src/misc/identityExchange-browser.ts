@@ -1,8 +1,9 @@
-import type {Identity} from './IdentityExchange';
-import {convertIdentityToOneInstanceEndpoint, isIdentity} from './IdentityExchange';
-import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints';
-import {fetchFile} from './fetchFile';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {fetchFile} from '@refinio/one.core/lib/system/fetch-file.js';
+
+import type {Identity} from './IdentityExchange.js';
+import {convertIdentityToOneInstanceEndpoint, isIdentity} from './IdentityExchange.js';
+import type {OneInstanceEndpoint} from '../recipes/Leute/CommunicationEndpoints.js';
 
 // ######## Identity I/O ########
 

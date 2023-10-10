@@ -2,8 +2,8 @@ import type {
     ConnectionClosedEvent,
     ConnectionIncomingEvent,
     ConnectionOutgoingEvent
-} from '../ConnectionPlugin';
-import ConnectionPlugin from '../ConnectionPlugin';
+} from '../ConnectionPlugin.js';
+import ConnectionPlugin from '../ConnectionPlugin.js';
 
 export type ConnectionStatistics = {
     bytesSent: number;

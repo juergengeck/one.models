@@ -1,7 +1,8 @@
-import {readIdentityWithSecretsFile} from '../../misc/IdentityExchange-fs';
-import PasswordRecoveryServer from '../../misc/PasswordRecoveryService/PasswordRecoveryServer';
 import {mkdir, writeFile} from 'fs/promises';
 import path from 'path';
+
+import {readIdentityWithSecretsFile} from '../../misc/IdentityExchange-fs.js';
+import PasswordRecoveryServer from '../../misc/PasswordRecoveryService/PasswordRecoveryServer.js';
 
 function parseCommandLine(argv: string[]): {
     outputFolder: string;
@@ -9,7 +10,7 @@ function parseCommandLine(argv: string[]): {
     port: number;
 } {
     function getUsage() {
-        return `usage: node PasswordRecoveryServer.js [port] [outputFolder] [identityFileName]`;
+        return 'Usage: node PasswordRecoveryServer.js [port] [outputFolder] [identityFileName]';
     }
 
     if (argv.length > 5 || argv.includes('-h')) {
@@ -24,7 +25,7 @@ function parseCommandLine(argv: string[]): {
     };
 
     if (argv.length >= 3) {
-        params.port = parseInt(argv[2]);
+        params.port = parseInt(argv[2], 10);
     }
 
     if (argv.length >= 4) {
@@ -47,12 +48,15 @@ async function main(): Promise<void> {
     const server = new PasswordRecoveryServer(identity, cmdArgs.port);
     server.onPasswordRecoveryRequest(request => {
         console.log('Received request');
-        writeFile(path.join(cmdArgs.outputFolder, Date.now().toString()), JSON.stringify(request));
+        writeFile(
+            path.join(cmdArgs.outputFolder, Date.now().toString()),
+            JSON.stringify(request)
+        ).catch(err => console.error(err));
     });
 
     process.on('SIGINT', () => {
         console.log(`PasswordRecoveryServer port ${cmdArgs.port} shutdown.`);
-        server.stop();
+        server.stop().catch(err => console.error(err));
     });
 
     console.log(`PasswordRecoveryServer port ${cmdArgs.port} start.`);

@@ -1,12 +1,12 @@
-import {wait} from '@refinio/one.core/lib/util/promise';
-import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi';
-import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption';
-import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption';
-import ConnectionRouteManager from '../../lib/misc/ConnectionEstablishment/ConnectionRouteManager';
-import type Connection from '../../src/misc/Connection/Connection';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
+import {uint8arrayToHexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {CryptoApi} from '@refinio/one.core/lib/crypto/CryptoApi.js';
+import {createKeyPair} from '@refinio/one.core/lib/crypto/encryption.js';
+import type {PublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
+import ConnectionRouteManager from '../../lib/misc/ConnectionEstablishment/ConnectionRouteManager.js';
+import type Connection from '../../lib/misc/Connection/Connection.js';
 
-//import {start} from '@refinio/one.core/lib/logger';
+//import {start} from '@refinio/one.core/lib/logger.js';
 //start({includeTimestamp: true, types: ['log', 'debug', 'alert', 'error']});
 
 describe.skip('CommunicationModule test', () => {

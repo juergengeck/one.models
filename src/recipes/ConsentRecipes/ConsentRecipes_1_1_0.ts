@@ -1,9 +1,9 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
-import {cloneRule} from '../RecipeUtils';
-import type {BlobDescriptor} from '../BlobRecipes';
-import ConsentRecipes_1_0_0 from './ConsentRecipes_1_0_0';
+import {cloneRule} from '../RecipeUtils.js';
+import type {BlobDescriptor} from '../BlobRecipes.js';
+import ConsentRecipes_1_0_0 from './ConsentRecipes_1_0_0.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

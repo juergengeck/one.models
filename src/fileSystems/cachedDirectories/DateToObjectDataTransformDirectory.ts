@@ -1,10 +1,9 @@
-import type {OneUnversionedObjectTypes} from '@refinio/one.core/lib/recipes';
-import {ensureHash} from '@refinio/one.core/lib/util/type-checks';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {ObjectData, QueryOptions} from '../../models/ChannelManager';
-import type {CreationTime} from '../../recipes/MetaRecipes';
-import {CachedDirectory} from './utils/CachedDirectory';
-import type {ChannelIterator} from './utils/ChannelIterator';
+import {ensureHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {ObjectData, QueryOptions} from '../../models/ChannelManager.js';
+import type {CreationTime} from '../../recipes/MetaRecipes.js';
+import {CachedDirectory} from './utils/CachedDirectory.js';
+import type {ChannelIterator} from './utils/ChannelIterator.js';
 
 type DateToObjectDataTransformDirectoryParams =
     | {year?: number; month?: number; day?: number}
@@ -14,9 +13,7 @@ type DateToObjectDataTransformDirectoryParams =
 /**
  * This directory takes a (partial) date as input and loads the ObjectData objects for those dates.
  */
-export class DateToObjectDataTransformDirectory<
-    T extends OneUnversionedObjectTypes | unknown = unknown
-> extends CachedDirectory<{
+export class DateToObjectDataTransformDirectory<T = unknown> extends CachedDirectory<{
     data: ObjectData<T>;
 }> {
     private readonly iterator: ChannelIterator<T>;
@@ -90,7 +87,7 @@ export class DateToObjectDataTransformDirectory<
         return {data};
     }
 
-    needsUpdate(creationTimeHash: string, timeOfEarliestChange: Date): boolean {
+    needsUpdate(_creationTimeHash: string, _timeOfEarliestChange: Date): boolean {
         // A hash always points to the same information, so it never needs an update.
         return false;
     }

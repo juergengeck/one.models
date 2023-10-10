@@ -1,4 +1,4 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
 
 export interface ElectrocardiogramReadings {
     timeSinceSampleStart: number;

@@ -1,4 +1,4 @@
-import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes';
+import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {

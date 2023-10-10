@@ -1,13 +1,13 @@
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getIdObject,
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks';
-import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Topic, TopicAppRegistry} from '../../recipes/ChatRecipes.js';
 
 /**
  * Registry that holds references to all the created topics.

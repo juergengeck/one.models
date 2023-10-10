@@ -1,11 +1,12 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry';
-import {signForSomeoneElse} from './signForSomeoneElse';
-import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+
+import {getLicenseForCertificate} from '../../lib/misc/Certificates/LicenseRegistry.js';
+import {signForSomeoneElse} from './signForSomeoneElse.js';
 
 // This import is needed, otherwise the @OneCOreInterfaces does not have the AffirmationInterface!
-import '../../lib/recipes/Certificates/AffirmationCertificate';
+import '../../lib/recipes/Certificates/AffirmationCertificate.js';
 
 /**
  * Create an affirmation certificate for another personId.

@@ -1,10 +1,10 @@
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes';
-import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string';
-import {getListOfKeys} from '@refinio/one.core/lib/keychain/keychain';
-import {getInstancesOfPerson} from '../../misc/instance';
-import type SomeoneModel from '../../models/Leute/SomeoneModel';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Instance, Keys, Person} from '@refinio/one.core/lib/recipes.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
+import {getListOfKeys} from '@refinio/one.core/lib/keychain/keychain.js';
+import {getInstancesOfPerson} from '../../misc/instance.js';
+import type SomeoneModel from '../../models/Leute/SomeoneModel.js';
 
 // ######## Keys ########
 
@@ -39,8 +39,8 @@ async function prettifyKeysForOwner(
     const keys = await getListOfKeys(owner);
 
     const prettyKeysArray = await Promise.all(
-        keys.map(async function (keys): Promise<[SHA256Hash<Keys>, PrettyKeys]> {
-            return [keys.keys, await prettifyKeys(keys.keys, keys.complete, keys.default)];
+        keys.map(async function (key): Promise<[SHA256Hash<Keys>, PrettyKeys]> {
+            return [key.keys, await prettifyKeys(key.keys, key.complete, key.default)];
         })
     );
 
@@ -79,9 +79,9 @@ async function prettifyInstancesWithKeysForOwner(
     const instances = await getInstancesOfPerson(owner);
 
     const prettyInstances = await Promise.all(
-        instances.map(async function (
-            instance
-        ): Promise<[SHA256IdHash<Instance>, PrettyInstanceWithKeys]> {
+        instances.map(async function (instance): Promise<
+            [SHA256IdHash<Instance>, PrettyInstanceWithKeys]
+        > {
             return [
                 instance.instanceId,
                 await prettifyInstanceWithKeys(instance.instanceId, instance.local)
@@ -127,9 +127,9 @@ export async function prettifyPersonsWithKeysAndInstances(
     persons: {personId: SHA256IdHash<Person>; main: boolean}[]
 ): Promise<PrettyPersonsWithKeysAndInstances> {
     const prettyPersons = await Promise.all(
-        persons.map(async function (
-            person
-        ): Promise<[SHA256IdHash<Person>, PrettyPersonWithKeysAndInstances]> {
+        persons.map(async function (person): Promise<
+            [SHA256IdHash<Person>, PrettyPersonWithKeysAndInstances]
+        > {
             return [
                 person.personId,
                 await prettifyPersonWithKeysAndInstancesWithKeys(person.personId, person.main)

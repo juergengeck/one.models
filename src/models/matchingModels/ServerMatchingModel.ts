@@ -1,24 +1,28 @@
-import {createAccess} from '@refinio/one.core/lib/access';
-import type {Instance} from '@refinio/one.core/lib/recipes';
-import type {Person} from '@refinio/one.core/lib/recipes';
-import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common';
-import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects';
-import {getObject, storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects';
+import {createAccess} from '@refinio/one.core/lib/access.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
+import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {
+    getObject,
+    storeUnversionedObject
+} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getObjectByIdObj,
     storeVersionedObject
-} from '@refinio/one.core/lib/storage-versioned-objects';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object';
-import {serializeWithType} from '@refinio/one.core/lib/util/promise';
-import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks';
-import type {Protocols} from '../../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages';
-import {objectEvents} from '../../misc/ObjectEventDispatcher';
-import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes';
-import type AccessModel from '../AccessModel';
-import type ChannelManager from '../ChannelManager';
-import type ConnectionsModel from '../ConnectionsModel';
-import MatchingModel from './MatchingModel';
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+
+import type {Protocols} from '../../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages.js';
+import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
+import type {Demand, MatchResponse, NotifiedUsers, Supply} from '../../recipes/MatchingRecipes.js';
+import type AccessModel from '../AccessModel.js';
+import type ChannelManager from '../ChannelManager.js';
+import type ConnectionsModel from '../ConnectionsModel.js';
+import MatchingModel from './MatchingModel.js';
 
 /**
  * Inheriting the common behaviour from the Matching Model class, this
