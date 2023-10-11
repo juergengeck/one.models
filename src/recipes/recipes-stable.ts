@@ -9,7 +9,6 @@ import NewsRecipes from './NewsRecipes.js';
 import InstancesRecipes from './InstancesRecipies.js';
 import DocumentRecipes from './DocumentRecipes/DocumentRecipes.js';
 import HeartEventRecipes from './HeartEventRecipes.js';
-import CanRiskRecipes from './CanRiskRecipes.js';
 
 const RecipesStable: Recipe[] = [
     ...ChannelRecipes,
@@ -21,8 +20,7 @@ const RecipesStable: Recipe[] = [
     ...SettingsRecipe,
     ...InstancesRecipes,
     ...DocumentRecipes,
-    ...HeartEventRecipes,
-    ...CanRiskRecipes
+    ...HeartEventRecipes
 ];
 
 export default RecipesStable;
