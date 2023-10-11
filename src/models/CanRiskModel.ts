@@ -38,8 +38,6 @@ export default class CanRiskModel extends Model {
         this.state.triggerEvent('init');
 
         await this.channelManager.createChannel(CanRiskModel.channelId);
-
-        // Creation of channel happens in the API model on replicant side.
         this.disconnects.push(this.channelManager.onUpdated(this.handleOnUpdated.bind(this)));
     }
 
@@ -95,6 +93,9 @@ export default class CanRiskModel extends Model {
      * @param ownerId personId. Optional. channelManager.defaultOwner used if undefined
      */
     async postResult(result: string, ownerId: SHA256IdHash<Person>): Promise<void> {
+        if (!(await this.channelManager.hasChannel(CanRiskModel.channelId, ownerId))) {
+            await this.channelManager.createChannel(CanRiskModel.channelId, ownerId);
+        }
         const canRiskResult = {
             $type$: 'CanRiskResult',
             result: result,
