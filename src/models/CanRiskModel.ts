@@ -37,6 +37,8 @@ export default class CanRiskModel extends Model {
         this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
 
+        await this.channelManager.createChannel(CanRiskModel.channelId);
+
         // Creation of channel happens in the API model on replicant side.
         this.disconnects.push(this.channelManager.onUpdated(this.handleOnUpdated.bind(this)));
     }
@@ -86,6 +88,8 @@ export default class CanRiskModel extends Model {
             channelId: CanRiskModel.channelId
         });
     }
+
+    //****** PRIVATE STUFF *******/
 
     /**
      * Handler function for the 'updated' event
