@@ -87,28 +87,6 @@ export default class CanRiskModel extends Model {
         });
     }
 
-    /**
-     * Post result to channel
-     * @param result json string
-     * @param ownerId personId. Optional. channelManager.defaultOwner used if undefined
-     */
-    async postResult(result: string, ownerId: SHA256IdHash<Person>): Promise<void> {
-        if (!(await this.channelManager.hasChannel(CanRiskModel.channelId, ownerId))) {
-            await this.channelManager.createChannel(CanRiskModel.channelId, ownerId);
-        }
-        const canRiskResult = {
-            $type$: 'CanRiskResult',
-            result: result,
-            ownerIdHash: ownerId
-        } as const;
-
-        const timeOfPost = new Date();
-
-        await this.channelManager.postToChannel(CanRiskModel.channelId, canRiskResult, ownerId);
-
-        this.onUpdated.emit(timeOfPost);
-    }
-
     //****** PRIVATE STUFF *******/
 
     /**
