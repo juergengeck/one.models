@@ -1,5 +1,6 @@
 import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {QuestionnaireResponses} from './QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -11,6 +12,7 @@ export interface CanRiskResult {
     $type$: 'CanRiskResult';
     result: string;
     ownerIdHash: SHA256IdHash<Person>;
+    questionnaireResponsesHash: SHA256Hash<QuestionnaireResponses>;
 }
 
 export const CanRiskResultRecipe: Recipe = {
@@ -21,7 +23,10 @@ export const CanRiskResultRecipe: Recipe = {
             itemprop: 'ownerIdHash', // patientId
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
-
+        {
+            itemprop: 'questionnaireResponsesHash',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['QuestionnaireResponses'])}
+        },
         {
             itemprop: 'result',
             itemtype: {type: 'string'}
