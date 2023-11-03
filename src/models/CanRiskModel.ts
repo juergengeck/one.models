@@ -64,7 +64,7 @@ export default class CanRiskModel extends Model {
         let canRiskResult: CanRiskResult | undefined = undefined;
 
         for await (const result of this.resultsIterator({
-            owner: owner ? owner : getInstanceOwnerIdHash()
+            owner: owner ? owner : 'mainId'
         })) {
             canRiskResult = result.data;
         }

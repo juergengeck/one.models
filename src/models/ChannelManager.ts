@@ -101,8 +101,9 @@ export enum Order {
 export type ChannelSelectionOptions = {
     channelId?: string; // Query channels that have this id
     channelIds?: string[]; // Query channels that have one of these ids.
-    owner?: SHA256IdHash<Person> | null; // Query channels that have this owner.
-    owners?: (SHA256IdHash<Person> | null)[]; // Query channels that have one of these owners.
+    owner?: SHA256IdHash<Person> | null | 'mainId'; // Query channels that have this owner.
+    owners?: (SHA256IdHash<Person> | null | 'mainId')[]; // Query channels that have one of these
+    // owners.
     channel?: Channel; // Query this channel
     channels?: Channel[]; // Query these channels
 
@@ -851,9 +852,8 @@ export default class ChannelManager {
         await Promise.all(
             channels.map(async channel => {
                 const channelInfoIdHash = await calculateIdHashOfObj(channel);
-                const sharedWithPersons = await ChannelManager.sharedWithPersonsList(
-                    channelInfoIdHash
-                );
+                const sharedWithPersons =
+                    await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
                 sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
             })
         );
@@ -1430,9 +1430,8 @@ export default class ChannelManager {
                         // Let's calculate the position of the generated version in the version map
                         let newVersionIndex = lastVersionToMerge;
                         {
-                            const versionMapEntries = await getAllVersionMapEntries(
-                                channelInfoIdHash
-                            );
+                            const versionMapEntries =
+                                await getAllVersionMapEntries(channelInfoIdHash);
                             for (
                                 let i = lastVersionToMerge + 1;
                                 i < versionMapEntries.length;
@@ -1615,10 +1614,21 @@ export default class ChannelManager {
         // Map options.owner(s) to a single variable
         let owners: (SHA256IdHash<Person> | null)[] | null = null;
         if (options && options.owner !== undefined) {
-            owners = [options.owner];
+            if (options.owner === 'mainId') {
+                owners = [await this.leuteModel.myMainIdentity()];
+            } else {
+                owners = [options.owner];
+            }
         }
         if (options && options.owners) {
-            owners = options.owners;
+            owners = [];
+            for (const owner of options.owners) {
+                if (owner === 'mainId') {
+                    owners.push(await this.leuteModel.myMainIdentity());
+                } else {
+                    owners.push(owner);
+                }
+            }
         }
 
         // Map options.channel(s) to a single variable
