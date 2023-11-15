@@ -38,7 +38,7 @@ describe('communication server tests', () => {
     // todo needs fixing why isn't it closing
     after(async () => {
         if (commServer) {
-            await commServer.stop();
+            return await commServer.stop();
         }
     });
 
