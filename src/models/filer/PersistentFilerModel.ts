@@ -34,7 +34,7 @@ export default class PersistentFilerModel extends EventEmitter {
     private readonly fileSystemChannelId: string;
 
     private fs: PersistentFileSystem | null = null;
-    private readonly disconnect: (() => void) | undefined;
+    private disconnect: (() => void) | undefined;
     private readonly storage: string | undefined;
 
     /**
@@ -52,7 +52,6 @@ export default class PersistentFilerModel extends EventEmitter {
         this.channelManager = channelManager;
         this.fileSystemChannelId = channelId;
         this.storage = storage;
-        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
@@ -63,6 +62,7 @@ export default class PersistentFilerModel extends EventEmitter {
         const root = await this.createRootDirectoryIfNotExists();
         this.fs = new PersistentFileSystem(root, this.storage);
         this.fs.onRootUpdate = this.boundOnFileSystemUpdateHandler.bind(this);
+        this.disconnect = this.channelManager.onUpdated(this.handleOnUpdated.bind(this));
     }
 
     /**
