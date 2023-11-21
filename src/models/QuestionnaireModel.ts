@@ -7,15 +7,18 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {AllowedAttachmentType} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0.js';
 import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
 import type {
-    QuestionnaireResponses,
-    QuestionnaireResponse
-} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+    QuestionnaireResponses_2_0_0,
+    QuestionnaireResponse_2_0_0
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
 export type Question = QuestionnaireRecipe.Question;
+export const QuestionnaireAttachmentAllowedTypes = AllowedAttachmentType;
+export type QuestionnaireAttachmentAllowedType = (typeof AllowedAttachmentType)[number];
 export type QuestionnaireExtension = QuestionnaireRecipe.Extension;
 export type QuestionnaireMinValueExtension = QuestionnaireRecipe.ExtensionMinValue;
 export type QuestionnaireMaxValueExtension = QuestionnaireRecipe.ExtensionMaxValue;
@@ -27,6 +30,10 @@ export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
+export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
+export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
+export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
+export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
 
 /**
  * This model represents everything related to Questionnaires.
@@ -271,7 +278,7 @@ export default class QuestionnaireModel extends Model {
         await this.channelManager.postToChannel(
             QuestionnaireModel.channelId,
             {
-                $type$: 'QuestionnaireResponses',
+                $type$: QuestionnaireResponsesType,
                 name,
                 type,
                 response: responses
@@ -286,7 +293,7 @@ export default class QuestionnaireModel extends Model {
     public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
+        return await this.channelManager.getObjectsWithType(QuestionnaireResponsesType, {
             channelId: QuestionnaireModel.channelId
         });
     }
@@ -300,7 +307,7 @@ export default class QuestionnaireModel extends Model {
     ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
-        yield* this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+        yield* this.channelManager.objectIteratorWithType(QuestionnaireResponsesType, {
             ...queryOptions,
             channelId: QuestionnaireModel.channelId
         });
@@ -314,7 +321,7 @@ export default class QuestionnaireModel extends Model {
     public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.channelManager.getObjectWithTypeById(id, 'QuestionnaireResponses');
+        return await this.channelManager.getObjectWithTypeById(id, QuestionnaireResponsesType);
     }
 
     /**
@@ -324,7 +331,7 @@ export default class QuestionnaireModel extends Model {
      * TODO: Why do we need this? I disabled it, because it assumes a language suffix - we should rethink this!
      */
     /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
-        const oneObjects = await this.channelManager.getObjectsWithType('QuestionnaireResponses', {
+        const oneObjects = await this.channelManager.getObjectsWithType(QuestionnaireResponsesType, {
             channelId: QuestionnaireModel.channelId
         });
         let numberOfSpecificQuestionnaires = 0;
@@ -373,7 +380,7 @@ export default class QuestionnaireModel extends Model {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
-            $type$: 'QuestionnaireResponses',
+            $type$: QuestionnaireResponsesType,
             name,
             type,
             response: responses
@@ -394,7 +401,7 @@ export default class QuestionnaireModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         // Construct iterator
-        const iterator = this.channelManager.objectIteratorWithType('QuestionnaireResponses', {
+        const iterator = this.channelManager.objectIteratorWithType(QuestionnaireResponsesType, {
             channelId: this.incompleteResponsesChannelId,
             from: since
         });
@@ -439,7 +446,7 @@ export default class QuestionnaireModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
-            $type$: 'QuestionnaireResponses',
+            $type$: QuestionnaireResponsesType,
             type: type,
             response: []
         });
