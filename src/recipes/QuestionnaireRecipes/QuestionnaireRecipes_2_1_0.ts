@@ -2,10 +2,7 @@
 /* eslint-disable no-redeclare */
 import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
 
-import {
-    CodingRules,
-    QuestionnaireRules as QuestionnaireRules_2_0_0
-} from './QuestionnaireRecipes_2_0_0.js';
+import {QuestionnaireRules as QuestionnaireRules_2_0_0} from './QuestionnaireRecipes_2_0_0.js';
 import type {Questionnaire_2_0_0} from './QuestionnaireRecipes_2_0_0.js';
 import {addRule, cloneRule, overwriteRule} from '../RecipeUtils.js';
 
