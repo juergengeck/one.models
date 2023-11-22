@@ -12,7 +12,7 @@ import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/Questi
 import type {
     QuestionnaireResponses_2_0_0,
     QuestionnaireResponse_2_0_0,
-    QuestionnaireResponse_2_0_0Item
+    QuestionnaireResponseItem_2_0_0
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
 
 // Export the Questionnaire types
@@ -33,7 +33,7 @@ export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEn
 export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
 export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
 export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
-export type QuestionnaireResponseItem = QuestionnaireResponse_2_0_0Item;
+export type QuestionnaireResponseItem = QuestionnaireResponseItem_2_0_0;
 export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
 export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
 
