@@ -4,6 +4,7 @@ import DiaryRecipes from './DiaryRecipes.js';
 import MetaRecipes from './MetaRecipes.js';
 import QuestionnaireRecipes from './QuestionnaireRecipes/QuestionnaireRecipes.js';
 import QuestionnaireResponseRecipes from './QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+import QuestionnaireResponseRecipes_2_0_0 from './QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
 import SettingsRecipe from './SettingsRecipe.js';
 import NewsRecipes from './NewsRecipes.js';
 import InstancesRecipes from './InstancesRecipies.js';
@@ -17,6 +18,7 @@ const RecipesStable: Recipe[] = [
     ...MetaRecipes,
     ...QuestionnaireRecipes,
     ...QuestionnaireResponseRecipes,
+    ...QuestionnaireResponseRecipes_2_0_0,
     ...SettingsRecipe,
     ...InstancesRecipes,
     ...DocumentRecipes,
