@@ -21,10 +21,10 @@ export interface QuestionnaireResponses_2_0_0 {
 /**
  * An answer item in the questionnaire response
  */
-export interface QuestionnaireResponse_2_0_0Item {
+export interface QuestionnaireResponseItem_2_0_0 {
     linkId: string;
     answer: Questionnaire.QuestionnaireValue[];
-    item?: QuestionnaireResponse_2_0_0Item[];
+    item?: QuestionnaireResponseItem_2_0_0[];
 }
 
 /**
@@ -34,13 +34,13 @@ export interface QuestionnaireResponse_2_0_0 {
     resourceType: 'QuestionnaireResponse_2_0_0';
     questionnaire?: string;
     status: 'in-progress' | 'completed' | 'amended' | 'entered-in-error' | 'stopped';
-    item: QuestionnaireResponse_2_0_0Item[];
+    item: QuestionnaireResponseItem_2_0_0[];
 }
 
 /**
  * The rules to build a questionnaire based on FHIR
  */
-export const QuestionnaireResponse_2_0_0Rules: RecipeRule[] = [
+export const QuestionnaireResponseRules_2_0_0: RecipeRule[] = [
     // FHIR resource type
     {
         itemprop: 'resourceType',
@@ -93,7 +93,7 @@ export const QuestionnaireResponse_2_0_0Rules: RecipeRule[] = [
     }
 ];
 
-export const QuestionnaireResponses_2_0_0Recipe: Recipe = {
+export const QuestionnaireResponsesRecipe_2_0_0: Recipe = {
     $type$: 'Recipe',
     name: 'QuestionnaireResponses_2_0_0',
     rule: [
@@ -118,7 +118,7 @@ export const QuestionnaireResponses_2_0_0Recipe: Recipe = {
             itemprop: 'response',
             itemtype: {
                 type: 'array',
-                item: {type: 'object', rules: QuestionnaireResponse_2_0_0Rules}
+                item: {type: 'object', rules: QuestionnaireResponseRules_2_0_0}
             }
         },
 
@@ -156,5 +156,5 @@ export const QuestionnaireResponses_2_0_0Recipe: Recipe = {
     ]
 };
 
-const QuestionnaireResponses_2_0_0Recipes: Recipe[] = [QuestionnaireResponses_2_0_0Recipe];
-export default QuestionnaireResponses_2_0_0Recipes;
+const QuestionnaireResponsesRecipes_2_0_0: Recipe[] = [QuestionnaireResponsesRecipe_2_0_0];
+export default QuestionnaireResponsesRecipes_2_0_0;
