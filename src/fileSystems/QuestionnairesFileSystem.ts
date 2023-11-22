@@ -1,5 +1,5 @@
 import type QuestionnaireModel from '../models/QuestionnaireModel.js';
-import type {QuestionnaireResponses} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+import type {QuestionnaireResponses} from '../models/QuestionnaireModel.js';
 import {DateToObjectDataTransformDirectory} from './cachedDirectories/DateToObjectDataTransformDirectory.js';
 import {DaysDirectory} from './cachedDirectories/DaysDirectory.js';
 import {MonthsDirectory} from './cachedDirectories/MonthsDirectory.js';
