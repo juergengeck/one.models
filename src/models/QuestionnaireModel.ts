@@ -11,7 +11,8 @@ import {AllowedAttachmentType} from '../recipes/QuestionnaireRecipes/Questionnai
 import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
 import type {
     QuestionnaireResponses_2_0_0,
-    QuestionnaireResponse_2_0_0
+    QuestionnaireResponse_2_0_0,
+    QuestionnaireResponse_2_0_0Item
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
 
 // Export the Questionnaire types
@@ -32,6 +33,7 @@ export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEn
 export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
 export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
 export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
+export type QuestionnaireResponseItem = QuestionnaireResponse_2_0_0Item;
 export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
 export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
 
