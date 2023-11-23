@@ -9,7 +9,7 @@ import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import * as StorageTestInit from './_helpers.js';
 import TestModel from './utils/TestModel.js';
 import QuestionnaireModel from '../lib/models/QuestionnaireModel.js';
-import {QuestionnaireResponseType} from '../lib/models/QuestionnaireModel.js';
+import {questionnaireResponseType} from '../lib/models/QuestionnaireModel.js';
 
 let testModel: TestModel;
 
@@ -94,7 +94,7 @@ describe('Questionnaire model test', () => {
         await qm.postResponseCollection(
             [
                 {
-                    resourceType: QuestionnaireResponseType,
+                    resourceType: questionnaireResponseType,
                     questionnaire: 'http://refinio.one/test/questionaire/irgendetwas',
                     status: 'completed',
                     item: [

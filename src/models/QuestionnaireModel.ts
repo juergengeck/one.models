@@ -32,12 +32,12 @@ export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
 export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
 export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
 export type QuestionnaireResponseItem = QuestionnaireResponseItem_2_0_0;
-export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
-export const QuestionnaireResponsesTypes: (keyof OneUnversionedObjectInterfaces)[] = [
+export const questionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
+export const questionnaireResponsesTypes: (keyof OneUnversionedObjectInterfaces)[] = [
     'QuestionnaireResponses',
     'QuestionnaireResponses_2_0_0'
 ];
-export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
+export const questionnaireResponseType = 'QuestionnaireResponse_2_0_0';
 
 /**
  * This model represents everything related to Questionnaires.
@@ -282,7 +282,7 @@ export default class QuestionnaireModel extends Model {
         await this.channelManager.postToChannel(
             QuestionnaireModel.channelId,
             {
-                $type$: QuestionnaireResponsesType,
+                $type$: questionnaireResponsesType,
                 name,
                 type,
                 response: responses
@@ -300,7 +300,7 @@ export default class QuestionnaireModel extends Model {
         return this.channelManager.getObjects({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: QuestionnaireResponsesTypes,
+            types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
         }) as unknown as ObjectData<QuestionnaireResponses>[];
     }
@@ -318,7 +318,7 @@ export default class QuestionnaireModel extends Model {
             ...queryOptions,
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: QuestionnaireResponsesTypes,
+            types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
     }
@@ -334,7 +334,7 @@ export default class QuestionnaireModel extends Model {
         const iterator = this.channelManager.objectIterator({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: QuestionnaireResponsesTypes,
+            types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId,
             id
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
@@ -381,7 +381,7 @@ export default class QuestionnaireModel extends Model {
 
         // Post the result to the one instance
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
-            $type$: QuestionnaireResponsesType,
+            $type$: questionnaireResponsesType,
             name,
             type,
             response: responses
@@ -405,7 +405,7 @@ export default class QuestionnaireModel extends Model {
         const iterator = this.channelManager.objectIterator({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: QuestionnaireResponsesTypes,
+            types: questionnaireResponsesTypes,
             channelId: this.incompleteResponsesChannelId,
             from: since
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
@@ -450,7 +450,7 @@ export default class QuestionnaireModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         await this.channelManager.postToChannel(this.incompleteResponsesChannelId, {
-            $type$: QuestionnaireResponsesType,
+            $type$: questionnaireResponsesType,
             type: type,
             response: []
         });
