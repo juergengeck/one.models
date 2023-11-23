@@ -7,14 +7,13 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-// imported for side effect of registering all versions
-import '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
 import type {
     QuestionnaireResponses_2_0_0,
     QuestionnaireResponse_2_0_0,
     QuestionnaireResponseItem_2_0_0
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
+import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
@@ -34,6 +33,10 @@ export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
 export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
 export type QuestionnaireResponseItem = QuestionnaireResponseItem_2_0_0;
 export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
+export const QuestionnaireResponsesTypes: (keyof OneUnversionedObjectInterfaces)[] = [
+    'QuestionnaireResponses',
+    'QuestionnaireResponses_2_0_0'
+];
 export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
 
 /**
@@ -297,7 +300,7 @@ export default class QuestionnaireModel extends Model {
         return this.channelManager.getObjects({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
+            types: QuestionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
         }) as unknown as ObjectData<QuestionnaireResponses>[];
     }
@@ -315,7 +318,7 @@ export default class QuestionnaireModel extends Model {
             ...queryOptions,
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
+            types: QuestionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
     }
@@ -331,7 +334,7 @@ export default class QuestionnaireModel extends Model {
         const iterator = this.channelManager.objectIterator({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
+            types: QuestionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId,
             id
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
@@ -402,7 +405,7 @@ export default class QuestionnaireModel extends Model {
         const iterator = this.channelManager.objectIterator({
             // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
             // QuestionnaireResponses_2_0_0 only has additions
-            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
+            types: QuestionnaireResponsesTypes,
             channelId: this.incompleteResponsesChannelId,
             from: since
         }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
