@@ -7,6 +7,8 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+// imported for side effect of registering all versions
+import '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
 import type {
     QuestionnaireResponses_2_0_0,
