@@ -7,7 +7,6 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import {AllowedAttachmentType} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_0_0.js';
 import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
 import type {
     QuestionnaireResponses_2_0_0,
@@ -18,8 +17,6 @@ import type {
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
 export type Question = QuestionnaireRecipe.Question;
-export const QuestionnaireAttachmentAllowedTypes = AllowedAttachmentType;
-export type QuestionnaireAttachmentAllowedType = (typeof AllowedAttachmentType)[number];
 export type QuestionnaireExtension = QuestionnaireRecipe.Extension;
 export type QuestionnaireMinValueExtension = QuestionnaireRecipe.ExtensionMinValue;
 export type QuestionnaireMaxValueExtension = QuestionnaireRecipe.ExtensionMaxValue;
@@ -295,9 +292,12 @@ export default class QuestionnaireModel extends Model {
     public async responses(): Promise<ObjectData<QuestionnaireResponses>[]> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.channelManager.getObjectsWithType(QuestionnaireResponsesType, {
+        return this.channelManager.getObjects({
+            // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
+            // QuestionnaireResponses_2_0_0 only has additions
+            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
             channelId: QuestionnaireModel.channelId
-        });
+        }) as unknown as ObjectData<QuestionnaireResponses>[];
     }
 
     /**
@@ -309,10 +309,13 @@ export default class QuestionnaireModel extends Model {
     ): AsyncIterableIterator<ObjectData<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
-        yield* this.channelManager.objectIteratorWithType(QuestionnaireResponsesType, {
+        yield* this.channelManager.objectIterator({
             ...queryOptions,
+            // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
+            // QuestionnaireResponses_2_0_0 only has additions
+            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
             channelId: QuestionnaireModel.channelId
-        });
+        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
     }
 
     /**
@@ -323,29 +326,20 @@ export default class QuestionnaireModel extends Model {
     public async responsesById(id: string): Promise<ObjectData<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.channelManager.getObjectWithTypeById(id, QuestionnaireResponsesType);
-    }
+        const iterator = this.channelManager.objectIterator({
+            // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
+            // QuestionnaireResponses_2_0_0 only has additions
+            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
+            channelId: QuestionnaireModel.channelId,
+            id
+        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
 
-    /**
-     * Getting the number of completed questionnaire by questionnaire type.
-     *
-     * @param questionnaireResponseId - questionnaire response identifier
-     * TODO: Why do we need this? I disabled it, because it assumes a language suffix - we should rethink this!
-     */
-    /*async getNumberOfQuestionnaireResponses(questionnaireResponseId: string): Promise<number> {
-        const oneObjects = await this.channelManager.getObjectsWithType(QuestionnaireResponsesType, {
-            channelId: QuestionnaireModel.channelId
-        });
-        let numberOfSpecificQuestionnaires = 0;
-
-        for (const oneObject of oneObjects) {
-            if (oneObject.data.questionnaire.includes(questionnaireResponseId)) {
-                numberOfSpecificQuestionnaires++;
-            }
+        for await (const responses of iterator) {
+            return responses;
         }
 
-        return numberOfSpecificQuestionnaires;
-    }*/
+        throw new Error('The referenced object does not exist');
+    }
 
     // ######### Incomplete Response Methods ########
 
@@ -403,10 +397,13 @@ export default class QuestionnaireModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         // Construct iterator
-        const iterator = this.channelManager.objectIteratorWithType(QuestionnaireResponsesType, {
+        const iterator = this.channelManager.objectIterator({
+            // QuestionnaireResponses is intentionally cast into QuestionnaireResponses_2_0_0
+            // QuestionnaireResponses_2_0_0 only has additions
+            types: ['QuestionnaireResponses', 'QuestionnaireResponses_2_0_0'],
             channelId: this.incompleteResponsesChannelId,
             from: since
-        });
+        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
 
         // Iterate over all entries and see if a type is present
         for await (const responses of iterator) {
