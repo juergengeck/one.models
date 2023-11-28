@@ -1,6 +1,6 @@
 import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
-import type {Questionnaire_2_0_0 as Questionnaire} from './QuestionnaireRecipes_2_0_0.js';
-import {ValueRules} from './QuestionnaireRecipes_2_0_0.js';
+import type {Questionnaire_2_1_1 as Questionnaire} from './QuestionnaireRecipes_2_1_1.js';
+import {ValueRules} from './QuestionnaireRecipes_2_1_1.js';
 
 export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
 export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
