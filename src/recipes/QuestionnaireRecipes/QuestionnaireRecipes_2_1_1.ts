@@ -28,8 +28,9 @@ export module Questionnaire_2_1_1 {
     /**
      * Question of a questionnaire.
      */
-    export type Question = Omit<Questionnaire_2_1_0.Question, 'item'> & {
+    export type Question = Omit<Questionnaire_2_1_0.Question, 'item' | 'initial'> & {
         item?: Question[];
+        initial?: QuestionnaireValue[];
     };
 
     export type Attachment = {
