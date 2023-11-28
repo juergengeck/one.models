@@ -7,13 +7,17 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import type {Questionnaire_2_1_0 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_0.js';
-import type {
-    QuestionnaireResponses_2_0_0,
-    QuestionnaireResponse_2_0_0,
-    QuestionnaireResponseItem_2_0_0
+import type {Questionnaire_2_1_1 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_1.js';
+import {
+    QuestionnaireResponsesType,
+    QuestionnaireResponseType
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
+import type {
+    QuestionnaireResponses_2_0_0 as QuestionnaireResponsesCurrentVersion,
+    QuestionnaireResponse_2_0_0 as QuestionnaireResponseCurrentVersion,
+    QuestionnaireResponseItem_2_0_0 as QuestionnaireResponseItemCurrentVersion
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
+import {supportedQuestionnaireResponseVersions} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
@@ -29,15 +33,12 @@ export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
-export type QuestionnaireResponses = QuestionnaireResponses_2_0_0;
-export type QuestionnaireResponse = QuestionnaireResponse_2_0_0;
-export type QuestionnaireResponseItem = QuestionnaireResponseItem_2_0_0;
-export const questionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
-export const questionnaireResponsesTypes: (keyof OneUnversionedObjectInterfaces)[] = [
-    'QuestionnaireResponses',
-    'QuestionnaireResponses_2_0_0'
-];
-export const questionnaireResponseType = 'QuestionnaireResponse_2_0_0';
+export type QuestionnaireResponses = QuestionnaireResponsesCurrentVersion;
+export type QuestionnaireResponse = QuestionnaireResponseCurrentVersion;
+export type QuestionnaireResponseItem = QuestionnaireResponseItemCurrentVersion;
+export const questionnaireResponsesType = QuestionnaireResponsesType;
+export const questionnaireResponsesTypes = supportedQuestionnaireResponseVersions;
+export const questionnaireResponseType = QuestionnaireResponseType;
 
 /**
  * This model represents everything related to Questionnaires.

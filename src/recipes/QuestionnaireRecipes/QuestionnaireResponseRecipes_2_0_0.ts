@@ -2,6 +2,9 @@ import type {Recipe, RecipeRule} from '@refinio/one.core/lib/recipes.js';
 import type {Questionnaire_2_0_0 as Questionnaire} from './QuestionnaireRecipes_2_0_0.js';
 import {ValueRules} from './QuestionnaireRecipes_2_0_0.js';
 
+export const QuestionnaireResponsesType = 'QuestionnaireResponses_2_0_0';
+export const QuestionnaireResponseType = 'QuestionnaireResponse_2_0_0';
+
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         QuestionnaireResponses_2_0_0: QuestionnaireResponses_2_0_0;

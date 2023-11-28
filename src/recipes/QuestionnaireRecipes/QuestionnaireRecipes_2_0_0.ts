@@ -75,7 +75,7 @@ export module Questionnaire_2_0_0 {
     };
 
     export type Attachment = {
-        contentType: string; // Mime type of the content, with charset etc.
+        contentType: ['image/png', 'image/jpeg', 'image/webp', 'image/gif']; // Mime type of the content, with charset etc.
         language?: string; // Human language of the content (BCP-47)
         data: string; // Data inline, base64ed
         title?: string; // Label to display in place of the data
@@ -381,7 +381,7 @@ export const OptionValueRules: RecipeRule[] = [
 export const AtachmentRules: RecipeRule[] = [
     {
         itemprop: 'contentType',
-        itemtype: {type: 'string'},
+        itemtype: {type: 'string', regexp: /^(image\/png|image\/jpeg|image\/webp|image\/gif)$/},
         optional: false
     },
     {
