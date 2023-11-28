@@ -43,7 +43,12 @@ export module Questionnaire_2_1_1 {
     export type Coding = Questionnaire_2_1_0.Coding;
     export type QuestionnaireEnableWhenAnswer = Questionnaire_2_1_0.QuestionnaireEnableWhenAnswer;
     export type QuestionnaireAnswerOptionValue = Questionnaire_2_1_0.QuestionnaireAnswerOptionValue;
-    export type QuestionnaireValue = Questionnaire_2_1_0.QuestionnaireValue;
+    export type QuestionnaireValue = Omit<
+        Questionnaire_2_1_0.QuestionnaireValue,
+        'valueAttachment'
+    > & {
+        valueAttachment?: Attachment;
+    };
     export type ExtensionMinValue = Questionnaire_2_1_0.ExtensionMinValue;
     export type ExtensionMaxValue = Questionnaire_2_1_0.ExtensionMaxValue;
     export type ExtensionEntryFormat = Questionnaire_2_1_0.ExtensionEntryFormat;
