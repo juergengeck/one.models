@@ -9,7 +9,7 @@ import {
 } from './QuestionnaireRecipes_2_0_0.js';
 import {QuestionnaireRules as QuestionnaireRules_2_1_0} from './QuestionnaireRecipes_2_1_0.js';
 import type {Questionnaire_2_1_0} from './QuestionnaireRecipes_2_1_0.js';
-import {addRule, cloneRule, overwriteRule} from '../RecipeUtils.js';
+import {cloneRule, overwriteRule, removeRule} from '../RecipeUtils.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
@@ -60,22 +60,16 @@ export module Questionnaire_2_1_1 {
 }
 
 export const AtachmentRules = cloneRule(AtachmentRules_2_0_0);
-overwriteRule(AtachmentRules, 'item', {
+removeRule(AtachmentRules, 'contentType');
+AtachmentRules.push({
     itemprop: 'contentType',
     itemtype: {type: 'string'},
     optional: true
 });
 
 export const ValueRules = cloneRule(ValueRules_2_0_0);
-// FHIR Type: Attachment
+removeRule(ValueRules, 'valueAttachment');
 ValueRules.push({
-    itemprop: 'valueAttachment',
-    itemtype: {type: 'object', rules: AtachmentRules},
-    optional: true
-});
-
-export const OptionValueRules = cloneRule(OptionValueRules_2_0_0);
-OptionValueRules.push({
     itemprop: 'valueAttachment',
     itemtype: {type: 'object', rules: AtachmentRules},
     optional: true
@@ -97,24 +91,6 @@ overwriteRule(QuestionnaireRules, 'item', {
         item: {
             type: 'object',
             rules: ValueRules
-        }
-    },
-    optional: true
-});
-overwriteRule(QuestionnaireRules, 'item', {
-    itemprop: 'answerOption',
-    itemtype: {
-        type: 'array',
-        item: {
-            type: 'object',
-            rules: [
-                ...OptionValueRules,
-                {
-                    itemprop: 'initialSelected',
-                    itemtype: {type: 'boolean'},
-                    optional: true
-                }
-            ]
         }
     },
     optional: true
