@@ -1,12 +1,24 @@
+import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {Person} from '@refinio/one.core/lib/recipes.js';
+
 import {OEvent} from '../misc/OEvent.js';
 import type ChannelManager from './ChannelManager.js';
 import {Model} from './Model.js';
-import type {CanRiskResult} from '../recipes/CanRiskRecipes.js';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
-import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
+import type {QuestionnaireResponsesHash} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+import type {
+    CanRiskResultVersionsType,
+    CanRiskResult
+} from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
+import {
+    latestVersionCanRiskResult,
+    canRiskResultVersionsTypes,
+    canRiskResultVersions
+} from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
+
+export const canRiskResultSupportedTypes = canRiskResultVersionsTypes;
+export type CanRiskResultType = CanRiskResultVersionsType;
 
 /**
  * Interface for the CanRisk channel.
@@ -56,23 +68,6 @@ export default class CanRiskModel extends Model {
     }
 
     /**
-     * Get latest result for owner or undefined.
-     * @param owner Optional. self personId if not provided
-     * @returns
-     */
-    async getLatestResult(owner?: SHA256IdHash<Person>): Promise<CanRiskResult | undefined> {
-        let canRiskResult: CanRiskResult | undefined = undefined;
-
-        for await (const result of this.resultsIterator({
-            owner: owner ? owner : 'mainId'
-        })) {
-            canRiskResult = result.data;
-        }
-
-        return canRiskResult;
-    }
-
-    /**
      * returns iterator for CanRiskResult
      * @param queryOptions
      */
@@ -81,10 +76,80 @@ export default class CanRiskModel extends Model {
     ): AsyncIterableIterator<ObjectData<CanRiskResult>> {
         this.state.assertCurrentState('Initialised');
 
-        yield* this.channelManager.objectIteratorWithType('CanRiskResult', {
+        yield* this.channelManager.objectIterator({
             ...queryOptions,
-            channelId: CanRiskModel.channelId
-        });
+            channelId: CanRiskModel.channelId,
+            types: canRiskResultVersions
+        }) as unknown as AsyncIterableIterator<ObjectData<CanRiskResult>>;
+    }
+
+    /**
+     * @param afterDate Optional.
+     * @param ownerId Optional. Default self personId
+     * @returns
+     */
+    async getLatestResult(
+        afterDate?: Date,
+        ownerId?: SHA256IdHash<Person>
+    ): Promise<CanRiskResult | undefined> {
+        for await (const canRiskResultObjectData of this.resultsIterator({
+            from: afterDate,
+            owner: ownerId ? ownerId : 'mainId'
+        })) {
+            return canRiskResultObjectData.data;
+        }
+
+        return undefined;
+    }
+
+    /**
+     * @param questionnaireResponsesHash Optional. when not provided first iteration result is returned
+     * @param postDate Optional.
+     * @param ownerId Optional. Default self personId
+     * @returns
+     */
+    async getResult(
+        questionnaireResponsesHash?: QuestionnaireResponsesHash,
+        postDate?: Date,
+        ownerId?: SHA256IdHash<Person>
+    ): Promise<CanRiskResult | undefined> {
+        for await (const canRiskResultObjectData of this.resultsIterator({
+            from: postDate,
+            owner: ownerId ? ownerId : 'mainId'
+        })) {
+            if (!questionnaireResponsesHash) {
+                return canRiskResultObjectData.data;
+            }
+
+            if (
+                canRiskResultObjectData.data.questionnaireResponsesHash ===
+                questionnaireResponsesHash
+            ) {
+                return canRiskResultObjectData.data;
+            }
+        }
+
+        return undefined;
+    }
+
+    /**
+     * @param result CanRisk api result
+     * @param questionnaireResponsesHash
+     * @param ownerId
+     */
+    async postResult(
+        result: string,
+        questionnaireResponsesHash: QuestionnaireResponsesHash,
+        ownerId: SHA256IdHash<Person>
+    ): Promise<void> {
+        const canRiskResult = {
+            $type$: latestVersionCanRiskResult,
+            result: result,
+            ownerIdHash: ownerId,
+            questionnaireResponsesHash: questionnaireResponsesHash
+        } as CanRiskResult;
+
+        await this.channelManager.postToChannel(CanRiskModel.channelId, canRiskResult, ownerId);
     }
 
     //****** PRIVATE STUFF *******/

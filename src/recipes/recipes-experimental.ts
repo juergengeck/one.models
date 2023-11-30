@@ -14,7 +14,7 @@ import ChatRecipes from './ChatRecipes.js';
 import ConsentRecipes_1_1_0 from './ConsentRecipes/ConsentRecipes_1_1_0.js';
 import IoMRequestRecipes from './IoM/IoMRequest.js';
 import IoMRequestsRegistryRecipes from './IoM/IoMRequestsRegistry.js';
-import CanRiskRecipes from './CanRiskRecipes.js';
+import CanRiskRecipes from './CanRiskRecipes/CanRiskResultRecipes.js';
 
 const RecipesExperimental: Recipe[] = [
     ...BodyTemperatureRecipes,

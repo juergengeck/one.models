@@ -7,17 +7,16 @@ import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import type {Questionnaire_2_1_1 as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes_2_1_1.js';
+
+import type {Questionnaire as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes.js';
 import {
-    QuestionnaireResponsesType,
-    QuestionnaireResponseType
-} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
-import type {
-    QuestionnaireResponses_2_0_0 as QuestionnaireResponsesCurrentVersion,
-    QuestionnaireResponse_2_0_0 as QuestionnaireResponseCurrentVersion,
-    QuestionnaireResponseItem_2_0_0 as QuestionnaireResponseItemCurrentVersion
-} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes_2_0_0.js';
-import {supportedQuestionnaireResponseVersions} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+    latestQuestionnaireResponsesVersion,
+    latestQuestionnaireResponseVersion,
+    QuestionnaireResponsesVersions,
+    type LatestQuestionnaireResponses,
+    type LatestQuestionnaireResponse,
+    type LatestQuestionnaireResponseItem
+} from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
@@ -33,12 +32,12 @@ export type Coding = QuestionnaireRecipe.Coding;
 export type QuestionnaireEnableWhenAnswer = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireAnswerOptionValue = QuestionnaireRecipe.QuestionnaireEnableWhenAnswer;
 export type QuestionnaireValue = QuestionnaireRecipe.QuestionnaireValue;
-export type QuestionnaireResponses = QuestionnaireResponsesCurrentVersion;
-export type QuestionnaireResponse = QuestionnaireResponseCurrentVersion;
-export type QuestionnaireResponseItem = QuestionnaireResponseItemCurrentVersion;
-export const questionnaireResponsesType = QuestionnaireResponsesType;
-export const questionnaireResponsesTypes = supportedQuestionnaireResponseVersions;
-export const questionnaireResponseType = QuestionnaireResponseType;
+export type QuestionnaireResponses = LatestQuestionnaireResponses;
+export type QuestionnaireResponse = LatestQuestionnaireResponse;
+export type QuestionnaireResponseItem = LatestQuestionnaireResponseItem;
+export const questionnaireResponsesType = latestQuestionnaireResponsesVersion;
+export const questionnaireResponsesTypes = QuestionnaireResponsesVersions;
+export const questionnaireResponseType = latestQuestionnaireResponseVersion;
 
 /**
  * This model represents everything related to Questionnaires.
@@ -321,7 +320,7 @@ export default class QuestionnaireModel extends Model {
             // QuestionnaireResponses_2_0_0 only has additions
             types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
     }
 
     /**
@@ -338,7 +337,7 @@ export default class QuestionnaireModel extends Model {
             types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId,
             id
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
 
         for await (const responses of iterator) {
             return responses;
@@ -409,7 +408,7 @@ export default class QuestionnaireModel extends Model {
             types: questionnaireResponsesTypes,
             channelId: this.incompleteResponsesChannelId,
             from: since
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
 
         // Iterate over all entries and see if a type is present
         for await (const responses of iterator) {
