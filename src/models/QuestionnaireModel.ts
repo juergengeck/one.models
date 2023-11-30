@@ -320,7 +320,7 @@ export default class QuestionnaireModel extends Model {
             // QuestionnaireResponses_2_0_0 only has additions
             types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
     }
 
     /**
@@ -337,7 +337,7 @@ export default class QuestionnaireModel extends Model {
             types: questionnaireResponsesTypes,
             channelId: QuestionnaireModel.channelId,
             id
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
 
         for await (const responses of iterator) {
             return responses;
@@ -408,7 +408,7 @@ export default class QuestionnaireModel extends Model {
             types: questionnaireResponsesTypes,
             channelId: this.incompleteResponsesChannelId,
             from: since
-        }) as unknown as AsyncIterableIterator<ObjectData<QuestionnaireResponses>>;
+        }) as unknown as AsyncIterableIterator<ObjectData<LatestQuestionnaireResponses>>;
 
         // Iterate over all entries and see if a type is present
         for await (const responses of iterator) {
