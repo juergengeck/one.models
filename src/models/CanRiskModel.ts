@@ -1,12 +1,12 @@
 import {OEvent} from '../misc/OEvent.js';
 import type ChannelManager from './ChannelManager.js';
 import {Model} from './Model.js';
-import type {CanRiskResult} from '../recipes/CanRiskRecipes.js';
+import {latestVersionCanRiskResultType} from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
+import type {CanRiskResult_1_0_1 as CanRiskResult} from '../recipes/CanRiskRecipes/CanRiskResultRecipe_1_0_1.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import type {ObjectData, QueryOptions, RawChannelEntry} from './ChannelManager.js';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
 
 /**
  * Interface for the CanRisk channel.
@@ -81,10 +81,11 @@ export default class CanRiskModel extends Model {
     ): AsyncIterableIterator<ObjectData<CanRiskResult>> {
         this.state.assertCurrentState('Initialised');
 
-        yield* this.channelManager.objectIteratorWithType('CanRiskResult', {
+        yield* this.channelManager.objectIterator({
             ...queryOptions,
-            channelId: CanRiskModel.channelId
-        });
+            channelId: CanRiskModel.channelId,
+            types: [latestVersionCanRiskResultType]
+        }) as unknown as AsyncIterableIterator<ObjectData<CanRiskResult>>;
     }
 
     //****** PRIVATE STUFF *******/
