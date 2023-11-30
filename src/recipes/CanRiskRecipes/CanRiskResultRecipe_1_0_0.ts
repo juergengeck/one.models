@@ -11,6 +11,7 @@ export interface CanRiskResult {
     $type$: 'CanRiskResult';
     result: string;
     ownerIdHash: SHA256IdHash<Person>;
+    questionnaireResponsesHash?: 'QuestionnaireResponses';
 }
 
 export const CanRiskResultRecipe: Recipe = {
@@ -21,7 +22,11 @@ export const CanRiskResultRecipe: Recipe = {
             itemprop: 'ownerIdHash', // patientId
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
         },
-
+        {
+            itemprop: 'questionnaireResponsesHash',
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['QuestionnaireResponses'])},
+            optional: true
+        },
         {
             itemprop: 'result',
             itemtype: {type: 'string'}
