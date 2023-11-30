@@ -16,7 +16,6 @@ import {
     canRiskResultVersionsTypes,
     canRiskResultVersions
 } from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
-import {getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
 
 export const canRiskResultSupportedTypes = canRiskResultVersionsTypes;
 export type CanRiskResultType = CanRiskResultVersionsType;
@@ -89,7 +88,7 @@ export default class CanRiskModel extends Model {
      * @param ownerId Optional. Default self personId
      * @returns
      */
-    async getLatest(
+    async getLatestResult(
         afterDate?: Date,
         ownerId?: SHA256IdHash<Person>
     ): Promise<CanRiskResult | undefined> {
@@ -109,7 +108,7 @@ export default class CanRiskModel extends Model {
      * @param ownerId Optional. Default self personId
      * @returns
      */
-    async get(
+    async getResult(
         questionnaireResponsesHash: QuestionnaireResponsesHash,
         postDate?: Date,
         ownerId?: SHA256IdHash<Person>
