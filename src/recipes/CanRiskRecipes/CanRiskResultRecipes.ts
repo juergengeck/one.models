@@ -14,12 +14,9 @@ export default QuestionnaireRecipes;
 export const latestVersionCanRiskResult: keyof OneUnversionedObjectInterfaces =
     'CanRiskResult_1_0_2';
 
-export const latestVersionCanRiskResultVersions: (keyof OneUnversionedObjectInterfaces)[] = [
-    'CanRiskResult_1_0_1',
-    'CanRiskResult_1_0_2'
-];
+export type {CanRiskResult_1_0_2 as CanRiskResult} from './CanRiskResultRecipe_1_0_2.js';
 
-export const latestVersionCanRiskResultVersionsTypes: OneObjectTypeNames[] = [
-    'CanRiskResult_1_0_1',
-    'CanRiskResult_1_0_2'
-];
+const supported = ['CanRiskResult_1_0_1', 'CanRiskResult_1_0_2'] as const;
+export const canRiskResultVersions: (keyof OneUnversionedObjectInterfaces)[] = [...supported];
+export const canRiskResultVersionsTypes: OneObjectTypeNames[] = [...supported];
+export type CanRiskResultVersionsType = (typeof supported)[number];
