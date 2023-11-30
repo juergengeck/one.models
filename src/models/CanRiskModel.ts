@@ -1,7 +1,7 @@
 import {OEvent} from '../misc/OEvent.js';
 import type ChannelManager from './ChannelManager.js';
 import {Model} from './Model.js';
-import {latestVersionCanRiskResultType} from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
+import {latestVersionCanRiskResultVersions} from '../recipes/CanRiskRecipes/CanRiskResultRecipes.js';
 import type {CanRiskResult_1_0_1 as CanRiskResult} from '../recipes/CanRiskRecipes/CanRiskResultRecipe_1_0_1.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {ChannelInfo} from '../recipes/ChannelRecipes.js';
@@ -84,7 +84,7 @@ export default class CanRiskModel extends Model {
         yield* this.channelManager.objectIterator({
             ...queryOptions,
             channelId: CanRiskModel.channelId,
-            types: [latestVersionCanRiskResultType]
+            types: latestVersionCanRiskResultVersions
         }) as unknown as AsyncIterableIterator<ObjectData<CanRiskResult>>;
     }
 
