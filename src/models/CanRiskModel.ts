@@ -103,13 +103,13 @@ export default class CanRiskModel extends Model {
     }
 
     /**
-     * @param questionnaireResponsesHash
+     * @param questionnaireResponsesHash Optional. when not provided first iteration result is returned
      * @param postDate Optional.
      * @param ownerId Optional. Default self personId
      * @returns
      */
     async getResult(
-        questionnaireResponsesHash: QuestionnaireResponsesHash,
+        questionnaireResponsesHash?: QuestionnaireResponsesHash,
         postDate?: Date,
         ownerId?: SHA256IdHash<Person>
     ): Promise<CanRiskResult | undefined> {
@@ -117,6 +117,10 @@ export default class CanRiskModel extends Model {
             from: postDate,
             owner: ownerId ? ownerId : 'mainId'
         })) {
+            if (!questionnaireResponsesHash) {
+                return canRiskResultObjectData.data;
+            }
+
             if (
                 canRiskResultObjectData.data.questionnaireResponsesHash ===
                 questionnaireResponsesHash
