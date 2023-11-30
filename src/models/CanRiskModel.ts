@@ -85,13 +85,13 @@ export default class CanRiskModel extends Model {
     }
 
     /**
-     * @param ownerId Optional. Default self personId
      * @param afterDate Optional.
+     * @param ownerId Optional. Default self personId
      * @returns
      */
     async getLatest(
-        ownerId?: SHA256IdHash<Person>,
-        afterDate?: Date
+        afterDate?: Date,
+        ownerId?: SHA256IdHash<Person>
     ): Promise<CanRiskResult | undefined> {
         for await (const canRiskResultObjectData of this.resultsIterator({
             from: afterDate,
@@ -105,14 +105,14 @@ export default class CanRiskModel extends Model {
 
     /**
      * @param questionnaireResponsesHash
-     * @param ownerId Optional. Default self personId
      * @param postDate Optional.
+     * @param ownerId Optional. Default self personId
      * @returns
      */
     async get(
         questionnaireResponsesHash: QuestionnaireResponsesHash,
-        ownerId?: SHA256IdHash<Person>,
-        postDate?: Date
+        postDate?: Date,
+        ownerId?: SHA256IdHash<Person>
     ): Promise<CanRiskResult | undefined> {
         for await (const canRiskResultObjectData of this.resultsIterator({
             from: postDate,
