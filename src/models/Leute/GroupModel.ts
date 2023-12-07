@@ -1,11 +1,7 @@
 import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes.js';
 import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob.js';
-import {
-    getObject,
-    onUnversionedObj,
-    type UnversionedObjectResult
-} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectByIdHash,
     storeVersionedObject
@@ -28,7 +24,6 @@ export default class GroupModel extends Model {
     public picture?: ArrayBuffer;
     public persons: SHA256IdHash<Person>[] = [];
 
-    private disconnectFns: Array<() => void> = [];
     private pLoadedVersion?: SHA256Hash<GroupProfile>;
     private group?: Group;
     private profile?: GroupProfile;
@@ -73,18 +68,6 @@ export default class GroupModel extends Model {
             }
         });
 
-        this.disconnectFns.push(
-            objectEvents.onNewVersion(
-                async result => {
-                    if (result.idHash === this.groupIdHash) {
-                        await this.loadLatestVersion();
-                    }
-                },
-                'Group: sync',
-                'Group'
-            )
-        );
-
         this.state.assertCurrentState('Uninitialised');
         this.state.triggerEvent('init');
     }
@@ -92,10 +75,6 @@ export default class GroupModel extends Model {
     async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
         this.state.triggerEvent('shutdown');
-
-        for (const disconnectFn of this.disconnectFns) {
-            disconnectFn();
-        }
     }
 
     // ######## asynchronous constructors ########
