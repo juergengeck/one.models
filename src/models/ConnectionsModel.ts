@@ -1,5 +1,5 @@
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
-import type {Group, Instance} from '@refinio/one.core/lib/recipes.js';
+import type {Instance} from '@refinio/one.core/lib/recipes.js';
 import {startChumProtocol} from '../misc/ConnectionEstablishment/protocols/Chum.js';
 import type {Protocols} from '../misc/ConnectionEstablishment/protocols/CommunicationInitiationProtocolMessages.js';
 import type {
@@ -15,7 +15,7 @@ import type LeuteModel from './Leute/LeuteModel.js';
 import {Model} from './Model.js';
 import type Connection from '../misc/Connection/Connection.js';
 import PairingManager from '../misc/ConnectionEstablishment/PairingManager.js';
-import GroupModel from './Leute/GroupModel.js';
+import type GroupModel from './Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -201,9 +201,9 @@ class ConnectionsModel extends Model {
     /**
      * Initialize this module.
      */
-    async init(blacklistGroupId?: SHA256IdHash<Group>): Promise<void> {
+    async init(blacklistGroup?: GroupModel): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
-        await this.leuteConnectionsModule.init(blacklistGroupId);
+        await this.leuteConnectionsModule.init(blacklistGroup);
         this.state.triggerEvent('init');
     }
 

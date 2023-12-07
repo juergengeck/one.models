@@ -10,7 +10,7 @@ import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds.js';
 import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds.js';
 import {OEvent} from '../OEvent.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
-import type {Group, Instance, Person} from '@refinio/one.core/lib/recipes.js';
+import type {Instance, Person} from '@refinio/one.core/lib/recipes.js';
 import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from-hex-string.js';
 import {
     ensureHexString,
@@ -29,7 +29,7 @@ import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance.js';
 import {isPersonComplete} from '../person.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import GroupModel from '../../models/Leute/GroupModel.js';
+import type GroupModel from '../../models/Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('CommunicationModule');
 
@@ -308,14 +308,13 @@ export default class LeuteConnectionsModule {
     /**
      * Initialize the communication.
      */
-    async init(blacklistGroupId?: SHA256IdHash<Group>): Promise<void> {
+    async init(blacklistGroup?: GroupModel): Promise<void> {
         this.initialized = true;
 
         // blacklist logic
-        if (blacklistGroupId) {
-            const blacklistGroup =
-                await GroupModel.constructFromLatestProfileVersion(blacklistGroupId);
+        if (blacklistGroup) {
             this.blacklistPersons = blacklistGroup.persons;
+
             this.disconnectListeners.push(
                 blacklistGroup.onUpdated(async () => {
                     const newBlacklist = blacklistGroup.persons;
