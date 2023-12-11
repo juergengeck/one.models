@@ -181,6 +181,22 @@ export default class GroupModel extends Model {
         return newModel;
     }
 
+    // ######## utils ########
+
+    public addPersons(addList: SHA256IdHash<Person>[]) {
+        if (!this.oldPersonsList) {
+            this.oldPersonsList = this.personsList;
+        }
+        this.personsList.push(...addList);
+    }
+
+    public addPerson(newPerson: SHA256IdHash<Person>) {
+        if (!this.oldPersonsList) {
+            this.oldPersonsList = this.personsList;
+        }
+        this.personsList.push(newPerson);
+    }
+
     // ######## getter ########
 
     get persons(): readonly SHA256IdHash<Person>[] {

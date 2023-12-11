@@ -17,10 +17,7 @@ import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/rever
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {
-    getIdObject,
-    getObjectByIdHash
-} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
@@ -246,7 +243,7 @@ export default class LeuteModel extends Model {
         if (this.createEveryoneGroup) {
             const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
             if (group.persons.find(person => person === personId) === undefined) {
-                group.persons.push(personId);
+                group.addPerson(personId);
                 await group.saveAndLoad();
             }
             disconnectFns.push(
@@ -965,8 +962,8 @@ export default class LeuteModel extends Model {
             return imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
                 ? 1
                 : imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
-                ? -1
-                : 0;
+                  ? -1
+                  : 0;
         });
 
         const objectDatas = imagesWithPersonId.map(imageWithPersonId => {
@@ -1014,8 +1011,8 @@ export default class LeuteModel extends Model {
             return status1.status.timestamp < status2.status.timestamp
                 ? 1
                 : status1.status.timestamp > status2.status.timestamp
-                ? -1
-                : 0;
+                  ? -1
+                  : 0;
         });
 
         const objectDatas = statusesWithPersonId.map(statusWithPersonId => {
@@ -1242,7 +1239,7 @@ export default class LeuteModel extends Model {
 
         for (const person of this.everyoneGroupNewPeopleCache) {
             if (!group.persons.includes(person)) {
-                group.persons.push(person);
+                group.addPerson(person);
             }
         }
 

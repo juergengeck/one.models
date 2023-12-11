@@ -196,7 +196,7 @@ export default class LeuteConnectionsModule {
     >();
 
     private disconnectListeners: (() => void)[];
-    private blacklistPersons: SHA256IdHash<Person>[];
+    private blacklistPersons: readonly SHA256IdHash<Person>[];
     private initialized: boolean; // Flag that stores whether this module is initialized
     private readonly config: LeuteConnectionsModuleConfiguration;
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
