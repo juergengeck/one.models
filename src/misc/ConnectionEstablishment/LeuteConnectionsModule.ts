@@ -316,24 +316,20 @@ export default class LeuteConnectionsModule {
             this.blacklistPersons = blacklistGroup.persons;
 
             this.disconnectListeners.push(
-                blacklistGroup.onUpdated(async () => {
-                    const newBlacklist = blacklistGroup.persons;
-                    const oldBlacklist = this.blacklistPersons;
-                    const both = [...oldBlacklist, ...newBlacklist];
-                    const uniques = both.filter((personId, i) => both.indexOf(personId) === i);
-
-                    for (const personId of uniques) {
-                        if (
-                            newBlacklist.indexOf(personId) !== -1 &&
-                            oldBlacklist.indexOf(personId) === -1
-                        ) {
-                            await this.disableConnectionsToPerson(personId);
-                        } else {
-                            await this.enableConnectionsToPerson(personId);
+                blacklistGroup.onUpdated(async (added, removed) => {
+                    if (added || removed) {
+                        if (added) {
+                            for (const personId of added) {
+                                await this.disableConnectionsToPerson(personId);
+                            }
                         }
+                        if (removed) {
+                            for (const personId of removed) {
+                                await this.enableConnectionsToPerson(personId);
+                            }
+                        }
+                        this.blacklistPersons = blacklistGroup.persons;
                     }
-
-                    this.blacklistPersons = newBlacklist;
                 })
             );
         }

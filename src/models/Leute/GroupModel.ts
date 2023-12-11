@@ -13,6 +13,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {GroupProfile} from '../../recipes/Leute/GroupProfile.js';
 import {Model} from '../Model.js';
+import {OEvent} from '../../misc/OEvent.js';
 
 const DUMMY_BLOB_HASH = '0'.repeat(64) as SHA256Hash<BLOB>;
 
@@ -20,9 +21,13 @@ export default class GroupModel extends Model {
     public readonly groupIdHash: SHA256IdHash<Group>;
     public readonly profileIdHash: SHA256IdHash<GroupProfile>;
 
+    public onUpdated: OEvent<
+        (added?: SHA256IdHash<Person>[], removed?: SHA256IdHash<Person>[]) => void
+    > = new OEvent<(oldList: SHA256IdHash<Person>[], newList: SHA256IdHash<Person>[]) => void>();
     public name: string = 'unnamed group';
     public picture?: ArrayBuffer;
-    public persons: SHA256IdHash<Person>[] = [];
+    private personsList: SHA256IdHash<Person>[] = [];
+    private oldPersonsList: SHA256IdHash<Person>[] = [];
 
     private pLoadedVersion?: SHA256Hash<GroupProfile>;
     private group?: Group;
@@ -178,6 +183,10 @@ export default class GroupModel extends Model {
 
     // ######## getter ########
 
+    get persons(): SHA256IdHash<Person>[] {
+        return this.personsList;
+    }
+
     /**
      * Returns the profile version that was loaded.
      */
@@ -199,6 +208,13 @@ export default class GroupModel extends Model {
             throw new Error('GroupModel has no data (internalGroupName)');
         }
         return this.group.name;
+    }
+
+    // ######## setter ########
+
+    set persons(newList: SHA256IdHash<Person>[]) {
+        this.oldPersonsList = this.personsList;
+        this.personsList = newList;
     }
 
     // ######## Save & Load ########
@@ -293,7 +309,7 @@ export default class GroupModel extends Model {
         const groupResult = await storeVersionedObject({
             $type$: 'Group',
             name: this.internalGroupName,
-            person: this.persons
+            person: this.personsList
         });
 
         await this.updateModelDataFromGroupAndProfile(
@@ -301,7 +317,28 @@ export default class GroupModel extends Model {
             profileResult.obj,
             profileResult.hash
         );
-        this.onUpdated.emit();
+
+        if (this.oldPersonsList && this.oldPersonsList.length > 0) {
+            const newlist = this.persons;
+            const oldlist = this.oldPersonsList;
+            const both = [...oldlist, ...newlist];
+            const uniques = both.filter((personId, i) => both.indexOf(personId) === i);
+            const added: SHA256IdHash<Person>[] = [];
+            const removed: SHA256IdHash<Person>[] = [];
+
+            for (const personId of uniques) {
+                if (newlist.indexOf(personId) !== -1 && oldlist.indexOf(personId) === -1) {
+                    removed.push(personId);
+                } else {
+                    added.push(personId);
+                }
+            }
+
+            this.oldPersonsList = [];
+            this.onUpdated.emit(added, removed);
+        } else {
+            this.onUpdated.emit();
+        }
     }
 
     // ######## private stuff ########
