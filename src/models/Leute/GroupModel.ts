@@ -331,7 +331,7 @@ export default class GroupModel extends Model {
         let added: SHA256IdHash<Person>[] | undefined = undefined;
         let removed: SHA256IdHash<Person>[] | undefined = undefined;
 
-        if (this.oldPersonsList && this.oldPersonsList.length > 0) {
+        if (this.oldPersonsList !== undefined) {
             const all = this.personsList.concat(this.oldPersonsList);
             const uniques = all.filter((personId, i) => all.indexOf(personId) === i);
 
