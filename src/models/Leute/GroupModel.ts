@@ -183,7 +183,7 @@ export default class GroupModel extends Model {
 
     // ######## getter ########
 
-    get persons(): SHA256IdHash<Person>[] {
+    get persons(): readonly SHA256IdHash<Person>[] {
         return this.personsList;
     }
 
@@ -319,7 +319,7 @@ export default class GroupModel extends Model {
         );
 
         if (this.oldPersonsList && this.oldPersonsList.length > 0) {
-            const newlist = this.persons;
+            const newlist = this.personsList;
             const oldlist = this.oldPersonsList;
             const both = [...oldlist, ...newlist];
             const uniques = both.filter((personId, i) => both.indexOf(personId) === i);
