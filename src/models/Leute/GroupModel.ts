@@ -332,17 +332,25 @@ export default class GroupModel extends Model {
         let removed: SHA256IdHash<Person>[] | undefined = undefined;
 
         if (this.oldPersonsList && this.oldPersonsList.length > 0) {
-            const newlist = this.personsList;
-            const oldlist = this.oldPersonsList;
-            const both = [...oldlist, ...newlist];
-            const uniques = both.filter((personId, i) => both.indexOf(personId) === i);
-            added = [];
-            removed = [];
+            const all = this.personsList.concat(this.oldPersonsList);
+            const uniques = all.filter((personId, i) => all.indexOf(personId) === i);
 
             for (const personId of uniques) {
-                if (newlist.indexOf(personId) !== -1 && oldlist.indexOf(personId) === -1) {
+                if (
+                    !this.personsList.includes(personId) &&
+                    this.oldPersonsList.includes(personId)
+                ) {
+                    if (!removed) {
+                        removed = [];
+                    }
                     removed.push(personId);
-                } else {
+                } else if (
+                    this.personsList.includes(personId) &&
+                    !this.oldPersonsList.includes(personId)
+                ) {
+                    if (!added) {
+                        added = [];
+                    }
                     added.push(personId);
                 }
             }
