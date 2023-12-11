@@ -312,19 +312,16 @@ export default class GroupModel extends Model {
             person: this.personsList
         });
 
-        await this.updateModelDataFromGroupAndProfile(
-            groupResult.obj,
-            profileResult.obj,
-            profileResult.hash
-        );
+        let added: SHA256IdHash<Person>[] | undefined = undefined;
+        let removed: SHA256IdHash<Person>[] | undefined = undefined;
 
         if (this.oldPersonsList && this.oldPersonsList.length > 0) {
             const newlist = this.personsList;
             const oldlist = this.oldPersonsList;
             const both = [...oldlist, ...newlist];
             const uniques = both.filter((personId, i) => both.indexOf(personId) === i);
-            const added: SHA256IdHash<Person>[] = [];
-            const removed: SHA256IdHash<Person>[] = [];
+            added = [];
+            removed = [];
 
             for (const personId of uniques) {
                 if (newlist.indexOf(personId) !== -1 && oldlist.indexOf(personId) === -1) {
@@ -335,10 +332,15 @@ export default class GroupModel extends Model {
             }
 
             this.oldPersonsList = [];
-            this.onUpdated.emit(added, removed);
-        } else {
-            this.onUpdated.emit();
         }
+
+        await this.updateModelDataFromGroupAndProfile(
+            groupResult.obj,
+            profileResult.obj,
+            profileResult.hash
+        );
+
+        this.onUpdated.emit(added, removed);
     }
 
     // ######## private stuff ########
