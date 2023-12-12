@@ -26,8 +26,7 @@ export default class GroupModel extends Model {
     > = new OEvent<(oldList: SHA256IdHash<Person>[], newList: SHA256IdHash<Person>[]) => void>();
     public name: string = 'unnamed group';
     public picture?: ArrayBuffer;
-    private personsList: SHA256IdHash<Person>[] = [];
-    private oldPersonsList: SHA256IdHash<Person>[] = [];
+    public persons: SHA256IdHash<Person>[] = [];
 
     private pLoadedVersion?: SHA256Hash<GroupProfile>;
     private group?: Group;
@@ -181,27 +180,7 @@ export default class GroupModel extends Model {
         return newModel;
     }
 
-    // ######## utils ########
-
-    public addPersons(addList: SHA256IdHash<Person>[]) {
-        if (!this.oldPersonsList) {
-            this.oldPersonsList = this.personsList;
-        }
-        this.personsList.push(...addList);
-    }
-
-    public addPerson(newPerson: SHA256IdHash<Person>) {
-        if (!this.oldPersonsList) {
-            this.oldPersonsList = this.personsList;
-        }
-        this.personsList.push(newPerson);
-    }
-
     // ######## getter ########
-
-    get persons(): readonly SHA256IdHash<Person>[] {
-        return this.personsList;
-    }
 
     /**
      * Returns the profile version that was loaded.
@@ -224,13 +203,6 @@ export default class GroupModel extends Model {
             throw new Error('GroupModel has no data (internalGroupName)');
         }
         return this.group.name;
-    }
-
-    // ######## setter ########
-
-    set persons(newList: SHA256IdHash<Person>[]) {
-        this.oldPersonsList = this.personsList;
-        this.personsList = newList;
     }
 
     // ######## Save & Load ########
@@ -325,37 +297,28 @@ export default class GroupModel extends Model {
         const groupResult = await storeVersionedObject({
             $type$: 'Group',
             name: this.internalGroupName,
-            person: this.personsList
+            person: this.persons
         });
+
+        // ensure new list does not have duplicates
+        this.persons = this.persons.filter((personId, i) => this.persons.indexOf(personId) === i);
+        // combine old and new list to loop everyone and determine changes
+        const all = this.persons.concat(this.group.person.filter(id => !this.persons.includes(id)));
 
         let added: SHA256IdHash<Person>[] | undefined = undefined;
         let removed: SHA256IdHash<Person>[] | undefined = undefined;
-
-        if (this.oldPersonsList !== undefined) {
-            const all = this.personsList.concat(this.oldPersonsList);
-            const uniques = all.filter((personId, i) => all.indexOf(personId) === i);
-
-            for (const personId of uniques) {
-                if (
-                    !this.personsList.includes(personId) &&
-                    this.oldPersonsList.includes(personId)
-                ) {
-                    if (!removed) {
-                        removed = [];
-                    }
-                    removed.push(personId);
-                } else if (
-                    this.personsList.includes(personId) &&
-                    !this.oldPersonsList.includes(personId)
-                ) {
-                    if (!added) {
-                        added = [];
-                    }
-                    added.push(personId);
+        for (const personId of all) {
+            if (!this.persons.includes(personId) && this.group.person.includes(personId)) {
+                if (!removed) {
+                    removed = [];
                 }
+                removed.push(personId);
+            } else if (this.persons.includes(personId) && !this.group.person.includes(personId)) {
+                if (!added) {
+                    added = [];
+                }
+                added.push(personId);
             }
-
-            this.oldPersonsList = [];
         }
 
         await this.updateModelDataFromGroupAndProfile(
@@ -387,7 +350,8 @@ export default class GroupModel extends Model {
             profile.picture === DUMMY_BLOB_HASH
                 ? undefined
                 : await readBlobAsArrayBuffer(profile.picture);
-        this.persons = group.person;
+        // this needs to be a copy, to keep original list in group
+        this.persons = [...group.person];
         this.profile = profile;
         this.group = group;
         this.pLoadedVersion = version;

@@ -30,7 +30,7 @@ describe('LeuteModel test', function () {
 
         // Add a person to the group and set the name
         groups[0].name = 'sissis';
-        groups[0].addPerson((await leuteModel.me()).identities()[0]);
+        groups[0].persons.push((await leuteModel.me()).identities()[0]);
         await groups[0].saveAndLoad();
 
         // Test if name and persons are correct

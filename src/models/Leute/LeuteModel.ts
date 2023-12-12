@@ -243,7 +243,7 @@ export default class LeuteModel extends Model {
         if (this.createEveryoneGroup) {
             const group = await this.createGroupInternal(LeuteModel.EVERYONE_GROUP_NAME);
             if (group.persons.find(person => person === personId) === undefined) {
-                group.addPerson(personId);
+                group.persons.push(personId);
                 await group.saveAndLoad();
             }
             disconnectFns.push(
@@ -1239,7 +1239,7 @@ export default class LeuteModel extends Model {
 
         for (const person of this.everyoneGroupNewPeopleCache) {
             if (!group.persons.includes(person)) {
-                group.addPerson(person);
+                group.persons.push(person);
             }
         }
 

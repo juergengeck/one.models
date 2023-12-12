@@ -177,7 +177,7 @@ export default class IoMManager {
 
         const group = await GroupModel.constructWithNewGroup(IoMManager.IoMGroupName);
         if (!group.persons.includes(me)) {
-            group.addPerson(me);
+            group.persons.push(me);
             await group.saveAndLoad();
         }
     }
@@ -190,7 +190,7 @@ export default class IoMManager {
     private async addPersonToIomGroup(personId: SHA256IdHash<Person>): Promise<void> {
         MessageBus.send('log', `addPersonToIomGroup ${personId}`);
         const group = await this.iomGroup();
-        group.addPerson(personId);
+        group.persons.push(personId);
         await group.saveAndLoad();
         MessageBus.send('log', `addPersonToIomGroup ${personId} - done`);
     }
