@@ -13,6 +13,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {GroupProfile} from '../../recipes/Leute/GroupProfile.js';
 import {Model} from '../Model.js';
+import {OEvent} from '../../misc/OEvent.js';
 
 const DUMMY_BLOB_HASH = '0'.repeat(64) as SHA256Hash<BLOB>;
 
@@ -20,6 +21,9 @@ export default class GroupModel extends Model {
     public readonly groupIdHash: SHA256IdHash<Group>;
     public readonly profileIdHash: SHA256IdHash<GroupProfile>;
 
+    public onUpdated: OEvent<
+        (added?: SHA256IdHash<Person>[], removed?: SHA256IdHash<Person>[]) => void
+    > = new OEvent<(oldList: SHA256IdHash<Person>[], newList: SHA256IdHash<Person>[]) => void>();
     public name: string = 'unnamed group';
     public picture?: ArrayBuffer;
     public persons: SHA256IdHash<Person>[] = [];
@@ -296,12 +300,34 @@ export default class GroupModel extends Model {
             person: this.persons
         });
 
+        // ensure new list does not have duplicates
+        this.persons = this.persons.filter((personId, i) => this.persons.indexOf(personId) === i);
+        // combine old and new list to loop everyone and determine changes
+        const all = this.persons.concat(this.group.person.filter(id => !this.persons.includes(id)));
+
+        let added: SHA256IdHash<Person>[] | undefined = undefined;
+        let removed: SHA256IdHash<Person>[] | undefined = undefined;
+        for (const personId of all) {
+            if (!this.persons.includes(personId) && this.group.person.includes(personId)) {
+                if (!removed) {
+                    removed = [];
+                }
+                removed.push(personId);
+            } else if (this.persons.includes(personId) && !this.group.person.includes(personId)) {
+                if (!added) {
+                    added = [];
+                }
+                added.push(personId);
+            }
+        }
+
         await this.updateModelDataFromGroupAndProfile(
             groupResult.obj,
             profileResult.obj,
             profileResult.hash
         );
-        this.onUpdated.emit();
+
+        this.onUpdated.emit(added, removed);
     }
 
     // ######## private stuff ########
@@ -324,7 +350,8 @@ export default class GroupModel extends Model {
             profile.picture === DUMMY_BLOB_HASH
                 ? undefined
                 : await readBlobAsArrayBuffer(profile.picture);
-        this.persons = group.person;
+        // this needs to be a copy, to keep original list in group
+        this.persons = [...group.person];
         this.profile = profile;
         this.group = group;
         this.pLoadedVersion = version;

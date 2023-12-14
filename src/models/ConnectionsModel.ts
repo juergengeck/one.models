@@ -15,6 +15,7 @@ import type LeuteModel from './Leute/LeuteModel.js';
 import {Model} from './Model.js';
 import type Connection from '../misc/Connection/Connection.js';
 import PairingManager from '../misc/ConnectionEstablishment/PairingManager.js';
+import type GroupModel from './Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -200,9 +201,9 @@ class ConnectionsModel extends Model {
     /**
      * Initialize this module.
      */
-    async init(): Promise<void> {
+    async init(blacklistGroup?: GroupModel): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
-        await this.leuteConnectionsModule.init();
+        await this.leuteConnectionsModule.init(blacklistGroup);
         this.state.triggerEvent('init');
     }
 

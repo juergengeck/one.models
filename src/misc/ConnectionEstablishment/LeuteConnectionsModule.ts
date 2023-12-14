@@ -29,6 +29,7 @@ import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance.js';
 import {isPersonComplete} from '../person.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import type GroupModel from '../../models/Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('CommunicationModule');
 
@@ -194,6 +195,8 @@ export default class LeuteConnectionsModule {
         ) => void
     >();
 
+    private disconnectListeners: (() => void)[];
+    private blacklistPersons: readonly SHA256IdHash<Person>[];
     private initialized: boolean; // Flag that stores whether this module is initialized
     private readonly config: LeuteConnectionsModuleConfiguration;
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
@@ -255,6 +258,9 @@ export default class LeuteConnectionsModule {
             newRoutesEnabled: config.newRoutesEnabled !== undefined ? config.newRoutesEnabled : true
         };
 
+        this.disconnectListeners = [];
+        this.blacklistPersons = [];
+
         this.leuteModel = leuteModel;
         this.connectionRouteManager = new ConnectionRouteManager(this.config.reconnectDelay);
 
@@ -302,8 +308,31 @@ export default class LeuteConnectionsModule {
     /**
      * Initialize the communication.
      */
-    async init(): Promise<void> {
+    async init(blacklistGroup?: GroupModel): Promise<void> {
         this.initialized = true;
+
+        // blacklist logic
+        if (blacklistGroup) {
+            this.blacklistPersons = blacklistGroup.persons;
+
+            this.disconnectListeners.push(
+                blacklistGroup.onUpdated(async (added, removed) => {
+                    if (added || removed) {
+                        if (added) {
+                            for (const personId of added) {
+                                await this.disableConnectionsToPerson(personId);
+                            }
+                        }
+                        if (removed) {
+                            for (const personId of removed) {
+                                await this.enableConnectionsToPerson(personId);
+                            }
+                        }
+                        this.blacklistPersons = blacklistGroup.persons;
+                    }
+                })
+            );
+        }
 
         await this.updateMyIdentites();
         await this.updateLocalInstancesMap();
@@ -316,6 +345,9 @@ export default class LeuteConnectionsModule {
      */
     async shutdown(): Promise<void> {
         this.initialized = false;
+        for (const disconnectListener of this.disconnectListeners) {
+            disconnectListener();
+        }
         await this.connectionRouteManager.disableRoutes();
 
         // Clear all other fields
@@ -640,7 +672,11 @@ export default class LeuteConnectionsModule {
                         outgoingRoutesGroupId
                     );
 
-                    if (route.isNew && this.config.newRoutesEnabled) {
+                    if (
+                        route.isNew &&
+                        this.config.newRoutesEnabled &&
+                        !this.blacklistPersons.includes(remoteInstanceEndpoint.personId)
+                    ) {
                         await this.connectionRouteManager.enableRoutes(
                             myInfo.instanceCryptoApi.publicEncryptionKey,
                             remoteInstanceKey,
@@ -663,7 +699,11 @@ export default class LeuteConnectionsModule {
                                 incomingRoutesGroupId
                             );
 
-                        if (route.isNew && this.config.newRoutesEnabled) {
+                        if (
+                            route.isNew &&
+                            this.config.newRoutesEnabled &&
+                            !this.blacklistPersons.includes(remoteInstanceEndpoint.personId)
+                        ) {
                             await this.connectionRouteManager.enableRoutes(
                                 myInfo.instanceCryptoApi.publicEncryptionKey,
                                 remoteInstanceKey,
@@ -680,7 +720,11 @@ export default class LeuteConnectionsModule {
                             incomingRoutesGroupId
                         );
 
-                        if (route.isNew && this.config.newRoutesEnabled) {
+                        if (
+                            route.isNew &&
+                            this.config.newRoutesEnabled &&
+                            !this.blacklistPersons.includes(remoteInstanceEndpoint.personId)
+                        ) {
                             await this.connectionRouteManager.enableRoutes(
                                 myInfo.instanceCryptoApi.publicEncryptionKey,
                                 remoteInstanceKey,
