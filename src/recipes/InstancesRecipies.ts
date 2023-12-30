@@ -1,5 +1,4 @@
 import type {Instance, Recipe} from '@refinio/one.core/lib/recipes.js';
-import {ORDERED_BY} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
