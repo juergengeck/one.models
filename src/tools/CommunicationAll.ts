@@ -34,12 +34,10 @@
  */
 
 import {createAccess} from '@refinio/one.core/lib/access.js';
-import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import yargs from 'yargs';
 
 import * as Logger from '@refinio/one.core/lib/logger.js';
 import {objectEvents} from '../misc/ObjectEventDispatcher.js';
-import AccessModel from '../models/AccessModel.js';
 import ChannelManager from '../models/ChannelManager.js';
 import ConnectionsModel from '../models/ConnectionsModel.js';
 import LeuteModel from '../models/Leute/LeuteModel.js';
