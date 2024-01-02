@@ -43,7 +43,9 @@ export async function startChumProtocol(
             remoteInstanceId: SHA256IdHash<Instance>,
             protocol: Protocols
         ) => void
-    >
+    >,
+    noImport: boolean = false,
+    noExport: boolean = false
 ) {
     onProtocolStart.emit(
         initiatedLocally,
@@ -77,6 +79,8 @@ export async function startChumProtocol(
         remoteInstanceName: (await getIdObject(remoteInstanceId)).name,
 
         keepRunning: true,
-        maxNotificationDelay: 20
+        maxNotificationDelay: 20,
+        noImport,
+        noExport
     }).promise;
 }
