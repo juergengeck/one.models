@@ -272,7 +272,7 @@ async function initWithIdentityExchange(
     );
 
     const oneCore = await setupOneCore(identity);
-    const oneModels = await setupOneModels(commServerUrl, instanceName === '1');
+    const oneModels = await setupOneModels(commServerUrl /*, instanceName === '1'*/);
 
     async function shutdown(): Promise<void> {
         console.log('Shutting down application');
