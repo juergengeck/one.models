@@ -120,9 +120,9 @@ function parseCommandLine(): {
                 'chum-importer-request-functions:log',
                 'chum-importer-request-functions:debug',
                 'chum-exporter:log',
-                'chum-exporter:debug',
+                'chum-exporter:debug' /*,
                 'ChannelManager:log',
-                'ChannelManager:debug'
+                'ChannelManager:debug'*/
             ] as unknown as ['debug', 'log', 'alert', 'error']
         });
     }
