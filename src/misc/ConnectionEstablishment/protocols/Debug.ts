@@ -150,7 +150,7 @@ export async function connectRequestingData(
 // #### Low level protocol / messages ... ####
 
 type DebugProtocols = 'getAccessibleObjects' | 'getData';
-const DebugProtocolsList = ['getAccessibleObjects' | 'getData'];
+const DebugProtocolsList = ['getAccessibleObjects', 'getData'];
 
 type StartProtocolMessage = {
     type: 'start_protocol';
