@@ -1,5 +1,5 @@
 import {isAccessibleBy, isIdAccessibleBy} from '@refinio/one.core/lib/accessManager.js';
-import type {BLOB, CLOB} from '@refinio/one.core/lib/recipes.js';
+import type {BLOB, CLOB, HashTypes} from '@refinio/one.core/lib/recipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {fileSize, readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base.js';
 import {isString} from '@refinio/one.core/lib/util/type-checks-basic.js';
@@ -47,12 +47,14 @@ export async function acceptDebugRequest(
             case 'blob':
             case 'clob':
             case 'object':
-                if (!(await isAccessibleBy(remotePersonId, request.hash))) {
+                if (
+                    !(await isAccessibleBy(remotePersonId, request.hash as SHA256Hash<HashTypes>))
+                ) {
                     conn.close('You do not have permission to access this file');
                 }
                 break;
             case 'id':
-                if (!(await isIdAccessibleBy(remotePersonId, request.hash))) {
+                if (!(await isIdAccessibleBy(remotePersonId, request.hash as SHA256IdHash))) {
                     conn.close('You do not have permission to access this id file');
                 }
                 break;
@@ -107,8 +109,12 @@ export async function connectRequestingAccessibleObjects(
     }
 }
 
+export type DataRequestHashType = 'blob' | 'clob' | 'id' | 'object';
+export type DataRequestHash = SHA256Hash<HashTypes> | SHA256IdHash;
+
 export async function connectRequestingData(
-    hashInfo: RequestDataHash,
+    hash: DataRequestHash,
+    hashType: DataRequestHashType,
     oneInstanceEndpoint: OneInstanceEndpoint,
     leuteModel: LeuteModel,
     myPersonId?: SHA256IdHash<Person>
@@ -129,7 +135,8 @@ export async function connectRequestingData(
 
         sendDebugMessage(conn, {
             type: 'request_data',
-            ...hashInfo
+            hashType,
+            hash
         });
 
         const dataMessage = await waitForDebugMessage(conn, 'data');
@@ -155,25 +162,11 @@ type AccessibleObjectsMessage = {
     objects: AccessibleObject[];
 };
 
-type RequestDataHash =
-    | {
-          hashType: 'blob';
-          hash: SHA256Hash<BLOB>;
-      }
-    | {
-          hashType: 'clob';
-          hash: SHA256Hash<CLOB>;
-      }
-    | {
-          hashType: 'id';
-          hash: SHA256IdHash;
-      }
-    | {
-          hashType: 'object';
-          hash: SHA256Hash;
-      };
-
-type RequestDataMessage = {type: 'request_data'} & RequestDataHash;
+type RequestDataMessage = {
+    type: 'request_data';
+    hashType: DataRequestHashType;
+    hash: DataRequestHash;
+};
 
 type DataMessage = {
     type: 'data';
