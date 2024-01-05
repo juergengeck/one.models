@@ -150,6 +150,7 @@ export async function connectRequestingData(
 // #### Low level protocol / messages ... ####
 
 type DebugProtocols = 'getAccessibleObjects' | 'getData';
+const DebugProtocolsList = ['getAccessibleObjects' | 'getData'];
 
 type StartProtocolMessage = {
     type: 'start_protocol';
@@ -197,7 +198,7 @@ export function isDebugMessage<T extends keyof DebugMessages>(
     }
 
     if (type === 'start_protocol') {
-        return arg.protocol === 'getAccessibleObjects' && typeof arg.version === 'string';
+        return DebugProtocolsList.includes(arg.protocol) && typeof arg.version === 'string';
     }
 
     if (type === 'accessible_objects') {
