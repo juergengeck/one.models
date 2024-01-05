@@ -29,7 +29,7 @@ import {getInstancesOfPerson, getLocalInstanceOfPerson} from '../instance.js';
 import {isPersonComplete} from '../person.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import type GroupModel from '../../models/Leute/GroupModel.js';
+import GroupModel from '../../models/Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('CommunicationModule');
 
@@ -207,6 +207,7 @@ export default class LeuteConnectionsModule {
     private readonly myPublicKeyToInstanceInfoMap: Map<LocalPublicKey, LocalInstanceInfo>; // A map
     // from my public instance key to my id - used to map the public key of the new connection to my ids
     private myIdentities: SHA256IdHash<Person>[]; // sync version of
+    private initiallyDisabledGroup: GroupModel | undefined;
     // this.leute.identities() so that connectionsInfo method doesn't have to be async.
 
     /**
@@ -308,28 +309,22 @@ export default class LeuteConnectionsModule {
     /**
      * Initialize the communication.
      */
-    async init(connectionOptions?: {
-        blacklistGroup?: GroupModel;
-        initiallyDisabledGroup?: GroupModel;
-    }): Promise<void> {
+    async init(blacklistGroup?: GroupModel): Promise<void> {
         this.initialized = true;
+        this.initiallyDisabledGroup = await GroupModel.constructWithNewGroup('initiallyDisabled');
 
         // initially disabled logic
-        if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
-            this.blacklistPersons = [...connectionOptions.initiallyDisabledGroup.persons];
+        if (this.initiallyDisabledGroup) {
+            this.blacklistPersons = [...this.initiallyDisabledGroup.persons];
         }
 
         // blacklist logic
-        if (connectionOptions && connectionOptions.blacklistGroup) {
-            this.blacklistPersons.push(...connectionOptions.blacklistGroup.persons);
+        if (blacklistGroup) {
+            this.blacklistPersons.push(...blacklistGroup.persons);
 
             this.disconnectListeners.push(
-                connectionOptions.blacklistGroup.onUpdated(async (added, removed) => {
-                    if (
-                        connectionOptions &&
-                        connectionOptions.blacklistGroup &&
-                        (added || removed)
-                    ) {
+                blacklistGroup.onUpdated(async (added, removed) => {
+                    if (blacklistGroup && (added || removed)) {
                         if (added) {
                             for (const personId of added) {
                                 await this.disableConnectionsToPerson(personId);
@@ -341,13 +336,13 @@ export default class LeuteConnectionsModule {
                             }
                         }
                         // addition to initially disabled logic, if presant
-                        if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
+                        if (this.initiallyDisabledGroup) {
                             this.blacklistPersons = [
-                                ...connectionOptions.initiallyDisabledGroup.persons,
-                                ...connectionOptions.blacklistGroup.persons
+                                ...this.initiallyDisabledGroup.persons,
+                                ...blacklistGroup.persons
                             ];
                         } else {
-                            this.blacklistPersons = [...connectionOptions.blacklistGroup.persons];
+                            this.blacklistPersons = [...blacklistGroup.persons];
                         }
                     }
                 })
@@ -542,14 +537,33 @@ export default class LeuteConnectionsModule {
                 remotePersonId: peerInfo ? peerInfo.personId : dummyPersonId,
 
                 enabled: routeGroup.knownRoutes.some(route => !route.disabled),
-                enable: (enable: boolean): Promise<void> => {
+                enable: async (enable: boolean): Promise<void> => {
                     if (enable) {
+                        if (
+                            peerInfo &&
+                            this.initiallyDisabledGroup &&
+                            this.initiallyDisabledGroup.persons.includes(peerInfo.personId)
+                        ) {
+                            this.initiallyDisabledGroup.persons =
+                                this.initiallyDisabledGroup.persons.filter(
+                                    id => id !== peerInfo.personId
+                                );
+                            await this.initiallyDisabledGroup?.saveAndLoad();
+                        }
                         return this.connectionRouteManager.enableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
                             routeGroup.groupName
                         );
                     } else {
+                        if (
+                            peerInfo &&
+                            this.initiallyDisabledGroup &&
+                            !this.initiallyDisabledGroup.persons.includes(peerInfo.personId)
+                        ) {
+                            this.initiallyDisabledGroup.persons.push(peerInfo.personId);
+                            await this.initiallyDisabledGroup?.saveAndLoad();
+                        }
                         return this.connectionRouteManager.disableRoutes(
                             routeGroup.localPublicKey,
                             routeGroup.remotePublicKey,
