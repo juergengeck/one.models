@@ -1,5 +1,5 @@
 import {isAccessibleBy, isIdAccessibleBy} from '@refinio/one.core/lib/accessManager.js';
-import type {BLOB, CLOB, HashTypes} from '@refinio/one.core/lib/recipes.js';
+import type {HashTypes} from '@refinio/one.core/lib/recipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {fileSize, readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base.js';
 import {isString} from '@refinio/one.core/lib/util/type-checks-basic.js';
