@@ -1,5 +1,4 @@
 import {isAccessibleBy, isIdAccessibleBy} from '@refinio/one.core/lib/accessManager.js';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import type {BLOB, CLOB} from '@refinio/one.core/lib/recipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {fileSize, readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base.js';
