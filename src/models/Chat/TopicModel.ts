@@ -1,9 +1,8 @@
 import {createAccess} from '@refinio/one.core/lib/access.js';
-import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes.js';
+import type {Group, Person} from '@refinio/one.core/lib/recipes.js';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
-import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';

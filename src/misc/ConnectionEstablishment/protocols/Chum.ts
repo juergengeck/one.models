@@ -44,8 +44,8 @@ export async function startChumProtocol(
             protocol: Protocols
         ) => void
     >,
-    noImport: boolean = false,
-    noExport: boolean = false
+    disableImporter: boolean = false,
+    disableExporter: boolean = false
 ) {
     onProtocolStart.emit(
         initiatedLocally,
@@ -80,7 +80,7 @@ export async function startChumProtocol(
 
         keepRunning: true,
         maxNotificationDelay: 20,
-        noImport,
-        noExport
+        disableImporter,
+        disableExporter
     }).promise;
 }
