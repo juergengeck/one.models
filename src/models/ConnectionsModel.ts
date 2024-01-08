@@ -201,9 +201,12 @@ class ConnectionsModel extends Model {
     /**
      * Initialize this module.
      */
-    async init(blacklistGroup?: GroupModel): Promise<void> {
+    async init(connectionOptions?: {
+        blacklistGroup?: GroupModel;
+        initiallyDisabledGroup?: GroupModel;
+    }): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
-        await this.leuteConnectionsModule.init(blacklistGroup);
+        await this.leuteConnectionsModule.init(connectionOptions);
         this.state.triggerEvent('init');
     }
 
