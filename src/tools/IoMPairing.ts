@@ -252,7 +252,7 @@ async function initWithIdentityExchange(
     shutdown: () => Promise<void>;
     contacts: SHA256IdHash<Person>[];
 }> {
-    // ######## Step 1: Create own identity (if not alread done) and setup app ########
+    // ######## Step 1: Create own identity (if not already done) and setup app ########
     const identity = await readOrCreateIdentityFile(
         `${instanceName}.id.json`,
         commServerUrl,
@@ -260,12 +260,9 @@ async function initWithIdentityExchange(
         instanceName
     );
 
-    // Setup one.core
     const oneCore = await setupOneCore(identity);
-    // Setup one.models
     const oneModels = await setupOneModels(commServerUrl);
 
-    // Setup shutdown
     async function shutdown(): Promise<void> {
         console.log('Shutting down application');
         await oneModels.shutdown();
