@@ -15,7 +15,7 @@ import type LeuteModel from './Leute/LeuteModel.js';
 import {Model} from './Model.js';
 import type Connection from '../misc/Connection/Connection.js';
 import PairingManager from '../misc/ConnectionEstablishment/PairingManager.js';
-import type GroupModel from './Leute/GroupModel.js';
+import GroupModel from './Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -116,6 +116,7 @@ class ConnectionsModel extends Model {
     private readonly config: ConnectionsModelConfiguration;
     private readonly leuteConnectionsModule: LeuteConnectionsModule;
     private readonly leuteModel: LeuteModel;
+    private initiallyDisabledGroup: GroupModel | undefined;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -215,7 +216,11 @@ class ConnectionsModel extends Model {
      */
     async init(blacklistGroup?: GroupModel): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
-        await this.leuteConnectionsModule.init(blacklistGroup);
+        this.initiallyDisabledGroup = await GroupModel.constructWithNewGroup('initiallyDisabled');
+        await this.leuteConnectionsModule.init({
+            blacklistGroup,
+            initiallyDisabledGroup: this.initiallyDisabledGroup
+        });
         this.state.triggerEvent('init');
     }
 
@@ -254,6 +259,15 @@ class ConnectionsModel extends Model {
         remotePersonId: SHA256IdHash<Person>,
         localPersonId?: SHA256IdHash<Person>
     ): Promise<void> {
+        if (
+            this.initiallyDisabledGroup &&
+            this.initiallyDisabledGroup.persons.includes(remotePersonId)
+        ) {
+            this.initiallyDisabledGroup.persons = this.initiallyDisabledGroup.persons.filter(
+                pId => pId !== remotePersonId
+            );
+            await this.initiallyDisabledGroup.saveAndLoad();
+        }
         await this.leuteConnectionsModule.enableConnectionsToPerson(remotePersonId, localPersonId);
     }
 
@@ -268,6 +282,13 @@ class ConnectionsModel extends Model {
         remotePersonId: SHA256IdHash<Person>,
         localPersonId?: SHA256IdHash<Person>
     ): Promise<void> {
+        if (
+            this.initiallyDisabledGroup &&
+            !this.initiallyDisabledGroup.persons.includes(remotePersonId)
+        ) {
+            this.initiallyDisabledGroup.persons.push(remotePersonId);
+            await this.initiallyDisabledGroup.saveAndLoad();
+        }
         await this.leuteConnectionsModule.disableConnectionsToPerson(remotePersonId, localPersonId);
     }
 
