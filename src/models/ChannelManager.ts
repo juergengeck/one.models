@@ -307,7 +307,7 @@ export default class ChannelManager {
     public async createChannel(
         channelId: string,
         owner?: SHA256IdHash<Person> | null
-    ): Promise<void> {
+    ): Promise<SHA256IdHash<ChannelInfo>> {
         if (owner === undefined) {
             owner = await this.calculateDefaultOwner();
         }
@@ -342,6 +342,8 @@ export default class ChannelManager {
 
             logWithId(channelId, owner, 'createChannel - END: Created');
         }
+
+        return channelInfoIdHash;
     }
 
     /**

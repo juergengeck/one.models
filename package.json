@@ -1,6 +1,6 @@
 {
     "name": "@refinio/one.models",
-    "version": "13.8.0",
+    "version": "13.9.0",
     "repository": "https://github.com/refinio/one.models",
     "license": "SEE LICENSE IN LICENSE.md",
     "private": true,
@@ -34,7 +34,7 @@
         "enable-source-maps": true
     },
     "dependencies": {
-        "@refinio/one.core": "^0.5.6",
+        "@refinio/one.core": "github:refinio/one.core",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",

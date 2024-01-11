@@ -64,6 +64,16 @@ export type ConnectionsModelConfiguration = {
     // If true automatically establish outgoing connections
     // Default: true
     establishOutgoingConnections: boolean;
+
+    // #### Chum Settings ####
+
+    // If true, then do not start the chum importer for all chum connections - useful for debugging
+    // Default: false
+    noImport: boolean;
+
+    // If true, then do not start the chum exporter for all chum connections - useful for debugging
+    // Default: false
+    noExport: boolean;
 };
 
 /**
@@ -165,7 +175,9 @@ class ConnectionsModel extends Model {
             establishOutgoingConnections:
                 config.establishOutgoingConnections === undefined
                     ? true
-                    : config.establishOutgoingConnections
+                    : config.establishOutgoingConnections,
+            noImport: config.noImport === undefined ? false : config.noImport,
+            noExport: config.noExport === undefined ? false : config.noExport
         };
 
         // Setup / init modules
@@ -362,7 +374,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId,
                     initiatedLocally,
                     connectionRoutesGroupName,
-                    this.onProtocolStart
+                    this.onProtocolStart,
+                    this.config.noImport,
+                    this.config.noExport
                 );
             } else if (connectionRoutesGroupName === 'pairing') {
                 await this.pairing.acceptInvitation(
@@ -428,7 +442,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId,
                     initiatedLocally,
                     connectionRoutesGroupName,
-                    this.onProtocolStart
+                    this.onProtocolStart,
+                    this.config.noImport,
+                    this.config.noExport
                 );
             } else if (connectionRoutesGroupName === 'debug') {
                 await acceptDebugRequest(conn, remotePersonId);
