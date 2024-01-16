@@ -124,6 +124,15 @@ export default class BodyTemperatureModel extends Model {
     }
 
     /**
+     * returns the BodyTemperature with that specific id provided by the ObjectData type
+     */
+    async bodyTemperatureById(id: string): Promise<ObjectData<OneBodyTemperature>> {
+        this.state.assertCurrentState('Initialised');
+
+        return await this.channelManager.getObjectWithTypeById(id, 'BodyTemperature');
+    }
+
+    /**
      *  Handler function for the 'updated' event
      * @param _channelInfoIdHash
      * @param channelId
