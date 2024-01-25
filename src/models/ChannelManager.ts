@@ -172,6 +172,7 @@ export type RawChannelEntry = {
     creationTime: number;
     dataHash: SHA256Hash<OneUnversionedObjectTypes>;
     metaDataHashes?: Array<SHA256Hash>;
+    author?: SHA256IdHash<Person>;
 };
 
 /**
@@ -889,7 +890,7 @@ export default class ChannelManager {
 
                 creationTime: new Date(entry.creationTime),
                 creationTimeHash: entry.creationTimeHash,
-                author: entry.channelInfo.owner,
+                author: entry.author,
                 sharedWith: sharedWith,
 
                 data: data,
@@ -979,6 +980,21 @@ export default class ChannelManager {
                 continue;
             }
 
+            let author: SHA256IdHash<Person> | undefined;
+            if (entry.metadata !== undefined) {
+                for (const metaHash of entry.metadata) {
+                    const metaObject = await getObject(metaHash);
+                    if (metaObject.$type$ === 'Signature') {
+                        const certObject = await getObject(metaObject.data);
+
+                        if (certObject.$type$ === 'AffirmationCertificate') {
+                            author = metaObject.issuer;
+                            break;
+                        }
+                    }
+                }
+            }
+
             yield {
                 channelInfo: channelInfo,
                 channelInfoIdHash: channelInfoIdHash,
@@ -986,7 +1002,8 @@ export default class ChannelManager {
                 creationTimeHash: creationTimeHash,
                 creationTime: creationTime.timestamp,
                 dataHash: creationTime.data,
-                metaDataHashes: entry.metadata
+                metaDataHashes: entry.metadata,
+                author
             };
 
             currentEntryHash = entry.previous;
@@ -1035,13 +1052,29 @@ export default class ChannelManager {
                 continue;
             }
 
+            let author: SHA256IdHash<Person> | undefined;
+            if (entry.metadata !== undefined) {
+                for (const metaHash of entry.metadata) {
+                    const metaObject = await getObject(metaHash);
+                    if (metaObject.$type$ === 'Signature') {
+                        const certObject = await getObject(metaObject.data);
+
+                        if (certObject.$type$ === 'AffirmationCertificate') {
+                            author = metaObject.issuer;
+                            break;
+                        }
+                    }
+                }
+            }
+
             entries.push({
                 channelInfo: channelInfo,
                 channelInfoIdHash: channelInfoIdHash,
                 channelEntryHash: entryData.channelEntryHash,
                 creationTimeHash: creationTimeHash,
                 creationTime: creationTime.timestamp,
-                dataHash: creationTime.data
+                dataHash: creationTime.data,
+                author
             });
         }
 
