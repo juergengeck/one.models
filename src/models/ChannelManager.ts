@@ -847,7 +847,7 @@ export default class ChannelManager {
 
         // Create a iterator for each selected channel
         const iterators = channels.map(channel =>
-            ChannelManager.singleChannelObjectIterator(channel, from, to, ids)
+            ChannelManager.singleChannelObjectIterator(channel, from, to, ids, true)
         );
 
         // Determine the access rights of each channel
@@ -910,21 +910,23 @@ export default class ChannelManager {
      * @param from
      * @param to
      * @param ids
+     * @param loadAuthor
      * @returns
      */
     public static async *singleChannelObjectIterator(
         channelInfo: ChannelInfo,
         from?: Date,
         to?: Date,
-        ids?: string[]
+        ids?: string[],
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'singleChannelObjectIterator - ENTER');
 
         // Select the item or entry iterator based on whether ids were passed
         if (ids) {
-            yield* this.itemIterator(channelInfo, ids, from, to);
+            yield* this.itemIterator(channelInfo, ids, from, to, loadAuthor);
         } else {
-            yield* this.entryIterator(channelInfo, from, to);
+            yield* this.entryIterator(channelInfo, from, to, loadAuthor);
         }
 
         logWithId(
@@ -944,12 +946,14 @@ export default class ChannelManager {
      * @param channelInfo - iterate this channel
      * @param from
      * @param to
+     * @param loadAuthor
      * @returns
      */
     private static async *entryIterator(
         channelInfo: ChannelInfo,
         from?: Date,
-        to?: Date
+        to?: Date,
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - ENTER');
         if (!channelInfo.head) {
@@ -981,7 +985,7 @@ export default class ChannelManager {
             }
 
             let author: SHA256IdHash<Person> | undefined;
-            if (entry.metadata !== undefined) {
+            if (loadAuthor && entry.metadata !== undefined) {
                 for (const metaHash of entry.metadata) {
                     const metaObject = await getObject(metaHash);
                     if (metaObject.$type$ === 'Signature') {
@@ -1019,13 +1023,15 @@ export default class ChannelManager {
      * @param ids
      * @param from
      * @param to
+     * @param loadAuthor
      * @returns
      */
     private static async *itemIterator(
         channelInfo: ChannelInfo,
         ids: string[],
         from?: Date,
-        to?: Date
+        to?: Date,
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'itemIterator - ENTER');
 
@@ -1053,7 +1059,7 @@ export default class ChannelManager {
             }
 
             let author: SHA256IdHash<Person> | undefined;
-            if (entry.metadata !== undefined) {
+            if (loadAuthor && entry.metadata !== undefined) {
                 for (const metaHash of entry.metadata) {
                     const metaObject = await getObject(metaHash);
                     if (metaObject.$type$ === 'Signature') {
