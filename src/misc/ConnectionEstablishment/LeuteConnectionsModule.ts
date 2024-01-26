@@ -196,7 +196,7 @@ export default class LeuteConnectionsModule {
     >();
 
     private disconnectListeners: (() => void)[];
-    private blacklistPersons: readonly SHA256IdHash<Person>[];
+    private blacklistPersons: SHA256IdHash<Person>[];
     private initialized: boolean; // Flag that stores whether this module is initialized
     private readonly config: LeuteConnectionsModuleConfiguration;
     private readonly leuteModel: LeuteModel; // Contact model for getting contact objects
@@ -308,16 +308,28 @@ export default class LeuteConnectionsModule {
     /**
      * Initialize the communication.
      */
-    async init(blacklistGroup?: GroupModel): Promise<void> {
+    async init(connectionOptions?: {
+        blacklistGroup?: GroupModel;
+        initiallyDisabledGroup?: GroupModel;
+    }): Promise<void> {
         this.initialized = true;
 
+        // initially disabled logic
+        if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
+            this.blacklistPersons = [...connectionOptions.initiallyDisabledGroup.persons];
+        }
+
         // blacklist logic
-        if (blacklistGroup) {
-            this.blacklistPersons = blacklistGroup.persons;
+        if (connectionOptions && connectionOptions.blacklistGroup) {
+            this.blacklistPersons.push(...connectionOptions.blacklistGroup.persons);
 
             this.disconnectListeners.push(
-                blacklistGroup.onUpdated(async (added, removed) => {
-                    if (added || removed) {
+                connectionOptions.blacklistGroup.onUpdated(async (added, removed) => {
+                    if (
+                        connectionOptions &&
+                        connectionOptions.blacklistGroup &&
+                        (added || removed)
+                    ) {
                         if (added) {
                             for (const personId of added) {
                                 await this.disableConnectionsToPerson(personId);
@@ -328,7 +340,15 @@ export default class LeuteConnectionsModule {
                                 await this.enableConnectionsToPerson(personId);
                             }
                         }
-                        this.blacklistPersons = blacklistGroup.persons;
+                        // addition to initially disabled logic, if presant
+                        if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
+                            this.blacklistPersons = [
+                                ...connectionOptions.initiallyDisabledGroup.persons,
+                                ...connectionOptions.blacklistGroup.persons
+                            ];
+                        } else {
+                            this.blacklistPersons = [...connectionOptions.blacklistGroup.persons];
+                        }
                     }
                 })
             );
