@@ -1,3 +1,4 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
 import type {CommunicationEndpointTypes} from './CommunicationEndpoints.js';
 import {CommunicationEndpointTypeNameSet} from './CommunicationEndpoints.js';
@@ -13,6 +14,7 @@ import type {
 
 export interface Profile {
     $type$: 'Profile';
+    $versionHash$?: SHA256Hash<VersionNode>;
     profileId: string;
     personId: SHA256IdHash<Person>;
     owner: SHA256IdHash<Person>;

@@ -1,4 +1,6 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Group, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {Someone} from './Someone.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
@@ -9,6 +11,7 @@ import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
  */
 export interface Leute {
     $type$: 'Leute';
+    $versionHash$?: SHA256Hash<VersionNode>;
     appId: 'one.leute';
     me: SHA256IdHash<Someone>;
     other: SHA256IdHash<Someone>[];
