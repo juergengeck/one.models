@@ -1,3 +1,4 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {CreationTime} from './MetaRecipes.js';
@@ -27,6 +28,7 @@ export interface ChannelEntry {
 
 export interface ChannelInfo {
     $type$: 'ChannelInfo';
+    $versionHash$?: SHA256Hash<VersionNode>;
     id: string;
     owner?: SHA256IdHash<Person>;
     head?: SHA256Hash<ChannelEntry>;
@@ -40,6 +42,7 @@ export interface ChannelRegistryEntry {
 
 export interface ChannelRegistry {
     $type$: 'ChannelRegistry';
+    $versionHash$?: SHA256Hash<VersionNode>;
     id: 'ChannelRegistry';
     channels: ChannelRegistryEntry[];
 }

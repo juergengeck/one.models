@@ -1,4 +1,6 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Instance, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
@@ -13,6 +15,7 @@ declare module '@OneObjectInterfaces' {
 
 export interface LocalInstancesList {
     $type$: 'LocalInstancesList';
+    $versionHash$?: SHA256Hash<VersionNode>;
     id: string;
     instances: {instance: SHA256IdHash<Instance>}[];
 }

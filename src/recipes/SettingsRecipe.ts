@@ -1,4 +1,5 @@
-import type {Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {Recipe, VersionNode} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {
@@ -12,6 +13,7 @@ declare module '@OneObjectInterfaces' {
 
 export interface Settings {
     $type$: 'Settings';
+    $versionHash$?: SHA256Hash<VersionNode>;
     id: string;
     properties: Map<string, string>;
 }
