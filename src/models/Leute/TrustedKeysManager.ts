@@ -186,7 +186,7 @@ export default class TrustedKeysManager {
         }
 
         // If we do not have a trust state, then call the DP algorithm
-        const rootKeys = await this.getRootKeys('MainId');
+        const rootKeys = await this.getRootKeys('All');
         return this.getKeyTrustInfoDP(
             key,
             rootKeys.map(k => ({

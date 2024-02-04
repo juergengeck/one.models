@@ -290,7 +290,7 @@ export default class IoMManager {
 
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
-        const keys = await getObject(endpoint.instanceKeys);
+        const keys = await getObject(endpoint.personKeys);
         const profile = await ProfileModel.constructWithNewProfile(
             identity,
             identity,
