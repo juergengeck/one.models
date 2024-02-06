@@ -122,8 +122,10 @@ export default class TrustedKeysManager {
     }
 
     async init(): Promise<void> {
-        await this.updatePersonRightsMap();
+        // updates keysOfPerson
         await this.updateKeysMaps();
+        // uses keysOfPerson (isSignedByRootKey) to update rights map
+        await this.updatePersonRightsMap();
     }
 
     async shutdown(): Promise<void> {
@@ -131,8 +133,10 @@ export default class TrustedKeysManager {
     }
 
     async refreshCaches(): Promise<void> {
-        await this.updatePersonRightsMap();
+        // updates keysOfPerson
         await this.updateKeysMaps();
+        // uses keysOfPerson (isSignedByRootKey) to update rights map
+        await this.updatePersonRightsMap();
     }
 
     // #### Keys for person interface ####
@@ -186,7 +190,7 @@ export default class TrustedKeysManager {
         }
 
         // If we do not have a trust state, then call the DP algorithm
-        const rootKeys = await this.getRootKeys('All');
+        const rootKeys = await this.getRootKeys('MainId');
         return this.getKeyTrustInfoDP(
             key,
             rootKeys.map(k => ({
