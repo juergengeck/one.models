@@ -191,8 +191,6 @@ export default class PairingManager {
                 `${conn.id}: connectUsingInvitation: startPairingProtocol - success`
             );
 
-            await this.leuteModel.trust.refreshCaches();
-
             // Notify the app of successful pairing and then close the connection.
             this.onPairingSuccess.emit(
                 true,
@@ -262,8 +260,6 @@ export default class PairingManager {
         this.activeInvitations.delete(pairingToken.token);
 
         MessageBus.send('log', `${conn.id}: acceptInvitation: startPairingProtocol - success`);
-
-        await this.leuteModel.trust.refreshCaches();
 
         // Notify the app of successful pairing and then close the connection.
         this.onPairingSuccess.emit(
