@@ -177,7 +177,6 @@ export default class PairingManager {
                 await this.leuteModel.trust.certify('TrustKeysCertificate', {
                     profile: remoteProfile.loadedVersion
                 });
-                await this.leuteModel.trust.refreshCaches();
             }
 
             // Send my own identity
@@ -266,7 +265,6 @@ export default class PairingManager {
             await this.leuteModel.trust.certify('TrustKeysCertificate', {
                 profile: remoteProfile.loadedVersion
             });
-            await this.leuteModel.trust.refreshCaches();
         }
 
         // Done, so remove the one time authentication token from the list
