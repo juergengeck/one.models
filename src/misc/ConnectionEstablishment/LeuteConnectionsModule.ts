@@ -284,21 +284,6 @@ export default class LeuteConnectionsModule {
             this.onConnectionsChange.emit();
         });
 
-        // Setup event for instance creation
-        this.leuteModel.onProfileUpdate((profile, isMe) => {
-            if (!this.initialized) {
-                return;
-            }
-
-            if (!isMe) {
-                return;
-            }
-
-            this.updateMyIdentites().catch(console.trace);
-            this.updateLocalInstancesMap().catch(console.trace);
-            this.setupRoutes().catch(console.trace);
-        });
-
         // Setup event for new contact objects on contact management
         this.leuteModel.onNewOneInstanceEndpoint(async (oneInstanceEndpoint, isMe) => {
             this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint).catch(console.trace);
@@ -313,6 +298,24 @@ export default class LeuteConnectionsModule {
         initiallyDisabledGroup?: GroupModel;
     }): Promise<void> {
         this.initialized = true;
+
+        // Setup event for instance creation
+        this.disconnectListeners.push(
+            this.leuteModel.onProfileUpdate((profile, isMe) => {
+                if (!isMe) {
+                    return;
+                }
+
+                this.updateCache().catch(console.trace);
+            })
+        );
+
+        // Setup me identities change
+        this.disconnectListeners.push(
+            this.leuteModel.onMeIdentitiesChange(() => {
+                this.updateCache().catch(console.trace);
+            })
+        );
 
         // initially disabled logic
         if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
@@ -354,11 +357,7 @@ export default class LeuteConnectionsModule {
             );
         }
 
-        await this.updateMyIdentites();
-        const mySomeone = await this.leuteModel.me();
-        this.disconnectListeners.push(mySomeone.onUpdate(this.updateMyIdentites.bind(this)));
-        await this.updateLocalInstancesMap();
-        await this.setupRoutes();
+        await this.updateCache();
         await this.connectionRouteManager.enableCatchAllRoutes();
     }
 
@@ -588,6 +587,12 @@ export default class LeuteConnectionsModule {
         }
 
         return connectionsInfo;
+    }
+
+    async updateCache(): Promise<void> {
+        await this.updateMyIdentites();
+        await this.updateLocalInstancesMap();
+        await this.setupRoutes();
     }
 
     /**

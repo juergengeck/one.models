@@ -108,6 +108,7 @@ export default class LeuteModel extends Model {
     // #### Events ####
 
     public onProfileUpdate: OEvent<(profile: Profile, isMe: boolean) => void> = new OEvent();
+    public onMeIdentitiesChange: OEvent<() => void> = new OEvent();
 
     // Emitted when a new instance endpoint was added to leute
     // Note: It might be emitted also for already known endpoints at the moment.
@@ -959,8 +960,8 @@ export default class LeuteModel extends Model {
             return imageWithPersonId1.image.timestamp < imageWIthPersonId2.image.timestamp
                 ? 1
                 : imageWithPersonId1.image.timestamp > imageWIthPersonId2.image.timestamp
-                ? -1
-                : 0;
+                  ? -1
+                  : 0;
         });
 
         const objectDatas = imagesWithPersonId.map(imageWithPersonId => {
@@ -1008,8 +1009,8 @@ export default class LeuteModel extends Model {
             return status1.status.timestamp < status2.status.timestamp
                 ? 1
                 : status1.status.timestamp > status2.status.timestamp
-                ? -1
-                : 0;
+                  ? -1
+                  : 0;
         });
 
         const objectDatas = statusesWithPersonId.map(statusWithPersonId => {

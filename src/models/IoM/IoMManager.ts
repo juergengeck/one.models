@@ -165,13 +165,6 @@ export default class IoMManager {
         if (other === request.mainId) {
             await this.leuteModel.changeMyMainIdentity(other);
         }
-
-        // TODO: find a better way
-        // workaround for refresh IoM flag in leuteConnectionsModule
-        const meSomeone = await this.leuteModel.me();
-        const meMainProfile = await meSomeone.mainProfile();
-        const result = await getObjectByIdHash(meMainProfile.idHash);
-        this.leuteModel.onProfileUpdate.emit(result.obj, true);
     }
 
     // ######## IoM Group functions ########
@@ -200,6 +193,7 @@ export default class IoMManager {
         const group = await this.iomGroup();
         group.persons.push(personId);
         await group.saveAndLoad();
+        this.leuteModel.onMeIdentitiesChange.emit();
         MessageBus.send('log', `addPersonToIomGroup ${personId} - done`);
     }
 
