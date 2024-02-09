@@ -265,11 +265,9 @@ export default class IoMManager {
         for (const profile of profiles) {
             await to.addProfile(profile.idHash);
         }
-        await to.saveAndLoad();
 
         // Remove identity from the old someone
         await from.removeIdentity(identity);
-        await from.saveAndLoad();
         if (from.identities().length === 0) {
             await this.leuteModel.removeSomeoneElse(from.idHash);
         }

@@ -52,12 +52,10 @@ export default class SomeoneModel {
         // Setup the onUpdate event
         let disconnect: (() => void) | undefined;
         this.onUpdate.onListen(() => {
-            if (this.onUpdate.listenerCount() === 0) {
+            if (!disconnect) {
                 disconnect = objectEvents.onNewVersion(
                     async (result: VersionedObjectResult<Someone>) => {
-                        if (result.idHash === this.idHash) {
-                            await this.onUpdate.emitAll();
-                        }
+                        await this.onUpdate.emitAll();
                     },
                     `SomeoneModel: onUpdate ${this.idHash}`,
                     'Someone',
