@@ -355,6 +355,8 @@ export default class LeuteConnectionsModule {
         }
 
         await this.updateMyIdentites();
+        const mySomeone = await this.leuteModel.me();
+        this.disconnectListeners.push(mySomeone.onUpdate(this.updateMyIdentites.bind(this)));
         await this.updateLocalInstancesMap();
         await this.setupRoutes();
         await this.connectionRouteManager.enableCatchAllRoutes();
@@ -595,15 +597,15 @@ export default class LeuteConnectionsModule {
         this.connectionRouteManager.debugDump(header);
     }
 
+    // ######## Private stuff ########
+
     /**
      * Updates this.myIdentities with my own identities from Leute.
      */
-    async updateMyIdentites(): Promise<void> {
+    private async updateMyIdentites(): Promise<void> {
         const mySomeone = await this.leuteModel.me();
         this.myIdentities = mySomeone.identities();
     }
-
-    // ######## Private stuff ########
 
     /**
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
