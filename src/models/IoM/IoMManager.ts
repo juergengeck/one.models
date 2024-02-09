@@ -3,6 +3,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
 
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {Profile} from '../../recipes/Leute/Profile.js';
@@ -164,6 +165,13 @@ export default class IoMManager {
         if (other === request.mainId) {
             await this.leuteModel.changeMyMainIdentity(other);
         }
+
+        // TODO: find a better way
+        // workaround for refresh IoM flag in leuteConnectionsModule
+        const meSomeone = await this.leuteModel.me();
+        const meMainProfile = await meSomeone.mainProfile();
+        const result = await getObjectByIdHash(meMainProfile.idHash);
+        this.leuteModel.onProfileUpdate.emit(result.obj, true);
     }
 
     // ######## IoM Group functions ########
