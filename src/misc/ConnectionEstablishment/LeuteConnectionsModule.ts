@@ -595,6 +595,14 @@ export default class LeuteConnectionsModule {
         this.connectionRouteManager.debugDump(header);
     }
 
+    /**
+     * Updates this.myIdentities with my own identities from Leute.
+     */
+    async updateMyIdentites(): Promise<void> {
+        const mySomeone = await this.leuteModel.me();
+        this.myIdentities = mySomeone.identities();
+    }
+
     // ######## Private stuff ########
 
     /**
@@ -813,14 +821,6 @@ export default class LeuteConnectionsModule {
                 });
             })
         );
-    }
-
-    /**
-     * Updates this.myIdentities with my own identities from Leute.
-     */
-    private async updateMyIdentites(): Promise<void> {
-        const mySomeone = await this.leuteModel.me();
-        this.myIdentities = mySomeone.identities();
     }
 
     // ######## Event handlers ########

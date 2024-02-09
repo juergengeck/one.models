@@ -117,6 +117,7 @@ class ConnectionsModel extends Model {
     private readonly leuteConnectionsModule: LeuteConnectionsModule;
     private readonly leuteModel: LeuteModel;
     private initiallyDisabledGroup: GroupModel | undefined;
+    private disconnectListeners: (() => void | Promise<void>)[] = [];
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -216,6 +217,11 @@ class ConnectionsModel extends Model {
      */
     async init(blacklistGroup?: GroupModel): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
+        this.disconnectListeners.push(
+            this.pairing.onPairingSuccess(
+                this.leuteConnectionsModule.updateMyIdentites.bind(this.leuteConnectionsModule)
+            )
+        );
         this.initiallyDisabledGroup = await GroupModel.constructWithNewGroup('initiallyDisabled');
         await this.leuteConnectionsModule.init({
             blacklistGroup,
@@ -229,6 +235,10 @@ class ConnectionsModel extends Model {
      */
     async shutdown(): Promise<void> {
         this.state.assertCurrentState('Initialised');
+        for (const disconnectListener of this.disconnectListeners) {
+            await disconnectListener();
+        }
+        this.disconnectListeners = [];
         await this.leuteConnectionsModule.shutdown();
         this.pairing.invalidateAllInvitations();
         this.state.triggerEvent('shutdown');
