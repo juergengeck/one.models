@@ -3,7 +3,8 @@ import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getIdObject,
-    getObjectByIdHash
+    getObjectByIdHash,
+    type VersionedObjectResult
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
@@ -51,9 +52,9 @@ export default class SomeoneModel {
         // Setup the onUpdate event
         let disconnect: (() => void) | undefined;
         this.onUpdate.onListen(() => {
-            if (this.onUpdate.listenerCount() === 0) {
+            if (!disconnect) {
                 disconnect = objectEvents.onNewVersion(
-                    async () => {
+                    async (result: VersionedObjectResult<Someone>) => {
                         await this.onUpdate.emitAll();
                     },
                     `SomeoneModel: onUpdate ${this.idHash}`,

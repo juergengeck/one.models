@@ -231,13 +231,13 @@ export default class IoMRequestManager {
     }
 
     private async processNewIoMRequestCertificate(result: UnversionedObjectResult<Signature>) {
-        messageBus.send('debug', `processNewIoMRequestCertificate ${result.hash}`);
-
         // Step 1: Load the certificate object (might be something else)
         const certificate = await getObject(result.obj.data);
         if (certificate.$type$ !== 'AffirmationCertificate') {
             return;
         }
+
+        messageBus.send('debug', `processNewIoMRequestCertificate ${result.hash}`);
 
         // Step 2: Load the request (might be something else)
         const request = await getObject(certificate.data);

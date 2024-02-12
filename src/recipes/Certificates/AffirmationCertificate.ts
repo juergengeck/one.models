@@ -4,7 +4,7 @@ import type {License} from './License.js';
 import {registerLicense} from '../../misc/Certificates/LicenseRegistry.js';
 
 /**
- * License that affirms that refernced data contains accurate information.
+ * License that affirms that referenced data contains accurate information.
  */
 export const AffirmationLicense: License = Object.freeze({
     $type$: 'License',

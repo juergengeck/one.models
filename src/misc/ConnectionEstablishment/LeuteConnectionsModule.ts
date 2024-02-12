@@ -284,21 +284,6 @@ export default class LeuteConnectionsModule {
             this.onConnectionsChange.emit();
         });
 
-        // Setup event for instance creation
-        this.leuteModel.onProfileUpdate((profile, isMe) => {
-            if (!this.initialized) {
-                return;
-            }
-
-            if (!isMe) {
-                return;
-            }
-
-            this.updateMyIdentites().catch(console.trace);
-            this.updateLocalInstancesMap().catch(console.trace);
-            this.setupRoutes().catch(console.trace);
-        });
-
         // Setup event for new contact objects on contact management
         this.leuteModel.onNewOneInstanceEndpoint(async (oneInstanceEndpoint, isMe) => {
             this.setupRoutesForOneInstanceEndpoint(oneInstanceEndpoint).catch(console.trace);
@@ -313,6 +298,24 @@ export default class LeuteConnectionsModule {
         initiallyDisabledGroup?: GroupModel;
     }): Promise<void> {
         this.initialized = true;
+
+        // Setup event for instance creation
+        this.disconnectListeners.push(
+            this.leuteModel.onProfileUpdate((profile, isMe) => {
+                if (!isMe) {
+                    return;
+                }
+
+                this.updateCache().catch(console.trace);
+            })
+        );
+
+        // Setup me identities change
+        this.disconnectListeners.push(
+            this.leuteModel.onMeIdentitiesChange(() => {
+                this.updateCache().catch(console.trace);
+            })
+        );
 
         // initially disabled logic
         if (connectionOptions && connectionOptions.initiallyDisabledGroup) {
@@ -354,9 +357,7 @@ export default class LeuteConnectionsModule {
             );
         }
 
-        await this.updateMyIdentites();
-        await this.updateLocalInstancesMap();
-        await this.setupRoutes();
+        await this.updateCache();
         await this.connectionRouteManager.enableCatchAllRoutes();
     }
 
@@ -588,6 +589,12 @@ export default class LeuteConnectionsModule {
         return connectionsInfo;
     }
 
+    async updateCache(): Promise<void> {
+        await this.updateMyIdentites();
+        await this.updateLocalInstancesMap();
+        await this.setupRoutes();
+    }
+
     /**
      * Dumps all information about connections and routes in readable form to console.
      */
@@ -596,6 +603,14 @@ export default class LeuteConnectionsModule {
     }
 
     // ######## Private stuff ########
+
+    /**
+     * Updates this.myIdentities with my own identities from Leute.
+     */
+    private async updateMyIdentites(): Promise<void> {
+        const mySomeone = await this.leuteModel.me();
+        this.myIdentities = mySomeone.identities();
+    }
 
     /**
      * Set up a map with peers that we want to connect to. (this.knownPeerMap)
@@ -813,14 +828,6 @@ export default class LeuteConnectionsModule {
                 });
             })
         );
-    }
-
-    /**
-     * Updates this.myIdentities with my own identities from Leute.
-     */
-    private async updateMyIdentites(): Promise<void> {
-        const mySomeone = await this.leuteModel.me();
-        this.myIdentities = mySomeone.identities();
     }
 
     // ######## Event handlers ########
