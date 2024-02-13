@@ -1,4 +1,4 @@
-import type {BLOB, Group, Person, VersionNode} from '@refinio/one.core/lib/recipes.js';
+import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes.js';
 import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
