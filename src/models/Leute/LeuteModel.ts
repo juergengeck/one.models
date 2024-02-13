@@ -1,6 +1,5 @@
 import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
 import {createAccess} from '@refinio/one.core/lib/access.js';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
 import {
     createCryptoApiFromDefaultKeys,
@@ -17,7 +16,11 @@ import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/rever
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getIdObject,
+    getObjectByIdHash,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
@@ -1392,7 +1395,7 @@ export default class LeuteModel extends Model {
             throw new Error('No leute data that could be saved');
         }
 
-        const result = await storeVersionedObjectCRDT(this.leute, this.pLoadedVersion);
+        const result = await storeVersionedObject(this.leute);
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
 

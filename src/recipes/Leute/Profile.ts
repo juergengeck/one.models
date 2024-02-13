@@ -27,7 +27,6 @@ export interface Profile {
 export const ProfileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Profile',
-    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'profileId',
@@ -74,11 +73,11 @@ export const ProfileReverseMapsForIdObjects: [OneVersionedObjectTypeNames, Set<s
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         Profile: Profile;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         Profile: Pick<Profile, '$type$' | 'personId' | 'profileId' | 'owner'>;
     }
 }

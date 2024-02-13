@@ -46,7 +46,5 @@ declare module '@OneObjectInterfaces' {
 
     export interface OneVersionedObjectInterfaces {}
 
-    export interface OneCrdtObjectInterfaces {}
-
     export interface PlanResultTypes {}
 }

@@ -66,11 +66,11 @@ export const SomeoneReverseMaps: [OneObjectTypeNames, Set<string>][] = [
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         Someone: Someone;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         Someone: Pick<Someone, '$type$' | 'someoneId'>;
     }
 }

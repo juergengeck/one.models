@@ -17,7 +17,6 @@ export interface GroupProfile {
 export const GroupProfileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'GroupProfile',
-    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'group',
@@ -38,11 +37,11 @@ export const GroupProfileRecipe: Recipe = {
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         GroupProfile: GroupProfile;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         GroupProfile: Pick<GroupProfile, '$type$' | 'group'>;
     }
 }

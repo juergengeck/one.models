@@ -23,7 +23,6 @@ export interface Leute {
 export const LeuteRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'Leute',
-    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'appId',
@@ -54,11 +53,11 @@ export const LeuteRecipe: Recipe = {
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         Leute: Leute;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         Leute: Pick<Leute, '$type$' | 'appId'>;
     }
 }

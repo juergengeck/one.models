@@ -1,9 +1,9 @@
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getIdObject,
-    getObjectByIdHash
+    getObjectByIdHash,
+    storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
@@ -482,15 +482,13 @@ export default class SomeoneModel {
             });
         }
 
-        const result = await storeVersionedObjectCRDT(
-            {
-                $type$: 'Someone',
-                someoneId: this.someone.someoneId,
-                mainProfile: this.someone.mainProfile,
-                identity: identities
-            },
-            this.pLoadedVersion
-        );
+        const result = await storeVersionedObject({
+            $type$: 'Someone',
+            $versionHash$: this.someone.$versionHash$,
+            someoneId: this.someone.someoneId,
+            mainProfile: this.someone.mainProfile,
+            identity: identities
+        });
 
         await this.updateModelDataFromSomeone(result.obj, result.hash);
     }
