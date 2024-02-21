@@ -393,6 +393,22 @@ export default class SomeoneModel {
     }
 
     /**
+     * Remove a profile to this someone object.
+     */
+    public async removeProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+        const profileObj = await getObjectByIdHash(profile);
+        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+
+        if (profileSet === undefined) {
+            throw new Error('The someone object does not manage profiles for the specified person');
+        }
+
+        profileSet.delete(profile);
+
+        await this.saveAndLoad();
+    }
+
+    /**
      * Create a new profile for a specific person.
      *
      * @param profileId
