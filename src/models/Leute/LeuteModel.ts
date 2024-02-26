@@ -111,6 +111,7 @@ export default class LeuteModel extends Model {
     // #### Events ####
 
     public onProfileUpdate: OEvent<(profile: Profile, isMe: boolean) => void> = new OEvent();
+    public onMeIdentitiesChange: OEvent<() => void> = new OEvent();
 
     // Emitted when a new instance endpoint was added to leute
     // Note: It might be emitted also for already known endpoints at the moment.
@@ -210,13 +211,8 @@ export default class LeuteModel extends Model {
 
             await this.saveAndLoad();
 
-            // This is done before the trust manager is initialized. This is probably not such a
-            // good idea, but it works for now.
-            await this.trust.certify(
-                'RightToDeclareTrustedKeysForEverybodyCertificate',
-                {beneficiary: personId},
-                personId
-            );
+            // Give the new main identity all rights, so that he can declare trust for other keys
+            await this.givePersonAllRights(personId, personId);
         }
 
         const disconnectFns: Array<() => void> = [];
@@ -661,6 +657,7 @@ export default class LeuteModel extends Model {
                 throw new Error('Person is not complete!');
             }
             this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
+            await this.givePersonAllRights(newIdentity, newIdentity);
             await mySomeone.setMainProfile(profileHash);
             this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
         }
@@ -686,6 +683,7 @@ export default class LeuteModel extends Model {
             throw new Error('Person is not complete!');
         }
         this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
+        await this.givePersonAllRights(newIdentity, newIdentity);
         await mySomeone.setMainIdentity(newIdentity);
         this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
     }
@@ -1144,6 +1142,29 @@ export default class LeuteModel extends Model {
             instanceName
         );
         return {...personResult, ...instanceResult};
+    }
+
+    /**
+     * This gives a person all local rights - at the moment do declare trusted keys.
+     *
+     * @param beneficiary - The person that gets the rights
+     * @param issuer - The person that gives the rights
+     * @private
+     */
+    private async givePersonAllRights(
+        beneficiary: SHA256IdHash<Person>,
+        issuer?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.trust.certify(
+            'RightToDeclareTrustedKeysForEverybodyCertificate',
+            {beneficiary},
+            issuer
+        );
+        await this.trust.certify(
+            'RightToDeclareTrustedKeysForSelfCertificate',
+            {beneficiary},
+            issuer
+        );
     }
 
     // ######## Hooks for one.core ########

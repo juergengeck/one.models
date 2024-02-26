@@ -173,6 +173,12 @@ export default class PairingManager {
             const remoteIdentity = (await waitForPeerMessage(conn, 'identity')).obj;
             const remoteProfile = await convertIdentityToProfile(remoteIdentity);
 
+            if (remoteProfile.loadedVersion) {
+                await this.leuteModel.trust.certify('TrustKeysCertificate', {
+                    profile: remoteProfile.loadedVersion
+                });
+            }
+
             // Send my own identity
             const oneInstanceEndpoints = await this.leuteModel.getMyLocalEndpoints(myPersonId);
             if (oneInstanceEndpoints.length === 0) {
@@ -253,7 +259,13 @@ export default class PairingManager {
 
         // Step 4: Wait for remote identity
         const remoteIdentity = (await waitForPeerMessage(conn, 'identity')).obj;
-        await convertIdentityToProfile(remoteIdentity);
+        const remoteProfile = await convertIdentityToProfile(remoteIdentity);
+
+        if (remoteProfile.loadedVersion) {
+            await this.leuteModel.trust.certify('TrustKeysCertificate', {
+                profile: remoteProfile.loadedVersion
+            });
+        }
 
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);

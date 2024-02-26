@@ -3,6 +3,7 @@ import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-che
 import type {Person} from '@refinio/one.core/lib/recipes.js';
 import {createDefaultKeys, hasDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
 
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import type {Profile} from '../../recipes/Leute/Profile.js';
@@ -192,6 +193,7 @@ export default class IoMManager {
         const group = await this.iomGroup();
         group.persons.push(personId);
         await group.saveAndLoad();
+        this.leuteModel.onMeIdentitiesChange.emit();
         MessageBus.send('log', `addPersonToIomGroup ${personId} - done`);
     }
 
@@ -268,7 +270,6 @@ export default class IoMManager {
 
         // Remove identity from the old someone
         await from.removeIdentity(identity);
-        await from.saveAndLoad();
         if (from.identities().length === 0) {
             await this.leuteModel.removeSomeoneElse(from.idHash);
         }
@@ -290,7 +291,7 @@ export default class IoMManager {
 
         const someone = await this.getSomeoneOrThrow(identity);
         const profiles = await someone.profiles(identity);
-        const keys = await getObject(endpoint.instanceKeys);
+        const keys = await getObject(endpoint.personKeys);
         const profile = await ProfileModel.constructWithNewProfile(
             identity,
             identity,
