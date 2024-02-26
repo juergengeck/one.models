@@ -111,7 +111,7 @@ function parseCommandLine(): {
 
     // Initialize Logger
     if (argv.l) {
-        Logger.start({
+        Logger.startLogger({
             types: [
                 'chum-sync:log',
                 'chum-sync:debug',
@@ -127,7 +127,7 @@ function parseCommandLine(): {
         });
     }
     if (argv.d) {
-        Logger.start();
+        Logger.startLogger();
     }
 
     return {

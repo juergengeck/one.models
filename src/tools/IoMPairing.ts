@@ -117,10 +117,10 @@ function parseCommandLine(): {
 
     // Initialize Logger
     if (argv.l) {
-        Logger.start({types: ['log']});
+        Logger.startLogger({types: ['log']});
     }
     if (argv.d) {
-        Logger.start();
+        Logger.startLogger();
     }
 
     return {
