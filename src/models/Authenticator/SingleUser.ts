@@ -4,8 +4,7 @@ import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
-    instanceExists,
-    registerRecipes
+    instanceExists
 } from '@refinio/one.core/lib/instance.js';
 
 type Credentials = {
@@ -65,7 +64,6 @@ export default class SingleUser extends Authenticator {
         }
 
         try {
-            await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
             this.authState.triggerEvent('login_success');
         } catch (error) {
@@ -126,9 +124,7 @@ export default class SingleUser extends Authenticator {
         }
 
         try {
-            await registerRecipes(this.config.recipes);
             await this.onLogin.emitAll(instanceName, secret, email);
-
             this.authState.triggerEvent('login_success');
         } catch (error) {
             this.authState.triggerEvent('login_failure');
