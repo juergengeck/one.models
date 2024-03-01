@@ -34,17 +34,17 @@ export interface ChannelInfo {
     head?: SHA256Hash<ChannelEntry>;
 }
 
-export interface ChannelRegistryEntry {
-    channelInfoIdHash: SHA256IdHash<ChannelInfo>; // The channel info object of the channel
-    readVersionIndex: number; // Index of the merged version suitable for reading
-    mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
-}
-
 export interface ChannelRegistry {
     $type$: 'ChannelRegistry';
     $versionHash$?: SHA256Hash<VersionNode>;
     id: 'ChannelRegistry';
-    channels: ChannelRegistryEntry[];
+    channels: Map<
+        SHA256IdHash<ChannelInfo>,
+        {
+            readVersionIndex: number; // Index of the merged version suitable for reading
+            mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
+        }
+    >;
 }
 
 export const ChannelEntryRecipie: Recipe = {
@@ -106,17 +106,14 @@ export const ChannelRegistryRecipe: Recipe = {
         {
             itemprop: 'channels',
             itemtype: {
-                type: 'bag',
-                item: {
+                type: 'map',
+                key: {
+                    type: 'referenceToId',
+                    allowedTypes: new Set(['ChannelInfo'])
+                },
+                value: {
                     type: 'object',
                     rules: [
-                        {
-                            itemprop: 'channelInfoIdHash',
-                            itemtype: {
-                                type: 'referenceToId',
-                                allowedTypes: new Set(['ChannelInfo'])
-                            }
-                        },
                         {
                             itemprop: 'readVersionIndex',
                             itemtype: {type: 'number'}
