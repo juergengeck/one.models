@@ -126,6 +126,7 @@ export type DataSelectionOptions = {
     type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
     types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
     omitData?: boolean; // omit the data field if set to true
+    omitSharedWith?: boolean; // Skip computation of sharedWith entries
 };
 
 /**
@@ -232,6 +233,7 @@ export default class ChannelManager {
         {
             maxSize?: number;
             appendSenderProfile?: boolean;
+            registerSenderProfileAtLeute?: boolean;
         }
     >();
 
@@ -405,6 +407,51 @@ export default class ChannelManager {
         }
 
         return currentSettings.appendSenderProfile;
+    }
+
+    /**
+     * Enable registering as metadata attached profiles with leute.
+     *
+     * Default is disabled
+     *
+     * @param channel
+     * @param enable
+     */
+    public setChannelSettingsRegisterSenderProfileAtLeute(
+        channel: SHA256IdHash<ChannelInfo>,
+        enable?: boolean
+    ): void {
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings) {
+            if (enable === undefined) {
+                delete currentSettings.registerSenderProfileAtLeute;
+            } else {
+                currentSettings.registerSenderProfileAtLeute = enable;
+            }
+        } else if (enable !== undefined) {
+            this.channelSettings.set(channel, {
+                registerSenderProfileAtLeute: enable
+            });
+        }
+    }
+
+    /**
+     * Get the "RegisterSenderProfileAtLeute" setting for the specified channel.
+     *
+     * @param channel
+     */
+    public getChannelSettingsRegisterSenderProfileAtLeute(
+        channel: SHA256IdHash<ChannelInfo>
+    ): boolean {
+        const currentSettings = this.channelSettings.get(channel);
+        if (
+            currentSettings === undefined ||
+            currentSettings.registerSenderProfileAtLeute === undefined
+        ) {
+            return false;
+        }
+
+        return currentSettings.registerSenderProfileAtLeute;
     }
 
     /**
@@ -823,6 +870,7 @@ export default class ChannelManager {
         let types: string[] | undefined;
 
         let omitData: boolean = false;
+        let omitSharedWith: boolean = true;
 
         if (queryOptions) {
             from = queryOptions.from;
@@ -842,6 +890,9 @@ export default class ChannelManager {
             if (queryOptions.omitData) {
                 omitData = queryOptions.omitData;
             }
+            if (queryOptions.omitSharedWith) {
+                omitSharedWith = queryOptions.omitSharedWith;
+            }
         }
 
         // Create a iterator for each selected channel
@@ -851,51 +902,69 @@ export default class ChannelManager {
 
         // Determine the access rights of each channel
         const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
-        await Promise.all(
-            channels.map(async channel => {
-                const channelInfoIdHash = await calculateIdHashOfObj(channel);
-                const sharedWithPersons =
-                    await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
-                sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
-            })
-        );
+        if (!omitSharedWith) {
+            await Promise.all(
+                channels.map(async channel => {
+                    const channelInfoIdHash = await calculateIdHashOfObj(channel);
+                    const sharedWithPersons =
+                        await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
+                    sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
+                })
+            );
+        }
 
         // Iterate over all channels and fetch the data
         for await (const entry of ChannelManager.mergeIteratorMostCurrent(iterators, false)) {
-            // Get the shared with status from the precompiled map
-            const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash);
-            if (!sharedWith) {
-                throw new Error(
-                    `Programming Error: Shared with map didn't have entry for channel ${entry.channelInfoIdHash}`
-                );
-            }
+            const result = await this.convertRawChannelEntryToObjectData(
+                entry,
+                sharedWithPersonsMap,
+                omitData
+            );
 
-            // Load the object to compare the type
-            // AUTHORIZED HACK - casting undefined to any type because
-            // making the data field optional would cause problems
-            // in other apps.
-            const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
-
-            if (data && types && !types.includes(data.$type$)) {
+            if (result.data && types && !types.includes(result.data.$type$)) {
                 continue;
             }
 
-            // Build meta data object and return it
-            yield {
-                channelId: entry.channelInfo.id,
-                channelOwner: entry.channelInfo.owner,
-                channelEntryHash: entry.channelEntryHash,
-                id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
-
-                creationTime: new Date(entry.creationTime),
-                creationTimeHash: entry.creationTimeHash,
-                author: entry.author,
-                sharedWith: sharedWith,
-
-                data: data,
-                dataHash: entry.dataHash
-            };
+            yield result;
         }
+    }
+
+    /**
+     * Converts the raw represantation to ObjectData<T> representation.
+     *
+     * @param entry
+     * @param sharedWithPersonsMap
+     * @param omitData
+     */
+    async convertRawChannelEntryToObjectData(
+        entry: RawChannelEntry,
+        sharedWithPersonsMap: Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>,
+        omitData: boolean
+    ): Promise<ObjectData<OneUnversionedObjectTypes>> {
+        // Get the shared with status from the precompiled map
+        const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash) || [];
+
+        // Load the object to compare the type
+        // AUTHORIZED HACK - casting undefined to any type because
+        // making the data field optional would cause problems
+        // in other apps.
+        const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
+
+        // Build meta data object and return it
+        return {
+            channelId: entry.channelInfo.id,
+            channelOwner: entry.channelInfo.owner,
+            channelEntryHash: entry.channelEntryHash,
+            id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
+
+            creationTime: new Date(entry.creationTime),
+            creationTimeHash: entry.creationTimeHash,
+            author: entry.author,
+            sharedWith: sharedWith,
+
+            data: data,
+            dataHash: entry.dataHash
+        };
     }
 
     /**
@@ -1520,25 +1589,74 @@ export default class ChannelManager {
                 }
                 cacheEntry.mergedHandlers = [];
 
+                // Intermediate Hack: Register attached profiles at leute
+                let changedEntries;
+                let earliestChange;
+
                 if (firstVersionToMerge === 0 && commonHistoryHead) {
-                    // If it is the first version - we need to also append the common history head,
-                    // so that it will be part of the event.
-                    this.onUpdated.emit(
-                        channelInfoIdHash,
-                        channelId,
-                        channelOwner || null,
-                        new Date(commonHistoryHead.creationTime),
-                        [...unmergedElements, {...commonHistoryHead, isNew: true}]
-                    );
+                    // If it is the first version - we need to also append the common history
+                    // head to the changed entries
+                    //
+                    earliestChange = new Date(commonHistoryHead.creationTime);
+                    changedEntries = [...unmergedElements, {...commonHistoryHead, isNew: true}];
                 } else if (unmergedElements.length > 0) {
-                    this.onUpdated.emit(
-                        channelInfoIdHash,
-                        channelId,
-                        channelOwner || null,
-                        new Date(unmergedElements[unmergedElements.length - 1].creationTime),
-                        unmergedElements
+                    earliestChange = new Date(
+                        unmergedElements[unmergedElements.length - 1].creationTime
                     );
+                    changedEntries = unmergedElements;
+                } else {
+                    return;
                 }
+
+                // Register profile at leute by creating a version history.
+                for (const entry of changedEntries) {
+                    if (
+                        !this.getChannelSettingsRegisterSenderProfileAtLeute(
+                            entry.channelInfoIdHash
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    if (!entry.isNew) {
+                        continue;
+                    }
+
+                    const myId = await this.leuteModel.myMainIdentity();
+
+                    if (entry.metaDataHashes) {
+                        for (const metaDataHash of entry.metaDataHashes) {
+                            const metadataObj = await getObject(metaDataHash);
+
+                            if (metadataObj.$type$ === 'Profile') {
+                                const newProfile = {
+                                    ...metadataObj,
+                                    owner: myId,
+                                    id: `ChannelAttachedProfile ${entry.channelInfoIdHash} ${entry.channelInfo.id}`
+                                };
+
+                                try {
+                                    const current = await getObjectByIdObj(newProfile);
+                                    newProfile.$versionHash$ = current.obj.$versionHash$;
+                                } catch (_e) {
+                                    // Empty, because this means that no version exists, yet
+                                }
+
+                                await storeVersionedObject(newProfile);
+                            }
+                        }
+                    }
+                }
+
+                // If it is the first version - we need to also append the common history head,
+                // so that it will be part of the event.
+                this.onUpdated.emit(
+                    channelInfoIdHash,
+                    channelId,
+                    channelOwner || null,
+                    earliestChange,
+                    changedEntries
+                );
             });
         } catch (e) {
             logWithId(channelId, channelOwner, `mergePendingVersions - FAIL: ${String(e)}`);
