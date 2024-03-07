@@ -211,7 +211,7 @@ export default class ChannelManager {
             channelId: string,
             channelOwner: SHA256IdHash<Person> | null,
             timeOfEarliestChange: Date,
-            data: RawChannelEntry[]
+            data: Array<RawChannelEntry & {isNew: boolean}>
         ) => void
     >();
 
@@ -1348,21 +1348,10 @@ export default class ChannelManager {
                 }
 
                 // Determine which versions to merge and their channelInfos
-                let firstVersionToMerge: number;
+                const firstVersionToMerge = registryEntry.mergedVersionIndex;
                 let lastVersionToMerge: number;
                 let channelInfosToMerge: ChannelInfo[];
                 {
-                    //  Determine the first version to merge
-                    if (registryEntry.mergedVersionIndex < registryEntry.readVersionIndex) {
-                        // If the read pointer is in the future of the merge pointer, then the
-                        // read version already includes the latest merged version => merged + 1
-                        firstVersionToMerge = registryEntry.mergedVersionIndex + 1;
-                    } else {
-                        // This usually means the read pointer is equal to the merge pointer, so
-                        // include this version in the merge range.
-                        firstVersionToMerge = registryEntry.readVersionIndex;
-                    }
-
                     // Find the last version to merge based on the version map
                     const versionMapEntries = await getAllVersionMapEntries(channelInfoIdHash);
                     lastVersionToMerge = versionMapEntries.length - 1;
@@ -1411,14 +1400,15 @@ export default class ChannelManager {
                 // 1) there is only a common history left
                 // 2) there is only one channel left with elements
                 let commonHistoryHead: RawChannelEntry | null = null; // This will be the remaining history that doesn't need to be merged
-                const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
+                const unmergedElements: Array<RawChannelEntry & {isNew: boolean}> = []; // This
+                // are the CreationTime
                 // hashes that need to be part of the new history
                 for await (const elem of ChannelManager.mergeIteratorMostCurrent(
                     iterators,
                     firstVersionToMerge !== 0
                 )) {
                     commonHistoryHead = elem;
-                    unmergedElements.push(elem);
+                    unmergedElements.push({...elem, isNew: elem.iterIndex === 0});
                 }
                 unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
 
@@ -1538,7 +1528,7 @@ export default class ChannelManager {
                         channelId,
                         channelOwner || null,
                         new Date(commonHistoryHead.creationTime),
-                        [...unmergedElements, commonHistoryHead]
+                        [...unmergedElements, {...commonHistoryHead, isNew: true}]
                     );
                 } else if (unmergedElements.length > 0) {
                     this.onUpdated.emit(
