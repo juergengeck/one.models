@@ -1478,7 +1478,7 @@ export default class ChannelManager {
                     firstVersionToMerge !== 0
                 )) {
                     commonHistoryHead = elem;
-                    unmergedElements.push({...elem, isNew: elem.iterIndex === 0});
+                    unmergedElements.push({...elem, isNew: elem.iterIndex !== 0});
                 }
                 unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
 
