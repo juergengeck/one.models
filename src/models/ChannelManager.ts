@@ -17,6 +17,7 @@ import type {
     Person
 } from '@refinio/one.core/lib/recipes.js';
 import type {ChannelEntry, ChannelInfo, ChannelRegistry} from '../recipes/ChannelRecipes.js';
+import type {Profile} from '../recipes/Leute/Profile.js';
 import type {CreationTime} from '../recipes/MetaRecipes.js';
 import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
@@ -1629,10 +1630,10 @@ export default class ChannelManager {
                             const metadataObj = await getObject(metaDataHash);
 
                             if (metadataObj.$type$ === 'Profile') {
-                                const newProfile = {
+                                const newProfile: Profile = {
                                     ...metadataObj,
                                     owner: myId,
-                                    id: `ChannelAttachedProfile ${entry.channelInfoIdHash} ${entry.channelInfo.id}`
+                                    profileId: `ChannelAttachedProfile ${entry.channelInfoIdHash} ${entry.channelInfo.id}`
                                 };
 
                                 try {
