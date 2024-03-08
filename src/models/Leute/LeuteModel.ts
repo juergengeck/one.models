@@ -227,8 +227,8 @@ export default class LeuteModel extends Model {
             ),
             objectEvents.onNewVersion(
                 async result => {
-                    for (const id of result.obj.identity) {
-                        await this.updatePersonNameCacheForPerson(id.person).catch(console.error);
+                    for (const [id] of result.obj.identities.entries()) {
+                        await this.updatePersonNameCacheForPerson(id).catch(console.error);
                     }
                 },
                 'LeuteModel: New someone version - Update person name cache for all identities',

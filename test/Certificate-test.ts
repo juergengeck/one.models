@@ -16,6 +16,9 @@ import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDu
 import {createTestIdentity} from './utils/createTestIdentity.js';
 import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 describe('Certificate test', () => {
     const leute = new LeuteModel('wss://dummy');
 

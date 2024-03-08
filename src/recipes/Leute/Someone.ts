@@ -11,10 +11,7 @@ export interface Someone {
     $versionHash$?: SHA256Hash<VersionNode>;
     someoneId: string;
     mainProfile: SHA256IdHash<Profile>;
-    identity: {
-        person: SHA256IdHash<Person>;
-        profile: SHA256IdHash<Profile>[];
-    }[];
+    identities: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;
 }
 
 // #### Recipes ####
@@ -33,24 +30,16 @@ export const SomeoneRecipe: Recipe = {
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
         },
         {
-            itemprop: 'identity',
+            itemprop: 'identities',
             itemtype: {
-                type: 'bag',
-                item: {
-                    type: 'object',
-                    rules: [
-                        {
-                            itemprop: 'person',
-                            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
-                        },
-                        {
-                            itemprop: 'profile',
-                            itemtype: {
-                                type: 'bag',
-                                item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
-                            }
-                        }
-                    ]
+                type: 'map',
+                key: {
+                    type: 'referenceToId',
+                    allowedTypes: new Set(['Person'])
+                },
+                value: {
+                    type: 'set',
+                    item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
                 }
             }
         }

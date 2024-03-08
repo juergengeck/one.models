@@ -7,6 +7,9 @@ import chaiAsPromised from 'chai-as-promised';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
 import SingleUser from '../lib/models/Authenticator/SingleUser.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 chai.use(chaiAsPromised);
 
 // @todo The input wrong secret tests are skipped for now because initInstance is not throwing

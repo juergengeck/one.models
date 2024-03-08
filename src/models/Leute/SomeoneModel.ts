@@ -39,15 +39,18 @@ export default class SomeoneModel {
     public onUpdate: OEvent<() => void> = new OEvent();
 
     public readonly idHash: SHA256IdHash<Someone>;
+    private pSomeone?: Someone;
 
-    private pMainProfile?: SHA256IdHash<Profile>;
-    private pIdentities: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;
-    private pLoadedVersion?: SHA256Hash<Someone>;
-    private someone?: Someone;
+    private get someone(): Someone {
+        if (this.pSomeone === undefined) {
+            throw new Error('This someone model does not manage a somone object');
+        }
+
+        return this.pSomeone;
+    }
 
     constructor(idHash: SHA256IdHash<Someone>) {
         this.idHash = idHash;
-        this.pIdentities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
 
         // Setup the onUpdate event
         let disconnect: (() => void) | undefined;
@@ -82,7 +85,7 @@ export default class SomeoneModel {
         const someone = await getObject(version);
         const idHash = await calculateIdHashOfObj(someone);
         const newModel = new SomeoneModel(idHash);
-        await newModel.updateModelDataFromSomeone(someone, version);
+        newModel.pSomeone = someone;
         return newModel;
     }
 
@@ -111,30 +114,27 @@ export default class SomeoneModel {
         someoneId: string,
         mainProfile: SHA256IdHash<Profile>
     ): Promise<SomeoneModel> {
+        // Create new someone object and calculate id hash
         const newSomeone: Someone = {
             $type$: 'Someone',
             someoneId,
             mainProfile,
-            identity: []
+            identities: new Map([])
         };
+
         const idHash = await calculateIdHashOfObj(newSomeone);
 
-        // try catch is not required if we have CRDT map support
-        try {
-            return await this.constructFromLatestVersion(idHash);
-        } catch (_) {
-            const newModel = new SomeoneModel(idHash);
+        // Add main profile to identity map
+        const profile = await getObjectByIdHash(mainProfile);
+        newSomeone.identities.set(profile.obj.personId, new Set([mainProfile]));
 
-            // add mainProfile to identities
-            const profile = await getObjectByIdHash(mainProfile);
-            const identitySet = new Set<SHA256IdHash<Profile>>();
-            identitySet.add(mainProfile);
-            newModel.pIdentities.set(profile.obj.personId, identitySet);
+        // Store new someone object
+        const result = await storeVersionedObject(newSomeone);
 
-            newModel.someone = newSomeone;
-            await newModel.saveAndLoad();
-            return newModel;
-        }
+        // COnstruct model
+        const model = new SomeoneModel(idHash);
+        model.pSomeone = result.obj;
+        return model;
     }
 
     // ######## Identity management ########
@@ -145,10 +145,13 @@ export default class SomeoneModel {
      * @param identity
      */
     public async addIdentity(identity: SHA256IdHash<Person>): Promise<void> {
-        if (this.pIdentities.has(identity)) {
+        const s = this.someone;
+
+        if (s.identities.has(identity)) {
             throw new Error('This identity is already managed by this someone object');
         }
-        this.pIdentities.set(identity, new Set());
+
+        s.identities.set(identity, new Set());
         await this.saveAndLoad();
     }
 
@@ -158,10 +161,13 @@ export default class SomeoneModel {
      * @param identity
      */
     public async removeIdentity(identity: SHA256IdHash<Person>): Promise<void> {
-        if (!this.pIdentities.has(identity)) {
+        const s = this.someone;
+
+        if (!s.identities.has(identity)) {
             throw new Error('This identity is not managed by this someone object');
         }
-        this.pIdentities.delete(identity);
+
+        s.identities.delete(identity);
         await this.saveAndLoad();
     }
 
@@ -169,7 +175,7 @@ export default class SomeoneModel {
      * Get all identities managed by this someone object.
      */
     public identities(): SHA256IdHash<Person>[] {
-        return [...this.pIdentities.keys()];
+        return [...this.someone.identities.keys()];
     }
 
     /**
@@ -202,9 +208,7 @@ export default class SomeoneModel {
      * @param identity
      */
     public async setMainIdentity(identity: SHA256IdHash<Person>): Promise<void> {
-        if (this.someone === undefined) {
-            throw new Error('Nothing was loaded, yet');
-        }
+        const s = this.someone;
 
         const mainIdentity = await this.mainIdentity();
 
@@ -212,7 +216,7 @@ export default class SomeoneModel {
             return;
         }
 
-        if (!this.pIdentities.has(identity)) {
+        if (!s.identities.has(identity)) {
             throw new Error(
                 'The designated new main identity is not managed by this someone object'
             );
@@ -230,7 +234,7 @@ export default class SomeoneModel {
         );
 
         if (firstChoice !== undefined) {
-            this.someone.mainProfile = firstChoice.idHash;
+            s.mainProfile = firstChoice.idHash;
             await this.saveAndLoad();
             return;
         }
@@ -238,31 +242,25 @@ export default class SomeoneModel {
         // SECOND CHOICE: Another 'default' profile
         for (const profile of profiles) {
             if (profile.profileId === 'default') {
-                this.someone.mainProfile = profile.idHash;
+                s.mainProfile = profile.idHash;
                 await this.saveAndLoad();
                 return;
             }
         }
 
         // THIRD CHOICE: Any other profile
-        this.someone.mainProfile = profiles[0].idHash;
+        s.mainProfile = profiles[0].idHash;
         await this.saveAndLoad();
     }
 
     // ######## Main profile management ########
 
     public mainProfile(): Promise<ProfileModel> {
-        if (this.pMainProfile === undefined) {
-            throw new Error('SomeoneModel has no data (mainProfile)');
-        }
-        return ProfileModel.constructFromLatestVersion(this.pMainProfile);
+        return ProfileModel.constructFromLatestVersion(this.someone.mainProfile);
     }
 
     public mainProfileLazyLoad(): ProfileModel {
-        if (this.pMainProfile === undefined) {
-            throw new Error('SomeoneModel has no data (mainProfile)');
-        }
-        return new ProfileModel(this.pMainProfile);
+        return new ProfileModel(this.someone.mainProfile);
     }
 
     /**
@@ -273,12 +271,14 @@ export default class SomeoneModel {
      * @param profile
      */
     public async setMainProfile(profile: SHA256IdHash<Profile>): Promise<void> {
-        if (this.pMainProfile === undefined) {
+        const s = this.someone;
+
+        if (s.mainProfile === undefined) {
             throw new Error('SomeoneModel has no data (mainProfile)');
         }
 
         const profileObj = await getIdObject(profile);
-        const profileSet = this.pIdentities.get(profileObj.personId);
+        const profileSet = s.identities.get(profileObj.personId);
 
         if (profileSet === undefined) {
             throw new Error(
@@ -286,10 +286,7 @@ export default class SomeoneModel {
             );
         }
 
-        this.pMainProfile = profile;
-        if (this.someone) {
-            this.someone.mainProfile = profile;
-        }
+        s.mainProfile = profile;
 
         profileSet.add(profile);
         await this.saveAndLoad();
@@ -303,12 +300,10 @@ export default class SomeoneModel {
      * @param profile
      */
     public async setMainProfileIfNotDefault(profile: SHA256IdHash<Profile>): Promise<void> {
-        if (this.pMainProfile === undefined) {
-            throw new Error('SomeoneModel has no data (mainProfile)');
-        }
+        const s = this.someone;
 
         const profileObj = await getIdObject(profile);
-        const profileSet = this.pIdentities.get(profileObj.personId);
+        const profileSet = s.identities.get(profileObj.personId);
 
         if (profileSet === undefined) {
             throw new Error(
@@ -316,7 +311,7 @@ export default class SomeoneModel {
             );
         }
 
-        const mainProfileObj = await getIdObject(this.pMainProfile);
+        const mainProfileObj = await getIdObject(s.mainProfile);
 
         if (mainProfileObj.profileId === 'default') {
             return;
@@ -326,10 +321,7 @@ export default class SomeoneModel {
             return;
         }
 
-        this.pMainProfile = profile;
-        if (this.someone) {
-            this.someone.mainProfile = profile;
-        }
+        s.mainProfile = profile;
 
         profileSet.add(profile);
     }
@@ -357,15 +349,17 @@ export default class SomeoneModel {
      *                   for all identities managed by this someone object.
      */
     public profilesLazyLoad(identity?: SHA256IdHash<Person>): ProfileModel[] {
+        const s = this.someone;
+
         const profileHashes = [];
 
         // Collect all SHA256IdHash<Profile> hashes for the picked identities (or all)
         if (identity === undefined) {
-            for (const profiles of this.pIdentities.values()) {
+            for (const profiles of s.identities.values()) {
                 profileHashes.push(...profiles);
             }
         } else {
-            const profiles = this.pIdentities.get(identity);
+            const profiles = s.identities.get(identity);
             if (profiles === undefined) {
                 throw new Error('This identity is not managed by this someone object');
             }
@@ -380,8 +374,10 @@ export default class SomeoneModel {
      * Add a profile to this someone object.
      */
     public async addProfile(profile: SHA256IdHash<Profile>): Promise<void> {
+        const s = this.someone;
+
         const profileObj = await getObjectByIdHash(profile);
-        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+        const profileSet = s.identities.get(profileObj.obj.personId);
 
         if (profileSet === undefined) {
             throw new Error('The someone object does not manage profiles for the specified person');
@@ -428,7 +424,7 @@ export default class SomeoneModel {
      * accessed.
      */
     public hasData(): boolean {
-        return this.someone !== undefined;
+        return this.pSomeone !== undefined;
     }
 
     /**
@@ -444,16 +440,14 @@ export default class SomeoneModel {
             throw new Error('Specified someone version is not a version of the managed someone');
         }
 
-        await this.updateModelDataFromSomeone(someone, version);
+        this.pSomeone = someone;
     }
 
     /**
      * Load the latest someone version.
      */
     public async loadLatestVersion(): Promise<void> {
-        const result = await getObjectByIdHash(this.idHash);
-
-        await this.updateModelDataFromSomeone(result.obj, result.hash);
+        this.pSomeone = (await getObjectByIdHash(this.idHash)).obj;
     }
 
     /**
@@ -463,35 +457,13 @@ export default class SomeoneModel {
      * written to disk might differ from the current state of this instance. This happens when new
      * data was received via chum since the last load. This means that we don't have a hash
      * representing the current state.
-     *
-     * TODO: It is possible to write the intermediary state and obtain a hash. So we can implement a
-     *       pure save() function. But this requires the lower levels to write the top level object
-     *       of the tree and return the corresponding hash to the caller. The
-     *       storeVersionedObjectCRDT and the plan interfaces don't support that right now in a easy
-     *       to grasp way.
      */
     public async saveAndLoad(): Promise<void> {
-        if (this.someone === undefined) {
+        if (this.pSomeone === undefined) {
             throw new Error('No someone data that could be saved');
         }
 
-        const identities = [];
-        for (const [personId, profileIds] of this.pIdentities.entries()) {
-            identities.push({
-                person: personId,
-                profile: [...profileIds]
-            });
-        }
-
-        const result = await storeVersionedObject({
-            $type$: 'Someone',
-            $versionHash$: this.someone.$versionHash$,
-            someoneId: this.someone.someoneId,
-            mainProfile: this.someone.mainProfile,
-            identity: identities
-        });
-
-        await this.updateModelDataFromSomeone(result.obj, result.hash);
+        this.pSomeone = (await storeVersionedObject(this.pSomeone)).obj;
     }
 
     // ######## misc ########
@@ -540,14 +512,10 @@ export default class SomeoneModel {
     public async getDefaultProfileDisplayNames(): Promise<Map<SHA256IdHash<Person>, string>> {
         const map = new Map<SHA256IdHash<Person>, string>();
 
-        if (this.someone === undefined) {
-            return map;
-        }
-
-        for (const identity of this.someone.identity) {
-            const name = await this.getDefaultProfileDisplayNameFromProfiles(identity.profile);
+        for (const [identity, profiles] of this.someone.identities.entries()) {
+            const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles]);
             if (name !== undefined) {
-                map.set(identity.person, name);
+                map.set(identity, name);
             }
         }
 
@@ -564,16 +532,13 @@ export default class SomeoneModel {
      * @param identity
      */
     public async getDefaultProfileDisplayName(identity: SHA256IdHash<Person>): Promise<string> {
-        if (this.someone === undefined) {
+        const profiles = this.someone.identities.get(identity);
+
+        if (profiles === undefined) {
             return identity;
         }
 
-        const identityData = this.someone.identity.find(i => i.person === identity);
-        if (identityData === undefined) {
-            return identity;
-        }
-
-        const name = await this.getDefaultProfileDisplayNameFromProfiles(identityData.profile);
+        const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles]);
 
         return name === undefined ? identity : name;
     }
@@ -630,29 +595,6 @@ export default class SomeoneModel {
     }
 
     // ######## private stuff ########
-
-    /**
-     * Updates the members of the model based on a loaded profile and the version hash.
-     *
-     * @param someone
-     * @param version
-     * @private
-     */
-    private async updateModelDataFromSomeone(
-        someone: Someone,
-        version: SHA256Hash<Someone>
-    ): Promise<void> {
-        const identities = new Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>();
-
-        for (const identity of someone.identity) {
-            identities.set(identity.person, new Set(identity.profile));
-        }
-
-        this.pIdentities = identities;
-        this.pMainProfile = someone.mainProfile;
-        this.pLoadedVersion = version;
-        this.someone = someone;
-    }
 
     /**
      * Get the person name from the first profile that matches the predicate.
