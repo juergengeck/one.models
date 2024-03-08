@@ -35,6 +35,10 @@ export interface StorageHelpersInitOpts {
     initiallyEnabledReverseMapTypesForIdObjects?: Array<[OneVersionedObjectTypeNames, Set<string>]>;
 }
 
+export async function initOneCorePlatform() {
+    await import(`@refinio/one.core/lib/system/load-${SYSTEM}.js`);
+}
+
 /**
  * @param {object} [options={}]
  * @param {string} [options.email]
@@ -65,7 +69,7 @@ export async function init({
     initiallyEnabledReverseMapTypes = [],
     initiallyEnabledReverseMapTypesForIdObjects = []
 }: StorageHelpersInitOpts = {}): Promise<Instance> {
-    await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+    await initOneCorePlatform();
 
     return await initInstance({
         name,

@@ -12,17 +12,16 @@ import {sign} from '../lib/misc/Signature.js';
 import LeuteModel from '../lib/models/Leute/LeuteModel.js';
 import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
 import RecipesStable from '../lib/recipes/recipes-stable.js';
+import {initOneCorePlatform} from './_helpers.js';
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject.js';
 import {createTestIdentity} from './utils/createTestIdentity.js';
 import {affirmForSomeoneElse} from './utils/affirmForSomeoneElse.js';
-
-import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
-await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
 
 describe('Certificate test', () => {
     const leute = new LeuteModel('wss://dummy');
 
     beforeEach(async () => {
+        await initOneCorePlatform();
         await initInstance({
             name: 'testname',
             email: 'test@test.com',
