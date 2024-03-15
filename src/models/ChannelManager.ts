@@ -10,7 +10,8 @@ import type {
     IdAccess,
     OneObjectTypes,
     OneObjectTypeNames,
-    Person
+    Person,
+    VersionNode
 } from '@refinio/one.core/lib/recipes.js';
 import type {LinkedListEntry, ChannelInfo, ChannelRegistry} from '../recipes/ChannelRecipes.js';
 import type {CreationTime} from '../recipes/MetaRecipes.js';
@@ -21,7 +22,6 @@ import type {
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getCurrentVersion,
-    getIdObject,
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
@@ -211,12 +211,9 @@ export default class ChannelManager {
         ) => void
     >();
 
-    private channelRegistry: ChannelRegistry = {
-        $type$: 'ChannelRegistry',
-        id: 'ChannelRegistry',
-        channels: new Set()
-    };
+    private loadedRegistryVersion: SHA256Hash<VersionNode> | undefined = undefined;
 
+    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfo> = new Map();
     private disconnectOnVersionedObjListener: () => void = () => {
         // Empty by design
     };
@@ -260,7 +257,7 @@ export default class ChannelManager {
 
         // Register event handlers
         this.disconnectOnVersionedObjListener = objectEvents.onNewVersion(
-            this.addChannelToRegistry.bind(this),
+            this.processNewVersion.bind(this),
             'ChannelManager: mergeNewChannelInfo',
             'ChannelInfo'
         );
@@ -526,7 +523,9 @@ export default class ChannelManager {
             owner: owner
         });
 
-        if (!this.channelRegistry.channels.has(channelInfoIdHash)) {
+        // Setup the merge handler
+        const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
+        if (!cacheEntry) {
             throw new Error('This channel does not exist, you cannot post to it.');
         }
 
@@ -1467,9 +1466,7 @@ export default class ChannelManager {
         // It is an AND relation, so both criteria have to match in order for the channel to
         // be selected
         if (owners || channelIds) {
-            for (const channelInfoIdHash of this.channelRegistry.channels) {
-                const channelInfo = await getIdObject(channelInfoIdHash);
-
+            for (const channelInfo of this.channelInfoCache.values()) {
                 if (channelIds && !channelIds.includes(channelInfo.id)) {
                     continue;
                 }
@@ -1481,11 +1478,7 @@ export default class ChannelManager {
                     continue;
                 }
 
-                try {
-                    selectedChannelInfos.push((await getCurrentVersion(channelInfoIdHash)).obj);
-                } catch (_e) {
-                    // This will happen if no data is present
-                }
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1535,13 +1528,8 @@ export default class ChannelManager {
             !channelInfoIdHashes &&
             !ids
         ) {
-            for (const channelInfoIdHash of this.channelRegistry.channels) {
-                const channelInfo = await getIdObject(channelInfoIdHash);
-                try {
-                    selectedChannelInfos.push((await getCurrentVersion(channelInfoIdHash)).obj);
-                } catch (_e) {
-                    // This will happen if no data is present
-                }
+            for (const channelInfo of this.channelInfoCache.values()) {
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1551,16 +1539,13 @@ export default class ChannelManager {
         // merged versions
         if (selectedChannelIdHashes) {
             for (const channelInfoIdHash of selectedChannelIdHashes) {
-                if (!this.channelRegistry.channels.has(channelInfoIdHash)) {
+                const channelInfo = this.channelInfoCache.get(channelInfoIdHash);
+
+                if (!channelInfo) {
                     throw new Error(`Channel ${channelInfoIdHash} does not exist!`);
                 }
 
-                const channelInfo = await getIdObject(channelInfoIdHash);
-                try {
-                    selectedChannelInfos.push((await getCurrentVersion(channelInfoIdHash)).obj);
-                } catch (_e) {
-                    // This will happen if no data is present
-                }
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1582,11 +1567,42 @@ export default class ChannelManager {
      * Handler function for the VersionedObj
      * @param caughtObject
      */
-    private async addChannelToRegistry(
+    private async processNewVersion(
         caughtObject: VersionedObjectResult<ChannelInfo>
     ): Promise<void> {
         try {
             await this.addChannelIfNotExist(caughtObject.idHash);
+
+            const newChannelInfo = caughtObject.obj;
+            const oldChannelInfo = this.channelInfoCache.get(caughtObject.idHash);
+            this.channelInfoCache.set(caughtObject.idHash, newChannelInfo);
+
+            if (oldChannelInfo === undefined) {
+                return;
+            }
+
+            const changedElements: Array<RawChannelEntry & {isNew: boolean}> = [];
+
+            for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                [
+                    ChannelManager.entryIterator(oldChannelInfo),
+                    ChannelManager.entryIterator(newChannelInfo)
+                ],
+                true,
+                false
+            )) {
+                changedElements.push({...elem, isNew: elem.iterIndex !== 0});
+            }
+
+            if (changedElements.length > 0) {
+                this.onUpdated.emit(
+                    caughtObject.idHash,
+                    newChannelInfo.id,
+                    newChannelInfo.owner || null,
+                    new Date(changedElements[changedElements.length - 1].creationTime),
+                    changedElements
+                );
+            }
         } catch (e) {
             console.error(e); // Introduce an error event later!
         }
@@ -1600,31 +1616,105 @@ export default class ChannelManager {
     private async addChannelIfNotExist(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>
     ): Promise<void> {
-        // For synchronization we don't need serializeWithType anymore because crdts will handle
-        // parallel writes.
-        // We just need to make sure, that the data we pass into the write function is not
-        // altered until the write is done - that's why we alter a copy of the set.
-        const result = await storeVersionedObject({
-            $type$: 'ChannelRegistry',
-            id: 'ChannelRegistry',
-            $versionHash$: this.channelRegistry.$versionHash$,
-            channels: new Set([...this.channelRegistry.channels, channelInfoIdHash])
-        });
+        // Determine the channel id and owner
+        let channelId: string;
+        let channelOwner: SHA256IdHash<Person> | undefined;
+        {
+            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
+            channelId = channelInfo.obj.id;
+            channelOwner = channelInfo.obj.owner;
+        }
 
-        this.channelRegistry = result.obj;
+        const cacheLockName = ChannelManager.cacheLockName;
+
+        try {
+            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
+                logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
+                if (this.channelInfoCache.has(channelInfoIdHash)) {
+                    logWithId(
+                        channelId,
+                        channelOwner,
+                        'addChannelIfNotExist - END: already existed'
+                    );
+                } else {
+                    this.channelInfoCache.set(
+                        channelInfoIdHash,
+                        (await getCurrentVersion(channelInfoIdHash)).obj
+                    );
+                    await this.saveRegistryCacheToOne();
+                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+                }
+            });
+        } catch (e) {
+            logWithId(channelId, channelOwner, `addChannelIfNotExist - FAIL: ${String(e)}`);
+            throw e;
+        }
+    }
+
+    // ######## One Channel registry read / write methods ########
+
+    /**
+     * Save the cache content as new version of registry in one.
+     */
+    private async saveRegistryCacheToOne(): Promise<void> {
+        await serializeWithType(ChannelManager.registryLockName, async () => {
+            // Write the registry version
+            this.loadedRegistryVersion = (
+                await storeVersionedObject({
+                    $type$: 'ChannelRegistry',
+                    id: 'ChannelRegistry',
+                    $versionHash$: this.loadedRegistryVersion,
+                    channels: new Set(this.channelInfoCache.keys())
+                })
+            ).obj.$versionHash$;
+        });
     }
 
     /**
      * Load the latest channel registry version into the the cache.
      */
     private async loadRegistryCacheFromOne(): Promise<void> {
-        try {
-            this.channelRegistry = (
-                await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'})
-            ).obj;
-        } catch (_) {
-            return;
-        }
+        logWithId(null, null, 'loadRegistryCacheFromOne - START');
+        await serializeWithType(ChannelManager.registryLockName, async () => {
+            // If the cache is not empty, then something is wrong.
+            // The current implementation only needs to populate it once - at init and there it
+            // should be empty.
+            if (this.channelInfoCache.size > 0) {
+                throw new Error('Populating the registry cache is only allowed if it is empty!');
+            }
+
+            // Get the registry. If it does not exist, start with an empty cache (so just return)
+            let registry: ChannelRegistry;
+            try {
+                registry = (
+                    await getObjectByIdObj({$type$: 'ChannelRegistry', id: 'ChannelRegistry'})
+                ).obj;
+            } catch (_) {
+                return;
+            }
+
+            // We load the latest merged version for all channels
+            // Warning: this might be very memory hungry, because we load this stuff in parallel,
+            // so potentially all version maps of all channels are in memory simultaneously.
+            // This issue should be fixed by allowing partial version loads or by changing the
+            // way that version maps work - or by not using version maps at all.
+            // Short term fix might be by serializing all the loads, but this will significantly
+            // increase load time - so let's stick with the parallel version for now.
+            await Promise.all(
+                [...registry.channels].map(async channelIdHash => {
+                    try {
+                        const channelInfoResult = await getCurrentVersion(channelIdHash);
+                        this.channelInfoCache.set(channelIdHash, channelInfoResult.obj);
+                    } catch (_e) {
+                        // This means that there is no version - should not happen. The empty
+                        // channel is also a version
+                    }
+                })
+            );
+
+            this.loadedRegistryVersion = registry.$versionHash$;
+        });
+        logWithId(null, null, 'loadRegistryCacheFromOne - END');
     }
 
     // ######## Access stuff ########
@@ -1777,13 +1867,17 @@ export default class ChannelManager {
         );
 
         // Write the channel info with the new channel entry as head
-        return storeVersionedObject({
+        const result = await storeVersionedObject({
             $type$: 'ChannelInfo',
             $versionHash$: latestChannelInfo.$versionHash$,
             id: channelId,
             owner: channelOwner,
             head: newHeadHash
         });
+
+        this.channelInfoCache.set(result.idHash, result.obj);
+
+        return result;
     }
 
     /**
