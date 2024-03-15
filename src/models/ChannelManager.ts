@@ -9,13 +9,15 @@ import {OEvent} from '../misc/OEvent.js';
 import type {
     IdAccess,
     OneObjectTypes,
-    OneUnversionedObjectTypeNames,
-    OneUnversionedObjectTypes,
+    OneObjectTypeNames,
     Person
 } from '@refinio/one.core/lib/recipes.js';
 import type {LinkedListEntry, ChannelInfo, ChannelRegistry} from '../recipes/ChannelRecipes.js';
 import type {CreationTime} from '../recipes/MetaRecipes.js';
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
+import type {
+    OneUnversionedObjectInterfaces,
+    OneVersionedObjectInterfaces
+} from '@OneObjectInterfaces';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getCurrentVersion,
@@ -35,6 +37,8 @@ import {linkedListInsert} from './LinkedList/insert.js';
 import {linkedListIterator} from './LinkedList/iterators.js';
 
 const MessageBus = createMessageBus('ChannelManager');
+
+type OneObjectInterfaces = OneUnversionedObjectInterfaces & OneVersionedObjectInterfaces;
 
 /**
  * Logs a channel manager message.
@@ -124,8 +128,8 @@ export type DataSelectionOptions = {
     count?: number; // Query this number of items
     id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
-    type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
-    types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
+    type?: OneObjectTypeNames; // The type of objects you want to receive.
+    types?: OneObjectTypeNames[]; // The types of objects you want to receive.
     omitData?: boolean; // omit the data field if set to true
     omitSharedWith?: boolean; // Skip computation of sharedWith entries
 };
@@ -138,7 +142,7 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-// TODO This is supposed to be "T extends OneUnversionedObjectTypes = OneUnversionedObjectTypes",
+// TODO This is supposed to be "T extends OneObjectTypes = OneObjectTypes",
 //  but this needs a few code fixes down the line, since this type is used with all kinds of stuff
 export type ObjectData<T = unknown> = {
     channelId: string; // The channel id
@@ -489,7 +493,7 @@ export default class ChannelManager {
      * @param timestamp
      * @param author
      */
-    public async postToChannel<T extends OneUnversionedObjectTypes>(
+    public async postToChannel<T extends OneObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null,
@@ -551,7 +555,7 @@ export default class ChannelManager {
      * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
      * will be used as an owner.
      */
-    public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
+    public async postToChannelIfNotExist<T extends OneObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null
@@ -635,12 +639,13 @@ export default class ChannelManager {
      * @param type - Type of objects to retrieve. If type does not match the object is skipped.
      * @param queryOptions
      */
-    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
+    public async getObjectsWithType<T extends OneObjectTypeNames>(
         type: T,
         queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+    ): Promise<ObjectData<OneObjectInterfaces[T]>[]> {
         // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        const objects: ObjectData<OneObjectInterfaces[T]>[] = [];
+
         for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
             objects.push(obj);
         }
@@ -658,7 +663,7 @@ export default class ChannelManager {
      *
      * @param id - id of the object to extract
      */
-    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+    public async getObjectById(id: string): Promise<ObjectData<OneObjectTypes>> {
         const obj = (await this.objectIterator({id}).next()).value;
         if (!obj) {
             throw new Error('The referenced object does not exist');
@@ -680,13 +685,13 @@ export default class ChannelManager {
      *               error is thrown.
      * @returns
      */
-    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
+    public async getObjectWithTypeById<T extends OneObjectTypeNames>(
         id: string,
         type: T
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+    ): Promise<ObjectData<OneObjectInterfaces[T]>> {
         function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            obj: ObjectData<OneObjectTypes>
+        ): obj is ObjectData<OneObjectInterfaces[T]> {
             return obj.data.$type$ === type;
         }
 
@@ -744,10 +749,10 @@ export default class ChannelManager {
      * @param queryOptions
      * @returns
      */
-    public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
+    public async *objectIteratorWithType<T extends OneObjectTypeNames>(
         type: T,
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+    ): AsyncIterableIterator<ObjectData<OneObjectInterfaces[T]>> {
         if (queryOptions) {
             queryOptions.type = type;
         } else {
@@ -756,7 +761,7 @@ export default class ChannelManager {
 
         // Iterate over all objects filtering out the ones with the wrong type
         yield* this.objectIterator(queryOptions) as AsyncIterableIterator<
-            ObjectData<OneUnversionedObjectInterfaces[T]>
+            ObjectData<OneObjectInterfaces[T]>
         >;
     }
 
@@ -1726,7 +1731,7 @@ export default class ChannelManager {
     private async internalChannelPost(
         channelId: string,
         channelOwner: SHA256IdHash<Person> | undefined,
-        payload: OneUnversionedObjectTypes,
+        payload: OneObjectTypes,
         author?: SHA256IdHash<Person>,
         timestamp?: number
     ): Promise<VersionedObjectResult<ChannelInfo>> {
