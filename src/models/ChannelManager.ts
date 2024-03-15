@@ -1,3 +1,4 @@
+import {registerCrdtAlgorithm} from '@refinio/one.core/lib/crdts/CrdtAlgorithmRegistry.js';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
@@ -22,6 +23,7 @@ import type {
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getCurrentVersion,
+    getIdObject,
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
@@ -35,6 +37,7 @@ import {
 } from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {linkedListInsert} from './LinkedList/insert.js';
 import {linkedListIterator} from './LinkedList/iterators.js';
+import {LinkedListCrdtAlgorithm} from './LinkedList/LinkedListCrdtAlgorithm.js';
 
 const MessageBus = createMessageBus('ChannelManager');
 
@@ -252,6 +255,8 @@ export default class ChannelManager {
      * Note: This has to be called after the one instance is initialized.
      */
     public async init(): Promise<void> {
+        registerCrdtAlgorithm(new LinkedListCrdtAlgorithm());
+
         // Load the cache from the registry
         await this.loadRegistryCacheFromOne();
 
@@ -1571,6 +1576,11 @@ export default class ChannelManager {
         caughtObject: VersionedObjectResult<ChannelInfo>
     ): Promise<void> {
         try {
+            MessageBus.send(
+                'log',
+                `processNewVersion ${caughtObject.idHash} - new version ${caughtObject.hash}`
+            );
+
             await this.addChannelIfNotExist(caughtObject.idHash);
 
             const newChannelInfo = caughtObject.obj;
@@ -1578,8 +1588,17 @@ export default class ChannelManager {
             this.channelInfoCache.set(caughtObject.idHash, newChannelInfo);
 
             if (oldChannelInfo === undefined) {
+                MessageBus.send(
+                    'debug',
+                    `processNewVersion ${caughtObject.idHash} - no old version`
+                );
                 return;
             }
+
+            MessageBus.send(
+                'log',
+                `processNewVersion ${caughtObject.idHash} - new head: ${newChannelInfo.head}, old head: ${oldChannelInfo.head}`
+            );
 
             const changedElements: Array<RawChannelEntry & {isNew: boolean}> = [];
 
@@ -1593,6 +1612,11 @@ export default class ChannelManager {
             )) {
                 changedElements.push({...elem, isNew: elem.iterIndex !== 0});
             }
+
+            MessageBus.send(
+                'debug',
+                `processNewVersion ${caughtObject.idHash} - found ${changedElements.length} new elements`
+            );
 
             if (changedElements.length > 0) {
                 this.onUpdated.emit(
@@ -1620,31 +1644,32 @@ export default class ChannelManager {
         let channelId: string;
         let channelOwner: SHA256IdHash<Person> | undefined;
         {
-            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
-            channelId = channelInfo.obj.id;
-            channelOwner = channelInfo.obj.owner;
+            const channelInfo = await getIdObject(channelInfoIdHash);
+            channelId = channelInfo.id;
+            channelOwner = channelInfo.owner;
         }
 
-        const cacheLockName = ChannelManager.cacheLockName;
-
         try {
-            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
-                logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
-                if (this.channelInfoCache.has(channelInfoIdHash)) {
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        'addChannelIfNotExist - END: already existed'
-                    );
-                } else {
-                    this.channelInfoCache.set(
-                        channelInfoIdHash,
-                        (await getCurrentVersion(channelInfoIdHash)).obj
-                    );
-                    await this.saveRegistryCacheToOne();
-                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+            await serializeWithType(
+                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
+                async () => {
+                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
+                    if (this.channelInfoCache.has(channelInfoIdHash)) {
+                        logWithId(
+                            channelId,
+                            channelOwner,
+                            'addChannelIfNotExist - END: already existed'
+                        );
+                    } else {
+                        this.channelInfoCache.set(
+                            channelInfoIdHash,
+                            (await getCurrentVersion(channelInfoIdHash)).obj
+                        );
+                        await this.saveRegistryCacheToOne();
+                        logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+                    }
                 }
-            });
+            );
         } catch (e) {
             logWithId(channelId, channelOwner, `addChannelIfNotExist - FAIL: ${String(e)}`);
             throw e;
@@ -1875,7 +1900,7 @@ export default class ChannelManager {
             head: newHeadHash
         });
 
-        this.channelInfoCache.set(result.idHash, result.obj);
+        await this.processNewVersion(result);
 
         return result;
     }
