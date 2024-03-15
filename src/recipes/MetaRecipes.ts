@@ -1,4 +1,4 @@
-import type {OneUnversionedObjectTypes, Recipe} from '@refinio/one.core/lib/recipes.js';
+import type {Recipe} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
@@ -10,7 +10,7 @@ declare module '@OneObjectInterfaces' {
 export interface CreationTime {
     $type$: 'CreationTime';
     timestamp: number;
-    data: SHA256Hash<OneUnversionedObjectTypes>;
+    data: SHA256Hash;
 }
 
 const CreationTimeRecipe: Recipe = {

@@ -4,7 +4,6 @@ import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
-import {wait} from '@refinio/one.core/lib/util/promise.js';
 import {getAllVersionMapEntries} from '@refinio/one.core/lib/version-map-query.js';
 
 import ChannelManager from '../lib/models/ChannelManager.js';
@@ -103,7 +102,6 @@ describe('Channel Manager test', () => {
 
     after(async () => {
         // Wait for the hooks to run to completion
-        await wait(1000);
         await testModel.shutdown();
         await closeAndDeleteCurrentInstance();
     });
@@ -433,8 +431,6 @@ describe('Channel Manager test', () => {
             firstValuesAsc[1].creationTime.getTime() - 1
         );
 
-        await wait(500);
-
         /*const firstValuesAsc2 = await channelManager.getObjectsWithType('BodyTemperature', {
             channelId: 'first'
         });
@@ -467,15 +463,5 @@ describe('Channel Manager test', () => {
 
         expect(elements1).to.be.eql([6, 9]);
         expect(elements2).to.be.eql([9]);
-    });
-
-    it('should get the latest merged ChannelInfoHash', async () => {
-        const channels = await channelManager.channels();
-        const owner = channels[0].owner;
-        const id = 'first';
-
-        const channelInfoHash = await channelManager.getLatestMergedChannelInfoHash({id, owner});
-        const channelInfo = await getObject(channelInfoHash);
-        expect(channelInfo.$type$).to.equal('ChannelInfo');
     });
 });

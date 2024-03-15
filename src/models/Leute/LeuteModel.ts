@@ -37,7 +37,7 @@ import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person.js';
 import Watchdog from '../../misc/Watchdog.js';
-import type {ChannelEntry} from '../../recipes/ChannelRecipes.js';
+import type {LinkedListEntry} from '../../recipes/ChannelRecipes.js';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {Leute} from '../../recipes/Leute/Leute.js';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions.js';
@@ -971,7 +971,7 @@ export default class LeuteModel extends Model {
             return {
                 channelId: '',
                 channelOwner: ZERO_HASH as SHA256IdHash<Person>,
-                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<LinkedListEntry>,
                 id: '',
                 creationTime: new Date(imageWithPersonId.image.timestamp),
                 creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,
@@ -1020,7 +1020,7 @@ export default class LeuteModel extends Model {
             return {
                 channelId: '',
                 channelOwner: ZERO_HASH as SHA256IdHash<Person>,
-                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<LinkedListEntry>,
                 id: '',
                 creationTime: new Date(statusWithPersonId.status.timestamp),
                 creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,

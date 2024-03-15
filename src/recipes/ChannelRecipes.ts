@@ -5,7 +5,7 @@ import type {CreationTime} from './MetaRecipes.js';
 
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
-        ChannelEntry: ChannelEntry;
+        LinkedListEntry: LinkedListEntry;
     }
 
     export interface OneIdObjectInterfaces {
@@ -19,11 +19,11 @@ declare module '@OneObjectInterfaces' {
     }
 }
 
-export interface ChannelEntry {
-    $type$: 'ChannelEntry';
+export interface LinkedListEntry {
+    $type$: 'LinkedListEntry';
     data: SHA256Hash<CreationTime>;
     metadata?: Array<SHA256Hash>;
-    previous?: SHA256Hash<ChannelEntry>;
+    previous?: SHA256Hash<LinkedListEntry>;
 }
 
 export interface ChannelInfo {
@@ -31,25 +31,19 @@ export interface ChannelInfo {
     $versionHash$?: SHA256Hash<VersionNode>;
     id: string;
     owner?: SHA256IdHash<Person>;
-    head?: SHA256Hash<ChannelEntry>;
+    head?: SHA256Hash<LinkedListEntry>;
 }
 
 export interface ChannelRegistry {
     $type$: 'ChannelRegistry';
     $versionHash$?: SHA256Hash<VersionNode>;
     id: 'ChannelRegistry';
-    channels: Map<
-        SHA256IdHash<ChannelInfo>,
-        {
-            readVersionIndex: number; // Index of the merged version suitable for reading
-            mergedVersionIndex: number; // Index in the version map that was merged (higher ones are unmerged)
-        }
-    >;
+    channels: Set<SHA256IdHash<ChannelInfo>>;
 }
 
 export const ChannelEntryRecipie: Recipe = {
     $type$: 'Recipe',
-    name: 'ChannelEntry',
+    name: 'LinkedListEntry',
     rule: [
         {
             itemprop: 'data',
@@ -66,7 +60,7 @@ export const ChannelEntryRecipie: Recipe = {
         {
             itemprop: 'previous',
             optional: true,
-            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['ChannelEntry'])}
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['LinkedListEntry'])}
         }
     ]
 };
@@ -74,6 +68,7 @@ export const ChannelEntryRecipie: Recipe = {
 export const ChannelInfoRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'ChannelInfo',
+    crdtConfig: new Map([['head#referenceToObj', 'LinkedListCrdtAlgorithm']]),
     rule: [
         {
             itemprop: 'id',
@@ -89,7 +84,7 @@ export const ChannelInfoRecipe: Recipe = {
         {
             itemprop: 'head',
             optional: true,
-            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['ChannelEntry'])}
+            itemtype: {type: 'referenceToObj', allowedTypes: new Set(['LinkedListEntry'])}
         }
     ]
 };
@@ -106,23 +101,10 @@ export const ChannelRegistryRecipe: Recipe = {
         {
             itemprop: 'channels',
             itemtype: {
-                type: 'map',
-                key: {
+                type: 'set',
+                item: {
                     type: 'referenceToId',
                     allowedTypes: new Set(['ChannelInfo'])
-                },
-                value: {
-                    type: 'object',
-                    rules: [
-                        {
-                            itemprop: 'readVersionIndex',
-                            itemtype: {type: 'number'}
-                        },
-                        {
-                            itemprop: 'mergedVersionIndex',
-                            itemtype: {type: 'number'}
-                        }
-                    ]
                 }
             }
         }
