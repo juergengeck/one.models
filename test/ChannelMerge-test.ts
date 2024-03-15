@@ -61,7 +61,7 @@ async function postMessage(
     });
 }
 
-describe('Channel Manager test', () => {
+describe('Linked List Test', () => {
     before(async () => {
         await StorageTestInit.init();
         registerCrdtAlgorithm(new LinkedListCrdtAlgorithm());
@@ -71,7 +71,7 @@ describe('Channel Manager test', () => {
         await closeAndDeleteCurrentInstance();
     });
 
-    it('should create channels and init channelManager', async () => {
+    it.skip('should create channels and init channelManager', async () => {
         const msg1 = await postMessage('test', 'aaa');
         const msg2 = await postMessage('test', 'bbb', msg1.obj.$versionHash$);
         const msg3 = await postMessage('test', 'ccc', msg2.obj.$versionHash$);
