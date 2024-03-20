@@ -264,7 +264,7 @@ export default class ChannelManager {
         // Register event handlers
         this.disconnectOnVersionedObjListener = objectEvents.onNewVersion(
             this.processNewVersion.bind(this),
-            'ChannelManager: mergeNewChannelInfo',
+            'ChannelManager: processNewVersion',
             'ChannelInfo'
         );
     }
