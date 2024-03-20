@@ -15,6 +15,7 @@ import type {
     VersionNode
 } from '@refinio/one.core/lib/recipes.js';
 import type {LinkedListEntry, ChannelInfo, ChannelRegistry} from '../recipes/ChannelRecipes.js';
+import type {Profile} from '../recipes/Leute/Profile.js';
 import type {CreationTime} from '../recipes/MetaRecipes.js';
 import type {
     OneUnversionedObjectInterfaces,
@@ -1587,30 +1588,64 @@ export default class ChannelManager {
             const oldChannelInfo = this.channelInfoCache.get(caughtObject.idHash);
             this.channelInfoCache.set(caughtObject.idHash, newChannelInfo);
 
-            if (oldChannelInfo === undefined) {
-                MessageBus.send(
-                    'debug',
-                    `processNewVersion ${caughtObject.idHash} - no old version`
-                );
-                return;
-            }
-
             MessageBus.send(
                 'log',
-                `processNewVersion ${caughtObject.idHash} - new head: ${newChannelInfo.head}, old head: ${oldChannelInfo.head}`
+                `processNewVersion ${caughtObject.idHash} - new head: ${newChannelInfo.head}, old head: ${oldChannelInfo?.head}`
             );
 
             const changedElements: Array<RawChannelEntry & {isNew: boolean}> = [];
 
-            for await (const elem of ChannelManager.mergeIteratorMostCurrent(
-                [
-                    ChannelManager.entryIterator(oldChannelInfo),
-                    ChannelManager.entryIterator(newChannelInfo)
-                ],
-                true,
-                false
-            )) {
-                changedElements.push({...elem, isNew: elem.iterIndex !== 0});
+            if (oldChannelInfo === undefined) {
+                for await (const elem of ChannelManager.entryIterator(newChannelInfo)) {
+                    changedElements.push({...elem, isNew: true});
+                }
+            } else {
+                for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                    [
+                        ChannelManager.entryIterator(oldChannelInfo),
+                        ChannelManager.entryIterator(newChannelInfo)
+                    ],
+                    true,
+                    false
+                )) {
+                    changedElements.push({...elem, isNew: elem.iterIndex !== 0});
+                }
+            }
+
+            // Register profile at leute by creating a version history.
+            for (const entry of changedElements) {
+                if (!this.getChannelSettingsRegisterSenderProfileAtLeute(entry.channelInfoIdHash)) {
+                    continue;
+                }
+
+                if (!entry.isNew) {
+                    continue;
+                }
+
+                const myId = await this.leuteModel.myMainIdentity();
+
+                if (entry.metaDataHashes) {
+                    for (const metaDataHash of entry.metaDataHashes) {
+                        const metadataObj = await getObject(metaDataHash);
+
+                        if (metadataObj.$type$ === 'Profile') {
+                            const newProfile: Profile = {
+                                ...metadataObj,
+                                owner: myId,
+                                profileId: `ChannelAttachedProfile ${entry.channelInfoIdHash} ${entry.channelInfo.id}`
+                            };
+
+                            try {
+                                const current = await getObjectByIdObj(newProfile);
+                                newProfile.$versionHash$ = current.obj.$versionHash$;
+                            } catch (_e) {
+                                // Empty, because this means that no version exists, yet
+                            }
+
+                            await storeVersionedObject(newProfile);
+                        }
+                    }
+                }
             }
 
             MessageBus.send(
