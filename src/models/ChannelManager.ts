@@ -1595,7 +1595,7 @@ export default class ChannelManager {
 
             const changedElements: Array<RawChannelEntry & {isNew: boolean}> = [];
 
-            if (oldChannelInfo === undefined) {
+            if (oldChannelInfo === undefined || oldChannelInfo.head === undefined) {
                 for await (const elem of ChannelManager.entryIterator(newChannelInfo)) {
                     changedElements.push({...elem, isNew: true});
                 }
