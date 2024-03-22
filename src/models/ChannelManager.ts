@@ -315,11 +315,14 @@ export default class ChannelManager {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, owner, 'createChannel - END: Existed');
         } catch (ignore) {
-            await storeVersionedObject({
-                $type$: 'ChannelInfo',
-                id: channelId,
-                owner
-            });
+            await storeVersionedObject(
+                {
+                    $type$: 'ChannelInfo',
+                    id: channelId,
+                    owner
+                },
+                true
+            );
 
             // Create the cache entry.
             // We cannot wait for the hook to make the entry, because following posts
