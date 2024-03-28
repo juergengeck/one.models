@@ -571,15 +571,12 @@ export default class SomeoneModel {
                 )
             );
 
-            console.log('DEFAULT PROFILES', defaultProfiles, profileIdObjs);
-
             const meOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
                 defaultProfiles,
                 profile => profile.owner === myId
             );
 
             if (meOwner !== undefined) {
-                console.log('Me Owner', meOwner, myId);
                 return meOwner;
             }
 
@@ -589,7 +586,6 @@ export default class SomeoneModel {
             );
 
             if (selfOwner !== undefined) {
-                console.log('Self Owner', selfOwner, myId);
                 return selfOwner;
             }
 
@@ -599,11 +595,8 @@ export default class SomeoneModel {
             );
 
             if (anyOwner !== undefined) {
-                console.log('Any Owner', anyOwner, myId);
                 return anyOwner;
             }
-
-            console.log('NO Owner', myId);
 
             return undefined;
         } catch (_) {
