@@ -936,7 +936,7 @@ export default class LeuteModel extends Model {
             return 'undefined';
         }
 
-        return someone.getDefaultProfileDisplayName(personId);
+        return someone.getDefaultProfileDisplayName(personId, await this.myMainIdentity());
     }
 
     /**
@@ -1300,9 +1300,10 @@ export default class LeuteModel extends Model {
     private async updatePersonNameCache(): Promise<void> {
         const me = await this.me();
         const others = await this.others();
+        const myMainId = await me.mainIdentity();
 
         for (const someone of [me, ...others]) {
-            const names = await someone.getDefaultProfileDisplayNames();
+            const names = await someone.getDefaultProfileDisplayNames(myMainId);
             for (const [personId, name] of names) {
                 this.personNameCache.set(personId, name);
             }
@@ -1315,7 +1316,10 @@ export default class LeuteModel extends Model {
             return;
         }
 
-        const name = await someone.getDefaultProfileDisplayName(personId);
+        const name = await someone.getDefaultProfileDisplayName(
+            personId,
+            await this.myMainIdentity()
+        );
         this.personNameCache.set(personId, name);
     }
 

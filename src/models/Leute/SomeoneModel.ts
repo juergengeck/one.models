@@ -509,11 +509,13 @@ export default class SomeoneModel {
         }
     }
 
-    public async getDefaultProfileDisplayNames(): Promise<Map<SHA256IdHash<Person>, string>> {
+    public async getDefaultProfileDisplayNames(
+        myId: SHA256IdHash<Person>
+    ): Promise<Map<SHA256IdHash<Person>, string>> {
         const map = new Map<SHA256IdHash<Person>, string>();
 
         for (const [identity, profiles] of this.someone.identities.entries()) {
-            const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles]);
+            const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles], myId);
             if (name !== undefined) {
                 map.set(identity, name);
             }
@@ -530,21 +532,27 @@ export default class SomeoneModel {
      * Then it will look for a default profile from any owner.
      *
      * @param identity
+     * @param myId - This needs to be my own main identity, because profiles with this owner
+     * will supersede the other profiles.
      */
-    public async getDefaultProfileDisplayName(identity: SHA256IdHash<Person>): Promise<string> {
+    public async getDefaultProfileDisplayName(
+        identity: SHA256IdHash<Person>,
+        myId: SHA256IdHash<Person>
+    ): Promise<string> {
         const profiles = this.someone.identities.get(identity);
 
         if (profiles === undefined) {
             return identity;
         }
 
-        const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles]);
+        const name = await this.getDefaultProfileDisplayNameFromProfiles([...profiles], myId);
 
         return name === undefined ? identity : name;
     }
 
     private async getDefaultProfileDisplayNameFromProfiles(
-        profileHashes: SHA256IdHash<Profile>[]
+        profileHashes: SHA256IdHash<Profile>[],
+        myId: SHA256IdHash<Person>
     ): Promise<string | undefined> {
         try {
             const profileIdObjs = await Promise.all(
@@ -563,12 +571,15 @@ export default class SomeoneModel {
                 )
             );
 
-            const myId = await this.mainIdentity();
+            console.log('DEFAULT PROFILES', defaultProfiles, profileIdObjs);
+
             const meOwner = SomeoneModel.getPersonNameFromFilteredProfiles(
                 defaultProfiles,
                 profile => profile.owner === myId
             );
+
             if (meOwner !== undefined) {
+                console.log('Me Owner', meOwner, myId);
                 return meOwner;
             }
 
@@ -576,7 +587,9 @@ export default class SomeoneModel {
                 defaultProfiles,
                 profile => profile.owner === profile.personId
             );
+
             if (selfOwner !== undefined) {
+                console.log('Self Owner', selfOwner, myId);
                 return selfOwner;
             }
 
@@ -584,9 +597,13 @@ export default class SomeoneModel {
                 defaultProfiles,
                 _profile => true
             );
+
             if (anyOwner !== undefined) {
+                console.log('Any Owner', anyOwner, myId);
                 return anyOwner;
             }
+
+            console.log('NO Owner', myId);
 
             return undefined;
         } catch (_) {
