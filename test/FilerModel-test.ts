@@ -1,11 +1,10 @@
 /**
  * @author Sebastian Șandru <sebastian@refinio.net>
  */
-import {closeInstance, registerRecipes} from '@refinio/one.core/lib/instance.js';
+import {closeInstance} from '@refinio/one.core/lib/instance.js';
 import * as StorageTestInit from './_helpers.js';
 import {expect} from 'chai';
 
-import Recipes from '../lib/recipes/recipes-experimental.js';
 import TestModel, {removeDir} from './utils/TestModel.js';
 import {createFileWriteStream} from '@refinio/one.core/lib/system/storage-streams.js';
 import type PersistentFileSystem from '../lib/fileSystems/PersistentFileSystem.js';
@@ -19,7 +18,6 @@ const dbKey = 'testDb';
 describe('FilerModel model test', () => {
     before(async () => {
         await StorageTestInit.init({dbKey: dbKey, deleteDb: false});
-        await registerRecipes(Recipes);
         const model = new TestModel('ws://localhost:8000');
         await model.init(undefined);
         testModel = model;

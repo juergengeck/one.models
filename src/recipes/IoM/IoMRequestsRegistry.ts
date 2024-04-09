@@ -1,3 +1,4 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Recipe} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {IoMRequest} from './IoMRequest.js';
@@ -9,6 +10,7 @@ import type {IoMRequest} from './IoMRequest.js';
  */
 export interface IoMRequestsRegistry {
     $type$: 'IoMRequestsRegistry';
+    $versionHash$?: SHA256Hash<VersionNode>;
     appId: 'one.iom';
     requests: Set<SHA256Hash<IoMRequest>>;
 }

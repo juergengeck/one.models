@@ -46,10 +46,10 @@ async function main(): Promise<void> {
         .parseSync();
 
     if (argv.l) {
-        Logger.start({types: ['log', 'debug']});
+        Logger.startLogger({types: ['log', 'debug']});
     }
     if (argv.d) {
-        Logger.start();
+        Logger.startLogger();
     }
 
     const commServer = new CommunicationServer();

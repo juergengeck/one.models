@@ -11,6 +11,9 @@ import TestModel from './utils/TestModel.js';
 import QuestionnaireModel from '../lib/models/QuestionnaireModel.js';
 import {questionnaireResponseType} from '../lib/models/QuestionnaireModel.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 let testModel: TestModel;
 
 describe('Questionnaire model test', () => {

@@ -4,6 +4,7 @@ import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRe
 import CertificateRecipes, {
     CertificateReverseMaps
 } from '../lib/recipes/Certificates/CertificateRecipes.js';
+import {initOneCorePlatform} from './_helpers.js';
 import {DummyObjectRecipes} from './utils/createDummyObject.js';
 import LeuteModel from '../lib/models/Leute/LeuteModel.js';
 import LeuteRecipes from '../lib/recipes/Leute/recipes.js';
@@ -13,6 +14,7 @@ describe('Keychains test', () => {
     let leute: LeuteModel;
 
     beforeEach(async () => {
+        await initOneCorePlatform();
         await initInstance({
             name: 'testname',
             email: 'test@test.com',

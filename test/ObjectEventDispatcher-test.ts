@@ -9,11 +9,13 @@ import {CertificateReverseMaps} from '../lib/recipes/Certificates/CertificateRec
 import ObjectEventDispatcher from '../lib/misc/ObjectEventDispatcher.js';
 import RecipesExperimental from '../lib/recipes/recipes-experimental.js';
 import RecipesStable from '../lib/recipes/recipes-stable.js';
+import {initOneCorePlatform} from './_helpers.js';
 
 import {DummyObjectRecipes} from './utils/createDummyObject.js';
 
 describe('Object Event Dispatcher test', () => {
     beforeEach(async () => {
+        await initOneCorePlatform();
         await initInstance({
             name: 'testname',
             email: 'test@test.com',

@@ -16,6 +16,9 @@ import {createTestIdentity} from './utils/createTestIdentity.js';
 import {createDummyObjectUnversioned, DummyObjectRecipes} from './utils/createDummyObject.js';
 import {signForSomeoneElse} from './utils/signForSomeoneElse.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 describe('Signature test', () => {
     const leute = new LeuteModel('wss://dummy');
 

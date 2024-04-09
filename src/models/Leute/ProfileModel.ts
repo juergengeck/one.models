@@ -1,5 +1,8 @@
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getObjectByIdHash,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
     getObject,
     storeUnversionedObject
@@ -7,7 +10,6 @@ import {
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import type {BLOB} from '@refinio/one.core/lib/recipes.js';
 
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
@@ -365,17 +367,15 @@ export default class ProfileModel {
         );
 
         // Write the new profile version
-        const result = await storeVersionedObjectCRDT(
-            {
-                $type$: 'Profile',
-                profileId: this.profile.profileId,
-                personId: this.profile.personId,
-                owner: this.profile.owner,
-                communicationEndpoint: epHashes.map(ep => ep.hash),
-                personDescription: descHashes.map(desc => desc.hash)
-            },
-            this.pLoadedVersion
-        );
+        const result = await storeVersionedObject({
+            $type$: 'Profile',
+            $versionHash$: this.profile.$versionHash$,
+            profileId: this.profile.profileId,
+            personId: this.profile.personId,
+            owner: this.profile.owner,
+            communicationEndpoint: epHashes.map(ep => ep.hash),
+            personDescription: descHashes.map(desc => desc.hash)
+        });
 
         await this.updateModelDataFromProfile(result.obj, result.hash);
 

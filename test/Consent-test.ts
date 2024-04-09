@@ -6,6 +6,9 @@ import TestModel from './utils/TestModel.js';
 import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import {getObjectWithType} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 let testModel: TestModel;
 
 describe('Consent', () => {

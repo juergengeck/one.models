@@ -12,11 +12,13 @@ import {
     readIdentityWithSecretsFile
 } from '../lib/misc/IdentityExchange-fs.js';
 import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {initOneCorePlatform} from './_helpers.js';
 
 chai.use(chaiAsPromised);
 
 describe('identityExchange test one independent functions', () => {
     beforeEach(async () => {
+        await initOneCorePlatform();
         await mkdir('test/testId').catch(console.error);
     });
 

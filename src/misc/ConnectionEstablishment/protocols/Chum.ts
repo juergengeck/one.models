@@ -79,7 +79,6 @@ export async function startChumProtocol(
         remoteInstanceName: (await getIdObject(remoteInstanceId)).name,
 
         keepRunning: true,
-        maxNotificationDelay: 20,
         disableImporter,
         disableExporter
     }).promise;

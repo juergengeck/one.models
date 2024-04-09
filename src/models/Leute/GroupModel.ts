@@ -1,9 +1,9 @@
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import type {BLOB, Group, Person} from '@refinio/one.core/lib/recipes.js';
 import {readBlobAsArrayBuffer} from '@refinio/one.core/lib/storage-blob.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {
     getObjectByIdHash,
+    getObjectByIdObj,
     storeVersionedObject
 } from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
@@ -169,10 +169,9 @@ export default class GroupModel extends Model {
 
         let profileResult;
         try {
-            const profileIdHash = await calculateIdHashOfObj(newProfile);
-            profileResult = await getObjectByIdHash(profileIdHash);
+            profileResult = await getObjectByIdObj(newProfile);
         } catch (_) {
-            profileResult = await storeVersionedObjectCRDT(newProfile, undefined);
+            profileResult = await storeVersionedObject(newProfile);
         }
 
         const newModel = new GroupModel(groupResult.idHash, profileResult.idHash);
@@ -284,18 +283,17 @@ export default class GroupModel extends Model {
         }
 
         // Write the new profile version
-        const profileResult = await storeVersionedObjectCRDT(
-            {
-                $type$: 'GroupProfile',
-                group: this.groupIdHash,
-                name: this.name,
-                picture: blobHash
-            },
-            this.pLoadedVersion
-        );
+        const profileResult = await storeVersionedObject({
+            $type$: 'GroupProfile',
+            $versionHash$: this.profile.$versionHash$,
+            group: this.groupIdHash,
+            name: this.name,
+            picture: blobHash
+        });
 
         const groupResult = await storeVersionedObject({
             $type$: 'Group',
+            $versionHash$: this.group.$versionHash$,
             name: this.internalGroupName,
             person: this.persons
         });
