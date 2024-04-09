@@ -36,7 +36,7 @@
         "enable-source-maps": true
     },
     "dependencies": {
-        "@refinio/one.core": "github:refinio/one.core#chum2_eh",
+        "@refinio/one.core": "github:refinio/one.core",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
@@ -57,7 +57,7 @@
         "bufferutil": "^4.0.1",
         "chai": "*",
         "chai-as-promised": "*",
-        "eslint": "*",
+        "eslint": "^8.57.0",
         "eslint-config-prettier": "*",
         "eslint-plugin-jsdoc": "*",
         "eslint-plugin-prettier": "*",
