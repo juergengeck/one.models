@@ -112,10 +112,14 @@ export default class TopicModel extends Model {
      * Creates group topic (multiplePerson)
      * @param topicName
      */
-    public async createGroupTopic(topicName: string): Promise<Topic> {
+    public async createGroupTopic(
+        topicName: string,
+        topicId?: string,
+        channelOwner?: SHA256IdHash<Person>
+    ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
-        return await this.createNewTopic(topicName);
+        return await this.createNewTopic(topicName, topicId, channelOwner);
     }
 
     /**
@@ -252,12 +256,18 @@ export default class TopicModel extends Model {
      */
     public async createOneToOneTopic(
         from: SHA256IdHash<Person>,
-        to: SHA256IdHash<Person>
+        to: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person>
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
 
         const nameAndId = [from, to].sort().join('<->');
-        return await this.createNewTopic(nameAndId, nameAndId);
+        const owner = channelOwner
+            ? channelOwner === from || channelOwner === to
+                ? channelOwner
+                : undefined
+            : undefined;
+        return await this.createNewTopic(nameAndId, nameAndId, owner);
     }
 
     /**
@@ -327,7 +337,8 @@ export default class TopicModel extends Model {
      */
     private async createNewTopic(
         desiredTopicName?: string,
-        desiredTopicID?: string
+        desiredTopicID?: string,
+        channelOwner?: SHA256IdHash<Person>
     ): Promise<Topic> {
         this.state.assertCurrentState('Initialised');
         if (this.topicRegistry === undefined) {
@@ -348,7 +359,7 @@ export default class TopicModel extends Model {
         }
 
         // Create the topic
-        await this.channelManager.createChannel(topicID, null);
+        await this.channelManager.createChannel(topicID, channelOwner ? channelOwner : null);
 
         const channels = await this.channelManager.channels({
             channelId: topicID
