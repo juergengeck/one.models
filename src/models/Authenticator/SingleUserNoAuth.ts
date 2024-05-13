@@ -1,5 +1,7 @@
+import nacl from 'tweetnacl';
+import {toByteArray} from 'base64-js';
+
 import {ensurePublicKey, ensureSecretKey} from '@refinio/one.core/lib/crypto/encryption.js';
-import Authenticator from './Authenticator.js';
 import {
     closeAndDeleteCurrentInstance,
     initInstance,
@@ -7,8 +9,8 @@ import {
 } from '@refinio/one.core/lib/instance.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {ensurePublicSignKey, ensureSecretSignKey} from '@refinio/one.core/lib/crypto/sign.js';
-import nacl from 'tweetnacl';
-import {toByteArray} from 'base64-js';
+
+import Authenticator from './Authenticator.js';
 
 type Credentials = {
     email: string;
