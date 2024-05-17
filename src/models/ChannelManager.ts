@@ -1946,18 +1946,17 @@ export default class ChannelManager {
             timestamp
         );
 
+        // processNewVersion is triggered automatically by the listener for new objects
+        // registered in init()
+
         // Write the channel info with the new channel entry as head
-        const result = await storeVersionedObject({
+        return await storeVersionedObject({
             $type$: 'ChannelInfo',
             $versionHash$: latestChannelInfo.$versionHash$,
             id: channelId,
             owner: channelOwner,
             head: newHeadHash
         });
-
-        await this.processNewVersion(result);
-
-        return result;
     }
 
     /**
