@@ -1567,7 +1567,16 @@ export default class ChannelManager {
             null,
             `getMatchingChannelInfos - End: selected ${uniqueSelection.length} channels/versions`
         );
-        return uniqueSelection;
+
+        // loads head if possible
+        return Promise.all(
+            uniqueSelection.map(async channelInfo => ({
+                ...channelInfo,
+                head: channelInfo.head
+                    ? channelInfo.head
+                    : (await getObjectByIdHash(await calculateIdHashOfObj(channelInfo))).obj.head
+            }))
+        );
     }
 
     // ######## Hook implementation for merging and adding channels ########
