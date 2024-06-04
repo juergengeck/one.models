@@ -1,5 +1,5 @@
 import {createAccess} from '@refinio/one.core/lib/access.js';
-import type {Group, OneUnversionedObjectTypes, Person} from '@refinio/one.core/lib/recipes.js';
+import type {Group, Person} from '@refinio/one.core/lib/recipes.js';
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import type {UnversionedObjectResult} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import {storeUnversionedObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
@@ -8,6 +8,7 @@ import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/ut
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {IdObjectResult} from '../../misc/ObjectEventDispatcher.js';
 import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import type {Topic} from '../../recipes/ChatRecipes.js';
@@ -50,6 +51,11 @@ export default class TopicModel extends Model {
                 this.addTopicToRegistry.bind(this),
                 'TopicModel: addTopicToRegistry',
                 'Topic'
+            ),
+            objectEvents.onNewIdObject(
+                this.shareEveryoneTopics.bind(this),
+                'TopicModel: shareEveryoneTopics',
+                'Group'
             )
         );
 
@@ -232,11 +238,9 @@ export default class TopicModel extends Model {
             groupModel => groupModel.name === LeuteModel.EVERYONE_GROUP_NAME
         );
 
-        if (everyoneGroupModel === undefined) {
-            throw new Error('You can only create a everyone chat if leute has an everyone group.');
+        if (everyoneGroupModel !== undefined) {
+            await this.addGroupToTopic(everyoneGroupModel.groupIdHash, topic);
         }
-
-        await this.addGroupToTopic(everyoneGroupModel.groupIdHash, topic);
     }
 
     // ######## One To One chat stuff ########
@@ -407,5 +411,20 @@ export default class TopicModel extends Model {
         });
 
         this.onNewTopicEvent.emit();
+    }
+
+    private async shareEveryoneTopics(result: IdObjectResult<Group>): Promise<void> {
+        if (result.obj.name === LeuteModel.EVERYONE_GROUP_NAME && result.status === 'new') {
+            const everyoneTopic = await this.topics.queryById(TopicModel.EVERYONE_TOPIC_ID);
+            const glueTopic = await this.topics.queryById(TopicModel.GLUE_TOPIC_ID);
+
+            if (everyoneTopic !== undefined) {
+                await this.addGroupToTopic(result.idHash, everyoneTopic);
+            }
+
+            if (glueTopic !== undefined) {
+                await this.addGroupToTopic(result.idHash, glueTopic);
+            }
+        }
     }
 }

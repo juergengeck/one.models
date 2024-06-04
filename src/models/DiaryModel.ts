@@ -89,13 +89,17 @@ export default class DiaryModel extends Model {
         this.state.triggerEvent('shutdown');
     }
 
-    async addEntry(diaryEntry: DiaryEntry): Promise<void> {
+    async addEntry(diaryEntry: DiaryEntry, owner?: SHA256IdHash<Person>): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
         if (!diaryEntry) {
             throw Error('Diary entry is empty');
         }
-        await this.channelManager.postToChannel(DiaryModel.channelId, convertToOne(diaryEntry));
+        await this.channelManager.postToChannel(
+            DiaryModel.channelId,
+            convertToOne(diaryEntry),
+            owner
+        );
     }
 
     async entries(): Promise<ObjectData<DiaryEntry>[]> {

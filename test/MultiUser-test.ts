@@ -5,7 +5,7 @@ import chaiAsPromised from 'chai-as-promised';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
 import MultiUser from '../lib/models/Authenticator/MultiUser.js';
 
-import {defaultDbName} from './_helpers.js';
+import {defaultDbName, initOneCorePlatform} from './_helpers.js';
 
 chai.use(chaiAsPromised);
 
@@ -44,6 +44,7 @@ describe('MultiUser Test', () => {
      * Before each test case register & logout the user2, followed by register the user1 & logout
      */
     beforeEach(async () => {
+        await initOneCorePlatform();
         await mkdir(`test/${defaultDbName}`, {recursive: true});
         await multiUserWorkflow.register(user2.email, user2.secret, user2.instance);
         await multiUserWorkflow.logout();

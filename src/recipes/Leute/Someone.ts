@@ -1,4 +1,6 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Person, Recipe, OneObjectTypeNames} from '@refinio/one.core/lib/recipes.js';
+import type {SHA256Hash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {Profile} from './Profile.js';
 import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
@@ -6,12 +8,10 @@ import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 export interface Someone {
     $type$: 'Someone';
+    $versionHash$?: SHA256Hash<VersionNode>;
     someoneId: string;
     mainProfile: SHA256IdHash<Profile>;
-    identity: {
-        person: SHA256IdHash<Person>;
-        profile: SHA256IdHash<Profile>[];
-    }[];
+    identities: Map<SHA256IdHash<Person>, Set<SHA256IdHash<Profile>>>;
 }
 
 // #### Recipes ####
@@ -30,24 +30,16 @@ export const SomeoneRecipe: Recipe = {
             itemtype: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
         },
         {
-            itemprop: 'identity',
+            itemprop: 'identities',
             itemtype: {
-                type: 'bag',
-                item: {
-                    type: 'object',
-                    rules: [
-                        {
-                            itemprop: 'person',
-                            itemtype: {type: 'referenceToId', allowedTypes: new Set(['Person'])}
-                        },
-                        {
-                            itemprop: 'profile',
-                            itemtype: {
-                                type: 'bag',
-                                item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
-                            }
-                        }
-                    ]
+                type: 'map',
+                key: {
+                    type: 'referenceToId',
+                    allowedTypes: new Set(['Person'])
+                },
+                value: {
+                    type: 'set',
+                    item: {type: 'referenceToId', allowedTypes: new Set(['Profile'])}
                 }
             }
         }
@@ -63,11 +55,11 @@ export const SomeoneReverseMaps: [OneObjectTypeNames, Set<string>][] = [
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         Someone: Someone;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         Someone: Pick<Someone, '$type$' | 'someoneId'>;
     }
 }

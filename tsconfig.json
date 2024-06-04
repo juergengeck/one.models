@@ -1,33 +1,5 @@
 {
-    "compilerOptions": {
-        "allowJs": true,
-        "alwaysStrict": true,
-        "baseUrl": "./",
-        "checkJs": true,
-        "composite": true,
-        "declaration": true,
-        "declarationMap": false,
-        "downlevelIteration": false,
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "importHelpers": false,
-        "isolatedModules": true,
-        "lib": ["esnext", "dom"],
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
-        "newLine": "LF",
-        "noEmit": true,
-        "noImplicitAny": true,
-        "noImplicitThis": true,
-        "noImplicitReturns": true,
-        "removeComments": false,
-        "sourceMap": false,
-        "strict": true,
-        "target": "ESNext",
-        "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-        "useUnknownInCatchVariables": false,
-        "verbatimModuleSyntax": true
-    },
+    "files": [],
     "references": [
         {
             "path": "./src"
@@ -35,15 +7,5 @@
         {
             "path": "./test"
         }
-    ],
-    "include": [
-        "./@OneObjectInterfaces.d.ts",
-        "*.js"
-    ],
-    "exclude": [
-        "node_modules/one.core/src",
-        "*.bundle.js",
-        ".*.js",
-        "doc"
     ]
 }

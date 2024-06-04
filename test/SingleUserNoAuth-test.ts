@@ -9,6 +9,9 @@ import {closeAndDeleteCurrentInstance} from '@refinio/one.core/lib/instance.js';
 import SingleUserNoAuth from '../lib/models/Authenticator/SingleUserNoAuth.js';
 import type {AuthState} from '../lib/models/Authenticator/Authenticator.js';
 
+import {SYSTEM} from '@refinio/one.core/lib/system/platform.js';
+await import(`@refinio/one.core//lib/system/load-${SYSTEM}.js`);
+
 chai.use(chaiAsPromised);
 
 const {expect} = chai;

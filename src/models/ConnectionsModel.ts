@@ -15,7 +15,7 @@ import type LeuteModel from './Leute/LeuteModel.js';
 import {Model} from './Model.js';
 import type Connection from '../misc/Connection/Connection.js';
 import PairingManager from '../misc/ConnectionEstablishment/PairingManager.js';
-import type GroupModel from './Leute/GroupModel.js';
+import GroupModel from './Leute/GroupModel.js';
 
 const MessageBus = createMessageBus('ConnectionsModel');
 
@@ -64,6 +64,16 @@ export type ConnectionsModelConfiguration = {
     // If true automatically establish outgoing connections
     // Default: true
     establishOutgoingConnections: boolean;
+
+    // #### Chum Settings ####
+
+    // If true, then do not start the chum importer for all chum connections - useful for debugging
+    // Default: false
+    noImport: boolean;
+
+    // If true, then do not start the chum exporter for all chum connections - useful for debugging
+    // Default: false
+    noExport: boolean;
 };
 
 /**
@@ -106,6 +116,7 @@ class ConnectionsModel extends Model {
     private readonly config: ConnectionsModelConfiguration;
     private readonly leuteConnectionsModule: LeuteConnectionsModule;
     private readonly leuteModel: LeuteModel;
+    private initiallyDisabledGroup: GroupModel | undefined;
 
     /**
      * Retrieve the online state based on connections to comm servers.
@@ -164,7 +175,9 @@ class ConnectionsModel extends Model {
             establishOutgoingConnections:
                 config.establishOutgoingConnections === undefined
                     ? true
-                    : config.establishOutgoingConnections
+                    : config.establishOutgoingConnections,
+            noImport: config.noImport === undefined ? false : config.noImport,
+            noExport: config.noExport === undefined ? false : config.noExport
         };
 
         // Setup / init modules
@@ -203,7 +216,11 @@ class ConnectionsModel extends Model {
      */
     async init(blacklistGroup?: GroupModel): Promise<void> {
         this.state.assertCurrentState('Uninitialised');
-        await this.leuteConnectionsModule.init(blacklistGroup);
+        this.initiallyDisabledGroup = await GroupModel.constructWithNewGroup('initiallyDisabled');
+        await this.leuteConnectionsModule.init({
+            blacklistGroup,
+            initiallyDisabledGroup: this.initiallyDisabledGroup
+        });
         this.state.triggerEvent('init');
     }
 
@@ -242,6 +259,15 @@ class ConnectionsModel extends Model {
         remotePersonId: SHA256IdHash<Person>,
         localPersonId?: SHA256IdHash<Person>
     ): Promise<void> {
+        if (
+            this.initiallyDisabledGroup &&
+            this.initiallyDisabledGroup.persons.includes(remotePersonId)
+        ) {
+            this.initiallyDisabledGroup.persons = this.initiallyDisabledGroup.persons.filter(
+                pId => pId !== remotePersonId
+            );
+            await this.initiallyDisabledGroup.saveAndLoad();
+        }
         await this.leuteConnectionsModule.enableConnectionsToPerson(remotePersonId, localPersonId);
     }
 
@@ -256,6 +282,13 @@ class ConnectionsModel extends Model {
         remotePersonId: SHA256IdHash<Person>,
         localPersonId?: SHA256IdHash<Person>
     ): Promise<void> {
+        if (
+            this.initiallyDisabledGroup &&
+            !this.initiallyDisabledGroup.persons.includes(remotePersonId)
+        ) {
+            this.initiallyDisabledGroup.persons.push(remotePersonId);
+            await this.initiallyDisabledGroup.saveAndLoad();
+        }
         await this.leuteConnectionsModule.disableConnectionsToPerson(remotePersonId, localPersonId);
     }
 
@@ -341,7 +374,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId,
                     initiatedLocally,
                     connectionRoutesGroupName,
-                    this.onProtocolStart
+                    this.onProtocolStart,
+                    this.config.noImport,
+                    this.config.noExport
                 );
             } else if (connectionRoutesGroupName === 'pairing') {
                 await this.pairing.acceptInvitation(
@@ -407,7 +442,9 @@ class ConnectionsModel extends Model {
                     remoteInstanceId,
                     initiatedLocally,
                     connectionRoutesGroupName,
-                    this.onProtocolStart
+                    this.onProtocolStart,
+                    this.config.noImport,
+                    this.config.noExport
                 );
             } else if (connectionRoutesGroupName === 'debug') {
                 await acceptDebugRequest(conn, remotePersonId);

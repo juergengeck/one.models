@@ -33,10 +33,11 @@
  *     goes up again.
  */
 
+import {createAccess} from '@refinio/one.core/lib/access.js';
 import yargs from 'yargs';
 
 import * as Logger from '@refinio/one.core/lib/logger.js';
-import AccessModel from '../models/AccessModel.js';
+import {objectEvents} from '../misc/ObjectEventDispatcher.js';
 import ChannelManager from '../models/ChannelManager.js';
 import ConnectionsModel from '../models/ConnectionsModel.js';
 import LeuteModel from '../models/Leute/LeuteModel.js';
@@ -61,6 +62,7 @@ import type {HexString} from '@refinio/one.core/lib/util/arraybuffer-to-and-from
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {Keys, Person} from '@refinio/one.core/lib/recipes.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import '@refinio/one.core/lib/system/load-nodejs.js';
 
 /**
  * Parses command line options for this app.
@@ -109,10 +111,23 @@ function parseCommandLine(): {
 
     // Initialize Logger
     if (argv.l) {
-        Logger.start({types: ['log']});
+        Logger.startLogger({
+            types: [
+                'chum-sync:log',
+                'chum-sync:debug',
+                'chum-importer:log',
+                'chum-importer:debug',
+                'chum-importer-request-functions:log',
+                'chum-importer-request-functions:debug',
+                'chum-exporter:log',
+                'chum-exporter:debug' /*,
+                'ChannelManager:log',
+                'ChannelManager:debug'*/
+            ] as unknown as ['debug', 'log', 'alert', 'error']
+        });
     }
     if (argv.d) {
-        Logger.start();
+        Logger.startLogger();
     }
 
     return {
@@ -160,24 +175,31 @@ async function setupOneCore(identity: Identity | IdentityWithSecrets): Promise<{
  * This initializes the models and imports the plan modules (code managed by one)
  *
  * @param commServerUrl
+ * @param noImport
+ * @param noExport
  */
-async function setupOneModels(commServerUrl: string): Promise<{
-    access: AccessModel;
+async function setupOneModels(
+    commServerUrl: string,
+    noImport = false,
+    noExport = false
+): Promise<{
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;
     shutdown: () => Promise<void>;
 }> {
+    await objectEvents.init();
+
     // Construct models
-    const access = new AccessModel();
     const leute = new LeuteModel(commServerUrl);
     const channelManager = new ChannelManager(leute);
     const connections = new ConnectionsModel(leute, {
-        commServerUrl
+        commServerUrl,
+        noImport,
+        noExport
     });
 
     // Initialize models
-    await access.init();
     await leute.init();
     await channelManager.init();
     await connections.init();
@@ -187,13 +209,11 @@ async function setupOneModels(commServerUrl: string): Promise<{
         await connections.shutdown();
         await channelManager.shutdown();
         await leute.shutdown();
-        await access.shutdown();
 
         closeInstance();
     }
 
     return {
-        access,
         leute,
         channelManager,
         connections,
@@ -237,13 +257,13 @@ async function initWithIdentityExchange(
     commServerUrl: string,
     instanceName: string
 ): Promise<{
-    access: AccessModel;
     channelManager: ChannelManager;
     leute: LeuteModel;
     connections: ConnectionsModel;
     shutdown: () => Promise<void>;
+    contacts: SHA256IdHash<Person>[];
 }> {
-    // ######## Step 1: Create own identity (if not alread done) and setup app ########
+    // ######## Step 1: Create own identity (if not already done) and setup app ########
     const identity = await readOrCreateIdentityFile(
         `${instanceName}.id.json`,
         commServerUrl,
@@ -251,12 +271,9 @@ async function initWithIdentityExchange(
         instanceName
     );
 
-    // Setup one.core
     const oneCore = await setupOneCore(identity);
-    // Setup one.models
-    const oneModels = await setupOneModels(commServerUrl);
+    const oneModels = await setupOneModels(commServerUrl /*, instanceName === '1'*/);
 
-    // Setup shutdown
     async function shutdown(): Promise<void> {
         console.log('Shutting down application');
         await oneModels.shutdown();
@@ -271,9 +288,15 @@ async function initWithIdentityExchange(
     const profiles = await importIdentityFilesAsProfiles(`${instanceName}.id.json`);
     console.log(`Imported ${profiles.length} profiles.`);
 
+    const owner = getInstanceOwnerIdHash();
+    if (owner === undefined) {
+        throw new Error('Failed to obtain owner');
+    }
+
     return {
         ...oneModels,
-        shutdown
+        shutdown,
+        contacts: [owner, ...profiles.map(profile => profile.personId)]
     };
 }
 
@@ -344,21 +367,42 @@ async function main(): Promise<void> {
         models.shutdown().catch(console.error);
     });
 
+    // Share some channel
+    const channelInfoIdHash = await models.channelManager.createChannel('TestChannel', null);
+    await models.channelManager.postToChannel(
+        'TestChannel',
+        {
+            $type$: 'ChatMessage',
+            text: `Hello from ${models.contacts[0]}`,
+            sender: models.contacts[0]
+        },
+        null
+    );
+
+    await createAccess([
+        {
+            id: channelInfoIdHash,
+            person: models.contacts.slice(1),
+            group: [],
+            mode: 'add'
+        }
+    ]);
+
     // Print connection status continuously
     console.log('Owner:', getInstanceOwnerIdHash());
     console.log('Instance:', getInstanceIdHash());
     const intervalHandle = setInterval(async () => {
-        console.log(`OnelineState: ${models.connections.onlineState}`);
-        models.connections.debugDump();
-        /*const connectionInfos = models.connections.connectionsInfo();
-        const connCount = connectionInfos.filter(info => info.isConnected).length;
-        connectionInfos.map(info => info.isConnected);
-        console.log(`OnelineState: ${models.connections.onlineState}`);
-        console.log(`Connections established: ${connCount}`);*/
-        if (displayDetails) {
-            //console.log(connectionInfos);
+        console.log('#### Chat content ####');
+        for await (const msg of models.channelManager.objectIteratorWithType('ChatMessage', {
+            channelInfoIdHash
+        })) {
+            console.log(msg.data.text);
+        }
 
-            // Owner
+        //console.log(`OnelineState: ${models.connections.onlineState}`);
+        //models.connections.debugDump();
+
+        if (displayDetails) {
             const me = await models.leute.me();
             console.log('#### Me Someone ####');
             for (const identity of me.identities()) {

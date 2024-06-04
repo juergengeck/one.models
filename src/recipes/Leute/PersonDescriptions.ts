@@ -52,6 +52,11 @@ export interface EncryptionKey {
     key: HexString;
 }
 
+export interface OrganisationName {
+    $type$: 'OrganisationName';
+    name: string;
+}
+
 // #### type check magic ####
 
 export type PersonDescriptionInterfaces = {
@@ -61,6 +66,7 @@ export type PersonDescriptionInterfaces = {
     PersonImage: PersonImage;
     SignKey: SignKey;
     EncryptionKey: EncryptionKey;
+    OrganisationName: OrganisationName;
 };
 export type PersonDescriptionTypes = PersonDescriptionInterfaces[keyof PersonDescriptionInterfaces];
 export type PersonDescriptionTypeNames = keyof PersonDescriptionInterfaces;
@@ -71,7 +77,8 @@ export const PersonDescriptionTypeNameSet = new Set<OneObjectTypeNames | '*'>([
     'PersonStatus',
     'PersonImage',
     'SignKey',
-    'EncryptionKey'
+    'EncryptionKey',
+    'OrganisationName'
 ]);
 
 /**
@@ -171,6 +178,17 @@ export const EncryptionKeyRecipe: Recipe = {
     ]
 };
 
+export const OrganisationNameRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'OrganisationName',
+    rule: [
+        {
+            itemprop: 'name',
+            itemtype: {type: 'string'}
+        }
+    ]
+};
+
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
@@ -181,6 +199,7 @@ declare module '@OneObjectInterfaces' {
         PersonImage: PersonImage;
         SignKey: SignKey;
         EncryptionKey: EncryptionKey;
+        OrganisationName: OrganisationName;
     }
 }
 
@@ -190,5 +209,6 @@ export default [
     PersonStatusRecipe,
     PersonImageRecipe,
     SignKeyRecipe,
-    EncryptionKeyRecipe
+    EncryptionKeyRecipe,
+    OrganisationNameRecipe
 ];

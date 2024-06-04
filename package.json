@@ -1,6 +1,6 @@
 {
     "name": "@refinio/one.models",
-    "version": "13.9.0",
+    "version": "14.0.0-beta-1",
     "repository": "https://github.com/refinio/one.models",
     "license": "SEE LICENSE IN LICENSE.md",
     "private": true,
@@ -25,7 +25,9 @@
         "start-aws": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
         "start-uke": "node lib/tools/CommunicationServer -p 8000",
         "start-state-machine": "node lib/tools/StateMachine",
-        "bundle": "npx --no-install webpack"
+        "bundle": "npx --no-install webpack",
+        "cpall": "node copy-refinio-deps.mjs",
+        "cpcore": "node copy-refinio-deps.mjs core"
     },
     "mocha": {
         "require": [
@@ -34,7 +36,7 @@
         "enable-source-maps": true
     },
     "dependencies": {
-        "@refinio/one.core": "^0.5.6",
+        "@refinio/one.core": "github:refinio/one.core",
         "isomorphic-ws": "*",
         "qrcode": "*",
         "ts-loader": "*",
@@ -55,7 +57,7 @@
         "bufferutil": "^4.0.1",
         "chai": "*",
         "chai-as-promised": "*",
-        "eslint": "*",
+        "eslint": "^8.57.0",
         "eslint-config-prettier": "*",
         "eslint-plugin-jsdoc": "*",
         "eslint-plugin-prettier": "*",

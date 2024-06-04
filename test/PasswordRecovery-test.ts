@@ -5,9 +5,12 @@ import {
     recoverSecretAsString,
     unpackRecoveryInformation
 } from '../lib/misc/PasswordRecoveryService/PasswordRecovery.js';
+import {initOneCorePlatform} from './_helpers.js';
 
 describe('Password recovery test', () => {
-    beforeEach(async () => {});
+    beforeEach(async () => {
+        await initOneCorePlatform();
+    });
 
     afterEach(async () => {});
 

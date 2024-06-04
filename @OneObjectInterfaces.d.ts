@@ -49,6 +49,4 @@ declare module '@OneObjectInterfaces' {
     export interface OneIdObjectInterfaces {}
 
     export interface OneVersionedObjectInterfaces {}
-
-    export interface OneCrdtObjectInterfaces {}
 }

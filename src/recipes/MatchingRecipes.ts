@@ -1,5 +1,5 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {Person, Recipe} from '@refinio/one.core/lib/recipes.js';
-import {ORDERED_BY} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 declare module '@OneObjectInterfaces' {
@@ -76,6 +76,7 @@ export interface Demand {
  */
 export interface SupplyMap {
     $type$: 'SupplyMap';
+    $versionHash$?: SHA256Hash<VersionNode>;
     name: string;
     map?: Map<string, Supply[]>;
 }
@@ -88,6 +89,7 @@ export interface SupplyMap {
  */
 export interface DemandMap {
     $type$: 'DemandMap';
+    $versionHash$?: SHA256Hash<VersionNode>;
     name: string;
     map?: Map<string, Demand[]>;
 }
@@ -100,6 +102,7 @@ export interface DemandMap {
  */
 export interface MatchMap {
     $type$: 'MatchMap';
+    $versionHash$?: SHA256Hash<VersionNode>;
     name: string;
     array?: SHA256Hash<MatchResponse>[];
 }
@@ -115,6 +118,7 @@ export interface MatchMap {
  */
 export interface NotifiedUsers {
     $type$: 'NotifiedUsers';
+    $versionHash$?: SHA256Hash<VersionNode>;
     name: string;
     existingMatches?: Map<SHA256IdHash<Person>, Set<SHA256Hash<MatchResponse>>>;
 }

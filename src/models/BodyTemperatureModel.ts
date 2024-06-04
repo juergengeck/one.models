@@ -67,8 +67,13 @@ export default class BodyTemperatureModel extends Model {
      * Used to store a body temperature in one instance.
      * @param bodyTemperature - the body temperature measurement provided by the user.
      * @param creationTimestamp - the time in milliseconds when the body temperature was measured.
+     * @param owner
      */
-    async addBodyTemperature(bodyTemperature: number, creationTimestamp?: number): Promise<void> {
+    async addBodyTemperature(
+        bodyTemperature: number,
+        creationTimestamp?: number,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
         /** make sure that the supplied body temperature fit the allowed range **/
@@ -80,7 +85,7 @@ export default class BodyTemperatureModel extends Model {
         await this.channelManager.postToChannel(
             BodyTemperatureModel.channelId,
             {$type$: 'BodyTemperature', temperature: bodyTemperature},
-            undefined,
+            owner,
             creationTimestamp
         );
     }
@@ -121,6 +126,15 @@ export default class BodyTemperatureModel extends Model {
             ...queryOptions,
             channelId: BodyTemperatureModel.channelId
         });
+    }
+
+    /**
+     * returns the BodyTemperature with that specific id provided by the ObjectData type
+     */
+    async bodyTemperatureById(id: string): Promise<ObjectData<OneBodyTemperature>> {
+        this.state.assertCurrentState('Initialised');
+
+        return await this.channelManager.getObjectWithTypeById(id, 'BodyTemperature');
     }
 
     /**

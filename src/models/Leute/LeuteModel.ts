@@ -1,6 +1,5 @@
 import type {OneVersionedObjectInterfaces} from '@OneObjectInterfaces';
 import {createAccess} from '@refinio/one.core/lib/access.js';
-import {storeVersionedObjectCRDT} from '@refinio/one.core/lib/crdt.js';
 import {getInstanceIdHash, getInstanceOwnerIdHash} from '@refinio/one.core/lib/instance.js';
 import {
     createCryptoApiFromDefaultKeys,
@@ -17,7 +16,11 @@ import {getOnlyLatestReferencingObjsHashAndId} from '@refinio/one.core/lib/rever
 import {SET_ACCESS_MODE} from '@refinio/one.core/lib/storage-base-common.js';
 import {getObject} from '@refinio/one.core/lib/storage-unversioned-objects.js';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
-import {getIdObject, getObjectByIdHash} from '@refinio/one.core/lib/storage-versioned-objects.js';
+import {
+    getIdObject,
+    getObjectByIdHash,
+    storeVersionedObject
+} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {createRandomString} from '@refinio/one.core/lib/system/crypto-helpers.js';
 import {calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
@@ -34,7 +37,7 @@ import {objectEvents} from '../../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../../misc/OEvent.js';
 import {createPerson, createPersonWithDefaultKeys, isPersonComplete} from '../../misc/person.js';
 import Watchdog from '../../misc/Watchdog.js';
-import type {ChannelEntry} from '../../recipes/ChannelRecipes.js';
+import type {LinkedListEntry} from '../../recipes/ChannelRecipes.js';
 import type {OneInstanceEndpoint} from '../../recipes/Leute/CommunicationEndpoints.js';
 import type {Leute} from '../../recipes/Leute/Leute.js';
 import type {PersonImage, PersonStatus} from '../../recipes/Leute/PersonDescriptions.js';
@@ -108,6 +111,7 @@ export default class LeuteModel extends Model {
     // #### Events ####
 
     public onProfileUpdate: OEvent<(profile: Profile, isMe: boolean) => void> = new OEvent();
+    public onMeIdentitiesChange: OEvent<() => void> = new OEvent();
 
     // Emitted when a new instance endpoint was added to leute
     // Note: It might be emitted also for already known endpoints at the moment.
@@ -207,13 +211,8 @@ export default class LeuteModel extends Model {
 
             await this.saveAndLoad();
 
-            // This is done before the trust manager is initialized. This is probably not such a
-            // good idea, but it works for now.
-            await this.trust.certify(
-                'RightToDeclareTrustedKeysForEverybodyCertificate',
-                {beneficiary: personId},
-                personId
-            );
+            // Give the new main identity all rights, so that he can declare trust for other keys
+            await this.givePersonAllRights(personId, personId);
         }
 
         const disconnectFns: Array<() => void> = [];
@@ -228,8 +227,8 @@ export default class LeuteModel extends Model {
             ),
             objectEvents.onNewVersion(
                 async result => {
-                    for (const id of result.obj.identity) {
-                        await this.updatePersonNameCacheForPerson(id.person).catch(console.error);
+                    for (const [id] of result.obj.identities.entries()) {
+                        await this.updatePersonNameCacheForPerson(id).catch(console.error);
                     }
                 },
                 'LeuteModel: New someone version - Update person name cache for all identities',
@@ -658,6 +657,7 @@ export default class LeuteModel extends Model {
                 throw new Error('Person is not complete!');
             }
             this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
+            await this.givePersonAllRights(newIdentity, newIdentity);
             await mySomeone.setMainProfile(profileHash);
             this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
         }
@@ -683,6 +683,7 @@ export default class LeuteModel extends Model {
             throw new Error('Person is not complete!');
         }
         this.beforeMainIdSwitch.emit(oldIdentity, newIdentity);
+        await this.givePersonAllRights(newIdentity, newIdentity);
         await mySomeone.setMainIdentity(newIdentity);
         this.afterMainIdSwitch.emit(oldIdentity, newIdentity);
     }
@@ -935,7 +936,7 @@ export default class LeuteModel extends Model {
             return 'undefined';
         }
 
-        return someone.getDefaultProfileDisplayName(personId);
+        return someone.getDefaultProfileDisplayName(personId, await this.myMainIdentity());
     }
 
     /**
@@ -970,7 +971,7 @@ export default class LeuteModel extends Model {
             return {
                 channelId: '',
                 channelOwner: ZERO_HASH as SHA256IdHash<Person>,
-                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<LinkedListEntry>,
                 id: '',
                 creationTime: new Date(imageWithPersonId.image.timestamp),
                 creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,
@@ -1019,7 +1020,7 @@ export default class LeuteModel extends Model {
             return {
                 channelId: '',
                 channelOwner: ZERO_HASH as SHA256IdHash<Person>,
-                channelEntryHash: ZERO_HASH as SHA256Hash<ChannelEntry>,
+                channelEntryHash: ZERO_HASH as SHA256Hash<LinkedListEntry>,
                 id: '',
                 creationTime: new Date(statusWithPersonId.status.timestamp),
                 creationTimeHash: ZERO_HASH as SHA256Hash<CreationTime>,
@@ -1141,6 +1142,29 @@ export default class LeuteModel extends Model {
             instanceName
         );
         return {...personResult, ...instanceResult};
+    }
+
+    /**
+     * This gives a person all local rights - at the moment do declare trusted keys.
+     *
+     * @param beneficiary - The person that gets the rights
+     * @param issuer - The person that gives the rights
+     * @private
+     */
+    private async givePersonAllRights(
+        beneficiary: SHA256IdHash<Person>,
+        issuer?: SHA256IdHash<Person>
+    ): Promise<void> {
+        await this.trust.certify(
+            'RightToDeclareTrustedKeysForEverybodyCertificate',
+            {beneficiary},
+            issuer
+        );
+        await this.trust.certify(
+            'RightToDeclareTrustedKeysForSelfCertificate',
+            {beneficiary},
+            issuer
+        );
     }
 
     // ######## Hooks for one.core ########
@@ -1276,9 +1300,10 @@ export default class LeuteModel extends Model {
     private async updatePersonNameCache(): Promise<void> {
         const me = await this.me();
         const others = await this.others();
+        const myMainId = await me.mainIdentity();
 
         for (const someone of [me, ...others]) {
-            const names = await someone.getDefaultProfileDisplayNames();
+            const names = await someone.getDefaultProfileDisplayNames(myMainId);
             for (const [personId, name] of names) {
                 this.personNameCache.set(personId, name);
             }
@@ -1291,7 +1316,10 @@ export default class LeuteModel extends Model {
             return;
         }
 
-        const name = await someone.getDefaultProfileDisplayName(personId);
+        const name = await someone.getDefaultProfileDisplayName(
+            personId,
+            await this.myMainIdentity()
+        );
         this.personNameCache.set(personId, name);
     }
 
@@ -1392,7 +1420,7 @@ export default class LeuteModel extends Model {
             throw new Error('No leute data that could be saved');
         }
 
-        const result = await storeVersionedObjectCRDT(this.leute, this.pLoadedVersion);
+        const result = await storeVersionedObject(this.leute);
 
         await this.updateModelDataFromLeute(result.obj, result.hash);
 

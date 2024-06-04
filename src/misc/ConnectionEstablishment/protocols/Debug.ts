@@ -1,21 +1,16 @@
-import {getPublicKeys} from '@refinio/one.core/lib/keychain/key-storage-public.js';
-import {createCryptoApiFromDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
-import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
+import {isAccessibleBy, isIdAccessibleBy} from '@refinio/one.core/lib/accessManager.js';
+import type {HashTypes} from '@refinio/one.core/lib/recipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import {fileSize, readUTF8TextFile} from '@refinio/one.core/lib/system/storage-base.js';
+import {isString} from '@refinio/one.core/lib/util/type-checks-basic.js';
+import {isHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type LeuteModel from '../../../models/Leute/LeuteModel.js';
 import type {OneInstanceEndpoint} from '../../../recipes/Leute/CommunicationEndpoints.js';
 import type Connection from '../../Connection/Connection.js';
-import {getLocalInstanceOfPerson} from '../../instance.js';
+import {connectToInstanceWithOneInstanceEndpoint} from './ConnectToInstance.js';
 import type {AccessibleObject} from './Debug/determineAccessibleHashes.js';
 import {determineAccessibleObjects} from './Debug/determineAccessibleHashes.js';
-import {connectWithEncryption} from './EncryptedConnectionHandshake.js';
-import {exchangeConnectionGroupName} from './ExchangeConnectionGroupName.js';
-import {exchangeInstanceIdObjects} from './ExchangeInstanceIds.js';
-import {verifyAndExchangePersonId} from './ExchangePersonIds.js';
-import {sync} from './Sync.js';
-
-const MessageBus = createMessageBus('DebugProtocol');
 
 export async function acceptDebugRequest(
     conn: Connection,
@@ -38,17 +33,53 @@ export async function acceptDebugRequest(
 
         conn.close('Debug protocol "getAccessibleObjects" finished');
     }
-}
 
-export async function requestAcccessibleObjects(conn: Connection): Promise<AccessibleObject[]> {
-    sendDebugMessage(conn, {
-        type: 'start_protocol',
-        protocol: 'getAccessibleObjects',
-        version: '1.0'
-    });
+    if (protocol.protocol === 'getData') {
+        if (protocol.version !== '1.0') {
+            conn.close('Protocol version not supported. Only 1.0 is supported');
+            return;
+        }
 
-    const accessibleObjectsMessage = await waitForDebugMessage(conn, 'accessible_objects');
-    return accessibleObjectsMessage.objects;
+        const request = await waitForDebugMessage(conn, 'request_data');
+
+        // Check access
+        switch (request.hashType) {
+            case 'blob':
+            case 'clob':
+            case 'object':
+                if (
+                    !(await isAccessibleBy(remotePersonId, request.hash as SHA256Hash<HashTypes>))
+                ) {
+                    conn.close('You do not have permission to access this file');
+                }
+                break;
+            case 'id':
+                if (!(await isIdAccessibleBy(remotePersonId, request.hash as SHA256IdHash))) {
+                    conn.close('You do not have permission to access this id file');
+                }
+                break;
+        }
+
+        // Send data
+        switch (request.hashType) {
+            case 'blob':
+                sendDebugMessage(conn, {
+                    type: 'data',
+                    data: `File size: ${await fileSize(request.hash)}`
+                });
+                break;
+            case 'clob':
+            case 'id':
+            case 'object':
+                sendDebugMessage(conn, {
+                    type: 'data',
+                    data: await readUTF8TextFile(request.hash)
+                });
+                break;
+        }
+
+        conn.close('Debug protocol "getData" finished');
+    }
 }
 
 export async function connectRequestingAccessibleObjects(
@@ -56,66 +87,70 @@ export async function connectRequestingAccessibleObjects(
     leuteModel: LeuteModel,
     myPersonId?: SHA256IdHash<Person>
 ): Promise<AccessibleObject[]> {
-    if (myPersonId === undefined) {
-        myPersonId = await leuteModel.myMainIdentity();
-    }
-    if (oneInstanceEndpoint.url === undefined) {
-        throw new Error('Url of one instance endpoint is undefined!');
-    }
-
-    const cryptoApi = await createCryptoApiFromDefaultKeys(myPersonId);
-    const myInstanceId = await getLocalInstanceOfPerson(myPersonId);
-
-    // Connect to target
-    const connInfo = await connectWithEncryption(
-        oneInstanceEndpoint.url,
-        cryptoApi.createEncryptionApiWithKeysAndPerson(
-            (await getPublicKeys(oneInstanceEndpoint.instanceKeys)).publicEncryptionKey
-        )
+    const {conn} = await connectToInstanceWithOneInstanceEndpoint(
+        oneInstanceEndpoint,
+        leuteModel,
+        'debug',
+        myPersonId
     );
 
-    const conn = connInfo.connection;
-
-    MessageBus.send(
-        'log',
-        `${conn.id}: connectRequestingAccessibleObjects: exchangeConnectionGroupName`
-    );
-
-    await exchangeConnectionGroupName(conn, 'debug');
-
-    MessageBus.send('log', `${conn.id}: connectRequestingAccessibleObjects: sync`);
-
-    // Have a sync step (misusing the success message at the moment), so that the
-    // connection initiator does not emit the event if the other side does not want to
-    // connect.
-    await sync(conn, true);
-
-    MessageBus.send(
-        'log',
-        `${conn.id}: connectRequestingAccessibleObjects: verifyAndExchangePersonId`
-    );
-
-    const personInfo = await verifyAndExchangePersonId(leuteModel, conn, myPersonId, true);
-
-    MessageBus.send(
-        'log',
-        `${conn.id}: connectRequestingAccessibleObjects: exchangeInstanceIdObjects`
-    );
-
-    const instanceInfo = await exchangeInstanceIdObjects(conn, myInstanceId);
-
-    // Start the pairing protocol
     try {
-        return requestAcccessibleObjects(conn);
+        sendDebugMessage(conn, {
+            type: 'start_protocol',
+            protocol: 'getAccessibleObjects',
+            version: '1.0'
+        });
+
+        const accessibleObjectsMessage = await waitForDebugMessage(conn, 'accessible_objects');
+        return accessibleObjectsMessage.objects;
     } catch (e) {
-        connInfo.connection.close(e.message);
+        conn.close(e.message);
+        throw e;
+    }
+}
+
+export type DataRequestHashType = 'blob' | 'clob' | 'id' | 'object';
+export type DataRequestHash = SHA256Hash<HashTypes> | SHA256IdHash;
+
+export async function connectRequestingData(
+    hash: DataRequestHash,
+    hashType: DataRequestHashType,
+    oneInstanceEndpoint: OneInstanceEndpoint,
+    leuteModel: LeuteModel,
+    myPersonId?: SHA256IdHash<Person>
+): Promise<string> {
+    const {conn} = await connectToInstanceWithOneInstanceEndpoint(
+        oneInstanceEndpoint,
+        leuteModel,
+        'debug',
+        myPersonId
+    );
+
+    try {
+        sendDebugMessage(conn, {
+            type: 'start_protocol',
+            protocol: 'getData',
+            version: '1.0'
+        });
+
+        sendDebugMessage(conn, {
+            type: 'request_data',
+            hashType,
+            hash
+        });
+
+        const dataMessage = await waitForDebugMessage(conn, 'data');
+        return dataMessage.data;
+    } catch (e) {
+        conn.close(e.message);
         throw e;
     }
 }
 
 // #### Low level protocol / messages ... ####
 
-type DebugProtocols = 'getAccessibleObjects';
+type DebugProtocols = 'getAccessibleObjects' | 'getData';
+const DebugProtocolsList = ['getAccessibleObjects', 'getData'];
 
 type StartProtocolMessage = {
     type: 'start_protocol';
@@ -128,9 +163,22 @@ type AccessibleObjectsMessage = {
     objects: AccessibleObject[];
 };
 
+type RequestDataMessage = {
+    type: 'request_data';
+    hashType: DataRequestHashType;
+    hash: DataRequestHash;
+};
+
+type DataMessage = {
+    type: 'data';
+    data: string;
+};
+
 export interface DebugMessages {
     start_protocol: StartProtocolMessage;
     accessible_objects: AccessibleObjectsMessage;
+    request_data: RequestDataMessage;
+    data: DataMessage;
 }
 
 export type DebugMessageTypes = DebugMessages[keyof DebugMessages];
@@ -150,11 +198,19 @@ export function isDebugMessage<T extends keyof DebugMessages>(
     }
 
     if (type === 'start_protocol') {
-        return arg.protocol === 'getAccessibleObjects' && typeof arg.version === 'string';
+        return DebugProtocolsList.includes(arg.protocol) && typeof arg.version === 'string';
     }
 
     if (type === 'accessible_objects') {
         return Array.isArray(arg.objects);
+    }
+
+    if (type === 'request_data') {
+        return ['blob', 'clob', 'id', 'object'].includes(arg.hashType) && isHash(arg.hash);
+    }
+
+    if (type === 'data') {
+        return isString(arg.data);
     }
 
     return false;

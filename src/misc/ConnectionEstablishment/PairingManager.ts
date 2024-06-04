@@ -1,8 +1,5 @@
 import {ensurePublicKey} from '@refinio/one.core/lib/crypto/encryption.js';
-import {
-    createCryptoApiFromDefaultKeys,
-    getDefaultKeys
-} from '@refinio/one.core/lib/keychain/keychain.js';
+import {getDefaultKeys} from '@refinio/one.core/lib/keychain/keychain.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import type {Instance} from '@refinio/one.core/lib/recipes.js';
 import type {Person} from '@refinio/one.core/lib/recipes.js';
@@ -21,11 +18,7 @@ import {
     sendPeerMessage,
     waitForPeerMessage
 } from './protocols/CommunicationInitiationProtocolMessages.js';
-import {connectWithEncryption} from './protocols/EncryptedConnectionHandshake.js';
-import {exchangeConnectionGroupName} from './protocols/ExchangeConnectionGroupName.js';
-import {exchangeInstanceIdObjects} from './protocols/ExchangeInstanceIds.js';
-import {verifyAndExchangePersonId} from './protocols/ExchangePersonIds.js';
-import {sync} from './protocols/Sync.js';
+import {connectToInstance} from './protocols/ConnectToInstance.js';
 import {
     convertIdentityToProfile,
     convertOneInstanceEndpointToIdentity
@@ -158,41 +151,13 @@ export default class PairingManager {
         invitation: Invitation,
         myPersonId?: SHA256IdHash<Person>
     ): Promise<void> {
-        if (myPersonId === undefined) {
-            myPersonId = await this.leuteModel.myMainIdentity();
-        }
-
-        const cryptoApi = await createCryptoApiFromDefaultKeys(myPersonId);
-        const myInstanceId = await getLocalInstanceOfPerson(myPersonId);
-
-        // Connect to target
-        const connInfo = await connectWithEncryption(
+        const {conn, instanceInfo} = await connectToInstance(
             invitation.url,
-            cryptoApi.createEncryptionApiWithKeysAndPerson(
-                ensurePublicKey(hexToUint8Array(invitation.publicKey))
-            )
+            ensurePublicKey(hexToUint8Array(invitation.publicKey)),
+            this.leuteModel,
+            'pairing',
+            myPersonId
         );
-
-        const conn = connInfo.connection;
-
-        MessageBus.send('log', `${conn.id}: connectUsingInvitation: exchangeConnectionGroupName`);
-
-        await exchangeConnectionGroupName(conn, 'pairing');
-
-        MessageBus.send('log', `${conn.id}: connectUsingInvitation: sync`);
-
-        // Have a sync step (misusing the success message at the moment), so that the
-        // connection initiator does not emit the event if the other side does not want to
-        // connect.
-        await sync(conn, true);
-
-        MessageBus.send('log', `${conn.id}: connectUsingInvitation: verifyAndExchangePersonId`);
-
-        const personInfo = await verifyAndExchangePersonId(this.leuteModel, conn, myPersonId, true);
-
-        MessageBus.send('log', `${conn.id}: connectUsingInvitation: exchangeInstanceIdObjects`);
-
-        const instanceInfo = await exchangeInstanceIdObjects(conn, myInstanceId);
 
         // Start the pairing protocol
         try {
@@ -207,6 +172,12 @@ export default class PairingManager {
             // Wait for remote identity
             const remoteIdentity = (await waitForPeerMessage(conn, 'identity')).obj;
             const remoteProfile = await convertIdentityToProfile(remoteIdentity);
+
+            if (remoteProfile.loadedVersion) {
+                await this.leuteModel.trust.certify('TrustKeysCertificate', {
+                    profile: remoteProfile.loadedVersion
+                });
+            }
 
             // Send my own identity
             const oneInstanceEndpoints = await this.leuteModel.getMyLocalEndpoints(myPersonId);
@@ -238,7 +209,7 @@ export default class PairingManager {
 
             conn.close();
         } catch (e) {
-            connInfo.connection.close(e.message);
+            conn.close(e.message);
             throw e;
         }
     }
@@ -288,7 +259,13 @@ export default class PairingManager {
 
         // Step 4: Wait for remote identity
         const remoteIdentity = (await waitForPeerMessage(conn, 'identity')).obj;
-        await convertIdentityToProfile(remoteIdentity);
+        const remoteProfile = await convertIdentityToProfile(remoteIdentity);
+
+        if (remoteProfile.loadedVersion) {
+            await this.leuteModel.trust.certify('TrustKeysCertificate', {
+                profile: remoteProfile.loadedVersion
+            });
+        }
 
         // Done, so remove the one time authentication token from the list
         clearTimeout(authData.expirationTimeoutHandle);

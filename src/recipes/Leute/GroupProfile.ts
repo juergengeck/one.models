@@ -1,3 +1,4 @@
+import type {VersionNode} from '@refinio/one.core/lib/recipes.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import type {BLOB, Group, Recipe} from '@refinio/one.core/lib/recipes.js';
 
@@ -5,6 +6,7 @@ import type {BLOB, Group, Recipe} from '@refinio/one.core/lib/recipes.js';
 
 export interface GroupProfile {
     $type$: 'GroupProfile';
+    $versionHash$?: SHA256Hash<VersionNode>;
     group: SHA256IdHash<Group>;
     name: string;
     picture: SHA256Hash<BLOB>;
@@ -15,7 +17,6 @@ export interface GroupProfile {
 export const GroupProfileRecipe: Recipe = {
     $type$: 'Recipe',
     name: 'GroupProfile',
-    crdtConfig: new Map(),
     rule: [
         {
             itemprop: 'group',
@@ -36,11 +37,11 @@ export const GroupProfileRecipe: Recipe = {
 // #### one.core interfaces ####
 
 declare module '@OneObjectInterfaces' {
-    export interface OneCrdtObjectInterfaces {
+    export interface OneVersionedObjectInterfaces {
         GroupProfile: GroupProfile;
     }
 
-    export interface OneCrdtIdObjectInterfaces {
+    export interface OneIdObjectInterfaces {
         GroupProfile: Pick<GroupProfile, '$type$' | 'group'>;
     }
 }

@@ -1,10 +1,7 @@
+import {registerCrdtAlgorithm} from '@refinio/one.core/lib/crdts/CrdtAlgorithmRegistry.js';
 import {calculateHashOfObj, calculateIdHashOfObj} from '@refinio/one.core/lib/util/object.js';
 import {getAllEntries} from '@refinio/one.core/lib/reverse-map-query.js';
-import {createTrackingPromise, serializeWithType} from '@refinio/one.core/lib/util/promise.js';
-import {
-    getAllVersionMapEntries,
-    getNthVersionMapHash
-} from '@refinio/one.core/lib/version-map-query.js';
+import {serializeWithType} from '@refinio/one.core/lib/util/promise.js';
 import {createMessageBus} from '@refinio/one.core/lib/message-bus.js';
 import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 import {ensureHash, ensureIdHash} from '@refinio/one.core/lib/util/type-checks.js';
@@ -12,20 +9,22 @@ import {objectEvents} from '../misc/ObjectEventDispatcher.js';
 import {OEvent} from '../misc/OEvent.js';
 import type {
     IdAccess,
-    OneUnversionedObjectTypeNames,
-    OneUnversionedObjectTypes,
-    Person
+    OneObjectTypes,
+    OneObjectTypeNames,
+    Person,
+    VersionNode
 } from '@refinio/one.core/lib/recipes.js';
-import type {
-    ChannelEntry,
-    ChannelInfo,
-    ChannelRegistry,
-    ChannelRegistryEntry
-} from '../recipes/ChannelRecipes.js';
+import type {LinkedListEntry, ChannelInfo, ChannelRegistry} from '../recipes/ChannelRecipes.js';
+import type {Profile} from '../recipes/Leute/Profile.js';
 import type {CreationTime} from '../recipes/MetaRecipes.js';
-import type {OneUnversionedObjectInterfaces} from '@OneObjectInterfaces';
+import type {
+    OneUnversionedObjectInterfaces,
+    OneVersionedObjectInterfaces
+} from '@OneObjectInterfaces';
 import type {VersionedObjectResult} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {
+    getCurrentVersion,
+    getIdObject,
     getObjectByIdHash,
     getObjectByIdObj,
     storeVersionedObject
@@ -37,8 +36,13 @@ import {
     getObjectWithType,
     storeUnversionedObject
 } from '@refinio/one.core/lib/storage-unversioned-objects.js';
+import {linkedListInsert} from './LinkedList/insert.js';
+import {linkedListIterator} from './LinkedList/iterators.js';
+import {LinkedListCrdtAlgorithm} from './LinkedList/LinkedListCrdtAlgorithm.js';
 
 const MessageBus = createMessageBus('ChannelManager');
+
+type OneObjectInterfaces = OneUnversionedObjectInterfaces & OneVersionedObjectInterfaces;
 
 /**
  * Logs a channel manager message.
@@ -128,9 +132,10 @@ export type DataSelectionOptions = {
     count?: number; // Query this number of items
     id?: string; // Exact id of the object to get (you can get it from ObjectData.id)
     ids?: string[]; // Exact ids of the objects to get (you can get it from ObjectData.id)
-    type?: OneUnversionedObjectTypeNames; // The type of objects you want to receive.
-    types?: OneUnversionedObjectTypeNames[]; // The types of objects you want to receive.
+    type?: OneObjectTypeNames; // The type of objects you want to receive.
+    types?: OneObjectTypeNames[]; // The types of objects you want to receive.
     omitData?: boolean; // omit the data field if set to true
+    omitSharedWith?: boolean; // Skip computation of sharedWith entries
 };
 
 /**
@@ -141,12 +146,12 @@ export type QueryOptions = ChannelSelectionOptions & DataSelectionOptions;
 /**
  * Type stores the metadata and the data for a query result.
  */
-// TODO This is supposed to be "T extends OneUnversionedObjectTypes = OneUnversionedObjectTypes",
+// TODO This is supposed to be "T extends OneObjectTypes = OneObjectTypes",
 //  but this needs a few code fixes down the line, since this type is used with all kinds of stuff
 export type ObjectData<T = unknown> = {
     channelId: string; // The channel id
     channelOwner?: SHA256IdHash<Person>; // The owner of the channel
-    channelEntryHash: SHA256Hash<ChannelEntry>; // The reference to the channel entry object
+    channelEntryHash: SHA256Hash<LinkedListEntry>; // The reference to the channel entry object
 
     // This id identifies the data point. It can be used to reference this data point in other
     // methods of this class.
@@ -158,7 +163,7 @@ export type ObjectData<T = unknown> = {
     sharedWith: SHA256IdHash<Person>[]; // Who has access to this data
 
     data: T;
-    dataHash: SHA256Hash<T extends OneUnversionedObjectTypes ? T : OneUnversionedObjectTypes>;
+    dataHash: SHA256Hash<T extends OneObjectTypes ? T : OneObjectTypes>;
 };
 
 /**
@@ -167,25 +172,12 @@ export type ObjectData<T = unknown> = {
 export type RawChannelEntry = {
     channelInfo: ChannelInfo;
     channelInfoIdHash: SHA256IdHash<ChannelInfo>;
-    channelEntryHash: SHA256Hash<ChannelEntry>;
+    channelEntryHash: SHA256Hash<LinkedListEntry>;
     creationTimeHash: SHA256Hash<CreationTime>;
     creationTime: number;
-    dataHash: SHA256Hash<OneUnversionedObjectTypes>;
+    dataHash: SHA256Hash;
     metaDataHashes?: Array<SHA256Hash>;
-};
-
-/**
- * This are the entries of the ChannelInfoCache.
- */
-type ChannelInfoCacheEntry = {
-    // The versions in the version-map from 0 to this value have been merged
-    latestMergedVersionIndex: number;
-    // This is the latest version generated by the merge algorithm suitable for reading
-    readVersion: ChannelInfo;
-    // This is the index in the version-map of the readVersion
-    readVersionIndex: number;
-    // Handlers that are notified if the version was merged
-    mergedHandlers: ((v?: unknown) => void)[];
+    author?: SHA256IdHash<Person>;
 };
 
 /**
@@ -219,12 +211,13 @@ export default class ChannelManager {
             channelId: string,
             channelOwner: SHA256IdHash<Person> | null,
             timeOfEarliestChange: Date,
-            data: RawChannelEntry[]
+            data: Array<RawChannelEntry & {isNew: boolean}>
         ) => void
     >();
 
-    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>;
-    private promiseTrackers: Set<Promise<void>>;
+    private loadedRegistryVersion: SHA256Hash<VersionNode> | undefined = undefined;
+
+    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfo> = new Map();
     private disconnectOnVersionedObjListener: () => void = () => {
         // Empty by design
     };
@@ -234,6 +227,7 @@ export default class ChannelManager {
         {
             maxSize?: number;
             appendSenderProfile?: boolean;
+            registerSenderProfileAtLeute?: boolean;
         }
     >();
 
@@ -250,8 +244,6 @@ export default class ChannelManager {
      * Create the channel manager instance.
      */
     constructor(leuteModel: LeuteModel) {
-        this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
-        this.promiseTrackers = new Set<Promise<void>>();
         this.leuteModel = leuteModel;
     }
 
@@ -264,18 +256,17 @@ export default class ChannelManager {
      * Note: This has to be called after the one instance is initialized.
      */
     public async init(): Promise<void> {
+        registerCrdtAlgorithm(new LinkedListCrdtAlgorithm());
+
         // Load the cache from the registry
         await this.loadRegistryCacheFromOne();
 
         // Register event handlers
         this.disconnectOnVersionedObjListener = objectEvents.onNewVersion(
-            this.mergeNewChannelInfoVersioned.bind(this),
-            'ChannelManager: mergeNewChannelInfo',
+            this.processNewVersion.bind(this),
+            'ChannelManager: processNewVersion',
             'ChannelInfo'
         );
-
-        // Merge new versions of channels that haven't been merged, yet.
-        await this.mergeAllUnmergedChannelVersions();
     }
 
     /**
@@ -285,10 +276,6 @@ export default class ChannelManager {
         this.disconnectOnVersionedObjListener();
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         this.disconnectOnVersionedObjListener = () => {};
-
-        // Resolve the pending promises
-        await Promise.all(this.promiseTrackers.values());
-        this.channelInfoCache = new Map<SHA256IdHash<ChannelInfo>, ChannelInfoCacheEntry>();
     }
 
     // ######## Channel management ########
@@ -307,7 +294,7 @@ export default class ChannelManager {
     public async createChannel(
         channelId: string,
         owner?: SHA256IdHash<Person> | null
-    ): Promise<void> {
+    ): Promise<SHA256IdHash<ChannelInfo>> {
         if (owner === undefined) {
             owner = await this.calculateDefaultOwner();
         }
@@ -328,11 +315,14 @@ export default class ChannelManager {
             await getObjectByIdHash<ChannelInfo>(channelInfoIdHash);
             logWithId(channelId, owner, 'createChannel - END: Existed');
         } catch (ignore) {
-            await storeVersionedObject({
-                $type$: 'ChannelInfo',
-                id: channelId,
-                owner
-            });
+            await storeVersionedObject(
+                {
+                    $type$: 'ChannelInfo',
+                    id: channelId,
+                    owner
+                },
+                true
+            );
 
             // Create the cache entry.
             // We cannot wait for the hook to make the entry, because following posts
@@ -342,6 +332,8 @@ export default class ChannelManager {
 
             logWithId(channelId, owner, 'createChannel - END: Created');
         }
+
+        return channelInfoIdHash;
     }
 
     /**
@@ -408,6 +400,51 @@ export default class ChannelManager {
     }
 
     /**
+     * Enable registering as metadata attached profiles with leute.
+     *
+     * Default is disabled
+     *
+     * @param channel
+     * @param enable
+     */
+    public setChannelSettingsRegisterSenderProfileAtLeute(
+        channel: SHA256IdHash<ChannelInfo>,
+        enable?: boolean
+    ): void {
+        const currentSettings = this.channelSettings.get(channel);
+        if (currentSettings) {
+            if (enable === undefined) {
+                delete currentSettings.registerSenderProfileAtLeute;
+            } else {
+                currentSettings.registerSenderProfileAtLeute = enable;
+            }
+        } else if (enable !== undefined) {
+            this.channelSettings.set(channel, {
+                registerSenderProfileAtLeute: enable
+            });
+        }
+    }
+
+    /**
+     * Get the "RegisterSenderProfileAtLeute" setting for the specified channel.
+     *
+     * @param channel
+     */
+    public getChannelSettingsRegisterSenderProfileAtLeute(
+        channel: SHA256IdHash<ChannelInfo>
+    ): boolean {
+        const currentSettings = this.channelSettings.get(channel);
+        if (
+            currentSettings === undefined ||
+            currentSettings.registerSenderProfileAtLeute === undefined
+        ) {
+            return false;
+        }
+
+        return currentSettings.registerSenderProfileAtLeute;
+    }
+
+    /**
      * If size is specified, then restrict the size of a channel to this amount.
      *
      * Excess data is deleted by the merge algorithms.
@@ -462,7 +499,7 @@ export default class ChannelManager {
      * @param timestamp
      * @param author
      */
-    public async postToChannel<T extends OneUnversionedObjectTypes>(
+    public async postToChannel<T extends OneObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null,
@@ -489,42 +526,25 @@ export default class ChannelManager {
             author = myMainId;
         }
 
+        const channelInfoIdHash = await calculateIdHashOfObj({
+            $type$: 'ChannelInfo',
+            id: channelId,
+            owner: owner
+        });
+
+        // Setup the merge handler
+        const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
+        if (!cacheEntry) {
+            throw new Error('This channel does not exist, you cannot post to it.');
+        }
+
         // Post the data
         try {
-            const channelInfoIdHash = await calculateIdHashOfObj({
-                $type$: 'ChannelInfo',
-                id: channelId,
-                owner: owner
+            await serializeWithType(ChannelManager.postLockName, async () => {
+                logWithId(channelId, owner, 'postToChannel - START');
+                await this.internalChannelPost(channelId, owner, data, author, timestamp);
+                logWithId(channelId, owner, 'postToChannel - END');
             });
-
-            let waitForMergePromise: undefined | Promise<any>;
-            await serializeWithType(
-                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
-                async () => {
-                    // Setup the merge handler
-                    const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
-                    if (!cacheEntry) {
-                        throw new Error('This channel does not exist, you cannot post to it.');
-                    }
-
-                    // Create the promise on which we wait after we posted the value to one
-                    waitForMergePromise = new Promise(resolve => {
-                        cacheEntry.mergedHandlers.push(resolve);
-                    });
-
-                    // Post the data
-                    await serializeWithType(ChannelManager.postLockName, async () => {
-                        logWithId(channelId, owner, 'postToChannel - START');
-                        await this.internalChannelPost(channelId, owner, data, author, timestamp);
-                        logWithId(channelId, owner, 'postToChannel - END');
-                    });
-                }
-            );
-
-            // Wait until the merge has completed before we resolve the promise
-            if (waitForMergePromise !== undefined) {
-                await waitForMergePromise;
-            }
         } catch (e) {
             logWithId(channelId, owner, `postToChannel - FAIL: ${String(e)}`);
             throw e;
@@ -543,7 +563,7 @@ export default class ChannelManager {
      * set. If the owner it's NULL, then no owner is set. If a value is given, then the value
      * will be used as an owner.
      */
-    public async postToChannelIfNotExist<T extends OneUnversionedObjectTypes>(
+    public async postToChannelIfNotExist<T extends OneObjectTypes>(
         channelId: string,
         data: T,
         channelOwner?: SHA256IdHash<Person> | null
@@ -606,11 +626,9 @@ export default class ChannelManager {
      *
      * @param queryOptions
      */
-    public async getObjects(
-        queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectTypes>[]> {
+    public async getObjects(queryOptions?: QueryOptions): Promise<ObjectData<OneObjectTypes>[]> {
         // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectTypes>[] = [];
+        const objects: ObjectData<OneObjectTypes>[] = [];
         for await (const obj of this.objectIterator(queryOptions)) {
             objects.push(obj);
         }
@@ -629,12 +647,13 @@ export default class ChannelManager {
      * @param type - Type of objects to retrieve. If type does not match the object is skipped.
      * @param queryOptions
      */
-    public async getObjectsWithType<T extends OneUnversionedObjectTypeNames>(
+    public async getObjectsWithType<T extends OneObjectTypeNames>(
         type: T,
         queryOptions?: QueryOptions
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>[]> {
+    ): Promise<ObjectData<OneObjectInterfaces[T]>[]> {
         // Use iterator interface to collect all objects
-        const objects: ObjectData<OneUnversionedObjectInterfaces[T]>[] = [];
+        const objects: ObjectData<OneObjectInterfaces[T]>[] = [];
+
         for await (const obj of this.objectIteratorWithType(type, queryOptions)) {
             objects.push(obj);
         }
@@ -652,7 +671,7 @@ export default class ChannelManager {
      *
      * @param id - id of the object to extract
      */
-    public async getObjectById(id: string): Promise<ObjectData<OneUnversionedObjectTypes>> {
+    public async getObjectById(id: string): Promise<ObjectData<OneObjectTypes>> {
         const obj = (await this.objectIterator({id}).next()).value;
         if (!obj) {
             throw new Error('The referenced object does not exist');
@@ -674,13 +693,13 @@ export default class ChannelManager {
      *               error is thrown.
      * @returns
      */
-    public async getObjectWithTypeById<T extends OneUnversionedObjectTypeNames>(
+    public async getObjectWithTypeById<T extends OneObjectTypeNames>(
         id: string,
         type: T
-    ): Promise<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+    ): Promise<ObjectData<OneObjectInterfaces[T]>> {
         function hasRequestedType(
-            obj: ObjectData<OneUnversionedObjectTypes>
-        ): obj is ObjectData<OneUnversionedObjectInterfaces[T]> {
+            obj: ObjectData<OneObjectTypes>
+        ): obj is ObjectData<OneObjectInterfaces[T]> {
             return obj.data.$type$ === type;
         }
 
@@ -693,27 +712,6 @@ export default class ChannelManager {
         }
 
         return obj;
-    }
-
-    /**
-     * Obtain the latest merged ChannelInfoHash from the registry
-     *
-     * It is useful for ChannelSelectionOptions
-     *
-     * @param channel - the channel for which to get the channel info
-     */
-    public async getLatestMergedChannelInfoHash(
-        channel: Channel
-    ): Promise<SHA256Hash<ChannelInfo>> {
-        const channelInfoIdHash = await calculateIdHashOfObj({$type$: 'ChannelInfo', ...channel});
-
-        const channelEntry = this.channelInfoCache.get(channelInfoIdHash);
-
-        if (!channelEntry) {
-            throw new Error('The specified channel does not exist');
-        }
-
-        return await getNthVersionMapHash(channelInfoIdHash, channelEntry.readVersionIndex);
     }
 
     // ######## Get data from channels - ITERATORS ########
@@ -731,7 +729,7 @@ export default class ChannelManager {
      */
     public async *objectIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+    ): AsyncIterableIterator<ObjectData<OneObjectTypes>> {
         // The count needs to be dealt with at the top level, because it involves all returned items
         if (queryOptions && queryOptions.count) {
             let elementCounter = 0;
@@ -759,10 +757,10 @@ export default class ChannelManager {
      * @param queryOptions
      * @returns
      */
-    public async *objectIteratorWithType<T extends OneUnversionedObjectTypeNames>(
+    public async *objectIteratorWithType<T extends OneObjectTypeNames>(
         type: T,
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectInterfaces[T]>> {
+    ): AsyncIterableIterator<ObjectData<OneObjectInterfaces[T]>> {
         if (queryOptions) {
             queryOptions.type = type;
         } else {
@@ -771,7 +769,7 @@ export default class ChannelManager {
 
         // Iterate over all objects filtering out the ones with the wrong type
         yield* this.objectIterator(queryOptions) as AsyncIterableIterator<
-            ObjectData<OneUnversionedObjectInterfaces[T]>
+            ObjectData<OneObjectInterfaces[T]>
         >;
     }
 
@@ -811,7 +809,7 @@ export default class ChannelManager {
      */
     private async *multiChannelObjectIterator(
         queryOptions?: QueryOptions
-    ): AsyncIterableIterator<ObjectData<OneUnversionedObjectTypes>> {
+    ): AsyncIterableIterator<ObjectData<OneObjectTypes>> {
         const channels = await this.getMatchingChannelInfos(queryOptions);
 
         // prepare the options for the single channel iterator
@@ -821,6 +819,7 @@ export default class ChannelManager {
         let types: string[] | undefined;
 
         let omitData: boolean = false;
+        let omitSharedWith: boolean = true;
 
         if (queryOptions) {
             from = queryOptions.from;
@@ -840,60 +839,81 @@ export default class ChannelManager {
             if (queryOptions.omitData) {
                 omitData = queryOptions.omitData;
             }
+            if (queryOptions.omitSharedWith) {
+                omitSharedWith = queryOptions.omitSharedWith;
+            }
         }
 
         // Create a iterator for each selected channel
         const iterators = channels.map(channel =>
-            ChannelManager.singleChannelObjectIterator(channel, from, to, ids)
+            ChannelManager.singleChannelObjectIterator(channel, from, to, ids, true)
         );
 
         // Determine the access rights of each channel
         const sharedWithPersonsMap = new Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>();
-        await Promise.all(
-            channels.map(async channel => {
-                const channelInfoIdHash = await calculateIdHashOfObj(channel);
-                const sharedWithPersons =
-                    await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
-                sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
-            })
-        );
+        if (!omitSharedWith) {
+            await Promise.all(
+                channels.map(async channel => {
+                    const channelInfoIdHash = await calculateIdHashOfObj(channel);
+                    const sharedWithPersons =
+                        await ChannelManager.sharedWithPersonsList(channelInfoIdHash);
+                    sharedWithPersonsMap.set(channelInfoIdHash, sharedWithPersons);
+                })
+            );
+        }
 
         // Iterate over all channels and fetch the data
         for await (const entry of ChannelManager.mergeIteratorMostCurrent(iterators, false)) {
-            // Get the shared with status from the precompiled map
-            const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash);
-            if (!sharedWith) {
-                throw new Error(
-                    `Programming Error: Shared with map didn't have entry for channel ${entry.channelInfoIdHash}`
-                );
-            }
+            const result = await this.convertRawChannelEntryToObjectData(
+                entry,
+                sharedWithPersonsMap,
+                omitData
+            );
 
-            // Load the object to compare the type
-            // AUTHORIZED HACK - casting undefined to any type because
-            // making the data field optional would cause problems
-            // in other apps.
-            const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
-
-            if (data && types && !types.includes(data.$type$)) {
+            if (result.data && types && !types.includes(result.data.$type$)) {
                 continue;
             }
 
-            // Build meta data object and return it
-            yield {
-                channelId: entry.channelInfo.id,
-                channelOwner: entry.channelInfo.owner,
-                channelEntryHash: entry.channelEntryHash,
-                id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
-
-                creationTime: new Date(entry.creationTime),
-                creationTimeHash: entry.creationTimeHash,
-                author: entry.channelInfo.owner,
-                sharedWith: sharedWith,
-
-                data: data,
-                dataHash: entry.dataHash
-            };
+            yield result;
         }
+    }
+
+    /**
+     * Converts the raw represantation to ObjectData<T> representation.
+     *
+     * @param entry
+     * @param sharedWithPersonsMap
+     * @param omitData
+     */
+    async convertRawChannelEntryToObjectData(
+        entry: RawChannelEntry,
+        sharedWithPersonsMap: Map<SHA256IdHash<ChannelInfo>, SHA256IdHash<Person>[]>,
+        omitData: boolean
+    ): Promise<ObjectData<OneObjectTypes>> {
+        // Get the shared with status from the precompiled map
+        const sharedWith = sharedWithPersonsMap.get(entry.channelInfoIdHash) || [];
+
+        // Load the object to compare the type
+        // AUTHORIZED HACK - casting undefined to any type because
+        // making the data field optional would cause problems
+        // in other apps.
+        const data = omitData ? (undefined as any) : await getObject(entry.dataHash);
+
+        // Build meta data object and return it
+        return {
+            channelId: entry.channelInfo.id,
+            channelOwner: entry.channelInfo.owner,
+            channelEntryHash: entry.channelEntryHash,
+            id: ChannelManager.encodeEntryId(entry.channelInfoIdHash, entry.channelEntryHash),
+
+            creationTime: new Date(entry.creationTime),
+            creationTimeHash: entry.creationTimeHash,
+            author: entry.author,
+            sharedWith: sharedWith,
+
+            data: data,
+            dataHash: entry.dataHash
+        };
     }
 
     /**
@@ -907,21 +927,23 @@ export default class ChannelManager {
      * @param from
      * @param to
      * @param ids
+     * @param loadAuthor
      * @returns
      */
     public static async *singleChannelObjectIterator(
         channelInfo: ChannelInfo,
         from?: Date,
         to?: Date,
-        ids?: string[]
+        ids?: string[],
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'singleChannelObjectIterator - ENTER');
 
         // Select the item or entry iterator based on whether ids were passed
         if (ids) {
-            yield* this.itemIterator(channelInfo, ids, from, to);
+            yield* this.itemIterator(channelInfo, ids, from, to, loadAuthor);
         } else {
-            yield* this.entryIterator(channelInfo, from, to);
+            yield* this.entryIterator(channelInfo, from, to, loadAuthor);
         }
 
         logWithId(
@@ -941,12 +963,14 @@ export default class ChannelManager {
      * @param channelInfo - iterate this channel
      * @param from
      * @param to
+     * @param loadAuthor
      * @returns
      */
     private static async *entryIterator(
         channelInfo: ChannelInfo,
         from?: Date,
-        to?: Date
+        to?: Date,
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - ENTER');
         if (!channelInfo.head) {
@@ -956,38 +980,49 @@ export default class ChannelManager {
         const channelInfoIdHash = await calculateIdHashOfObj(channelInfo);
 
         // Iterate over all elements and yield each element
-        let currentEntryHash: SHA256Hash<ChannelEntry> | undefined = channelInfo.head;
-        while (currentEntryHash) {
+        for await (const entry of linkedListIterator(channelInfo.head)) {
+            const currentEntryHash = entry.linkedListEntryHash;
+
             logWithId_Debug(
                 channelInfo.id,
                 channelInfo.owner,
-                `entryIterator: iterate ${currentEntryHash}`
+                `entryIterator: iterate ${entry.linkedListEntryHash}`
             );
 
-            const entry: ChannelEntry = await getObject(currentEntryHash);
-            const creationTimeHash = entry.data;
-            const creationTime = await getObject(creationTimeHash);
-
             // Filter elements based on from / to
-            if (from && creationTime.timestamp < from.getTime()) {
+            if (from && entry.creationTime < from.getTime()) {
                 break;
             }
-            if (to && creationTime.timestamp > to.getTime()) {
-                currentEntryHash = entry.previous;
+
+            if (to && entry.creationTime > to.getTime()) {
                 continue;
+            }
+
+            let author: SHA256IdHash<Person> | undefined;
+            if (loadAuthor && entry.metaDataHashes !== undefined) {
+                for (const metaHash of entry.metaDataHashes) {
+                    const metaObject = await getObject(metaHash);
+                    if (metaObject.$type$ === 'Signature') {
+                        const certObject = await getObject(metaObject.data);
+
+                        if (certObject.$type$ === 'AffirmationCertificate') {
+                            author = metaObject.issuer;
+                            break;
+                        }
+                    }
+                }
             }
 
             yield {
                 channelInfo: channelInfo,
                 channelInfoIdHash: channelInfoIdHash,
                 channelEntryHash: currentEntryHash,
-                creationTimeHash: creationTimeHash,
-                creationTime: creationTime.timestamp,
-                dataHash: creationTime.data,
-                metaDataHashes: entry.metadata
+                creationTimeHash: entry.creationTimeHash,
+                creationTime: entry.creationTime,
+                dataHash: entry.dataHash,
+                metaDataHashes: entry.metaDataHashes,
+                author
             };
-
-            currentEntryHash = entry.previous;
         }
 
         logWithId(channelInfo.id, channelInfo.owner, 'entryIterator - LEAVE: exhausted entries');
@@ -1000,13 +1035,15 @@ export default class ChannelManager {
      * @param ids
      * @param from
      * @param to
+     * @param loadAuthor
      * @returns
      */
     private static async *itemIterator(
         channelInfo: ChannelInfo,
         ids: string[],
         from?: Date,
-        to?: Date
+        to?: Date,
+        loadAuthor?: boolean
     ): AsyncIterableIterator<RawChannelEntry> {
         logWithId(channelInfo.id, channelInfo.owner, 'itemIterator - ENTER');
 
@@ -1021,7 +1058,7 @@ export default class ChannelManager {
                 continue;
             }
 
-            const entry: ChannelEntry = await getObject(entryData.channelEntryHash);
+            const entry: LinkedListEntry = await getObject(entryData.channelEntryHash);
             const creationTimeHash = entry.data;
             const creationTime = await getObject(creationTimeHash);
 
@@ -1033,13 +1070,29 @@ export default class ChannelManager {
                 continue;
             }
 
+            let author: SHA256IdHash<Person> | undefined;
+            if (loadAuthor && entry.metadata !== undefined) {
+                for (const metaHash of entry.metadata) {
+                    const metaObject = await getObject(metaHash);
+                    if (metaObject.$type$ === 'Signature') {
+                        const certObject = await getObject(metaObject.data);
+
+                        if (certObject.$type$ === 'AffirmationCertificate') {
+                            author = metaObject.issuer;
+                            break;
+                        }
+                    }
+                }
+            }
+
             entries.push({
                 channelInfo: channelInfo,
                 channelInfoIdHash: channelInfoIdHash,
                 channelEntryHash: entryData.channelEntryHash,
                 creationTimeHash: creationTimeHash,
                 creationTime: creationTime.timestamp,
-                dataHash: creationTime.data
+                dataHash: creationTime.data,
+                author
             });
         }
 
@@ -1263,262 +1316,6 @@ export default class ChannelManager {
         logWithId(null, null, 'mergeIteratorMostCurrent - LEAVE');
     }
 
-    // ######## Merge algorithm methods ########
-
-    /**
-     * Merge unmerged channel versions.
-     */
-    private async mergeAllUnmergedChannelVersions(): Promise<void> {
-        logWithId(null, null, 'mergeAllUnmergedChannelVersions - START');
-        for (const hash of this.channelInfoCache.keys()) {
-            await this.mergePendingVersions(hash);
-        }
-        logWithId(null, null, 'mergeAllUnmergedChannelVersions - END');
-    }
-
-    /**
-     * Merge all pending versions of passed channel.
-     *
-     * @param channelInfoIdHash - id hash of the channel for which
-     * to merge versions
-     */
-    private async mergePendingVersions(
-        channelInfoIdHash: SHA256IdHash<ChannelInfo>
-    ): Promise<void> {
-        // Determine the channel id and owner
-        let channelId: string;
-        let channelOwner: SHA256IdHash<Person> | undefined;
-        {
-            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
-            channelId = channelInfo.obj.id;
-            channelOwner = channelInfo.obj.owner;
-        }
-
-        const cacheLockName = ChannelManager.cacheLockName;
-
-        try {
-            logWithId(channelId, channelOwner, 'mergePendingVersions - START');
-
-            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
-                // Load the cache entry for the latest merged version
-                const cacheEntry = this.channelInfoCache.get(channelInfoIdHash);
-                if (!cacheEntry) {
-                    throw new Error('The channelInfoIdHash does not exist in registry.');
-                }
-
-                // Determine which versions to merge and their channelInfos
-                let firstVersionToMerge: number;
-                let lastVersionToMerge: number;
-                let channelInfosToMerge: ChannelInfo[];
-                {
-                    //  Determine the first version to merge
-                    if (cacheEntry.latestMergedVersionIndex < cacheEntry.readVersionIndex) {
-                        // If the read pointer is in the future of the merge pointer, then the
-                        // read version already includes the latest merged version => merged + 1
-                        firstVersionToMerge = cacheEntry.latestMergedVersionIndex + 1;
-                    } else {
-                        // This usually means the read pointer is equal to the merge pointer, so
-                        // include this version in the merge range.
-                        firstVersionToMerge = cacheEntry.readVersionIndex;
-                    }
-
-                    // Find the last version to merge based on the version map
-                    const versionMapEntries = await getAllVersionMapEntries(channelInfoIdHash);
-                    lastVersionToMerge = versionMapEntries.length - 1;
-
-                    // Get all ChannelInfo versions in the merge range
-                    const channelInfoHashesToMerge = versionMapEntries
-                        .slice(firstVersionToMerge)
-                        .map(entry => entry.hash);
-
-                    // Get the ChannelInfo object for all versions to merge
-                    channelInfosToMerge = await Promise.all(
-                        channelInfoHashesToMerge.map(getObject)
-                    );
-
-                    // Sanity check. It should always exist at least one version (the last of the merged ones)
-                    if (channelInfosToMerge.length <= 0) {
-                        throw new Error(
-                            'Programming Error: The merge algorithm was called on a non existing channel.'
-                        );
-                    }
-
-                    // If we have only one version to merge, that means that this is the version that was already
-                    // merged by a previous run. In this case we don't need to do anything and just return.
-                    if (channelInfosToMerge.length === 1) {
-                        logWithId(
-                            channelId,
-                            channelOwner,
-                            'mergePendingVersions - END: all versions already merged'
-                        );
-                        return;
-                    }
-                }
-
-                logWithId(
-                    channelId,
-                    channelOwner,
-                    `mergePendingVersions: versions ${firstVersionToMerge} to ${lastVersionToMerge}`
-                );
-
-                // Construct the iterators from the channelInfo representing the different versions
-                const iterators = channelInfosToMerge.map(item =>
-                    ChannelManager.singleChannelObjectIterator(item)
-                );
-
-                // Iterate over all channel versions simultaneously until
-                // 1) there is only a common history left
-                // 2) there is only one channel left with elements
-                let commonHistoryHead: RawChannelEntry | null = null; // This will be the remaining history that doesn't need to be merged
-                const unmergedElements: RawChannelEntry[] = []; // This are the CreationTime
-                // hashes that need to be part of the new history
-                for await (const elem of ChannelManager.mergeIteratorMostCurrent(
-                    iterators,
-                    firstVersionToMerge !== 0
-                )) {
-                    commonHistoryHead = elem;
-                    unmergedElements.push(elem);
-                }
-                unmergedElements.pop(); // The last element is the creationTimeHash of the common history head => remove it
-
-                // If anything was returned, then we need to
-                // 1) rebuild the chain (if unmerged elements exist)
-                // 2) generate a new version with the head (if the same head is not already the latest version)
-                // 3) advance to merge pointer to the proper location (always)
-                if (commonHistoryHead) {
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        `mergePendingVersions: rebuild ${unmergedElements.length} entries on top of ${commonHistoryHead.channelEntryHash}`
-                    );
-
-                    // Rebuild the channel by adding the unmerged elements of the channels on top of the
-                    // common history if we have unmerged entries
-                    let rebuiltHead;
-                    if (unmergedElements.length > 0) {
-                        const result = await ChannelManager.rebuildEntries(
-                            commonHistoryHead.channelEntryHash,
-                            unmergedElements
-                        );
-                        rebuiltHead = result.hash;
-                    } else {
-                        rebuiltHead = commonHistoryHead.channelEntryHash;
-                    }
-
-                    // Write the new channel head only if it differs from the previous one
-                    if (rebuiltHead === channelInfosToMerge[channelInfosToMerge.length - 1].head) {
-                        // We can set the merge and read pointer to lastVersionToMerge, because it has exactly the
-                        // state that the merge algorithm wants to create.
-                        cacheEntry.readVersion =
-                            channelInfosToMerge[channelInfosToMerge.length - 1];
-                        cacheEntry.readVersionIndex = lastVersionToMerge;
-                        cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
-
-                        logWithId(
-                            channelId,
-                            channelOwner,
-                            'mergePendingVersions - END: Not writing merge version: Latest version already includes everything'
-                        );
-                    } else {
-                        const newVersion = await storeVersionedObject({
-                            $type$: 'ChannelInfo',
-                            id: channelId,
-                            owner: channelOwner,
-                            head: rebuiltHead
-                        });
-
-                        // Let's calculate the position of the generated version in the version map
-                        let newVersionIndex = lastVersionToMerge;
-                        {
-                            const versionMapEntries =
-                                await getAllVersionMapEntries(channelInfoIdHash);
-                            for (
-                                let i = lastVersionToMerge + 1;
-                                i < versionMapEntries.length;
-                                ++i
-                            ) {
-                                if (versionMapEntries[i].hash === newVersion.hash) {
-                                    newVersionIndex = i;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Now let's see if another version has arrived between the latest merged version and
-                        // the newly generated version
-                        if (newVersionIndex === lastVersionToMerge + 1) {
-                            // We have no intermediate version, so set the merge and read pointer to this version
-                            cacheEntry.readVersion = newVersion.obj;
-                            cacheEntry.readVersionIndex = newVersionIndex;
-                            cacheEntry.latestMergedVersionIndex = newVersionIndex;
-
-                            logWithId(
-                                channelId,
-                                channelOwner,
-                                'mergePendingVersions - END: merge successful - no intermediate version'
-                            );
-                        } else {
-                            // We have an intermediate version, so set the read pointer ahead of the merge pointer
-                            cacheEntry.readVersion = newVersion.obj;
-                            cacheEntry.readVersionIndex = newVersionIndex;
-                            cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
-
-                            logWithId(
-                                channelId,
-                                channelOwner,
-                                'mergePendingVersions - END: merge successful - intermediate version detected'
-                            );
-                        }
-                    }
-                } else {
-                    // We have no entries in any of the channels, this  means that all versions
-                    // are empty and the merge result is also empty, so setting the merge and read
-                    // pointer to lastVersionToMerge is ok
-                    cacheEntry.readVersion = channelInfosToMerge[channelInfosToMerge.length - 1];
-                    cacheEntry.readVersionIndex = lastVersionToMerge;
-                    cacheEntry.latestMergedVersionIndex = lastVersionToMerge;
-
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        'mergePendingVersions - END: Not writing merge version: only empty channels'
-                    );
-                }
-
-                await this.saveRegistryCacheToOne();
-
-                // notify the post calls, that their version was merged
-                for (const handler of cacheEntry.mergedHandlers) {
-                    handler();
-                }
-                cacheEntry.mergedHandlers = [];
-
-                if (firstVersionToMerge === 0 && commonHistoryHead) {
-                    // If it is the first version - we need to also append the common history head,
-                    // so that it will be part of the event.
-                    this.onUpdated.emit(
-                        channelInfoIdHash,
-                        channelId,
-                        channelOwner || null,
-                        new Date(commonHistoryHead.creationTime),
-                        [...unmergedElements, commonHistoryHead]
-                    );
-                } else if (unmergedElements.length > 0) {
-                    this.onUpdated.emit(
-                        channelInfoIdHash,
-                        channelId,
-                        channelOwner || null,
-                        new Date(unmergedElements[unmergedElements.length - 1].creationTime),
-                        unmergedElements
-                    );
-                }
-            });
-        } catch (e) {
-            logWithId(channelId, channelOwner, `mergePendingVersions - FAIL: ${String(e)}`);
-            throw e;
-        }
-    }
-
     // ######## Entry id and channel selection stuff ########
 
     /**
@@ -1530,7 +1327,7 @@ export default class ChannelManager {
      */
     private static encodeEntryId(
         channelInfoIdHash: SHA256IdHash<ChannelInfo>,
-        channelEntryHash: SHA256Hash<ChannelEntry>
+        channelEntryHash: SHA256Hash<LinkedListEntry>
     ): string {
         return `${channelInfoIdHash}_${channelEntryHash}`;
     }
@@ -1543,7 +1340,7 @@ export default class ChannelManager {
      */
     private static decodeEntryId(id: string): {
         channelInfoIdHash: SHA256IdHash<ChannelInfo>;
-        channelEntryHash: SHA256Hash<ChannelEntry>;
+        channelEntryHash: SHA256Hash<LinkedListEntry>;
     } {
         const idElements = id.split('_');
         if (idElements.length !== 2) {
@@ -1551,7 +1348,7 @@ export default class ChannelManager {
         }
         return {
             channelInfoIdHash: ensureIdHash<ChannelInfo>(idElements[0]),
-            channelEntryHash: ensureHash<ChannelEntry>(idElements[1])
+            channelEntryHash: ensureHash<LinkedListEntry>(idElements[1])
         };
     }
 
@@ -1679,20 +1476,18 @@ export default class ChannelManager {
         // be selected
         if (owners || channelIds) {
             for (const channelInfo of this.channelInfoCache.values()) {
-                if (channelIds && !channelIds.includes(channelInfo.readVersion.id)) {
+                if (channelIds && !channelIds.includes(channelInfo.id)) {
                     continue;
                 }
+
                 if (
                     owners &&
-                    !owners.includes(
-                        channelInfo.readVersion.owner === undefined
-                            ? null
-                            : channelInfo.readVersion.owner
-                    )
+                    !owners.includes(channelInfo.owner === undefined ? null : channelInfo.owner)
                 ) {
                     continue;
                 }
-                selectedChannelInfos.push(channelInfo.readVersion);
+
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1743,7 +1538,7 @@ export default class ChannelManager {
             !ids
         ) {
             for (const channelInfo of this.channelInfoCache.values()) {
-                selectedChannelInfos.push(channelInfo.readVersion);
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1754,10 +1549,12 @@ export default class ChannelManager {
         if (selectedChannelIdHashes) {
             for (const channelInfoIdHash of selectedChannelIdHashes) {
                 const channelInfo = this.channelInfoCache.get(channelInfoIdHash);
+
                 if (!channelInfo) {
                     throw new Error(`Channel ${channelInfoIdHash} does not exist!`);
                 }
-                selectedChannelInfos.push(channelInfo.readVersion);
+
+                selectedChannelInfos.push(channelInfo);
             }
         }
 
@@ -1779,42 +1576,112 @@ export default class ChannelManager {
      * Handler function for the VersionedObj
      * @param caughtObject
      */
-    private async mergeNewChannelInfoVersioned(
+    private async processNewVersion(
         caughtObject: VersionedObjectResult<ChannelInfo>
     ): Promise<void> {
         try {
-            const promiseTracker = createTrackingPromise<void>();
+            MessageBus.send(
+                'log',
+                `processNewVersion ${caughtObject.idHash} - new version ${caughtObject.hash}`
+            );
 
-            // Determine the channel id and owner
-            let channelId: string;
-            let channelOwner: SHA256IdHash<Person> | undefined;
+            await this.addChannelIfNotExist(caughtObject.idHash);
 
-            this.promiseTrackers.add(promiseTracker.promise);
+            const emitEvents = await serializeWithType(
+                `ChannelManager.processNewVersion ${caughtObject.idHash}`,
+                async () => {
+                    const newChannelInfo = caughtObject.obj;
+                    const oldChannelInfo = this.channelInfoCache.get(caughtObject.idHash);
+                    this.channelInfoCache.set(caughtObject.idHash, newChannelInfo);
 
-            {
-                const channelInfo = await getObjectByIdHash(caughtObject.idHash);
-                channelId = channelInfo.obj.id;
-                channelOwner = channelInfo.obj.owner;
-            }
+                    MessageBus.send(
+                        'log',
+                        `processNewVersion ${caughtObject.idHash} - new head: ${newChannelInfo.head}, old head: ${oldChannelInfo?.head}`
+                    );
 
-            // Add channel and merge versions
-            try {
-                logWithId(channelId, channelOwner, 'handleOnVersionedObj - START');
-                await this.addChannelIfNotExist(caughtObject.idHash);
-                await this.mergePendingVersions(caughtObject.idHash);
-                logWithId(channelId, channelOwner, 'handleOnVersionedObj - END');
+                    const changedElements: Array<RawChannelEntry & {isNew: boolean}> = [];
 
-                promiseTracker.resolve();
-            } catch (e) {
-                promiseTracker.reject();
+                    if (oldChannelInfo === undefined || oldChannelInfo.head === undefined) {
+                        for await (const elem of ChannelManager.entryIterator(newChannelInfo)) {
+                            changedElements.push({...elem, isNew: true});
+                        }
+                    } else {
+                        for await (const elem of ChannelManager.mergeIteratorMostCurrent(
+                            [
+                                ChannelManager.entryIterator(oldChannelInfo),
+                                ChannelManager.entryIterator(newChannelInfo)
+                            ],
+                            true,
+                            false
+                        )) {
+                            changedElements.push({...elem, isNew: elem.iterIndex !== 0});
+                        }
+                    }
 
-                logWithId(channelId, channelOwner, `handleOnVersionedObj - FAIL: ${String(e)}`);
-                console.error(e); // Introduce an error event later!
-            } finally {
-                await promiseTracker.promise.finally(() =>
-                    this.promiseTrackers.delete(promiseTracker.promise)
-                );
-            }
+                    // Register profile at leute by creating a version history.
+                    for (const entry of changedElements) {
+                        if (
+                            !this.getChannelSettingsRegisterSenderProfileAtLeute(
+                                entry.channelInfoIdHash
+                            )
+                        ) {
+                            continue;
+                        }
+
+                        if (!entry.isNew) {
+                            continue;
+                        }
+
+                        const myId = await this.leuteModel.myMainIdentity();
+
+                        if (entry.metaDataHashes) {
+                            for (const metaDataHash of entry.metaDataHashes) {
+                                const metadataObj = await getObject(metaDataHash);
+
+                                if (metadataObj.$type$ === 'Profile') {
+                                    const newProfile: Profile = {
+                                        ...metadataObj,
+                                        owner: myId,
+                                        profileId: `ChannelAttachedProfile ${entry.channelInfoIdHash} ${entry.channelInfo.id}`
+                                    };
+
+                                    try {
+                                        const current = await getObjectByIdObj(newProfile);
+                                        newProfile.$versionHash$ = current.obj.$versionHash$;
+                                    } catch (_e) {
+                                        // Empty, because this means that no version exists, yet
+                                    }
+
+                                    await storeVersionedObject(newProfile);
+                                }
+                            }
+                        }
+                    }
+
+                    MessageBus.send(
+                        'debug',
+                        `processNewVersion ${caughtObject.idHash} - found ${changedElements.length} new elements`
+                    );
+
+                    if (changedElements.length > 0) {
+                        return () => {
+                            this.onUpdated.emit(
+                                caughtObject.idHash,
+                                newChannelInfo.id,
+                                newChannelInfo.owner || null,
+                                new Date(changedElements[changedElements.length - 1].creationTime),
+                                changedElements
+                            );
+                        };
+                    } else {
+                        return () => {
+                            // No emits necessary
+                        };
+                    }
+                }
+            );
+
+            emitEvents();
         } catch (e) {
             console.error(e); // Introduce an error event later!
         }
@@ -1832,35 +1699,32 @@ export default class ChannelManager {
         let channelId: string;
         let channelOwner: SHA256IdHash<Person> | undefined;
         {
-            const channelInfo = await getObjectByIdHash(channelInfoIdHash);
-            channelId = channelInfo.obj.id;
-            channelOwner = channelInfo.obj.owner;
+            const channelInfo = await getIdObject(channelInfoIdHash);
+            channelId = channelInfo.id;
+            channelOwner = channelInfo.owner;
         }
 
-        const cacheLockName = ChannelManager.cacheLockName;
-
         try {
-            await serializeWithType(`${cacheLockName}${channelInfoIdHash}`, async () => {
-                logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
-                if (this.channelInfoCache.has(channelInfoIdHash)) {
-                    logWithId(
-                        channelId,
-                        channelOwner,
-                        'addChannelIfNotExist - END: already existed'
-                    );
-                } else {
-                    this.channelInfoCache.set(channelInfoIdHash, {
-                        readVersion: await getObject(
-                            await getNthVersionMapHash(channelInfoIdHash, 0)
-                        ),
-                        readVersionIndex: 0,
-                        latestMergedVersionIndex: 0,
-                        mergedHandlers: []
-                    });
-                    await this.saveRegistryCacheToOne();
-                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+            await serializeWithType(
+                `${ChannelManager.cacheLockName}${channelInfoIdHash}`,
+                async () => {
+                    logWithId(channelId, channelOwner, 'addChannelIfNotExist - START');
+                    if (this.channelInfoCache.has(channelInfoIdHash)) {
+                        logWithId(
+                            channelId,
+                            channelOwner,
+                            'addChannelIfNotExist - END: already existed'
+                        );
+                    } else {
+                        this.channelInfoCache.set(
+                            channelInfoIdHash,
+                            (await getCurrentVersion(channelInfoIdHash)).obj
+                        );
+                        await this.saveRegistryCacheToOne();
+                        logWithId(channelId, channelOwner, 'addChannelIfNotExist - END: added');
+                    }
                 }
-            });
+            );
         } catch (e) {
             logWithId(channelId, channelOwner, `addChannelIfNotExist - FAIL: ${String(e)}`);
             throw e;
@@ -1874,58 +1738,17 @@ export default class ChannelManager {
      */
     private async saveRegistryCacheToOne(): Promise<void> {
         await serializeWithType(ChannelManager.registryLockName, async () => {
-            const channels: ChannelRegistryEntry[] = [];
-            for (const [idHash, cacheEntry] of this.channelInfoCache) {
-                channels.push({
-                    channelInfoIdHash: idHash,
-                    readVersionIndex: cacheEntry.readVersionIndex,
-                    mergedVersionIndex: cacheEntry.latestMergedVersionIndex
-                });
-            }
-
             // Write the registry version
-            await storeVersionedObject({
-                $type$: 'ChannelRegistry',
-                id: 'ChannelRegistry',
-                channels: channels
-            });
+            this.loadedRegistryVersion = (
+                await storeVersionedObject({
+                    $type$: 'ChannelRegistry',
+                    id: 'ChannelRegistry',
+                    $versionHash$: this.loadedRegistryVersion,
+                    channels: new Set(this.channelInfoCache.keys())
+                })
+            ).obj.$versionHash$;
         });
     }
-
-    // /**
-    //  * This function wraps the given channel info into {@link ObjectData}
-    //  * Returns undefined if the channel head is empty
-    //  *
-    //  * @param channelIdHash
-    //  * @private
-    //  */
-    // private static async wrapChannelInfoWithObjectData(
-    //     channelIdHash: SHA256IdHash<ChannelInfo>
-    // ): Promise<ObjectData<OneUnversionedObjectTypes> | undefined> {
-    //     const channel = await getObjectByIdHash(channelIdHash);
-    //     if (channel.obj.head) {
-    //         const channelEntry = await getObject(channel.obj.head);
-    //         const channelCreationTime = await getObject(channelEntry.data);
-    //         const channelData = await getObject(channelCreationTime.data);
-    //
-    //         const sharedWithPersons = await ChannelManager.sharedWithPersonsList(channelIdHash);
-    //
-    //         return {
-    //             channelId: channel.obj.id,
-    //             channelOwner: channel.obj.owner,
-    //             channelEntryHash: channel.obj.head,
-    //             id: ChannelManager.encodeEntryId(channelIdHash, channel.obj.head),
-    //             creationTime: new Date(channelCreationTime.timestamp),
-    //             creationTimeHash: channelEntry.data,
-    //             author: channel.obj.owner,
-    //             sharedWith: sharedWithPersons,
-    //
-    //             data: channelData,
-    //             dataHash: channelCreationTime.data
-    //         };
-    //     }
-    //     return undefined;
-    // }
 
     /**
      * Load the latest channel registry version into the the cache.
@@ -1958,19 +1781,18 @@ export default class ChannelManager {
             // Short term fix might be by serializing all the loads, but this will significantly
             // increase load time - so let's stick with the parallel version for now.
             await Promise.all(
-                registry.channels.map(async channel => {
-                    const channelInfoHash = await getNthVersionMapHash(
-                        channel.channelInfoIdHash,
-                        channel.readVersionIndex
-                    );
-                    this.channelInfoCache.set(channel.channelInfoIdHash, {
-                        readVersion: await getObject(channelInfoHash),
-                        readVersionIndex: channel.readVersionIndex,
-                        latestMergedVersionIndex: channel.mergedVersionIndex,
-                        mergedHandlers: []
-                    });
+                [...registry.channels].map(async channelIdHash => {
+                    try {
+                        const channelInfoResult = await getCurrentVersion(channelIdHash);
+                        this.channelInfoCache.set(channelIdHash, channelInfoResult.obj);
+                    } catch (_e) {
+                        // This means that there is no version - should not happen. The empty
+                        // channel is also a version
+                    }
                 })
             );
+
+            this.loadedRegistryVersion = registry.$versionHash$;
         });
         logWithId(null, null, 'loadRegistryCacheFromOne - END');
     }
@@ -2033,15 +1855,15 @@ export default class ChannelManager {
      * @param newElementsReversed
      */
     private static async rebuildEntries(
-        oldHead: SHA256Hash<ChannelEntry>,
+        oldHead: SHA256Hash<LinkedListEntry>,
         newElementsReversed: RawChannelEntry[]
-    ): Promise<UnversionedObjectResult<ChannelEntry>> {
+    ): Promise<UnversionedObjectResult<LinkedListEntry>> {
         // Create the new channel entries linked list from the array elements
         let lastChannelEntry = oldHead;
         let newEntryResult;
         for (let i = newElementsReversed.length - 1; i >= 0; --i) {
             newEntryResult = await storeUnversionedObject({
-                $type$: 'ChannelEntry',
+                $type$: 'LinkedListEntry',
                 data: newElementsReversed[i].creationTimeHash,
                 metadata: newElementsReversed[i].metaDataHashes,
                 previous: lastChannelEntry
@@ -2079,11 +1901,11 @@ export default class ChannelManager {
     private async internalChannelPost(
         channelId: string,
         channelOwner: SHA256IdHash<Person> | undefined,
-        payload: OneUnversionedObjectTypes,
+        payload: OneObjectTypes,
         author?: SHA256IdHash<Person>,
         timestamp?: number
     ): Promise<VersionedObjectResult<ChannelInfo>> {
-        // Get the latest ChannelInfo from the database
+        // Load latest ChannelInfo
         const channelInfoIdHash = await calculateIdHashOfObj({
             $type$: 'ChannelInfo',
             id: channelId,
@@ -2091,74 +1913,49 @@ export default class ChannelManager {
         });
         const latestChannelInfo = (await getObjectByIdHash<ChannelInfo>(channelInfoIdHash)).obj;
 
-        // Get the creation time of the last element
-        let previousCreationTime = 0;
-        if (latestChannelInfo.head) {
-            const channelEntry = await getObject(latestChannelInfo.head);
-            const creationTimeObj = await getObject(channelEntry.data);
-            previousCreationTime = creationTimeObj.timestamp;
-        }
+        // Insert new element into linked list
+        const newHeadHash = await linkedListInsert(
+            latestChannelInfo.head,
+            payload,
+            async creationTimeResult => {
+                // Collect metadata that shall be included
+                const metadata: SHA256Hash[] = [];
+                if (author !== undefined) {
+                    metadata.push(
+                        (await this.leuteModel.trust.affirm(creationTimeResult.hash, author)).hash
+                    );
 
-        // Write the payload.
-        // If it already exists, then ... it doesn't matter, because it will have the same hash
-        const payloadResult = await storeUnversionedObject(payload);
-
-        // Write creation time meta information
-        const creationTimeResult = await storeUnversionedObject({
-            $type$: 'CreationTime',
-            timestamp: timestamp ? timestamp : Date.now(),
-            data: payloadResult.hash
-        });
-
-        // Collect metadata that shall be included
-        const metadata: SHA256Hash[] = [];
-        if (author !== undefined) {
-            metadata.push(
-                (await this.leuteModel.trust.affirm(creationTimeResult.hash, author)).hash
-            );
-
-            if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {
-                const profiles = await (await this.leuteModel.me()).profiles(author);
-                const defaultProfile = profiles.filter(
-                    profile =>
-                        profile.profileId === 'default' &&
-                        profile.owner === author &&
-                        profile.personId === author
-                );
-                if (defaultProfile.length > 0 && defaultProfile[0].loadedVersion !== undefined) {
-                    metadata.push(defaultProfile[0].loadedVersion);
+                    if (this.getChannelSettingsAppendSenderProfile(channelInfoIdHash)) {
+                        const profiles = await (await this.leuteModel.me()).profiles(author);
+                        const defaultProfile = profiles.filter(
+                            profile =>
+                                profile.profileId === 'default' &&
+                                profile.owner === author &&
+                                profile.personId === author
+                        );
+                        if (
+                            defaultProfile.length > 0 &&
+                            defaultProfile[0].loadedVersion !== undefined
+                        ) {
+                            metadata.push(defaultProfile[0].loadedVersion);
+                        }
+                    }
                 }
-            }
-        }
+                return metadata;
+            },
+            timestamp
+        );
 
-        // If the creation time of the previous entry is larger, it means that the clock of one of the
-        // participating devices is wrong. We can't then just set the new element as new head, because
-        // this would invalidate the assumption that all items are sorted by creation time.
-        // In this special case we need to insert the element at the correct position in the chain by
-        // iterating and rebuilding the chain after the correct insertion point.
-        // The merge algorithm does exactly that, so we just post a new version with exactly one element
-        // (=> undefined previous element) and let the merge algorithm take care of the iteration.
-        let previousPointer;
-        if (creationTimeResult.obj.timestamp > previousCreationTime) {
-            previousPointer = latestChannelInfo.head;
-        } else {
-            previousPointer = undefined;
-        }
-
-        // Write the channel entry
-        const channelEntryResult = await storeUnversionedObject({
-            $type$: 'ChannelEntry',
-            previous: previousPointer,
-            data: creationTimeResult.hash,
-            metadata
-        });
+        // processNewVersion is triggered automatically by the listener for new objects
+        // registered in init()
 
         // Write the channel info with the new channel entry as head
-        return storeVersionedObject({
+        return await storeVersionedObject({
             $type$: 'ChannelInfo',
+            $versionHash$: latestChannelInfo.$versionHash$,
             id: channelId,
             owner: channelOwner,
-            head: channelEntryResult.hash
+            head: newHeadHash
         });
     }
 

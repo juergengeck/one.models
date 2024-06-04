@@ -61,8 +61,12 @@ export default class WbcDiffModel extends Model {
      * Create a new response for a questionnaire.
      *
      * @param wbcObservation - The answers for the questionnaire
+     * @param owner
      */
-    async postObservation(wbcObservation: WbcObservation): Promise<void> {
+    async postObservation(
+        wbcObservation: WbcObservation,
+        owner?: SHA256IdHash<Person>
+    ): Promise<void> {
         this.state.assertCurrentState('Initialised');
 
         MessageBus.send('log', 'postMeasurement()');
@@ -86,7 +90,7 @@ export default class WbcDiffModel extends Model {
         }
 
         // post wbc measurement to channel
-        await this.channelManager.postToChannel(WbcDiffModel.channelId, wbcObservation);
+        await this.channelManager.postToChannel(WbcDiffModel.channelId, wbcObservation, owner);
     }
 
     /**
