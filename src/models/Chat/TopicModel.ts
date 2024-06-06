@@ -365,24 +365,13 @@ export default class TopicModel extends Model {
         // Create the topic
         await this.channelManager.createChannel(topicID, channelOwner ? channelOwner : null);
 
-        const channels = await this.channelManager.channels({
-            channelId: topicID
-        });
-
-        if (channels[0] === undefined) {
-            throw new Error(
-                "Error while trying to retrieve the topic's channel. The channel" +
-                    ' does not exist.'
-            );
-        }
-
-        const createdChannel = channels[0];
         const savedTopic = await storeUnversionedObject({
             $type$: 'Topic',
-            id: createdChannel.id,
+            id: topicID,
             channel: await calculateIdHashOfObj({
                 $type$: 'ChannelInfo',
-                id: createdChannel.id
+                id: topicID,
+                owner: channelOwner ? channelOwner : undefined
             }),
             name: topicName
         });
