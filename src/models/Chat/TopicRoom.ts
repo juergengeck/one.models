@@ -162,7 +162,8 @@ export default class TopicRoom {
     async sendMessageWithAttachmentAsFile(
         message: string,
         attachments: File[],
-        author?: SHA256IdHash<Person>
+        author?: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (author === undefined) {
             author = await this.leuteModel.myMainIdentity();
@@ -181,7 +182,7 @@ export default class TopicRoom {
                 sender: author,
                 attachments: writtenAttachments
             },
-            null,
+            channelOwner,
             undefined,
             author
         );
@@ -196,7 +197,8 @@ export default class TopicRoom {
     async sendMessageWithThumbnailImageAttachmentAsFile(
         message: string,
         attachments: {original: File; thumbnail: File}[],
-        author?: SHA256IdHash<Person>
+        author?: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (author === undefined) {
             author = await this.leuteModel.myMainIdentity();
@@ -224,7 +226,7 @@ export default class TopicRoom {
                 attachments: writtenOriginalAttachments,
                 thumbnails: writtenThumbnailAttachments
             },
-            null,
+            channelOwner,
             undefined,
             author
         );
@@ -235,7 +237,11 @@ export default class TopicRoom {
      * @param message
      * @param author
      */
-    async sendMessage(message: string, author?: SHA256IdHash<Person>): Promise<void> {
+    async sendMessage(
+        message: string,
+        author?: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person> | null
+    ): Promise<void> {
         if (author === undefined) {
             author = await this.leuteModel.myMainIdentity();
         }
@@ -247,7 +253,7 @@ export default class TopicRoom {
                 text: message,
                 sender: author
             },
-            null,
+            channelOwner,
             undefined,
             author
         );
