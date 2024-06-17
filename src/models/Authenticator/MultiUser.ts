@@ -1,10 +1,24 @@
-import Authenticator from './Authenticator.js';
+import nacl from 'tweetnacl';
+import {toByteArray} from 'base64-js';
+
 import {
     closeAndDeleteCurrentInstance,
     deleteInstance,
     initInstance,
     instanceExists
 } from '@refinio/one.core/lib/instance.js';
+import {
+    ensurePublicKey,
+    ensureSecretKey,
+    type KeyPair
+} from '@refinio/one.core/lib/crypto/encryption.js';
+import {
+    ensurePublicSignKey,
+    ensureSecretSignKey,
+    type SignKeyPair
+} from '@refinio/one.core/lib/crypto/sign.js';
+
+import Authenticator from './Authenticator.js';
 
 /**
  * This class represents an 'Multi User API With Credentials' authentication workflow.
@@ -15,8 +29,17 @@ export default class MultiUser extends Authenticator {
      * @param email
      * @param secret
      * @param instanceName
+     * @param secretEncryptionKey
+     * @param secretSignKey
+     * @param registerData
      */
-    async register(email: string, secret: string, instanceName: string): Promise<void> {
+    async register(
+        email: string,
+        secret: string,
+        instanceName: string,
+        secretEncryptionKey?: Uint8Array | string,
+        secretSignKey?: Uint8Array | string
+    ): Promise<void> {
         this.authState.triggerEvent('login');
 
         if (await instanceExists(instanceName, email)) {
@@ -25,6 +48,34 @@ export default class MultiUser extends Authenticator {
         }
 
         try {
+            let personEncryptionKeyPair: KeyPair | undefined = undefined;
+            let personSignKeyPair: SignKeyPair | undefined = undefined;
+
+            if (secretEncryptionKey) {
+                const secretEncryptionKeyUint8Array =
+                    typeof secretEncryptionKey === 'string'
+                        ? toByteArray(secretEncryptionKey)
+                        : secretEncryptionKey;
+                const publicEncryptionKeyUint8Array = nacl.box.keyPair.fromSecretKey(
+                    secretEncryptionKeyUint8Array
+                ).publicKey;
+                personEncryptionKeyPair = {
+                    publicKey: ensurePublicKey(publicEncryptionKeyUint8Array),
+                    secretKey: ensureSecretKey(secretEncryptionKeyUint8Array)
+                };
+            }
+
+            if (secretSignKey) {
+                const secretSignKeyUint8Array =
+                    typeof secretSignKey === 'string' ? toByteArray(secretSignKey) : secretSignKey;
+                const publicSignKeyUint8Array =
+                    nacl.sign.keyPair.fromSecretKey(secretSignKeyUint8Array).publicKey;
+                personSignKeyPair = {
+                    publicKey: ensurePublicSignKey(publicSignKeyUint8Array),
+                    secretKey: ensureSecretSignKey(secretSignKeyUint8Array)
+                };
+            }
+
             await initInstance({
                 name: instanceName,
                 email: email,
@@ -34,7 +85,9 @@ export default class MultiUser extends Authenticator {
                 initialRecipes: this.config.recipes,
                 initiallyEnabledReverseMapTypes: this.config.reverseMaps,
                 initiallyEnabledReverseMapTypesForIdObjects: this.config.reverseMapsForIdObjects,
-                storageInitTimeout: this.config.storageInitTimeout
+                storageInitTimeout: this.config.storageInitTimeout,
+                personSignKeyPair,
+                personEncryptionKeyPair
             });
         } catch (error) {
             this.authState.triggerEvent('login_failure');
