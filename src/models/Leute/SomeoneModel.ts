@@ -393,7 +393,7 @@ export default class SomeoneModel {
      */
     public async removeProfile(profile: SHA256IdHash<Profile>): Promise<void> {
         const profileObj = await getObjectByIdHash(profile);
-        const profileSet = this.pIdentities.get(profileObj.obj.personId);
+        const profileSet = this.someone.identities.get(profileObj.obj.personId);
 
         if (profileSet === undefined) {
             throw new Error('The someone object does not manage profiles for the specified person');
