@@ -257,6 +257,7 @@ export default class TopicModel extends Model {
      *
      * @param from
      * @param to
+     * @param channelOwner Optional. One of `from`, `to` or undefined (default)
      */
     public async createOneToOneTopic(
         from: SHA256IdHash<Person>,
