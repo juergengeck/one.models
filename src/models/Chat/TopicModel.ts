@@ -266,11 +266,7 @@ export default class TopicModel extends Model {
         this.state.assertCurrentState('Initialised');
 
         const nameAndId = [from, to].sort().join('<->');
-        const owner = channelOwner
-            ? channelOwner === from || channelOwner === to
-                ? channelOwner
-                : undefined
-            : undefined;
+        const owner = channelOwner === from || channelOwner === to ? channelOwner : undefined;
         return await this.createNewTopic(nameAndId, nameAndId, owner);
     }
 
