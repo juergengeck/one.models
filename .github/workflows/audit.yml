@@ -36,7 +36,7 @@ jobs:
                   subject: Audit-Report for ${{github.repository}}
                   # Read file contents as body:
                   body: file://audit-high.txt
-                  to: devops@refinio.net,erik@refinio.net,winpuc@refinio.net,milena@refinio.net,mha@refinio.net,sebastian@refinio.net
+                  to: devops@refinio.net,erik@refinio.net,winpuc@refinio.net,milena@refinio.net
                   from: devops@refinio.net # <user@example.com>
                   # Optional content type (defaults to text/plain):
                   content_type: text
