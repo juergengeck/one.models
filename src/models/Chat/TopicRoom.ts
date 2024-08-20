@@ -129,11 +129,13 @@ export default class TopicRoom {
      * @param message
      * @param attachments array of attached hashes
      * @param author
+     * @param channelOwner
      */
-    async sendMesageWithAttachmentAsHash(
+    async sendMessageWithAttachmentAsHash(
         message: string,
         attachments: SHA256Hash[],
-        author?: SHA256IdHash<Person>
+        author?: SHA256IdHash<Person>,
+        channelOwner?: SHA256IdHash<Person> | null
     ): Promise<void> {
         if (author === undefined) {
             author = await this.leuteModel.myMainIdentity();
@@ -147,7 +149,7 @@ export default class TopicRoom {
                 sender: author,
                 attachments: attachments
             },
-            null,
+            channelOwner,
             undefined,
             author
         );
