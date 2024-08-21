@@ -20,7 +20,7 @@
         "start": "node lib/model/index.js",
         "test": "npx --no-install mocha --exit 'test/**/*-test.js'",
         "testcov": "npx --no-install nyc npx --no-install mocha --exit 'test/**/**-test.js'",
-        "start-comm-server": "node dist/commServer.bundle.js -h localhost -p 8000 -l",
+        "start-comm-server": "node comm_server.bundle.js -h localhost -p 8000 -l",
         "start-state-machine": "node lib/tools/StateMachine",
         "bundle": "npx --no-install webpack",
         "cpall": "node copy-refinio-deps.mjs",

@@ -1,4 +1,4 @@
-import chai, {expect} from 'chai';
+import {use, expect} from 'chai';
 
 import {closeInstance, initInstance} from '@refinio/one.core/lib/instance.js';
 import SignatureRecipes, {SignatureReverseMaps} from '../lib/recipes/SignatureRecipes.js';
@@ -14,7 +14,7 @@ import {
 import {getIdObject} from '@refinio/one.core/lib/storage-versioned-objects.js';
 import {initOneCorePlatform} from './_helpers.js';
 
-chai.use(chaiAsPromised);
+use(chaiAsPromised);
 
 describe('identityExchange test one independent functions', () => {
     beforeEach(async () => {
