@@ -12,6 +12,7 @@ import {Order} from '../lib/models/ChannelManager.js';
 import type {BodyTemperature} from '../lib/recipes/BodyTemperatureRecipe.js';
 import * as StorageTestInit from './_helpers.js';
 import TestModel from './utils/TestModel.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -128,7 +129,7 @@ describe('Channel Manager test', () => {
         await channelManager.postToChannel('third', {$type$: 'BodyTemperature', temperature: 4});
         await channelManager.postToChannel('second', {$type$: 'BodyTemperature', temperature: 5});
         await channelManager.postToChannel('first', {$type$: 'BodyTemperature', temperature: 6});
-        // await wait(1000);
+        await wait(1000);
     });
 
     // This test tries to replicate this setup, because it doesn't work right.
