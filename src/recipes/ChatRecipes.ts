@@ -38,6 +38,7 @@ export interface ChatMessage {
 export interface ChatRequest {
     $type$: 'ChatRequest';
     for: string;
+    completed: boolean;
 }
 
 type TopicChannelID = string;
@@ -56,6 +57,10 @@ export const ChatRequestRecipe: Recipe = {
         {
             itemprop: 'for',
             itemtype: {type: 'string'}
+        },
+        {
+            itemprop: 'completed',
+            itemtype: {type: 'boolean'}
         }
     ]
 };
