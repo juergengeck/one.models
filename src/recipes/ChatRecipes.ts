@@ -6,6 +6,7 @@ import type {ChannelInfo} from './ChannelRecipes.js';
 declare module '@OneObjectInterfaces' {
     export interface OneUnversionedObjectInterfaces {
         ChatMessage: ChatMessage;
+        ChatRequest: ChatRequest;
         Topic: Topic;
     }
 
@@ -34,6 +35,11 @@ export interface ChatMessage {
     thumbnails?: SHA256Hash[];
 }
 
+export interface ChatRequest {
+    $type$: 'ChatRequest';
+    for: string;
+}
+
 type TopicChannelID = string;
 
 export interface TopicAppRegistry {
@@ -42,6 +48,17 @@ export interface TopicAppRegistry {
     id: 'TopicAppRegistry';
     topics: Map<TopicChannelID, SHA256Hash<Topic>>;
 }
+
+export const ChatRequestRecipe: Recipe = {
+    $type$: 'Recipe',
+    name: 'ChatRequest',
+    rule: [
+        {
+            itemprop: 'for',
+            itemtype: {type: 'string'}
+        }
+    ]
+};
 
 export const ChatMessageRecipe: Recipe = {
     $type$: 'Recipe',
@@ -120,6 +137,11 @@ export const TopicAppRegistryRecipe: Recipe = {
     ]
 };
 
-const ChatRecipes: Recipe[] = [ChatMessageRecipe, TopicRecipe, TopicAppRegistryRecipe];
+const ChatRecipes: Recipe[] = [
+    ChatMessageRecipe,
+    ChatRequestRecipe,
+    TopicRecipe,
+    TopicAppRegistryRecipe
+];
 
 export default ChatRecipes;
