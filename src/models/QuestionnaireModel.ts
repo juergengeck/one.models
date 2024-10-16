@@ -6,7 +6,7 @@ import {OEvent} from '../misc/OEvent.js';
 import {Model} from './Model.js';
 
 import type {Person} from '@refinio/one.core/lib/recipes.js';
-import type {SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
+import type {SHA256Hash, SHA256IdHash} from '@refinio/one.core/lib/util/type-checks.js';
 
 import type {Questionnaire as QuestionnaireRecipe} from '../recipes/QuestionnaireRecipes/QuestionnaireRecipes.js';
 import {
@@ -17,6 +17,7 @@ import {
     type LatestQuestionnaireResponse,
     type LatestQuestionnaireResponseItem
 } from '../recipes/QuestionnaireRecipes/QuestionnaireResponseRecipes.js';
+import {calculateHashOfObj} from '@refinio/one.core/lib/util/object.js';
 
 // Export the Questionnaire types
 export type Questionnaire = Omit<QuestionnaireRecipe, '$type$'>;
@@ -242,10 +243,10 @@ export default class QuestionnaireModel extends Model {
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
-    ): Promise<void> {
+    ): Promise<SHA256Hash<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
-        await this.postResponseCollection([response], name, type, owner);
+        return await this.postResponseCollection([response], name, type, owner);
     }
 
     /**
@@ -264,7 +265,7 @@ export default class QuestionnaireModel extends Model {
         name?: string,
         type?: string,
         owner?: SHA256IdHash<Person>
-    ): Promise<void> {
+    ): Promise<SHA256Hash<QuestionnaireResponses>> {
         this.state.assertCurrentState('Initialised');
 
         // We decided not to do any validation here, because it is done by the questionnaire builder.
@@ -289,6 +290,13 @@ export default class QuestionnaireModel extends Model {
             },
             owner
         );
+
+        return calculateHashOfObj({
+            $type$: questionnaireResponsesType,
+            name,
+            type,
+            response: responses
+        });
     }
 
     /**
