@@ -1620,7 +1620,7 @@ export default class ChannelManager {
                                 ChannelManager.entryIterator(oldChannelInfo),
                                 ChannelManager.entryIterator(newChannelInfo)
                             ],
-                            true,
+                            false,
                             false
                         )) {
                             changedElements.push({...elem, isNew: elem.iterIndex !== 0});
