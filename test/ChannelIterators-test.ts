@@ -17,6 +17,7 @@ import type ChannelManager from '../lib/models/ChannelManager.js';
 import type {ChannelRegistry} from '../lib/recipes/ChannelRecipes.js';
 import * as StorageTestInit from './_helpers.js';
 import TestModel from './utils/TestModel.js';
+import {wait} from '@refinio/one.core/lib/util/promise.js';
 
 let channelManager: ChannelManager;
 let testModel: TestModel;
@@ -88,6 +89,7 @@ describe('Channel Iterators test', () => {
                 }
             })
         );
+        await wait(10);
         const channelRegistry = Array.from((await getChannelRegistry()).obj.channels.keys());
         // 3 from channelsIdentifiers.length
         // 2 from Models which create their channel on Model.init
@@ -132,6 +134,7 @@ describe('Channel Iterators test', () => {
                 }
             })
         );
+        await wait(10);
 
         for (const channelId of channelsIdentifiers) {
             const retrievedObjects = await channelManager.getObjects({channelId});
