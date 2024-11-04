@@ -89,7 +89,7 @@ describe('Channel Iterators test', () => {
                 }
             })
         );
-        await wait(10);
+        await wait(100);
         const channelRegistry = Array.from((await getChannelRegistry()).obj.channels.keys());
         // 3 from channelsIdentifiers.length
         // 2 from Models which create their channel on Model.init
@@ -134,7 +134,7 @@ describe('Channel Iterators test', () => {
                 }
             })
         );
-        await wait(10);
+        await wait(100);
 
         for (const channelId of channelsIdentifiers) {
             const retrievedObjects = await channelManager.getObjects({channelId});
