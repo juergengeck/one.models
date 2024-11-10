@@ -42,3 +42,11 @@ Setup **prettier.js** and **build.js** te be run on file changes.
 ## TypeScript
 
 The file **@OneCoreTypes.d.ts** defines the types this project uses as well as exports
+
+## Tools
+
+To build the `CommServer`, `PasswordRecoveryServer` and `GenerateIdentity` tools run
+
+```bash
+npm run bundle
+```
