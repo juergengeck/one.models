@@ -217,7 +217,7 @@ export default class ChannelManager {
 
     private loadedRegistryVersion: SHA256Hash<VersionNode> | undefined = undefined;
 
-    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfo> = new Map();
+    private channelInfoCache: Map<SHA256IdHash<ChannelInfo>, ChannelInfo>;
     private disconnectOnVersionedObjListener: () => void = () => {
         // Empty by design
     };
@@ -245,6 +245,7 @@ export default class ChannelManager {
      */
     constructor(leuteModel: LeuteModel) {
         this.leuteModel = leuteModel;
+        this.channelInfoCache = new Map();
     }
 
     /**
@@ -276,6 +277,7 @@ export default class ChannelManager {
         this.disconnectOnVersionedObjListener();
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         this.disconnectOnVersionedObjListener = () => {};
+        this.channelInfoCache = new Map();
     }
 
     // ######## Channel management ########
