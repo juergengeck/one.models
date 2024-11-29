@@ -112,20 +112,20 @@ export default class CanRiskModel extends Model {
         questionnaireResponsesHash?: QuestionnaireResponsesHash,
         postDate?: Date,
         ownerId?: SHA256IdHash<Person>
-    ): Promise<CanRiskResult | undefined> {
+    ): Promise<ObjectData<CanRiskResult> | undefined> {
         for await (const canRiskResultObjectData of this.resultsIterator({
             from: postDate,
             owner: ownerId ? ownerId : 'mainId'
         })) {
             if (!questionnaireResponsesHash) {
-                return canRiskResultObjectData.data;
+                return canRiskResultObjectData;
             }
 
             if (
                 canRiskResultObjectData.data.questionnaireResponsesHash ===
                 questionnaireResponsesHash
             ) {
-                return canRiskResultObjectData.data;
+                return canRiskResultObjectData;
             }
         }
 
